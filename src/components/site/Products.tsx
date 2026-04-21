@@ -275,7 +275,7 @@ export const Products = () => {
             </p>
           </div>
 
-          <Sheet>
+          <Sheet open={cartOpen} onOpenChange={setCartOpen}>
             <SheetTrigger asChild>
               <Button variant="hero" size="lg" className="relative">
                 <ShoppingCart />
