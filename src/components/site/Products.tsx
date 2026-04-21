@@ -366,10 +366,19 @@ export const Products = () => {
                   </div>
                   <Button
                     variant="hero"
+                    size="lg"
                     className="w-full"
                     onClick={startCheckout}
                   >
-                    Checkout
+                    <CreditCard className="h-4 w-4" />
+                    Go to payment
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setCartOpen(false)}
+                  >
+                    Continue shopping
                   </Button>
                 </SheetFooter>
               )}
