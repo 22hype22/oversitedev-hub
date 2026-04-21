@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Menu, X, Lock } from "lucide-react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import oversiteLogo from "@/assets/oversite-logo.png";
 
 const links = [
   { to: "/", label: "Home", end: true },
@@ -20,11 +21,12 @@ export const Navbar = () => {
   return (
     <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b border-border/60">
       <nav className="container mx-auto flex items-center justify-between h-16 px-4">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-md bg-gradient-primary shadow-glow grid place-items-center text-primary-foreground font-bold">
-            O
-          </div>
-          <span className="font-semibold tracking-tight text-lg">Oversite</span>
+        <Link to="/" className="flex items-center" aria-label="Oversite — Build, Grow, Succeed">
+          <img
+            src={oversiteLogo}
+            alt="Oversite"
+            className="h-10 md:h-12 w-auto object-contain"
+          />
         </Link>
 
         <ul className="hidden md:flex items-center gap-8">
