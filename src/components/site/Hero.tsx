@@ -11,9 +11,9 @@ export const Hero = () => {
         aria-hidden="true"
         width={1920}
         height={1024}
-        className="absolute inset-0 w-full h-full object-cover opacity-40 pointer-events-none"
+        className="absolute inset-0 w-full h-full object-cover opacity-15 pointer-events-none"
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/60 to-background pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/85 to-background pointer-events-none" />
 
       <div className="container relative mx-auto px-4 py-20 md:py-32">
         <div className="max-w-3xl">

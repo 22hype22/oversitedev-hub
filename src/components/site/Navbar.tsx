@@ -14,7 +14,7 @@ export const Navbar = () => {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/70 border-b border-border/50">
+    <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b border-border/60">
       <nav className="container mx-auto flex items-center justify-between h-16 px-4">
         <a href="#home" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-md bg-gradient-primary shadow-glow grid place-items-center text-primary-foreground font-bold">
