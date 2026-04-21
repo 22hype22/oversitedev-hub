@@ -1,44 +1,56 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 const links = [
-  { href: "#home", label: "Home" },
-  { href: "#services", label: "Services" },
-  { href: "#process", label: "Process" },
-  { href: "#products", label: "Products" },
-  { href: "#contact", label: "Contact" },
+  { to: "/", label: "Home", end: true },
+  { to: "/process", label: "Process" },
+  { to: "/products", label: "Products" },
+  { to: "/admin", label: "Admin" },
 ];
 
 export const Navbar = () => {
   const [open, setOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    setOpen(false);
+  }, [location.pathname]);
 
   return (
     <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b border-border/60">
       <nav className="container mx-auto flex items-center justify-between h-16 px-4">
-        <a href="#home" className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-md bg-gradient-primary shadow-glow grid place-items-center text-primary-foreground font-bold">
             O
           </div>
           <span className="font-semibold tracking-tight text-lg">Oversite</span>
-        </a>
+        </Link>
 
         <ul className="hidden md:flex items-center gap-8">
           {links.map((l) => (
-            <li key={l.href}>
-              <a
-                href={l.href}
-                className="text-sm text-muted-foreground hover:text-foreground transition-smooth"
+            <li key={l.to}>
+              <NavLink
+                to={l.to}
+                end={l.end}
+                className={({ isActive }) =>
+                  `text-sm transition-smooth ${
+                    isActive
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`
+                }
               >
                 {l.label}
-              </a>
+              </NavLink>
             </li>
           ))}
         </ul>
 
         <div className="hidden md:block">
           <Button variant="hero" size="sm" asChild>
-            <a href="#contact">Start a project</a>
+            <Link to="/products">Start a project</Link>
           </Button>
         </div>
 
@@ -55,19 +67,23 @@ export const Navbar = () => {
         <div className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur">
           <ul className="px-4 py-4 space-y-3">
             {links.map((l) => (
-              <li key={l.href}>
-                <a
-                  href={l.href}
-                  onClick={() => setOpen(false)}
-                  className="block py-2 text-muted-foreground hover:text-foreground"
+              <li key={l.to}>
+                <NavLink
+                  to={l.to}
+                  end={l.end}
+                  className={({ isActive }) =>
+                    `block py-2 ${
+                      isActive ? "text-foreground font-medium" : "text-muted-foreground"
+                    }`
+                  }
                 >
                   {l.label}
-                </a>
+                </NavLink>
               </li>
             ))}
             <li>
               <Button variant="hero" className="w-full" asChild>
-                <a href="#contact" onClick={() => setOpen(false)}>Start a project</a>
+                <Link to="/products">Start a project</Link>
               </Button>
             </li>
           </ul>
