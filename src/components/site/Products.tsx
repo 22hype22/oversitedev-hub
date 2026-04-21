@@ -11,40 +11,47 @@ import {
   SheetTrigger,
   SheetFooter,
 } from "@/components/ui/sheet";
-import { ShoppingCart, Plus, Minus, Trash2, Search, Package } from "lucide-react";
+import { ShoppingCart, Plus, Minus, Trash2, Search, Package, Sparkles } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type Product = {
   id: string;
   name: string;
   price: number;
-  category: string;
+  category: "Systems" | "Assets";
   blurb: string;
   emoji: string;
+  tag?: string;
 };
 
 const PRODUCTS: Product[] = [
-  { id: "p1", name: "Discord Moderation Bot", price: 29, category: "Bots", blurb: "Auto-mod, warns, mutes, and logs.", emoji: "🛡️" },
-  { id: "p2", name: "Music Bot Premium", price: 19, category: "Bots", blurb: "High-quality music streaming for servers.", emoji: "🎵" },
-  { id: "p3", name: "Leveling System", price: 15, category: "Bots", blurb: "XP, ranks, and leaderboards.", emoji: "⭐" },
-  { id: "p4", name: "Ticket Support Bot", price: 25, category: "Bots", blurb: "Full ticket workflow with transcripts.", emoji: "🎫" },
-  { id: "p5", name: "Economy Bot", price: 22, category: "Bots", blurb: "Currency, shops, gambling, and more.", emoji: "💰" },
-  { id: "p6", name: "Giveaway Manager", price: 12, category: "Bots", blurb: "Reroll, requirements, and entries.", emoji: "🎁" },
+  { id: "p1", name: "Moderation System", price: 29, category: "Systems", blurb: "Auto-mod, warns, mutes, and audit logs.", emoji: "🛡️", tag: "Popular" },
+  { id: "p2", name: "Music System Premium", price: 19, category: "Systems", blurb: "High-quality streaming with queue controls.", emoji: "🎵" },
+  { id: "p3", name: "Leveling System", price: 15, category: "Systems", blurb: "XP, ranks, role rewards, and leaderboards.", emoji: "⭐" },
+  { id: "p4", name: "Ticket System", price: 25, category: "Systems", blurb: "Full support flow with transcripts.", emoji: "🎫" },
+  { id: "p5", name: "Economy System", price: 22, category: "Systems", blurb: "Currency, shops, and mini-games.", emoji: "💰" },
+  { id: "p6", name: "Giveaway System", price: 12, category: "Systems", blurb: "Entries, requirements, and rerolls.", emoji: "🎁" },
   { id: "p7", name: "Welcome Card Pack", price: 9, category: "Assets", blurb: "10 animated welcome card templates.", emoji: "👋" },
-  { id: "p8", name: "Server Template Pro", price: 14, category: "Templates", blurb: "Complete community server setup.", emoji: "📋" },
-  { id: "p9", name: "Custom Emoji Pack", price: 7, category: "Assets", blurb: "100+ custom server emojis.", emoji: "😀" },
-  { id: "p10", name: "Bot Hosting (1 mo)", price: 5, category: "Hosting", blurb: "24/7 uptime for your bot.", emoji: "☁️" },
-  { id: "p11", name: "Bot Hosting (1 yr)", price: 49, category: "Hosting", blurb: "Save big with annual hosting.", emoji: "🚀" },
-  { id: "p12", name: "Custom Bot Build", price: 199, category: "Services", blurb: "Tailored bot built to your spec.", emoji: "🔧" },
+  { id: "p8", name: "Server Template Pro", price: 14, category: "Assets", blurb: "Complete community server layout.", emoji: "📋" },
+  { id: "p9", name: "Custom Emoji Pack", price: 7, category: "Assets", blurb: "100+ premium server emojis.", emoji: "😀" },
+  { id: "p10", name: "Banner & Icon Set", price: 11, category: "Assets", blurb: "Matching banners, icons, and splash art.", emoji: "🎨" },
+  { id: "p11", name: "Role Icon Bundle", price: 8, category: "Assets", blurb: "50 clean role icons in multiple styles.", emoji: "🏷️" },
+  { id: "p12", name: "Embed Template Kit", price: 13, category: "Assets", blurb: "Ready-to-use rich embed designs.", emoji: "📨" },
 ];
 
-const CATEGORIES = ["All", "Bots", "Assets", "Templates", "Hosting", "Services"];
+const COMING_SOON = [
+  { name: "Reaction Roles 2.0", blurb: "Drag-and-drop role menus with conditions.", emoji: "✨" },
+  { name: "AI Chat Companion", blurb: "Context-aware AI replies in any channel.", emoji: "🤖" },
+  { name: "Stats Dashboard", blurb: "Live server analytics and member insights.", emoji: "📊" },
+];
+
+const CATEGORIES = ["All", "Systems", "Assets"] as const;
 
 type CartItem = Product & { qty: number };
 
 export const Products = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [category, setCategory] = useState("All");
+  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
   const [query, setQuery] = useState("");
 
   const filtered = PRODUCTS.filter(
@@ -83,25 +90,29 @@ export const Products = () => {
     <section className="py-12 md:py-16">
       <div className="container mx-auto px-4">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
-          <div>
-            <div className="text-primary text-sm font-medium mb-2">Shop</div>
-            <h1 className="text-3xl md:text-5xl font-bold tracking-tight">
-              Browse all <span className="text-gradient">products</span>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 pb-8 border-b border-border">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 text-primary text-xs font-semibold uppercase tracking-widest mb-3">
+              <Sparkles className="h-3.5 w-3.5" />
+              Storefront
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+              Browse the <span className="text-gradient">catalog</span>
             </h1>
-            <p className="mt-3 text-muted-foreground">
-              Pick what you need and check out — instant delivery on digital items.
+            <p className="mt-3 text-muted-foreground text-lg">
+              Premium systems and assets for your Discord community. Instant delivery on every order.
             </p>
           </div>
 
-          {/* Cart trigger */}
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="hero" className="relative">
+              <Button variant="hero" size="lg" className="relative">
                 <ShoppingCart />
                 Cart
                 {cartCount > 0 && (
-                  <Badge className="ml-1 bg-primary-foreground text-primary">{cartCount}</Badge>
+                  <Badge className="ml-1 bg-primary-foreground text-primary hover:bg-primary-foreground">
+                    {cartCount}
+                  </Badge>
                 )}
               </Button>
             </SheetTrigger>
@@ -181,23 +192,24 @@ export const Products = () => {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
-          <div className="relative flex-1">
+        <div className="flex flex-col md:flex-row gap-4 mb-10">
+          <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Search products..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="pl-9"
+              className="pl-9 h-11"
             />
           </div>
-          <div className="flex gap-2 overflow-x-auto">
+          <div className="flex gap-2">
             {CATEGORIES.map((c) => (
               <Button
                 key={c}
                 variant={category === c ? "hero" : "outlineGlow"}
                 size="sm"
                 onClick={() => setCategory(c)}
+                className="h-11 px-5"
               >
                 {c}
               </Button>
@@ -205,37 +217,89 @@ export const Products = () => {
           </div>
         </div>
 
+        {/* Result count */}
+        <div className="text-sm text-muted-foreground mb-4">
+          Showing <span className="text-foreground font-medium">{filtered.length}</span>{" "}
+          {filtered.length === 1 ? "product" : "products"}
+        </div>
+
         {/* Product grid */}
         {filtered.length === 0 ? (
-          <div className="text-center py-20 text-muted-foreground">
+          <div className="text-center py-20 text-muted-foreground border border-dashed border-border rounded-xl">
             No products match your search.
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filtered.map((p) => (
               <Card
                 key={p.id}
-                className="group p-5 bg-gradient-card border-border hover:border-primary/50 transition-smooth flex flex-col"
+                className="group p-0 overflow-hidden bg-card border-border hover:border-primary/50 hover:shadow-elegant transition-smooth flex flex-col"
               >
-                <div className="aspect-square rounded-lg bg-gradient-hero flex items-center justify-center text-6xl mb-4 group-hover:scale-105 transition-smooth">
-                  {p.emoji}
+                <div className="relative aspect-[4/3] bg-gradient-hero flex items-center justify-center text-7xl overflow-hidden">
+                  <span className="group-hover:scale-110 transition-smooth">{p.emoji}</span>
+                  {p.tag && (
+                    <Badge className="absolute top-3 left-3 bg-primary text-primary-foreground hover:bg-primary">
+                      {p.tag}
+                    </Badge>
+                  )}
                 </div>
-                <Badge variant="secondary" className="self-start mb-2 text-xs">
-                  {p.category}
-                </Badge>
-                <h3 className="font-semibold text-base">{p.name}</h3>
-                <p className="text-sm text-muted-foreground mt-1 flex-1">{p.blurb}</p>
-                <div className="flex items-center justify-between mt-4">
-                  <span className="text-2xl font-bold">${p.price}</span>
-                  <Button size="sm" variant="hero" onClick={() => addToCart(p)}>
-                    <Plus className="h-4 w-4" />
-                    Add
-                  </Button>
+                <div className="p-5 flex flex-col flex-1">
+                  <Badge variant="secondary" className="self-start mb-2 text-xs font-medium">
+                    {p.category}
+                  </Badge>
+                  <h3 className="font-semibold text-base leading-tight">{p.name}</h3>
+                  <p className="text-sm text-muted-foreground mt-1.5 flex-1">{p.blurb}</p>
+                  <div className="flex items-center justify-between mt-5 pt-4 border-t border-border">
+                    <div>
+                      <div className="text-xs text-muted-foreground">Price</div>
+                      <span className="text-xl font-bold">${p.price}</span>
+                    </div>
+                    <Button size="sm" variant="hero" onClick={() => addToCart(p)}>
+                      <Plus className="h-4 w-4" />
+                      Add
+                    </Button>
+                  </div>
                 </div>
               </Card>
             ))}
           </div>
         )}
+
+        {/* Coming Soon */}
+        <div className="mt-24 pt-12 border-t border-border">
+          <div className="flex items-end justify-between gap-4 mb-8 flex-wrap">
+            <div>
+              <div className="inline-flex items-center gap-2 text-primary text-xs font-semibold uppercase tracking-widest mb-2">
+                <Sparkles className="h-3.5 w-3.5" />
+                In development
+              </div>
+              <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Coming soon</h2>
+              <p className="mt-2 text-muted-foreground">
+                Sneak peeks at the next products dropping into the catalog.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {COMING_SOON.map((c) => (
+              <Card
+                key={c.name}
+                className="p-0 overflow-hidden bg-card border-border border-dashed hover:border-primary/40 transition-smooth"
+              >
+                <div className="aspect-[16/9] bg-gradient-hero flex items-center justify-center text-6xl relative">
+                  <span className="opacity-80">{c.emoji}</span>
+                  <Badge className="absolute top-3 right-3 bg-background/80 backdrop-blur text-foreground border border-border">
+                    Soon
+                  </Badge>
+                </div>
+                <div className="p-5">
+                  <h3 className="font-semibold text-base">{c.name}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">{c.blurb}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   );
