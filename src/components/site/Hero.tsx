@@ -57,6 +57,22 @@ export const Hero = () => {
               </div>
             ))}
           </div>
+
+          <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl">
+            {[
+              { value: "12K+", label: "Total members" },
+              { value: "150+", label: "Projects completed" },
+              { value: "4.9/5", label: "Average review rating" },
+            ].map((s) => (
+              <div
+                key={s.label}
+                className="rounded-xl border border-border bg-card/60 backdrop-blur p-5 hover:border-primary/40 transition-smooth"
+              >
+                <div className="text-3xl md:text-4xl font-bold text-gradient">{s.value}</div>
+                <div className="text-sm text-muted-foreground mt-1">{s.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
