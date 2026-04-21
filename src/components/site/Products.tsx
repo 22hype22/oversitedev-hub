@@ -218,14 +218,30 @@ export const Products = () => {
   };
 
   const addSubscriptionToCart = (sub: Subscription) => {
+    if (cart.find((i) => i.id === sub.id)) {
+      sonnerToast.info("Already in cart", { description: sub.name });
+      return;
+    }
+    const existingSub = cart.find(
+      (i) => "category" in i && i.category === "Subscription",
+    );
     setCart((prev) => {
-      if (prev.find((i) => i.id === sub.id)) {
-        sonnerToast.info("Already in cart", { description: sub.name });
-        return prev;
-      }
-      return [...prev, { ...sub, category: "Subscription" as const, emoji: "💎", qty: 1 }];
+      const filtered = prev.filter(
+        (i) => !("category" in i && i.category === "Subscription"),
+      );
+      return [
+        ...filtered,
+        { ...sub, category: "Subscription" as const, emoji: "💎", qty: 1 },
+      ];
     });
-    notifyAdded(sub.name);
+    if (existingSub) {
+      sonnerToast(`Switched to ${sub.name}`, {
+        description: `Removed ${existingSub.name} — only one subscription allowed at a time.`,
+        action: { label: "View cart", onClick: () => setCartOpen(true) },
+      });
+    } else {
+      notifyAdded(sub.name);
+    }
   };
 
   const updateQty = (id: string, delta: number) => {
