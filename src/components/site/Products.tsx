@@ -25,6 +25,27 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
+import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
+
+// Maps internal product/subscription IDs to Stripe price IDs (lookup keys)
+const PRICE_MAP: Record<string, string> = {
+  "sub-basic": "sub_basic_monthly",
+  "sub-standard": "sub_standard_monthly",
+  "sub-premium": "sub_premium_monthly",
+  "sub-enterprise": "sub_enterprise_monthly",
+  p1: "prod_moderation_system_onetime",
+  p2: "prod_music_system_onetime",
+  p3: "prod_leveling_system_onetime",
+  p4: "prod_ticket_system_onetime",
+  p5: "prod_economy_system_onetime",
+  p6: "prod_giveaway_system_onetime",
+  p7: "prod_welcome_card_pack_onetime",
+  p8: "prod_server_template_pro_onetime",
+  p9: "prod_custom_emoji_pack_onetime",
+  p10: "prod_banner_icon_set_onetime",
+  p11: "prod_role_icon_bundle_onetime",
+  p12: "prod_embed_template_kit_onetime",
+};
 
 type Product = {
   id: string;
