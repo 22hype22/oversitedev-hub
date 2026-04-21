@@ -371,7 +371,7 @@ export const Products = () => {
                     onClick={startCheckout}
                   >
                     <CreditCard className="h-4 w-4" />
-                    Go to payment
+                    Checkout
                   </Button>
                   <Button
                     variant="outline"
