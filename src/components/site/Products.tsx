@@ -487,6 +487,23 @@ export const Products = () => {
           </div>
         </div>
       </div>
+
+      {/* Floating cart button */}
+      {cartCount > 0 && (
+        <Button
+          variant="hero"
+          size="lg"
+          onClick={() => setCartOpen(true)}
+          className="fixed bottom-6 right-6 z-40 rounded-full shadow-glow h-14 pl-5 pr-6 gap-2"
+          aria-label="View cart"
+        >
+          <ShoppingCart className="h-5 w-5" />
+          <span className="font-semibold">Cart</span>
+          <Badge className="bg-primary-foreground text-primary hover:bg-primary-foreground">
+            {cartCount}
+          </Badge>
+        </Button>
+      )}
     </section>
   );
 };
