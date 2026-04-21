@@ -299,45 +299,62 @@ export const Products = () => {
                     <p>Your cart is empty.</p>
                   </div>
                 ) : (
-                  cart.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card"
-                    >
-                      <div className="text-2xl">{item.emoji}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{item.name}</div>
-                        <div className="text-xs text-muted-foreground">${item.price} each</div>
+                  cart.map((item) => {
+                    const isSub = "category" in item && item.category === "Subscription";
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card"
+                      >
+                        <div className="text-2xl">{item.emoji}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">{item.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            ${item.price}
+                            {isSub ? " / month" : " each"}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {isSub ? (
+                            <Badge variant="secondary" className="mr-1 text-[10px]">
+                              Monthly
+                            </Badge>
+                          ) : (
+                            <>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-7 w-7"
+                                onClick={() => updateQty(item.id, -1)}
+                                aria-label="Decrease quantity"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="w-6 text-center text-sm">{item.qty}</span>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-7 w-7"
+                                onClick={() => updateQty(item.id, 1)}
+                                aria-label="Increase quantity"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-destructive"
+                            onClick={() => removeItem(item.id)}
+                            aria-label="Remove item"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          className="h-7 w-7"
-                          onClick={() => updateQty(item.id, -1)}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-6 text-center text-sm">{item.qty}</span>
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          className="h-7 w-7"
-                          onClick={() => updateQty(item.id, 1)}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-destructive"
-                          onClick={() => removeItem(item.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
 
