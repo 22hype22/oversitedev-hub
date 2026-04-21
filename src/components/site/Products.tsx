@@ -25,6 +25,27 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
+import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
+
+// Maps internal product/subscription IDs to Stripe price IDs (lookup keys)
+const PRICE_MAP: Record<string, string> = {
+  "sub-basic": "sub_basic_monthly",
+  "sub-standard": "sub_standard_monthly",
+  "sub-premium": "sub_premium_monthly",
+  "sub-enterprise": "sub_enterprise_monthly",
+  p1: "prod_moderation_system_onetime",
+  p2: "prod_music_system_onetime",
+  p3: "prod_leveling_system_onetime",
+  p4: "prod_ticket_system_onetime",
+  p5: "prod_economy_system_onetime",
+  p6: "prod_giveaway_system_onetime",
+  p7: "prod_welcome_card_pack_onetime",
+  p8: "prod_server_template_pro_onetime",
+  p9: "prod_custom_emoji_pack_onetime",
+  p10: "prod_banner_icon_set_onetime",
+  p11: "prod_role_icon_bundle_onetime",
+  p12: "prod_embed_template_kit_onetime",
+};
 
 type Product = {
   id: string;
@@ -132,6 +153,38 @@ export const Products = () => {
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
   const [query, setQuery] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutItems, setCheckoutItems] = useState<CheckoutItem[]>([]);
+
+  const startCheckout = () => {
+    const items: CheckoutItem[] = [];
+    let missing = false;
+    for (const item of cart) {
+      const priceId = PRICE_MAP[item.id];
+      if (!priceId) {
+        missing = true;
+        continue;
+      }
+      items.push({ priceId, quantity: item.qty });
+    }
+    if (missing && items.length === 0) {
+      sonnerToast.error("Checkout unavailable", {
+        description: "These items aren't set up for purchase yet.",
+      });
+      return;
+    }
+    const hasSub = items.some((i) => i.priceId.startsWith("sub_"));
+    const hasOneTime = items.some((i) => !i.priceId.startsWith("sub_"));
+    if (hasSub && hasOneTime) {
+      sonnerToast.error("Mixed cart", {
+        description: "Please check out subscriptions and products separately.",
+      });
+      return;
+    }
+    setCheckoutItems(items);
+    setCartOpen(false);
+    setCheckoutOpen(true);
+  };
 
   const notifyAdded = (name: string) => {
     sonnerToast(`Added: ${name}`, {
@@ -281,9 +334,7 @@ export const Products = () => {
                   <Button
                     variant="hero"
                     className="w-full"
-                    onClick={() =>
-                      toast({ title: "Checkout", description: "Checkout coming soon!" })
-                    }
+                    onClick={startCheckout}
                   >
                     Checkout
                   </Button>
@@ -504,6 +555,11 @@ export const Products = () => {
           </Badge>
         </Button>
       )}
+      <CheckoutDialog
+        open={checkoutOpen}
+        onOpenChange={setCheckoutOpen}
+        items={checkoutItems}
+      />
     </section>
   );
 };
