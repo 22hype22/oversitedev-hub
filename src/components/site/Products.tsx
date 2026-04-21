@@ -131,6 +131,21 @@ export const Products = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
   const [query, setQuery] = useState("");
+  const [cartOpen, setCartOpen] = useState(false);
+
+  const notifyAdded = (name: string) => {
+    sonnerToast(`Added: ${name}`, {
+      description: "What would you like to do next?",
+      action: {
+        label: "View cart",
+        onClick: () => setCartOpen(true),
+      },
+      cancel: {
+        label: "Continue shopping",
+        onClick: () => {},
+      },
+    });
+  };
 
   const filtered = PRODUCTS.filter(
     (p) =>
