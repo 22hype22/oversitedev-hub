@@ -56,30 +56,30 @@
     --sidebar-ring: 205 95% 55%;
   }
 
-  /* Orange theme override — applied on the Products route */
+  /* Light purple theme override — applied on the Products route */
   .theme-orange {
-    --primary: 28 95% 60%;
+    --primary: 270 75% 65%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 38 100% 72%;
+    --primary-glow: 280 90% 80%;
 
-    --secondary: 30 80% 96%;
-    --secondary-foreground: 25 40% 20%;
+    --secondary: 270 60% 96%;
+    --secondary-foreground: 270 35% 22%;
 
-    --accent: 32 95% 90%;
-    --accent-foreground: 25 40% 20%;
+    --accent: 275 80% 92%;
+    --accent-foreground: 270 35% 22%;
 
-    --ring: 28 95% 60%;
+    --ring: 270 75% 65%;
 
-    --gradient-hero: radial-gradient(ellipse at top, hsl(32 100% 78% / 0.45), transparent 60%), linear-gradient(180deg, hsl(35 80% 98%), hsl(0 0% 100%));
+    --gradient-hero: radial-gradient(ellipse at top, hsl(275 90% 82% / 0.45), transparent 60%), linear-gradient(180deg, hsl(275 70% 98%), hsl(0 0% 100%));
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(35 80% 97%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(275 70% 97%));
 
     --shadow-glow: 0 0 40px hsl(var(--primary) / 0.3);
-    --shadow-elegant: 0 20px 60px -20px hsl(28 90% 55% / 0.3);
+    --shadow-elegant: 0 20px 60px -20px hsl(270 70% 55% / 0.3);
 
-    --sidebar-primary: 28 95% 60%;
-    --sidebar-accent: 30 80% 96%;
-    --sidebar-ring: 28 95% 60%;
+    --sidebar-primary: 270 75% 65%;
+    --sidebar-accent: 270 60% 96%;
+    --sidebar-ring: 270 75% 65%;
   }
 }
 
