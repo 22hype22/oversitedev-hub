@@ -16,7 +16,7 @@ import {
   ArrowRight,
   ArrowLeft,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+
 import { Card } from "@/components/ui/card";
 
 type Plugin = {
@@ -64,9 +64,6 @@ const Admin = () => {
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
             Managing <span className="text-gradient">Oversite</span>
           </h1>
-          <Badge className="mt-3 bg-primary/15 text-primary border border-primary/30 hover:bg-primary/15">
-            Premium Enabled
-          </Badge>
         </div>
 
         {/* Plugin grid */}
