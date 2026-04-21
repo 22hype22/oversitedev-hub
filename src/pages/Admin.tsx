@@ -47,6 +47,53 @@ const plugins: Plugin[] = [
 ];
 
 const Admin = () => {
+  const { user, isAdmin, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      navigate("/auth", { replace: true });
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background grid place-items-center text-muted-foreground">
+        Loading...
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-background grid place-items-center px-4">
+        <div className="max-w-md text-center space-y-4">
+          <h1 className="text-2xl font-bold">Access denied</h1>
+          <p className="text-muted-foreground">
+            Your account isn't on the admin allowlist. Contact an administrator if you believe this is a mistake.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Button variant="outline" asChild>
+              <Link to="/">Back to site</Link>
+            </Button>
+            <Button
+              variant="hero"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                navigate("/auth", { replace: true });
+              }}
+            >
+              Sign out
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-4 py-10 max-w-7xl">
@@ -59,6 +106,17 @@ const Admin = () => {
             <ArrowLeft className="h-4 w-4" />
             Back to site
           </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              await supabase.auth.signOut();
+              navigate("/auth", { replace: true });
+            }}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign out
+          </Button>
         </div>
 
         {/* Header */}
@@ -70,6 +128,7 @@ const Admin = () => {
             Managing <span className="text-gradient">Oversite</span>
           </h1>
         </div>
+
 
         {/* Plugin grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
