@@ -21,6 +21,7 @@ import {
   Check,
   X as XIcon,
   Sparkles,
+  CreditCard,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -338,8 +339,8 @@ export const Products = () => {
                   className="w-full mt-7 rounded-full"
                   onClick={() => addSubscriptionToCart(s)}
                 >
-                  <ShoppingCart className="h-4 w-4" />
-                  Add to Cart
+                  <CreditCard className="h-4 w-4" />
+                  Purchase
                 </Button>
               </Card>
             ))}
@@ -424,8 +425,8 @@ export const Products = () => {
                       <span className="text-xl font-bold">${p.price}</span>
                     </div>
                     <Button size="sm" variant="hero" onClick={() => addProductToCart(p)}>
-                      <Plus className="h-4 w-4" />
-                      Add
+                      <CreditCard className="h-4 w-4" />
+                      Purchase
                     </Button>
                   </div>
                 </div>
