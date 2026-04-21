@@ -370,15 +370,8 @@ export const Products = () => {
                     className="w-full"
                     onClick={startCheckout}
                   >
-                  <Button
-                    variant="hero"
-                    size="lg"
-                    className="w-full"
-                    onClick={startCheckout}
-                  >
                     <CreditCard className="h-4 w-4" />
                     Checkout
-                  </Button>
                   </Button>
                   <Button
                     variant="outline"
