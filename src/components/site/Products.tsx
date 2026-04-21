@@ -24,6 +24,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 
 type Product = {
   id: string;
@@ -130,6 +131,21 @@ export const Products = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
   const [query, setQuery] = useState("");
+  const [cartOpen, setCartOpen] = useState(false);
+
+  const notifyAdded = (name: string) => {
+    sonnerToast(`Added: ${name}`, {
+      description: "What would you like to do next?",
+      action: {
+        label: "View cart",
+        onClick: () => setCartOpen(true),
+      },
+      cancel: {
+        label: "Continue shopping",
+        onClick: () => {},
+      },
+    });
+  };
 
   const filtered = PRODUCTS.filter(
     (p) =>
@@ -145,18 +161,18 @@ export const Products = () => {
       }
       return [...prev, { ...product, qty: 1 }];
     });
-    toast({ title: "Added to cart", description: product.name });
+    notifyAdded(product.name);
   };
 
   const addSubscriptionToCart = (sub: Subscription) => {
     setCart((prev) => {
       if (prev.find((i) => i.id === sub.id)) {
-        toast({ title: "Already in cart", description: sub.name });
+        sonnerToast.info("Already in cart", { description: sub.name });
         return prev;
       }
       return [...prev, { ...sub, category: "Subscription" as const, emoji: "💎", qty: 1 }];
     });
-    toast({ title: "Subscription added", description: sub.name });
+    notifyAdded(sub.name);
   };
 
   const updateQty = (id: string, delta: number) => {
@@ -471,6 +487,23 @@ export const Products = () => {
           </div>
         </div>
       </div>
+
+      {/* Floating cart button */}
+      {cartCount > 0 && (
+        <Button
+          variant="hero"
+          size="lg"
+          onClick={() => setCartOpen(true)}
+          className="fixed bottom-6 right-6 z-40 rounded-full shadow-glow h-14 pl-5 pr-6 gap-2"
+          aria-label="View cart"
+        >
+          <ShoppingCart className="h-5 w-5" />
+          <span className="font-semibold">Cart</span>
+          <Badge className="bg-primary-foreground text-primary hover:bg-primary-foreground">
+            {cartCount}
+          </Badge>
+        </Button>
+      )}
     </section>
   );
 };
