@@ -1,6 +1,7 @@
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
-import { Shield, LifeBuoy, Wrench } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Shield, LifeBuoy, Wrench, Sparkles, ArrowRight } from "lucide-react";
 import protectionLogo from "@/assets/oversite-protection.png";
 import supportLogo from "@/assets/oversite-support.png";
 import utilitiesLogo from "@/assets/oversite-utilities.png";
