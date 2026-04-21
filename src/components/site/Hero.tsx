@@ -1,4 +1,5 @@
 import heroBg from "@/assets/hero-bg.jpg";
+import oversiteBanner from "@/assets/oversite-banner.png";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles } from "lucide-react";
@@ -18,6 +19,12 @@ export const Hero = () => {
 
       <div className="container relative mx-auto px-4 py-20 md:py-32">
         <div className="max-w-3xl">
+          <img
+            src={oversiteBanner}
+            alt="Oversite — Build, Grow, Succeed"
+            className="w-full max-w-2xl mb-8 drop-shadow-[0_0_40px_hsl(var(--primary)/0.35)]"
+          />
+
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-medium mb-6">
             <Sparkles size={14} />
             Professional Roblox Development
