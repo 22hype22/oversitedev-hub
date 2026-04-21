@@ -1,12 +1,11 @@
 import heroBg from "@/assets/hero-bg.jpg";
-import oversiteBanner from "@/assets/oversite-banner.png";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles } from "lucide-react";
 
 export const Hero = () => {
   return (
-    <section id="home" className="relative min-h-screen flex flex-col pt-16 overflow-hidden bg-gradient-hero">
+    <section id="home" className="relative min-h-screen flex items-center pt-16 overflow-hidden bg-gradient-hero">
       <img
         src={heroBg}
         alt=""
@@ -17,13 +16,7 @@ export const Hero = () => {
       />
       <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/85 to-background pointer-events-none" />
 
-      <img
-        src={oversiteBanner}
-        alt="Oversite — Build, Grow, Succeed"
-        className="relative z-10 w-screen block drop-shadow-[0_0_60px_hsl(var(--primary)/0.35)]"
-      />
-
-      <div className="container relative mx-auto px-4 py-20 md:py-24 flex-1 flex items-center">
+      <div className="container relative mx-auto px-4 py-20 md:py-32">
         <div className="max-w-3xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-medium mb-6">
             <Sparkles size={14} />
