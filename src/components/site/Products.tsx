@@ -24,6 +24,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 
 type Product = {
   id: string;
@@ -145,18 +146,18 @@ export const Products = () => {
       }
       return [...prev, { ...product, qty: 1 }];
     });
-    toast({ title: "Added to cart", description: product.name });
+    notifyAdded(product.name);
   };
 
   const addSubscriptionToCart = (sub: Subscription) => {
     setCart((prev) => {
       if (prev.find((i) => i.id === sub.id)) {
-        toast({ title: "Already in cart", description: sub.name });
+        sonnerToast.info("Already in cart", { description: sub.name });
         return prev;
       }
       return [...prev, { ...sub, category: "Subscription" as const, emoji: "💎", qty: 1 }];
     });
-    toast({ title: "Subscription added", description: sub.name });
+    notifyAdded(sub.name);
   };
 
   const updateQty = (id: string, delta: number) => {
