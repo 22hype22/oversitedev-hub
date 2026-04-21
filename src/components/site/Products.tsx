@@ -11,7 +11,17 @@ import {
   SheetTrigger,
   SheetFooter,
 } from "@/components/ui/sheet";
-import { ShoppingCart, Plus, Minus, Trash2, Search, Package, Sparkles } from "lucide-react";
+import {
+  ShoppingCart,
+  Plus,
+  Minus,
+  Trash2,
+  Search,
+  Package,
+  Check,
+  X as XIcon,
+  Sparkles,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type Product = {
@@ -23,6 +33,58 @@ type Product = {
   emoji: string;
   tag?: string;
 };
+
+type Subscription = {
+  id: string;
+  name: string;
+  tagline: string;
+  price: number;
+  popular?: boolean;
+  features: { label: string; included: boolean }[];
+};
+
+const SUBSCRIPTIONS: Subscription[] = [
+  {
+    id: "sub-basic",
+    name: "Basic Plan",
+    tagline: "Starter access",
+    price: 9,
+    features: [
+      { label: "Access to core systems", included: true },
+      { label: "Monthly asset drops", included: true },
+      { label: "Community support", included: true },
+      { label: "Priority updates", included: false },
+      { label: "Custom requests", included: false },
+    ],
+  },
+  {
+    id: "sub-beginner",
+    name: "Beginner Plan",
+    tagline: "Most popular",
+    price: 19,
+    popular: true,
+    features: [
+      { label: "Access to core systems", included: true },
+      { label: "Monthly asset drops", included: true },
+      { label: "Community support", included: true },
+      { label: "Priority updates", included: true },
+      { label: "Custom requests", included: false },
+    ],
+  },
+  {
+    id: "sub-standard",
+    name: "Standard Plan",
+    tagline: "Full access",
+    price: 39,
+    features: [
+      { label: "Access to core systems", included: true },
+      { label: "Monthly asset drops", included: true },
+      { label: "Community support", included: true },
+      { label: "Priority updates", included: true },
+      { label: "Custom requests", included: true },
+    ],
+  },
+];
 
 const PRODUCTS: Product[] = [
   { id: "p1", name: "Moderation System", price: 29, category: "Systems", blurb: "Auto-mod, warns, mutes, and audit logs.", emoji: "🛡️", tag: "Popular" },
@@ -47,7 +109,9 @@ const COMING_SOON = [
 
 const CATEGORIES = ["All", "Systems", "Assets"] as const;
 
-type CartItem = Product & { qty: number };
+type CartItem = (Product | (Subscription & { category: "Subscription"; emoji: string })) & {
+  qty: number;
+};
 
 export const Products = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -60,7 +124,7 @@ export const Products = () => {
       p.name.toLowerCase().includes(query.toLowerCase()),
   );
 
-  const addToCart = (product: Product) => {
+  const addProductToCart = (product: Product) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.id === product.id);
       if (existing) {
@@ -71,6 +135,17 @@ export const Products = () => {
     toast({ title: "Added to cart", description: product.name });
   };
 
+  const addSubscriptionToCart = (sub: Subscription) => {
+    setCart((prev) => {
+      if (prev.find((i) => i.id === sub.id)) {
+        toast({ title: "Already in cart", description: sub.name });
+        return prev;
+      }
+      return [...prev, { ...sub, category: "Subscription" as const, emoji: "💎", qty: 1 }];
+    });
+    toast({ title: "Subscription added", description: sub.name });
+  };
+
   const updateQty = (id: string, delta: number) => {
     setCart((prev) =>
       prev
@@ -79,9 +154,7 @@ export const Products = () => {
     );
   };
 
-  const removeItem = (id: string) => {
-    setCart((prev) => prev.filter((i) => i.id !== id));
-  };
+  const removeItem = (id: string) => setCart((prev) => prev.filter((i) => i.id !== id));
 
   const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
   const cartTotal = cart.reduce((sum, i) => sum + i.qty * i.price, 0);
@@ -100,7 +173,7 @@ export const Products = () => {
               Browse the <span className="text-gradient">catalog</span>
             </h1>
             <p className="mt-3 text-muted-foreground text-lg">
-              Premium systems and assets for your Discord community. Instant delivery on every order.
+              Premium systems and assets for your community. Instant delivery on every order.
             </p>
           </div>
 
@@ -191,9 +264,93 @@ export const Products = () => {
           </Sheet>
         </div>
 
+        {/* Subscriptions */}
+        <div className="mb-20">
+          <div className="text-center max-w-2xl mx-auto mb-10">
+            <div className="inline-flex items-center gap-2 text-primary text-xs font-semibold uppercase tracking-widest mb-3">
+              <Sparkles className="h-3.5 w-3.5" />
+              Monthly Subscriptions
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+              Choose your <span className="text-gradient">growth plan</span>
+            </h2>
+            <p className="mt-3 text-muted-foreground">
+              Flexible monthly pricing to fit any community's needs.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {SUBSCRIPTIONS.map((s) => (
+              <Card
+                key={s.id}
+                className={`relative p-7 flex flex-col transition-smooth ${
+                  s.popular
+                    ? "border-2 border-primary shadow-elegant scale-[1.02] bg-card"
+                    : "border-border bg-card hover:border-primary/40"
+                }`}
+              >
+                {s.popular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase bg-primary text-primary-foreground shadow-glow">
+                    Popular
+                  </div>
+                )}
+                <div className="text-center">
+                  <h3 className="text-xl font-bold">{s.name}</h3>
+                  <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wider">
+                    {s.tagline}
+                  </p>
+                  <div className="mt-5 flex items-baseline justify-center gap-1">
+                    <span className="text-sm text-muted-foreground self-start mt-2">$</span>
+                    <span className="text-5xl font-bold tracking-tight">{s.price}</span>
+                    <span className="text-muted-foreground text-sm">/mo</span>
+                  </div>
+                </div>
+
+                <ul className="mt-7 space-y-3 flex-1">
+                  {s.features.map((f) => (
+                    <li key={f.label} className="flex items-center gap-2 text-sm">
+                      {f.included ? (
+                        <Check className="h-4 w-4 text-primary shrink-0" />
+                      ) : (
+                        <XIcon className="h-4 w-4 text-destructive/70 shrink-0" />
+                      )}
+                      <span className={f.included ? "" : "text-muted-foreground line-through"}>
+                        {f.label}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                <Button
+                  variant={s.popular ? "hero" : "outlineGlow"}
+                  className="w-full mt-7 rounded-full"
+                  onClick={() => addSubscriptionToCart(s)}
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  Add to Cart
+                </Button>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-border mb-12" />
+
+        {/* Products header */}
+        <div className="text-center max-w-2xl mx-auto mb-10">
+          <div className="inline-flex items-center gap-2 text-primary text-xs font-semibold uppercase tracking-widest mb-3">
+            <Package className="h-3.5 w-3.5" />
+            All Products
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+            One-time <span className="text-gradient">purchases</span>
+          </h2>
+        </div>
+
         {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-4 mb-10">
-          <div className="relative flex-1 max-w-md">
+        <div className="flex flex-col md:flex-row gap-4 mb-10 justify-center items-center">
+          <div className="relative w-full md:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Search products..."
@@ -209,7 +366,7 @@ export const Products = () => {
                 variant={category === c ? "hero" : "outlineGlow"}
                 size="sm"
                 onClick={() => setCategory(c)}
-                className="h-11 px-5"
+                className="h-11 px-5 rounded-full"
               >
                 {c}
               </Button>
@@ -218,7 +375,7 @@ export const Products = () => {
         </div>
 
         {/* Result count */}
-        <div className="text-sm text-muted-foreground mb-4">
+        <div className="text-sm text-muted-foreground mb-4 text-center">
           Showing <span className="text-foreground font-medium">{filtered.length}</span>{" "}
           {filtered.length === 1 ? "product" : "products"}
         </div>
@@ -254,7 +411,7 @@ export const Products = () => {
                       <div className="text-xs text-muted-foreground">Price</div>
                       <span className="text-xl font-bold">${p.price}</span>
                     </div>
-                    <Button size="sm" variant="hero" onClick={() => addToCart(p)}>
+                    <Button size="sm" variant="hero" onClick={() => addProductToCart(p)}>
                       <Plus className="h-4 w-4" />
                       Add
                     </Button>
