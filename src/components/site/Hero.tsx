@@ -1,4 +1,5 @@
 import heroBg from "@/assets/hero-bg.jpg";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles } from "lucide-react";
 
@@ -40,7 +41,7 @@ export const Hero = () => {
               </a>
             </Button>
             <Button variant="outlineGlow" size="lg" asChild>
-              <a href="#products">View packages</a>
+              <Link to="/products">View packages</Link>
             </Button>
           </div>
 
