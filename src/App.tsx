@@ -9,6 +9,7 @@ import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import Index from "./pages/Index.tsx";
 import ProcessPage from "./pages/ProcessPage.tsx";
 import ProductsPage from "./pages/ProductsPage.tsx";
+import BotsPage from "./pages/BotsPage.tsx";
 import Auth from "./pages/Auth.tsx";
 import Admin from "./pages/Admin.tsx";
 import CheckoutReturn from "./pages/CheckoutReturn.tsx";
@@ -39,6 +40,7 @@ const App = () => {
             <Route path="/" element={<Index />} />
             <Route path="/process" element={<ProcessPage />} />
             <Route path="/products" element={<ProductsPage />} />
+            <Route path="/bots" element={<BotsPage />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/checkout/return" element={<CheckoutReturn />} />

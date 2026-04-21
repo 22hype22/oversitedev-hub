@@ -47,6 +47,21 @@ export const Navbar = () => {
               </NavLink>
             </li>
           ))}
+          <li aria-hidden="true" className="h-5 w-px bg-border/70 mx-2" />
+          <li>
+            <NavLink
+              to="/bots"
+              className={({ isActive }) =>
+                `text-sm transition-smooth ${
+                  isActive
+                    ? "text-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground"
+                }`
+              }
+            >
+              Bots
+            </NavLink>
+          </li>
         </ul>
 
         <div className="hidden md:flex items-center gap-3">
@@ -94,6 +109,18 @@ export const Navbar = () => {
                 </NavLink>
               </li>
             ))}
+            <li className="pt-2 mt-2 border-t border-border/40">
+              <NavLink
+                to="/bots"
+                className={({ isActive }) =>
+                  `block py-2 ${
+                    isActive ? "text-foreground font-medium" : "text-muted-foreground"
+                  }`
+                }
+              >
+                Bots
+              </NavLink>
+            </li>
             <li>
               <Button variant="hero" className="w-full" asChild>
                 <Link to="/products">Start a project</Link>
