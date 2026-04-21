@@ -6,7 +6,7 @@ const steps = [
 ];
 
 export const Process = () => (
-  <section id="process" className="py-24 md:py-32 bg-secondary/30 border-y border-border">
+  <section id="process" className="py-24 md:py-32 bg-accent/40 border-y border-border">
     <div className="container mx-auto px-4">
       <div className="max-w-2xl mb-14">
         <div className="text-primary text-sm font-medium mb-3">How we work</div>
