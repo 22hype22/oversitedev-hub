@@ -17,6 +17,12 @@ export const Hero = () => {
       />
       <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/85 to-background pointer-events-none" />
 
+      <img
+        src={oversiteBanner}
+        alt="Oversite — Build, Grow, Succeed"
+        className="relative z-10 w-full block mt-4 md:mt-6 drop-shadow-[0_0_60px_hsl(var(--primary)/0.35)]"
+      />
+
       <div className="container relative mx-auto px-4 py-20 md:py-32">
         <div className="max-w-3xl">
           <img
