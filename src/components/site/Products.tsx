@@ -153,6 +153,38 @@ export const Products = () => {
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
   const [query, setQuery] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutItems, setCheckoutItems] = useState<CheckoutItem[]>([]);
+
+  const startCheckout = () => {
+    const items: CheckoutItem[] = [];
+    let missing = false;
+    for (const item of cart) {
+      const priceId = PRICE_MAP[item.id];
+      if (!priceId) {
+        missing = true;
+        continue;
+      }
+      items.push({ priceId, quantity: item.qty });
+    }
+    if (missing && items.length === 0) {
+      sonnerToast.error("Checkout unavailable", {
+        description: "These items aren't set up for purchase yet.",
+      });
+      return;
+    }
+    const hasSub = items.some((i) => i.priceId.startsWith("sub_"));
+    const hasOneTime = items.some((i) => !i.priceId.startsWith("sub_"));
+    if (hasSub && hasOneTime) {
+      sonnerToast.error("Mixed cart", {
+        description: "Please check out subscriptions and products separately.",
+      });
+      return;
+    }
+    setCheckoutItems(items);
+    setCartOpen(false);
+    setCheckoutOpen(true);
+  };
 
   const notifyAdded = (name: string) => {
     sonnerToast(`Added: ${name}`, {
@@ -302,9 +334,7 @@ export const Products = () => {
                   <Button
                     variant="hero"
                     className="w-full"
-                    onClick={() =>
-                      toast({ title: "Checkout", description: "Checkout coming soon!" })
-                    }
+                    onClick={startCheckout}
                   >
                     Checkout
                   </Button>
