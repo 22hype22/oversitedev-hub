@@ -46,42 +46,54 @@ type Subscription = {
 const SUBSCRIPTIONS: Subscription[] = [
   {
     id: "sub-basic",
-    name: "Basic Plan",
+    name: "Basic",
     tagline: "Starter access",
     price: 9,
     features: [
-      { label: "Access to core systems", included: true },
-      { label: "Monthly asset drops", included: true },
+      { label: "Access to pre-built UI systems", included: true },
+      { label: "Access to pre-built game systems", included: true },
       { label: "Community support", included: true },
-      { label: "Priority updates", included: false },
-      { label: "Custom requests", included: false },
-    ],
-  },
-  {
-    id: "sub-beginner",
-    name: "Beginner Plan",
-    tagline: "Most popular",
-    price: 19,
-    popular: true,
-    features: [
-      { label: "Access to core systems", included: true },
-      { label: "Monthly asset drops", included: true },
-      { label: "Community support", included: true },
-      { label: "Priority updates", included: true },
-      { label: "Custom requests", included: false },
+      { label: "Monthly asset drop", included: true },
     ],
   },
   {
     id: "sub-standard",
-    name: "Standard Plan",
-    tagline: "Full access",
-    price: 39,
+    name: "Standard",
+    tagline: "More drops & priority",
+    price: 24,
+    popular: true,
     features: [
-      { label: "Access to core systems", included: true },
-      { label: "Monthly asset drops", included: true },
-      { label: "Community support", included: true },
-      { label: "Priority updates", included: true },
-      { label: "Custom requests", included: true },
+      { label: "Everything in Basic", included: true },
+      { label: "Access to pre-built builds", included: true },
+      { label: "Priority support", included: true },
+      { label: "More asset drops", included: true },
+      { label: "Early access to new systems", included: true },
+    ],
+  },
+  {
+    id: "sub-premium",
+    name: "Premium",
+    tagline: "Custom + first access",
+    price: 49,
+    features: [
+      { label: "Everything in Standard", included: true },
+      { label: "Custom UI requests", included: true },
+      { label: "Custom system requests", included: true },
+      { label: "Dedicated support channel", included: true },
+      { label: "First access to everything new", included: true },
+    ],
+  },
+  {
+    id: "sub-enterprise",
+    name: "Enterprise",
+    tagline: "Full custom development",
+    price: 99,
+    features: [
+      { label: "Everything in Premium", included: true },
+      { label: "Full custom game development", included: true },
+      { label: "Direct access to developers", included: true },
+      { label: "Unlimited requests", included: true },
+      { label: "Private builds made for you", included: true },
     ],
   },
 ];
@@ -279,7 +291,7 @@ export const Products = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
             {SUBSCRIPTIONS.map((s) => (
               <Card
                 key={s.id}
