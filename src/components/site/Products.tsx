@@ -74,7 +74,7 @@ export const Products = () => (
               className="w-full mt-7"
               asChild
             >
-              <a href="#contact">{t.price === "Custom" ? "Request a quote" : "Get started"}</a>
+              <a href="/#contact">{t.price === "Custom" ? "Request a quote" : "Get started"}</a>
             </Button>
           </div>
         ))}
