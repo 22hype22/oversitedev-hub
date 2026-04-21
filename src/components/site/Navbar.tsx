@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Lock } from "lucide-react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -7,7 +7,6 @@ const links = [
   { to: "/", label: "Home", end: true },
   { to: "/process", label: "Process" },
   { to: "/products", label: "Products" },
-  { to: "/admin", label: "Admin" },
 ];
 
 export const Navbar = () => {
@@ -48,10 +47,22 @@ export const Navbar = () => {
           ))}
         </ul>
 
-        <div className="hidden md:block">
+        <div className="hidden md:flex items-center gap-3">
           <Button variant="hero" size="sm" asChild>
             <Link to="/products">Start a project</Link>
           </Button>
+          <NavLink
+            to="/admin"
+            className={({ isActive }) =>
+              `inline-flex items-center justify-center h-9 w-9 rounded-md border border-border/60 text-muted-foreground hover:text-foreground hover:border-primary/40 transition-smooth ${
+                isActive ? "text-foreground border-primary/60" : ""
+              }`
+            }
+            aria-label="Admin"
+            title="Admin"
+          >
+            <Lock size={15} />
+          </NavLink>
         </div>
 
         <button
@@ -85,6 +96,15 @@ export const Navbar = () => {
               <Button variant="hero" className="w-full" asChild>
                 <Link to="/products">Start a project</Link>
               </Button>
+            </li>
+            <li className="pt-3 mt-3 border-t border-border/50">
+              <NavLink
+                to="/admin"
+                className="flex items-center gap-2 py-2 text-sm text-muted-foreground"
+              >
+                <Lock size={14} />
+                Admin
+              </NavLink>
             </li>
           </ul>
         </div>
