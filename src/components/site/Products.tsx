@@ -555,6 +555,11 @@ export const Products = () => {
           </Badge>
         </Button>
       )}
+      <CheckoutDialog
+        open={checkoutOpen}
+        onOpenChange={setCheckoutOpen}
+        items={checkoutItems}
+      />
     </section>
   );
 };
