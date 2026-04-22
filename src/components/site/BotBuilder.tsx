@@ -283,16 +283,29 @@ export const BotBuilder = () => {
       });
       return;
     }
-    const baseObj = BASES.find((b) => b.id === base);
-    const addonObjs = addons
-      .map((id) => currentAddons.find((a) => a.id === id)?.name)
-      .filter(Boolean);
-    sonnerToast.success("Build sent! 🎉", {
-      description: `${name} • ${baseObj?.name}${addonObjs.length ? ` + ${addonObjs.length} add-on${addonObjs.length > 1 ? "s" : ""}` : ""} — we'll be in touch.`,
-    });
+    if (!showPayment) {
+      setShowPayment(true);
+      setTimeout(() => {
+        document.getElementById("payment-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+      return;
+    }
+    if (!payFullName.trim() || !payEmail.trim() || !payCard.trim() || !payExp.trim() || !payCvc.trim()) {
+      sonnerToast.error("Complete payment details", {
+        description: "Please fill out every field so we can confirm your build.",
+      });
+      return;
+    }
+    setSubmitting(true);
+    // Trigger the cinematic success overlay
+    setTimeout(() => {
+      setShowSuccess(true);
+      setSubmitting(false);
+    }, 400);
+    // Redirect after the animation finishes
     setTimeout(() => {
       window.location.href = "/#contact";
-    }, 1200);
+    }, 5200);
   };
 
   const selectedBase = BASES.find((b) => b.id === base);
