@@ -19,7 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Package, Trash2, ImagePlus, Loader2, X } from "lucide-react";
+import { Upload, Package, Trash2, ImagePlus, Loader2, X, FileText, Sparkles } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
 
@@ -32,11 +33,15 @@ type DbProduct = {
   emoji: string | null;
   image_url: string | null;
   image_urls: string[] | null;
+  is_available: boolean;
+  file_url: string | null;
+  file_name: string | null;
   created_at: string;
 };
 
 const CATEGORIES = ["Systems", "Assets"] as const;
 const MAX_IMAGES = 6;
+const MAX_FILE_MB = 50;
 
 type PendingImage = { file: File; preview: string };
 
@@ -53,6 +58,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
   const [category, setCategory] = useState<string>("Systems");
   const [emoji, setEmoji] = useState("📦");
   const [images, setImages] = useState<PendingImage[]>([]);
+  const [isAvailable, setIsAvailable] = useState(true);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
 
   const resetForm = () => {
     setName("");
@@ -61,6 +68,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setCategory("Systems");
     setEmoji("📦");
     setImages([]);
+    setIsAvailable(true);
+    setAttachedFile(null);
   };
 
   const loadProducts = async () => {
@@ -133,6 +142,19 @@ export const ProductManager = ({ userId }: { userId: string }) => {
         uploadedUrls.push(data.publicUrl);
       }
 
+      let fileUrl: string | null = null;
+      let fileName: string | null = null;
+      if (attachedFile) {
+        const safeName = attachedFile.name.replace(/[^\w.\-]+/g, "_");
+        const path = `${userId}/${Date.now()}-${safeName}`;
+        const { error: fileErr } = await supabase.storage
+          .from("product-files")
+          .upload(path, attachedFile, { cacheControl: "3600", upsert: false });
+        if (fileErr) throw fileErr;
+        fileUrl = path;
+        fileName = attachedFile.name;
+      }
+
       const { error: insertError } = await supabase.from("products").insert({
         name: name.trim(),
         description: description.trim() || null,
@@ -141,12 +163,17 @@ export const ProductManager = ({ userId }: { userId: string }) => {
         emoji: emoji || "📦",
         image_url: uploadedUrls[0] ?? null,
         image_urls: uploadedUrls,
+        is_available: isAvailable,
+        file_url: fileUrl,
+        file_name: fileName,
         created_by: userId,
       });
       if (insertError) throw insertError;
 
-      sonnerToast.success("Product uploaded!", {
-        description: `${name} is now live on the storefront.`,
+      sonnerToast.success(isAvailable ? "Product uploaded!" : "Teaser added!", {
+        description: isAvailable
+          ? `${name} is now live on the storefront.`
+          : `${name} is showing as a teaser — purchases disabled.`,
       });
       images.forEach((i) => URL.revokeObjectURL(i.preview));
       resetForm();
@@ -246,9 +273,22 @@ export const ProductManager = ({ userId }: { userId: string }) => {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">{p.name}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-sm truncate">{p.name}</div>
+                      {!p.is_available && (
+                        <span className="text-[9px] font-semibold uppercase tracking-wider bg-accent/30 text-accent-foreground border border-accent/40 rounded px-1.5 py-0.5">
+                          Teaser
+                        </span>
+                      )}
+                      {p.file_url && (
+                        <span className="text-[9px] font-semibold uppercase tracking-wider bg-primary/15 text-primary border border-primary/30 rounded px-1.5 py-0.5">
+                          File
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
                       ${Number(p.price).toFixed(2)} · {p.category}
+                      {p.file_name ? ` · ${p.file_name}` : ""}
                     </div>
                   </div>
                   <Button
@@ -400,6 +440,85 @@ export const ProductManager = ({ userId }: { userId: string }) => {
                   />
                 </label>
               )}
+            </div>
+
+            {/* Attached file (digital download) */}
+            <div className="space-y-2">
+              <Label>Attached file (optional)</Label>
+              {attachedFile ? (
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background/50">
+                  <div className="h-10 w-10 rounded-md bg-primary/10 grid place-items-center shrink-0">
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{attachedFile.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {(attachedFile.size / (1024 * 1024)).toFixed(2)} MB
+                    </div>
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    onClick={() => setAttachedFile(null)}
+                    aria-label="Remove file"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <label className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-smooth cursor-pointer">
+                  <div className="h-10 w-10 rounded-md bg-primary/10 grid place-items-center shrink-0">
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 text-sm">
+                    <div className="font-medium">Attach a file</div>
+                    <div className="text-xs text-muted-foreground">
+                      Any file type — up to {MAX_FILE_MB}MB. Stored privately.
+                    </div>
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!f) return;
+                      if (f.size > MAX_FILE_MB * 1024 * 1024) {
+                        sonnerToast.error("File too large", {
+                          description: `Keep it under ${MAX_FILE_MB}MB.`,
+                        });
+                        return;
+                      }
+                      setAttachedFile(f);
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+
+            {/* Availability / teaser toggle */}
+            <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-background/50">
+              <div className="h-10 w-10 rounded-md bg-primary/10 grid place-items-center shrink-0">
+                <Sparkles className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="prod-available" className="text-sm font-medium cursor-pointer">
+                    Available for purchase
+                  </Label>
+                  <Switch
+                    id="prod-available"
+                    checked={isAvailable}
+                    onCheckedChange={setIsAvailable}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {isAvailable
+                    ? "Live on the storefront — customers can buy it now."
+                    : "Shown as a teaser — visible but marked “Coming soon”, purchases disabled."}
+                </p>
+              </div>
             </div>
           </div>
 

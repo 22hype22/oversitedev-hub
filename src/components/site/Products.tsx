@@ -60,6 +60,7 @@ type Product = {
   tag?: string;
   imageUrl?: string;
   imageUrls?: string[];
+  isAvailable?: boolean;
 };
 
 type Subscription = {
@@ -250,6 +251,7 @@ export const Products = () => {
               : p.image_url
               ? [p.image_url]
               : [];
+            const available = p.is_available !== false;
             return {
               id: `custom-${p.id}`,
               name: p.name,
@@ -257,9 +259,10 @@ export const Products = () => {
               category: (p.category === "Assets" ? "Assets" : "Systems") as "Systems" | "Assets",
               blurb: p.description || "",
               emoji: p.emoji || "📦",
-              tag: "New",
+              tag: available ? "New" : "Coming soon",
               imageUrl: urls[0],
               imageUrls: urls,
+              isAvailable: available,
             };
           }),
         );
@@ -647,13 +650,22 @@ export const Products = () => {
                   <p className="text-sm text-muted-foreground mt-1.5 flex-1">{p.blurb}</p>
                   <div className="flex items-center justify-between mt-5 pt-4 border-t border-border">
                     <div>
-                      <div className="text-xs text-muted-foreground">Price</div>
+                      <div className="text-xs text-muted-foreground">
+                        {p.isAvailable === false ? "Coming soon" : "Price"}
+                      </div>
                       <span className="text-xl font-bold">${p.price}</span>
                     </div>
-                    <Button size="sm" variant="hero" onClick={() => addProductToCart(p)}>
-                      <CreditCard className="h-4 w-4" />
-                      Purchase
-                    </Button>
+                    {p.isAvailable === false ? (
+                      <Button size="sm" variant="outline" disabled>
+                        <Sparkles className="h-4 w-4" />
+                        Soon
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="hero" onClick={() => addProductToCart(p)}>
+                        <CreditCard className="h-4 w-4" />
+                        Purchase
+                      </Button>
+                    )}
                   </div>
                 </div>
               </Card>
