@@ -153,6 +153,80 @@ type CartItem = (Product | (Subscription & { category: "Subscription"; emoji: st
   qty: number;
 };
 
+const ProductImage = ({
+  images,
+  emoji,
+  alt,
+}: {
+  images: string[];
+  emoji: string;
+  alt: string;
+}) => {
+  const [idx, setIdx] = useState(0);
+  const has = images.length > 0;
+  const multi = images.length > 1;
+
+  const go = (e: React.MouseEvent, dir: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIdx((i) => (i + dir + images.length) % images.length);
+  };
+
+  return (
+    <div className="relative w-full aspect-[16/9] bg-gradient-hero overflow-hidden">
+      {has ? (
+        <img
+          src={images[idx]}
+          alt={alt}
+          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-smooth"
+          loading="lazy"
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center text-7xl group-hover:scale-110 transition-smooth">
+          {emoji}
+        </div>
+      )}
+      {multi && (
+        <>
+          <button
+            type="button"
+            onClick={(e) => go(e, -1)}
+            className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 hover:bg-background grid place-items-center backdrop-blur transition-smooth opacity-0 group-hover:opacity-100"
+            aria-label="Previous image"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => go(e, 1)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 hover:bg-background grid place-items-center backdrop-blur transition-smooth opacity-0 group-hover:opacity-100"
+            aria-label="Next image"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIdx(i);
+                }}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === idx ? "w-5 bg-primary" : "w-1.5 bg-background/70 hover:bg-background"
+                }`}
+                aria-label={`Image ${i + 1}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 export const Products = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
