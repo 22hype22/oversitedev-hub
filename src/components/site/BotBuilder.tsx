@@ -195,18 +195,26 @@ const ADDONS_BY_BASE: Record<string, Addon[]> = {
     { id: "translation-bot", name: "Translation Bot", desc: "Auto-translate messages on demand.", icon: Languages, price: 5.99 },
     { id: "server-backup", name: "Server Backup", desc: "Snapshot and restore server config.", icon: Save, price: 6.99 },
   ],
-  scratch: [
-    { id: "commands", name: "Custom Commands", desc: "Bespoke slash commands and workflows.", icon: Code2, price: 40 },
-    { id: "integrations", name: "Third-Party APIs", desc: "Hook into any external service you use.", icon: Zap, price: 50 },
-    { id: "analytics", name: "Custom Analytics", desc: "Dashboards tailored to your metrics.", icon: BarChart3, price: 45 },
-    { id: "alerts", name: "Priority Alerts", desc: "Webhook, email, or SMS for incidents.", icon: Bell, price: 30 },
-    { id: "exports", name: "Data Exports", desc: "Scheduled CSV/JSON exports of your data.", icon: Database, price: 20 },
-  ],
+  scratch: [],
+
 };
 
-const getAddonsForBase = (baseId: string): Addon[] => [
-  ...(ADDONS_BY_BASE[baseId] ?? []),
-  ...SHARED_ADDONS,
+const getAddonsForBase = (baseId: string): Addon[] => {
+  if (baseId === "scratch") {
+    return [
+      ...ADDONS_BY_BASE.protection,
+      ...ADDONS_BY_BASE.support,
+      ...ADDONS_BY_BASE.utilities,
+      ...SHARED_ADDONS,
+    ];
+  }
+  return [...(ADDONS_BY_BASE[baseId] ?? []), ...SHARED_ADDONS];
+};
+
+const SCRATCH_CATEGORIES: { id: string; label: string; icon: typeof Shield; addons: Addon[] }[] = [
+  { id: "protection", label: "Protection options", icon: Shield, addons: ADDONS_BY_BASE.protection },
+  { id: "support", label: "Support options", icon: LifeBuoy, addons: ADDONS_BY_BASE.support },
+  { id: "utilities", label: "Utilities options", icon: Wrench, addons: ADDONS_BY_BASE.utilities },
 ];
 
 export const BotBuilder = () => {
@@ -217,7 +225,7 @@ export const BotBuilder = () => {
   const [base, setBase] = useState<string>("protection");
   const [addons, setAddons] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
-  const [showAllAddons, setShowAllAddons] = useState(false);
+  const [showAllAddons, setShowAllAddons] = useState<Record<string, boolean>>({});
 
   const iconInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -242,7 +250,7 @@ export const BotBuilder = () => {
   const selectBase = (id: string) => {
     setBase(id);
     setAddons([]);
-    setShowAllAddons(false);
+    setShowAllAddons({});
   };
 
   const total = useMemo(() => {
@@ -444,10 +452,12 @@ export const BotBuilder = () => {
               <span className="ml-auto text-xs text-muted-foreground">Tap to toggle</span>
             </div>
             <p className="text-xs text-muted-foreground mb-4">
-              Tailored options for your <span className="text-primary font-medium">{selectedBase?.name}</span> base.
+              {base === "scratch"
+                ? "Pick from any category — Protection, Support, and Utilities."
+                : <>Tailored options for your <span className="text-primary font-medium">{selectedBase?.name}</span> base.</>}
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {(showAllAddons ? currentAddons : currentAddons.slice(0, 10)).map((a) => {
+            {(() => {
+              const renderAddonCard = (a: Addon) => {
                 const Icon = a.icon;
                 const active = addons.includes(a.id);
                 return (
@@ -480,22 +490,62 @@ export const BotBuilder = () => {
                     <div className="mt-2 text-xs text-foreground/80">+${a.price.toFixed(2)}</div>
                   </button>
                 );
-              })}
-            </div>
-            {currentAddons.length > 10 && (
-              <div className="mt-4 flex justify-center">
-                <Button
-                  type="button"
-                  variant="outlineGlow"
-                  size="sm"
-                  onClick={() => setShowAllAddons((v) => !v)}
-                >
-                  {showAllAddons
-                    ? "Show less"
-                    : `View more (${currentAddons.length - 10})`}
-                </Button>
-              </div>
-            )}
+              };
+
+              const renderList = (key: string, list: Addon[]) => {
+                const expanded = !!showAllAddons[key];
+                const visible = expanded ? list : list.slice(0, 10);
+                return (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {visible.map(renderAddonCard)}
+                    </div>
+                    {list.length > 10 && (
+                      <div className="mt-4 flex justify-center">
+                        <Button
+                          type="button"
+                          variant="outlineGlow"
+                          size="sm"
+                          onClick={() =>
+                            setShowAllAddons((prev) => ({ ...prev, [key]: !prev[key] }))
+                          }
+                        >
+                          {expanded ? "Show less" : `View more (${list.length - 10})`}
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                );
+              };
+
+              if (base === "scratch") {
+                return (
+                  <div className="space-y-8">
+                    {SCRATCH_CATEGORIES.map((cat) => {
+                      const CatIcon = cat.icon;
+                      return (
+                        <div key={cat.id}>
+                          <div className="flex items-center gap-2 mb-3">
+                            <CatIcon size={16} className="text-primary" />
+                            <h4 className="text-sm font-semibold tracking-tight">{cat.label}</h4>
+                          </div>
+                          {renderList(cat.id, cat.addons)}
+                        </div>
+                      );
+                    })}
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sparkles size={16} className="text-primary" />
+                        <h4 className="text-sm font-semibold tracking-tight">Extras</h4>
+                      </div>
+                      {renderList("shared", SHARED_ADDONS)}
+                    </div>
+                  </div>
+                );
+              }
+
+              return renderList("default", currentAddons);
+            })()}
           </div>
 
           {/* Step 4 — Notes */}
