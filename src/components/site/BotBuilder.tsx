@@ -610,7 +610,7 @@ export const BotBuilder = () => {
         </div>
 
         {/* Right: light/blue live preview */}
-        <aside className="lg:sticky lg:top-24 h-fit space-y-4">
+        <aside className={`${showPayment ? "" : "lg:sticky lg:top-24"} h-fit space-y-4`}>
           {/* Profile card — white & blue theme */}
           <div className="rounded-2xl overflow-hidden border border-primary/20 bg-white shadow-elegant">
             {/* Banner */}
