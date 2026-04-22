@@ -142,6 +142,19 @@ export const ProductManager = ({ userId }: { userId: string }) => {
         uploadedUrls.push(data.publicUrl);
       }
 
+      let fileUrl: string | null = null;
+      let fileName: string | null = null;
+      if (attachedFile) {
+        const safeName = attachedFile.name.replace(/[^\w.\-]+/g, "_");
+        const path = `${userId}/${Date.now()}-${safeName}`;
+        const { error: fileErr } = await supabase.storage
+          .from("product-files")
+          .upload(path, attachedFile, { cacheControl: "3600", upsert: false });
+        if (fileErr) throw fileErr;
+        fileUrl = path;
+        fileName = attachedFile.name;
+      }
+
       const { error: insertError } = await supabase.from("products").insert({
         name: name.trim(),
         description: description.trim() || null,
@@ -150,12 +163,17 @@ export const ProductManager = ({ userId }: { userId: string }) => {
         emoji: emoji || "📦",
         image_url: uploadedUrls[0] ?? null,
         image_urls: uploadedUrls,
+        is_available: isAvailable,
+        file_url: fileUrl,
+        file_name: fileName,
         created_by: userId,
       });
       if (insertError) throw insertError;
 
-      sonnerToast.success("Product uploaded!", {
-        description: `${name} is now live on the storefront.`,
+      sonnerToast.success(isAvailable ? "Product uploaded!" : "Teaser added!", {
+        description: isAvailable
+          ? `${name} is now live on the storefront.`
+          : `${name} is showing as a teaser — purchases disabled.`,
       });
       images.forEach((i) => URL.revokeObjectURL(i.preview));
       resetForm();
