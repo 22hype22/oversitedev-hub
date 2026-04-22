@@ -57,7 +57,7 @@ const BotsPage = () => {
           </p>
         </div>
 
-        <div className="mt-16 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div id="bot-suite" className="mt-16 grid grid-cols-1 lg:grid-cols-3 gap-6 scroll-mt-24">
           {bots.map((bot) => {
             const Icon = bot.icon;
             return (
