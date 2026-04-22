@@ -740,15 +740,148 @@ export const BotBuilder = () => {
                 })}
               </div>
             )}
-            <Button variant="hero" size="lg" className="w-full mt-4" onClick={submit}>
-              Send my build <ArrowRight />
+            <Button
+              variant="hero"
+              size="lg"
+              className="w-full mt-4"
+              onClick={submit}
+              disabled={submitting}
+            >
+              {showPayment ? "Confirm & Submit" : "Submit My Details"} <ArrowRight />
             </Button>
+
+            {/* Collapsible payment / contact details */}
+            <div
+              id="payment-section"
+              className={`grid transition-all duration-500 ease-out ${
+                showPayment
+                  ? "grid-rows-[1fr] opacity-100 mt-4"
+                  : "grid-rows-[0fr] opacity-0 mt-0"
+              }`}
+            >
+              <div className="overflow-hidden">
+                <div className="rounded-xl border border-primary/20 bg-card/70 backdrop-blur p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+                    <LockIcon size={12} className="text-primary" />
+                    Secure payment details
+                  </div>
+                  <div className="grid grid-cols-1 gap-2">
+                    <Input
+                      placeholder="Full name"
+                      value={payFullName}
+                      onChange={(e) => setPayFullName(e.target.value)}
+                    />
+                    <Input
+                      type="email"
+                      placeholder="Email address"
+                      value={payEmail}
+                      onChange={(e) => setPayEmail(e.target.value)}
+                    />
+                    <div className="relative">
+                      <Input
+                        placeholder="Card number"
+                        inputMode="numeric"
+                        value={payCard}
+                        onChange={(e) => setPayCard(e.target.value)}
+                        className="pl-9"
+                      />
+                      <CreditCard
+                        size={14}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Input
+                        placeholder="MM/YY"
+                        value={payExp}
+                        onChange={(e) => setPayExp(e.target.value)}
+                      />
+                      <Input
+                        placeholder="CVC"
+                        value={payCvc}
+                        onChange={(e) => setPayCvc(e.target.value)}
+                      />
+                      <Input
+                        placeholder="ZIP"
+                        value={payZip}
+                        onChange={(e) => setPayZip(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    You won't be charged until we confirm your build scope.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <p className="text-[10px] text-muted-foreground mt-3 leading-relaxed">
               *Final pricing depends on scope. We'll confirm everything before any work begins.
             </p>
           </div>
         </aside>
       </div>
+
+      {/* Cinematic success overlay */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-background/85 backdrop-blur-md animate-fade-in">
+          {/* Confetti */}
+          {Array.from({ length: 24 }).map((_, i) => {
+            const left = (i * 4.3) % 100;
+            const delay = (i % 8) * 0.12;
+            const colors = ["bg-primary", "bg-primary-glow", "bg-accent", "bg-secondary"];
+            const color = colors[i % colors.length];
+            return (
+              <span
+                key={i}
+                className={`absolute top-0 w-2 h-3 rounded-sm ${color} animate-confetti-fall`}
+                style={{ left: `${left}%`, animationDelay: `${delay}s` }}
+              />
+            );
+          })}
+
+          {/* Expanding rings */}
+          <span className="absolute w-32 h-32 rounded-full border-2 border-primary/40 animate-ring-expand" />
+          <span
+            className="absolute w-32 h-32 rounded-full border-2 border-primary/30 animate-ring-expand"
+            style={{ animationDelay: "0.4s" }}
+          />
+
+          {/* Flying paper airplane */}
+          <div
+            className="absolute left-[10%] bottom-[20%] text-primary animate-plane-fly"
+            style={{ filter: "drop-shadow(0 6px 18px hsl(var(--primary) / 0.5))" }}
+          >
+            <svg
+              width="72"
+              height="72"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M22 2 11 13" />
+              <path d="M22 2 15 22l-4-9-9-4 20-7Z" fill="currentColor" fillOpacity="0.15" />
+            </svg>
+          </div>
+
+          {/* Center message */}
+          <div className="relative text-center px-6 animate-burst-in">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-primary shadow-glow mb-6">
+              <Check size={42} className="text-primary-foreground" strokeWidth={3} />
+            </div>
+            <h3 className="text-3xl md:text-5xl font-bold tracking-tight">
+              It's <span className="text-gradient">sent!</span>
+            </h3>
+            <p className="mt-3 text-base md:text-lg text-muted-foreground max-w-md mx-auto">
+              We're getting right to work on your build. Check your inbox — we'll
+              be in touch shortly.
+            </p>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
