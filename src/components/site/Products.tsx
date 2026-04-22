@@ -60,6 +60,7 @@ type Product = {
   tag?: string;
   imageUrl?: string;
   imageUrls?: string[];
+  isAvailable?: boolean;
 };
 
 type Subscription = {
