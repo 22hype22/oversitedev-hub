@@ -131,7 +131,7 @@ export default {
         "draw-circle": "draw-circle 1.8s ease-out forwards",
         "loading-bar": "loading-bar 1.5s ease-in-out infinite",
         "pulse-slow": "pulse-slow 4s ease-in-out infinite",
-        "plane-fly": "plane-fly 2.4s cubic-bezier(0.45, 0, 0.55, 1) forwards",
+        "plane-fly": "plane-fly 3.2s cubic-bezier(0.5, 0, 0.55, 1) forwards",
         "burst-in": "burst-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
         "ring-expand": "ring-expand 1.4s ease-out forwards",
         "confetti-fall": "confetti-fall 3s ease-in forwards",
