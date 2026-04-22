@@ -225,7 +225,7 @@ export const BotBuilder = () => {
   const [base, setBase] = useState<string>("protection");
   const [addons, setAddons] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
-  const [showAllAddons, setShowAllAddons] = useState(false);
+  const [showAllAddons, setShowAllAddons] = useState<Record<string, boolean>>({});
 
   const iconInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
