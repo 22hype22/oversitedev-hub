@@ -20,7 +20,7 @@ const steps = [
     icon: Code2,
     title: "Build & iterate",
     desc: "Our team designs, scripts, and ships in tight feedback loops with you.",
-    details: ["Weekly progress builds", "Direct Discord access", "Unlimited revisions in scope"],
+    details: ["Weekly progress builds", "Direct line to your developer", "Unlimited revisions in scope"],
   },
   {
     n: "04",
@@ -41,7 +41,7 @@ const principles = [
 ];
 
 const faqs = [
-  { q: "How long does a typical project take?", a: "Most builds ship in 2–6 weeks depending on scope. Bots and small tools can launch in days; full game systems take longer. We give you a firm timeline before any work begins." },
+  { q: "How long does a typical project take?", a: "Most builds ship in 2–6 weeks depending on scope. Smaller systems and assets can launch in days; full game experiences take longer. We give you a firm timeline before any work begins." },
   { q: "Do you work with NDAs?", a: "Absolutely. We sign NDAs before discovery whenever needed and treat every project as confidential by default." },
   { q: "What happens after launch?", a: "Every project comes with a free post-launch window for fixes. After that, we offer monthly care plans or pay-as-you-go support — whichever fits you best." },
   { q: "Can you take over an existing project?", a: "Yes. We regularly inherit codebases, audit them, and either continue development or refactor them into something maintainable." },
