@@ -452,10 +452,12 @@ export const BotBuilder = () => {
               <span className="ml-auto text-xs text-muted-foreground">Tap to toggle</span>
             </div>
             <p className="text-xs text-muted-foreground mb-4">
-              Tailored options for your <span className="text-primary font-medium">{selectedBase?.name}</span> base.
+              {base === "scratch"
+                ? "Pick from any category — Protection, Support, and Utilities."
+                : <>Tailored options for your <span className="text-primary font-medium">{selectedBase?.name}</span> base.</>}
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {(showAllAddons ? currentAddons : currentAddons.slice(0, 10)).map((a) => {
+            {(() => {
+              const renderAddonCard = (a: Addon) => {
                 const Icon = a.icon;
                 const active = addons.includes(a.id);
                 return (
@@ -488,22 +490,62 @@ export const BotBuilder = () => {
                     <div className="mt-2 text-xs text-foreground/80">+${a.price.toFixed(2)}</div>
                   </button>
                 );
-              })}
-            </div>
-            {currentAddons.length > 10 && (
-              <div className="mt-4 flex justify-center">
-                <Button
-                  type="button"
-                  variant="outlineGlow"
-                  size="sm"
-                  onClick={() => setShowAllAddons((v) => !v)}
-                >
-                  {showAllAddons
-                    ? "Show less"
-                    : `View more (${currentAddons.length - 10})`}
-                </Button>
-              </div>
-            )}
+              };
+
+              const renderList = (key: string, list: Addon[]) => {
+                const expanded = !!showAllAddons[key];
+                const visible = expanded ? list : list.slice(0, 10);
+                return (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {visible.map(renderAddonCard)}
+                    </div>
+                    {list.length > 10 && (
+                      <div className="mt-4 flex justify-center">
+                        <Button
+                          type="button"
+                          variant="outlineGlow"
+                          size="sm"
+                          onClick={() =>
+                            setShowAllAddons((prev) => ({ ...prev, [key]: !prev[key] }))
+                          }
+                        >
+                          {expanded ? "Show less" : `View more (${list.length - 10})`}
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                );
+              };
+
+              if (base === "scratch") {
+                return (
+                  <div className="space-y-8">
+                    {SCRATCH_CATEGORIES.map((cat) => {
+                      const CatIcon = cat.icon;
+                      return (
+                        <div key={cat.id}>
+                          <div className="flex items-center gap-2 mb-3">
+                            <CatIcon size={16} className="text-primary" />
+                            <h4 className="text-sm font-semibold tracking-tight">{cat.label}</h4>
+                          </div>
+                          {renderList(cat.id, cat.addons)}
+                        </div>
+                      );
+                    })}
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sparkles size={16} className="text-primary" />
+                        <h4 className="text-sm font-semibold tracking-tight">Extras</h4>
+                      </div>
+                      {renderList("shared", SHARED_ADDONS)}
+                    </div>
+                  </div>
+                );
+              }
+
+              return renderList("default", currentAddons);
+            })()}
           </div>
 
           {/* Step 4 — Notes */}
