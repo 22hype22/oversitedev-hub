@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Package, Trash2, ImagePlus, Loader2, X, FileText, Sparkles } from "lucide-react";
+import { Upload, Package, Trash2, ImagePlus, Loader2, X, FileText, Sparkles, Wand2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
@@ -36,12 +36,23 @@ type DbProduct = {
   is_available: boolean;
   file_url: string | null;
   file_name: string | null;
+  price_robux: number | null;
+  gamepass_id: string | null;
+  gamepass_url: string | null;
   created_at: string;
 };
 
 const CATEGORIES = ["Systems", "Assets"] as const;
 const MAX_IMAGES = 6;
 const MAX_FILE_MB = 50;
+// Default conversion rate used to suggest a Robux price from USD.
+// (Roughly tracks the Roblox Premium payout rate of ~80 R$ per $1.)
+const ROBUX_PER_USD = 80;
+
+const extractGamepassId = (url: string): string | null => {
+  const m = url.match(/game-pass\/(\d+)/i) || url.match(/gamepasses?\/(\d+)/i);
+  return m?.[1] ?? null;
+};
 
 type PendingImage = { file: File; preview: string };
 
