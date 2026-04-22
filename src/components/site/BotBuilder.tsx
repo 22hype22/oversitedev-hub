@@ -90,6 +90,7 @@ type Addon = {
   desc: string;
   icon: typeof Palette;
   price: number;
+  oldPrice?: number;
 };
 
 const BASES: Base[] = [
@@ -125,7 +126,8 @@ const BASES: Base[] = [
 
 const SHARED_ADDONS: Addon[] = [
   { id: "branding", name: "Custom Branding", desc: "Match your server's identity end-to-end.", icon: Palette, price: 25 },
-  { id: "dashboard", name: "Web Dashboard", desc: "Hosted control panel for everything.", icon: Globe, price: 149.99 },
+  { id: "dashboard", name: "Web Dashboard", desc: "Hosted control panel for everything.", icon: Globe, price: 149.99, oldPrice: 300 },
+  { id: "multi-server", name: "Multi-Server License", desc: "Use your bot across multiple Discord servers.", icon: Globe2, price: 9.99 },
 ];
 
 const ADDONS_BY_BASE: Record<string, Addon[]> = {
