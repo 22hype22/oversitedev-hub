@@ -250,7 +250,7 @@ export const BotBuilder = () => {
   const selectBase = (id: string) => {
     setBase(id);
     setAddons([]);
-    setShowAllAddons(false);
+    setShowAllAddons({});
   };
 
   const total = useMemo(() => {
