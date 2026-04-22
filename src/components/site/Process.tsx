@@ -112,17 +112,33 @@ export const Process = () => (
             { day: "Week 2+", title: "Iteration cycles", desc: "Weekly drops, your feedback, and steady forward progress." },
             { day: "Launch", title: "Ship & monitor", desc: "Deployment, real-time monitoring, and rapid hotfixes if needed." },
             { day: "Ongoing", title: "Support & growth", desc: "Updates, new features, and care plans tailored to your needs." },
-          ].map((item, i) => (
-            <div key={item.day} className={`relative flex md:items-center mb-8 last:mb-0 ${i % 2 === 0 ? "md:flex-row" : "md:flex-row-reverse"}`}>
-              <div className="hidden md:block md:w-1/2" />
-              <div className="absolute left-4 md:left-1/2 w-3 h-3 rounded-full bg-primary ring-4 ring-background -translate-x-1/2 mt-2 md:mt-0" />
-              <div className="pl-12 md:pl-0 md:w-1/2 md:px-8">
-                <div className="text-xs text-primary font-semibold mb-1">{item.day}</div>
-                <h4 className="font-semibold mb-1">{item.title}</h4>
-                <p className="text-sm text-muted-foreground">{item.desc}</p>
+          ].map((item, i) => {
+            const isLeft = i % 2 === 0;
+            return (
+              <div key={item.day} className="relative md:grid md:grid-cols-2 md:gap-8 mb-10 last:mb-0">
+                <div className="absolute left-4 md:left-1/2 top-2 w-3 h-3 rounded-full bg-primary ring-4 ring-background -translate-x-1/2" />
+                {isLeft ? (
+                  <>
+                    <div className="pl-12 md:pl-0 md:pr-10 md:text-right">
+                      <div className="text-xs text-primary font-semibold mb-1">{item.day}</div>
+                      <h4 className="font-semibold mb-1">{item.title}</h4>
+                      <p className="text-sm text-muted-foreground">{item.desc}</p>
+                    </div>
+                    <div className="hidden md:block" />
+                  </>
+                ) : (
+                  <>
+                    <div className="hidden md:block" />
+                    <div className="pl-12 md:pl-10 md:pr-0">
+                      <div className="text-xs text-primary font-semibold mb-1">{item.day}</div>
+                      <h4 className="font-semibold mb-1">{item.title}</h4>
+                      <p className="text-sm text-muted-foreground">{item.desc}</p>
+                    </div>
+                  </>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
