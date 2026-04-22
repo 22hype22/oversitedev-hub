@@ -127,20 +127,7 @@ const SUBSCRIPTIONS: Subscription[] = [
   },
 ];
 
-const PRODUCTS: Product[] = [
-  { id: "p1", name: "Moderation System", price: 29, category: "Systems", blurb: "Auto-mod, warns, mutes, and audit logs.", emoji: "🛡️", tag: "Popular" },
-  { id: "p2", name: "Music System Premium", price: 19, category: "Systems", blurb: "High-quality streaming with queue controls.", emoji: "🎵" },
-  { id: "p3", name: "Leveling System", price: 15, category: "Systems", blurb: "XP, ranks, role rewards, and leaderboards.", emoji: "⭐" },
-  { id: "p4", name: "Ticket System", price: 25, category: "Systems", blurb: "Full support flow with transcripts.", emoji: "🎫" },
-  { id: "p5", name: "Economy System", price: 22, category: "Systems", blurb: "Currency, shops, and mini-games.", emoji: "💰" },
-  { id: "p6", name: "Giveaway System", price: 12, category: "Systems", blurb: "Entries, requirements, and rerolls.", emoji: "🎁" },
-  { id: "p7", name: "Welcome Card Pack", price: 9, category: "Assets", blurb: "10 animated welcome card templates.", emoji: "👋" },
-  { id: "p8", name: "Server Template Pro", price: 14, category: "Assets", blurb: "Complete community server layout.", emoji: "📋" },
-  { id: "p9", name: "Custom Emoji Pack", price: 7, category: "Assets", blurb: "100+ premium server emojis.", emoji: "😀" },
-  { id: "p10", name: "Banner & Icon Set", price: 11, category: "Assets", blurb: "Matching banners, icons, and splash art.", emoji: "🎨" },
-  { id: "p11", name: "Role Icon Bundle", price: 8, category: "Assets", blurb: "50 clean role icons in multiple styles.", emoji: "🏷️" },
-  { id: "p12", name: "Embed Template Kit", price: 13, category: "Assets", blurb: "Ready-to-use rich embed designs.", emoji: "📨" },
-];
+const PRODUCTS: Product[] = [];
 
 const COMING_SOON = [
   { name: "Reaction Roles 2.0", blurb: "Drag-and-drop role menus with conditions.", emoji: "✨" },
