@@ -125,7 +125,7 @@ const BASES: Base[] = [
 
 const SHARED_ADDONS: Addon[] = [
   { id: "branding", name: "Custom Branding", desc: "Match your server's identity end-to-end.", icon: Palette, price: 25 },
-  { id: "dashboard", name: "Web Dashboard", desc: "Hosted control panel for everything.", icon: Globe, price: 60 },
+  { id: "dashboard", name: "Web Dashboard", desc: "Hosted control panel for everything.", icon: Globe, price: 149.99 },
 ];
 
 const ADDONS_BY_BASE: Record<string, Addon[]> = {
