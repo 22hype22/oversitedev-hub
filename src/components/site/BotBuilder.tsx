@@ -217,6 +217,7 @@ export const BotBuilder = () => {
   const [base, setBase] = useState<string>("protection");
   const [addons, setAddons] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
+  const [showAllAddons, setShowAllAddons] = useState(false);
 
   const iconInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -241,6 +242,7 @@ export const BotBuilder = () => {
   const selectBase = (id: string) => {
     setBase(id);
     setAddons([]);
+    setShowAllAddons(false);
   };
 
   const total = useMemo(() => {
@@ -445,7 +447,7 @@ export const BotBuilder = () => {
               Tailored options for your <span className="text-primary font-medium">{selectedBase?.name}</span> base.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {currentAddons.map((a) => {
+              {(showAllAddons ? currentAddons : currentAddons.slice(0, 10)).map((a) => {
                 const Icon = a.icon;
                 const active = addons.includes(a.id);
                 return (
@@ -480,6 +482,20 @@ export const BotBuilder = () => {
                 );
               })}
             </div>
+            {currentAddons.length > 10 && (
+              <div className="mt-4 flex justify-center">
+                <Button
+                  type="button"
+                  variant="outlineGlow"
+                  size="sm"
+                  onClick={() => setShowAllAddons((v) => !v)}
+                >
+                  {showAllAddons
+                    ? "Show less"
+                    : `View more (${currentAddons.length - 10})`}
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Step 4 — Notes */}
