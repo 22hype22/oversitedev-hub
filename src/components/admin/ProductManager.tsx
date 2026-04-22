@@ -58,6 +58,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
   const [category, setCategory] = useState<string>("Systems");
   const [emoji, setEmoji] = useState("📦");
   const [images, setImages] = useState<PendingImage[]>([]);
+  const [isAvailable, setIsAvailable] = useState(true);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
 
   const resetForm = () => {
     setName("");
@@ -66,6 +68,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setCategory("Systems");
     setEmoji("📦");
     setImages([]);
+    setIsAvailable(true);
+    setAttachedFile(null);
   };
 
   const loadProducts = async () => {
