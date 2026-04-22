@@ -428,6 +428,85 @@ export const ProductManager = ({ userId }: { userId: string }) => {
                 </label>
               )}
             </div>
+
+            {/* Attached file (digital download) */}
+            <div className="space-y-2">
+              <Label>Attached file (optional)</Label>
+              {attachedFile ? (
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background/50">
+                  <div className="h-10 w-10 rounded-md bg-primary/10 grid place-items-center shrink-0">
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{attachedFile.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {(attachedFile.size / (1024 * 1024)).toFixed(2)} MB
+                    </div>
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    onClick={() => setAttachedFile(null)}
+                    aria-label="Remove file"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <label className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-smooth cursor-pointer">
+                  <div className="h-10 w-10 rounded-md bg-primary/10 grid place-items-center shrink-0">
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 text-sm">
+                    <div className="font-medium">Attach a file</div>
+                    <div className="text-xs text-muted-foreground">
+                      Any file type — up to {MAX_FILE_MB}MB. Stored privately.
+                    </div>
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!f) return;
+                      if (f.size > MAX_FILE_MB * 1024 * 1024) {
+                        sonnerToast.error("File too large", {
+                          description: `Keep it under ${MAX_FILE_MB}MB.`,
+                        });
+                        return;
+                      }
+                      setAttachedFile(f);
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+
+            {/* Availability / teaser toggle */}
+            <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-background/50">
+              <div className="h-10 w-10 rounded-md bg-primary/10 grid place-items-center shrink-0">
+                <Sparkles className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="prod-available" className="text-sm font-medium cursor-pointer">
+                    Available for purchase
+                  </Label>
+                  <Switch
+                    id="prod-available"
+                    checked={isAvailable}
+                    onCheckedChange={setIsAvailable}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {isAvailable
+                    ? "Live on the storefront — customers can buy it now."
+                    : "Shown as a teaser — visible but marked “Coming soon”, purchases disabled."}
+                </p>
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
