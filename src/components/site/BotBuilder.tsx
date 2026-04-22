@@ -544,7 +544,21 @@ export const BotBuilder = () => {
                 );
               }
 
-              return renderList("default", currentAddons);
+              const baseAddons = ADDONS_BY_BASE[base] ?? [];
+              return (
+                <div className="space-y-8">
+                  <div>
+                    {renderList("default", baseAddons)}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Sparkles size={16} className="text-primary" />
+                      <h4 className="text-sm font-semibold tracking-tight">Extras</h4>
+                    </div>
+                    {renderList("shared", SHARED_ADDONS)}
+                  </div>
+                </div>
+              );
             })()}
           </div>
 
