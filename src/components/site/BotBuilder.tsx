@@ -297,13 +297,23 @@ export const BotBuilder = () => {
       return;
     }
     setSubmitting(true);
+    // Capture button center as the airplane's launch point
+    const btn = confirmBtnRef.current;
+    if (btn) {
+      const rect = btn.getBoundingClientRect();
+      setPlaneOrigin({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+    }
     setTimeout(() => {
       setShowSuccess(true);
       setSubmitting(false);
-    }, 400);
+    }, 200);
+    // Reveal the success message right when the plane zooms past the camera
+    setTimeout(() => {
+      setShowSuccessText(true);
+    }, 2900);
     setTimeout(() => {
       window.location.href = "/#contact";
-    }, 5200);
+    }, 6000);
   };
 
   const selectedBase = BASES.find((b) => b.id === base);
