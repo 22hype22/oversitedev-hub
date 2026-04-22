@@ -251,6 +251,7 @@ export const Products = () => {
               : p.image_url
               ? [p.image_url]
               : [];
+            const available = p.is_available !== false;
             return {
               id: `custom-${p.id}`,
               name: p.name,
@@ -258,9 +259,10 @@ export const Products = () => {
               category: (p.category === "Assets" ? "Assets" : "Systems") as "Systems" | "Assets",
               blurb: p.description || "",
               emoji: p.emoji || "📦",
-              tag: "New",
+              tag: available ? "New" : "Coming soon",
               imageUrl: urls[0],
               imageUrls: urls,
+              isAvailable: available,
             };
           }),
         );
