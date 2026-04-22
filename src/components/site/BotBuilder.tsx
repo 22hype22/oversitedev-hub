@@ -195,18 +195,26 @@ const ADDONS_BY_BASE: Record<string, Addon[]> = {
     { id: "translation-bot", name: "Translation Bot", desc: "Auto-translate messages on demand.", icon: Languages, price: 5.99 },
     { id: "server-backup", name: "Server Backup", desc: "Snapshot and restore server config.", icon: Save, price: 6.99 },
   ],
-  scratch: [
-    { id: "commands", name: "Custom Commands", desc: "Bespoke slash commands and workflows.", icon: Code2, price: 40 },
-    { id: "integrations", name: "Third-Party APIs", desc: "Hook into any external service you use.", icon: Zap, price: 50 },
-    { id: "analytics", name: "Custom Analytics", desc: "Dashboards tailored to your metrics.", icon: BarChart3, price: 45 },
-    { id: "alerts", name: "Priority Alerts", desc: "Webhook, email, or SMS for incidents.", icon: Bell, price: 30 },
-    { id: "exports", name: "Data Exports", desc: "Scheduled CSV/JSON exports of your data.", icon: Database, price: 20 },
-  ],
+  scratch: [],
+
 };
 
-const getAddonsForBase = (baseId: string): Addon[] => [
-  ...(ADDONS_BY_BASE[baseId] ?? []),
-  ...SHARED_ADDONS,
+const getAddonsForBase = (baseId: string): Addon[] => {
+  if (baseId === "scratch") {
+    return [
+      ...ADDONS_BY_BASE.protection,
+      ...ADDONS_BY_BASE.support,
+      ...ADDONS_BY_BASE.utilities,
+      ...SHARED_ADDONS,
+    ];
+  }
+  return [...(ADDONS_BY_BASE[baseId] ?? []), ...SHARED_ADDONS];
+};
+
+const SCRATCH_CATEGORIES: { id: string; label: string; icon: typeof Shield; addons: Addon[] }[] = [
+  { id: "protection", label: "Protection options", icon: Shield, addons: ADDONS_BY_BASE.protection },
+  { id: "support", label: "Support options", icon: LifeBuoy, addons: ADDONS_BY_BASE.support },
+  { id: "utilities", label: "Utilities options", icon: Wrench, addons: ADDONS_BY_BASE.utilities },
 ];
 
 export const BotBuilder = () => {
