@@ -240,9 +240,12 @@ export const BotBuilder = () => {
   const [payZip, setPayZip] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showSuccessText, setShowSuccessText] = useState(false);
+  const [planeOrigin, setPlaneOrigin] = useState<{ x: number; y: number } | null>(null);
 
   const iconInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
+  const confirmBtnRef = useRef<HTMLButtonElement>(null);
 
   const currentAddons = useMemo(() => getAddonsForBase(base), [base]);
 
@@ -294,13 +297,23 @@ export const BotBuilder = () => {
       return;
     }
     setSubmitting(true);
+    // Capture button center as the airplane's launch point
+    const btn = confirmBtnRef.current;
+    if (btn) {
+      const rect = btn.getBoundingClientRect();
+      setPlaneOrigin({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+    }
     setTimeout(() => {
       setShowSuccess(true);
       setSubmitting(false);
-    }, 400);
+    }, 200);
+    // Reveal the success message right when the plane zooms past the camera
+    setTimeout(() => {
+      setShowSuccessText(true);
+    }, 2900);
     setTimeout(() => {
       window.location.href = "/#contact";
-    }, 5200);
+    }, 6000);
   };
 
   const selectedBase = BASES.find((b) => b.id === base);
@@ -814,6 +827,7 @@ export const BotBuilder = () => {
 
             {showPayment && (
               <Button
+                ref={confirmBtnRef}
                 variant="hero"
                 size="lg"
                 className="w-full mt-4"
@@ -833,62 +847,84 @@ export const BotBuilder = () => {
 
       {/* Cinematic success overlay */}
       {showSuccess && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-background/85 backdrop-blur-md animate-fade-in">
-          {/* Confetti */}
-          {Array.from({ length: 24 }).map((_, i) => {
-            const left = (i * 4.3) % 100;
-            const delay = (i % 8) * 0.12;
-            const colors = ["bg-primary", "bg-primary-glow", "bg-accent", "bg-secondary"];
-            const color = colors[i % colors.length];
-            return (
+        <div
+          className={`fixed inset-0 z-[100] overflow-hidden transition-colors duration-500 ${
+            showSuccessText ? "bg-background/85 backdrop-blur-md" : "bg-transparent pointer-events-none"
+          }`}
+        >
+          {/* Confetti — only after the plane zooms past */}
+          {showSuccessText &&
+            Array.from({ length: 24 }).map((_, i) => {
+              const left = (i * 4.3) % 100;
+              const delay = (i % 8) * 0.12;
+              const colors = ["bg-primary", "bg-primary-glow", "bg-accent", "bg-secondary"];
+              const color = colors[i % colors.length];
+              return (
+                <span
+                  key={i}
+                  className={`absolute top-0 w-2 h-3 rounded-sm ${color} animate-confetti-fall`}
+                  style={{ left: `${left}%`, animationDelay: `${delay}s` }}
+                />
+              );
+            })}
+
+          {/* Expanding rings — burst on impact */}
+          {showSuccessText && (
+            <>
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full border-2 border-primary/40 animate-ring-expand" />
               <span
-                key={i}
-                className={`absolute top-0 w-2 h-3 rounded-sm ${color} animate-confetti-fall`}
-                style={{ left: `${left}%`, animationDelay: `${delay}s` }}
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full border-2 border-primary/30 animate-ring-expand"
+                style={{ animationDelay: "0.3s" }}
               />
-            );
-          })}
+            </>
+          )}
 
-          {/* Expanding rings */}
-          <span className="absolute w-32 h-32 rounded-full border-2 border-primary/40 animate-ring-expand" />
-          <span
-            className="absolute w-32 h-32 rounded-full border-2 border-primary/30 animate-ring-expand"
-            style={{ animationDelay: "0.4s" }}
-          />
-
-          {/* Flying paper airplane */}
-          <div
-            className="absolute left-[10%] bottom-[20%] text-primary animate-plane-fly"
-            style={{ filter: "drop-shadow(0 6px 18px hsl(var(--primary) / 0.5))" }}
-          >
-            <svg
-              width="72"
-              height="72"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          {/* Flying paper airplane — launches from the button */}
+          {!showSuccessText && planeOrigin && (
+            <div
+              className="absolute text-primary animate-plane-fly"
+              style={{
+                left: planeOrigin.x,
+                top: planeOrigin.y,
+                marginLeft: "-36px",
+                marginTop: "-36px",
+                filter: "drop-shadow(0 8px 22px hsl(var(--primary) / 0.55))",
+                transformOrigin: "center",
+              }}
             >
-              <path d="M22 2 11 13" />
-              <path d="M22 2 15 22l-4-9-9-4 20-7Z" fill="currentColor" fillOpacity="0.15" />
-            </svg>
-          </div>
-
-          {/* Center message */}
-          <div className="relative text-center px-6 animate-burst-in">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-primary shadow-glow mb-6">
-              <Check size={42} className="text-primary-foreground" strokeWidth={3} />
+              <svg
+                width="72"
+                height="72"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M22 2 11 13" />
+                <path d="M22 2 15 22l-4-9-9-4 20-7Z" fill="currentColor" fillOpacity="0.18" />
+              </svg>
             </div>
-            <h3 className="text-3xl md:text-5xl font-bold tracking-tight">
-              It's <span className="text-gradient">sent!</span>
-            </h3>
-            <p className="mt-3 text-base md:text-lg text-muted-foreground max-w-md mx-auto">
-              We're getting right to work on your build. Check your inbox — we'll
-              be in touch shortly.
-            </p>
-          </div>
+          )}
+
+          {/* Center message — appears right when the plane flies past */}
+          {showSuccessText && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="relative text-center px-6 animate-burst-in">
+                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-primary shadow-glow mb-6">
+                  <Check size={42} className="text-primary-foreground" strokeWidth={3} />
+                </div>
+                <h3 className="text-3xl md:text-5xl font-bold tracking-tight">
+                  It's <span className="text-gradient">sent!</span>
+                </h3>
+                <p className="mt-3 text-base md:text-lg text-muted-foreground max-w-md mx-auto">
+                  We're getting right to work on your build. Check your inbox — we'll
+                  be in touch shortly.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </section>
