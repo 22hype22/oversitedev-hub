@@ -90,6 +90,7 @@ type Addon = {
   desc: string;
   icon: typeof Palette;
   price: number;
+  oldPrice?: number;
 };
 
 const BASES: Base[] = [
@@ -125,7 +126,8 @@ const BASES: Base[] = [
 
 const SHARED_ADDONS: Addon[] = [
   { id: "branding", name: "Custom Branding", desc: "Match your server's identity end-to-end.", icon: Palette, price: 25 },
-  { id: "dashboard", name: "Web Dashboard", desc: "Hosted control panel for everything.", icon: Globe, price: 149.99 },
+  { id: "dashboard", name: "Web Dashboard", desc: "Hosted control panel for everything.", icon: Globe, price: 149.99, oldPrice: 300 },
+  { id: "multi-server", name: "Multi-Server License", desc: "Use your bot across multiple Discord servers.", icon: Globe2, price: 9.99 },
 ];
 
 const ADDONS_BY_BASE: Record<string, Addon[]> = {
@@ -487,7 +489,15 @@ export const BotBuilder = () => {
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                       {a.desc}
                     </p>
-                    <div className="mt-2 text-xs text-foreground/80">+${a.price.toFixed(2)}</div>
+                    <div className="mt-2 text-xs text-foreground/80 flex items-center gap-2">
+                      <span>+${a.price.toFixed(2)}</span>
+                      {a.oldPrice && (
+                        <>
+                          <span className="line-through text-muted-foreground/70">${a.oldPrice.toFixed(2)}</span>
+                          <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">SALE</span>
+                        </>
+                      )}
+                    </div>
                   </button>
                 );
               };
