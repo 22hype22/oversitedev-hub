@@ -170,6 +170,16 @@ export const ProductManager = ({ userId }: { userId: string }) => {
         fileName = attachedFile.name;
       }
 
+      const robuxNum = priceRobux.trim() ? parseInt(priceRobux.trim(), 10) : null;
+      if (priceRobux.trim() && (robuxNum === null || isNaN(robuxNum) || robuxNum < 0)) {
+        throw new Error("Robux price must be a non-negative whole number.");
+      }
+      const trimmedGamepass = gamepassUrl.trim();
+      const gamepassId = trimmedGamepass ? extractGamepassId(trimmedGamepass) : null;
+      if (trimmedGamepass && !gamepassId) {
+        throw new Error("Couldn't read a gamepass ID from that URL. It should look like https://www.roblox.com/game-pass/12345678/...");
+      }
+
       const { error: insertError } = await supabase.from("products").insert({
         name: name.trim(),
         description: description.trim() || null,
@@ -181,6 +191,9 @@ export const ProductManager = ({ userId }: { userId: string }) => {
         is_available: isAvailable,
         file_url: fileUrl,
         file_name: fileName,
+        price_robux: robuxNum,
+        gamepass_id: gamepassId,
+        gamepass_url: trimmedGamepass || null,
         created_by: userId,
       });
       if (insertError) throw insertError;
