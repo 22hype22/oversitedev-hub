@@ -19,7 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Package, Trash2, ImagePlus, Loader2, X } from "lucide-react";
+import { Upload, Package, Trash2, ImagePlus, Loader2, X, FileText, Sparkles } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
 
@@ -32,11 +33,15 @@ type DbProduct = {
   emoji: string | null;
   image_url: string | null;
   image_urls: string[] | null;
+  is_available: boolean;
+  file_url: string | null;
+  file_name: string | null;
   created_at: string;
 };
 
 const CATEGORIES = ["Systems", "Assets"] as const;
 const MAX_IMAGES = 6;
+const MAX_FILE_MB = 50;
 
 type PendingImage = { file: File; preview: string };
 
