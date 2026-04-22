@@ -608,7 +608,7 @@ export const BotBuilder = () => {
                 Estimated
               </span>
               <span className="text-2xl font-bold tracking-tight">
-                ${total}
+                ${total.toFixed(2)}
                 <span className="text-xs text-muted-foreground font-normal"> one-time*</span>
               </span>
             </div>
