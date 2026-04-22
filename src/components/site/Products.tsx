@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -55,6 +56,7 @@ type Product = {
   blurb: string;
   emoji: string;
   tag?: string;
+  imageUrl?: string;
 };
 
 type Subscription = {
@@ -155,6 +157,31 @@ export const Products = () => {
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutItems, setCheckoutItems] = useState<CheckoutItem[]>([]);
+  const [customProducts, setCustomProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (data) {
+        setCustomProducts(
+          data.map((p) => ({
+            id: `custom-${p.id}`,
+            name: p.name,
+            price: Number(p.price),
+            category: (p.category === "Assets" ? "Assets" : "Systems") as "Systems" | "Assets",
+            blurb: p.description || "",
+            emoji: p.emoji || "📦",
+            tag: "New",
+            imageUrl: p.image_url || undefined,
+          })),
+        );
+      }
+    };
+    load();
+  }, []);
 
   const startCheckout = () => {
     const items: CheckoutItem[] = [];
@@ -200,7 +227,8 @@ export const Products = () => {
     });
   };
 
-  const filtered = PRODUCTS.filter(
+  const allProducts = [...customProducts, ...PRODUCTS];
+  const filtered = allProducts.filter(
     (p) =>
       (category === "All" || p.category === category) &&
       p.name.toLowerCase().includes(query.toLowerCase()),
@@ -515,7 +543,16 @@ export const Products = () => {
                 className="group p-0 overflow-hidden bg-card border-border hover:border-primary/50 hover:shadow-elegant transition-smooth flex flex-col"
               >
                 <div className="relative aspect-[4/3] bg-gradient-hero flex items-center justify-center text-7xl overflow-hidden">
-                  <span className="group-hover:scale-110 transition-smooth">{p.emoji}</span>
+                  {p.imageUrl ? (
+                    <img
+                      src={p.imageUrl}
+                      alt={p.name}
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-smooth"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <span className="group-hover:scale-110 transition-smooth">{p.emoji}</span>
+                  )}
                   {p.tag && (
                     <Badge className="absolute top-3 left-3 bg-primary text-primary-foreground hover:bg-primary">
                       {p.tag}

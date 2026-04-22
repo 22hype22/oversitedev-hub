@@ -21,8 +21,9 @@ import {
   ArrowRight,
   ArrowLeft,
   Megaphone,
-  Upload,
 } from "lucide-react";
+
+import { ProductManager } from "@/components/admin/ProductManager";
 
 import { Card } from "@/components/ui/card";
 
@@ -181,23 +182,7 @@ const Admin = () => {
             </div>
           </div>
 
-          <Card className="bg-card border-border p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
-            <div className="flex items-start gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0">
-                <Upload className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-base leading-tight">Upload Products</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Add new products to the storefront with pricing and details.
-                </p>
-              </div>
-            </div>
-            <Button variant="hero" size="lg" className="shrink-0">
-              <Upload className="h-4 w-4" />
-              Upload Products
-            </Button>
-          </Card>
+          <ProductManager userId={user.id} />
         </section>
       </div>
     </div>
