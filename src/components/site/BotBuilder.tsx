@@ -285,24 +285,19 @@ export const BotBuilder = () => {
     }
     if (!showPayment) {
       setShowPayment(true);
+      // Scroll the payment section into view after it expands
       setTimeout(() => {
-        document.getElementById("payment-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 100);
-      return;
-    }
-    if (!payFullName.trim() || !payEmail.trim() || !payCard.trim() || !payExp.trim() || !payCvc.trim()) {
-      sonnerToast.error("Complete payment details", {
-        description: "Please fill out every field so we can confirm your build.",
-      });
+        document
+          .getElementById("payment-section")
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 350);
       return;
     }
     setSubmitting(true);
-    // Trigger the cinematic success overlay
     setTimeout(() => {
       setShowSuccess(true);
       setSubmitting(false);
     }, 400);
-    // Redirect after the animation finishes
     setTimeout(() => {
       window.location.href = "/#contact";
     }, 5200);
@@ -615,7 +610,7 @@ export const BotBuilder = () => {
         </div>
 
         {/* Right: light/blue live preview */}
-        <aside className="lg:sticky lg:top-24 h-fit space-y-4">
+        <aside className={`${showPayment ? "" : "lg:sticky lg:top-24"} h-fit space-y-4`}>
           {/* Profile card — white & blue theme */}
           <div className="rounded-2xl overflow-hidden border border-primary/20 bg-white shadow-elegant">
             {/* Banner */}
@@ -740,15 +735,17 @@ export const BotBuilder = () => {
                 })}
               </div>
             )}
-            <Button
-              variant="hero"
-              size="lg"
-              className="w-full mt-4"
-              onClick={submit}
-              disabled={submitting}
-            >
-              {showPayment ? "Confirm & Submit" : "Submit My Details"} <ArrowRight />
-            </Button>
+            {!showPayment && (
+              <Button
+                variant="hero"
+                size="lg"
+                className="w-full mt-4"
+                onClick={submit}
+                disabled={submitting}
+              >
+                Submit My Details <ArrowRight />
+              </Button>
+            )}
 
             {/* Collapsible payment / contact details */}
             <div
@@ -814,6 +811,18 @@ export const BotBuilder = () => {
                 </div>
               </div>
             </div>
+
+            {showPayment && (
+              <Button
+                variant="hero"
+                size="lg"
+                className="w-full mt-4"
+                onClick={submit}
+                disabled={submitting}
+              >
+                Confirm & Submit <ArrowRight />
+              </Button>
+            )}
 
             <p className="text-[10px] text-muted-foreground mt-3 leading-relaxed">
               *Final pricing depends on scope. We'll confirm everything before any work begins.
