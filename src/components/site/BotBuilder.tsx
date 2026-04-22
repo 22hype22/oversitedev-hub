@@ -827,6 +827,7 @@ export const BotBuilder = () => {
 
             {showPayment && (
               <Button
+                ref={confirmBtnRef}
                 variant="hero"
                 size="lg"
                 className="w-full mt-4"
