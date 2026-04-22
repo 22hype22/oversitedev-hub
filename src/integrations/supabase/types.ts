@@ -41,12 +41,15 @@ export type Database = {
           emoji: string | null
           file_name: string | null
           file_url: string | null
+          gamepass_id: string | null
+          gamepass_url: string | null
           id: string
           image_url: string | null
           image_urls: string[]
           is_available: boolean
           name: string
           price: number
+          price_robux: number | null
           updated_at: string
         }
         Insert: {
@@ -57,12 +60,15 @@ export type Database = {
           emoji?: string | null
           file_name?: string | null
           file_url?: string | null
+          gamepass_id?: string | null
+          gamepass_url?: string | null
           id?: string
           image_url?: string | null
           image_urls?: string[]
           is_available?: boolean
           name: string
           price?: number
+          price_robux?: number | null
           updated_at?: string
         }
         Update: {
@@ -73,12 +79,15 @@ export type Database = {
           emoji?: string | null
           file_name?: string | null
           file_url?: string | null
+          gamepass_id?: string | null
+          gamepass_url?: string | null
           id?: string
           image_url?: string | null
           image_urls?: string[]
           is_available?: boolean
           name?: string
           price?: number
+          price_robux?: number | null
           updated_at?: string
         }
         Relationships: []

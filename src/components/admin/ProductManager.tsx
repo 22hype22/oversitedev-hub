@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Package, Trash2, ImagePlus, Loader2, X, FileText, Sparkles } from "lucide-react";
+import { Upload, Package, Trash2, ImagePlus, Loader2, X, FileText, Sparkles, Wand2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
@@ -36,12 +36,23 @@ type DbProduct = {
   is_available: boolean;
   file_url: string | null;
   file_name: string | null;
+  price_robux: number | null;
+  gamepass_id: string | null;
+  gamepass_url: string | null;
   created_at: string;
 };
 
 const CATEGORIES = ["Systems", "Assets"] as const;
 const MAX_IMAGES = 6;
 const MAX_FILE_MB = 50;
+// Default conversion rate used to suggest a Robux price from USD.
+// (Roughly tracks the Roblox Premium payout rate of ~80 R$ per $1.)
+const ROBUX_PER_USD = 80;
+
+const extractGamepassId = (url: string): string | null => {
+  const m = url.match(/game-pass\/(\d+)/i) || url.match(/gamepasses?\/(\d+)/i);
+  return m?.[1] ?? null;
+};
 
 type PendingImage = { file: File; preview: string };
 
@@ -60,6 +71,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
   const [images, setImages] = useState<PendingImage[]>([]);
   const [isAvailable, setIsAvailable] = useState(true);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [priceRobux, setPriceRobux] = useState("");
+  const [gamepassUrl, setGamepassUrl] = useState("");
 
   const resetForm = () => {
     setName("");
@@ -70,6 +83,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setImages([]);
     setIsAvailable(true);
     setAttachedFile(null);
+    setPriceRobux("");
+    setGamepassUrl("");
   };
 
   const loadProducts = async () => {
@@ -155,6 +170,16 @@ export const ProductManager = ({ userId }: { userId: string }) => {
         fileName = attachedFile.name;
       }
 
+      const robuxNum = priceRobux.trim() ? parseInt(priceRobux.trim(), 10) : null;
+      if (priceRobux.trim() && (robuxNum === null || isNaN(robuxNum) || robuxNum < 0)) {
+        throw new Error("Robux price must be a non-negative whole number.");
+      }
+      const trimmedGamepass = gamepassUrl.trim();
+      const gamepassId = trimmedGamepass ? extractGamepassId(trimmedGamepass) : null;
+      if (trimmedGamepass && !gamepassId) {
+        throw new Error("Couldn't read a gamepass ID from that URL. It should look like https://www.roblox.com/game-pass/12345678/...");
+      }
+
       const { error: insertError } = await supabase.from("products").insert({
         name: name.trim(),
         description: description.trim() || null,
@@ -166,6 +191,9 @@ export const ProductManager = ({ userId }: { userId: string }) => {
         is_available: isAvailable,
         file_url: fileUrl,
         file_name: fileName,
+        price_robux: robuxNum,
+        gamepass_id: gamepassId,
+        gamepass_url: trimmedGamepass || null,
         created_by: userId,
       });
       if (insertError) throw insertError;
