@@ -32,6 +32,47 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_purchases: {
+        Row: {
+          created_at: string
+          fulfilled_at: string | null
+          gamepass_id: string
+          id: string
+          product_id: string
+          roblox_user_id: number
+          roblox_username: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          fulfilled_at?: string | null
+          gamepass_id: string
+          id?: string
+          product_id: string
+          roblox_user_id: number
+          roblox_username: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          fulfilled_at?: string | null
+          gamepass_id?: string
+          id?: string
+          product_id?: string
+          roblox_user_id?: number
+          roblox_username?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_purchases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category: string
