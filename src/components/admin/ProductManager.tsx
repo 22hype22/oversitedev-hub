@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Package, Trash2, ImagePlus, Loader2 } from "lucide-react";
+import { Upload, Package, Trash2, ImagePlus, Loader2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
 
@@ -31,10 +31,14 @@ type DbProduct = {
   category: string;
   emoji: string | null;
   image_url: string | null;
+  image_urls: string[] | null;
   created_at: string;
 };
 
 const CATEGORIES = ["Systems", "Assets"] as const;
+const MAX_IMAGES = 6;
+
+type PendingImage = { file: File; preview: string };
 
 export const ProductManager = ({ userId }: { userId: string }) => {
   const [products, setProducts] = useState<DbProduct[]>([]);
@@ -48,8 +52,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<string>("Systems");
   const [emoji, setEmoji] = useState("📦");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [images, setImages] = useState<PendingImage[]>([]);
 
   const resetForm = () => {
     setName("");
@@ -57,8 +60,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setDescription("");
     setCategory("Systems");
     setEmoji("📦");
-    setImageFile(null);
-    setImagePreview(null);
+    setImages([]);
   };
 
   const loadProducts = async () => {
@@ -79,16 +81,32 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     loadProducts();
   }, []);
 
-  const handleFileChange = (file: File | undefined) => {
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      sonnerToast.error("Image too large", { description: "Please keep it under 5MB." });
+  const handleFilesChange = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const incoming = Array.from(files);
+    const remaining = MAX_IMAGES - images.length;
+    if (remaining <= 0) {
+      sonnerToast.error("Image limit reached", { description: `Up to ${MAX_IMAGES} images per product.` });
       return;
     }
-    setImageFile(file);
-    const reader = new FileReader();
-    reader.onload = (e) => setImagePreview(e.target?.result as string);
-    reader.readAsDataURL(file);
+    const accepted: PendingImage[] = [];
+    for (const file of incoming.slice(0, remaining)) {
+      if (file.size > 5 * 1024 * 1024) {
+        sonnerToast.error(`"${file.name}" too large`, { description: "Please keep each image under 5MB." });
+        continue;
+      }
+      accepted.push({ file, preview: URL.createObjectURL(file) });
+    }
+    setImages((prev) => [...prev, ...accepted]);
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => {
+      const next = [...prev];
+      const [removed] = next.splice(index, 1);
+      if (removed) URL.revokeObjectURL(removed.preview);
+      return next;
+    });
   };
 
   const handleSubmit = async () => {
@@ -103,16 +121,16 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     }
     setSubmitting(true);
     try {
-      let imageUrl: string | null = null;
-      if (imageFile) {
-        const ext = imageFile.name.split(".").pop() || "png";
-        const path = `${userId}/${Date.now()}.${ext}`;
+      const uploadedUrls: string[] = [];
+      for (const img of images) {
+        const ext = img.file.name.split(".").pop() || "png";
+        const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const { error: uploadError } = await supabase.storage
           .from("product-images")
-          .upload(path, imageFile, { cacheControl: "3600", upsert: false });
+          .upload(path, img.file, { cacheControl: "3600", upsert: false });
         if (uploadError) throw uploadError;
         const { data } = supabase.storage.from("product-images").getPublicUrl(path);
-        imageUrl = data.publicUrl;
+        uploadedUrls.push(data.publicUrl);
       }
 
       const { error: insertError } = await supabase.from("products").insert({
@@ -121,7 +139,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
         price: priceNum,
         category,
         emoji: emoji || "📦",
-        image_url: imageUrl,
+        image_url: uploadedUrls[0] ?? null,
+        image_urls: uploadedUrls,
         created_by: userId,
       });
       if (insertError) throw insertError;
@@ -129,6 +148,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
       sonnerToast.success("Product uploaded!", {
         description: `${name} is now live on the storefront.`,
       });
+      images.forEach((i) => URL.revokeObjectURL(i.preview));
       resetForm();
       setOpen(false);
       await loadProducts();
@@ -151,6 +171,9 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setProducts((prev) => prev.filter((p) => p.id !== product.id));
   };
 
+  const thumbFor = (p: DbProduct) =>
+    (p.image_urls && p.image_urls[0]) || p.image_url || null;
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
       {/* Upload Products card — same style as plugin tiles */}
@@ -165,7 +188,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
           <h3 className="font-semibold text-base leading-tight pt-1.5">Upload Products</h3>
         </div>
         <p className="text-sm text-muted-foreground flex-1">
-          Add new products to the storefront with pricing, description, and an image.
+          Add new products to the storefront with pricing, description, and up to {MAX_IMAGES} images.
         </p>
         <div className="flex justify-end mt-3 text-xs text-primary font-medium">
           Click to open →
@@ -196,39 +219,50 @@ export const ProductManager = ({ userId }: { userId: string }) => {
           </div>
         ) : (
           <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
-            {products.map((p) => (
-              <div
-                key={p.id}
-                className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background/50"
-              >
-                {p.image_url ? (
-                  <img
-                    src={p.image_url}
-                    alt={p.name}
-                    className="h-10 w-10 rounded-md object-cover border border-border"
-                  />
-                ) : (
-                  <div className="h-10 w-10 rounded-md bg-primary/10 grid place-items-center text-xl">
-                    {p.emoji || "📦"}
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate">{p.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    ${Number(p.price).toFixed(2)} · {p.category}
-                  </div>
-                </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8 text-destructive hover:text-destructive"
-                  onClick={() => handleDelete(p)}
-                  aria-label={`Delete ${p.name}`}
+            {products.map((p) => {
+              const thumb = thumbFor(p);
+              const count = p.image_urls?.length ?? (p.image_url ? 1 : 0);
+              return (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background/50"
                 >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
+                  {thumb ? (
+                    <div className="relative h-10 w-16 shrink-0">
+                      <img
+                        src={thumb}
+                        alt={p.name}
+                        className="h-10 w-16 rounded-md object-cover border border-border"
+                      />
+                      {count > 1 && (
+                        <span className="absolute -bottom-1 -right-1 text-[10px] font-semibold bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 leading-none">
+                          {count}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="h-10 w-16 rounded-md bg-primary/10 grid place-items-center text-xl shrink-0">
+                      {p.emoji || "📦"}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">{p.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      ${Number(p.price).toFixed(2)} · {p.category}
+                    </div>
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    onClick={() => handleDelete(p)}
+                    aria-label={`Delete ${p.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         )}
       </Card>
@@ -286,7 +320,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="prod-emoji">Emoji (fallback icon)</Label>
+              <Label htmlFor="prod-emoji">Emoji (fallback icon if no images)</Label>
               <Input
                 id="prod-emoji"
                 placeholder="📦"
@@ -308,35 +342,64 @@ export const ProductManager = ({ userId }: { userId: string }) => {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label>Product image</Label>
-              <label className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-smooth cursor-pointer">
-                {imagePreview ? (
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="h-14 w-14 rounded-md object-cover border border-border"
-                  />
-                ) : (
-                  <div className="h-14 w-14 rounded-md bg-primary/10 grid place-items-center">
+            <div className="space-y-2">
+              <Label>Product images ({images.length}/{MAX_IMAGES})</Label>
+
+              {images.length > 0 && (
+                <div className="grid grid-cols-3 gap-2">
+                  {images.map((img, i) => (
+                    <div
+                      key={img.preview}
+                      className="relative aspect-video rounded-md overflow-hidden border border-border bg-muted group"
+                    >
+                      <img
+                        src={img.preview}
+                        alt={`Preview ${i + 1}`}
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                      {i === 0 && (
+                        <span className="absolute top-1 left-1 text-[9px] font-semibold bg-primary text-primary-foreground rounded px-1.5 py-0.5 uppercase tracking-wider">
+                          Cover
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeImage(i)}
+                        className="absolute top-1 right-1 h-5 w-5 rounded-full bg-background/90 hover:bg-destructive hover:text-destructive-foreground grid place-items-center transition-smooth"
+                        aria-label="Remove image"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {images.length < MAX_IMAGES && (
+                <label className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-smooth cursor-pointer">
+                  <div className="h-12 w-16 rounded-md bg-primary/10 grid place-items-center shrink-0">
                     <ImagePlus className="h-5 w-5 text-primary" />
                   </div>
-                )}
-                <div className="flex-1 text-sm">
-                  <div className="font-medium">
-                    {imageFile ? imageFile.name : "Upload an image"}
+                  <div className="flex-1 text-sm">
+                    <div className="font-medium">
+                      {images.length === 0 ? "Upload images" : "Add more images"}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      PNG, JPG, or WebP — up to 5MB each. First image is the cover.
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    PNG, JPG, or WebP — up to 5MB
-                  </div>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => handleFileChange(e.target.files?.[0])}
-                />
-              </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      handleFilesChange(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              )}
             </div>
           </div>
 
