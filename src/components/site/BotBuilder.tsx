@@ -735,15 +735,17 @@ export const BotBuilder = () => {
                 })}
               </div>
             )}
-            <Button
-              variant="hero"
-              size="lg"
-              className="w-full mt-4"
-              onClick={submit}
-              disabled={submitting}
-            >
-              {showPayment ? "Confirm & Submit" : "Submit My Details"} <ArrowRight />
-            </Button>
+            {!showPayment && (
+              <Button
+                variant="hero"
+                size="lg"
+                className="w-full mt-4"
+                onClick={submit}
+                disabled={submitting}
+              >
+                Submit My Details <ArrowRight />
+              </Button>
+            )}
 
             {/* Collapsible payment / contact details */}
             <div
@@ -809,6 +811,18 @@ export const BotBuilder = () => {
                 </div>
               </div>
             </div>
+
+            {showPayment && (
+              <Button
+                variant="hero"
+                size="lg"
+                className="w-full mt-4"
+                onClick={submit}
+                disabled={submitting}
+              >
+                Confirm & Submit <ArrowRight />
+              </Button>
+            )}
 
             <p className="text-[10px] text-muted-foreground mt-3 leading-relaxed">
               *Final pricing depends on scope. We'll confirm everything before any work begins.
