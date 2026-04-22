@@ -196,11 +196,15 @@ const BotsPage = () => {
                 </a>
               </Button>
               <Button variant="outlineGlow" size="lg" asChild>
-                <a href="#bot-suite">Explore the suite</a>
+                <a href="#build">
+                  <Wand2 /> Build your custom bot
+                </a>
               </Button>
             </div>
           </div>
         </section>
+
+        <BotBuilder />
       </main>
       <Footer />
     </div>
