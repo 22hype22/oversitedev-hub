@@ -1,7 +1,8 @@
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 import { Button } from "@/components/ui/button";
-import { Shield, LifeBuoy, Wrench, Sparkles, ArrowRight, Puzzle, Palette, BarChart3, Globe, Database, Bell } from "lucide-react";
+import { Shield, LifeBuoy, Wrench, Sparkles, ArrowRight, Puzzle, Palette, BarChart3, Globe, Database, Bell, Wand2 } from "lucide-react";
+import { BotBuilder } from "@/components/site/BotBuilder";
 import protectionLogo from "@/assets/oversite-protection.png";
 import supportLogo from "@/assets/oversite-support.png";
 import utilitiesLogo from "@/assets/oversite-utilities.png";
