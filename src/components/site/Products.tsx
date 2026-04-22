@@ -168,16 +168,24 @@ export const Products = () => {
         .order("created_at", { ascending: false });
       if (data) {
         setCustomProducts(
-          data.map((p) => ({
-            id: `custom-${p.id}`,
-            name: p.name,
-            price: Number(p.price),
-            category: (p.category === "Assets" ? "Assets" : "Systems") as "Systems" | "Assets",
-            blurb: p.description || "",
-            emoji: p.emoji || "📦",
-            tag: "New",
-            imageUrl: p.image_url || undefined,
-          })),
+          data.map((p) => {
+            const urls: string[] = Array.isArray(p.image_urls) && p.image_urls.length > 0
+              ? p.image_urls
+              : p.image_url
+              ? [p.image_url]
+              : [];
+            return {
+              id: `custom-${p.id}`,
+              name: p.name,
+              price: Number(p.price),
+              category: (p.category === "Assets" ? "Assets" : "Systems") as "Systems" | "Assets",
+              blurb: p.description || "",
+              emoji: p.emoji || "📦",
+              tag: "New",
+              imageUrl: urls[0],
+              imageUrls: urls,
+            };
+          }),
         );
       }
     };
