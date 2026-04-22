@@ -21,8 +21,9 @@ import {
   ArrowRight,
   ArrowLeft,
   Megaphone,
-  Upload,
 } from "lucide-react";
+
+import { ProductManager } from "@/components/admin/ProductManager";
 
 import { Card } from "@/components/ui/card";
 
