@@ -20,6 +20,8 @@ import {
   Hand,
   ArrowRight,
   ArrowLeft,
+  Megaphone,
+  Upload,
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
@@ -125,34 +127,78 @@ const Admin = () => {
             Admin Panel
           </div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-            Managing <span className="text-gradient">Oversite</span>
+            Manage <span className="text-gradient">Oversite</span>
           </h1>
         </div>
 
+        {/* Section 1: Managing Oversite (bots) */}
+        <section className="mb-16">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center">
+              <Bot className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Managing Oversite</h2>
+              <p className="text-sm text-muted-foreground">Configure plugins for our bots.</p>
+            </div>
+          </div>
 
-        {/* Plugin grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {plugins.map((p) => {
-            const Icon = p.icon;
-            return (
-              <Card
-                key={p.name}
-                className="group cursor-pointer bg-card hover:bg-card/80 border-border hover:border-primary/50 hover:shadow-elegant transition-smooth p-6 flex flex-col min-h-[170px]"
-              >
-                <div className="flex items-start gap-3 mb-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0 group-hover:bg-primary/15 transition-smooth">
-                    <Icon className="h-5 w-5 text-primary" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {plugins.map((p) => {
+              const Icon = p.icon;
+              return (
+                <Card
+                  key={p.name}
+                  className="group cursor-pointer bg-card hover:bg-card/80 border-border hover:border-primary/50 hover:shadow-elegant transition-smooth p-6 flex flex-col min-h-[170px]"
+                >
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0 group-hover:bg-primary/15 transition-smooth">
+                      <Icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="font-semibold text-base leading-tight pt-1.5">{p.name}</h3>
                   </div>
-                  <h3 className="font-semibold text-base leading-tight pt-1.5">{p.name}</h3>
-                </div>
-                <p className="text-sm text-muted-foreground flex-1">{p.description}</p>
-                <div className="flex justify-end mt-3">
-                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-smooth" />
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                  <p className="text-sm text-muted-foreground flex-1">{p.description}</p>
+                  <div className="flex justify-end mt-3">
+                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-smooth" />
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Section 2: Managing Oversite Marketing */}
+        <section>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center">
+              <Megaphone className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Managing Oversite Marketing</h2>
+              <p className="text-sm text-muted-foreground">
+                Manage products, pricing, and promotional content.
+              </p>
+            </div>
+          </div>
+
+          <Card className="bg-card border-border p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+            <div className="flex items-start gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0">
+                <Upload className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-base leading-tight">Upload Products</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Add new products to the storefront with pricing and details.
+                </p>
+              </div>
+            </div>
+            <Button variant="hero" size="lg" className="shrink-0">
+              <Upload className="h-4 w-4" />
+              Upload Products
+            </Button>
+          </Card>
+        </section>
       </div>
     </div>
   );
