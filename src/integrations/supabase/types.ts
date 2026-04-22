@@ -39,9 +39,12 @@ export type Database = {
           created_by: string | null
           description: string | null
           emoji: string | null
+          file_name: string | null
+          file_url: string | null
           id: string
           image_url: string | null
           image_urls: string[]
+          is_available: boolean
           name: string
           price: number
           updated_at: string
@@ -52,9 +55,12 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           emoji?: string | null
+          file_name?: string | null
+          file_url?: string | null
           id?: string
           image_url?: string | null
           image_urls?: string[]
+          is_available?: boolean
           name: string
           price?: number
           updated_at?: string
@@ -65,9 +71,12 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           emoji?: string | null
+          file_name?: string | null
+          file_url?: string | null
           id?: string
           image_url?: string | null
           image_urls?: string[]
+          is_available?: boolean
           name?: string
           price?: number
           updated_at?: string
