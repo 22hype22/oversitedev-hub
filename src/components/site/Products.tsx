@@ -543,7 +543,16 @@ export const Products = () => {
                 className="group p-0 overflow-hidden bg-card border-border hover:border-primary/50 hover:shadow-elegant transition-smooth flex flex-col"
               >
                 <div className="relative aspect-[4/3] bg-gradient-hero flex items-center justify-center text-7xl overflow-hidden">
-                  <span className="group-hover:scale-110 transition-smooth">{p.emoji}</span>
+                  {p.imageUrl ? (
+                    <img
+                      src={p.imageUrl}
+                      alt={p.name}
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-smooth"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <span className="group-hover:scale-110 transition-smooth">{p.emoji}</span>
+                  )}
                   {p.tag && (
                     <Badge className="absolute top-3 left-3 bg-primary text-primary-foreground hover:bg-primary">
                       {p.tag}
