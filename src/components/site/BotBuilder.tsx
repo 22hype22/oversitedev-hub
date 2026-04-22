@@ -231,6 +231,15 @@ export const BotBuilder = () => {
   const [addons, setAddons] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [showAllAddons, setShowAllAddons] = useState<Record<string, boolean>>({});
+  const [showPayment, setShowPayment] = useState(false);
+  const [payFullName, setPayFullName] = useState("");
+  const [payEmail, setPayEmail] = useState("");
+  const [payCard, setPayCard] = useState("");
+  const [payExp, setPayExp] = useState("");
+  const [payCvc, setPayCvc] = useState("");
+  const [payZip, setPayZip] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const iconInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
