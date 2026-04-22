@@ -227,7 +227,8 @@ export const Products = () => {
     });
   };
 
-  const filtered = PRODUCTS.filter(
+  const allProducts = [...customProducts, ...PRODUCTS];
+  const filtered = allProducts.filter(
     (p) =>
       (category === "All" || p.category === category) &&
       p.name.toLowerCase().includes(query.toLowerCase()),
