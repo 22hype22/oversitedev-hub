@@ -285,24 +285,19 @@ export const BotBuilder = () => {
     }
     if (!showPayment) {
       setShowPayment(true);
+      // Scroll the payment section into view after it expands
       setTimeout(() => {
-        document.getElementById("payment-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 100);
-      return;
-    }
-    if (!payFullName.trim() || !payEmail.trim() || !payCard.trim() || !payExp.trim() || !payCvc.trim()) {
-      sonnerToast.error("Complete payment details", {
-        description: "Please fill out every field so we can confirm your build.",
-      });
+        document
+          .getElementById("payment-section")
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 350);
       return;
     }
     setSubmitting(true);
-    // Trigger the cinematic success overlay
     setTimeout(() => {
       setShowSuccess(true);
       setSubmitting(false);
     }, 400);
-    // Redirect after the animation finishes
     setTimeout(() => {
       window.location.href = "/#contact";
     }, 5200);
