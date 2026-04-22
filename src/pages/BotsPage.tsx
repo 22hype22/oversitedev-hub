@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 import { Button } from "@/components/ui/button";
-import { Shield, LifeBuoy, Wrench, Sparkles, ArrowRight } from "lucide-react";
+import { Shield, LifeBuoy, Wrench, Sparkles, ArrowRight, Puzzle, Palette, BarChart3, Globe, Database, Bell } from "lucide-react";
 import protectionLogo from "@/assets/oversite-protection.png";
 import supportLogo from "@/assets/oversite-support.png";
 import utilitiesLogo from "@/assets/oversite-utilities.png";
@@ -97,6 +97,71 @@ const BotsPage = () => {
             );
           })}
         </div>
+
+        <section className="mt-24">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-medium mb-6">
+              <Puzzle size={14} />
+              Add-ons & Extras
+            </div>
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight">
+              Extend the suite with <span className="text-gradient">optional add-ons.</span>
+            </h2>
+            <p className="mt-6 text-lg text-muted-foreground leading-relaxed">
+              Bolt-on features that plug straight into the Oversite bot suite — no extra setup,
+              no third-party tools. Pick what your community needs.
+            </p>
+          </div>
+
+          <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              {
+                icon: Palette,
+                name: "Custom Branding",
+                desc: "Recolor embeds, swap the bot avatar, and match your server's identity end-to-end.",
+              },
+              {
+                icon: BarChart3,
+                name: "Advanced Analytics",
+                desc: "Deep insights into moderation actions, ticket volume, and member activity over time.",
+              },
+              {
+                icon: Globe,
+                name: "Web Dashboard",
+                desc: "Manage configuration, view logs, and review tickets from a hosted control panel.",
+              },
+              {
+                icon: Database,
+                name: "Data Exports",
+                desc: "Scheduled exports of logs, tickets, and reports — CSV, JSON, or piped to your stack.",
+              },
+              {
+                icon: Bell,
+                name: "Priority Alerts",
+                desc: "Real-time push to webhooks, email, or SMS for raids, escalations, and incidents.",
+              },
+              {
+                icon: Sparkles,
+                name: "Custom Commands",
+                desc: "Bespoke slash commands and workflows wired into your existing bot deployment.",
+              },
+            ].map((addon) => {
+              const Icon = addon.icon;
+              return (
+                <div
+                  key={addon.name}
+                  className="group relative rounded-2xl border border-border/60 bg-card/60 backdrop-blur p-6 hover:border-primary/50 transition-smooth"
+                >
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center mb-4">
+                    <Icon size={18} className="text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold tracking-tight mb-2">{addon.name}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{addon.desc}</p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
         <section className="mt-24 relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-card/60 to-background backdrop-blur p-10 md:p-14">
           <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
