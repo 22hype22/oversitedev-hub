@@ -57,6 +57,7 @@ type Product = {
   emoji: string;
   tag?: string;
   imageUrl?: string;
+  imageUrls?: string[];
 };
 
 type Subscription = {
