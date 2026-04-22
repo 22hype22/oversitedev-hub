@@ -475,7 +475,7 @@ export const BotBuilder = () => {
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                       {a.desc}
                     </p>
-                    <div className="mt-2 text-xs text-foreground/80">+${a.price}</div>
+                    <div className="mt-2 text-xs text-foreground/80">+${a.price.toFixed(2)}</div>
                   </button>
                 );
               })}
