@@ -240,9 +240,12 @@ export const BotBuilder = () => {
   const [payZip, setPayZip] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showSuccessText, setShowSuccessText] = useState(false);
+  const [planeOrigin, setPlaneOrigin] = useState<{ x: number; y: number } | null>(null);
 
   const iconInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
+  const confirmBtnRef = useRef<HTMLButtonElement>(null);
 
   const currentAddons = useMemo(() => getAddonsForBase(base), [base]);
 
