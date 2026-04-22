@@ -56,6 +56,16 @@ const BotsPage = () => {
             Purpose-built Discord bots designed to work together — protect, support, and power
             your community without the bloat of a dozen separate tools.
           </p>
+          <div className="mt-8 flex flex-wrap gap-4">
+            <Button variant="hero" size="lg" asChild>
+              <a href="#build">
+                <Wand2 /> Build your own bot
+              </a>
+            </Button>
+            <Button variant="outlineGlow" size="lg" asChild>
+              <a href="#bot-suite">Explore the suite</a>
+            </Button>
+          </div>
         </div>
 
         <div id="bot-suite" className="mt-16 grid grid-cols-1 lg:grid-cols-3 gap-6 scroll-mt-24">
