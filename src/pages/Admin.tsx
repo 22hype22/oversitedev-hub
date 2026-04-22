@@ -20,6 +20,8 @@ import {
   Hand,
   ArrowRight,
   ArrowLeft,
+  Megaphone,
+  Upload,
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
