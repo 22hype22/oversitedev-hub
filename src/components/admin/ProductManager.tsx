@@ -273,9 +273,22 @@ export const ProductManager = ({ userId }: { userId: string }) => {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">{p.name}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-sm truncate">{p.name}</div>
+                      {!p.is_available && (
+                        <span className="text-[9px] font-semibold uppercase tracking-wider bg-accent/30 text-accent-foreground border border-accent/40 rounded px-1.5 py-0.5">
+                          Teaser
+                        </span>
+                      )}
+                      {p.file_url && (
+                        <span className="text-[9px] font-semibold uppercase tracking-wider bg-primary/15 text-primary border border-primary/30 rounded px-1.5 py-0.5">
+                          File
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
                       ${Number(p.price).toFixed(2)} · {p.category}
+                      {p.file_name ? ` · ${p.file_name}` : ""}
                     </div>
                   </div>
                   <Button
