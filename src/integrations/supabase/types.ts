@@ -41,6 +41,7 @@ export type Database = {
           emoji: string | null
           id: string
           image_url: string | null
+          image_urls: string[]
           name: string
           price: number
           updated_at: string
@@ -53,6 +54,7 @@ export type Database = {
           emoji?: string | null
           id?: string
           image_url?: string | null
+          image_urls?: string[]
           name: string
           price?: number
           updated_at?: string
@@ -65,6 +67,7 @@ export type Database = {
           emoji?: string | null
           id?: string
           image_url?: string | null
+          image_urls?: string[]
           name?: string
           price?: number
           updated_at?: string
