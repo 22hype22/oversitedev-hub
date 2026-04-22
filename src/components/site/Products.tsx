@@ -157,6 +157,31 @@ export const Products = () => {
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutItems, setCheckoutItems] = useState<CheckoutItem[]>([]);
+  const [customProducts, setCustomProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (data) {
+        setCustomProducts(
+          data.map((p) => ({
+            id: `custom-${p.id}`,
+            name: p.name,
+            price: Number(p.price),
+            category: (p.category === "Assets" ? "Assets" : "Systems") as "Systems" | "Assets",
+            blurb: p.description || "",
+            emoji: p.emoji || "📦",
+            tag: "New",
+            imageUrl: p.image_url || undefined,
+          })),
+        );
+      }
+    };
+    load();
+  }, []);
 
   const startCheckout = () => {
     const items: CheckoutItem[] = [];
