@@ -136,31 +136,31 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
             <DialogHeader>
               <DialogTitle>Complete your purchase on Roblox</DialogTitle>
               <DialogDescription>
-                We opened the gamepass page in a new tab. Buy it as{" "}
-                <span className="font-semibold">{username}</span>, then click below.
+                Open the gamepass in a new tab, buy it as{" "}
+                <span className="font-semibold">{username}</span>, then come back here.
               </DialogDescription>
             </DialogHeader>
-            <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm space-y-2">
+            <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm space-y-3">
               <p>
-                <span className="font-semibold">1.</span> Buy the gamepass on Roblox.
+                <span className="font-semibold">1.</span> Open the gamepass page.
               </p>
               <p>
-                <span className="font-semibold">2.</span> Wait ~30 seconds for Roblox to record the sale.
+                <span className="font-semibold">2.</span> Buy the gamepass on Roblox.
               </p>
               <p>
-                <span className="font-semibold">3.</span> Click "I've purchased" — we'll
+                <span className="font-semibold">3.</span> Wait ~30 seconds for Roblox to record the sale.
+              </p>
+              <p>
+                <span className="font-semibold">4.</span> Click "I've purchased" — we'll
                 check the group sales and confirm.
               </p>
             </div>
             <DialogFooter className="gap-2">
-              <Button
-                variant="outline"
-                onClick={() =>
-                  openGamepass(product.gamepassUrl)
-                }
-              >
-                <ExternalLink className="h-4 w-4" />
-                Reopen gamepass
+              <Button variant="outline" asChild>
+                <a href={normalizeGamepassUrl(product.gamepassUrl)} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4" />
+                  Open gamepass
+                </a>
               </Button>
               <Button variant="hero" onClick={handleVerify} disabled={verifying}>
                 {verifying ? (
