@@ -313,9 +313,16 @@ export const ProductManager = ({ userId }: { userId: string }) => {
                           File
                         </span>
                       )}
+                      {p.gamepass_id && (
+                        <span className="text-[9px] font-semibold uppercase tracking-wider bg-primary/15 text-primary border border-primary/30 rounded px-1.5 py-0.5">
+                          R$
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-muted-foreground truncate">
-                      ${Number(p.price).toFixed(2)} · {p.category}
+                      ${Number(p.price).toFixed(2)}
+                      {p.price_robux ? ` · R$${p.price_robux.toLocaleString()}` : ""}
+                      {" · "}{p.category}
                       {p.file_name ? ` · ${p.file_name}` : ""}
                     </div>
                   </div>
@@ -468,6 +475,65 @@ export const ProductManager = ({ userId }: { userId: string }) => {
                   />
                 </label>
               )}
+            </div>
+
+            {/* Robux pricing + gamepass */}
+            <div className="space-y-3 p-3 rounded-lg border border-border bg-background/50">
+              <div className="flex items-center gap-2">
+                <Wand2 className="h-4 w-4 text-primary" />
+                <Label className="text-sm font-medium">Buy with Robux (optional)</Label>
+              </div>
+              <p className="text-xs text-muted-foreground -mt-1">
+                Add a Roblox gamepass so customers can pay in R$. Our bot verifies the
+                purchase from group sales and fulfils via Discord DM.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="prod-robux">Price (R$)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="prod-robux"
+                      type="number"
+                      step="1"
+                      min="0"
+                      placeholder="2400"
+                      value={priceRobux}
+                      onChange={(e) => setPriceRobux(e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => {
+                        const usd = parseFloat(price);
+                        if (isNaN(usd) || usd <= 0) {
+                          sonnerToast.error("Enter a USD price first");
+                          return;
+                        }
+                        setPriceRobux(String(Math.round(usd * ROBUX_PER_USD)));
+                      }}
+                    >
+                      Auto
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    "Auto" suggests ~{ROBUX_PER_USD} R$ per $1.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="prod-gamepass">Gamepass URL</Label>
+                  <Input
+                    id="prod-gamepass"
+                    placeholder="https://www.roblox.com/game-pass/12345678/..."
+                    value={gamepassUrl}
+                    onChange={(e) => setGamepassUrl(e.target.value)}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Must be in the group set as <code>ROBLOX_GROUP_ID</code>.
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Attached file (digital download) */}
