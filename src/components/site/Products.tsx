@@ -426,7 +426,7 @@ export const Products = () => {
               return (
                 <div
                   key={p.id}
-                  className="relative h-64 md:h-80 overflow-hidden bg-gradient-hero ring-2 ring-inset ring-primary"
+                  className="relative h-80 md:h-[28rem] overflow-hidden bg-gradient-hero ring-2 ring-inset ring-primary"
                 >
                   {img && !isVideoUrl(img) ? (
                     <img
