@@ -5,7 +5,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCallback } from "react";
 
 export interface CheckoutItem {
-  priceId: string;
+  // Either a Stripe lookup key
+  priceId?: string;
+  // OR dynamic price for a DB product
+  productId?: string;
+  productName?: string;
+  amountCents?: number;
+  currency?: string;
   quantity?: number;
 }
 

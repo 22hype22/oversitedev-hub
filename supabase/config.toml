@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.verify-gamepass-purchase]
 verify_jwt = false
+
+[functions.get-purchase-files]
+verify_jwt = false
