@@ -37,6 +37,7 @@ const App = () => {
         <PaymentTestModeBanner />
         {showSplash && <SplashScreen onDone={handleSplashDone} />}
         <BrowserRouter>
+          <SignupPromoDialog />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/process" element={<ProcessPage />} />
