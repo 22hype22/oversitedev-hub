@@ -414,7 +414,7 @@ export const Products = () => {
   return (
     <section>
       {comingSoon.length > 0 && (
-        <div className="w-full border-b border-border mt-16 -translate-y-px">
+        <div className="w-full border-b border-border mt-16 -mt-px relative z-0" style={{ marginTop: "calc(4rem - 2px)" }}>
           <div
             className="grid w-full"
             style={{
@@ -426,7 +426,7 @@ export const Products = () => {
               return (
                 <div
                   key={p.id}
-                  className="relative h-80 md:h-[28rem] overflow-hidden bg-gradient-hero ring-2 ring-inset ring-primary"
+                  className="relative h-96 md:h-[36rem] overflow-hidden bg-gradient-hero ring-2 ring-inset ring-primary"
                 >
                   {img && !isVideoUrl(img) ? (
                     <img
