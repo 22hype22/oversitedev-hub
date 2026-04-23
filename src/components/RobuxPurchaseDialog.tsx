@@ -62,7 +62,6 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
       return;
     }
     if (!product) return;
-    openGamepass(product.gamepassUrl);
     setStep("purchase");
   };
 
