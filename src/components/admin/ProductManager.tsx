@@ -19,9 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Package, Trash2, ImagePlus, Loader2, X, FileText, Sparkles, Wand2 } from "lucide-react";
+import { Upload, Package, Trash2, ImagePlus, Loader2, X, FileText, Sparkles, Wand2, Pencil } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 import { toast as sonnerToast } from "sonner";
 
 type DbProduct = {
@@ -61,6 +62,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Form state
   const [name, setName] = useState("");
@@ -75,6 +77,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
   const [gamepassUrl, setGamepassUrl] = useState("");
 
   const resetForm = () => {
+    setEditingId(null);
     setName("");
     setPrice("");
     setDescription("");
@@ -85,6 +88,29 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setAttachedFile(null);
     setPriceRobux("");
     setGamepassUrl("");
+  };
+
+  const startEdit = (p: DbProduct) => {
+    setEditingId(p.id);
+    setName(p.name);
+    setPrice(String(p.price ?? ""));
+    setDescription(p.description ?? "");
+    setCategory(p.category || "Systems");
+    setEmoji(p.emoji || "📦");
+    setImages([]);
+    setIsAvailable(p.is_available);
+    setAttachedFile(null);
+    setPriceRobux(p.price_robux != null ? String(p.price_robux) : "");
+    setGamepassUrl(p.gamepass_url ?? "");
+    setOpen(true);
+  };
+
+  const handleDialogOpenChange = (next: boolean) => {
+    if (!next) {
+      images.forEach((i) => URL.revokeObjectURL(i.preview));
+      resetForm();
+    }
+    setOpen(next);
   };
 
   const loadProducts = async () => {
@@ -180,29 +206,60 @@ export const ProductManager = ({ userId }: { userId: string }) => {
         throw new Error("Couldn't read a gamepass ID from that URL. It should look like https://www.roblox.com/game-pass/12345678/...");
       }
 
-      const { error: insertError } = await supabase.from("products").insert({
-        name: name.trim(),
-        description: description.trim() || null,
-        price: priceNum,
-        category,
-        emoji: emoji || "📦",
-        image_url: uploadedUrls[0] ?? null,
-        image_urls: uploadedUrls,
-        is_available: isAvailable,
-        file_url: fileUrl,
-        file_name: fileName,
-        price_robux: robuxNum,
-        gamepass_id: gamepassId,
-        gamepass_url: trimmedGamepass || null,
-        created_by: userId,
-      });
-      if (insertError) throw insertError;
+      if (editingId) {
+        // Update existing product. Only overwrite images/file if new ones were provided.
+        const updatePayload: TablesUpdate<"products"> = {
+          name: name.trim(),
+          description: description.trim() || null,
+          price: priceNum,
+          category,
+          emoji: emoji || "📦",
+          is_available: isAvailable,
+          price_robux: robuxNum,
+          gamepass_id: gamepassId,
+          gamepass_url: trimmedGamepass || null,
+        };
+        if (uploadedUrls.length > 0) {
+          updatePayload.image_url = uploadedUrls[0];
+          updatePayload.image_urls = uploadedUrls;
+        }
+        if (attachedFile) {
+          updatePayload.file_url = fileUrl;
+          updatePayload.file_name = fileName;
+        }
+        const { error: updateError } = await supabase
+          .from("products")
+          .update(updatePayload)
+          .eq("id", editingId);
+        if (updateError) throw updateError;
+        sonnerToast.success("Product updated", {
+          description: `${name} has been saved.`,
+        });
+      } else {
+        const { error: insertError } = await supabase.from("products").insert({
+          name: name.trim(),
+          description: description.trim() || null,
+          price: priceNum,
+          category,
+          emoji: emoji || "📦",
+          image_url: uploadedUrls[0] ?? null,
+          image_urls: uploadedUrls,
+          is_available: isAvailable,
+          file_url: fileUrl,
+          file_name: fileName,
+          price_robux: robuxNum,
+          gamepass_id: gamepassId,
+          gamepass_url: trimmedGamepass || null,
+          created_by: userId,
+        });
+        if (insertError) throw insertError;
 
-      sonnerToast.success(isAvailable ? "Product uploaded!" : "Teaser added!", {
-        description: isAvailable
-          ? `${name} is now live on the storefront.`
-          : `${name} is showing as a teaser — purchases disabled.`,
-      });
+        sonnerToast.success(isAvailable ? "Product uploaded!" : "Teaser added!", {
+          description: isAvailable
+            ? `${name} is now live on the storefront.`
+            : `${name} is showing as a teaser — purchases disabled.`,
+        });
+      }
       images.forEach((i) => URL.revokeObjectURL(i.preview));
       resetForm();
       setOpen(false);
@@ -326,15 +383,26 @@ export const ProductManager = ({ userId }: { userId: string }) => {
                       {p.file_name ? ` · ${p.file_name}` : ""}
                     </div>
                   </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(p)}
-                    aria-label={`Delete ${p.name}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      onClick={() => startEdit(p)}
+                      aria-label={`Edit ${p.name}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => handleDelete(p)}
+                      aria-label={`Delete ${p.name}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               );
             })}
@@ -343,12 +411,14 @@ export const ProductManager = ({ userId }: { userId: string }) => {
       </Card>
 
       {/* Upload dialog */}
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Upload a new product</DialogTitle>
+            <DialogTitle>{editingId ? "Edit product" : "Upload a new product"}</DialogTitle>
             <DialogDescription>
-              Once you save, this product will appear on the public storefront.
+              {editingId
+                ? "Update product details. Leave images and file untouched to keep the existing ones."
+                : "Once you save, this product will appear on the public storefront."}
             </DialogDescription>
           </DialogHeader>
 
@@ -628,12 +698,12 @@ export const ProductManager = ({ userId }: { userId: string }) => {
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Uploading…
+                  {editingId ? "Saving…" : "Uploading…"}
                 </>
               ) : (
                 <>
                   <Upload className="h-4 w-4" />
-                  Save product
+                  {editingId ? "Save changes" : "Save product"}
                 </>
               )}
             </Button>
