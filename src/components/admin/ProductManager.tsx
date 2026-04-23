@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Package, Trash2, ImagePlus, Loader2, X, FileText, Sparkles, Wand2, Pencil } from "lucide-react";
+import { Upload, Package, Trash2, ImagePlus, Loader2, X, FileText, Sparkles, Wand2, Pencil, Film } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesUpdate } from "@/integrations/supabase/types";
@@ -46,6 +46,9 @@ type DbProduct = {
 const CATEGORIES = ["Systems", "Assets"] as const;
 const MAX_IMAGES = 6;
 const MAX_FILE_MB = 50;
+const MAX_IMAGE_MB = 5;
+const MAX_VIDEO_MB = 25;
+const isVideoFile = (file: File) => file.type.startsWith("video/");
 // Default conversion rate used to suggest a Robux price from USD.
 // (Roughly tracks the Roblox Premium payout rate of ~80 R$ per $1.)
 const ROBUX_PER_USD = 80;
@@ -141,8 +144,14 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     }
     const accepted: PendingImage[] = [];
     for (const file of incoming.slice(0, remaining)) {
-      if (file.size > 5 * 1024 * 1024) {
-        sonnerToast.error(`"${file.name}" too large`, { description: "Please keep each image under 5MB." });
+      const isVideo = isVideoFile(file);
+      const limitMb = isVideo ? MAX_VIDEO_MB : MAX_IMAGE_MB;
+      if (file.size > limitMb * 1024 * 1024) {
+        sonnerToast.error(`"${file.name}" too large`, {
+          description: isVideo
+            ? `Please keep each video under ${MAX_VIDEO_MB}MB.`
+            : `Please keep each image under ${MAX_IMAGE_MB}MB.`,
+        });
         continue;
       }
       accepted.push({ file, preview: URL.createObjectURL(file) });
@@ -492,35 +501,52 @@ export const ProductManager = ({ userId }: { userId: string }) => {
             </div>
 
             <div className="space-y-2">
-              <Label>Product images ({images.length}/{MAX_IMAGES})</Label>
+              <Label>Product media ({images.length}/{MAX_IMAGES})</Label>
 
               {images.length > 0 && (
                 <div className="grid grid-cols-3 gap-2">
-                  {images.map((img, i) => (
-                    <div
-                      key={img.preview}
-                      className="relative aspect-video rounded-md overflow-hidden border border-border bg-muted group"
-                    >
-                      <img
-                        src={img.preview}
-                        alt={`Preview ${i + 1}`}
-                        className="absolute inset-0 w-full h-full object-cover"
-                      />
-                      {i === 0 && (
-                        <span className="absolute top-1 left-1 text-[9px] font-semibold bg-primary text-primary-foreground rounded px-1.5 py-0.5 uppercase tracking-wider">
-                          Cover
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => removeImage(i)}
-                        className="absolute top-1 right-1 h-5 w-5 rounded-full bg-background/90 hover:bg-destructive hover:text-destructive-foreground grid place-items-center transition-smooth"
-                        aria-label="Remove image"
+                  {images.map((img, i) => {
+                    const video = isVideoFile(img.file);
+                    return (
+                      <div
+                        key={img.preview}
+                        className="relative aspect-video rounded-md overflow-hidden border border-border bg-muted group"
                       >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
+                        {video ? (
+                          <video
+                            src={img.preview}
+                            className="absolute inset-0 w-full h-full object-cover"
+                            muted
+                            playsInline
+                          />
+                        ) : (
+                          <img
+                            src={img.preview}
+                            alt={`Preview ${i + 1}`}
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                        )}
+                        {i === 0 && (
+                          <span className="absolute top-1 left-1 text-[9px] font-semibold bg-primary text-primary-foreground rounded px-1.5 py-0.5 uppercase tracking-wider">
+                            Cover
+                          </span>
+                        )}
+                        {video && (
+                          <span className="absolute bottom-1 left-1 text-[9px] font-semibold bg-background/80 text-foreground rounded px-1.5 py-0.5 uppercase tracking-wider flex items-center gap-1">
+                            <Film className="h-2.5 w-2.5" /> Video
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeImage(i)}
+                          className="absolute top-1 right-1 h-5 w-5 rounded-full bg-background/90 hover:bg-destructive hover:text-destructive-foreground grid place-items-center transition-smooth"
+                          aria-label="Remove media"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
@@ -531,15 +557,15 @@ export const ProductManager = ({ userId }: { userId: string }) => {
                   </div>
                   <div className="flex-1 text-sm">
                     <div className="font-medium">
-                      {images.length === 0 ? "Upload images" : "Add more images"}
+                      {images.length === 0 ? "Upload images or videos" : "Add more media"}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      PNG, JPG, or WebP — up to 5MB each. First image is the cover.
+                      Images (PNG/JPG/WebP, ≤{MAX_IMAGE_MB}MB) or videos (MP4/WebM/MOV, ≤{MAX_VIDEO_MB}MB). First item is the cover.
                     </div>
                   </div>
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,video/*"
                     multiple
                     className="hidden"
                     onChange={(e) => {
