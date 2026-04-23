@@ -14,15 +14,11 @@ import { Loader2, ExternalLink, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
 
-function openGamepass(rawUrl: string) {
-  let url = (rawUrl || "").trim();
-  if (!url) return;
-  // If the URL was saved without a protocol (e.g. "www.roblox.com/..."),
-  // window.open treats it as a relative path. Force https://.
-  if (!/^https?:\/\//i.test(url)) {
-    url = `https://${url.replace(/^\/+/, "")}`;
-  }
-  window.open(url, "_blank", "noopener,noreferrer");
+function normalizeGamepassUrl(rawUrl: string) {
+  const url = (rawUrl || "").trim();
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  return `https://${url.replace(/^\/+/, "")}`;
 }
 
 export interface RobuxPurchaseProduct {
