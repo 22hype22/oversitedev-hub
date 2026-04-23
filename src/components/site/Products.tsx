@@ -414,7 +414,7 @@ export const Products = () => {
   return (
     <section>
       {comingSoon.length > 0 && (
-        <div className="w-full border-b border-border bg-card pt-16">
+        <div className="w-full border-b border-border mt-16">
           <div
             className="grid w-full"
             style={{
