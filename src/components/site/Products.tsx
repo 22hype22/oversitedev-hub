@@ -412,9 +412,9 @@ export const Products = () => {
   const cartTotal = cart.reduce((sum, i) => sum + i.qty * i.price, 0);
 
   return (
-    <section className="py-12 md:py-16">
+    <section>
       {comingSoon.length > 0 && (
-        <div className="mb-12 w-full border-y border-border bg-card">
+        <div className="w-full border-b border-border bg-card">
           <div
             className="grid w-full"
             style={{
@@ -440,12 +440,12 @@ export const Products = () => {
                       {p.emoji}
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/40 to-transparent" />
-                  <div className="absolute inset-x-0 bottom-0 p-4 md:p-6">
-                    <Badge className="mb-2 bg-primary/90 text-primary-foreground hover:bg-primary">
+                  <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-background/10 to-background/80" />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
+                    <Badge className="mb-3 bg-primary/90 text-primary-foreground hover:bg-primary">
                       Coming soon
                     </Badge>
-                    <h3 className="text-lg md:text-2xl font-bold leading-tight text-foreground line-clamp-2">
+                    <h3 className="text-lg md:text-2xl font-bold leading-tight text-foreground line-clamp-2 drop-shadow-md">
                       {p.name}
                     </h3>
                   </div>
@@ -455,7 +455,7 @@ export const Products = () => {
           </div>
         </div>
       )}
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4 py-12 md:py-16">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 pb-8 border-b border-border">
           <div className="max-w-2xl">
