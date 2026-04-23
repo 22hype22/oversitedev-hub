@@ -313,9 +313,16 @@ export const ProductManager = ({ userId }: { userId: string }) => {
                           File
                         </span>
                       )}
+                      {p.gamepass_id && (
+                        <span className="text-[9px] font-semibold uppercase tracking-wider bg-primary/15 text-primary border border-primary/30 rounded px-1.5 py-0.5">
+                          R$
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-muted-foreground truncate">
-                      ${Number(p.price).toFixed(2)} · {p.category}
+                      ${Number(p.price).toFixed(2)}
+                      {p.price_robux ? ` · R$${p.price_robux.toLocaleString()}` : ""}
+                      {" · "}{p.category}
                       {p.file_name ? ` · ${p.file_name}` : ""}
                     </div>
                   </div>
