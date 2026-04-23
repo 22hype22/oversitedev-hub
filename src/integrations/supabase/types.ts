@@ -133,6 +133,65 @@ export type Database = {
         }
         Relationships: []
       }
+      purchases: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          currency: string
+          email: string | null
+          environment: string
+          file_name: string | null
+          file_url: string | null
+          id: string
+          product_id: string | null
+          product_name: string
+          status: string
+          stripe_session_id: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          amount_cents?: number
+          created_at?: string
+          currency?: string
+          email?: string | null
+          environment?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          product_id?: string | null
+          product_name: string
+          status?: string
+          stripe_session_id: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          currency?: string
+          email?: string | null
+          environment?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          product_id?: string | null
+          product_name?: string
+          status?: string
+          stripe_session_id?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
