@@ -351,11 +351,14 @@ export const Products = () => {
   };
 
   const allProducts = [...customProducts, ...PRODUCTS];
-  const filtered = allProducts.filter(
-    (p) =>
-      (category === "All" || p.category === category) &&
-      p.name.toLowerCase().includes(query.toLowerCase()),
-  );
+  const comingSoon = allProducts.filter((p) => p.isAvailable === false);
+  const filtered = allProducts
+    .filter((p) => p.isAvailable !== false)
+    .filter(
+      (p) =>
+        (category === "All" || p.category === category) &&
+        p.name.toLowerCase().includes(query.toLowerCase()),
+    );
 
   const addProductToCart = (product: Product) => {
     setCart((prev) => {
