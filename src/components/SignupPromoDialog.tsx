@@ -23,12 +23,14 @@ export const SignupPromoDialog = () => {
   useEffect(() => {
     if (loading || user) return;
     if (sessionStorage.getItem(SESSION_KEY)) return;
-    const t = setTimeout(() => {
-      sessionStorage.setItem(SESSION_KEY, "1");
-      setOpen(true);
-    }, 5000);
+    const t = setTimeout(() => setOpen(true), 5000);
     return () => clearTimeout(t);
   }, [loading, user]);
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next) sessionStorage.setItem(SESSION_KEY, "1");
+    setOpen(next);
+  };
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
