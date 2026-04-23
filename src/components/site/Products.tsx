@@ -413,6 +413,48 @@ export const Products = () => {
 
   return (
     <section className="py-12 md:py-16">
+      {comingSoon.length > 0 && (
+        <div className="mb-12 w-full border-y border-border bg-card">
+          <div
+            className="grid w-full"
+            style={{
+              gridTemplateColumns: `repeat(${comingSoon.length}, minmax(0, 1fr))`,
+            }}
+          >
+            {comingSoon.map((p) => {
+              const img = p.imageUrls?.[0] || p.imageUrl;
+              return (
+                <div
+                  key={p.id}
+                  className="relative h-56 md:h-72 overflow-hidden bg-gradient-hero"
+                >
+                  {img && !isVideoUrl(img) ? (
+                    <img
+                      src={img}
+                      alt={p.name}
+                      className="absolute inset-0 h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-6xl opacity-80">
+                      {p.emoji}
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/40 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 p-4 md:p-6">
+                    <Badge className="mb-2 bg-primary/90 text-primary-foreground hover:bg-primary">
+                      Coming soon
+                    </Badge>
+                    <h3 className="text-lg md:text-2xl font-bold leading-tight text-foreground line-clamp-2">
+                      {p.name}
+                    </h3>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 pb-8 border-b border-border">
