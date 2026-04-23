@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, ExternalLink, CheckCircle2, Copy } from "lucide-react";
+import { Loader2, ExternalLink, CheckCircle2, Copy, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
 
@@ -41,11 +41,15 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
   const [step, setStep] = useState<Step>("username");
   const [username, setUsername] = useState("");
   const [verifying, setVerifying] = useState(false);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
 
   const reset = () => {
     setStep("username");
     setUsername("");
     setVerifying(false);
+    setDownloadUrl(null);
+    setFileName(null);
   };
 
   const handleOpenChange = (next: boolean) => {
@@ -88,6 +92,9 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
         });
         return;
       }
+      const result = data as { downloadUrl?: string | null; fileName?: string | null };
+      setDownloadUrl(result.downloadUrl ?? null);
+      setFileName(result.fileName ?? null);
       setStep("success");
     } catch (e) {
       const message = e instanceof Error ? e.message : "Something went wrong.";
@@ -190,11 +197,13 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
                 <Copy className="h-4 w-4" />
                 Copy link
               </Button>
-              <Button variant="outline" asChild className="w-full">
-                <a href={gamepassUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                  Open anyway
-                </a>
+              <Button
+                variant="outline"
+                onClick={() => window.open(gamepassUrl, "_blank", "noopener,noreferrer")}
+                className="w-full"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open anyway
               </Button>
               <Button variant="hero" onClick={handleVerify} disabled={verifying} className="w-full">
                 {verifying ? (
@@ -222,10 +231,29 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
                 <span className="font-semibold">{product.name}</span>.
               </DialogDescription>
             </DialogHeader>
-            <div className="px-6 py-4">
+            <div className="space-y-3 px-6 py-4">
               <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm">
                 Your purchase has been confirmed.
               </div>
+              {downloadUrl ? (
+                <a
+                  href={downloadUrl}
+                  download={fileName ?? undefined}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 text-sm hover:bg-accent transition-smooth"
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <Download className="h-5 w-5 text-primary shrink-0" />
+                    <span className="truncate font-medium">
+                      {fileName ?? "Download your file"}
+                    </span>
+                  </span>
+                  <span className="text-xs text-muted-foreground shrink-0">Click to download</span>
+                </a>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  No file is attached to this product. If you expected one, contact support.
+                </p>
+              )}
             </div>
             <DialogFooter className="px-6 pb-6">
               <Button variant="hero" className="w-full" onClick={() => handleOpenChange(false)}>
