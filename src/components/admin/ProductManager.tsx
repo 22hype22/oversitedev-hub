@@ -534,28 +534,65 @@ export const ProductManager = ({ userId }: { userId: string }) => {
 
             <div className="space-y-2">
               <Label>Product media ({images.length}/{MAX_IMAGES})</Label>
+              {images.length > 1 && (
+                <p className="text-[11px] text-muted-foreground -mt-1">
+                  Drag tiles to reorder. The first one is the cover.
+                </p>
+              )}
 
               {images.length > 0 && (
                 <div className="grid grid-cols-3 gap-2">
-                  {images.map((img, i) => {
-                    const video = isVideoFile(img.file);
+                  {images.map((item, i) => {
+                    const src = item.kind === "pending" ? item.preview : item.url;
+                    const video =
+                      item.kind === "pending"
+                        ? isVideoFile(item.file)
+                        : isVideoUrl(item.url);
+                    const isDragOver = overIndex === i && dragIndex !== null && dragIndex !== i;
                     return (
                       <div
-                        key={img.preview}
-                        className="relative aspect-video rounded-md overflow-hidden border border-border bg-muted group"
+                        key={item.id}
+                        draggable
+                        onDragStart={(e) => {
+                          setDragIndex(i);
+                          e.dataTransfer.effectAllowed = "move";
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                          if (overIndex !== i) setOverIndex(i);
+                        }}
+                        onDragLeave={() => {
+                          if (overIndex === i) setOverIndex(null);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (dragIndex !== null) reorderImages(dragIndex, i);
+                          setDragIndex(null);
+                          setOverIndex(null);
+                        }}
+                        onDragEnd={() => {
+                          setDragIndex(null);
+                          setOverIndex(null);
+                        }}
+                        className={`relative aspect-video rounded-md overflow-hidden border bg-muted group cursor-move transition-smooth ${
+                          isDragOver
+                            ? "border-primary ring-2 ring-primary/40"
+                            : "border-border"
+                        } ${dragIndex === i ? "opacity-50" : ""}`}
                       >
                         {video ? (
                           <video
-                            src={img.preview}
-                            className="absolute inset-0 w-full h-full object-cover"
+                            src={src}
+                            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                             muted
                             playsInline
                           />
                         ) : (
                           <img
-                            src={img.preview}
+                            src={src}
                             alt={`Preview ${i + 1}`}
-                            className="absolute inset-0 w-full h-full object-cover"
+                            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                           />
                         )}
                         {i === 0 && (
