@@ -193,15 +193,6 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     });
   };
 
-  const removeImage = (index: number) => {
-    setImages((prev) => {
-      const next = [...prev];
-      const [removed] = next.splice(index, 1);
-      if (removed) URL.revokeObjectURL(removed.preview);
-      return next;
-    });
-  };
-
   const handleSubmit = async () => {
     if (!name.trim()) {
       sonnerToast.error("Product name is required");
@@ -214,16 +205,22 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     }
     setSubmitting(true);
     try {
-      const uploadedUrls: string[] = [];
-      for (const img of images) {
-        const ext = img.file.name.split(".").pop() || "png";
+      // Upload any pending files; build the final ordered URL list
+      // by walking the current `images` array so the user's order is preserved.
+      const finalUrls: string[] = [];
+      for (const item of images) {
+        if (item.kind === "existing") {
+          finalUrls.push(item.url);
+          continue;
+        }
+        const ext = item.file.name.split(".").pop() || "png";
         const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const { error: uploadError } = await supabase.storage
           .from("product-images")
-          .upload(path, img.file, { cacheControl: "3600", upsert: false });
+          .upload(path, item.file, { cacheControl: "3600", upsert: false });
         if (uploadError) throw uploadError;
         const { data } = supabase.storage.from("product-images").getPublicUrl(path);
-        uploadedUrls.push(data.publicUrl);
+        finalUrls.push(data.publicUrl);
       }
 
       let fileUrl: string | null = null;
