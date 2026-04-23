@@ -55,7 +55,7 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
       return;
     }
     if (!product) return;
-    window.open(product.gamepassUrl, "_blank", "noopener,noreferrer");
+    openGamepass(product.gamepassUrl);
     setStep("purchase");
   };
 
@@ -150,7 +150,7 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
               <Button
                 variant="outline"
                 onClick={() =>
-                  window.open(product.gamepassUrl, "_blank", "noopener,noreferrer")
+                  openGamepass(product.gamepassUrl)
                 }
               >
                 <ExternalLink className="h-4 w-4" />
