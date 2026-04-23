@@ -80,7 +80,12 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
           (data as { error?: string } | undefined)?.error ||
           error?.message ||
           "Couldn't verify the purchase.";
-        sonnerToast.error("Not verified yet", { description: message });
+        const notFoundYet = /couldn't find your purchase yet|find your purchase/i.test(message);
+        sonnerToast.error(notFoundYet ? "Still processing" : "Not verified yet", {
+          description: notFoundYet
+            ? "Roblox hasn't recorded the sale yet. Wait ~30 seconds and click \"I've purchased\" again."
+            : message,
+        });
         return;
       }
       setStep("success");
@@ -111,7 +116,7 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md w-[calc(100vw-2rem)] sm:w-full max-h-[90vh] overflow-y-auto">
         {step === "username" && (
           <>
             <DialogHeader>
@@ -172,20 +177,25 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="gamepass-url">Gamepass link</Label>
-              <Input id="gamepass-url" value={gamepassUrl} readOnly className="font-mono text-xs" />
+              <Input
+                id="gamepass-url"
+                value={gamepassUrl}
+                readOnly
+                className="font-mono text-xs w-full overflow-x-auto"
+              />
             </div>
-            <DialogFooter className="gap-2">
-              <Button variant="outline" onClick={handleCopyGamepass}>
+            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-2">
+              <Button variant="outline" onClick={handleCopyGamepass} className="w-full sm:w-auto">
                 <Copy className="h-4 w-4" />
                 Copy link
               </Button>
-              <Button variant="outline" asChild>
+              <Button variant="outline" asChild className="w-full sm:w-auto">
                 <a href={gamepassUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-4 w-4" />
                   Open anyway
                 </a>
               </Button>
-              <Button variant="hero" onClick={handleVerify} disabled={verifying}>
+              <Button variant="hero" onClick={handleVerify} disabled={verifying} className="w-full sm:w-auto">
                 {verifying ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
