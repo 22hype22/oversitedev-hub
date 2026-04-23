@@ -61,6 +61,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Form state
   const [name, setName] = useState("");
@@ -75,6 +76,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
   const [gamepassUrl, setGamepassUrl] = useState("");
 
   const resetForm = () => {
+    setEditingId(null);
     setName("");
     setPrice("");
     setDescription("");
@@ -85,6 +87,29 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setAttachedFile(null);
     setPriceRobux("");
     setGamepassUrl("");
+  };
+
+  const startEdit = (p: DbProduct) => {
+    setEditingId(p.id);
+    setName(p.name);
+    setPrice(String(p.price ?? ""));
+    setDescription(p.description ?? "");
+    setCategory(p.category || "Systems");
+    setEmoji(p.emoji || "📦");
+    setImages([]);
+    setIsAvailable(p.is_available);
+    setAttachedFile(null);
+    setPriceRobux(p.price_robux != null ? String(p.price_robux) : "");
+    setGamepassUrl(p.gamepass_url ?? "");
+    setOpen(true);
+  };
+
+  const handleDialogOpenChange = (next: boolean) => {
+    if (!next) {
+      images.forEach((i) => URL.revokeObjectURL(i.preview));
+      resetForm();
+    }
+    setOpen(next);
   };
 
   const loadProducts = async () => {
