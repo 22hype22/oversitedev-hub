@@ -29,6 +29,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
+import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
 
 // Maps internal product/subscription IDs to Stripe price IDs (lookup keys)
 const PRICE_MAP: Record<string, string> = {
@@ -61,6 +62,8 @@ type Product = {
   imageUrl?: string;
   imageUrls?: string[];
   isAvailable?: boolean;
+  priceRobux?: number | null;
+  gamepassUrl?: string | null;
 };
 
 type Subscription = {
@@ -223,6 +226,19 @@ export const Products = () => {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutItems, setCheckoutItems] = useState<CheckoutItem[]>([]);
   const [customProducts, setCustomProducts] = useState<Product[]>([]);
+  const [robuxOpen, setRobuxOpen] = useState(false);
+  const [robuxProduct, setRobuxProduct] = useState<RobuxPurchaseProduct | null>(null);
+
+  const startRobuxPurchase = (p: Product) => {
+    if (!p.priceRobux || !p.gamepassUrl) return;
+    setRobuxProduct({
+      id: p.id,
+      name: p.name,
+      priceRobux: p.priceRobux,
+      gamepassUrl: p.gamepassUrl,
+    });
+    setRobuxOpen(true);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -250,6 +266,8 @@ export const Products = () => {
               imageUrl: urls[0],
               imageUrls: urls,
               isAvailable: available,
+              priceRobux: p.price_robux ?? null,
+              gamepassUrl: p.gamepass_url ?? null,
             };
           }),
         );
