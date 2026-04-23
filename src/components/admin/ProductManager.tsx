@@ -411,12 +411,14 @@ export const ProductManager = ({ userId }: { userId: string }) => {
       </Card>
 
       {/* Upload dialog */}
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Upload a new product</DialogTitle>
+            <DialogTitle>{editingId ? "Edit product" : "Upload a new product"}</DialogTitle>
             <DialogDescription>
-              Once you save, this product will appear on the public storefront.
+              {editingId
+                ? "Update product details. Leave images and file untouched to keep the existing ones."
+                : "Once you save, this product will appear on the public storefront."}
             </DialogDescription>
           </DialogHeader>
 
