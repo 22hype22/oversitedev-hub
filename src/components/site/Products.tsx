@@ -426,7 +426,7 @@ export const Products = () => {
               return (
                 <div
                   key={p.id}
-                  className="relative h-64 md:h-80 overflow-hidden bg-gradient-hero ring-2 ring-inset ring-primary"
+                  className="relative h-80 md:h-[28rem] overflow-hidden bg-gradient-hero ring-2 ring-inset ring-primary"
                 >
                   {img && !isVideoUrl(img) ? (
                     <img
@@ -442,7 +442,7 @@ export const Products = () => {
                   )}
                   <div className="absolute inset-0 bg-black/40" />
                   <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center gap-3">
-                    <h3 className="text-2xl md:text-4xl font-bold uppercase tracking-wide text-white drop-shadow-lg line-clamp-2">
+                    <h3 className="text-4xl md:text-7xl font-bold uppercase tracking-wide text-white drop-shadow-lg line-clamp-2">
                       {p.name}
                     </h3>
                     <span className="inline-flex items-center justify-center px-4 py-1.5 rounded-full border-2 border-white text-white uppercase tracking-widest text-xs font-semibold">
