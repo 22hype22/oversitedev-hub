@@ -172,20 +172,25 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="gamepass-url">Gamepass link</Label>
-              <Input id="gamepass-url" value={gamepassUrl} readOnly className="font-mono text-xs" />
+              <Input
+                id="gamepass-url"
+                value={gamepassUrl}
+                readOnly
+                className="font-mono text-xs w-full overflow-x-auto"
+              />
             </div>
-            <DialogFooter className="gap-2">
-              <Button variant="outline" onClick={handleCopyGamepass}>
+            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-2">
+              <Button variant="outline" onClick={handleCopyGamepass} className="w-full sm:w-auto">
                 <Copy className="h-4 w-4" />
                 Copy link
               </Button>
-              <Button variant="outline" asChild>
+              <Button variant="outline" asChild className="w-full sm:w-auto">
                 <a href={gamepassUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-4 w-4" />
                   Open anyway
                 </a>
               </Button>
-              <Button variant="hero" onClick={handleVerify} disabled={verifying}>
+              <Button variant="hero" onClick={handleVerify} disabled={verifying} className="w-full sm:w-auto">
                 {verifying ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
