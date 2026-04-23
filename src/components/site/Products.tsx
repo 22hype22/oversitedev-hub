@@ -540,51 +540,6 @@ export const Products = () => {
           </Sheet>
         </div>
 
-        {/* Coming Soon Banner */}
-        {comingSoon.length > 0 && (
-          <div className="mb-16">
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-semibold uppercase tracking-widest text-primary">
-                Coming soon
-              </h2>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {comingSoon.map((p) => {
-                const img = p.imageUrls?.[0] || p.imageUrl;
-                return (
-                  <div
-                    key={p.id}
-                    className="relative h-48 overflow-hidden rounded-2xl border border-border bg-gradient-hero"
-                  >
-                    {img && !isVideoUrl(img) ? (
-                      <img
-                        src={img}
-                        alt={p.name}
-                        className="absolute inset-0 h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center text-5xl opacity-80">
-                        {p.emoji}
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/40 to-transparent" />
-                    <div className="absolute inset-x-0 bottom-0 p-4">
-                      <Badge className="mb-1 bg-primary/90 text-primary-foreground hover:bg-primary">
-                        Soon
-                      </Badge>
-                      <h3 className="text-base font-semibold leading-tight text-foreground line-clamp-2">
-                        {p.name}
-                      </h3>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {/* Subscriptions */}
         <div className="mb-20">
           <div className="text-center max-w-2xl mx-auto mb-10">
