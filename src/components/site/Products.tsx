@@ -133,11 +133,6 @@ const SUBSCRIPTIONS: Subscription[] = [
 
 const PRODUCTS: Product[] = [];
 
-const COMING_SOON = [
-  { name: "Reaction Roles 2.0", blurb: "Drag-and-drop role menus with conditions.", emoji: "✨" },
-  { name: "AI Chat Companion", blurb: "Context-aware AI replies in any channel.", emoji: "🤖" },
-  { name: "Stats Dashboard", blurb: "Live server analytics and member insights.", emoji: "📊" },
-];
 
 const CATEGORIES = ["All", "Systems", "Assets"] as const;
 
