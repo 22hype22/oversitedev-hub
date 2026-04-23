@@ -698,12 +698,12 @@ export const ProductManager = ({ userId }: { userId: string }) => {
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Uploading…
+                  {editingId ? "Saving…" : "Uploading…"}
                 </>
               ) : (
                 <>
                   <Upload className="h-4 w-4" />
-                  Save product
+                  {editingId ? "Save changes" : "Save product"}
                 </>
               )}
             </Button>
