@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Package, Trash2, ImagePlus, Loader2, X, FileText, Sparkles, Wand2, Pencil } from "lucide-react";
+import { Upload, Package, Trash2, ImagePlus, Loader2, X, FileText, Sparkles, Wand2, Pencil, Film } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesUpdate } from "@/integrations/supabase/types";
@@ -46,6 +46,9 @@ type DbProduct = {
 const CATEGORIES = ["Systems", "Assets"] as const;
 const MAX_IMAGES = 6;
 const MAX_FILE_MB = 50;
+const MAX_IMAGE_MB = 5;
+const MAX_VIDEO_MB = 25;
+const isVideoFile = (file: File) => file.type.startsWith("video/");
 // Default conversion rate used to suggest a Robux price from USD.
 // (Roughly tracks the Roblox Premium payout rate of ~80 R$ per $1.)
 const ROBUX_PER_USD = 80;
@@ -141,8 +144,14 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     }
     const accepted: PendingImage[] = [];
     for (const file of incoming.slice(0, remaining)) {
-      if (file.size > 5 * 1024 * 1024) {
-        sonnerToast.error(`"${file.name}" too large`, { description: "Please keep each image under 5MB." });
+      const isVideo = isVideoFile(file);
+      const limitMb = isVideo ? MAX_VIDEO_MB : MAX_IMAGE_MB;
+      if (file.size > limitMb * 1024 * 1024) {
+        sonnerToast.error(`"${file.name}" too large`, {
+          description: isVideo
+            ? `Please keep each video under ${MAX_VIDEO_MB}MB.`
+            : `Please keep each image under ${MAX_IMAGE_MB}MB.`,
+        });
         continue;
       }
       accepted.push({ file, preview: URL.createObjectURL(file) });
