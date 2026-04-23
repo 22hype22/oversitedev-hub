@@ -441,13 +441,13 @@ export const Products = () => {
                     </div>
                   )}
                   <div className="absolute inset-0 bg-black/40" />
-                  <Badge className="absolute top-3 right-3 z-10 bg-primary/90 text-primary-foreground hover:bg-primary uppercase tracking-wider text-[10px]">
-                    Coming soon
-                  </Badge>
-                  <div className="absolute inset-0 flex items-center justify-center px-4 text-center">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center gap-3">
                     <h3 className="text-2xl md:text-4xl font-bold uppercase tracking-wide text-white drop-shadow-lg line-clamp-2">
                       {p.name}
                     </h3>
+                    <span className="inline-flex items-center justify-center px-4 py-1.5 rounded-full border-2 border-white text-white uppercase tracking-widest text-xs font-semibold">
+                      Coming soon
+                    </span>
                   </div>
                 </div>
               );
