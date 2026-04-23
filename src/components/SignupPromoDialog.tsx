@@ -57,7 +57,7 @@ export const SignupPromoDialog = () => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md p-0 overflow-hidden">
         <div className="bg-gradient-to-br from-primary/20 via-primary/10 to-transparent p-6 border-b border-border">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/40 text-primary text-xs font-semibold uppercase tracking-wider mb-3">
