@@ -721,6 +721,12 @@ export const Products = () => {
                             variant="outlineGlow"
                             onClick={() => startRobuxPurchase(p)}
                           >
+                            <span
+                              aria-hidden
+                              className="inline-flex h-4 w-4 items-center justify-center font-bold text-[11px] leading-none"
+                            >
+                              R$
+                            </span>
                             Buy with R$ {p.priceRobux.toLocaleString()}
                           </Button>
                         )}
