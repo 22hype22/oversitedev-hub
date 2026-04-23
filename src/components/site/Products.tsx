@@ -711,15 +711,20 @@ export const Products = () => {
                           p.priceRobux && p.gamepassUrl ? "grid-cols-2" : "grid-cols-1"
                         }`}
                       >
-                        <Button size="sm" variant="hero" onClick={() => addProductToCart(p)}>
+                        <Button
+                          size="sm"
+                          variant="hero"
+                          onClick={() => addProductToCart(p)}
+                          aria-label={`Buy with $${p.price}`}
+                        >
                           <CreditCard className="h-4 w-4" />
-                          Buy with ${p.price}
                         </Button>
                         {p.priceRobux && p.gamepassUrl && (
                           <Button
                             size="sm"
                             variant="outlineGlow"
                             onClick={() => startRobuxPurchase(p)}
+                            aria-label={`Buy with R$ ${p.priceRobux.toLocaleString()}`}
                           >
                             <span
                               aria-hidden
@@ -727,7 +732,6 @@ export const Products = () => {
                             >
                               R$
                             </span>
-                            Buy with R$ {p.priceRobux.toLocaleString()}
                           </Button>
                         )}
                       </div>
