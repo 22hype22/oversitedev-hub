@@ -172,13 +172,11 @@ Deno.serve(async (req) => {
     }
 
     if (!matched) {
-      return json(
-        {
-          error:
-            "We couldn't find your purchase yet. If you just bought it, wait ~30 seconds and try again.",
-        },
-        404,
-      );
+      return json({
+        success: false,
+        error:
+          "We couldn't find your purchase yet. If you just bought it, wait ~30 seconds and try again.",
+      });
     }
 
     // 4. Mark pending purchase fulfilled and return signed URL if the product has a file.
