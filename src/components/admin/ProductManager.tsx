@@ -156,7 +156,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
       sonnerToast.error("Image limit reached", { description: `Up to ${MAX_IMAGES} images per product.` });
       return;
     }
-    const accepted: PendingImage[] = [];
+    const accepted: MediaItem[] = [];
     for (const file of incoming.slice(0, remaining)) {
       const isVideo = isVideoFile(file);
       const limitMb = isVideo ? MAX_VIDEO_MB : MAX_IMAGE_MB;
@@ -168,9 +168,29 @@ export const ProductManager = ({ userId }: { userId: string }) => {
         });
         continue;
       }
-      accepted.push({ file, preview: URL.createObjectURL(file) });
+      accepted.push({ kind: "pending", file, preview: URL.createObjectURL(file), id: mediaId() });
     }
     setImages((prev) => [...prev, ...accepted]);
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => {
+      const next = [...prev];
+      const [removed] = next.splice(index, 1);
+      if (removed && removed.kind === "pending") URL.revokeObjectURL(removed.preview);
+      return next;
+    });
+  };
+
+  const reorderImages = (from: number, to: number) => {
+    if (from === to || from < 0 || to < 0) return;
+    setImages((prev) => {
+      if (from >= prev.length || to >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
   };
 
   const removeImage = (index: number) => {
