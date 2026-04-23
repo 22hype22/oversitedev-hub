@@ -426,7 +426,7 @@ export const Products = () => {
               return (
                 <div
                   key={p.id}
-                  className="relative h-56 md:h-72 overflow-hidden bg-gradient-hero"
+                  className="relative h-64 md:h-80 overflow-hidden bg-gradient-hero ring-2 ring-inset ring-primary"
                 >
                   {img && !isVideoUrl(img) ? (
                     <img
@@ -440,12 +440,12 @@ export const Products = () => {
                       {p.emoji}
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-background/10 to-background/80" />
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
-                    <Badge className="mb-3 bg-primary/90 text-primary-foreground hover:bg-primary">
-                      Coming soon
-                    </Badge>
-                    <h3 className="text-lg md:text-2xl font-bold leading-tight text-foreground line-clamp-2 drop-shadow-md">
+                  <div className="absolute inset-0 bg-black/40" />
+                  <Badge className="absolute top-3 right-3 z-10 bg-primary/90 text-primary-foreground hover:bg-primary uppercase tracking-wider text-[10px]">
+                    Coming soon
+                  </Badge>
+                  <div className="absolute inset-0 flex items-center justify-center px-4 text-center">
+                    <h3 className="text-2xl md:text-4xl font-bold uppercase tracking-wide text-white drop-shadow-lg line-clamp-2">
                       {p.name}
                     </h3>
                   </div>
