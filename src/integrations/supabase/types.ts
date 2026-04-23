@@ -133,6 +133,36 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          created_at: string
+          discord_username: string
+          id: string
+          roblox_username: string
+          updated_at: string
+          user_id: string
+          welcome_discount_available: boolean
+        }
+        Insert: {
+          created_at?: string
+          discord_username: string
+          id?: string
+          roblox_username: string
+          updated_at?: string
+          user_id: string
+          welcome_discount_available?: boolean
+        }
+        Update: {
+          created_at?: string
+          discord_username?: string
+          id?: string
+          roblox_username?: string
+          updated_at?: string
+          user_id?: string
+          welcome_discount_available?: boolean
+        }
+        Relationships: []
+      }
       purchases: {
         Row: {
           amount_cents: number
