@@ -58,7 +58,12 @@ const extractGamepassId = (url: string): string | null => {
   return m?.[1] ?? null;
 };
 
-type PendingImage = { file: File; preview: string };
+type MediaItem =
+  | { kind: "existing"; url: string; id: string }
+  | { kind: "pending"; file: File; preview: string; id: string };
+
+const isVideoUrl = (url: string) => /\.(mp4|webm|mov|m4v|ogg)(\?|#|$)/i.test(url);
+const mediaId = () => `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
 export const ProductManager = ({ userId }: { userId: string }) => {
   const [products, setProducts] = useState<DbProduct[]>([]);
@@ -73,7 +78,9 @@ export const ProductManager = ({ userId }: { userId: string }) => {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<string>("Systems");
   const [emoji, setEmoji] = useState("📦");
-  const [images, setImages] = useState<PendingImage[]>([]);
+  const [images, setImages] = useState<MediaItem[]>([]);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
   const [isAvailable, setIsAvailable] = useState(true);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [priceRobux, setPriceRobux] = useState("");
@@ -100,7 +107,12 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setDescription(p.description ?? "");
     setCategory(p.category || "Systems");
     setEmoji(p.emoji || "📦");
-    setImages([]);
+    const existingUrls = (p.image_urls && p.image_urls.length > 0)
+      ? p.image_urls
+      : (p.image_url ? [p.image_url] : []);
+    setImages(
+      existingUrls.map((url) => ({ kind: "existing", url, id: mediaId() })),
+    );
     setIsAvailable(p.is_available);
     setAttachedFile(null);
     setPriceRobux(p.price_robux != null ? String(p.price_robux) : "");
@@ -110,7 +122,9 @@ export const ProductManager = ({ userId }: { userId: string }) => {
 
   const handleDialogOpenChange = (next: boolean) => {
     if (!next) {
-      images.forEach((i) => URL.revokeObjectURL(i.preview));
+      images.forEach((i) => {
+        if (i.kind === "pending") URL.revokeObjectURL(i.preview);
+      });
       resetForm();
     }
     setOpen(next);
