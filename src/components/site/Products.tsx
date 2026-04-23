@@ -455,7 +455,7 @@ export const Products = () => {
           </div>
         </div>
       )}
-      <div className="container mx-auto px-4 py-12 md:py-16">
+      <div className="container mx-auto px-4 pt-20 pb-12 md:pt-24 md:pb-16">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 pb-8 border-b border-border">
           <div className="max-w-2xl">
