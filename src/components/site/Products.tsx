@@ -144,6 +144,8 @@ type CartItem = (Product | (Subscription & { category: "Subscription"; emoji: st
   qty: number;
 };
 
+const isVideoUrl = (url: string) => /\.(mp4|webm|mov|m4v|ogg)(\?|#|$)/i.test(url);
+
 const ProductImage = ({
   images,
   emoji,
@@ -156,6 +158,8 @@ const ProductImage = ({
   const [idx, setIdx] = useState(0);
   const has = images.length > 0;
   const multi = images.length > 1;
+  const current = has ? images[idx] : null;
+  const isVideo = current ? isVideoUrl(current) : false;
 
   const go = (e: React.MouseEvent, dir: number) => {
     e.preventDefault();
@@ -166,12 +170,24 @@ const ProductImage = ({
   return (
     <div className="relative w-full aspect-[16/9] bg-gradient-hero overflow-hidden">
       {has ? (
-        <img
-          src={images[idx]}
-          alt={alt}
-          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-smooth"
-          loading="lazy"
-        />
+        isVideo ? (
+          <video
+            key={current!}
+            src={current!}
+            className="absolute inset-0 w-full h-full object-cover"
+            controls
+            playsInline
+            preload="metadata"
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <img
+            src={current!}
+            alt={alt}
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-smooth"
+            loading="lazy"
+          />
+        )
       ) : (
         <div className="absolute inset-0 flex items-center justify-center text-7xl group-hover:scale-110 transition-smooth">
           {emoji}
