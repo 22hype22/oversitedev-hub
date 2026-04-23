@@ -738,41 +738,6 @@ export const Products = () => {
           </div>
         )}
 
-        {/* Coming Soon */}
-        <div className="mt-24 pt-12 border-t border-border">
-          <div className="flex items-end justify-between gap-4 mb-8 flex-wrap">
-            <div>
-              <div className="inline-flex items-center gap-2 text-primary text-xs font-semibold uppercase tracking-widest mb-2">
-                <Sparkles className="h-3.5 w-3.5" />
-                In development
-              </div>
-              <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Coming soon</h2>
-              <p className="mt-2 text-muted-foreground">
-                Sneak peeks at the next products dropping into the catalog.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {COMING_SOON.map((c) => (
-              <Card
-                key={c.name}
-                className="p-0 overflow-hidden bg-card border-border border-dashed hover:border-primary/40 transition-smooth"
-              >
-                <div className="aspect-[16/9] bg-gradient-hero flex items-center justify-center text-6xl relative">
-                  <span className="opacity-80">{c.emoji}</span>
-                  <Badge className="absolute top-3 right-3 bg-background/80 backdrop-blur text-foreground border border-border">
-                    Soon
-                  </Badge>
-                </div>
-                <div className="p-5">
-                  <h3 className="font-semibold text-base">{c.name}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{c.blurb}</p>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Floating cart button */}
