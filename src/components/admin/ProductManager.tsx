@@ -205,29 +205,60 @@ export const ProductManager = ({ userId }: { userId: string }) => {
         throw new Error("Couldn't read a gamepass ID from that URL. It should look like https://www.roblox.com/game-pass/12345678/...");
       }
 
-      const { error: insertError } = await supabase.from("products").insert({
-        name: name.trim(),
-        description: description.trim() || null,
-        price: priceNum,
-        category,
-        emoji: emoji || "📦",
-        image_url: uploadedUrls[0] ?? null,
-        image_urls: uploadedUrls,
-        is_available: isAvailable,
-        file_url: fileUrl,
-        file_name: fileName,
-        price_robux: robuxNum,
-        gamepass_id: gamepassId,
-        gamepass_url: trimmedGamepass || null,
-        created_by: userId,
-      });
-      if (insertError) throw insertError;
+      if (editingId) {
+        // Update existing product. Only overwrite images/file if new ones were provided.
+        const updatePayload: Record<string, unknown> = {
+          name: name.trim(),
+          description: description.trim() || null,
+          price: priceNum,
+          category,
+          emoji: emoji || "📦",
+          is_available: isAvailable,
+          price_robux: robuxNum,
+          gamepass_id: gamepassId,
+          gamepass_url: trimmedGamepass || null,
+        };
+        if (uploadedUrls.length > 0) {
+          updatePayload.image_url = uploadedUrls[0];
+          updatePayload.image_urls = uploadedUrls;
+        }
+        if (attachedFile) {
+          updatePayload.file_url = fileUrl;
+          updatePayload.file_name = fileName;
+        }
+        const { error: updateError } = await supabase
+          .from("products")
+          .update(updatePayload)
+          .eq("id", editingId);
+        if (updateError) throw updateError;
+        sonnerToast.success("Product updated", {
+          description: `${name} has been saved.`,
+        });
+      } else {
+        const { error: insertError } = await supabase.from("products").insert({
+          name: name.trim(),
+          description: description.trim() || null,
+          price: priceNum,
+          category,
+          emoji: emoji || "📦",
+          image_url: uploadedUrls[0] ?? null,
+          image_urls: uploadedUrls,
+          is_available: isAvailable,
+          file_url: fileUrl,
+          file_name: fileName,
+          price_robux: robuxNum,
+          gamepass_id: gamepassId,
+          gamepass_url: trimmedGamepass || null,
+          created_by: userId,
+        });
+        if (insertError) throw insertError;
 
-      sonnerToast.success(isAvailable ? "Product uploaded!" : "Teaser added!", {
-        description: isAvailable
-          ? `${name} is now live on the storefront.`
-          : `${name} is showing as a teaser — purchases disabled.`,
-      });
+        sonnerToast.success(isAvailable ? "Product uploaded!" : "Teaser added!", {
+          description: isAvailable
+            ? `${name} is now live on the storefront.`
+            : `${name} is showing as a teaser — purchases disabled.`,
+        });
+      }
       images.forEach((i) => URL.revokeObjectURL(i.preview));
       resetForm();
       setOpen(false);
