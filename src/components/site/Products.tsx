@@ -689,39 +689,42 @@ export const Products = () => {
                   <h3 className="font-semibold text-base leading-tight">{p.name}</h3>
                   <p className="text-sm text-muted-foreground mt-1.5 flex-1">{p.blurb}</p>
                   <div className="mt-5 pt-4 border-t border-border space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-xs text-muted-foreground">
-                          {p.isAvailable === false ? "Coming soon" : "Price"}
-                        </div>
-                        <span className="text-xl font-bold">${p.price}</span>
-                        {p.priceRobux && p.gamepassUrl && (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            or R$ {p.priceRobux.toLocaleString()}
-                          </span>
-                        )}
+                    <div>
+                      <div className="text-xs text-muted-foreground">
+                        {p.isAvailable === false ? "Coming soon" : "Price"}
                       </div>
-                      {p.isAvailable === false ? (
-                        <Button size="sm" variant="outline" disabled>
-                          <Sparkles className="h-4 w-4" />
-                          Soon
-                        </Button>
-                      ) : (
-                        <Button size="sm" variant="hero" onClick={() => addProductToCart(p)}>
-                          <CreditCard className="h-4 w-4" />
-                          Purchase
-                        </Button>
+                      <span className="text-xl font-bold">${p.price}</span>
+                      {p.priceRobux && p.gamepassUrl && (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          or R$ {p.priceRobux.toLocaleString()}
+                        </span>
                       )}
                     </div>
-                    {p.isAvailable !== false && p.priceRobux && p.gamepassUrl && (
-                      <Button
-                        size="sm"
-                        variant="outlineGlow"
-                        className="w-full"
-                        onClick={() => startRobuxPurchase(p)}
-                      >
-                        Buy with R$ {p.priceRobux.toLocaleString()}
+                    {p.isAvailable === false ? (
+                      <Button size="sm" variant="outline" disabled className="w-full">
+                        <Sparkles className="h-4 w-4" />
+                        Soon
                       </Button>
+                    ) : (
+                      <div
+                        className={`grid gap-2 ${
+                          p.priceRobux && p.gamepassUrl ? "grid-cols-2" : "grid-cols-1"
+                        }`}
+                      >
+                        <Button size="sm" variant="hero" onClick={() => addProductToCart(p)}>
+                          <CreditCard className="h-4 w-4" />
+                          Buy with ${p.price}
+                        </Button>
+                        {p.priceRobux && p.gamepassUrl && (
+                          <Button
+                            size="sm"
+                            variant="outlineGlow"
+                            onClick={() => startRobuxPurchase(p)}
+                          >
+                            Buy with R$ {p.priceRobux.toLocaleString()}
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
