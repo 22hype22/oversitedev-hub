@@ -2,3 +2,6 @@ project_id = "prvqfjairnketwhmfshu"
 
 [functions.create-checkout]
 verify_jwt = false
+
+[functions.verify-gamepass-purchase]
+verify_jwt = false

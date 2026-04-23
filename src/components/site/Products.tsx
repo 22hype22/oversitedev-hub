@@ -29,6 +29,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
+import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
 
 // Maps internal product/subscription IDs to Stripe price IDs (lookup keys)
 const PRICE_MAP: Record<string, string> = {
@@ -61,6 +62,8 @@ type Product = {
   imageUrl?: string;
   imageUrls?: string[];
   isAvailable?: boolean;
+  priceRobux?: number | null;
+  gamepassUrl?: string | null;
 };
 
 type Subscription = {
@@ -223,6 +226,19 @@ export const Products = () => {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutItems, setCheckoutItems] = useState<CheckoutItem[]>([]);
   const [customProducts, setCustomProducts] = useState<Product[]>([]);
+  const [robuxOpen, setRobuxOpen] = useState(false);
+  const [robuxProduct, setRobuxProduct] = useState<RobuxPurchaseProduct | null>(null);
+
+  const startRobuxPurchase = (p: Product) => {
+    if (!p.priceRobux || !p.gamepassUrl) return;
+    setRobuxProduct({
+      id: p.id,
+      name: p.name,
+      priceRobux: p.priceRobux,
+      gamepassUrl: p.gamepassUrl,
+    });
+    setRobuxOpen(true);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -250,6 +266,8 @@ export const Products = () => {
               imageUrl: urls[0],
               imageUrls: urls,
               isAvailable: available,
+              priceRobux: p.price_robux ?? null,
+              gamepassUrl: p.gamepass_url ?? null,
             };
           }),
         );
@@ -635,22 +653,39 @@ export const Products = () => {
                   </Badge>
                   <h3 className="font-semibold text-base leading-tight">{p.name}</h3>
                   <p className="text-sm text-muted-foreground mt-1.5 flex-1">{p.blurb}</p>
-                  <div className="flex items-center justify-between mt-5 pt-4 border-t border-border">
-                    <div>
-                      <div className="text-xs text-muted-foreground">
-                        {p.isAvailable === false ? "Coming soon" : "Price"}
+                  <div className="mt-5 pt-4 border-t border-border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-xs text-muted-foreground">
+                          {p.isAvailable === false ? "Coming soon" : "Price"}
+                        </div>
+                        <span className="text-xl font-bold">${p.price}</span>
+                        {p.priceRobux && p.gamepassUrl && (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            or R$ {p.priceRobux.toLocaleString()}
+                          </span>
+                        )}
                       </div>
-                      <span className="text-xl font-bold">${p.price}</span>
+                      {p.isAvailable === false ? (
+                        <Button size="sm" variant="outline" disabled>
+                          <Sparkles className="h-4 w-4" />
+                          Soon
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="hero" onClick={() => addProductToCart(p)}>
+                          <CreditCard className="h-4 w-4" />
+                          Purchase
+                        </Button>
+                      )}
                     </div>
-                    {p.isAvailable === false ? (
-                      <Button size="sm" variant="outline" disabled>
-                        <Sparkles className="h-4 w-4" />
-                        Soon
-                      </Button>
-                    ) : (
-                      <Button size="sm" variant="hero" onClick={() => addProductToCart(p)}>
-                        <CreditCard className="h-4 w-4" />
-                        Purchase
+                    {p.isAvailable !== false && p.priceRobux && p.gamepassUrl && (
+                      <Button
+                        size="sm"
+                        variant="outlineGlow"
+                        className="w-full"
+                        onClick={() => startRobuxPurchase(p)}
+                      >
+                        Buy with R$ {p.priceRobux.toLocaleString()}
                       </Button>
                     )}
                   </div>
@@ -717,6 +752,11 @@ export const Products = () => {
         open={checkoutOpen}
         onOpenChange={setCheckoutOpen}
         items={checkoutItems}
+      />
+      <RobuxPurchaseDialog
+        open={robuxOpen}
+        onOpenChange={setRobuxOpen}
+        product={robuxProduct}
       />
     </section>
   );
