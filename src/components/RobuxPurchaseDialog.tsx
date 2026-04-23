@@ -14,6 +14,17 @@ import { Loader2, ExternalLink, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
 
+function openGamepass(rawUrl: string) {
+  let url = (rawUrl || "").trim();
+  if (!url) return;
+  // If the URL was saved without a protocol (e.g. "www.roblox.com/..."),
+  // window.open treats it as a relative path. Force https://.
+  if (!/^https?:\/\//i.test(url)) {
+    url = `https://${url.replace(/^\/+/, "")}`;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 export interface RobuxPurchaseProduct {
   /** Storefront product ID (may be prefixed with "custom-"). */
   id: string;
@@ -55,7 +66,7 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
       return;
     }
     if (!product) return;
-    window.open(product.gamepassUrl, "_blank", "noopener,noreferrer");
+    openGamepass(product.gamepassUrl);
     setStep("purchase");
   };
 
@@ -150,7 +161,7 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
               <Button
                 variant="outline"
                 onClick={() =>
-                  window.open(product.gamepassUrl, "_blank", "noopener,noreferrer")
+                  openGamepass(product.gamepassUrl)
                 }
               >
                 <ExternalLink className="h-4 w-4" />

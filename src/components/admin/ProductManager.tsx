@@ -200,7 +200,11 @@ export const ProductManager = ({ userId }: { userId: string }) => {
       if (priceRobux.trim() && (robuxNum === null || isNaN(robuxNum) || robuxNum < 0)) {
         throw new Error("Robux price must be a non-negative whole number.");
       }
-      const trimmedGamepass = gamepassUrl.trim();
+      let trimmedGamepass = gamepassUrl.trim();
+      // Auto-prepend https:// if the user pasted "www.roblox.com/..." without a protocol.
+      if (trimmedGamepass && !/^https?:\/\//i.test(trimmedGamepass)) {
+        trimmedGamepass = `https://${trimmedGamepass.replace(/^\/+/, "")}`;
+      }
       const gamepassId = trimmedGamepass ? extractGamepassId(trimmedGamepass) : null;
       if (trimmedGamepass && !gamepassId) {
         throw new Error("Couldn't read a gamepass ID from that URL. It should look like https://www.roblox.com/game-pass/12345678/...");
