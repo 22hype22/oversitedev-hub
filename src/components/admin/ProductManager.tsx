@@ -22,6 +22,7 @@ import {
 import { Upload, Package, Trash2, ImagePlus, Loader2, X, FileText, Sparkles, Wand2, Pencil } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 import { toast as sonnerToast } from "sonner";
 
 type DbProduct = {
