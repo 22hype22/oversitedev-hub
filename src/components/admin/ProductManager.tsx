@@ -207,7 +207,9 @@ export const ProductManager = ({ userId }: { userId: string }) => {
 
       if (editingId) {
         // Update existing product. Only overwrite images/file if new ones were provided.
-        const updatePayload: Record<string, unknown> = {
+        const updatePayload: Parameters<
+          ReturnType<typeof supabase.from<"products">>["update"]
+        >[0] = {
           name: name.trim(),
           description: description.trim() || null,
           price: priceNum,
