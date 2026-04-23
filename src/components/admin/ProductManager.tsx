@@ -47,7 +47,7 @@ const CATEGORIES = ["Systems", "Assets"] as const;
 const MAX_IMAGES = 6;
 const MAX_FILE_MB = 50;
 const MAX_IMAGE_MB = 5;
-const MAX_VIDEO_MB = 25;
+const MAX_VIDEO_MB = 200;
 const isVideoFile = (file: File) => file.type.startsWith("video/");
 // Default conversion rate used to suggest a Robux price from USD.
 // (Roughly tracks the Roblox Premium payout rate of ~80 R$ per $1.)
