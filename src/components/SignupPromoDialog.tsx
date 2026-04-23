@@ -21,9 +21,12 @@ export const SignupPromoDialog = () => {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (loading || user) return;
-    if (sessionStorage.getItem(SESSION_KEY)) return;
-    const t = setTimeout(() => setOpen(true), 5000);
+    const force = new URLSearchParams(window.location.search).get("showpromo") === "1";
+    if (!force) {
+      if (loading || user) return;
+      if (sessionStorage.getItem(SESSION_KEY)) return;
+    }
+    const t = setTimeout(() => setOpen(true), force ? 200 : 5000);
     return () => clearTimeout(t);
   }, [loading, user]);
 
