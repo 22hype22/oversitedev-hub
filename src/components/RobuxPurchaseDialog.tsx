@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, ExternalLink, CheckCircle2 } from "lucide-react";
+import { Loader2, ExternalLink, CheckCircle2, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
 
@@ -94,6 +94,21 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
 
   if (!product) return null;
 
+  const gamepassUrl = normalizeGamepassUrl(product.gamepassUrl);
+
+  const handleCopyGamepass = async () => {
+    try {
+      await navigator.clipboard.writeText(gamepassUrl);
+      sonnerToast.success("Gamepass link copied", {
+        description: "Paste it into a new browser tab to open Roblox.",
+      });
+    } catch {
+      sonnerToast.error("Couldn't copy the link", {
+        description: "Select the URL and copy it manually.",
+      });
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
@@ -136,13 +151,13 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
             <DialogHeader>
               <DialogTitle>Complete your purchase on Roblox</DialogTitle>
               <DialogDescription>
-                Open the gamepass in a new tab, buy it as{" "}
+                The preview can block Roblox links. Open the gamepass manually, buy it as{" "}
                 <span className="font-semibold">{username}</span>, then come back here.
               </DialogDescription>
             </DialogHeader>
             <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm space-y-3">
               <p>
-                <span className="font-semibold">1.</span> Open the gamepass page.
+                <span className="font-semibold">1.</span> Copy or open the gamepass link below.
               </p>
               <p>
                 <span className="font-semibold">2.</span> Buy the gamepass on Roblox.
@@ -155,11 +170,19 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
                 check the group sales and confirm.
               </p>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="gamepass-url">Gamepass link</Label>
+              <Input id="gamepass-url" value={gamepassUrl} readOnly className="font-mono text-xs" />
+            </div>
             <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={handleCopyGamepass}>
+                <Copy className="h-4 w-4" />
+                Copy link
+              </Button>
               <Button variant="outline" asChild>
-                <a href={normalizeGamepassUrl(product.gamepassUrl)} target="_blank" rel="noopener noreferrer">
+                <a href={gamepassUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-4 w-4" />
-                  Open gamepass
+                  Open anyway
                 </a>
               </Button>
               <Button variant="hero" onClick={handleVerify} disabled={verifying}>
