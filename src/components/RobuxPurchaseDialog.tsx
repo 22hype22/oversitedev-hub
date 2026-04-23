@@ -80,7 +80,12 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
           (data as { error?: string } | undefined)?.error ||
           error?.message ||
           "Couldn't verify the purchase.";
-        sonnerToast.error("Not verified yet", { description: message });
+        const notFoundYet = /couldn't find your purchase yet|find your purchase/i.test(message);
+        sonnerToast.error(notFoundYet ? "Still processing" : "Not verified yet", {
+          description: notFoundYet
+            ? "Roblox hasn't recorded the sale yet. Wait ~30 seconds and click \"I've purchased\" again."
+            : message,
+        });
         return;
       }
       setStep("success");
