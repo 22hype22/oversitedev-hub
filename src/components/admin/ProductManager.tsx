@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Package, Trash2, ImagePlus, Loader2, X, FileText, Sparkles, Wand2 } from "lucide-react";
+import { Upload, Package, Trash2, ImagePlus, Loader2, X, FileText, Sparkles, Wand2, Pencil } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
