@@ -787,6 +787,7 @@ export const Products = () => {
         open={checkoutOpen}
         onOpenChange={setCheckoutOpen}
         items={checkoutItems}
+        customerEmail={user?.email}
       />
       <RobuxPurchaseDialog
         open={robuxOpen}
