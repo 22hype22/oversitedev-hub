@@ -133,11 +133,6 @@ const SUBSCRIPTIONS: Subscription[] = [
 
 const PRODUCTS: Product[] = [];
 
-const COMING_SOON = [
-  { name: "Reaction Roles 2.0", blurb: "Drag-and-drop role menus with conditions.", emoji: "✨" },
-  { name: "AI Chat Companion", blurb: "Context-aware AI replies in any channel.", emoji: "🤖" },
-  { name: "Stats Dashboard", blurb: "Live server analytics and member insights.", emoji: "📊" },
-];
 
 const CATEGORIES = ["All", "Systems", "Assets"] as const;
 
@@ -356,11 +351,14 @@ export const Products = () => {
   };
 
   const allProducts = [...customProducts, ...PRODUCTS];
-  const filtered = allProducts.filter(
-    (p) =>
-      (category === "All" || p.category === category) &&
-      p.name.toLowerCase().includes(query.toLowerCase()),
-  );
+  const comingSoon = allProducts.filter((p) => p.isAvailable === false);
+  const filtered = allProducts
+    .filter((p) => p.isAvailable !== false)
+    .filter(
+      (p) =>
+        (category === "All" || p.category === category) &&
+        p.name.toLowerCase().includes(query.toLowerCase()),
+    );
 
   const addProductToCart = (product: Product) => {
     setCart((prev) => {
@@ -541,6 +539,72 @@ export const Products = () => {
             </SheetContent>
           </Sheet>
         </div>
+
+        {/* Coming Soon Banner */}
+        {comingSoon.length > 0 && (
+          <div className="mb-16">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-semibold uppercase tracking-widest text-primary">
+                Coming soon
+              </h2>
+            </div>
+            <div
+              className="relative overflow-hidden rounded-2xl border border-border bg-card"
+              style={{
+                maskImage:
+                  "linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)",
+                WebkitMaskImage:
+                  "linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)",
+              }}
+            >
+              <div className="flex w-max animate-marquee gap-4 p-4">
+                {[...comingSoon, ...comingSoon].map((p, i) => {
+                  const img = p.imageUrls?.[0] || p.imageUrl;
+                  return (
+                    <div
+                      key={`${p.id}-${i}`}
+                      className="relative h-40 w-72 shrink-0 overflow-hidden rounded-xl border border-border bg-gradient-hero"
+                    >
+                      {img ? (
+                        isVideoUrl(img) ? (
+                          <video
+                            src={img}
+                            className="absolute inset-0 h-full w-full object-cover"
+                            muted
+                            loop
+                            playsInline
+                            autoPlay
+                          />
+                        ) : (
+                          <img
+                            src={img}
+                            alt={p.name}
+                            className="absolute inset-0 h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        )
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-5xl opacity-80">
+                          {p.emoji}
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/40 to-transparent" />
+                      <div className="absolute inset-x-0 bottom-0 p-3">
+                        <Badge className="mb-1 bg-primary/90 text-primary-foreground hover:bg-primary">
+                          Soon
+                        </Badge>
+                        <h3 className="text-sm font-semibold leading-tight text-foreground line-clamp-2">
+                          {p.name}
+                        </h3>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Subscriptions */}
         <div className="mb-20">
@@ -743,41 +807,6 @@ export const Products = () => {
           </div>
         )}
 
-        {/* Coming Soon */}
-        <div className="mt-24 pt-12 border-t border-border">
-          <div className="flex items-end justify-between gap-4 mb-8 flex-wrap">
-            <div>
-              <div className="inline-flex items-center gap-2 text-primary text-xs font-semibold uppercase tracking-widest mb-2">
-                <Sparkles className="h-3.5 w-3.5" />
-                In development
-              </div>
-              <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Coming soon</h2>
-              <p className="mt-2 text-muted-foreground">
-                Sneak peeks at the next products dropping into the catalog.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {COMING_SOON.map((c) => (
-              <Card
-                key={c.name}
-                className="p-0 overflow-hidden bg-card border-border border-dashed hover:border-primary/40 transition-smooth"
-              >
-                <div className="aspect-[16/9] bg-gradient-hero flex items-center justify-center text-6xl relative">
-                  <span className="opacity-80">{c.emoji}</span>
-                  <Badge className="absolute top-3 right-3 bg-background/80 backdrop-blur text-foreground border border-border">
-                    Soon
-                  </Badge>
-                </div>
-                <div className="p-5">
-                  <h3 className="font-semibold text-base">{c.name}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{c.blurb}</p>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Floating cart button */}

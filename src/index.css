@@ -110,4 +110,15 @@
   .shadow-glow { box-shadow: var(--shadow-glow); }
   .shadow-elegant { box-shadow: var(--shadow-elegant); }
   .transition-smooth { transition: var(--transition-smooth); }
+
+  @keyframes marquee-x {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  .animate-marquee {
+    animation: marquee-x 40s linear infinite;
+  }
+  .animate-marquee:hover {
+    animation-play-state: paused;
+  }
 }
