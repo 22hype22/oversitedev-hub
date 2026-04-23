@@ -116,16 +116,16 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-md w-[calc(100vw-2rem)] sm:w-full max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[min(calc(100vw-2rem),56rem)] max-w-[56rem] overflow-x-hidden max-h-[90vh] overflow-y-auto p-0">
         {step === "username" && (
           <>
-            <DialogHeader>
+            <DialogHeader className="px-6 pt-6">
               <DialogTitle>Buy with Robux</DialogTitle>
               <DialogDescription>
                 {product.name} — <span className="font-semibold">R$ {product.priceRobux.toLocaleString()}</span>
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-2 py-2">
+            <div className="space-y-2 px-6 py-4">
               <Label htmlFor="roblox-username">Your Roblox username</Label>
               <Input
                 id="roblox-username"
@@ -135,11 +135,10 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
                 autoFocus
               />
               <p className="text-xs text-muted-foreground">
-                We'll match your purchase against this account, and our Discord bot will
-                DM you the file once it's verified.
+                We'll match your purchase against this account before confirming it.
               </p>
             </div>
-            <DialogFooter>
+            <DialogFooter className="px-6 pb-6">
               <Button variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancel
               </Button>
@@ -153,49 +152,51 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
 
         {step === "purchase" && (
           <>
-            <DialogHeader>
+            <DialogHeader className="px-6 pt-6">
               <DialogTitle>Complete your purchase on Roblox</DialogTitle>
               <DialogDescription>
                 The preview can block Roblox links. Open the gamepass manually, buy it as{" "}
                 <span className="font-semibold">{username}</span>, then come back here.
               </DialogDescription>
             </DialogHeader>
-            <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm space-y-3">
-              <p>
-                <span className="font-semibold">1.</span> Copy or open the gamepass link below.
-              </p>
-              <p>
-                <span className="font-semibold">2.</span> Buy the gamepass on Roblox.
-              </p>
-              <p>
-                <span className="font-semibold">3.</span> Wait ~30 seconds for Roblox to record the sale.
-              </p>
-              <p>
-                <span className="font-semibold">4.</span> Click "I've purchased" — we'll
-                check the group sales and confirm.
-              </p>
+            <div className="space-y-4 px-6 py-4">
+              <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm space-y-3">
+                <p>
+                  <span className="font-semibold">1.</span> Copy or open the gamepass link below.
+                </p>
+                <p>
+                  <span className="font-semibold">2.</span> Buy the gamepass on Roblox.
+                </p>
+                <p>
+                  <span className="font-semibold">3.</span> Wait ~30 seconds for Roblox to record the sale.
+                </p>
+                <p>
+                  <span className="font-semibold">4.</span> Click "I've purchased" — we'll
+                  check the group sales and confirm.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="gamepass-url">Gamepass link</Label>
+                <div
+                  id="gamepass-url"
+                  className="min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs leading-relaxed break-all text-foreground"
+                >
+                  {gamepassUrl}
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="gamepass-url">Gamepass link</Label>
-              <Input
-                id="gamepass-url"
-                value={gamepassUrl}
-                readOnly
-                className="font-mono text-xs w-full overflow-x-auto"
-              />
-            </div>
-            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-2">
-              <Button variant="outline" onClick={handleCopyGamepass} className="w-full sm:w-auto">
+            <DialogFooter className="grid grid-cols-1 gap-2 px-6 pb-6 sm:grid-cols-3">
+              <Button variant="outline" onClick={handleCopyGamepass} className="w-full">
                 <Copy className="h-4 w-4" />
                 Copy link
               </Button>
-              <Button variant="outline" asChild className="w-full sm:w-auto">
+              <Button variant="outline" asChild className="w-full">
                 <a href={gamepassUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-4 w-4" />
                   Open anyway
                 </a>
               </Button>
-              <Button variant="hero" onClick={handleVerify} disabled={verifying} className="w-full sm:w-auto">
+              <Button variant="hero" onClick={handleVerify} disabled={verifying} className="w-full">
                 {verifying ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -211,7 +212,7 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
 
         {step === "success" && (
           <>
-            <DialogHeader>
+            <DialogHeader className="px-6 pt-6">
               <DialogTitle className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-primary" />
                 Purchase verified!
@@ -221,11 +222,12 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
                 <span className="font-semibold">{product.name}</span>.
               </DialogDescription>
             </DialogHeader>
-            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm">
-              Our Discord bot will DM you the file shortly. If you don't receive it within
-              a few minutes, reach out via the contact form.
+            <div className="px-6 py-4">
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm">
+                Your purchase has been confirmed.
+              </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="px-6 pb-6">
               <Button variant="hero" className="w-full" onClick={() => handleOpenChange(false)}>
                 Done
               </Button>
