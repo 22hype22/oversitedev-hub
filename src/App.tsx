@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SplashScreen } from "@/components/SplashScreen";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
+import { SignupPromoDialog } from "@/components/SignupPromoDialog";
 import Index from "./pages/Index.tsx";
 import ProcessPage from "./pages/ProcessPage.tsx";
 import ProductsPage from "./pages/ProductsPage.tsx";
