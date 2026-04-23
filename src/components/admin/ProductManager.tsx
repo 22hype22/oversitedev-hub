@@ -251,7 +251,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
       }
 
       if (editingId) {
-        // Update existing product. Only overwrite images/file if new ones were provided.
+        // Always persist the current ordered media list (existing + new uploads),
+        // so reorders and removals are saved.
         const updatePayload: TablesUpdate<"products"> = {
           name: name.trim(),
           description: description.trim() || null,
@@ -262,11 +263,9 @@ export const ProductManager = ({ userId }: { userId: string }) => {
           price_robux: robuxNum,
           gamepass_id: gamepassId,
           gamepass_url: trimmedGamepass || null,
+          image_url: finalUrls[0] ?? null,
+          image_urls: finalUrls,
         };
-        if (uploadedUrls.length > 0) {
-          updatePayload.image_url = uploadedUrls[0];
-          updatePayload.image_urls = uploadedUrls;
-        }
         if (attachedFile) {
           updatePayload.file_url = fileUrl;
           updatePayload.file_name = fileName;
@@ -286,8 +285,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
           price: priceNum,
           category,
           emoji: emoji || "📦",
-          image_url: uploadedUrls[0] ?? null,
-          image_urls: uploadedUrls,
+          image_url: finalUrls[0] ?? null,
+          image_urls: finalUrls,
           is_available: isAvailable,
           file_url: fileUrl,
           file_name: fileName,
@@ -304,7 +303,9 @@ export const ProductManager = ({ userId }: { userId: string }) => {
             : `${name} is showing as a teaser — purchases disabled.`,
         });
       }
-      images.forEach((i) => URL.revokeObjectURL(i.preview));
+      images.forEach((i) => {
+        if (i.kind === "pending") URL.revokeObjectURL(i.preview);
+      });
       resetForm();
       setOpen(false);
       await loadProducts();
