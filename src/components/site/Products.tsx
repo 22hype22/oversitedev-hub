@@ -540,6 +540,72 @@ export const Products = () => {
           </Sheet>
         </div>
 
+        {/* Coming Soon Banner */}
+        {comingSoon.length > 0 && (
+          <div className="mb-16">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-semibold uppercase tracking-widest text-primary">
+                Coming soon
+              </h2>
+            </div>
+            <div
+              className="relative overflow-hidden rounded-2xl border border-border bg-card"
+              style={{
+                maskImage:
+                  "linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)",
+                WebkitMaskImage:
+                  "linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)",
+              }}
+            >
+              <div className="flex w-max animate-marquee gap-4 p-4">
+                {[...comingSoon, ...comingSoon].map((p, i) => {
+                  const img = p.imageUrls?.[0] || p.imageUrl;
+                  return (
+                    <div
+                      key={`${p.id}-${i}`}
+                      className="relative h-40 w-72 shrink-0 overflow-hidden rounded-xl border border-border bg-gradient-hero"
+                    >
+                      {img ? (
+                        isVideoUrl(img) ? (
+                          <video
+                            src={img}
+                            className="absolute inset-0 h-full w-full object-cover"
+                            muted
+                            loop
+                            playsInline
+                            autoPlay
+                          />
+                        ) : (
+                          <img
+                            src={img}
+                            alt={p.name}
+                            className="absolute inset-0 h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        )
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-5xl opacity-80">
+                          {p.emoji}
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/40 to-transparent" />
+                      <div className="absolute inset-x-0 bottom-0 p-3">
+                        <Badge className="mb-1 bg-primary/90 text-primary-foreground hover:bg-primary">
+                          Soon
+                        </Badge>
+                        <h3 className="text-sm font-semibold leading-tight text-foreground line-clamp-2">
+                          {p.name}
+                        </h3>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Subscriptions */}
         <div className="mb-20">
           <div className="text-center max-w-2xl mx-auto mb-10">
