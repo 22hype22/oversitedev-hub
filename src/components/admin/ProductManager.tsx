@@ -58,7 +58,12 @@ const extractGamepassId = (url: string): string | null => {
   return m?.[1] ?? null;
 };
 
-type PendingImage = { file: File; preview: string };
+type MediaItem =
+  | { kind: "existing"; url: string; id: string }
+  | { kind: "pending"; file: File; preview: string; id: string };
+
+const isVideoUrl = (url: string) => /\.(mp4|webm|mov|m4v|ogg)(\?|#|$)/i.test(url);
+const mediaId = () => `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
 export const ProductManager = ({ userId }: { userId: string }) => {
   const [products, setProducts] = useState<DbProduct[]>([]);
@@ -73,7 +78,9 @@ export const ProductManager = ({ userId }: { userId: string }) => {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<string>("Systems");
   const [emoji, setEmoji] = useState("📦");
-  const [images, setImages] = useState<PendingImage[]>([]);
+  const [images, setImages] = useState<MediaItem[]>([]);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
   const [isAvailable, setIsAvailable] = useState(true);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [priceRobux, setPriceRobux] = useState("");
@@ -100,7 +107,12 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setDescription(p.description ?? "");
     setCategory(p.category || "Systems");
     setEmoji(p.emoji || "📦");
-    setImages([]);
+    const existingUrls = (p.image_urls && p.image_urls.length > 0)
+      ? p.image_urls
+      : (p.image_url ? [p.image_url] : []);
+    setImages(
+      existingUrls.map((url) => ({ kind: "existing", url, id: mediaId() })),
+    );
     setIsAvailable(p.is_available);
     setAttachedFile(null);
     setPriceRobux(p.price_robux != null ? String(p.price_robux) : "");
@@ -110,7 +122,9 @@ export const ProductManager = ({ userId }: { userId: string }) => {
 
   const handleDialogOpenChange = (next: boolean) => {
     if (!next) {
-      images.forEach((i) => URL.revokeObjectURL(i.preview));
+      images.forEach((i) => {
+        if (i.kind === "pending") URL.revokeObjectURL(i.preview);
+      });
       resetForm();
     }
     setOpen(next);
@@ -142,7 +156,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
       sonnerToast.error("Image limit reached", { description: `Up to ${MAX_IMAGES} images per product.` });
       return;
     }
-    const accepted: PendingImage[] = [];
+    const accepted: MediaItem[] = [];
     for (const file of incoming.slice(0, remaining)) {
       const isVideo = isVideoFile(file);
       const limitMb = isVideo ? MAX_VIDEO_MB : MAX_IMAGE_MB;
@@ -154,7 +168,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
         });
         continue;
       }
-      accepted.push({ file, preview: URL.createObjectURL(file) });
+      accepted.push({ kind: "pending", file, preview: URL.createObjectURL(file), id: mediaId() });
     }
     setImages((prev) => [...prev, ...accepted]);
   };
@@ -163,7 +177,18 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setImages((prev) => {
       const next = [...prev];
       const [removed] = next.splice(index, 1);
-      if (removed) URL.revokeObjectURL(removed.preview);
+      if (removed && removed.kind === "pending") URL.revokeObjectURL(removed.preview);
+      return next;
+    });
+  };
+
+  const reorderImages = (from: number, to: number) => {
+    if (from === to || from < 0 || to < 0) return;
+    setImages((prev) => {
+      if (from >= prev.length || to >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
       return next;
     });
   };
@@ -180,16 +205,22 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     }
     setSubmitting(true);
     try {
-      const uploadedUrls: string[] = [];
-      for (const img of images) {
-        const ext = img.file.name.split(".").pop() || "png";
+      // Upload any pending files; build the final ordered URL list
+      // by walking the current `images` array so the user's order is preserved.
+      const finalUrls: string[] = [];
+      for (const item of images) {
+        if (item.kind === "existing") {
+          finalUrls.push(item.url);
+          continue;
+        }
+        const ext = item.file.name.split(".").pop() || "png";
         const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const { error: uploadError } = await supabase.storage
           .from("product-images")
-          .upload(path, img.file, { cacheControl: "3600", upsert: false });
+          .upload(path, item.file, { cacheControl: "3600", upsert: false });
         if (uploadError) throw uploadError;
         const { data } = supabase.storage.from("product-images").getPublicUrl(path);
-        uploadedUrls.push(data.publicUrl);
+        finalUrls.push(data.publicUrl);
       }
 
       let fileUrl: string | null = null;
@@ -220,7 +251,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
       }
 
       if (editingId) {
-        // Update existing product. Only overwrite images/file if new ones were provided.
+        // Always persist the current ordered media list (existing + new uploads),
+        // so reorders and removals are saved.
         const updatePayload: TablesUpdate<"products"> = {
           name: name.trim(),
           description: description.trim() || null,
@@ -231,11 +263,9 @@ export const ProductManager = ({ userId }: { userId: string }) => {
           price_robux: robuxNum,
           gamepass_id: gamepassId,
           gamepass_url: trimmedGamepass || null,
+          image_url: finalUrls[0] ?? null,
+          image_urls: finalUrls,
         };
-        if (uploadedUrls.length > 0) {
-          updatePayload.image_url = uploadedUrls[0];
-          updatePayload.image_urls = uploadedUrls;
-        }
         if (attachedFile) {
           updatePayload.file_url = fileUrl;
           updatePayload.file_name = fileName;
@@ -255,8 +285,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
           price: priceNum,
           category,
           emoji: emoji || "📦",
-          image_url: uploadedUrls[0] ?? null,
-          image_urls: uploadedUrls,
+          image_url: finalUrls[0] ?? null,
+          image_urls: finalUrls,
           is_available: isAvailable,
           file_url: fileUrl,
           file_name: fileName,
@@ -273,7 +303,9 @@ export const ProductManager = ({ userId }: { userId: string }) => {
             : `${name} is showing as a teaser — purchases disabled.`,
         });
       }
-      images.forEach((i) => URL.revokeObjectURL(i.preview));
+      images.forEach((i) => {
+        if (i.kind === "pending") URL.revokeObjectURL(i.preview);
+      });
       resetForm();
       setOpen(false);
       await loadProducts();
@@ -502,28 +534,65 @@ export const ProductManager = ({ userId }: { userId: string }) => {
 
             <div className="space-y-2">
               <Label>Product media ({images.length}/{MAX_IMAGES})</Label>
+              {images.length > 1 && (
+                <p className="text-[11px] text-muted-foreground -mt-1">
+                  Drag tiles to reorder. The first one is the cover.
+                </p>
+              )}
 
               {images.length > 0 && (
                 <div className="grid grid-cols-3 gap-2">
-                  {images.map((img, i) => {
-                    const video = isVideoFile(img.file);
+                  {images.map((item, i) => {
+                    const src = item.kind === "pending" ? item.preview : item.url;
+                    const video =
+                      item.kind === "pending"
+                        ? isVideoFile(item.file)
+                        : isVideoUrl(item.url);
+                    const isDragOver = overIndex === i && dragIndex !== null && dragIndex !== i;
                     return (
                       <div
-                        key={img.preview}
-                        className="relative aspect-video rounded-md overflow-hidden border border-border bg-muted group"
+                        key={item.id}
+                        draggable
+                        onDragStart={(e) => {
+                          setDragIndex(i);
+                          e.dataTransfer.effectAllowed = "move";
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                          if (overIndex !== i) setOverIndex(i);
+                        }}
+                        onDragLeave={() => {
+                          if (overIndex === i) setOverIndex(null);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (dragIndex !== null) reorderImages(dragIndex, i);
+                          setDragIndex(null);
+                          setOverIndex(null);
+                        }}
+                        onDragEnd={() => {
+                          setDragIndex(null);
+                          setOverIndex(null);
+                        }}
+                        className={`relative aspect-video rounded-md overflow-hidden border bg-muted group cursor-move transition-smooth ${
+                          isDragOver
+                            ? "border-primary ring-2 ring-primary/40"
+                            : "border-border"
+                        } ${dragIndex === i ? "opacity-50" : ""}`}
                       >
                         {video ? (
                           <video
-                            src={img.preview}
-                            className="absolute inset-0 w-full h-full object-cover"
+                            src={src}
+                            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                             muted
                             playsInline
                           />
                         ) : (
                           <img
-                            src={img.preview}
+                            src={src}
                             alt={`Preview ${i + 1}`}
-                            className="absolute inset-0 w-full h-full object-cover"
+                            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                           />
                         )}
                         {i === 0 && (
