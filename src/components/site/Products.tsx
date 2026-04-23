@@ -296,6 +296,23 @@ export const Products = () => {
     const items: CheckoutItem[] = [];
     let missing = false;
     for (const item of cart) {
+      // Custom DB products use dynamic pricing via productId
+      if (item.id.startsWith("custom-")) {
+        const productId = item.id.replace("custom-", "");
+        const amountCents = Math.round(Number(item.price) * 100);
+        if (!productId || amountCents < 50) {
+          missing = true;
+          continue;
+        }
+        items.push({
+          productId,
+          productName: item.name,
+          amountCents,
+          currency: "usd",
+          quantity: item.qty,
+        });
+        continue;
+      }
       const priceId = PRICE_MAP[item.id];
       if (!priceId) {
         missing = true;
@@ -309,8 +326,8 @@ export const Products = () => {
       });
       return;
     }
-    const hasSub = items.some((i) => i.priceId.startsWith("sub_"));
-    const hasOneTime = items.some((i) => !i.priceId.startsWith("sub_"));
+    const hasSub = items.some((i) => i.priceId?.startsWith("sub_"));
+    const hasOneTime = items.some((i) => !i.priceId || !i.priceId.startsWith("sub_"));
     if (hasSub && hasOneTime) {
       sonnerToast.error("Mixed cart", {
         description: "Please check out subscriptions and products separately.",
