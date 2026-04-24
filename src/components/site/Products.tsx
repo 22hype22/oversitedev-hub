@@ -636,9 +636,10 @@ export const Products = () => {
                     size="lg"
                     className="w-full"
                     onClick={startCheckout}
+                    disabled={suspended}
                   >
                     <CreditCard className="h-4 w-4" />
-                    Checkout
+                    {suspended ? "Suspended" : "Checkout"}
                   </Button>
                   <Button
                     variant="outline"
