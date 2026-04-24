@@ -714,9 +714,10 @@ export const Products = () => {
                   variant={s.popular ? "hero" : "outlineGlow"}
                   className="w-full mt-7 rounded-full"
                   onClick={() => addSubscriptionToCart(s)}
+                  disabled={suspended}
                 >
                   <CreditCard className="h-4 w-4" />
-                  Purchase
+                  {suspended ? "Suspended" : "Purchase"}
                 </Button>
               </Card>
             ))}
