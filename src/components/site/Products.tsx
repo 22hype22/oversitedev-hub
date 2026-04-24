@@ -65,6 +65,7 @@ type Product = {
   isAvailable?: boolean;
   priceRobux?: number | null;
   gamepassUrl?: string | null;
+  version?: string | null;
 };
 
 type Subscription = {
