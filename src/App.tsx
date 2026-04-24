@@ -8,6 +8,7 @@ import { SplashScreen } from "@/components/SplashScreen";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { SignupPromoDialog } from "@/components/SignupPromoDialog";
 import { PreferencesProvider } from "@/hooks/usePreferences";
+import { AutoTranslator } from "@/components/AutoTranslator";
 import Index from "./pages/Index.tsx";
 import ProcessPage from "./pages/ProcessPage.tsx";
 import ProductsPage from "./pages/ProductsPage.tsx";
@@ -40,6 +41,7 @@ const App = () => {
         {showSplash && <SplashScreen onDone={handleSplashDone} />}
         <BrowserRouter>
           <PreferencesProvider>
+          <AutoTranslator />
           <SignupPromoDialog />
           <Routes>
             <Route path="/" element={<Index />} />
