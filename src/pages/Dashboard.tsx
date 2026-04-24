@@ -105,6 +105,7 @@ export default function Dashboard() {
         "id,product_name,amount_cents,currency,status,created_at,file_url,file_name,environment",
       )
       .or(filters.join(","))
+      .eq("status", "paid")
       .order("created_at", { ascending: false });
     if (error) {
       toast.error("Couldn't load your purchases");
@@ -112,6 +113,23 @@ export default function Dashboard() {
       setPurchases((data as Purchase[]) ?? []);
     }
     setPurchasesLoading(false);
+  };
+
+  const handleDownload = async (p: Purchase) => {
+    if (!p.file_url) return;
+    // file_url may be either a full public URL or a storage path; normalize.
+    let path = p.file_url;
+    const marker = "/product-files/";
+    const idx = path.indexOf(marker);
+    if (idx !== -1) path = path.slice(idx + marker.length);
+    const { data, error } = await supabase.storage
+      .from("product-files")
+      .createSignedUrl(path, 60 * 10);
+    if (error || !data?.signedUrl) {
+      toast.error("Couldn't generate download link");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
   useEffect(() => {
@@ -216,7 +234,7 @@ export default function Dashboard() {
 
   if (loading || !user) return null;
 
-  const completedCount = purchases.filter((p) => p.status === "paid").length;
+  // Purchases list is already filtered to paid rows in loadPurchases.
 
   return (
     <div className="min-h-screen bg-background">
@@ -257,7 +275,7 @@ export default function Dashboard() {
                 <div>
                   <h2 className="font-semibold">Your purchases</h2>
                   <p className="text-sm text-muted-foreground">
-                    {purchases.length} total · {completedCount} completed
+                    {purchases.length} total
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -296,12 +314,6 @@ export default function Dashboard() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-medium truncate">{p.product_name}</p>
-                            <Badge
-                              variant={p.status === "paid" ? "default" : "secondary"}
-                              className="text-[10px]"
-                            >
-                              {p.status}
-                            </Badge>
                             {p.environment === "sandbox" && (
                               <Badge variant="outline" className="text-[10px]">
                                 test
@@ -312,17 +324,14 @@ export default function Dashboard() {
                             {formatDate(p.created_at)} · {formatPrice(usd)}
                           </p>
                         </div>
-                        {p.file_url && p.status === "paid" ? (
-                          <Button asChild size="sm" variant="outline">
-                            <a
-                              href={p.file_url}
-                              download={p.file_name ?? undefined}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <Download size={14} className="mr-1.5" />
-                              Download
-                            </a>
+                        {p.file_url ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDownload(p)}
+                          >
+                            <Download size={14} className="mr-1.5" />
+                            Download
                           </Button>
                         ) : null}
                       </li>
