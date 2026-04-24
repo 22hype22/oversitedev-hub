@@ -1,14 +1,14 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, X, Crown, Building2, Building, Sparkles } from "lucide-react";
+import { Check, X, Crown, Building2, Building, Sparkles, Star } from "lucide-react";
+
+type TierId = "basic" | "standard" | "premium" | "enterprise";
 
 type Tier = {
-  id: "franchise" | "corporation" | "enterprise";
+  id: TierId;
   name: string;
   icon: typeof Crown;
   tagline: string;
-  monthly: number;
-  yearly: number;
+  price: number;
   popular?: boolean;
   accent: string;
   border: string;
@@ -17,23 +17,31 @@ type Tier = {
 
 const TIERS: Tier[] = [
   {
-    id: "franchise",
-    name: "Franchise",
-    icon: Crown,
-    tagline: "Everything a small server needs to get started.",
-    monthly: 9.99,
-    yearly: 99,
+    id: "basic",
+    name: "Basic",
+    icon: Star,
+    tagline: "Stay current with every system you already own.",
+    price: 9.99,
     accent: "from-[hsl(70_30%_70%)]/15 to-transparent",
     border: "border-[hsl(70_30%_70%)]/30 hover:border-[hsl(70_30%_70%)]/60",
     iconColor: "text-[hsl(70_30%_70%)]",
   },
   {
-    id: "corporation",
-    name: "Corporation",
+    id: "standard",
+    name: "Standard",
+    icon: Crown,
+    tagline: "Faster support, early access, and savings on every order.",
+    price: 24.99,
+    accent: "from-[hsl(200_40%_70%)]/15 to-transparent",
+    border: "border-[hsl(200_40%_70%)]/30 hover:border-[hsl(200_40%_70%)]/60",
+    iconColor: "text-[hsl(200_40%_70%)]",
+  },
+  {
+    id: "premium",
+    name: "Premium",
     icon: Building,
-    tagline: "Scale up with more add-ons, servers, and priority support.",
-    monthly: 24.99,
-    yearly: 249,
+    tagline: "Free monthly products and custom builds tailored to your server.",
+    price: 49.99,
     popular: true,
     accent: "from-[hsl(280_30%_70%)]/15 to-transparent",
     border: "border-[hsl(280_30%_70%)]/40 hover:border-[hsl(280_30%_70%)]/70",
@@ -43,9 +51,8 @@ const TIERS: Tier[] = [
     id: "enterprise",
     name: "Enterprise",
     icon: Building2,
-    tagline: "The full toolkit — white-labeled, branded, and dedicated.",
-    monthly: 49.99,
-    yearly: 479,
+    tagline: "Direct line to our developers and the deepest discount we offer.",
+    price: 99.99,
     accent: "from-primary/20 to-transparent",
     border: "border-primary/40 hover:border-primary/70",
     iconColor: "text-primary",
@@ -54,33 +61,48 @@ const TIERS: Tier[] = [
 
 type FeatureRow = {
   label: string;
-  values: Record<Tier["id"], string | true>;
+  values: Partial<Record<TierId, string | true>>;
 };
 
-// `true` => show check (included as-is)
-// string => show check + the specific value (e.g. "10 add-ons")
-// missing key => show X (not included)
+// `true` => included as-is (renders a check + label)
+// string => included with specific value (renders a check + "label: value")
+// missing key => not included (renders an X + strikethrough)
 const FEATURES: FeatureRow[] = [
-  { label: "Add-ons of your choice", values: { franchise: "3", corporation: "10", enterprise: "25" } },
-  { label: "Servers supported", values: { franchise: "1", corporation: "Up to 2", enterprise: "Up to 5" } },
-  { label: "Web dashboard access", values: { franchise: "Basic", corporation: "Full", enterprise: "Full + customizer" } },
-  { label: "Support level", values: { franchise: "Community", corporation: "Priority email", enterprise: "Dedicated manager" } },
-  { label: "Analytics", values: { franchise: "Basic", corporation: "Advanced", enterprise: "Advanced" } },
-  { label: "Tickets per month", values: { franchise: "25", corporation: "100", enterprise: "Unlimited" } },
-  { label: "Bot response time", values: { franchise: "Standard", corporation: "Faster", enterprise: "Faster" } },
-  { label: "Custom bot avatar & username", values: { franchise: false as unknown as string, corporation: true, enterprise: true } as Record<Tier["id"], string | true> },
-  { label: "White label bot", values: { corporation: false as unknown as string, enterprise: true } as Record<Tier["id"], string | true> },
-  { label: "API access", values: { enterprise: true } as Record<Tier["id"], string | true> },
-  { label: "Custom domain", values: { enterprise: true } as Record<Tier["id"], string | true> },
-  { label: "Exportable reports", values: { enterprise: true } as Record<Tier["id"], string | true> },
-  { label: "Branding kit included", values: { enterprise: true } as Record<Tier["id"], string | true> },
-  { label: "Early access to new features", values: { enterprise: true } as Record<Tier["id"], string | true> },
-  { label: "99.9% uptime guarantee", values: { enterprise: true } as Record<Tier["id"], string | true> },
+  {
+    label: "Latest version downloads for owned products",
+    values: { basic: true, standard: true, premium: true, enterprise: true },
+  },
+  {
+    label: "Priority support",
+    values: { standard: true, premium: true, enterprise: true },
+  },
+  {
+    label: "Early access to new system releases",
+    values: { standard: true, premium: true, enterprise: true },
+  },
+  {
+    label: "Discount on all products",
+    values: { standard: "10%", premium: "15%", enterprise: "25%" },
+  },
+  {
+    label: "Free products each month",
+    values: { premium: "2", enterprise: "3" },
+  },
+  {
+    label: "Custom system requests",
+    values: { premium: true, enterprise: true },
+  },
+  {
+    label: "Direct access to developers",
+    values: { enterprise: true },
+  },
+  {
+    label: "Preview access to all upcoming releases",
+    values: { enterprise: true },
+  },
 ];
 
 export const Memberships = () => {
-  const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
-
   return (
     <section id="memberships" className="mt-24 scroll-mt-24">
       <div className="max-w-3xl">
@@ -92,55 +114,20 @@ export const Memberships = () => {
           Pick a plan that <span className="text-gradient">grows with your server.</span>
         </h2>
         <p className="mt-6 text-lg text-muted-foreground leading-relaxed">
-          Every tier comes with the Oversite bot suite. Choose how many add-ons, servers,
-          and extras you need — upgrade any time.
+          Every membership keeps your systems up to date. Upgrade for faster support,
+          exclusive releases, monthly free products, and direct access to our team.
         </p>
       </div>
 
-      {/* Billing toggle */}
-      <div className="mt-10 flex justify-center">
-        <div className="inline-flex items-center rounded-full border border-border/60 bg-card/60 backdrop-blur p-1">
-          <button
-            type="button"
-            onClick={() => setBilling("monthly")}
-            className={`px-5 py-2 rounded-full text-sm font-medium transition-smooth ${
-              billing === "monthly"
-                ? "bg-primary text-primary-foreground shadow-glow"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Monthly
-          </button>
-          <button
-            type="button"
-            onClick={() => setBilling("yearly")}
-            className={`px-5 py-2 rounded-full text-sm font-medium transition-smooth flex items-center gap-2 ${
-              billing === "yearly"
-                ? "bg-primary text-primary-foreground shadow-glow"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Yearly
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
-              billing === "yearly" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/15 text-primary"
-            }`}>
-              SAVE
-            </span>
-          </button>
-        </div>
-      </div>
-
       {/* Tier cards */}
-      <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="mt-10 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {TIERS.map((tier) => {
           const Icon = tier.icon;
-          const price = billing === "monthly" ? tier.monthly : tier.yearly;
-          const suffix = billing === "monthly" ? "/mo" : "/yr";
 
           return (
             <article
               key={tier.id}
-              className={`group relative overflow-hidden rounded-2xl border bg-card/60 backdrop-blur p-8 transition-smooth ${tier.border} ${
+              className={`group relative overflow-hidden rounded-2xl border bg-card/60 backdrop-blur p-7 transition-smooth ${tier.border} ${
                 tier.popular ? "ring-1 ring-primary/30" : ""
               }`}
             >
@@ -159,15 +146,15 @@ export const Memberships = () => {
                   <Icon size={20} className={tier.iconColor} />
                   <h3 className="text-xl font-semibold tracking-tight">{tier.name}</h3>
                 </div>
-                <p className="text-sm text-muted-foreground leading-relaxed mb-6 min-h-[40px]">
+                <p className="text-sm text-muted-foreground leading-relaxed mb-6 min-h-[60px]">
                   {tier.tagline}
                 </p>
 
                 <div className="flex items-baseline gap-1 mb-6">
                   <span className="text-4xl font-bold tracking-tight">
-                    ${price.toFixed(2).replace(/\.00$/, "")}
+                    ${tier.price.toFixed(2).replace(/\.00$/, "")}
                   </span>
-                  <span className="text-muted-foreground">{suffix}</span>
+                  <span className="text-muted-foreground">/mo</span>
                 </div>
 
                 <Button
@@ -191,7 +178,7 @@ export const Memberships = () => {
                           <X size={16} className="text-muted-foreground/50 mt-0.5 shrink-0" />
                         )}
                         <span className={included ? "text-foreground/90" : "text-muted-foreground/60 line-through"}>
-                          {typeof raw === "string" && raw.length > 0
+                          {typeof raw === "string"
                             ? `${f.label}: ${raw}`
                             : f.label}
                         </span>
