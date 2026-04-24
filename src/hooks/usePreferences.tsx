@@ -3,7 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
 export type Currency = "USD" | "EUR" | "GBP" | "CAD" | "AUD" | "JPY";
-export type Language = "en" | "es" | "fr" | "de" | "pt";
+export type Language =
+  | "en" | "es" | "fr" | "de" | "pt" | "it" | "nl" | "pl"
+  | "ru" | "ja" | "zh" | "ko" | "ar" | "hi" | "tr";
 export type ContactMethod = "email" | "discord";
 
 export type Preferences = {
@@ -51,6 +53,16 @@ export const LANGUAGE_LABELS: Record<Language, string> = {
   fr: "Français",
   de: "Deutsch",
   pt: "Português",
+  it: "Italiano",
+  nl: "Nederlands",
+  pl: "Polski",
+  ru: "Русский",
+  ja: "日本語",
+  zh: "中文",
+  ko: "한국어",
+  ar: "العربية",
+  hi: "हिन्दी",
+  tr: "Türkçe",
 };
 
 // Common timezones — short list, the user can pick from these.
