@@ -138,7 +138,7 @@ serve(async (req) => {
     if (productIds.length > 0) {
       const { data: dbProducts } = await supabaseAdmin
         .from("products")
-        .select("id,name,file_url,file_name,price")
+        .select("id,name,file_url,file_name,price,current_version")
         .in("id", productIds);
 
       const rows = (dbProducts || []).map((p) => ({
@@ -152,6 +152,7 @@ serve(async (req) => {
         email: customerEmail || null,
         status: "pending",
         environment: env,
+        version: p.current_version ?? null,
       }));
       if (rows.length > 0) {
         await supabaseAdmin.from("purchases").insert(rows);
