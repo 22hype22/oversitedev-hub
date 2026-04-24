@@ -31,6 +31,7 @@ import { toast as sonnerToast } from "sonner";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
 import { useAuth } from "@/hooks/useAuth";
+import { useMarketingSuspended } from "@/components/SuspensionBanner";
 
 // Maps internal product/subscription IDs to Stripe price IDs (lookup keys)
 const PRICE_MAP: Record<string, string> = {
@@ -233,6 +234,7 @@ const ProductImage = ({
 
 export const Products = () => {
   const { user } = useAuth();
+  const suspended = useMarketingSuspended();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
   const [query, setQuery] = useState("");
@@ -453,6 +455,13 @@ export const Products = () => {
                       Coming soon
                     </span>
                   </div>
+                  {suspended && (
+                    <div className="absolute inset-0 bg-destructive/70 backdrop-blur-[2px] flex items-center justify-center">
+                      <span className="px-5 py-2 rounded-md border-2 border-destructive-foreground text-destructive-foreground uppercase tracking-[0.3em] font-bold text-sm md:text-base">
+                        Suspended
+                      </span>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -720,10 +729,17 @@ export const Products = () => {
                     emoji={p.emoji}
                     alt={p.name}
                   />
-                  {p.tag && (
+                  {p.tag && !suspended && (
                     <Badge className="absolute top-3 left-3 z-10 bg-primary text-primary-foreground hover:bg-primary">
                       {p.tag}
                     </Badge>
+                  )}
+                  {suspended && (
+                    <div className="absolute inset-0 z-20 bg-destructive/70 backdrop-blur-[2px] flex items-center justify-center">
+                      <span className="px-4 py-1.5 rounded-md border-2 border-destructive-foreground text-destructive-foreground uppercase tracking-[0.3em] font-bold text-xs">
+                        Suspended
+                      </span>
+                    </div>
                   )}
                 </div>
                 <div className="p-5 flex flex-col flex-1">
@@ -751,7 +767,11 @@ export const Products = () => {
                         </span>
                       )}
                     </div>
-                    {p.isAvailable === false ? (
+                    {suspended ? (
+                      <Button size="sm" variant="outline" disabled className="w-full">
+                        Suspended
+                      </Button>
+                    ) : p.isAvailable === false ? (
                       <Button size="sm" variant="outline" disabled className="w-full">
                         <Sparkles className="h-4 w-4" />
                         Soon
