@@ -2,6 +2,15 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
+import {
+  usePreferences,
+  CURRENCY_LABELS,
+  LANGUAGE_LABELS,
+  TIMEZONES,
+  type Currency,
+  type Language,
+  type ContactMethod,
+} from "@/hooks/usePreferences";
 import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
@@ -10,7 +19,15 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   LayoutDashboard,
@@ -24,6 +41,11 @@ import {
   ExternalLink,
   Sun,
   Moon,
+  Bell,
+  Globe,
+  Clock,
+  MessagesSquare,
+  CreditCard,
 } from "lucide-react";
 
 type Purchase = {
@@ -44,23 +66,11 @@ type Profile = {
   discord_username: string;
 };
 
-const formatPrice = (cents: number, currency: string) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currency.toUpperCase() || "USD",
-  }).format(cents / 100);
-
-const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-
 export default function Dashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
+  const { prefs, setPrefs, formatPrice, formatDate } = usePreferences();
 
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [purchasesLoading, setPurchasesLoading] = useState(true);
@@ -78,6 +88,8 @@ export default function Dashboard() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  const [portalLoading, setPortalLoading] = useState(false);
+
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
   }, [user, loading, navigate]);
@@ -85,7 +97,6 @@ export default function Dashboard() {
   const loadPurchases = async () => {
     if (!user) return;
     setPurchasesLoading(true);
-    // Match by user_id OR by email (covers purchases made before the trigger linked them)
     const filters = [`user_id.eq.${user.id}`];
     if (user.email) filters.push(`email.eq.${user.email.toLowerCase()}`);
     const { data, error } = await supabase
@@ -188,6 +199,21 @@ export default function Dashboard() {
     setConfirmPassword("");
   };
 
+  const openCustomerPortal = async () => {
+    setPortalLoading(true);
+    const { data, error } = await supabase.functions.invoke("customer-portal", {
+      body: { returnUrl: window.location.origin + "/dashboard" },
+    });
+    setPortalLoading(false);
+    if (error || !data?.url) {
+      toast.error(
+        "Couldn't open the payment portal. You may not have any saved payment methods yet.",
+      );
+      return;
+    }
+    window.location.href = data.url as string;
+  };
+
   if (loading || !user) return null;
 
   const completedCount = purchases.filter((p) => p.status === "paid").length;
@@ -258,58 +284,63 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <ul className="divide-y divide-border">
-                  {purchases.map((p) => (
-                    <li
-                      key={p.id}
-                      className="py-4 flex items-center justify-between gap-4"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium truncate">{p.product_name}</p>
-                          <Badge
-                            variant={p.status === "paid" ? "default" : "secondary"}
-                            className="text-[10px]"
-                          >
-                            {p.status}
-                          </Badge>
-                          {p.environment === "sandbox" && (
-                            <Badge variant="outline" className="text-[10px]">
-                              test
+                  {purchases.map((p) => {
+                    // Stored amounts are in cents in their original currency.
+                    // Convert to USD baseline first, then formatPrice converts to user's preferred currency.
+                    const usd = p.amount_cents / 100;
+                    return (
+                      <li
+                        key={p.id}
+                        className="py-4 flex items-center justify-between gap-4"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium truncate">{p.product_name}</p>
+                            <Badge
+                              variant={p.status === "paid" ? "default" : "secondary"}
+                              className="text-[10px]"
+                            >
+                              {p.status}
                             </Badge>
-                          )}
+                            {p.environment === "sandbox" && (
+                              <Badge variant="outline" className="text-[10px]">
+                                test
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatDate(p.created_at)} · {formatPrice(usd)}
+                          </p>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {formatDate(p.created_at)} ·{" "}
-                          {formatPrice(p.amount_cents, p.currency)}
-                        </p>
-                      </div>
-                      {p.file_url && p.status === "paid" ? (
-                        <Button asChild size="sm" variant="outline">
-                          <a
-                            href={p.file_url}
-                            download={p.file_name ?? undefined}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <Download size={14} className="mr-1.5" />
-                            Download
-                          </a>
-                        </Button>
-                      ) : null}
-                    </li>
-                  ))}
+                        {p.file_url && p.status === "paid" ? (
+                          <Button asChild size="sm" variant="outline">
+                            <a
+                              href={p.file_url}
+                              download={p.file_name ?? undefined}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Download size={14} className="mr-1.5" />
+                              Download
+                            </a>
+                          </Button>
+                        ) : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </Card>
           </TabsContent>
 
-          {/* SETTINGS — appearance only for now */}
+          {/* SETTINGS */}
           <TabsContent value="settings" className="space-y-4">
+            {/* Appearance */}
             <Card className="p-6 space-y-4">
               <div>
                 <h2 className="font-semibold">Appearance</h2>
                 <p className="text-sm text-muted-foreground">
-                  Choose how Oversite looks. Your choice is saved to this device.
+                  Choose how Oversite looks. Saved to this device.
                 </p>
               </div>
 
@@ -325,9 +356,6 @@ export default function Dashboard() {
                 >
                   <Sun size={20} className="text-primary" />
                   <span className="text-sm font-medium">Light</span>
-                  {theme === "light" && (
-                    <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
-                  )}
                 </button>
 
                 <button
@@ -341,15 +369,151 @@ export default function Dashboard() {
                 >
                   <Moon size={20} className="text-primary" />
                   <span className="text-sm font-medium">Dark</span>
-                  {theme === "dark" && (
-                    <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
-                  )}
                 </button>
               </div>
             </Card>
+
+            {/* Notifications */}
+            <Card className="p-6 space-y-4">
+              <div>
+                <h2 className="font-semibold flex items-center gap-2">
+                  <Bell size={16} /> Notifications
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Choose where we reach out when there's an update or a new product drop.
+                </p>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="font-medium">Email notifications</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Sent to {user.email}.
+                  </p>
+                </div>
+                <Switch
+                  checked={prefs.notify_email}
+                  onCheckedChange={(v) => setPrefs({ notify_email: v })}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="font-medium">Discord notifications</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Our bot will DM your Discord when products drop.
+                  </p>
+                </div>
+                <Switch
+                  checked={prefs.notify_discord}
+                  onCheckedChange={(v) => setPrefs({ notify_discord: v })}
+                />
+              </div>
+            </Card>
+
+            {/* Localization: Currency / Language / Timezone */}
+            <Card className="p-6 space-y-4">
+              <div>
+                <h2 className="font-semibold flex items-center gap-2">
+                  <Globe size={16} /> Region & language
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Affects how prices, dates, and text appear on this device.
+                </p>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Default currency</Label>
+                  <Select
+                    value={prefs.preferred_currency}
+                    onValueChange={(v) => setPrefs({ preferred_currency: v as Currency })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(CURRENCY_LABELS).map(([code, label]) => (
+                        <SelectItem key={code} value={code}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Display only — checkout still charges in USD.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Language</Label>
+                  <Select
+                    value={prefs.preferred_language}
+                    onValueChange={(v) => setPrefs({ preferred_language: v as Language })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(LANGUAGE_LABELS).map(([code, label]) => (
+                        <SelectItem key={code} value={code}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Affects number and date formatting.
+                  </p>
+                </div>
+
+                <div className="space-y-2 sm:col-span-2">
+                  <Label className="flex items-center gap-1.5">
+                    <Clock size={14} /> Time zone
+                  </Label>
+                  <Select
+                    value={prefs.timezone}
+                    onValueChange={(v) => setPrefs({ timezone: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIMEZONES.map((tz) => (
+                        <SelectItem key={tz} value={tz}>
+                          {tz}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </Card>
+
+            {/* Preferred contact */}
+            <Card className="p-6 space-y-4">
+              <div>
+                <h2 className="font-semibold flex items-center gap-2">
+                  <MessagesSquare size={16} /> Preferred contact method
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  How should we reach you for order questions or support?
+                </p>
+              </div>
+              <Select
+                value={prefs.preferred_contact}
+                onValueChange={(v) => setPrefs({ preferred_contact: v as ContactMethod })}
+              >
+                <SelectTrigger className="max-w-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="discord">Discord</SelectItem>
+                </SelectContent>
+              </Select>
+            </Card>
           </TabsContent>
 
-          {/* PRIVACY — profile + email + password + data */}
+          {/* PRIVACY */}
           <TabsContent value="privacy" className="space-y-4">
             <Card className="p-6 space-y-4">
               <div>
@@ -357,7 +521,7 @@ export default function Dashboard() {
                   <Shield size={16} /> Your information
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  This is what you shared with us at sign-up. Update anything that's misspelled or out of date — only you can see it.
+                  Update what you shared with us at sign-up. Only you can see this.
                 </p>
               </div>
 
@@ -385,11 +549,7 @@ export default function Dashboard() {
                       placeholder="yourdiscordhandle"
                     />
                   </div>
-                  <Button
-                    onClick={saveProfile}
-                    disabled={savingProfile}
-                    size="sm"
-                  >
+                  <Button onClick={saveProfile} disabled={savingProfile} size="sm">
                     {savingProfile ? "Saving…" : "Save changes"}
                   </Button>
                 </>
@@ -429,9 +589,7 @@ export default function Dashboard() {
                 <h2 className="font-semibold flex items-center gap-2">
                   <KeyRound size={16} /> Change password
                 </h2>
-                <p className="text-sm text-muted-foreground">
-                  Use at least 6 characters.
-                </p>
+                <p className="text-sm text-muted-foreground">Use at least 6 characters.</p>
               </div>
               <div className="grid sm:grid-cols-2 gap-3">
                 <div className="space-y-2">
@@ -464,11 +622,29 @@ export default function Dashboard() {
               </Button>
             </Card>
 
+            {/* Payment methods */}
+            <Card className="p-6 space-y-4">
+              <div>
+                <h2 className="font-semibold flex items-center gap-2">
+                  <CreditCard size={16} /> Payment methods
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Manage saved cards, billing info, and view past invoices in our secure
+                  payment portal.
+                </p>
+              </div>
+              <Button onClick={openCustomerPortal} disabled={portalLoading} size="sm">
+                {portalLoading ? "Opening…" : "Open payment portal"}
+                <ExternalLink size={12} className="ml-1.5" />
+              </Button>
+            </Card>
+
             <Card className="p-6 space-y-3">
               <div>
                 <h2 className="font-semibold">Data & privacy</h2>
                 <p className="text-sm text-muted-foreground">
-                  We never sell, share, or spam. Your info is only used to fulfill your orders and provide support.
+                  We never sell, share, or spam. Your info is only used to fulfill your
+                  orders and provide support.
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">
                   Account ID: <span className="font-mono">{user.id.slice(0, 8)}…</span>
