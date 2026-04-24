@@ -32,6 +32,7 @@ import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useMembership } from "@/hooks/useMembership";
+import { useUserPurchases } from "@/hooks/useUserPurchases";
 import { useMarketingSuspended } from "@/components/SuspensionBanner";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
 
@@ -57,6 +58,8 @@ const PRICE_MAP: Record<string, string> = {
 
 type Product = {
   id: string;
+  /** Underlying DB product id (without the "custom-" prefix), when applicable. */
+  dbId?: string;
   name: string;
   price: number;
   category: "Systems" | "Assets";
@@ -69,6 +72,9 @@ type Product = {
   priceRobux?: number | null;
   gamepassUrl?: string | null;
   version?: string | null;
+  upgradePrice?: number | null;
+  upgradePriceRobux?: number | null;
+  upgradeGamepassUrl?: string | null;
 };
 
 type Subscription = {
@@ -250,6 +256,7 @@ const ProductImage = ({
 export const Products = () => {
   const { user } = useAuth();
   const { isMember } = useMembership();
+  const { owned } = useUserPurchases();
   const suspended = useMarketingSuspended();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
@@ -260,6 +267,38 @@ export const Products = () => {
   const [customProducts, setCustomProducts] = useState<Product[]>([]);
   const [robuxOpen, setRobuxOpen] = useState(false);
   const [robuxProduct, setRobuxProduct] = useState<RobuxPurchaseProduct | null>(null);
+
+  const startUpgradeStripe = (p: Product) => {
+    const ownedRow = p.dbId ? owned.get(p.dbId) : undefined;
+    if (!p.dbId || !ownedRow || !p.upgradePrice || !p.version) return;
+    setCheckoutItems([
+      {
+        productId: p.dbId,
+        productName: `${p.name} — Upgrade to ${p.version}`,
+        amountCents: Math.round(Number(p.upgradePrice) * 100),
+        currency: "usd",
+        quantity: 1,
+        purchaseType: "upgrade",
+        parentPurchaseId: ownedRow.purchaseId,
+        upgradeToVersion: p.version,
+      },
+    ]);
+    setCheckoutOpen(true);
+  };
+
+  const startUpgradeRobux = (p: Product) => {
+    const ownedRow = p.dbId ? owned.get(p.dbId) : undefined;
+    if (!p.dbId || !ownedRow || !p.upgradePriceRobux || !p.upgradeGamepassUrl) return;
+    setRobuxProduct({
+      id: p.dbId,
+      name: `${p.name} — Upgrade to ${p.version ?? ""}`.trim(),
+      priceRobux: p.upgradePriceRobux,
+      gamepassUrl: p.upgradeGamepassUrl,
+      parentPurchaseId: ownedRow.purchaseId,
+      upgradeMode: true,
+    } as any);
+    setRobuxOpen(true);
+  };
 
   const startRobuxPurchase = (p: Product) => {
     if (!p.priceRobux || !p.gamepassUrl) return;
@@ -291,6 +330,7 @@ export const Products = () => {
             const available = p.is_available !== false;
             return {
               id: `custom-${p.id}`,
+              dbId: p.id,
               name: p.name,
               price: Number(p.price),
               category: (p.category === "Assets" ? "Assets" : "Systems") as "Systems" | "Assets",
@@ -303,6 +343,9 @@ export const Products = () => {
               priceRobux: p.price_robux ?? null,
               gamepassUrl: p.gamepass_url ?? null,
               version: p.current_version ?? null,
+              upgradePrice: p.upgrade_price ?? null,
+              upgradePriceRobux: p.upgrade_price_robux ?? null,
+              upgradeGamepassUrl: p.upgrade_gamepass_url ?? null,
             };
           }),
         );
@@ -770,62 +813,150 @@ export const Products = () => {
                   </div>
                   <h3 className="font-semibold text-base leading-tight">{p.name}</h3>
                   <p className="text-sm text-muted-foreground mt-1.5 flex-1">{p.blurb}</p>
-                  <div className="mt-5 pt-4 border-t border-border space-y-3">
-                    <div>
-                      <div className="text-xs text-muted-foreground">
-                        {p.isAvailable === false ? "Coming soon" : "Price"}
-                      </div>
-                      <span className="text-xl font-bold">${p.price}</span>
-                      {p.priceRobux && p.gamepassUrl && (
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          or R$ {p.priceRobux.toLocaleString()}
-                        </span>
-                      )}
-                    </div>
-                    {suspended ? (
-                      <Button size="sm" variant="outline" disabled className="w-full">
-                        Suspended
-                      </Button>
-                    ) : p.isAvailable === false ? (
-                      <Button size="sm" variant="outline" disabled className="w-full">
-                        <Sparkles className="h-4 w-4" />
-                        Soon
-                      </Button>
-                    ) : (
-                      <div
-                        className={`grid gap-2 ${
-                          p.priceRobux && p.gamepassUrl ? "grid-cols-2" : "grid-cols-1"
-                        }`}
-                      >
-                        <Button
-                          size="sm"
-                          variant="hero"
-                          onClick={() => addProductToCart(p)}
-                          aria-label={`Buy with $${p.price}`}
-                        >
-                          <CreditCard className="h-4 w-4" />
-                        </Button>
-                        {p.priceRobux && p.gamepassUrl && (
-                          <Button
-                            size="sm"
-                            variant="outlineGlow"
-                            onClick={() => startRobuxPurchase(p)}
-                            aria-label={`Buy with R$ ${p.priceRobux.toLocaleString()}`}
-                          >
-                            <span
-                              aria-hidden
-                              className="inline-flex h-4 w-4 items-center justify-center font-bold text-[11px] leading-none"
-                            >
-                              R$
-                            </span>
+                  {(() => {
+                    const ownedRow = p.dbId ? owned.get(p.dbId) : undefined;
+                    const isOwned = !!ownedRow;
+                    const hasNewer =
+                      isOwned &&
+                      !!p.version &&
+                      !!ownedRow!.version &&
+                      p.version !== ownedRow!.version;
+                    const canUpgradeStripe =
+                      hasNewer && !!p.upgradePrice && p.upgradePrice > 0;
+                    const canUpgradeRobux =
+                      hasNewer &&
+                      !!p.upgradePriceRobux &&
+                      !!p.upgradeGamepassUrl;
+
+                    return (
+                      <div className="mt-5 pt-4 border-t border-border space-y-3">
+                        {isOwned ? (
+                          <div>
+                            <div className="text-xs text-muted-foreground">
+                              {hasNewer ? "Version upgrade available" : "You own this"}
+                            </div>
+                            {hasNewer ? (
+                              <div className="flex items-baseline gap-2">
+                                {canUpgradeStripe && (
+                                  <span className="text-xl font-bold">
+                                    ${Number(p.upgradePrice).toFixed(2)}
+                                  </span>
+                                )}
+                                {canUpgradeRobux && (
+                                  <span className={`${canUpgradeStripe ? "ml-1 text-xs text-muted-foreground" : "text-xl font-bold"}`}>
+                                    {canUpgradeStripe ? "or " : ""}R$ {p.upgradePriceRobux!.toLocaleString()}
+                                  </span>
+                                )}
+                                {p.version && (
+                                  <span className="text-[10px] font-mono text-muted-foreground">
+                                    → {p.version}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-sm font-medium text-primary">
+                                Latest version{p.version ? ` (${p.version})` : ""}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="text-xs text-muted-foreground">
+                              {p.isAvailable === false ? "Coming soon" : "Price"}
+                            </div>
+                            <span className="text-xl font-bold">${p.price}</span>
+                            {p.priceRobux && p.gamepassUrl && (
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                or R$ {p.priceRobux.toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {suspended ? (
+                          <Button size="sm" variant="outline" disabled className="w-full">
+                            Suspended
                           </Button>
+                        ) : p.isAvailable === false ? (
+                          <Button size="sm" variant="outline" disabled className="w-full">
+                            <Sparkles className="h-4 w-4" />
+                            Soon
+                          </Button>
+                        ) : isOwned && hasNewer ? (
+                          <div
+                            className={`grid gap-2 ${
+                              canUpgradeStripe && canUpgradeRobux ? "grid-cols-2" : "grid-cols-1"
+                            }`}
+                          >
+                            {canUpgradeStripe && (
+                              <Button
+                                size="sm"
+                                variant="hero"
+                                onClick={() => startUpgradeStripe(p)}
+                                aria-label={`Upgrade for $${Number(p.upgradePrice).toFixed(2)}`}
+                              >
+                                <CreditCard className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canUpgradeRobux && (
+                              <Button
+                                size="sm"
+                                variant="outlineGlow"
+                                onClick={() => startUpgradeRobux(p)}
+                                aria-label={`Upgrade with R$ ${p.upgradePriceRobux!.toLocaleString()}`}
+                              >
+                                <span
+                                  aria-hidden
+                                  className="inline-flex h-4 w-4 items-center justify-center font-bold text-[11px] leading-none"
+                                >
+                                  R$
+                                </span>
+                              </Button>
+                            )}
+                          </div>
+                        ) : isOwned ? (
+                          <Button size="sm" variant="outline" disabled className="w-full">
+                            <Check className="h-4 w-4" />
+                            Owned
+                          </Button>
+                        ) : (
+                          <div
+                            className={`grid gap-2 ${
+                              p.priceRobux && p.gamepassUrl ? "grid-cols-2" : "grid-cols-1"
+                            }`}
+                          >
+                            <Button
+                              size="sm"
+                              variant="hero"
+                              onClick={() => addProductToCart(p)}
+                              aria-label={`Buy with $${p.price}`}
+                            >
+                              <CreditCard className="h-4 w-4" />
+                            </Button>
+                            {p.priceRobux && p.gamepassUrl && (
+                              <Button
+                                size="sm"
+                                variant="outlineGlow"
+                                onClick={() => startRobuxPurchase(p)}
+                                aria-label={`Buy with R$ ${p.priceRobux.toLocaleString()}`}
+                              >
+                                <span
+                                  aria-hidden
+                                  className="inline-flex h-4 w-4 items-center justify-center font-bold text-[11px] leading-none"
+                                >
+                                  R$
+                                </span>
+                              </Button>
+                            )}
+                          </div>
+                        )}
+
+                        {!isOwned && !isMember && (
+                          <UpgradeNotice compact className="mt-1" />
                         )}
                       </div>
-                    )}
-                  </div>
-                  {!suspended && p.isAvailable !== false && !isMember && (
-                    <UpgradeNotice compact className="mt-3" />
-                  )}
+                    );
+                  })()}
                 </div>
               </Card>
             ))}
