@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
 
     const { data: product, error: productErr } = await supabase
       .from("products")
-      .select("id, name, gamepass_id, file_url, file_name, is_available")
+      .select("id, name, gamepass_id, file_url, file_name, is_available, current_version")
       .eq("id", dbId)
       .maybeSingle();
 
@@ -87,13 +87,14 @@ Deno.serve(async (req) => {
     const buyerId: number = robloxUser.id;
     const canonicalName: string = robloxUser.name || username;
 
-    // 2. Record/refresh pending purchase intent.
+    // 2. Record/refresh pending purchase intent (stamp the product's current version).
     supabase.from("pending_purchases").insert({
       product_id: product.id,
       roblox_user_id: buyerId,
       roblox_username: canonicalName,
       gamepass_id: product.gamepass_id,
       status: "pending",
+      version: product.current_version ?? null,
     }).then(({ error }) => {
       if (error) console.error("pending_purchases insert failed:", error);
     });
