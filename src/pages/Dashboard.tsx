@@ -110,10 +110,13 @@ export default function Dashboard() {
 
   // Membership + upgrade state
   const [membership, setMembership] = useState<Membership>(null);
-  const [membershipCheckoutOpen, setMembershipCheckoutOpen] = useState(false);
+  const [membershipCheckoutItems, setMembershipCheckoutItems] = useState<
+    CheckoutItem[] | null
+  >(null);
   const [upgradeCheckout, setUpgradeCheckout] = useState<CheckoutItem[] | null>(null);
   const [upgradeRobux, setUpgradeRobux] = useState<
-    (RobuxPurchaseProduct & { parentPurchaseId: string }) | null
+    | (RobuxPurchaseProduct & { parentPurchaseId: string; upgradeMode: true })
+    | null
   >(null);
 
   useEffect(() => {
@@ -263,6 +266,7 @@ export default function Dashboard() {
     if (!user) return;
     setNewEmail(user.email ?? "");
     loadPurchases();
+    loadMembership();
 
     (async () => {
       setProfileLoading(true);
