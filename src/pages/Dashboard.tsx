@@ -275,7 +275,7 @@ export default function Dashboard() {
                 <div>
                   <h2 className="font-semibold">Your purchases</h2>
                   <p className="text-sm text-muted-foreground">
-                    {purchases.length} total · {completedCount} completed
+                    {purchases.length} total
                   </p>
                 </div>
                 <div className="flex gap-2">
