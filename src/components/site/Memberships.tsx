@@ -81,6 +81,7 @@ const FEATURES: FeatureRow[] = [
 
 export const Memberships = () => {
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
+  const { suspended } = useMarketingSuspended();
 
   return (
     <section id="memberships" className="mt-24 scroll-mt-24">
