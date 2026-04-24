@@ -25,6 +25,7 @@ import {
 
 import { ProductManager } from "@/components/admin/ProductManager";
 import { MarketingKillSwitch, useMarketingShutdown } from "@/components/admin/MarketingKillSwitch";
+import { ResetPurchases } from "@/components/admin/ResetPurchases";
 
 import { Card } from "@/components/ui/card";
 
@@ -184,7 +185,10 @@ const Admin = () => {
             </div>
           </div>
 
-          <MarketingKillSwitch shutdown={marketingShutdown} onChange={setMarketingShutdown} />
+          <div className="grid gap-4 md:grid-cols-2">
+            <MarketingKillSwitch shutdown={marketingShutdown} onChange={setMarketingShutdown} />
+            <ResetPurchases />
+          </div>
 
           {marketingShutdown ? (
             <Card className="p-10 text-center border-dashed border-destructive/40 bg-destructive/5">
