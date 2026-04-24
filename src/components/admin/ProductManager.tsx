@@ -44,7 +44,7 @@ type DbProduct = {
   created_at: string;
 };
 
-const CATEGORIES = ["Systems", "Assets"] as const;
+const FALLBACK_CATEGORIES = ["Systems", "Assets"] as const;
 const MAX_IMAGES = 6;
 const MAX_FILE_MB = 50;
 const MAX_IMAGE_MB = 5;
@@ -68,6 +68,7 @@ const mediaId = () => `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}
 
 export const ProductManager = ({ userId }: { userId: string }) => {
   const [products, setProducts] = useState<DbProduct[]>([]);
+  const [categories, setCategories] = useState<string[]>([...FALLBACK_CATEGORIES]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -538,7 +539,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIES.map((c) => (
+                    {categories.map((c) => (
                       <SelectItem key={c} value={c}>
                         {c}
                       </SelectItem>
