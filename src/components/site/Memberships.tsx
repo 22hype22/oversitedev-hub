@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, X, Crown, Building2, Building, Sparkles } from "lucide-react";
+import { Check, X, Crown, Building2, Building, Sparkles, Lock } from "lucide-react";
+import { useMarketingSuspended } from "@/hooks/useMarketingSuspended";
 
 type Tier = {
   id: "franchise" | "corporation" | "enterprise";
@@ -80,6 +81,7 @@ const FEATURES: FeatureRow[] = [
 
 export const Memberships = () => {
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
+  const { suspended } = useMarketingSuspended();
 
   return (
     <section id="memberships" className="mt-24 scroll-mt-24">
@@ -174,9 +176,17 @@ export const Memberships = () => {
                   variant={tier.popular ? "hero" : "outlineGlow"}
                   size="lg"
                   className="w-full"
-                  asChild
+                  asChild={!suspended}
+                  disabled={suspended}
                 >
-                  <a href="/#contact">Get {tier.name}</a>
+                  {suspended ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <Lock size={16} />
+                      Purchases suspended
+                    </span>
+                  ) : (
+                    <a href="/#contact">Get {tier.name}</a>
+                  )}
                 </Button>
 
                 <ul className="mt-6 space-y-3">
