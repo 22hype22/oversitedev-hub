@@ -401,6 +401,64 @@ export default function Dashboard() {
 
           {/* PURCHASES */}
           <TabsContent value="purchases" className="space-y-4">
+            {/* Membership card */}
+            <Card className="p-6 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Sparkles size={16} className="text-primary" />
+                    <h2 className="font-semibold">Oversite Pro</h2>
+                    {isMemberActive ? (
+                      <Badge className="text-[10px]">
+                        {membership?.cancel_at_period_end ? "Ending soon" : "Active"}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px]">
+                        Not active
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {isMemberActive
+                      ? `You get the latest version of every product you've purchased — automatically. ${
+                          membership?.current_period_end
+                            ? `${
+                                membership?.cancel_at_period_end ? "Ends" : "Renews"
+                              } ${formatDate(membership.current_period_end)}.`
+                            : ""
+                        }`
+                      : "$9/month — instantly unlock the newest version of every product you own. Cancel anytime."}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {isMemberActive ? (
+                    <Button
+                      onClick={openCustomerPortal}
+                      disabled={portalLoading}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {portalLoading ? "Opening…" : "Manage"}
+                      <ExternalLink size={12} className="ml-1.5" />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="hero"
+                      size="sm"
+                      onClick={() =>
+                        setMembershipCheckoutItems([
+                          { priceId: "oversite_pro_monthly", quantity: 1 },
+                        ])
+                      }
+                    >
+                      <Sparkles size={14} className="mr-1.5" />
+                      Subscribe
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </Card>
+
             <Card className="p-6">
               <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
                 <div>
@@ -434,42 +492,82 @@ export default function Dashboard() {
               ) : (
                 <ul className="divide-y divide-border">
                   {purchases.map((p) => {
-                    // Stored amounts are in cents in their original currency.
-                    // Convert to USD baseline first, then formatPrice converts to user's preferred currency.
                     const usd = p.amount_cents / 100;
+                    const hasNewer =
+                      !!p.latest_version &&
+                      !!p.version &&
+                      p.latest_version !== p.version;
+                    const canStripeUpgrade =
+                      hasNewer && !!p.upgrade_price && p.upgrade_price > 0;
+                    const canRobuxUpgrade =
+                      hasNewer &&
+                      !!p.upgrade_price_robux &&
+                      !!p.upgrade_gamepass_url;
                     return (
-                      <li
-                        key={p.id}
-                        className="py-4 flex items-center justify-between gap-4"
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-medium truncate">{p.product_name}</p>
-                            {p.version && (
-                              <Badge variant="secondary" className="text-[10px] font-mono">
-                                {p.version}
-                              </Badge>
+                      <li key={p.id} className="py-4 space-y-2">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium truncate">{p.product_name}</p>
+                              {p.version && (
+                                <Badge variant="secondary" className="text-[10px] font-mono">
+                                  {p.version}
+                                </Badge>
+                              )}
+                              {hasNewer && !isMemberActive && (
+                                <Badge variant="outline" className="text-[10px] font-mono border-primary/40 text-primary">
+                                  ↑ {p.latest_version}
+                                </Badge>
+                              )}
+                              {isMemberActive && hasNewer && (
+                                <Badge className="text-[10px] font-mono">
+                                  Latest: {p.latest_version}
+                                </Badge>
+                              )}
+                              {p.environment === "sandbox" && (
+                                <Badge variant="outline" className="text-[10px]">
+                                  test
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {formatDate(p.created_at)} · {formatPrice(usd)}
+                            </p>
+                          </div>
+                          {(p.file_url || p.version) ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDownload(p)}
+                            >
+                              <Download size={14} className="mr-1.5" />
+                              Download
+                            </Button>
+                          ) : null}
+                        </div>
+                        {hasNewer && !isMemberActive && (canStripeUpgrade || canRobuxUpgrade) && (
+                          <div className="flex flex-wrap gap-2 pl-1">
+                            {canStripeUpgrade && (
+                              <Button
+                                size="sm"
+                                variant="hero"
+                                onClick={() => startUpgradeStripe(p)}
+                              >
+                                <ArrowUpCircle size={14} className="mr-1.5" />
+                                Upgrade for {formatPrice(Number(p.upgrade_price))}
+                              </Button>
                             )}
-                            {p.environment === "sandbox" && (
-                              <Badge variant="outline" className="text-[10px]">
-                                test
-                              </Badge>
+                            {canRobuxUpgrade && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => startUpgradeRobux(p)}
+                              >
+                                Upgrade · R$ {p.upgrade_price_robux?.toLocaleString()}
+                              </Button>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {formatDate(p.created_at)} · {formatPrice(usd)}
-                          </p>
-                        </div>
-                        {(p.file_url || p.version) ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDownload(p)}
-                          >
-                            <Download size={14} className="mr-1.5" />
-                            Download
-                          </Button>
-                        ) : null}
+                        )}
                       </li>
                     );
                   })}
@@ -477,6 +575,44 @@ export default function Dashboard() {
               )}
             </Card>
           </TabsContent>
+
+          {/* Membership checkout dialog */}
+          <CheckoutDialog
+            open={!!membershipCheckoutItems}
+            onOpenChange={(o) => {
+              if (!o) {
+                setMembershipCheckoutItems(null);
+                loadMembership();
+              }
+            }}
+            items={membershipCheckoutItems ?? []}
+            customerEmail={user.email ?? undefined}
+          />
+
+          {/* Upgrade checkout dialog */}
+          <CheckoutDialog
+            open={!!upgradeCheckout}
+            onOpenChange={(o) => {
+              if (!o) {
+                setUpgradeCheckout(null);
+                loadPurchases();
+              }
+            }}
+            items={upgradeCheckout ?? []}
+            customerEmail={user.email ?? undefined}
+          />
+
+          {/* Upgrade Robux dialog */}
+          <RobuxPurchaseDialog
+            open={!!upgradeRobux}
+            onOpenChange={(o) => {
+              if (!o) {
+                setUpgradeRobux(null);
+                loadPurchases();
+              }
+            }}
+            product={upgradeRobux}
+          />
 
           {/* SETTINGS */}
           <TabsContent value="settings" className="space-y-4">
