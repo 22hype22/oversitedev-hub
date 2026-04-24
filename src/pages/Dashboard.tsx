@@ -51,6 +51,7 @@ import {
 } from "lucide-react";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
+import { UpgradeNotice } from "@/components/UpgradeNotice";
 import { getStripeEnvironment } from "@/lib/stripe";
 
 type Purchase = {
