@@ -24,8 +24,8 @@ type Body = {
   robloxUsername?: string;
 };
 
-const RECENT_WINDOW_MINUTES = 30;
-const SALES_PAGES_TO_SCAN = 2; // 100 most recent sales — plenty for a recent buy.
+const RECENT_WINDOW_MINUTES = 15;
+const SALES_PAGES_TO_SCAN = 1; // 50 most recent sales — enough for a fresh buy.
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
