@@ -108,6 +108,14 @@ export default function Dashboard() {
 
   const [portalLoading, setPortalLoading] = useState(false);
 
+  // Membership + upgrade state
+  const [membership, setMembership] = useState<Membership>(null);
+  const [membershipCheckoutOpen, setMembershipCheckoutOpen] = useState(false);
+  const [upgradeCheckout, setUpgradeCheckout] = useState<CheckoutItem[] | null>(null);
+  const [upgradeRobux, setUpgradeRobux] = useState<
+    (RobuxPurchaseProduct & { parentPurchaseId: string }) | null
+  >(null);
+
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
   }, [user, loading, navigate]);
