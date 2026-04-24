@@ -5,6 +5,8 @@ import { CheckCircle2, Download, Loader2, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useAuth } from "@/hooks/useAuth";
+import { useMembership } from "@/hooks/useMembership";
+import { UpgradeNotice } from "@/components/UpgradeNotice";
 
 type PurchasedFile = {
   id: string;
