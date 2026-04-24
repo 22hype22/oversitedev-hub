@@ -125,12 +125,13 @@ export default function Dashboard() {
     if (!loading && !user) navigate("/auth");
   }, [user, loading, navigate]);
 
-  const loadPurchases = async () => {
+  const loadPurchases = useCallback(async () => {
     if (!user) return;
     setPurchasesLoading(true);
     const filters = [`user_id.eq.${user.id}`];
     if (user.email) filters.push(`email.eq.${user.email.toLowerCase()}`);
-    const { data, error } = await supabase
+
+    const stripeReq = supabase
       .from("purchases")
       .select(
         "id,product_id,product_name,amount_cents,currency,status,created_at,file_url,file_name,environment,version",
@@ -138,13 +139,73 @@ export default function Dashboard() {
       .or(filters.join(","))
       .eq("status", "paid")
       .order("created_at", { ascending: false });
+
+    const profileReq = supabase
+      .from("profiles")
+      .select("roblox_username")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const [{ data: stripeData, error }, { data: profile }] = await Promise.all([
+      stripeReq,
+      profileReq,
+    ]);
+
     if (error) {
       toast.error("Couldn't load your purchases");
       setPurchasesLoading(false);
       return;
     }
 
-    const rows = (data as Purchase[]) ?? [];
+    const stripeRows = ((stripeData as Purchase[]) ?? []).map((row) => ({
+      ...row,
+      source: "stripe" as const,
+    }));
+
+    let gamepassRows: Purchase[] = [];
+    if (profile?.roblox_username) {
+      const { data: pendingRows } = await supabase
+        .from("pending_purchases")
+        .select("id,product_id,created_at,version")
+        .eq("status", "fulfilled")
+        .ilike("roblox_username", profile.roblox_username)
+        .order("fulfilled_at", { ascending: false });
+
+      const pendingProductIds = Array.from(
+        new Set(((pendingRows as any[]) ?? []).map((r) => r.product_id).filter(Boolean)),
+      );
+
+      let pendingProductMap = new Map<string, any>();
+      if (pendingProductIds.length > 0) {
+        const { data: pendingProducts } = await supabase
+          .from("public_products")
+          .select("id,name")
+          .in("id", pendingProductIds);
+        pendingProductMap = new Map((pendingProducts ?? []).map((p: any) => [p.id, p]));
+      }
+
+      gamepassRows = ((pendingRows as any[]) ?? [])
+        .filter((row) => !!row.product_id)
+        .map((row) => ({
+          id: row.id,
+          product_id: row.product_id,
+          product_name: pendingProductMap.get(row.product_id)?.name ?? "Product",
+          amount_cents: 0,
+          currency: "robux",
+          status: "paid",
+          created_at: row.created_at,
+          file_url: null,
+          file_name: null,
+          environment: "live",
+          version: row.version ?? null,
+          source: "gamepass" as const,
+        }));
+    }
+
+    const rows = [...stripeRows, ...gamepassRows].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+
     const productIds = Array.from(
       new Set(rows.map((r) => r.product_id).filter((x): x is string => !!x)),
     );
@@ -170,7 +231,7 @@ export default function Dashboard() {
     });
     setPurchases(enriched);
     setPurchasesLoading(false);
-  };
+  }, [user]);
 
   const loadMembership = async () => {
     if (!user) return;
