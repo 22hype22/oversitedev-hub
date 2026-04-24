@@ -149,8 +149,21 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setLoading(false);
   };
 
+  const loadCategories = async () => {
+    const { data } = await (supabase as any)
+      .from("product_categories")
+      .select("name, sort_order")
+      .order("sort_order", { ascending: true });
+    if (data && data.length > 0) {
+      const names = data.map((c: { name: string }) => c.name);
+      setCategories(names);
+      setCategory((prev) => (names.includes(prev) ? prev : names[0]));
+    }
+  };
+
   useEffect(() => {
     loadProducts();
+    loadCategories();
   }, []);
 
   const handleFilesChange = (files: FileList | null) => {
