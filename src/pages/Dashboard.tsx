@@ -491,8 +491,12 @@ export default function Dashboard() {
                   </Button>
                 </div>
               ) : (
-                <ul className="divide-y divide-border">
-                  {purchases.map((p) => {
+                <>
+                  {!isMemberActive && (
+                    <UpgradeNotice className="mb-4" />
+                  )}
+                  <ul className="divide-y divide-border">
+                    {purchases.map((p) => {
                     const usd = p.amount_cents / 100;
                     const hasNewer =
                       !!p.latest_version &&
