@@ -69,18 +69,12 @@ Deno.serve(async (req) => {
       return json({ error: "This product has no gamepass configured." }, 400);
     }
 
-    // 1. Resolve username -> Roblox userId AND fetch CSRF token in parallel.
-    const [userLookup, csrfRes] = await Promise.all([
-      fetch("https://users.roblox.com/v1/usernames/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
-      }),
-      fetch("https://auth.roblox.com/v2/logout", {
-        method: "POST",
-        headers: { Cookie: `.ROBLOSECURITY=${cookie}` },
-      }),
-    ]);
+    // 1. Resolve username -> Roblox userId.
+    const userLookup = await fetch("https://users.roblox.com/v1/usernames/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
+    });
 
     if (!userLookup.ok) {
       return json({ error: "Couldn't reach Roblox to look up that username." }, 502);
@@ -104,22 +98,12 @@ Deno.serve(async (req) => {
       if (error) console.error("pending_purchases insert failed:", error);
     });
 
-    // 3. Ensure the Roblox session cookie is still valid.
-    const csrfToken = csrfRes.headers.get("x-csrf-token");
-    if (!csrfToken) {
-      return json(
-        { error: "Roblox session is invalid. The bot cookie may have expired." },
-        502,
-      );
-    }
-
-    // 4. Verify ownership directly via Roblox inventory instead of group sales.
+    // 3. Verify ownership directly via Roblox inventory.
     const ownershipRes = await fetch(
       `https://inventory.roblox.com/v1/users/${buyerId}/items/${GAMEPASS_ITEM_TYPE}/${product.gamepass_id}/is-owned`,
       {
         headers: {
           Cookie: `.ROBLOSECURITY=${cookie}`,
-          "X-CSRF-TOKEN": csrfToken,
         },
       },
     );

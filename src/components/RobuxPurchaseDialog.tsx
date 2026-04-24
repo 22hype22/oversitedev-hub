@@ -188,7 +188,7 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
                   <span className="font-semibold">2.</span> Buy the gamepass on Roblox.
                 </p>
                 <p>
-                  <span className="font-semibold">3.</span> Wait ~30 seconds for Roblox to record the sale.
+                  <span className="font-semibold">3.</span> Wait a few seconds for Roblox to record the purchase.
                 </p>
                 <p>
                   <span className="font-semibold">4.</span> Click "I've purchased" — we'll
