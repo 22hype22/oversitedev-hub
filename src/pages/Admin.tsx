@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 
 import { ProductManager } from "@/components/admin/ProductManager";
+import { MarketingKillSwitch, useMarketingShutdown } from "@/components/admin/MarketingKillSwitch";
 
 import { Card } from "@/components/ui/card";
 
