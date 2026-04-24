@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SplashScreen } from "@/components/SplashScreen";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { SignupPromoDialog } from "@/components/SignupPromoDialog";
+import { PreferencesProvider } from "@/hooks/usePreferences";
 import Index from "./pages/Index.tsx";
 import ProcessPage from "./pages/ProcessPage.tsx";
 import ProductsPage from "./pages/ProductsPage.tsx";
@@ -38,6 +39,7 @@ const App = () => {
         <PaymentTestModeBanner />
         {showSplash && <SplashScreen onDone={handleSplashDone} />}
         <BrowserRouter>
+          <PreferencesProvider>
           <SignupPromoDialog />
           <Routes>
             <Route path="/" element={<Index />} />
@@ -51,6 +53,7 @@ const App = () => {
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </PreferencesProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
