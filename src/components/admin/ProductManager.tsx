@@ -40,6 +40,7 @@ type DbProduct = {
   price_robux: number | null;
   gamepass_id: string | null;
   gamepass_url: string | null;
+  current_version: string | null;
   created_at: string;
 };
 
@@ -85,6 +86,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [priceRobux, setPriceRobux] = useState("");
   const [gamepassUrl, setGamepassUrl] = useState("");
+  const [currentVersion, setCurrentVersion] = useState("");
 
   const resetForm = () => {
     setEditingId(null);
@@ -98,6 +100,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setAttachedFile(null);
     setPriceRobux("");
     setGamepassUrl("");
+    setCurrentVersion("");
   };
 
   const startEdit = (p: DbProduct) => {
@@ -117,6 +120,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setAttachedFile(null);
     setPriceRobux(p.price_robux != null ? String(p.price_robux) : "");
     setGamepassUrl(p.gamepass_url ?? "");
+    setCurrentVersion(p.current_version ?? "");
     setOpen(true);
   };
 
@@ -250,6 +254,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
         throw new Error("Couldn't read a gamepass ID from that URL. It should look like https://www.roblox.com/game-pass/12345678/...");
       }
 
+      const trimmedVersion = currentVersion.trim() || null;
+
       if (editingId) {
         // Always persist the current ordered media list (existing + new uploads),
         // so reorders and removals are saved.
@@ -265,6 +271,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
           gamepass_url: trimmedGamepass || null,
           image_url: finalUrls[0] ?? null,
           image_urls: finalUrls,
+          current_version: trimmedVersion,
         };
         if (attachedFile) {
           updatePayload.file_url = fileUrl;
@@ -275,27 +282,54 @@ export const ProductManager = ({ userId }: { userId: string }) => {
           .update(updatePayload)
           .eq("id", editingId);
         if (updateError) throw updateError;
+
+        // If a new file was uploaded, snapshot it as a versioned row.
+        // Trigger keeps only the 3 most recent versions per product.
+        if (attachedFile && fileUrl && trimmedVersion) {
+          await (supabase as any).from("product_versions").insert({
+            product_id: editingId,
+            version: trimmedVersion,
+            file_url: fileUrl,
+            file_name: fileName,
+          });
+        }
+
         sonnerToast.success("Product updated", {
           description: `${name} has been saved.`,
         });
       } else {
-        const { error: insertError } = await supabase.from("products").insert({
-          name: name.trim(),
-          description: description.trim() || null,
-          price: priceNum,
-          category,
-          emoji: emoji || "📦",
-          image_url: finalUrls[0] ?? null,
-          image_urls: finalUrls,
-          is_available: isAvailable,
-          file_url: fileUrl,
-          file_name: fileName,
-          price_robux: robuxNum,
-          gamepass_id: gamepassId,
-          gamepass_url: trimmedGamepass || null,
-          created_by: userId,
-        });
+        const { data: inserted, error: insertError } = await supabase
+          .from("products")
+          .insert({
+            name: name.trim(),
+            description: description.trim() || null,
+            price: priceNum,
+            category,
+            emoji: emoji || "📦",
+            image_url: finalUrls[0] ?? null,
+            image_urls: finalUrls,
+            is_available: isAvailable,
+            file_url: fileUrl,
+            file_name: fileName,
+            price_robux: robuxNum,
+            gamepass_id: gamepassId,
+            gamepass_url: trimmedGamepass || null,
+            current_version: trimmedVersion,
+            created_by: userId,
+          })
+          .select("id")
+          .single();
         if (insertError) throw insertError;
+
+        // Snapshot the initial version row if both file + version were provided.
+        if (inserted?.id && fileUrl && trimmedVersion) {
+          await (supabase as any).from("product_versions").insert({
+            product_id: inserted.id,
+            version: trimmedVersion,
+            file_url: fileUrl,
+            file_name: fileName,
+          });
+        }
 
         sonnerToast.success(isAvailable ? "Product uploaded!" : "Teaser added!", {
           description: isAvailable
@@ -418,6 +452,11 @@ export const ProductManager = ({ userId }: { userId: string }) => {
                       {p.gamepass_id && (
                         <span className="text-[9px] font-semibold uppercase tracking-wider bg-primary/15 text-primary border border-primary/30 rounded px-1.5 py-0.5">
                           R$
+                        </span>
+                      )}
+                      {p.current_version && (
+                        <span className="text-[9px] font-semibold uppercase tracking-wider bg-secondary text-secondary-foreground border border-border rounded px-1.5 py-0.5">
+                          {p.current_version}
                         </span>
                       )}
                     </div>
@@ -758,6 +797,24 @@ export const ProductManager = ({ userId }: { userId: string }) => {
                   />
                 </label>
               )}
+            </div>
+
+            {/* Version label */}
+            <div className="space-y-1.5">
+              <Label htmlFor="prod-version">Version (optional)</Label>
+              <Input
+                id="prod-version"
+                placeholder="e.g. v3 or 1.2.0"
+                value={currentVersion}
+                onChange={(e) => setCurrentVersion(e.target.value)}
+                maxLength={30}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Shown on the storefront and stamped onto each new purchase. When you
+                upload a new file together with a new version, the previous file is
+                kept (last 3 versions) so existing buyers can still download what
+                they paid for.
+              </p>
             </div>
 
             {/* Availability / teaser toggle */}
