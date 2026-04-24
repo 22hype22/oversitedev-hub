@@ -721,7 +721,7 @@ export const Products = () => {
                   {suspended ? (
                     <>
                       <Lock className="h-4 w-4" />
-                      Purchases suspended
+                      Suspended
                     </>
                   ) : (
                     <>
@@ -881,7 +881,7 @@ export const Products = () => {
                         {suspended ? (
                           <Button size="sm" variant="outline" disabled className="w-full">
                             <Lock className="h-3.5 w-3.5" />
-                            Purchases suspended
+                            Suspended
                           </Button>
                         ) : p.isAvailable === false ? (
                           <Button size="sm" variant="outline" disabled className="w-full">
