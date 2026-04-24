@@ -1,14 +1,12 @@
-// Verifies a Roblox gamepass purchase by reading recent group sales using a bot
-// account's .ROBLOSECURITY cookie. The bot account must be in the group with
-// permission to view group payouts (e.g. "Manage group" role).
+// Verifies a Roblox gamepass purchase by checking whether the buyer now owns
+// the configured gamepass. This is faster and more reliable than reading group
+// sales, and it does not require special group payout permissions.
 //
 // Flow:
 //   1. Client posts { productId, robloxUsername }.
 //   2. We resolve the username -> Roblox userId, look up the product's gamepass_id,
 //      and record/refresh a pending_purchase row.
-//   3. We page recent group sales transactions and look for a Sale where
-//      assetType === "GamePass", assetId === product.gamepass_id, and
-//      agent.id === buyer userId, within RECENT_WINDOW_MINUTES.
+//   3. We call Roblox inventory ownership for that user + gamepass.
 //   4. On match: mark the pending_purchase fulfilled and return a signed URL
 //      to the attached file (if any). Otherwise return a "not found yet" error.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";

@@ -192,7 +192,7 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
                 </p>
                 <p>
                   <span className="font-semibold">4.</span> Click "I've purchased" — we'll
-                  check the group sales and confirm.
+                  check Roblox and confirm ownership.
                 </p>
               </div>
               <div className="space-y-2">
