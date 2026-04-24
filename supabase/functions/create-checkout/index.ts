@@ -74,7 +74,7 @@ serve(async (req) => {
         lookup_keys: lookupKeys,
         limit: 100,
       });
-      priceMap = new Map(prices.data.map((p) => [p.lookup_key as string, p]));
+      priceMap = new Map(prices.data.map((p: any) => [p.lookup_key as string, p]));
     }
 
     const lineItems: any[] = [];
