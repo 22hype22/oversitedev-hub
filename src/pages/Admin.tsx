@@ -184,7 +184,17 @@ const Admin = () => {
             </div>
           </div>
 
-          <ProductManager userId={user.id} />
+          <MarketingKillSwitch shutdown={marketingShutdown} onChange={setMarketingShutdown} />
+
+          {marketingShutdown ? (
+            <Card className="p-10 text-center border-dashed border-destructive/40 bg-destructive/5">
+              <p className="text-sm text-muted-foreground">
+                Marketing management is currently disabled. Restore access above to manage products.
+              </p>
+            </Card>
+          ) : (
+            <ProductManager userId={user.id} />
+          )}
         </section>
       </div>
     </div>
