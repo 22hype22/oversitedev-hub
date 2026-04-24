@@ -176,9 +176,17 @@ export const Memberships = () => {
                   variant={tier.popular ? "hero" : "outlineGlow"}
                   size="lg"
                   className="w-full"
-                  asChild
+                  asChild={!suspended}
+                  disabled={suspended}
                 >
-                  <a href="/#contact">Get {tier.name}</a>
+                  {suspended ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <Lock size={16} />
+                      Purchases suspended
+                    </span>
+                  ) : (
+                    <a href="/#contact">Get {tier.name}</a>
+                  )}
                 </Button>
 
                 <ul className="mt-6 space-y-3">
