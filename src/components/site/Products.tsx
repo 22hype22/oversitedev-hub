@@ -761,8 +761,8 @@ export const Products = () => {
               className="pl-9 h-11"
             />
           </div>
-          <div className="flex gap-2">
-            {CATEGORIES.map((c) => (
+          <div className="flex gap-2 flex-wrap justify-center">
+            {(["All", ...categories] as const).map((c) => (
               <Button
                 key={c}
                 variant={category === c ? "hero" : "outlineGlow"}
