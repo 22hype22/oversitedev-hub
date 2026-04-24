@@ -44,7 +44,7 @@ type DbProduct = {
   created_at: string;
 };
 
-const CATEGORIES = ["Systems", "Assets"] as const;
+const FALLBACK_CATEGORIES = ["Systems", "Assets"] as const;
 const MAX_IMAGES = 6;
 const MAX_FILE_MB = 50;
 const MAX_IMAGE_MB = 5;
@@ -68,6 +68,7 @@ const mediaId = () => `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}
 
 export const ProductManager = ({ userId }: { userId: string }) => {
   const [products, setProducts] = useState<DbProduct[]>([]);
+  const [categories, setCategories] = useState<string[]>([...FALLBACK_CATEGORIES]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -148,8 +149,21 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setLoading(false);
   };
 
+  const loadCategories = async () => {
+    const { data } = await (supabase as any)
+      .from("product_categories")
+      .select("name, sort_order")
+      .order("sort_order", { ascending: true });
+    if (data && data.length > 0) {
+      const names = data.map((c: { name: string }) => c.name);
+      setCategories(names);
+      setCategory((prev) => (names.includes(prev) ? prev : names[0]));
+    }
+  };
+
   useEffect(() => {
     loadProducts();
+    loadCategories();
   }, []);
 
   const handleFilesChange = (files: FileList | null) => {
@@ -538,7 +552,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIES.map((c) => (
+                    {categories.map((c) => (
                       <SelectItem key={c} value={c}>
                         {c}
                       </SelectItem>

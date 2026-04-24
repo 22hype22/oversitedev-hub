@@ -63,7 +63,7 @@ type Product = {
   dbId?: string;
   name: string;
   price: number;
-  category: "Systems" | "Assets";
+  category: string;
   blurb: string;
   emoji: string;
   tag?: string;
@@ -158,7 +158,7 @@ const SUBSCRIPTIONS: Subscription[] = [
 const PRODUCTS: Product[] = [];
 
 
-const CATEGORIES = ["All", "Systems", "Assets"] as const;
+const FALLBACK_CATEGORIES = ["Systems", "Assets"] as const;
 
 type CartItem = (Product | (Subscription & { category: "Subscription"; emoji: string })) & {
   qty: number;
@@ -260,7 +260,8 @@ export const Products = () => {
   const { owned } = useUserPurchases();
   const { suspended } = useMarketingSuspended();
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
+  const [category, setCategory] = useState<string>("All");
+  const [categories, setCategories] = useState<string[]>([...FALLBACK_CATEGORIES]);
   const [query, setQuery] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -334,7 +335,7 @@ export const Products = () => {
               dbId: p.id,
               name: p.name,
               price: Number(p.price),
-              category: (p.category === "Assets" ? "Assets" : "Systems") as "Systems" | "Assets",
+              category: (p.category || "Systems") as string,
               blurb: p.description || "",
               emoji: p.emoji || "📦",
               tag: available ? "New" : "Coming soon",
@@ -353,6 +354,17 @@ export const Products = () => {
       }
     };
     load();
+
+    const loadCats = async () => {
+      const { data } = await (supabase as any)
+        .from("product_categories")
+        .select("name, sort_order")
+        .order("sort_order", { ascending: true });
+      if (data && data.length > 0) {
+        setCategories(data.map((c: { name: string }) => c.name));
+      }
+    };
+    loadCats();
   }, []);
 
   const startCheckout = () => {
@@ -760,8 +772,8 @@ export const Products = () => {
               className="pl-9 h-11"
             />
           </div>
-          <div className="flex gap-2">
-            {CATEGORIES.map((c) => (
+          <div className="flex gap-2 flex-wrap justify-center">
+            {(["All", ...categories] as const).map((c) => (
               <Button
                 key={c}
                 variant={category === c ? "hero" : "outlineGlow"}
