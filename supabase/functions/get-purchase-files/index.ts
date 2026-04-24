@@ -84,29 +84,50 @@ serve(async (req) => {
       });
     }
 
+    // Membership check: if the user has an active Oversite Pro subscription
+    // in this environment, they get the LATEST version of every owned product
+    // (regardless of what version they originally purchased).
+    let memberLatest = false;
+    if (userId) {
+      const { data: m } = await supabaseAdmin.rpc("has_active_membership", {
+        _user_id: userId,
+        _env: env,
+      });
+      memberLatest = !!m;
+    }
+
     const files = await Promise.all(
       (rows || []).map(async (row) => {
-        // Resolve the file path for this purchase.
-        // Priority:
-        //   1. If the row has a recorded version + product_id, look up the
-        //      matching snapshot in product_versions (the version they paid for).
-        //   2. Otherwise fall back to the file_url stamped on the purchase
-        //      itself (legacy purchases / products without a version).
         let filePath: string | null = null;
         let resolvedFileName: string | null = row.file_name ?? null;
+        let resolvedVersion: string | null = row.version ?? null;
 
-        if (row.version && row.product_id) {
+        // Determine which version to serve.
+        // - Members: serve the product's current_version (latest).
+        // - Non-members: serve the version they paid for.
+        let targetVersion: string | null = row.version ?? null;
+        if (memberLatest && row.product_id) {
+          const { data: pRow } = await supabaseAdmin
+            .from("products")
+            .select("current_version")
+            .eq("id", row.product_id)
+            .maybeSingle();
+          if (pRow?.current_version) targetVersion = pRow.current_version;
+        }
+
+        if (targetVersion && row.product_id) {
           const { data: vRow } = await supabaseAdmin
             .from("product_versions")
-            .select("file_url, file_name")
+            .select("file_url, file_name, version")
             .eq("product_id", row.product_id)
-            .eq("version", row.version)
+            .eq("version", targetVersion)
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
           if (vRow?.file_url) {
             filePath = vRow.file_url;
             resolvedFileName = vRow.file_name ?? resolvedFileName;
+            resolvedVersion = vRow.version ?? targetVersion;
           }
         }
         if (!filePath && row.file_url) {
@@ -119,7 +140,7 @@ serve(async (req) => {
             productName: row.product_name,
             fileName: resolvedFileName,
             url: null,
-            version: row.version ?? null,
+            version: resolvedVersion,
           };
         }
         const { data: signed } = await supabaseAdmin.storage
@@ -132,7 +153,7 @@ serve(async (req) => {
           productName: row.product_name,
           fileName: resolvedFileName,
           url: signed?.signedUrl ?? null,
-          version: row.version ?? null,
+          version: resolvedVersion,
         };
       }),
     );
