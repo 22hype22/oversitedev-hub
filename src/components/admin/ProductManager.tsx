@@ -254,6 +254,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
         throw new Error("Couldn't read a gamepass ID from that URL. It should look like https://www.roblox.com/game-pass/12345678/...");
       }
 
+      const trimmedVersion = currentVersion.trim() || null;
+
       if (editingId) {
         // Always persist the current ordered media list (existing + new uploads),
         // so reorders and removals are saved.
@@ -269,6 +271,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
           gamepass_url: trimmedGamepass || null,
           image_url: finalUrls[0] ?? null,
           image_urls: finalUrls,
+          current_version: trimmedVersion,
         };
         if (attachedFile) {
           updatePayload.file_url = fileUrl;
@@ -279,27 +282,54 @@ export const ProductManager = ({ userId }: { userId: string }) => {
           .update(updatePayload)
           .eq("id", editingId);
         if (updateError) throw updateError;
+
+        // If a new file was uploaded, snapshot it as a versioned row.
+        // Trigger keeps only the 3 most recent versions per product.
+        if (attachedFile && fileUrl && trimmedVersion) {
+          await (supabase as any).from("product_versions").insert({
+            product_id: editingId,
+            version: trimmedVersion,
+            file_url: fileUrl,
+            file_name: fileName,
+          });
+        }
+
         sonnerToast.success("Product updated", {
           description: `${name} has been saved.`,
         });
       } else {
-        const { error: insertError } = await supabase.from("products").insert({
-          name: name.trim(),
-          description: description.trim() || null,
-          price: priceNum,
-          category,
-          emoji: emoji || "📦",
-          image_url: finalUrls[0] ?? null,
-          image_urls: finalUrls,
-          is_available: isAvailable,
-          file_url: fileUrl,
-          file_name: fileName,
-          price_robux: robuxNum,
-          gamepass_id: gamepassId,
-          gamepass_url: trimmedGamepass || null,
-          created_by: userId,
-        });
+        const { data: inserted, error: insertError } = await supabase
+          .from("products")
+          .insert({
+            name: name.trim(),
+            description: description.trim() || null,
+            price: priceNum,
+            category,
+            emoji: emoji || "📦",
+            image_url: finalUrls[0] ?? null,
+            image_urls: finalUrls,
+            is_available: isAvailable,
+            file_url: fileUrl,
+            file_name: fileName,
+            price_robux: robuxNum,
+            gamepass_id: gamepassId,
+            gamepass_url: trimmedGamepass || null,
+            current_version: trimmedVersion,
+            created_by: userId,
+          })
+          .select("id")
+          .single();
         if (insertError) throw insertError;
+
+        // Snapshot the initial version row if both file + version were provided.
+        if (inserted?.id && fileUrl && trimmedVersion) {
+          await (supabase as any).from("product_versions").insert({
+            product_id: inserted.id,
+            version: trimmedVersion,
+            file_url: fileUrl,
+            file_name: fileName,
+          });
+        }
 
         sonnerToast.success(isAvailable ? "Product uploaded!" : "Teaser added!", {
           description: isAvailable
