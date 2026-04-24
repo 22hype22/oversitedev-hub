@@ -249,6 +249,7 @@ const ProductImage = ({
 
 export const Products = () => {
   const { user } = useAuth();
+  const { isMember } = useMembership();
   const suspended = useMarketingSuspended();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
