@@ -31,7 +31,9 @@ import { toast as sonnerToast } from "sonner";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
 import { useAuth } from "@/hooks/useAuth";
+import { useMembership } from "@/hooks/useMembership";
 import { useMarketingSuspended } from "@/components/SuspensionBanner";
+import { UpgradeNotice } from "@/components/UpgradeNotice";
 
 // Maps internal product/subscription IDs to Stripe price IDs (lookup keys)
 const PRICE_MAP: Record<string, string> = {
