@@ -131,6 +131,10 @@ export default function CheckoutReturn() {
           </div>
         )}
 
+        {!isMember && downloadable.length > 0 && (
+          <UpgradeNotice className="mb-6" />
+        )}
+
         {sessionId && (
           <p className="text-xs text-muted-foreground mb-6 break-all">
             Ref: {sessionId}
