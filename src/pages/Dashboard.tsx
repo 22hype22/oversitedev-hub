@@ -135,29 +135,83 @@ export default function Dashboard() {
       .order("created_at", { ascending: false });
     if (error) {
       toast.error("Couldn't load your purchases");
-    } else {
-      setPurchases((data as Purchase[]) ?? []);
+      setPurchasesLoading(false);
+      return;
     }
+
+    const rows = (data as Purchase[]) ?? [];
+    const productIds = Array.from(
+      new Set(rows.map((r) => r.product_id).filter((x): x is string => !!x)),
+    );
+    let productMap = new Map<string, any>();
+    if (productIds.length > 0) {
+      const { data: prods } = await supabase
+        .from("public_products")
+        .select(
+          "id,current_version,upgrade_price,upgrade_price_robux,upgrade_gamepass_url",
+        )
+        .in("id", productIds);
+      productMap = new Map((prods || []).map((p: any) => [p.id, p]));
+    }
+    const enriched: Purchase[] = rows.map((r) => {
+      const p = r.product_id ? productMap.get(r.product_id) : null;
+      return {
+        ...r,
+        latest_version: p?.current_version ?? null,
+        upgrade_price: p?.upgrade_price ?? null,
+        upgrade_price_robux: p?.upgrade_price_robux ?? null,
+        upgrade_gamepass_url: p?.upgrade_gamepass_url ?? null,
+      };
+    });
+    setPurchases(enriched);
     setPurchasesLoading(false);
   };
 
+  const loadMembership = async () => {
+    if (!user) return;
+    const env = getStripeEnvironment();
+    const { data } = await supabase
+      .from("subscriptions")
+      .select("status,current_period_end,cancel_at_period_end")
+      .eq("user_id", user.id)
+      .eq("environment", env)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setMembership((data as Membership) ?? null);
+  };
+
+  const isMemberActive = (() => {
+    if (!membership) return false;
+    const periodEnd = membership.current_period_end
+      ? new Date(membership.current_period_end).getTime()
+      : null;
+    const future = !periodEnd || periodEnd > Date.now();
+    return (
+      (["active", "trialing", "past_due"].includes(membership.status) && future) ||
+      (membership.status === "canceled" && !!periodEnd && periodEnd > Date.now())
+    );
+  })();
+
   const handleDownload = async (p: Purchase) => {
-    // If this purchase recorded a version, try to download the snapshot file
-    // for that exact version (so updates don't auto-bump existing buyers).
+    // Members get the latest version of every product. Otherwise serve
+    // the exact version they paid for.
+    const targetVersion =
+      isMemberActive && p.latest_version ? p.latest_version : p.version;
+
     let path: string | null = null;
-    if (p.version && p.product_id) {
-      const { data: vRow } = await (supabase as any)
+    if (targetVersion && p.product_id) {
+      const { data: vRow } = await supabase
         .from("product_versions")
         .select("file_url")
         .eq("product_id", p.product_id)
-        .eq("version", p.version)
+        .eq("version", targetVersion)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (vRow?.file_url) path = vRow.file_url as string;
     }
     if (!path && p.file_url) {
-      // file_url may be either a full public URL or a storage path; normalize.
       path = p.file_url;
       const marker = "/product-files/";
       const idx = path.indexOf(marker);
@@ -175,6 +229,34 @@ export default function Dashboard() {
       return;
     }
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const startUpgradeStripe = (p: Purchase) => {
+    if (!p.product_id || !p.upgrade_price || !p.latest_version) return;
+    setUpgradeCheckout([
+      {
+        productId: p.product_id,
+        productName: `${p.product_name} — Upgrade to ${p.latest_version}`,
+        amountCents: Math.round(Number(p.upgrade_price) * 100),
+        currency: "usd",
+        quantity: 1,
+        purchaseType: "upgrade",
+        parentPurchaseId: p.id,
+        upgradeToVersion: p.latest_version,
+      },
+    ]);
+  };
+
+  const startUpgradeRobux = (p: Purchase) => {
+    if (!p.product_id || !p.upgrade_price_robux || !p.upgrade_gamepass_url) return;
+    setUpgradeRobux({
+      id: p.product_id,
+      name: `${p.product_name} — Upgrade to ${p.latest_version}`,
+      priceRobux: p.upgrade_price_robux,
+      gamepassUrl: p.upgrade_gamepass_url,
+      parentPurchaseId: p.id,
+      upgradeMode: true,
+    } as any);
   };
 
   useEffect(() => {
