@@ -799,6 +799,24 @@ export const ProductManager = ({ userId }: { userId: string }) => {
               )}
             </div>
 
+            {/* Version label */}
+            <div className="space-y-1.5">
+              <Label htmlFor="prod-version">Version (optional)</Label>
+              <Input
+                id="prod-version"
+                placeholder="e.g. v3 or 1.2.0"
+                value={currentVersion}
+                onChange={(e) => setCurrentVersion(e.target.value)}
+                maxLength={30}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Shown on the storefront and stamped onto each new purchase. When you
+                upload a new file together with a new version, the previous file is
+                kept (last 3 versions) so existing buyers can still download what
+                they paid for.
+              </p>
+            </div>
+
             {/* Availability / teaser toggle */}
             <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-background/50">
               <div className="h-10 w-10 rounded-md bg-primary/10 grid place-items-center shrink-0">
