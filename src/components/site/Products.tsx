@@ -32,6 +32,7 @@ import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useMembership } from "@/hooks/useMembership";
+import { useUserPurchases } from "@/hooks/useUserPurchases";
 import { useMarketingSuspended } from "@/components/SuspensionBanner";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
 
