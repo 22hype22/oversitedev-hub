@@ -118,12 +118,31 @@ export default function Dashboard() {
   };
 
   const handleDownload = async (p: Purchase) => {
-    if (!p.file_url) return;
-    // file_url may be either a full public URL or a storage path; normalize.
-    let path = p.file_url;
-    const marker = "/product-files/";
-    const idx = path.indexOf(marker);
-    if (idx !== -1) path = path.slice(idx + marker.length);
+    // If this purchase recorded a version, try to download the snapshot file
+    // for that exact version (so updates don't auto-bump existing buyers).
+    let path: string | null = null;
+    if (p.version && p.product_id) {
+      const { data: vRow } = await (supabase as any)
+        .from("product_versions")
+        .select("file_url")
+        .eq("product_id", p.product_id)
+        .eq("version", p.version)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (vRow?.file_url) path = vRow.file_url as string;
+    }
+    if (!path && p.file_url) {
+      // file_url may be either a full public URL or a storage path; normalize.
+      path = p.file_url;
+      const marker = "/product-files/";
+      const idx = path.indexOf(marker);
+      if (idx !== -1) path = path.slice(idx + marker.length);
+    }
+    if (!path) {
+      toast.error("No file is available for this purchase");
+      return;
+    }
     const { data, error } = await supabase.storage
       .from("product-files")
       .createSignedUrl(path, 60 * 10);
