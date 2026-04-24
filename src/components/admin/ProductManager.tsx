@@ -100,6 +100,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setAttachedFile(null);
     setPriceRobux("");
     setGamepassUrl("");
+    setCurrentVersion("");
   };
 
   const startEdit = (p: DbProduct) => {
