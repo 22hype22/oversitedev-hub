@@ -26,7 +26,7 @@ export const useMarketingSuspended = () => {
     load();
 
     const channel = supabase
-      .channel("app-settings-global")
+      .channel(`app-settings-global-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "app_settings" },
