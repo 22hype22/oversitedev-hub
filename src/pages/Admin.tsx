@@ -210,6 +210,12 @@ const Admin = () => {
               <ResetPurchases />
             </div>
           </div>
+
+          {user.email?.toLowerCase() === SUPER_ADMIN_EMAIL && (
+            <div className="mt-10 pt-6 border-t border-border">
+              <AdminManager />
+            </div>
+          )}
         </section>
       </div>
     </div>
