@@ -354,6 +354,17 @@ export const Products = () => {
       }
     };
     load();
+
+    const loadCats = async () => {
+      const { data } = await (supabase as any)
+        .from("product_categories")
+        .select("name, sort_order")
+        .order("sort_order", { ascending: true });
+      if (data && data.length > 0) {
+        setCategories(data.map((c: { name: string }) => c.name));
+      }
+    };
+    loadCats();
   }, []);
 
   const startCheckout = () => {
