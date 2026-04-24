@@ -27,6 +27,10 @@ export interface RobuxPurchaseProduct {
   name: string;
   priceRobux: number;
   gamepassUrl: string;
+  /** When true, this purchase is a paid upgrade for an existing purchase. */
+  upgradeMode?: boolean;
+  /** Existing purchase row to bump on success (required when upgradeMode). */
+  parentPurchaseId?: string;
 }
 
 interface Props {
@@ -79,12 +83,18 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
     const DELAY_MS = 4000;
     try {
       for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-        const { data, error } = await supabase.functions.invoke(
-          "verify-gamepass-purchase",
-          {
-            body: { productId: product.id, robloxUsername: username.trim() },
+        const fnName = product.upgradeMode
+          ? "verify-gamepass-upgrade"
+          : "verify-gamepass-purchase";
+        const { data, error } = await supabase.functions.invoke(fnName, {
+          body: {
+            productId: product.id,
+            robloxUsername: username.trim(),
+            ...(product.upgradeMode && product.parentPurchaseId
+              ? { parentPurchaseId: product.parentPurchaseId }
+              : {}),
           },
-        );
+        });
         if (data?.success) {
           const result = data as { downloadUrl?: string | null; fileName?: string | null };
           setDownloadUrl(result.downloadUrl ?? null);
