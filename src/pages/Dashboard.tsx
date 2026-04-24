@@ -655,10 +655,12 @@ export default function Dashboard() {
                             <Button
                               size="sm"
                               variant="outline"
+                              disabled={suspended}
+                              title={suspended ? "Downloads paused while Oversite Marketing is suspended" : undefined}
                               onClick={() => handleDownload(p)}
                             >
                               <Download size={14} className="mr-1.5" />
-                              Download
+                              {suspended ? "Paused" : "Download"}
                             </Button>
                           ) : null}
                         </div>
