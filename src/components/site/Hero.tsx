@@ -18,9 +18,15 @@ export const Hero = () => {
 
       <div className="container relative mx-auto px-4 py-20 md:py-32">
         <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-medium mb-6">
-            <Sparkles size={14} />
-            Professional Roblox & Discord Bot Development
+          <div className="flex flex-wrap items-center gap-2 mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-medium">
+              <Sparkles size={14} />
+              Professional Roblox Development
+            </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-medium">
+              <Sparkles size={14} />
+              Professional Discord Bot Development
+            </div>
           </div>
 
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight">
