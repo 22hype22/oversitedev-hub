@@ -255,8 +255,10 @@ export const Products = () => {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
-        .from("products")
+      // Use the public_products view, which excludes internal file paths
+      // (file_url, file_name) so they aren't exposed to anonymous visitors.
+      const { data } = await (supabase as any)
+        .from("public_products")
         .select("*")
         .order("created_at", { ascending: false });
       if (data) {
