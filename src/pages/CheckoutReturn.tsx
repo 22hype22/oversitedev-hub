@@ -22,6 +22,7 @@ export default function CheckoutReturn() {
   const [loading, setLoading] = useState(true);
   const [files, setFiles] = useState<PurchasedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const { isMember } = useMembership();
 
   useEffect(() => {
     if (!sessionId) {
