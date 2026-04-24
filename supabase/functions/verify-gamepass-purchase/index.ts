@@ -41,9 +41,8 @@ Deno.serve(async (req) => {
       return json({ error: "Invalid Roblox username format" }, 400);
     }
 
-    const groupId = Deno.env.get("ROBLOX_GROUP_ID");
     const cookie = Deno.env.get("ROBLOX_COOKIE");
-    if (!groupId || !cookie) {
+    if (!cookie) {
       return json({ error: "Server isn't configured for Roblox verification yet." }, 500);
     }
 
