@@ -256,6 +256,7 @@ const ProductImage = ({
 export const Products = () => {
   const { user } = useAuth();
   const { isMember } = useMembership();
+  const { owned } = useUserPurchases();
   const suspended = useMarketingSuspended();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
@@ -266,6 +267,38 @@ export const Products = () => {
   const [customProducts, setCustomProducts] = useState<Product[]>([]);
   const [robuxOpen, setRobuxOpen] = useState(false);
   const [robuxProduct, setRobuxProduct] = useState<RobuxPurchaseProduct | null>(null);
+
+  const startUpgradeStripe = (p: Product) => {
+    const ownedRow = p.dbId ? owned.get(p.dbId) : undefined;
+    if (!p.dbId || !ownedRow || !p.upgradePrice || !p.version) return;
+    setCheckoutItems([
+      {
+        productId: p.dbId,
+        productName: `${p.name} — Upgrade to ${p.version}`,
+        amountCents: Math.round(Number(p.upgradePrice) * 100),
+        currency: "usd",
+        quantity: 1,
+        purchaseType: "upgrade",
+        parentPurchaseId: ownedRow.purchaseId,
+        upgradeToVersion: p.version,
+      },
+    ]);
+    setCheckoutOpen(true);
+  };
+
+  const startUpgradeRobux = (p: Product) => {
+    const ownedRow = p.dbId ? owned.get(p.dbId) : undefined;
+    if (!p.dbId || !ownedRow || !p.upgradePriceRobux || !p.upgradeGamepassUrl) return;
+    setRobuxProduct({
+      id: p.dbId,
+      name: `${p.name} — Upgrade to ${p.version ?? ""}`.trim(),
+      priceRobux: p.upgradePriceRobux,
+      gamepassUrl: p.upgradeGamepassUrl,
+      parentPurchaseId: ownedRow.purchaseId,
+      upgradeMode: true,
+    } as any);
+    setRobuxOpen(true);
+  };
 
   const startRobuxPurchase = (p: Product) => {
     if (!p.priceRobux || !p.gamepassUrl) return;
