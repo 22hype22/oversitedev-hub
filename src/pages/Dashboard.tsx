@@ -105,6 +105,7 @@ export default function Dashboard() {
         "id,product_name,amount_cents,currency,status,created_at,file_url,file_name,environment",
       )
       .or(filters.join(","))
+      .eq("status", "paid")
       .order("created_at", { ascending: false });
     if (error) {
       toast.error("Couldn't load your purchases");
@@ -112,6 +113,23 @@ export default function Dashboard() {
       setPurchases((data as Purchase[]) ?? []);
     }
     setPurchasesLoading(false);
+  };
+
+  const handleDownload = async (p: Purchase) => {
+    if (!p.file_url) return;
+    // file_url may be either a full public URL or a storage path; normalize.
+    let path = p.file_url;
+    const marker = "/product-files/";
+    const idx = path.indexOf(marker);
+    if (idx !== -1) path = path.slice(idx + marker.length);
+    const { data, error } = await supabase.storage
+      .from("product-files")
+      .createSignedUrl(path, 60 * 10);
+    if (error || !data?.signedUrl) {
+      toast.error("Couldn't generate download link");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
   useEffect(() => {
