@@ -727,9 +727,16 @@ export const Products = () => {
                   )}
                 </div>
                 <div className="p-5 flex flex-col flex-1">
-                  <Badge variant="secondary" className="self-start mb-2 text-xs font-medium">
-                    {p.category}
-                  </Badge>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="secondary" className="text-xs font-medium">
+                      {p.category}
+                    </Badge>
+                    {p.version && (
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        {p.version}
+                      </span>
+                    )}
+                  </div>
                   <h3 className="font-semibold text-base leading-tight">{p.name}</h3>
                   <p className="text-sm text-muted-foreground mt-1.5 flex-1">{p.blurb}</p>
                   <div className="mt-5 pt-4 border-t border-border space-y-3">
