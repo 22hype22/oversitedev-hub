@@ -49,7 +49,7 @@ export const MarketingKillSwitch = ({ shutdown, onChange }: Props) => {
   return (
     <>
       <Card
-        className={`p-5 mb-6 border ${
+        className={`p-5 border ${
           shutdown
             ? "border-destructive/50 bg-destructive/5"
             : "border-border bg-card"
