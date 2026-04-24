@@ -182,7 +182,7 @@ export const Memberships = () => {
                   {suspended ? (
                     <span className="inline-flex items-center justify-center gap-2">
                       <Lock size={16} />
-                      Purchases suspended
+                      Suspended
                     </span>
                   ) : (
                     <a href="/#contact">Get {tier.name}</a>
