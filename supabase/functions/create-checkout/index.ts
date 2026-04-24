@@ -10,6 +10,11 @@ interface LineItemInput {
   amountCents?: number;
   currency?: string;
   quantity?: number;
+  // For upgrade flow: link this checkout to an existing purchase row
+  // and stamp the new version (the latest) onto the resulting purchase.
+  purchaseType?: "initial" | "upgrade";
+  parentPurchaseId?: string;
+  upgradeToVersion?: string;
 }
 
 const supabaseAdmin = createClient(
@@ -141,19 +146,32 @@ serve(async (req) => {
         .select("id,name,file_url,file_name,price,current_version")
         .in("id", productIds);
 
-      const rows = (dbProducts || []).map((p) => ({
-        stripe_session_id: session.id,
-        product_id: p.id,
-        product_name: p.name,
-        file_url: p.file_url,
-        file_name: p.file_name,
-        amount_cents: Math.round(Number(p.price) * 100),
-        currency: "usd",
-        email: customerEmail || null,
-        status: "pending",
-        environment: env,
-        version: p.current_version ?? null,
-      }));
+      const productMap = new Map((dbProducts || []).map((p) => [p.id, p]));
+      const rows = items
+        .filter((it) => it.productId && productMap.has(it.productId))
+        .map((it) => {
+          const p = productMap.get(it.productId!)!;
+          const isUpgrade = it.purchaseType === "upgrade";
+          // For upgrades, stamp the version they're upgrading TO (latest available).
+          const version = isUpgrade
+            ? (it.upgradeToVersion || p.current_version || null)
+            : (p.current_version ?? null);
+          return {
+            stripe_session_id: session.id,
+            product_id: p.id,
+            product_name: isUpgrade ? `${p.name} — Upgrade` : p.name,
+            file_url: p.file_url,
+            file_name: p.file_name,
+            amount_cents: it.amountCents ?? Math.round(Number(p.price) * 100),
+            currency: "usd",
+            email: customerEmail || null,
+            status: "pending",
+            environment: env,
+            version,
+            purchase_type: isUpgrade ? "upgrade" : "initial",
+            parent_purchase_id: isUpgrade ? (it.parentPurchaseId ?? null) : null,
+          };
+        });
       if (rows.length > 0) {
         await supabaseAdmin.from("purchases").insert(rows);
       }
