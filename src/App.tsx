@@ -13,6 +13,7 @@ import ProductsPage from "./pages/ProductsPage.tsx";
 import BotsPage from "./pages/BotsPage.tsx";
 import Auth from "./pages/Auth.tsx";
 import Admin from "./pages/Admin.tsx";
+import Dashboard from "./pages/Dashboard.tsx";
 import CheckoutReturn from "./pages/CheckoutReturn.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -45,6 +46,7 @@ const App = () => {
             <Route path="/bots" element={<BotsPage />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/checkout/return" element={<CheckoutReturn />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

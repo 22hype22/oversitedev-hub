@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Menu, X, Lock, User as UserIcon, LogOut, Shield } from "lucide-react";
+import { Menu, X, Lock, User as UserIcon, LogOut, Shield, LayoutDashboard } from "lucide-react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -106,12 +106,33 @@ export const Navbar = () => {
                   {user.email ?? "My account"}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {isAdmin && (
-                  <DropdownMenuItem onClick={() => navigate("/admin")}>
-                    <Shield size={14} className="mr-2" />
-                    Admin
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+                  <LayoutDashboard size={14} className="mr-2" />
+                  Dashboard
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => isAdmin && navigate("/admin")}
+                  disabled={!isAdmin}
+                  className={!isAdmin ? "opacity-60" : ""}
+                >
+                  <span className="relative mr-2 inline-flex items-center justify-center">
+                    <Shield size={14} />
+                    {!isAdmin && (
+                      <Lock
+                        size={9}
+                        className="absolute -bottom-0.5 -right-1 bg-popover rounded-sm p-[1px]"
+                        strokeWidth={3}
+                      />
+                    )}
+                  </span>
+                  Admin
+                  {!isAdmin && (
+                    <span className="ml-auto text-[10px] text-muted-foreground">
+                      Locked
+                    </span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut size={14} className="mr-2" />
                   Sign out
@@ -130,21 +151,6 @@ export const Navbar = () => {
               title="Sign in"
             >
               <UserIcon size={15} />
-            </NavLink>
-          )}
-
-          {isAdmin && (
-            <NavLink
-              to="/admin"
-              className={({ isActive }) =>
-                `inline-flex items-center justify-center h-9 w-9 rounded-md border border-border/60 text-muted-foreground hover:text-foreground hover:border-primary/40 transition-smooth ${
-                  isActive ? "text-foreground border-primary/60" : ""
-                }`
-              }
-              aria-label="Admin"
-              title="Admin"
-            >
-              <Lock size={15} />
             </NavLink>
           )}
         </div>
@@ -199,6 +205,35 @@ export const Navbar = () => {
                   <div className="text-xs text-muted-foreground truncate">
                     {user.email}
                   </div>
+                  <NavLink
+                    to="/dashboard"
+                    className="flex items-center gap-2 py-2 text-sm text-muted-foreground"
+                  >
+                    <LayoutDashboard size={14} />
+                    Dashboard
+                  </NavLink>
+                  {isAdmin ? (
+                    <NavLink
+                      to="/admin"
+                      className="flex items-center gap-2 py-2 text-sm text-muted-foreground"
+                    >
+                      <Shield size={14} />
+                      Admin
+                    </NavLink>
+                  ) : (
+                    <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground/60">
+                      <span className="relative inline-flex items-center justify-center">
+                        <Shield size={14} />
+                        <Lock
+                          size={9}
+                          className="absolute -bottom-0.5 -right-1 bg-background rounded-sm p-[1px]"
+                          strokeWidth={3}
+                        />
+                      </span>
+                      Admin
+                      <span className="ml-auto text-[10px]">Locked</span>
+                    </div>
+                  )}
                   <button
                     onClick={handleSignOut}
                     className="flex items-center gap-2 py-2 text-sm text-muted-foreground"
@@ -214,15 +249,6 @@ export const Navbar = () => {
                 >
                   <UserIcon size={14} />
                   Sign in
-                </NavLink>
-              )}
-              {isAdmin && (
-                <NavLink
-                  to="/admin"
-                  className="flex items-center gap-2 py-2 text-sm text-muted-foreground"
-                >
-                  <Lock size={14} />
-                  Admin
                 </NavLink>
               )}
             </li>
