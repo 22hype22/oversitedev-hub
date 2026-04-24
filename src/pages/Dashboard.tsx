@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
@@ -66,6 +66,7 @@ type Purchase = {
   file_name: string | null;
   environment: string;
   version: string | null;
+  source?: "stripe" | "gamepass";
   // Resolved client-side
   latest_version?: string | null;
   upgrade_price?: number | null;
@@ -124,12 +125,13 @@ export default function Dashboard() {
     if (!loading && !user) navigate("/auth");
   }, [user, loading, navigate]);
 
-  const loadPurchases = async () => {
+  const loadPurchases = useCallback(async () => {
     if (!user) return;
     setPurchasesLoading(true);
     const filters = [`user_id.eq.${user.id}`];
     if (user.email) filters.push(`email.eq.${user.email.toLowerCase()}`);
-    const { data, error } = await supabase
+
+    const stripeReq = supabase
       .from("purchases")
       .select(
         "id,product_id,product_name,amount_cents,currency,status,created_at,file_url,file_name,environment,version",
@@ -137,13 +139,73 @@ export default function Dashboard() {
       .or(filters.join(","))
       .eq("status", "paid")
       .order("created_at", { ascending: false });
+
+    const profileReq = supabase
+      .from("profiles")
+      .select("roblox_username")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const [{ data: stripeData, error }, { data: profile }] = await Promise.all([
+      stripeReq,
+      profileReq,
+    ]);
+
     if (error) {
       toast.error("Couldn't load your purchases");
       setPurchasesLoading(false);
       return;
     }
 
-    const rows = (data as Purchase[]) ?? [];
+    const stripeRows = ((stripeData as Purchase[]) ?? []).map((row) => ({
+      ...row,
+      source: "stripe" as const,
+    }));
+
+    let gamepassRows: Purchase[] = [];
+    if (profile?.roblox_username) {
+      const { data: pendingRows } = await supabase
+        .from("pending_purchases")
+        .select("id,product_id,created_at,version")
+        .eq("status", "fulfilled")
+        .ilike("roblox_username", profile.roblox_username)
+        .order("fulfilled_at", { ascending: false });
+
+      const pendingProductIds = Array.from(
+        new Set(((pendingRows as any[]) ?? []).map((r) => r.product_id).filter(Boolean)),
+      );
+
+      let pendingProductMap = new Map<string, any>();
+      if (pendingProductIds.length > 0) {
+        const { data: pendingProducts } = await supabase
+          .from("public_products")
+          .select("id,name")
+          .in("id", pendingProductIds);
+        pendingProductMap = new Map((pendingProducts ?? []).map((p: any) => [p.id, p]));
+      }
+
+      gamepassRows = ((pendingRows as any[]) ?? [])
+        .filter((row) => !!row.product_id)
+        .map((row) => ({
+          id: row.id,
+          product_id: row.product_id,
+          product_name: pendingProductMap.get(row.product_id)?.name ?? "Product",
+          amount_cents: 0,
+          currency: "robux",
+          status: "paid",
+          created_at: row.created_at,
+          file_url: null,
+          file_name: null,
+          environment: "live",
+          version: row.version ?? null,
+          source: "gamepass" as const,
+        }));
+    }
+
+    const rows = [...stripeRows, ...gamepassRows].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+
     const productIds = Array.from(
       new Set(rows.map((r) => r.product_id).filter((x): x is string => !!x)),
     );
@@ -169,7 +231,7 @@ export default function Dashboard() {
     });
     setPurchases(enriched);
     setPurchasesLoading(false);
-  };
+  }, [user]);
 
   const loadMembership = async () => {
     if (!user) return;
@@ -285,8 +347,38 @@ export default function Dashboard() {
       }
       setProfileLoading(false);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, loadPurchases]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`dashboard-purchases-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "purchases" },
+        () => loadPurchases(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "pending_purchases" },
+        () => loadPurchases(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles", filter: `user_id=eq.${user.id}` },
+        () => loadPurchases(),
+      )
+      .subscribe();
+
+    const onFocus = () => loadPurchases();
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [user, loadPurchases]);
 
   const saveProfile = async () => {
     if (!user) return;
@@ -497,48 +589,57 @@ export default function Dashboard() {
                   )}
                   <ul className="divide-y divide-border">
                     {purchases.map((p) => {
-                    const usd = p.amount_cents / 100;
-                    const hasNewer =
-                      !!p.latest_version &&
-                      !!p.version &&
-                      p.latest_version !== p.version;
-                    const canStripeUpgrade =
-                      hasNewer && !!p.upgrade_price && p.upgrade_price > 0;
-                    const canRobuxUpgrade =
-                      hasNewer &&
-                      !!p.upgrade_price_robux &&
-                      !!p.upgrade_gamepass_url;
-                    return (
-                      <li key={p.id} className="py-4 space-y-2">
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-medium truncate">{p.product_name}</p>
-                              {p.version && (
-                                <Badge variant="secondary" className="text-[10px] font-mono">
-                                  {p.version}
-                                </Badge>
-                              )}
-                              {hasNewer && !isMemberActive && (
-                                <Badge variant="outline" className="text-[10px] font-mono border-primary/40 text-primary">
-                                  ↑ {p.latest_version}
-                                </Badge>
-                              )}
-                              {isMemberActive && hasNewer && (
-                                <Badge className="text-[10px] font-mono">
-                                  Latest: {p.latest_version}
-                                </Badge>
-                              )}
-                              {p.environment === "sandbox" && (
-                                <Badge variant="outline" className="text-[10px]">
-                                  test
-                                </Badge>
-                              )}
+                      const usd = p.amount_cents / 100;
+                      const hasNewer =
+                        !!p.latest_version &&
+                        !!p.version &&
+                        p.latest_version !== p.version;
+                      const canStripeUpgrade =
+                        hasNewer && !!p.upgrade_price && p.upgrade_price > 0;
+                      const canRobuxUpgrade =
+                        hasNewer &&
+                        !!p.upgrade_price_robux &&
+                        !!p.upgrade_gamepass_url;
+                      const purchaseLabel =
+                        p.source === "gamepass"
+                          ? "Robux purchase"
+                          : formatPrice(usd);
+                      return (
+                        <li key={p.id} className="py-4 space-y-2">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-medium truncate">{p.product_name}</p>
+                                {p.version && (
+                                  <Badge variant="secondary" className="text-[10px] font-mono">
+                                    {p.version}
+                                  </Badge>
+                                )}
+                                {p.source === "gamepass" && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    robux
+                                  </Badge>
+                                )}
+                                {hasNewer && !isMemberActive && (
+                                  <Badge variant="outline" className="text-[10px] font-mono border-primary/40 text-primary">
+                                    ↑ {p.latest_version}
+                                  </Badge>
+                                )}
+                                {isMemberActive && hasNewer && (
+                                  <Badge className="text-[10px] font-mono">
+                                    Latest: {p.latest_version}
+                                  </Badge>
+                                )}
+                                {p.environment === "sandbox" && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    test
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {formatDate(p.created_at)} · {purchaseLabel}
+                              </p>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {formatDate(p.created_at)} · {formatPrice(usd)}
-                            </p>
-                          </div>
                           {(p.file_url || p.version) ? (
                             <Button
                               size="sm"
