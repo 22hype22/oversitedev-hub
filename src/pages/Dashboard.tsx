@@ -92,6 +92,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { prefs, setPrefs, formatPrice, formatDate } = usePreferences();
+  const { suspended } = useMarketingSuspended();
 
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [purchasesLoading, setPurchasesLoading] = useState(true);
@@ -261,6 +262,10 @@ export default function Dashboard() {
   })();
 
   const handleDownload = async (p: Purchase) => {
+    if (suspended) {
+      toast.error("Downloads are temporarily unavailable while Oversite Marketing is suspended.");
+      return;
+    }
     // Members get the latest version of every product. Otherwise serve
     // the exact version they paid for.
     const targetVersion =
