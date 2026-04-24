@@ -24,8 +24,8 @@ type Body = {
   robloxUsername?: string;
 };
 
-const RECENT_WINDOW_MINUTES = 30;
-const SALES_PAGES_TO_SCAN = 2; // 100 most recent sales — plenty for a recent buy.
+const RECENT_WINDOW_MINUTES = 15;
+const SALES_PAGES_TO_SCAN = 1; // 50 most recent sales — enough for a fresh buy.
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -73,12 +73,20 @@ Deno.serve(async (req) => {
       return json({ error: "This product has no gamepass configured." }, 400);
     }
 
-    // 1. Resolve username -> Roblox userId
-    const userLookup = await fetch("https://users.roblox.com/v1/usernames/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
-    });
+    // 1. Resolve username -> Roblox userId AND fetch CSRF token in parallel
+    //    (these are independent calls, so doing them concurrently saves ~300-600ms).
+    const [userLookup, csrfRes] = await Promise.all([
+      fetch("https://users.roblox.com/v1/usernames/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
+      }),
+      fetch("https://auth.roblox.com/v2/logout", {
+        method: "POST",
+        headers: { Cookie: `.ROBLOSECURITY=${cookie}` },
+      }),
+    ]);
+
     if (!userLookup.ok) {
       return json({ error: "Couldn't reach Roblox to look up that username." }, 502);
     }
@@ -90,21 +98,18 @@ Deno.serve(async (req) => {
     const buyerId: number = robloxUser.id;
     const canonicalName: string = robloxUser.name || username;
 
-    // 2. Record/refresh pending purchase intent.
-    await supabase.from("pending_purchases").insert({
+    // 2. Record/refresh pending purchase intent (fire-and-forget — don't block verification).
+    supabase.from("pending_purchases").insert({
       product_id: product.id,
       roblox_user_id: buyerId,
       roblox_username: canonicalName,
       gamepass_id: product.gamepass_id,
       status: "pending",
+    }).then(({ error }) => {
+      if (error) console.error("pending_purchases insert failed:", error);
     });
 
-    // 3. Read recent group sales. Group transactions need an X-CSRF-TOKEN — we
-    //    obtain one with a throwaway POST first.
-    const csrfRes = await fetch("https://auth.roblox.com/v2/logout", {
-      method: "POST",
-      headers: { Cookie: `.ROBLOSECURITY=${cookie}` },
-    });
+    // 3. Read recent group sales using the CSRF token we already fetched.
     const csrfToken = csrfRes.headers.get("x-csrf-token");
     if (!csrfToken) {
       return json(

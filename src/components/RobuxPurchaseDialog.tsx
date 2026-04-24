@@ -72,30 +72,43 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
   const handleVerify = async () => {
     if (!product) return;
     setVerifying(true);
+    // Auto-poll up to 5 times with a short delay between attempts. Roblox can
+    // take 5-20s to record the sale, so silently retrying spares the user from
+    // mashing the button.
+    const MAX_ATTEMPTS = 5;
+    const DELAY_MS = 4000;
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "verify-gamepass-purchase",
-        {
-          body: { productId: product.id, robloxUsername: username.trim() },
-        },
-      );
-      if (error || !data?.success) {
+      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+        const { data, error } = await supabase.functions.invoke(
+          "verify-gamepass-purchase",
+          {
+            body: { productId: product.id, robloxUsername: username.trim() },
+          },
+        );
+        if (data?.success) {
+          const result = data as { downloadUrl?: string | null; fileName?: string | null };
+          setDownloadUrl(result.downloadUrl ?? null);
+          setFileName(result.fileName ?? null);
+          setStep("success");
+          return;
+        }
         const message =
           (data as { error?: string } | undefined)?.error ||
           error?.message ||
           "Couldn't verify the purchase.";
         const notFoundYet = /couldn't find your purchase yet|find your purchase/i.test(message);
-        sonnerToast.error(notFoundYet ? "Still processing" : "Not verified yet", {
-          description: notFoundYet
-            ? "Roblox hasn't recorded the sale yet. Wait ~30 seconds and click \"I've purchased\" again."
-            : message,
-        });
-        return;
+        // Only retry on "not found yet" — other errors (bad username, server
+        // misconfig, expired bot cookie) won't change with another attempt.
+        if (!notFoundYet || attempt === MAX_ATTEMPTS - 1) {
+          sonnerToast.error(notFoundYet ? "Still processing" : "Not verified yet", {
+            description: notFoundYet
+              ? "Roblox hasn't recorded the sale yet. Wait a moment and try again."
+              : message,
+          });
+          return;
+        }
+        await new Promise((r) => setTimeout(r, DELAY_MS));
       }
-      const result = data as { downloadUrl?: string | null; fileName?: string | null };
-      setDownloadUrl(result.downloadUrl ?? null);
-      setFileName(result.fileName ?? null);
-      setStep("success");
     } catch (e) {
       const message = e instanceof Error ? e.message : "Something went wrong.";
       sonnerToast.error("Verification failed", { description: message });
