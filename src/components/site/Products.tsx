@@ -729,10 +729,17 @@ export const Products = () => {
                     emoji={p.emoji}
                     alt={p.name}
                   />
-                  {p.tag && (
+                  {p.tag && !suspended && (
                     <Badge className="absolute top-3 left-3 z-10 bg-primary text-primary-foreground hover:bg-primary">
                       {p.tag}
                     </Badge>
+                  )}
+                  {suspended && (
+                    <div className="absolute inset-0 z-20 bg-destructive/70 backdrop-blur-[2px] flex items-center justify-center">
+                      <span className="px-4 py-1.5 rounded-md border-2 border-destructive-foreground text-destructive-foreground uppercase tracking-[0.3em] font-bold text-xs">
+                        Suspended
+                      </span>
+                    </div>
                   )}
                 </div>
                 <div className="p-5 flex flex-col flex-1">
