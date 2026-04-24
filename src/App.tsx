@@ -39,6 +39,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <PaymentTestModeBanner />
+        <SuspensionBanner />
         {showSplash && <SplashScreen onDone={handleSplashDone} />}
         <BrowserRouter>
           <PreferencesProvider>
