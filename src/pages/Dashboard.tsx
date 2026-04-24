@@ -50,6 +50,7 @@ import {
 
 type Purchase = {
   id: string;
+  product_id: string | null;
   product_name: string;
   amount_cents: number;
   currency: string;
@@ -58,6 +59,7 @@ type Purchase = {
   file_url: string | null;
   file_name: string | null;
   environment: string;
+  version: string | null;
 };
 
 type Profile = {
