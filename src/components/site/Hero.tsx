@@ -20,7 +20,7 @@ export const Hero = () => {
         <div className="max-w-3xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-medium mb-6">
             <Sparkles size={14} />
-            Professional Roblox Development
+            Professional Roblox & Discord Bot Development
           </div>
 
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight">
