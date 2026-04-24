@@ -1,31 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { AlertTriangle } from "lucide-react";
+import { useMarketingSuspended } from "@/hooks/useMarketingSuspended";
 
-const STORAGE_KEY = "oversite-marketing-shutdown";
-
-export const useMarketingSuspended = () => {
-  const [suspended, setSuspended] = useState(false);
-
-  useEffect(() => {
-    const read = () => setSuspended(localStorage.getItem(STORAGE_KEY) === "1");
-    read();
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) read();
-    };
-    window.addEventListener("storage", onStorage);
-    // Also poll for same-tab updates (storage event doesn't fire in same tab)
-    const interval = window.setInterval(read, 1500);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.clearInterval(interval);
-    };
-  }, []);
-
-  return suspended;
-};
+// Re-export so existing imports keep working.
+export { useMarketingSuspended } from "@/hooks/useMarketingSuspended";
 
 export const SuspensionBanner = () => {
-  const suspended = useMarketingSuspended();
+  const { suspended } = useMarketingSuspended();
 
   useEffect(() => {
     if (suspended) {
