@@ -48,7 +48,7 @@ export const Navbar = () => {
           <img
             src={oversiteLogo}
             alt="Oversite"
-            className="h-10 md:h-12 w-auto object-contain"
+            className="h-8 md:h-9 w-auto object-contain"
           />
         </Link>
 
