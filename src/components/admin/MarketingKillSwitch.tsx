@@ -57,17 +57,11 @@ export const MarketingKillSwitch = ({ shutdown, onChange }: Props) => {
       >
         <div className="flex items-start sm:items-center justify-between gap-4 flex-col sm:flex-row">
           <div className="flex items-start gap-3">
-            <div
-              className={`h-10 w-10 rounded-lg grid place-items-center shrink-0 ${
-                shutdown
-                  ? "bg-destructive/15 border border-destructive/30"
-                  : "bg-primary/10 border border-primary/20"
-              }`}
-            >
+            <div className="h-10 w-10 rounded-lg grid place-items-center shrink-0 bg-destructive/10 border border-destructive/20">
               {shutdown ? (
                 <ShieldAlert className="h-5 w-5 text-destructive" />
               ) : (
-                <Power className="h-5 w-5 text-primary" />
+                <Power className="h-5 w-5 text-destructive" />
               )}
             </div>
             <div>
