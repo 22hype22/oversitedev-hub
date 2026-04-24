@@ -206,7 +206,7 @@ const Admin = () => {
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <MarketingKillSwitch shutdown={marketingShutdown} onChange={setMarketingShutdown} />
+              <MarketingKillSwitch />
               <ResetPurchases />
             </div>
           </div>

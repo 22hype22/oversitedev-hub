@@ -257,7 +257,7 @@ export const Products = () => {
   const { user } = useAuth();
   const { isMember } = useMembership();
   const { owned } = useUserPurchases();
-  const suspended = useMarketingSuspended();
+  const { suspended } = useMarketingSuspended();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
   const [query, setQuery] = useState("");

@@ -53,6 +53,7 @@ import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
 import { getStripeEnvironment } from "@/lib/stripe";
+import { useMarketingSuspended } from "@/hooks/useMarketingSuspended";
 
 type Purchase = {
   id: string;
@@ -91,6 +92,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { prefs, setPrefs, formatPrice, formatDate } = usePreferences();
+  const { suspended } = useMarketingSuspended();
 
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [purchasesLoading, setPurchasesLoading] = useState(true);
@@ -260,6 +262,10 @@ export default function Dashboard() {
   })();
 
   const handleDownload = async (p: Purchase) => {
+    if (suspended) {
+      toast.error("Downloads are temporarily unavailable while Oversite Marketing is suspended.");
+      return;
+    }
     // Members get the latest version of every product. Otherwise serve
     // the exact version they paid for.
     const targetVersion =
@@ -538,14 +544,19 @@ export default function Dashboard() {
                     <Button
                       variant="hero"
                       size="sm"
-                      onClick={() =>
+                      disabled={suspended}
+                      onClick={() => {
+                        if (suspended) {
+                          toast.error("Memberships are temporarily unavailable while Oversite Marketing is suspended.");
+                          return;
+                        }
                         setMembershipCheckoutItems([
                           { priceId: "oversite_pro_monthly", quantity: 1 },
-                        ])
-                      }
+                        ]);
+                      }}
                     >
                       <Sparkles size={14} className="mr-1.5" />
-                      Subscribe
+                      {suspended ? "Unavailable" : "Subscribe"}
                     </Button>
                   )}
                 </div>
@@ -644,10 +655,12 @@ export default function Dashboard() {
                             <Button
                               size="sm"
                               variant="outline"
+                              disabled={suspended}
+                              title={suspended ? "Downloads paused while Oversite Marketing is suspended" : undefined}
                               onClick={() => handleDownload(p)}
                             >
                               <Download size={14} className="mr-1.5" />
-                              Download
+                              {suspended ? "Paused" : "Download"}
                             </Button>
                           ) : null}
                         </div>
