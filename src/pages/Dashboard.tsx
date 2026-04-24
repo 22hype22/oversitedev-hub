@@ -234,7 +234,7 @@ export default function Dashboard() {
 
   if (loading || !user) return null;
 
-  const completedCount = purchases.filter((p) => p.status === "paid").length;
+  // Purchases list is already filtered to paid rows in loadPurchases.
 
   return (
     <div className="min-h-screen bg-background">
