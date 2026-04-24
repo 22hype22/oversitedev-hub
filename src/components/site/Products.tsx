@@ -823,6 +823,9 @@ export const Products = () => {
                       </div>
                     )}
                   </div>
+                  {!suspended && p.isAvailable !== false && !isMember && (
+                    <UpgradeNotice compact className="mt-3" />
+                  )}
                 </div>
               </Card>
             ))}
