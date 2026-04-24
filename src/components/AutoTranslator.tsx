@@ -37,7 +37,7 @@ function isTranslatable(s: string): boolean {
   const t = s.trim();
   if (t.length < 2) return false;
   if (!/[a-zA-Z]/.test(t)) return false; // need at least one letter
-  if (/^[\d\s.,$€£¥%:/\\-+*=()]+$/.test(t)) return false; // pure numerics/symbols
+  if (/^[\d\s.,$€£¥%:/\\\-+*=()]+$/.test(t)) return false; // pure numerics/symbols
   return true;
 }
 
