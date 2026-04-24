@@ -66,6 +66,7 @@ type Purchase = {
   file_name: string | null;
   environment: string;
   version: string | null;
+  source?: "stripe" | "gamepass";
   // Resolved client-side
   latest_version?: string | null;
   upgrade_price?: number | null;
