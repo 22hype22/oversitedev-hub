@@ -1,7 +1,18 @@
 import { useEffect, useState } from "react";
-import { Menu, X, Lock } from "lucide-react";
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { Menu, X, Lock, User as UserIcon, LogOut, Shield } from "lucide-react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import oversiteLogo from "@/assets/oversite-logo.png";
 
 const links = [
@@ -13,10 +24,22 @@ const links = [
 export const Navbar = () => {
   const [open, setOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, isAdmin } = useAuth();
 
   useEffect(() => {
     setOpen(false);
   }, [location.pathname]);
+
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error("Failed to sign out");
+      return;
+    }
+    toast.success("Signed out");
+    navigate("/");
+  };
 
   return (
     <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b border-border/60">
@@ -68,18 +91,62 @@ export const Navbar = () => {
           <Button variant="hero" size="sm" asChild>
             <Link to="/products">Start a project</Link>
           </Button>
-          <NavLink
-            to="/admin"
-            className={({ isActive }) =>
-              `inline-flex items-center justify-center h-9 w-9 rounded-md border border-border/60 text-muted-foreground hover:text-foreground hover:border-primary/40 transition-smooth ${
-                isActive ? "text-foreground border-primary/60" : ""
-              }`
-            }
-            aria-label="Admin"
-            title="Admin"
-          >
-            <Lock size={15} />
-          </NavLink>
+
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-border/60 text-muted-foreground hover:text-foreground hover:border-primary/40 transition-smooth"
+                aria-label="Account"
+                title="Account"
+              >
+                <UserIcon size={15} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="truncate">
+                  {user.email ?? "My account"}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {isAdmin && (
+                  <DropdownMenuItem onClick={() => navigate("/admin")}>
+                    <Shield size={14} className="mr-2" />
+                    Admin
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut size={14} className="mr-2" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <NavLink
+              to="/auth"
+              className={({ isActive }) =>
+                `inline-flex items-center justify-center h-9 w-9 rounded-md border border-border/60 text-muted-foreground hover:text-foreground hover:border-primary/40 transition-smooth ${
+                  isActive ? "text-foreground border-primary/60" : ""
+                }`
+              }
+              aria-label="Sign in"
+              title="Sign in"
+            >
+              <UserIcon size={15} />
+            </NavLink>
+          )}
+
+          {isAdmin && (
+            <NavLink
+              to="/admin"
+              className={({ isActive }) =>
+                `inline-flex items-center justify-center h-9 w-9 rounded-md border border-border/60 text-muted-foreground hover:text-foreground hover:border-primary/40 transition-smooth ${
+                  isActive ? "text-foreground border-primary/60" : ""
+                }`
+              }
+              aria-label="Admin"
+              title="Admin"
+            >
+              <Lock size={15} />
+            </NavLink>
+          )}
         </div>
 
         <button
@@ -126,14 +193,38 @@ export const Navbar = () => {
                 <Link to="/products">Start a project</Link>
               </Button>
             </li>
-            <li className="pt-3 mt-3 border-t border-border/50">
-              <NavLink
-                to="/admin"
-                className="flex items-center gap-2 py-2 text-sm text-muted-foreground"
-              >
-                <Lock size={14} />
-                Admin
-              </NavLink>
+            <li className="pt-3 mt-3 border-t border-border/50 space-y-2">
+              {user ? (
+                <>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {user.email}
+                  </div>
+                  <button
+                    onClick={handleSignOut}
+                    className="flex items-center gap-2 py-2 text-sm text-muted-foreground"
+                  >
+                    <LogOut size={14} />
+                    Sign out
+                  </button>
+                </>
+              ) : (
+                <NavLink
+                  to="/auth"
+                  className="flex items-center gap-2 py-2 text-sm text-muted-foreground"
+                >
+                  <UserIcon size={14} />
+                  Sign in
+                </NavLink>
+              )}
+              {isAdmin && (
+                <NavLink
+                  to="/admin"
+                  className="flex items-center gap-2 py-2 text-sm text-muted-foreground"
+                >
+                  <Lock size={14} />
+                  Admin
+                </NavLink>
+              )}
             </li>
           </ul>
         </div>
