@@ -97,5 +97,34 @@ export function useUserPurchases() {
     reload();
   }, [reload]);
 
+  // Auto-refresh ownership when new purchases land (Stripe webhook updates
+  // `purchases`, gamepass verification updates `pending_purchases`).
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`user-purchases-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "purchases" },
+        () => reload()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "pending_purchases" },
+        () => reload()
+      )
+      .subscribe();
+
+    // Also refresh when the tab regains focus (covers gamepass flows where
+    // the user verifies in another tab/window).
+    const onFocus = () => reload();
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [user, reload]);
+
   return { owned, loading, reload };
 }
