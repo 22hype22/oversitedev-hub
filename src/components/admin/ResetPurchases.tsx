@@ -57,19 +57,13 @@ export const ResetPurchases = () => {
       let purchasesQ = supabase.from("purchases").delete();
       if (cutoff) purchasesQ = purchasesQ.gte("created_at", cutoff);
       else purchasesQ = purchasesQ.not("id", "is", null);
-      const { error: pErr, count: pCount } = await purchasesQ.select("*", {
-        count: "exact",
-        head: true,
-      });
+      const { data: pData, error: pErr } = await purchasesQ.select("id");
 
       // Delete fulfilled gamepass purchases
       let pendingQ = supabase.from("pending_purchases").delete();
       if (cutoff) pendingQ = pendingQ.gte("created_at", cutoff);
       else pendingQ = pendingQ.not("id", "is", null);
-      const { error: gErr, count: gCount } = await pendingQ.select("*", {
-        count: "exact",
-        head: true,
-      });
+      const { data: gData, error: gErr } = await pendingQ.select("id");
 
       if (pErr || gErr) {
         console.error(pErr || gErr);
@@ -77,7 +71,7 @@ export const ResetPurchases = () => {
         return;
       }
 
-      const total = (pCount ?? 0) + (gCount ?? 0);
+      const total = (pData?.length ?? 0) + (gData?.length ?? 0);
       toast.success(`Reset complete — removed ${total} purchase record(s)`);
       setOpen(false);
       setCode("");
