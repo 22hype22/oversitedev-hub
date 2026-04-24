@@ -58,6 +58,8 @@ const PRICE_MAP: Record<string, string> = {
 
 type Product = {
   id: string;
+  /** Underlying DB product id (without the "custom-" prefix), when applicable. */
+  dbId?: string;
   name: string;
   price: number;
   category: "Systems" | "Assets";
@@ -70,6 +72,9 @@ type Product = {
   priceRobux?: number | null;
   gamepassUrl?: string | null;
   version?: string | null;
+  upgradePrice?: number | null;
+  upgradePriceRobux?: number | null;
+  upgradeGamepassUrl?: string | null;
 };
 
 type Subscription = {
