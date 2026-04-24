@@ -138,7 +138,13 @@ export type Database = {
           created_at: string
           discord_username: string
           id: string
+          notify_discord: boolean
+          notify_email: boolean
+          preferred_contact: string
+          preferred_currency: string
+          preferred_language: string
           roblox_username: string
+          timezone: string
           updated_at: string
           user_id: string
           welcome_discount_available: boolean
@@ -147,7 +153,13 @@ export type Database = {
           created_at?: string
           discord_username: string
           id?: string
+          notify_discord?: boolean
+          notify_email?: boolean
+          preferred_contact?: string
+          preferred_currency?: string
+          preferred_language?: string
           roblox_username: string
+          timezone?: string
           updated_at?: string
           user_id: string
           welcome_discount_available?: boolean
@@ -156,7 +168,13 @@ export type Database = {
           created_at?: string
           discord_username?: string
           id?: string
+          notify_discord?: boolean
+          notify_email?: boolean
+          preferred_contact?: string
+          preferred_currency?: string
+          preferred_language?: string
           roblox_username?: string
+          timezone?: string
           updated_at?: string
           user_id?: string
           welcome_discount_available?: boolean
