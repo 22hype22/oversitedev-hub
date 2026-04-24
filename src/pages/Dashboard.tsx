@@ -589,48 +589,57 @@ export default function Dashboard() {
                   )}
                   <ul className="divide-y divide-border">
                     {purchases.map((p) => {
-                    const usd = p.amount_cents / 100;
-                    const hasNewer =
-                      !!p.latest_version &&
-                      !!p.version &&
-                      p.latest_version !== p.version;
-                    const canStripeUpgrade =
-                      hasNewer && !!p.upgrade_price && p.upgrade_price > 0;
-                    const canRobuxUpgrade =
-                      hasNewer &&
-                      !!p.upgrade_price_robux &&
-                      !!p.upgrade_gamepass_url;
-                    return (
-                      <li key={p.id} className="py-4 space-y-2">
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-medium truncate">{p.product_name}</p>
-                              {p.version && (
-                                <Badge variant="secondary" className="text-[10px] font-mono">
-                                  {p.version}
-                                </Badge>
-                              )}
-                              {hasNewer && !isMemberActive && (
-                                <Badge variant="outline" className="text-[10px] font-mono border-primary/40 text-primary">
-                                  ↑ {p.latest_version}
-                                </Badge>
-                              )}
-                              {isMemberActive && hasNewer && (
-                                <Badge className="text-[10px] font-mono">
-                                  Latest: {p.latest_version}
-                                </Badge>
-                              )}
-                              {p.environment === "sandbox" && (
-                                <Badge variant="outline" className="text-[10px]">
-                                  test
-                                </Badge>
-                              )}
+                      const usd = p.amount_cents / 100;
+                      const hasNewer =
+                        !!p.latest_version &&
+                        !!p.version &&
+                        p.latest_version !== p.version;
+                      const canStripeUpgrade =
+                        hasNewer && !!p.upgrade_price && p.upgrade_price > 0;
+                      const canRobuxUpgrade =
+                        hasNewer &&
+                        !!p.upgrade_price_robux &&
+                        !!p.upgrade_gamepass_url;
+                      const purchaseLabel =
+                        p.source === "gamepass"
+                          ? "Robux purchase"
+                          : formatPrice(usd);
+                      return (
+                        <li key={p.id} className="py-4 space-y-2">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-medium truncate">{p.product_name}</p>
+                                {p.version && (
+                                  <Badge variant="secondary" className="text-[10px] font-mono">
+                                    {p.version}
+                                  </Badge>
+                                )}
+                                {p.source === "gamepass" && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    robux
+                                  </Badge>
+                                )}
+                                {hasNewer && !isMemberActive && (
+                                  <Badge variant="outline" className="text-[10px] font-mono border-primary/40 text-primary">
+                                    ↑ {p.latest_version}
+                                  </Badge>
+                                )}
+                                {isMemberActive && hasNewer && (
+                                  <Badge className="text-[10px] font-mono">
+                                    Latest: {p.latest_version}
+                                  </Badge>
+                                )}
+                                {p.environment === "sandbox" && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    test
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {formatDate(p.created_at)} · {purchaseLabel}
+                              </p>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {formatDate(p.created_at)} · {formatPrice(usd)}
-                            </p>
-                          </div>
                           {(p.file_url || p.version) ? (
                             <Button
                               size="sm"
