@@ -577,6 +577,7 @@ export default function Dashboard() {
                     );
                   })}
                 </ul>
+                </>
               )}
             </Card>
           </TabsContent>
