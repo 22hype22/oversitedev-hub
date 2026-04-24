@@ -767,7 +767,11 @@ export const Products = () => {
                         </span>
                       )}
                     </div>
-                    {p.isAvailable === false ? (
+                    {suspended ? (
+                      <Button size="sm" variant="outline" disabled className="w-full">
+                        Suspended
+                      </Button>
+                    ) : p.isAvailable === false ? (
                       <Button size="sm" variant="outline" disabled className="w-full">
                         <Sparkles className="h-4 w-4" />
                         Soon
