@@ -347,8 +347,38 @@ export default function Dashboard() {
       }
       setProfileLoading(false);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, loadPurchases]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`dashboard-purchases-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "purchases" },
+        () => loadPurchases(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "pending_purchases" },
+        () => loadPurchases(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles", filter: `user_id=eq.${user.id}` },
+        () => loadPurchases(),
+      )
+      .subscribe();
+
+    const onFocus = () => loadPurchases();
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [user, loadPurchases]);
 
   const saveProfile = async () => {
     if (!user) return;
