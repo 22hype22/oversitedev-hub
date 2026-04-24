@@ -92,13 +92,23 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
           setStep("success");
           return;
         }
-        const message =
+        const fallbackMessage = "Couldn't verify the purchase.";
+        let message =
           (data as { error?: string } | undefined)?.error ||
           error?.message ||
-          "Couldn't verify the purchase.";
+          fallbackMessage;
+
+        if (message === "Edge Function returned a non-2xx status code" && error && typeof error === "object" && "context" in error) {
+          try {
+            const response = (error as { context?: Response }).context;
+            const payload = response ? await response.json().catch(() => null) : null;
+            message = payload?.error || message;
+          } catch {
+            // keep fallback message
+          }
+        }
+
         const notFoundYet = /couldn't find your purchase yet|find your purchase/i.test(message);
-        // Only retry on "not found yet" — other errors (bad username, server
-        // misconfig, expired bot cookie) won't change with another attempt.
         if (!notFoundYet || attempt === MAX_ATTEMPTS - 1) {
           sonnerToast.error(notFoundYet ? "Still processing" : "Not verified yet", {
             description: notFoundYet
@@ -188,11 +198,11 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
                   <span className="font-semibold">2.</span> Buy the gamepass on Roblox.
                 </p>
                 <p>
-                  <span className="font-semibold">3.</span> Wait ~30 seconds for Roblox to record the sale.
+                  <span className="font-semibold">3.</span> Wait a few seconds for Roblox to record the purchase.
                 </p>
                 <p>
                   <span className="font-semibold">4.</span> Click "I've purchased" — we'll
-                  check the group sales and confirm.
+                  check Roblox and confirm ownership.
                 </p>
               </div>
               <div className="space-y-2">
