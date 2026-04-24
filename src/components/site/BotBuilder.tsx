@@ -624,8 +624,8 @@ export const BotBuilder = () => {
 
         {/* Right: light/blue live preview */}
         <aside className={`${showPayment ? "" : "lg:sticky lg:top-24"} h-fit space-y-4`}>
-          {/* Profile card — white & blue theme */}
-          <div className="rounded-2xl overflow-hidden border border-primary/20 bg-white shadow-elegant">
+          {/* Profile card — adapts to light/dark mode */}
+          <div className="rounded-2xl overflow-hidden border border-primary/20 bg-white dark:bg-[hsl(220_8%_14%)] dark:border-white/10 shadow-elegant">
             {/* Banner */}
             <div className="relative h-24 bg-gradient-to-br from-primary/60 via-primary/30 to-primary/10">
               {banner && (
@@ -633,7 +633,7 @@ export const BotBuilder = () => {
               )}
               <button
                 type="button"
-                className="absolute top-2 right-2 h-7 w-7 rounded-full bg-white/70 backdrop-blur grid place-items-center text-slate-700"
+                className="absolute top-2 right-2 h-7 w-7 rounded-full bg-white/70 dark:bg-black/40 backdrop-blur grid place-items-center text-slate-700 dark:text-slate-200"
                 aria-label="More"
               >
                 <MoreHorizontal size={14} />
@@ -643,26 +643,26 @@ export const BotBuilder = () => {
             {/* Avatar */}
             <div className="px-4 pb-4 -mt-10">
               <div className="relative inline-block">
-                <div className="h-20 w-20 rounded-full border-[6px] border-white bg-slate-100 overflow-hidden grid place-items-center">
+                <div className="h-20 w-20 rounded-full border-[6px] border-white dark:border-[hsl(220_8%_14%)] bg-slate-100 dark:bg-[hsl(220_8%_20%)] overflow-hidden grid place-items-center">
                   {icon ? (
                     <img src={icon} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <SelectedIcon size={28} className="text-primary" />
                   )}
                 </div>
-                <span className="absolute bottom-1 right-1 h-4 w-4 rounded-full bg-[hsl(139_47%_44%)] border-[3px] border-white" />
+                <span className="absolute bottom-1 right-1 h-4 w-4 rounded-full bg-[hsl(139_47%_44%)] border-[3px] border-white dark:border-[hsl(220_8%_14%)]" />
               </div>
 
               {/* Name + tag */}
               <div className="mt-2 flex items-center gap-2 flex-wrap">
-                <h4 className="text-slate-900 font-bold text-lg leading-tight truncate">
+                <h4 className="text-slate-900 dark:text-white font-bold text-lg leading-tight truncate">
                   {displayName}
                 </h4>
                 <span className="text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-primary text-primary-foreground">
                   APP
                 </span>
               </div>
-              <div className="text-slate-500 text-xs mt-0.5">{displayTag}</div>
+              <div className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">{displayTag}</div>
 
               {/* Add App button */}
               <button
@@ -674,11 +674,11 @@ export const BotBuilder = () => {
 
               {/* Description */}
               {description && (
-                <div className="mt-3 rounded-md bg-primary/5 border border-primary/10 px-3 py-2">
-                  <div className="text-[10px] uppercase tracking-widest text-primary/80 font-semibold mb-1">
+                <div className="mt-3 rounded-md bg-primary/5 dark:bg-primary/10 border border-primary/10 dark:border-primary/20 px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-widest text-primary/80 dark:text-primary-glow font-semibold mb-1">
                     About
                   </div>
-                  <p className="text-slate-700 text-xs leading-relaxed whitespace-pre-wrap">
+                  <p className="text-slate-700 dark:text-slate-200 text-xs leading-relaxed whitespace-pre-wrap">
                     {description}
                   </p>
                 </div>
@@ -686,11 +686,11 @@ export const BotBuilder = () => {
 
               {/* Roles */}
               <div className="mt-3">
-                <div className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-1.5">
+                <div className="text-[10px] uppercase tracking-widest text-slate-500 dark:text-slate-400 font-semibold mb-1.5">
                   Roles
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-700 bg-primary/10 border border-primary/20 rounded-full px-2 py-0.5">
+                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-200 bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30 rounded-full px-2 py-0.5">
                     <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                     {selectedBase?.name}
                   </span>
@@ -700,7 +700,7 @@ export const BotBuilder = () => {
                     return (
                       <span
                         key={id}
-                        className="inline-flex items-center gap-1 text-[11px] text-slate-700 bg-primary/5 border border-primary/15 rounded-full px-2 py-0.5"
+                        className="inline-flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-200 bg-primary/5 dark:bg-primary/15 border border-primary/15 dark:border-primary/25 rounded-full px-2 py-0.5"
                       >
                         <span className="h-1.5 w-1.5 rounded-full bg-primary/70" />
                         {a.name}
@@ -708,7 +708,7 @@ export const BotBuilder = () => {
                     );
                   })}
                   {addons.length > 3 && (
-                    <span className="text-[11px] text-slate-500 px-2 py-0.5">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 px-2 py-0.5">
                       +{addons.length - 3}
                     </span>
                   )}
@@ -716,7 +716,7 @@ export const BotBuilder = () => {
               </div>
 
               {/* Fake message bar */}
-              <div className="mt-3 flex items-center gap-2 rounded-md bg-slate-100 px-3 h-9 text-slate-400 text-xs">
+              <div className="mt-3 flex items-center gap-2 rounded-md bg-slate-100 dark:bg-[hsl(220_8%_20%)] px-3 h-9 text-slate-400 dark:text-slate-500 text-xs">
                 <span className="flex-1 truncate">Message @{displayName}</span>
                 <Gift size={14} />
                 <Smile size={14} />
