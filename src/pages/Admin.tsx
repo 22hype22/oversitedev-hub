@@ -53,6 +53,7 @@ const plugins: Plugin[] = [
 const Admin = () => {
   const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
+  const [marketingShutdown, setMarketingShutdown] = useMarketingShutdown();
 
   useEffect(() => {
     if (loading) return;
