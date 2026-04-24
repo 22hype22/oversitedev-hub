@@ -25,6 +25,7 @@ import {
   CreditCard,
   ChevronLeft,
   ChevronRight,
+  Lock,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
@@ -674,7 +675,7 @@ export const Products = () => {
               <Card
                 key={s.id}
                 className={`relative p-7 flex flex-col transition-smooth ${
-                  s.popular
+                  s.popular && !suspended
                     ? "border-2 border-primary shadow-elegant scale-[1.02] bg-card"
                     : "border-border bg-card hover:border-primary/40"
                 }`}
@@ -682,13 +683,6 @@ export const Products = () => {
                 {s.popular && !suspended && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase bg-primary text-primary-foreground shadow-glow">
                     Popular
-                  </div>
-                )}
-                {suspended && (
-                  <div className="absolute inset-0 z-20 bg-destructive/70 backdrop-blur-[2px] rounded-lg flex items-center justify-center pointer-events-none">
-                    <span className="px-4 py-1.5 rounded-md border-2 border-destructive-foreground text-destructive-foreground uppercase tracking-[0.3em] font-bold text-xs">
-                      Suspended
-                    </span>
                   </div>
                 )}
                 <div className="text-center">
@@ -719,13 +713,22 @@ export const Products = () => {
                 </ul>
 
                 <Button
-                  variant={s.popular ? "hero" : "outlineGlow"}
+                  variant={s.popular && !suspended ? "hero" : "outlineGlow"}
                   className="w-full mt-7 rounded-full"
                   onClick={() => addSubscriptionToCart(s)}
                   disabled={suspended}
                 >
-                  <CreditCard className="h-4 w-4" />
-                  {suspended ? "Suspended" : "Purchase"}
+                  {suspended ? (
+                    <>
+                      <Lock className="h-4 w-4" />
+                      Purchases suspended
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-4 w-4" />
+                      Purchase
+                    </>
+                  )}
                 </Button>
               </Card>
             ))}
@@ -796,17 +799,10 @@ export const Products = () => {
                     emoji={p.emoji}
                     alt={p.name}
                   />
-                  {p.tag && !suspended && (
+                  {p.tag && (
                     <Badge className="absolute top-3 left-3 z-10 bg-primary text-primary-foreground hover:bg-primary">
                       {p.tag}
                     </Badge>
-                  )}
-                  {suspended && (
-                    <div className="absolute inset-0 z-20 bg-destructive/70 backdrop-blur-[2px] flex items-center justify-center">
-                      <span className="px-4 py-1.5 rounded-md border-2 border-destructive-foreground text-destructive-foreground uppercase tracking-[0.3em] font-bold text-xs">
-                        Suspended
-                      </span>
-                    </div>
                   )}
                 </div>
                 <div className="p-5 flex flex-col flex-1">
@@ -884,7 +880,8 @@ export const Products = () => {
 
                         {suspended ? (
                           <Button size="sm" variant="outline" disabled className="w-full">
-                            Suspended
+                            <Lock className="h-3.5 w-3.5" />
+                            Purchases suspended
                           </Button>
                         ) : p.isAvailable === false ? (
                           <Button size="sm" variant="outline" disabled className="w-full">
