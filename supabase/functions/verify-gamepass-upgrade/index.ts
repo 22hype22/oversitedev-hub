@@ -107,12 +107,43 @@ Deno.serve(async (req) => {
       .eq("status", "pending")
       .eq("purchase_type", "upgrade");
 
-    // Bump the user's purchase row to the new version.
+    // Bump the user's purchase row to the new version — but only if the caller
+    // is authenticated AND owns that purchase row. Without this check, anyone
+    // who owns the upgrade gamepass could supply an arbitrary purchase UUID
+    // and bump someone else's row.
     if (parentPurchaseId) {
-      await supabase
-        .from("purchases")
-        .update({ version: product.current_version })
-        .eq("id", parentPurchaseId);
+      const authHeader = req.headers.get("Authorization") ?? "";
+      const token = authHeader.toLowerCase().startsWith("bearer ")
+        ? authHeader.slice(7).trim()
+        : "";
+      let callerUserId: string | null = null;
+      if (token) {
+        const { data: userData } = await supabase.auth.getUser(token);
+        callerUserId = userData?.user?.id ?? null;
+      }
+
+      if (!callerUserId) {
+        console.warn("upgrade: skipping purchase row bump — no authenticated caller");
+      } else {
+        const { data: ownedRow } = await supabase
+          .from("purchases")
+          .select("id")
+          .eq("id", parentPurchaseId)
+          .eq("user_id", callerUserId)
+          .maybeSingle();
+
+        if (ownedRow) {
+          await supabase
+            .from("purchases")
+            .update({ version: product.current_version })
+            .eq("id", parentPurchaseId)
+            .eq("user_id", callerUserId);
+        } else {
+          console.warn(
+            "upgrade: parentPurchaseId not owned by caller; skipping version bump",
+          );
+        }
+      }
     }
 
     // Return a download URL for the new version's file
