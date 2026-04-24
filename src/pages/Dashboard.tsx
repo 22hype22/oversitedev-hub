@@ -544,14 +544,19 @@ export default function Dashboard() {
                     <Button
                       variant="hero"
                       size="sm"
-                      onClick={() =>
+                      disabled={suspended}
+                      onClick={() => {
+                        if (suspended) {
+                          toast.error("Memberships are temporarily unavailable while Oversite Marketing is suspended.");
+                          return;
+                        }
                         setMembershipCheckoutItems([
                           { priceId: "oversite_pro_monthly", quantity: 1 },
-                        ])
-                      }
+                        ]);
+                      }}
                     >
                       <Sparkles size={14} className="mr-1.5" />
-                      Subscribe
+                      {suspended ? "Unavailable" : "Subscribe"}
                     </Button>
                   )}
                 </div>
