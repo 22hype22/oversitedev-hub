@@ -185,20 +185,28 @@ const Admin = () => {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <MarketingKillSwitch shutdown={marketingShutdown} onChange={setMarketingShutdown} />
-            <ResetPurchases />
-          </div>
-
           {marketingShutdown ? (
             <Card className="p-10 text-center border-dashed border-destructive/40 bg-destructive/5">
               <p className="text-sm text-muted-foreground">
-                Marketing management is currently disabled. Restore access above to manage products.
+                Marketing management is currently disabled. Restore access below to manage products.
               </p>
             </Card>
           ) : (
             <ProductManager userId={user.id} />
           )}
+
+          <div className="mt-10 pt-6 border-t border-border">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold tracking-tight text-destructive">Danger Zone</h3>
+              <p className="text-sm text-muted-foreground">
+                Destructive actions that affect the live storefront and customer data.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <MarketingKillSwitch shutdown={marketingShutdown} onChange={setMarketingShutdown} />
+              <ResetPurchases />
+            </div>
+          </div>
         </section>
       </div>
     </div>
