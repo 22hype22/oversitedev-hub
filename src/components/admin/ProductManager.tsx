@@ -454,6 +454,11 @@ export const ProductManager = ({ userId }: { userId: string }) => {
                           R$
                         </span>
                       )}
+                      {p.current_version && (
+                        <span className="text-[9px] font-semibold uppercase tracking-wider bg-secondary text-secondary-foreground border border-border rounded px-1.5 py-0.5">
+                          {p.current_version}
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-muted-foreground truncate">
                       ${Number(p.price).toFixed(2)}
