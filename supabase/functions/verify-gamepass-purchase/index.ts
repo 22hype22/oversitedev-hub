@@ -139,6 +139,44 @@ Deno.serve(async (req) => {
       .eq("roblox_user_id", buyerId)
       .eq("status", "pending");
 
+    // If the caller is signed in, save the verified Roblox username to their
+    // profile so the storefront can recognize ownership of gamepass purchases.
+    const authHeader = req.headers.get("authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const token = authHeader.slice(7);
+        const { data: userData } = await supabase.auth.getUser(token);
+        const uid = userData.user?.id;
+        if (uid) {
+          const { data: existingProfile } = await supabase
+            .from("profiles")
+            .select("id, roblox_username")
+            .eq("user_id", uid)
+            .maybeSingle();
+          if (existingProfile) {
+            if (
+              !existingProfile.roblox_username ||
+              existingProfile.roblox_username.toLowerCase() !==
+                canonicalName.toLowerCase()
+            ) {
+              await supabase
+                .from("profiles")
+                .update({ roblox_username: canonicalName })
+                .eq("user_id", uid);
+            }
+          } else {
+            await supabase.from("profiles").insert({
+              user_id: uid,
+              roblox_username: canonicalName,
+              discord_username: "",
+            });
+          }
+        }
+      } catch (e) {
+        console.error("profile link failed:", e);
+      }
+    }
+
     let downloadUrl: string | null = null;
     let downloadFileName: string | null = product.file_name ?? null;
 
