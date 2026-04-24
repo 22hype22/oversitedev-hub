@@ -51,6 +51,7 @@ import {
 } from "lucide-react";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
+import { UpgradeNotice } from "@/components/UpgradeNotice";
 import { getStripeEnvironment } from "@/lib/stripe";
 
 type Purchase = {
@@ -490,8 +491,12 @@ export default function Dashboard() {
                   </Button>
                 </div>
               ) : (
-                <ul className="divide-y divide-border">
-                  {purchases.map((p) => {
+                <>
+                  {!isMemberActive && (
+                    <UpgradeNotice className="mb-4" />
+                  )}
+                  <ul className="divide-y divide-border">
+                    {purchases.map((p) => {
                     const usd = p.amount_cents / 100;
                     const hasNewer =
                       !!p.latest_version &&
@@ -572,6 +577,7 @@ export default function Dashboard() {
                     );
                   })}
                 </ul>
+                </>
               )}
             </Card>
           </TabsContent>

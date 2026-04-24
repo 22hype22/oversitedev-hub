@@ -31,7 +31,9 @@ import { toast as sonnerToast } from "sonner";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
 import { useAuth } from "@/hooks/useAuth";
+import { useMembership } from "@/hooks/useMembership";
 import { useMarketingSuspended } from "@/components/SuspensionBanner";
+import { UpgradeNotice } from "@/components/UpgradeNotice";
 
 // Maps internal product/subscription IDs to Stripe price IDs (lookup keys)
 const PRICE_MAP: Record<string, string> = {
@@ -247,6 +249,7 @@ const ProductImage = ({
 
 export const Products = () => {
   const { user } = useAuth();
+  const { isMember } = useMembership();
   const suspended = useMarketingSuspended();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
@@ -820,6 +823,9 @@ export const Products = () => {
                       </div>
                     )}
                   </div>
+                  {!suspended && p.isAvailable !== false && !isMember && (
+                    <UpgradeNotice compact className="mt-3" />
+                  )}
                 </div>
               </Card>
             ))}
