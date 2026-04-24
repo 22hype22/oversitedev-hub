@@ -455,6 +455,13 @@ export const Products = () => {
                       Coming soon
                     </span>
                   </div>
+                  {suspended && (
+                    <div className="absolute inset-0 bg-destructive/70 backdrop-blur-[2px] flex items-center justify-center">
+                      <span className="px-5 py-2 rounded-md border-2 border-destructive-foreground text-destructive-foreground uppercase tracking-[0.3em] font-bold text-sm md:text-base">
+                        Suspended
+                      </span>
+                    </div>
+                  )}
                 </div>
               );
             })}
