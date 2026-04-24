@@ -52,11 +52,25 @@ export function AutoTranslator() {
   const originalsRef = useRef<WeakMap<Text, string>>(new WeakMap());
   const inFlightRef = useRef<Set<string>>(new Set());
   const debounceRef = useRef<number | null>(null);
+  // Bumped on every language change so the MutationObserver-driven pass
+  // ignores its own writes from the previous language.
+  const passIdRef = useRef(0);
+  // Tracks text nodes we've mutated so we don't treat translated text as the
+  // "original English" the next time the observer fires.
+  const mutatedRef = useRef<WeakSet<Text>>(new WeakSet());
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    passIdRef.current += 1;
     const cacheKey = (s: string) => `oversite-tr:${lang}:${s}`;
+
+    const setNodeValue = (node: Text, value: string) => {
+      if (node.nodeValue !== value) {
+        node.nodeValue = value;
+        mutatedRef.current.add(node);
+      }
+    };
 
     const collectTextNodes = (root: Node): CachedNode[] => {
       const out: CachedNode[] = [];
@@ -71,12 +85,14 @@ export function AutoTranslator() {
       let n: Node | null;
       while ((n = walker.nextNode())) {
         const tn = n as Text;
-        // Remember the *original English* text the first time we see this node.
-        if (!originalsRef.current.has(tn)) {
+        // Only learn the "original English" text from nodes we've never
+        // mutated. Otherwise switching from es → fr would treat the Spanish
+        // string as the source.
+        if (!originalsRef.current.has(tn) && !mutatedRef.current.has(tn)) {
           originalsRef.current.set(tn, tn.nodeValue ?? "");
         }
-        const original = originalsRef.current.get(tn)!;
-        if (isTranslatable(original)) {
+        const original = originalsRef.current.get(tn);
+        if (original && isTranslatable(original)) {
           out.push({ node: tn, original });
         }
       }
@@ -86,7 +102,7 @@ export function AutoTranslator() {
     const restoreToEnglish = () => {
       const all = collectTextNodes(document.body);
       for (const { node, original } of all) {
-        if (node.nodeValue !== original) node.nodeValue = original;
+        setNodeValue(node, original);
       }
     };
 
@@ -95,7 +111,7 @@ export function AutoTranslator() {
       for (const { node, original } of nodes) {
         const cached = localStorage.getItem(cacheKey(original));
         if (cached !== null) {
-          if (node.nodeValue !== cached) node.nodeValue = cached;
+          setNodeValue(node, cached);
         } else {
           if (!inFlightRef.current.has(original)) misses.add(original);
         }
@@ -111,6 +127,7 @@ export function AutoTranslator() {
       const chunks: string[][] = [];
       for (let i = 0; i < strings.length; i += 50) chunks.push(strings.slice(i, i + 50));
 
+      const startedPass = passIdRef.current;
       try {
         const results: Record<string, string> = {};
         for (const chunk of chunks) {
@@ -125,11 +142,13 @@ export function AutoTranslator() {
             try { localStorage.setItem(cacheKey(src), tr); } catch { /* quota */ }
           });
         }
+        // Bail if the user switched languages mid-flight
+        if (startedPass !== passIdRef.current) return;
         // Apply to currently visible nodes
         const all = collectTextNodes(document.body);
         for (const { node, original } of all) {
           const tr = results[original];
-          if (tr && node.nodeValue !== tr) node.nodeValue = tr;
+          if (tr) setNodeValue(node, tr);
         }
       } catch (e) {
         console.error("translate failed:", e);
