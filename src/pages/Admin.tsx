@@ -25,6 +25,7 @@ import {
 
 import { ProductManager } from "@/components/admin/ProductManager";
 import { MarketingKillSwitch, useMarketingShutdown } from "@/components/admin/MarketingKillSwitch";
+import { ResetPurchases } from "@/components/admin/ResetPurchases";
 
 import { Card } from "@/components/ui/card";
 
