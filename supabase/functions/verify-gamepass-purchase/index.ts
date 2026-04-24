@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
 
     // 4. Verify ownership directly via Roblox inventory instead of group sales.
     const ownershipRes = await fetch(
-      `https://inventory.roblox.com/v1/users/${buyerId}/items/GamePass/${product.gamepass_id}/is-owned`,
+      `https://inventory.roblox.com/v1/users/${buyerId}/items/${GAMEPASS_ITEM_TYPE}/${product.gamepass_id}/is-owned`,
       {
         headers: {
           Cookie: `.ROBLOSECURITY=${cookie}`,
