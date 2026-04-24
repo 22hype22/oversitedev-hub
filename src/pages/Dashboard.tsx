@@ -104,7 +104,7 @@ export default function Dashboard() {
     const { data, error } = await supabase
       .from("purchases")
       .select(
-        "id,product_name,amount_cents,currency,status,created_at,file_url,file_name,environment",
+        "id,product_id,product_name,amount_cents,currency,status,created_at,file_url,file_name,environment,version",
       )
       .or(filters.join(","))
       .eq("status", "paid")
