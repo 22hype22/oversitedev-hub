@@ -392,6 +392,7 @@ export type Database = {
         Row: {
           category: string | null
           created_at: string | null
+          current_version: string | null
           description: string | null
           emoji: string | null
           gamepass_id: string | null
@@ -408,6 +409,7 @@ export type Database = {
         Insert: {
           category?: string | null
           created_at?: string | null
+          current_version?: string | null
           description?: string | null
           emoji?: string | null
           gamepass_id?: string | null
@@ -424,6 +426,7 @@ export type Database = {
         Update: {
           category?: string | null
           created_at?: string | null
+          current_version?: string | null
           description?: string | null
           emoji?: string | null
           gamepass_id?: string | null
