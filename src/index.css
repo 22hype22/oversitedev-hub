@@ -135,8 +135,17 @@
     @apply border-border;
   }
 
+  html {
+    @apply bg-background text-foreground;
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground font-sans antialiased min-h-screen;
     font-family: 'Inter', system-ui, sans-serif;
   }
 
