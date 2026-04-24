@@ -140,10 +140,31 @@ Deno.serve(async (req) => {
       .eq("status", "pending");
 
     let downloadUrl: string | null = null;
-    if (product.file_url) {
+    let downloadFileName: string | null = product.file_name ?? null;
+
+    // Resolve the file for this purchase: prefer the snapshot row matching the
+    // product's current version (so future updates don't auto-bump this buyer);
+    // fall back to the live `products.file_url`.
+    let filePath: string | null = product.file_url ?? null;
+    if (product.current_version) {
+      const { data: vRow } = await supabase
+        .from("product_versions")
+        .select("file_url, file_name")
+        .eq("product_id", product.id)
+        .eq("version", product.current_version)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (vRow?.file_url) {
+        filePath = vRow.file_url;
+        downloadFileName = vRow.file_name ?? downloadFileName;
+      }
+    }
+
+    if (filePath) {
       const { data: signed, error: signErr } = await supabase.storage
         .from("product-files")
-        .createSignedUrl(product.file_url, 60 * 10);
+        .createSignedUrl(filePath, 60 * 10);
       if (signErr) console.error("Sign URL failed:", signErr);
       else downloadUrl = signed?.signedUrl ?? null;
     }
