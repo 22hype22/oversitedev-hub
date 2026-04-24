@@ -56,6 +56,53 @@
     --sidebar-ring: 205 95% 55%;
   }
 
+  .dark {
+    --background: 220 15% 10%;
+    --foreground: 210 20% 95%;
+
+    --card: 220 14% 14%;
+    --card-foreground: 210 20% 95%;
+
+    --popover: 220 14% 14%;
+    --popover-foreground: 210 20% 95%;
+
+    /* Keep the blue primary identical to light */
+    --primary: 205 95% 55%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 195 95% 70%;
+
+    --secondary: 220 14% 18%;
+    --secondary-foreground: 210 20% 95%;
+
+    --muted: 220 14% 18%;
+    --muted-foreground: 215 15% 65%;
+
+    --accent: 205 60% 22%;
+    --accent-foreground: 210 20% 95%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 12% 22%;
+    --input: 220 12% 22%;
+    --ring: 205 95% 55%;
+
+    --gradient-hero: radial-gradient(ellipse at top, hsl(205 95% 55% / 0.25), transparent 60%), linear-gradient(180deg, hsl(220 15% 10%), hsl(220 15% 8%));
+    --gradient-card: linear-gradient(180deg, hsl(220 14% 14%), hsl(220 14% 12%));
+
+    --shadow-glow: 0 0 40px hsl(var(--primary) / 0.35);
+    --shadow-elegant: 0 20px 60px -20px hsl(0 0% 0% / 0.6);
+
+    --sidebar-background: 220 14% 14%;
+    --sidebar-foreground: 210 20% 95%;
+    --sidebar-primary: 205 95% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 18%;
+    --sidebar-accent-foreground: 210 20% 95%;
+    --sidebar-border: 220 12% 22%;
+    --sidebar-ring: 205 95% 55%;
+  }
+
   /* Light purple theme override — applied on the Products route */
   .theme-orange {
     --primary: 270 75% 65%;

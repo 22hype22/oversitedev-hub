@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
@@ -21,6 +22,8 @@ import {
   KeyRound,
   Trash2,
   ExternalLink,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 type Purchase = {
@@ -57,6 +60,7 @@ const formatDate = (iso: string) =>
 export default function Dashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
 
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [purchasesLoading, setPurchasesLoading] = useState(true);
@@ -78,24 +82,31 @@ export default function Dashboard() {
     if (!loading && !user) navigate("/auth");
   }, [user, loading, navigate]);
 
+  const loadPurchases = async () => {
+    if (!user) return;
+    setPurchasesLoading(true);
+    // Match by user_id OR by email (covers purchases made before the trigger linked them)
+    const filters = [`user_id.eq.${user.id}`];
+    if (user.email) filters.push(`email.eq.${user.email.toLowerCase()}`);
+    const { data, error } = await supabase
+      .from("purchases")
+      .select(
+        "id,product_name,amount_cents,currency,status,created_at,file_url,file_name,environment",
+      )
+      .or(filters.join(","))
+      .order("created_at", { ascending: false });
+    if (error) {
+      toast.error("Couldn't load your purchases");
+    } else {
+      setPurchases((data as Purchase[]) ?? []);
+    }
+    setPurchasesLoading(false);
+  };
+
   useEffect(() => {
     if (!user) return;
     setNewEmail(user.email ?? "");
-
-    (async () => {
-      setPurchasesLoading(true);
-      const { data, error } = await supabase
-        .from("purchases")
-        .select("id,product_name,amount_cents,currency,status,created_at,file_url,file_name,environment")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (error) {
-        toast.error("Couldn't load your purchases");
-      } else {
-        setPurchases((data as Purchase[]) ?? []);
-      }
-      setPurchasesLoading(false);
-    })();
+    loadPurchases();
 
     (async () => {
       setProfileLoading(true);
@@ -113,6 +124,7 @@ export default function Dashboard() {
       }
       setProfileLoading(false);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const saveProfile = async () => {
@@ -215,16 +227,21 @@ export default function Dashboard() {
           {/* PURCHASES */}
           <TabsContent value="purchases" className="space-y-4">
             <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
                 <div>
                   <h2 className="font-semibold">Your purchases</h2>
                   <p className="text-sm text-muted-foreground">
-                    {completedCount} completed
+                    {purchases.length} total · {completedCount} completed
                   </p>
                 </div>
-                <Button asChild variant="outline" size="sm">
-                  <Link to="/products">Browse products</Link>
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={loadPurchases} variant="outline" size="sm">
+                    Refresh
+                  </Button>
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/products">Browse products</Link>
+                  </Button>
+                </div>
               </div>
 
               {purchasesLoading ? (
@@ -247,7 +264,7 @@ export default function Dashboard() {
                       className="py-4 flex items-center justify-between gap-4"
                     >
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium truncate">{p.product_name}</p>
                           <Badge
                             variant={p.status === "paid" ? "default" : "secondary"}
@@ -286,8 +303,99 @@ export default function Dashboard() {
             </Card>
           </TabsContent>
 
-          {/* SETTINGS */}
+          {/* SETTINGS — appearance only for now */}
           <TabsContent value="settings" className="space-y-4">
+            <Card className="p-6 space-y-4">
+              <div>
+                <h2 className="font-semibold">Appearance</h2>
+                <p className="text-sm text-muted-foreground">
+                  Choose how Oversite looks. Your choice is saved to this device.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 max-w-sm">
+                <button
+                  onClick={() => setTheme("light")}
+                  className={`group relative flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-smooth ${
+                    theme === "light"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/40"
+                  }`}
+                  aria-pressed={theme === "light"}
+                >
+                  <Sun size={20} className="text-primary" />
+                  <span className="text-sm font-medium">Light</span>
+                  {theme === "light" && (
+                    <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setTheme("dark")}
+                  className={`group relative flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-smooth ${
+                    theme === "dark"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/40"
+                  }`}
+                  aria-pressed={theme === "dark"}
+                >
+                  <Moon size={20} className="text-primary" />
+                  <span className="text-sm font-medium">Dark</span>
+                  {theme === "dark" && (
+                    <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
+                  )}
+                </button>
+              </div>
+            </Card>
+          </TabsContent>
+
+          {/* PRIVACY — profile + email + password + data */}
+          <TabsContent value="privacy" className="space-y-4">
+            <Card className="p-6 space-y-4">
+              <div>
+                <h2 className="font-semibold flex items-center gap-2">
+                  <Shield size={16} /> Your information
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  This is what you shared with us at sign-up. Update anything that's misspelled or out of date — only you can see it.
+                </p>
+              </div>
+
+              {profileLoading ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="roblox">Roblox username</Label>
+                    <Input
+                      id="roblox"
+                      value={robloxUsername}
+                      onChange={(e) => setRobloxUsername(e.target.value)}
+                      maxLength={50}
+                      placeholder="YourRobloxName"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="discord">Discord username</Label>
+                    <Input
+                      id="discord"
+                      value={discordUsername}
+                      onChange={(e) => setDiscordUsername(e.target.value)}
+                      maxLength={50}
+                      placeholder="yourdiscordhandle"
+                    />
+                  </div>
+                  <Button
+                    onClick={saveProfile}
+                    disabled={savingProfile}
+                    size="sm"
+                  >
+                    {savingProfile ? "Saving…" : "Save changes"}
+                  </Button>
+                </>
+              )}
+            </Card>
+
             <Card className="p-6 space-y-4">
               <div>
                 <h2 className="font-semibold flex items-center gap-2">
@@ -358,6 +466,18 @@ export default function Dashboard() {
 
             <Card className="p-6 space-y-3">
               <div>
+                <h2 className="font-semibold">Data & privacy</h2>
+                <p className="text-sm text-muted-foreground">
+                  We never sell, share, or spam. Your info is only used to fulfill your orders and provide support.
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Account ID: <span className="font-mono">{user.id.slice(0, 8)}…</span>
+                </p>
+              </div>
+            </Card>
+
+            <Card className="p-6 space-y-3">
+              <div>
                 <h2 className="font-semibold flex items-center gap-2">
                   <Trash2 size={16} /> Delete account
                 </h2>
@@ -370,64 +490,6 @@ export default function Dashboard() {
                   Contact support <ExternalLink size={12} className="ml-1.5" />
                 </Link>
               </Button>
-            </Card>
-          </TabsContent>
-
-          {/* PRIVACY / PROFILE */}
-          <TabsContent value="privacy" className="space-y-4">
-            <Card className="p-6 space-y-4">
-              <div>
-                <h2 className="font-semibold flex items-center gap-2">
-                  <Shield size={16} /> Your information
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  This is what you shared with us at sign-up. Update anything that's misspelled or out of date — only you can see it.
-                </p>
-              </div>
-
-              {profileLoading ? (
-                <p className="text-sm text-muted-foreground">Loading…</p>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="roblox">Roblox username</Label>
-                    <Input
-                      id="roblox"
-                      value={robloxUsername}
-                      onChange={(e) => setRobloxUsername(e.target.value)}
-                      maxLength={50}
-                      placeholder="YourRobloxName"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="discord">Discord username</Label>
-                    <Input
-                      id="discord"
-                      value={discordUsername}
-                      onChange={(e) => setDiscordUsername(e.target.value)}
-                      maxLength={50}
-                      placeholder="yourdiscordhandle"
-                    />
-                  </div>
-                  <Button
-                    onClick={saveProfile}
-                    disabled={savingProfile}
-                    size="sm"
-                  >
-                    {savingProfile ? "Saving…" : "Save changes"}
-                  </Button>
-                </>
-              )}
-            </Card>
-
-            <Card className="p-6 space-y-2">
-              <h2 className="font-semibold">Data & privacy</h2>
-              <p className="text-sm text-muted-foreground">
-                We never sell, share, or spam. Your info is only used to fulfill your orders and provide support.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Account ID: <span className="font-mono">{user.id.slice(0, 8)}…</span>
-              </p>
             </Card>
           </TabsContent>
         </Tabs>
