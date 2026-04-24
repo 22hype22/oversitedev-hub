@@ -71,6 +71,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pending_purchases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "public_products"
+            referencedColumns: ["id"]
+          },
         ]
       }
       products: {
@@ -238,6 +245,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "purchases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "public_products"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
@@ -263,7 +277,57 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_products: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          emoji: string | null
+          gamepass_id: string | null
+          gamepass_url: string | null
+          id: string | null
+          image_url: string | null
+          image_urls: string[] | null
+          is_available: boolean | null
+          name: string | null
+          price: number | null
+          price_robux: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          emoji?: string | null
+          gamepass_id?: string | null
+          gamepass_url?: string | null
+          id?: string | null
+          image_url?: string | null
+          image_urls?: string[] | null
+          is_available?: boolean | null
+          name?: string | null
+          price?: number | null
+          price_robux?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          emoji?: string | null
+          gamepass_id?: string | null
+          gamepass_url?: string | null
+          id?: string | null
+          image_url?: string | null
+          image_urls?: string[] | null
+          is_available?: boolean | null
+          name?: string | null
+          price?: number | null
+          price_robux?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
