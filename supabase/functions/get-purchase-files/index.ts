@@ -74,7 +74,7 @@ serve(async (req) => {
 
     const { data: rows, error } = await supabaseAdmin
       .from("purchases")
-      .select("id, product_name, file_url, file_name")
+      .select("id, product_id, product_name, file_url, file_name, version")
       .eq("stripe_session_id", sessionId);
 
     if (error) {
@@ -86,33 +86,53 @@ serve(async (req) => {
 
     const files = await Promise.all(
       (rows || []).map(async (row) => {
-        if (!row.file_url) {
-          return {
-            id: row.id,
-            productName: row.product_name,
-            fileName: null,
-            url: null,
-          };
+        // Resolve the file path for this purchase.
+        // Priority:
+        //   1. If the row has a recorded version + product_id, look up the
+        //      matching snapshot in product_versions (the version they paid for).
+        //   2. Otherwise fall back to the file_url stamped on the purchase
+        //      itself (legacy purchases / products without a version).
+        let filePath: string | null = null;
+        let resolvedFileName: string | null = row.file_name ?? null;
+
+        if (row.version && row.product_id) {
+          const { data: vRow } = await supabaseAdmin
+            .from("product_versions")
+            .select("file_url, file_name")
+            .eq("product_id", row.product_id)
+            .eq("version", row.version)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (vRow?.file_url) {
+            filePath = vRow.file_url;
+            resolvedFileName = vRow.file_name ?? resolvedFileName;
+          }
         }
-        const path = pathFromPublicUrl(row.file_url);
-        if (!path) {
+        if (!filePath && row.file_url) {
+          filePath = pathFromPublicUrl(row.file_url);
+        }
+
+        if (!filePath) {
           return {
             id: row.id,
             productName: row.product_name,
-            fileName: row.file_name,
+            fileName: resolvedFileName,
             url: null,
+            version: row.version ?? null,
           };
         }
         const { data: signed } = await supabaseAdmin.storage
           .from(FILE_BUCKET)
-          .createSignedUrl(path, SIGNED_URL_TTL, {
-            download: row.file_name || true,
+          .createSignedUrl(filePath, SIGNED_URL_TTL, {
+            download: resolvedFileName || true,
           });
         return {
           id: row.id,
           productName: row.product_name,
-          fileName: row.file_name,
+          fileName: resolvedFileName,
           url: signed?.signedUrl ?? null,
+          version: row.version ?? null,
         };
       }),
     );
