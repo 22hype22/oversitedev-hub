@@ -46,7 +46,12 @@ import {
   Clock,
   MessagesSquare,
   CreditCard,
+  Sparkles,
+  ArrowUpCircle,
 } from "lucide-react";
+import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
+import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
+import { getStripeEnvironment } from "@/lib/stripe";
 
 type Purchase = {
   id: string;
@@ -60,7 +65,18 @@ type Purchase = {
   file_name: string | null;
   environment: string;
   version: string | null;
+  // Resolved client-side
+  latest_version?: string | null;
+  upgrade_price?: number | null;
+  upgrade_price_robux?: number | null;
+  upgrade_gamepass_url?: string | null;
 };
+
+type Membership = {
+  status: string;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+} | null;
 
 type Profile = {
   id?: string;
