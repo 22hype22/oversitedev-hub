@@ -27,6 +27,7 @@ import { ProductManager } from "@/components/admin/ProductManager";
 import { MarketingKillSwitch, useMarketingShutdown } from "@/components/admin/MarketingKillSwitch";
 import { ResetPurchases } from "@/components/admin/ResetPurchases";
 import { AdminManager } from "@/components/admin/AdminManager";
+import { CategoryManager } from "@/components/admin/CategoryManager";
 
 const SUPER_ADMIN_EMAIL = "everant00@gmail.com";
 
@@ -195,7 +196,10 @@ const Admin = () => {
               </p>
             </Card>
           ) : (
-            <ProductManager userId={user.id} />
+            <div className="space-y-6">
+              <CategoryManager />
+              <ProductManager userId={user.id} />
+            </div>
           )}
 
           <div className="mt-10 pt-6 border-t border-border">
