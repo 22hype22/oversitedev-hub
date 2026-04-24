@@ -61,7 +61,7 @@ export const MarketingKillSwitch = () => {
         className={`p-5 border ${
           suspended
             ? "border-destructive/50 bg-destructive/5"
-            : "border-destructive/30 bg-destructive/5"
+            : "border-border"
         }`}
       >
         <div className="flex items-start sm:items-center justify-between gap-4 flex-col sm:flex-row">
