@@ -880,6 +880,6 @@ export const ProductManager = ({ userId }: { userId: string }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
