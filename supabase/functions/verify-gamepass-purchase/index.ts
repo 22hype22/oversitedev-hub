@@ -71,8 +71,7 @@ Deno.serve(async (req) => {
       return json({ error: "This product has no gamepass configured." }, 400);
     }
 
-    // 1. Resolve username -> Roblox userId AND fetch CSRF token in parallel
-    //    (these are independent calls, so doing them concurrently saves ~300-600ms).
+    // 1. Resolve username -> Roblox userId AND fetch CSRF token in parallel.
     const [userLookup, csrfRes] = await Promise.all([
       fetch("https://users.roblox.com/v1/usernames/users", {
         method: "POST",
@@ -91,12 +90,12 @@ Deno.serve(async (req) => {
     const userData = await userLookup.json();
     const robloxUser = userData?.data?.[0];
     if (!robloxUser?.id) {
-      return json({ error: `Roblox user "${username}" not found.` }, 404);
+      return json({ error: `Roblox user \"${username}\" not found.` }, 404);
     }
     const buyerId: number = robloxUser.id;
     const canonicalName: string = robloxUser.name || username;
 
-    // 2. Record/refresh pending purchase intent (fire-and-forget — don't block verification).
+    // 2. Record/refresh pending purchase intent.
     supabase.from("pending_purchases").insert({
       product_id: product.id,
       roblox_user_id: buyerId,
@@ -107,7 +106,7 @@ Deno.serve(async (req) => {
       if (error) console.error("pending_purchases insert failed:", error);
     });
 
-    // 3. Read recent group sales using the CSRF token we already fetched.
+    // 3. Ensure the Roblox session cookie is still valid.
     const csrfToken = csrfRes.headers.get("x-csrf-token");
     if (!csrfToken) {
       return json(
@@ -116,63 +115,30 @@ Deno.serve(async (req) => {
       );
     }
 
-    const cutoff = Date.now() - RECENT_WINDOW_MINUTES * 60 * 1000;
-    let cursor: string | undefined;
-    let matched = false;
-
-    pageLoop: for (let page = 0; page < SALES_PAGES_TO_SCAN; page++) {
-      const url = new URL(
-        `https://economy.roblox.com/v2/groups/${groupId}/transactions`,
-      );
-      url.searchParams.set("transactionType", "Sale");
-      url.searchParams.set("limit", "50");
-      if (cursor) url.searchParams.set("cursor", cursor);
-
-      const txRes = await fetch(url.toString(), {
+    // 4. Verify ownership directly via Roblox inventory instead of group sales.
+    const ownershipRes = await fetch(
+      `https://inventory.roblox.com/v1/users/${buyerId}/items/GamePass/${product.gamepass_id}/is-owned`,
+      {
         headers: {
           Cookie: `.ROBLOSECURITY=${cookie}`,
           "X-CSRF-TOKEN": csrfToken,
         },
-      });
+      },
+    );
 
-      if (txRes.status === 401 || txRes.status === 403) {
-        return json(
-          {
-            error:
-              "The bot account can't read group sales. Check that it's in the group with 'View group payouts' permission.",
-          },
-          502,
-        );
-      }
-      if (!txRes.ok) {
-        return json({ error: "Couldn't read recent group sales." }, 502);
-      }
-
-      const tx = await txRes.json();
-      const sales: any[] = tx?.data ?? [];
-
-      for (const sale of sales) {
-        const created = sale?.created ? Date.parse(sale.created) : 0;
-        if (created && created < cutoff) {
-          // Sales are returned newest-first; once we pass the window, stop.
-          break pageLoop;
-        }
-        const assetType = sale?.details?.type ?? sale?.assetType;
-        const assetId = sale?.details?.id ?? sale?.assetId;
-        const agentId = sale?.agent?.id;
-        if (
-          (assetType === "GamePass" || assetType === "Game Pass") &&
-          String(assetId) === String(product.gamepass_id) &&
-          Number(agentId) === buyerId
-        ) {
-          matched = true;
-          break pageLoop;
-        }
-      }
-
-      cursor = tx?.nextPageCursor;
-      if (!cursor) break;
+    if (ownershipRes.status === 401 || ownershipRes.status === 403) {
+      return json(
+        { error: "The Roblox bot session can't verify ownership right now. Please try again shortly." },
+        502,
+      );
     }
+    if (!ownershipRes.ok) {
+      const raw = await ownershipRes.text().catch(() => "");
+      console.error("ownership check failed:", ownershipRes.status, raw);
+      return json({ error: "Couldn't verify the gamepass purchase right now." }, 502);
+    }
+
+    const matched = await ownershipRes.json();
 
     if (!matched) {
       return json({
