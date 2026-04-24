@@ -39,9 +39,11 @@ export type Database = {
           gamepass_id: string
           id: string
           product_id: string
+          purchase_type: string
           roblox_user_id: number
           roblox_username: string
           status: string
+          version: string | null
         }
         Insert: {
           created_at?: string
@@ -49,9 +51,11 @@ export type Database = {
           gamepass_id: string
           id?: string
           product_id: string
+          purchase_type?: string
           roblox_user_id: number
           roblox_username: string
           status?: string
+          version?: string | null
         }
         Update: {
           created_at?: string
@@ -59,9 +63,11 @@ export type Database = {
           gamepass_id?: string
           id?: string
           product_id?: string
+          purchase_type?: string
           roblox_user_id?: number
           roblox_username?: string
           status?: string
+          version?: string | null
         }
         Relationships: [
           {
@@ -80,11 +86,54 @@ export type Database = {
           },
         ]
       }
+      product_versions: {
+        Row: {
+          created_at: string
+          file_name: string | null
+          file_url: string | null
+          id: string
+          product_id: string
+          version: string
+        }
+        Insert: {
+          created_at?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          product_id: string
+          version: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          product_id?: string
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_versions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_versions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "public_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category: string
           created_at: string
           created_by: string | null
+          current_version: string | null
           description: string | null
           emoji: string | null
           file_name: string | null
@@ -99,11 +148,16 @@ export type Database = {
           price: number
           price_robux: number | null
           updated_at: string
+          upgrade_gamepass_id: string | null
+          upgrade_gamepass_url: string | null
+          upgrade_price: number | null
+          upgrade_price_robux: number | null
         }
         Insert: {
           category?: string
           created_at?: string
           created_by?: string | null
+          current_version?: string | null
           description?: string | null
           emoji?: string | null
           file_name?: string | null
@@ -118,11 +172,16 @@ export type Database = {
           price?: number
           price_robux?: number | null
           updated_at?: string
+          upgrade_gamepass_id?: string | null
+          upgrade_gamepass_url?: string | null
+          upgrade_price?: number | null
+          upgrade_price_robux?: number | null
         }
         Update: {
           category?: string
           created_at?: string
           created_by?: string | null
+          current_version?: string | null
           description?: string | null
           emoji?: string | null
           file_name?: string | null
@@ -137,6 +196,10 @@ export type Database = {
           price?: number
           price_robux?: number | null
           updated_at?: string
+          upgrade_gamepass_id?: string | null
+          upgrade_gamepass_url?: string | null
+          upgrade_price?: number | null
+          upgrade_price_robux?: number | null
         }
         Relationships: []
       }
@@ -204,6 +267,7 @@ export type Database = {
           stripe_session_id: string
           updated_at: string
           user_id: string | null
+          version: string | null
         }
         Insert: {
           amount_cents?: number
@@ -220,6 +284,7 @@ export type Database = {
           stripe_session_id: string
           updated_at?: string
           user_id?: string | null
+          version?: string | null
         }
         Update: {
           amount_cents?: number
@@ -236,6 +301,7 @@ export type Database = {
           stripe_session_id?: string
           updated_at?: string
           user_id?: string | null
+          version?: string | null
         }
         Relationships: [
           {
@@ -253,6 +319,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_end: string | null
+          environment: string
+          id: string
+          price_id: string | null
+          product_id: string | null
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          environment?: string
+          id?: string
+          price_id?: string | null
+          product_id?: string | null
+          status: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          environment?: string
+          id?: string
+          price_id?: string | null
+          product_id?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
