@@ -314,12 +314,6 @@ export default function Dashboard() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-medium truncate">{p.product_name}</p>
-                            <Badge
-                              variant={p.status === "paid" ? "default" : "secondary"}
-                              className="text-[10px]"
-                            >
-                              {p.status}
-                            </Badge>
                             {p.environment === "sandbox" && (
                               <Badge variant="outline" className="text-[10px]">
                                 test
@@ -330,17 +324,14 @@ export default function Dashboard() {
                             {formatDate(p.created_at)} · {formatPrice(usd)}
                           </p>
                         </div>
-                        {p.file_url && p.status === "paid" ? (
-                          <Button asChild size="sm" variant="outline">
-                            <a
-                              href={p.file_url}
-                              download={p.file_name ?? undefined}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <Download size={14} className="mr-1.5" />
-                              Download
-                            </a>
+                        {p.file_url ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDownload(p)}
+                          >
+                            <Download size={14} className="mr-1.5" />
+                            Download
                           </Button>
                         ) : null}
                       </li>
