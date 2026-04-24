@@ -335,6 +335,11 @@ export default function Dashboard() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-medium truncate">{p.product_name}</p>
+                            {p.version && (
+                              <Badge variant="secondary" className="text-[10px] font-mono">
+                                {p.version}
+                              </Badge>
+                            )}
                             {p.environment === "sandbox" && (
                               <Badge variant="outline" className="text-[10px]">
                                 test
