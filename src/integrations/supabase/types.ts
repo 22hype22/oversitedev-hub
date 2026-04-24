@@ -261,8 +261,10 @@ export type Database = {
           file_name: string | null
           file_url: string | null
           id: string
+          parent_purchase_id: string | null
           product_id: string | null
           product_name: string
+          purchase_type: string
           status: string
           stripe_session_id: string
           updated_at: string
@@ -278,8 +280,10 @@ export type Database = {
           file_name?: string | null
           file_url?: string | null
           id?: string
+          parent_purchase_id?: string | null
           product_id?: string | null
           product_name: string
+          purchase_type?: string
           status?: string
           stripe_session_id: string
           updated_at?: string
@@ -295,8 +299,10 @@ export type Database = {
           file_name?: string | null
           file_url?: string | null
           id?: string
+          parent_purchase_id?: string | null
           product_id?: string | null
           product_name?: string
+          purchase_type?: string
           status?: string
           stripe_session_id?: string
           updated_at?: string
@@ -304,6 +310,13 @@ export type Database = {
           version?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "purchases_parent_purchase_id_fkey"
+            columns: ["parent_purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "purchases_product_id_fkey"
             columns: ["product_id"]
@@ -325,6 +338,7 @@ export type Database = {
           cancel_at_period_end: boolean
           created_at: string
           current_period_end: string | null
+          current_period_start: string | null
           environment: string
           id: string
           price_id: string | null
@@ -339,6 +353,7 @@ export type Database = {
           cancel_at_period_end?: boolean
           created_at?: string
           current_period_end?: string | null
+          current_period_start?: string | null
           environment?: string
           id?: string
           price_id?: string | null
@@ -353,6 +368,7 @@ export type Database = {
           cancel_at_period_end?: boolean
           created_at?: string
           current_period_end?: string | null
+          current_period_start?: string | null
           environment?: string
           id?: string
           price_id?: string | null
@@ -444,6 +460,10 @@ export type Database = {
       }
     }
     Functions: {
+      has_active_membership: {
+        Args: { _env?: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

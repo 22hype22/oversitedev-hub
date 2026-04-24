@@ -13,6 +13,10 @@ export interface CheckoutItem {
   amountCents?: number;
   currency?: string;
   quantity?: number;
+  // For upgrade purchases (paid version bumps)
+  purchaseType?: "initial" | "upgrade";
+  parentPurchaseId?: string;
+  upgradeToVersion?: string;
 }
 
 interface CheckoutDialogProps {

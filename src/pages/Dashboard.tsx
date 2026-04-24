@@ -46,7 +46,12 @@ import {
   Clock,
   MessagesSquare,
   CreditCard,
+  Sparkles,
+  ArrowUpCircle,
 } from "lucide-react";
+import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
+import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
+import { getStripeEnvironment } from "@/lib/stripe";
 
 type Purchase = {
   id: string;
@@ -60,7 +65,18 @@ type Purchase = {
   file_name: string | null;
   environment: string;
   version: string | null;
+  // Resolved client-side
+  latest_version?: string | null;
+  upgrade_price?: number | null;
+  upgrade_price_robux?: number | null;
+  upgrade_gamepass_url?: string | null;
 };
+
+type Membership = {
+  status: string;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+} | null;
 
 type Profile = {
   id?: string;
@@ -92,6 +108,17 @@ export default function Dashboard() {
 
   const [portalLoading, setPortalLoading] = useState(false);
 
+  // Membership + upgrade state
+  const [membership, setMembership] = useState<Membership>(null);
+  const [membershipCheckoutItems, setMembershipCheckoutItems] = useState<
+    CheckoutItem[] | null
+  >(null);
+  const [upgradeCheckout, setUpgradeCheckout] = useState<CheckoutItem[] | null>(null);
+  const [upgradeRobux, setUpgradeRobux] = useState<
+    | (RobuxPurchaseProduct & { parentPurchaseId: string; upgradeMode: true })
+    | null
+  >(null);
+
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
   }, [user, loading, navigate]);
@@ -111,29 +138,83 @@ export default function Dashboard() {
       .order("created_at", { ascending: false });
     if (error) {
       toast.error("Couldn't load your purchases");
-    } else {
-      setPurchases((data as Purchase[]) ?? []);
+      setPurchasesLoading(false);
+      return;
     }
+
+    const rows = (data as Purchase[]) ?? [];
+    const productIds = Array.from(
+      new Set(rows.map((r) => r.product_id).filter((x): x is string => !!x)),
+    );
+    let productMap = new Map<string, any>();
+    if (productIds.length > 0) {
+      const { data: prods } = await supabase
+        .from("public_products")
+        .select(
+          "id,current_version,upgrade_price,upgrade_price_robux,upgrade_gamepass_url",
+        )
+        .in("id", productIds);
+      productMap = new Map((prods || []).map((p: any) => [p.id, p]));
+    }
+    const enriched: Purchase[] = rows.map((r) => {
+      const p = r.product_id ? productMap.get(r.product_id) : null;
+      return {
+        ...r,
+        latest_version: p?.current_version ?? null,
+        upgrade_price: p?.upgrade_price ?? null,
+        upgrade_price_robux: p?.upgrade_price_robux ?? null,
+        upgrade_gamepass_url: p?.upgrade_gamepass_url ?? null,
+      };
+    });
+    setPurchases(enriched);
     setPurchasesLoading(false);
   };
 
+  const loadMembership = async () => {
+    if (!user) return;
+    const env = getStripeEnvironment();
+    const { data } = await supabase
+      .from("subscriptions")
+      .select("status,current_period_end,cancel_at_period_end")
+      .eq("user_id", user.id)
+      .eq("environment", env)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setMembership((data as Membership) ?? null);
+  };
+
+  const isMemberActive = (() => {
+    if (!membership) return false;
+    const periodEnd = membership.current_period_end
+      ? new Date(membership.current_period_end).getTime()
+      : null;
+    const future = !periodEnd || periodEnd > Date.now();
+    return (
+      (["active", "trialing", "past_due"].includes(membership.status) && future) ||
+      (membership.status === "canceled" && !!periodEnd && periodEnd > Date.now())
+    );
+  })();
+
   const handleDownload = async (p: Purchase) => {
-    // If this purchase recorded a version, try to download the snapshot file
-    // for that exact version (so updates don't auto-bump existing buyers).
+    // Members get the latest version of every product. Otherwise serve
+    // the exact version they paid for.
+    const targetVersion =
+      isMemberActive && p.latest_version ? p.latest_version : p.version;
+
     let path: string | null = null;
-    if (p.version && p.product_id) {
-      const { data: vRow } = await (supabase as any)
+    if (targetVersion && p.product_id) {
+      const { data: vRow } = await supabase
         .from("product_versions")
         .select("file_url")
         .eq("product_id", p.product_id)
-        .eq("version", p.version)
+        .eq("version", targetVersion)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (vRow?.file_url) path = vRow.file_url as string;
     }
     if (!path && p.file_url) {
-      // file_url may be either a full public URL or a storage path; normalize.
       path = p.file_url;
       const marker = "/product-files/";
       const idx = path.indexOf(marker);
@@ -153,10 +234,39 @@ export default function Dashboard() {
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
+  const startUpgradeStripe = (p: Purchase) => {
+    if (!p.product_id || !p.upgrade_price || !p.latest_version) return;
+    setUpgradeCheckout([
+      {
+        productId: p.product_id,
+        productName: `${p.product_name} — Upgrade to ${p.latest_version}`,
+        amountCents: Math.round(Number(p.upgrade_price) * 100),
+        currency: "usd",
+        quantity: 1,
+        purchaseType: "upgrade",
+        parentPurchaseId: p.id,
+        upgradeToVersion: p.latest_version,
+      },
+    ]);
+  };
+
+  const startUpgradeRobux = (p: Purchase) => {
+    if (!p.product_id || !p.upgrade_price_robux || !p.upgrade_gamepass_url) return;
+    setUpgradeRobux({
+      id: p.product_id,
+      name: `${p.product_name} — Upgrade to ${p.latest_version}`,
+      priceRobux: p.upgrade_price_robux,
+      gamepassUrl: p.upgrade_gamepass_url,
+      parentPurchaseId: p.id,
+      upgradeMode: true,
+    } as any);
+  };
+
   useEffect(() => {
     if (!user) return;
     setNewEmail(user.email ?? "");
     loadPurchases();
+    loadMembership();
 
     (async () => {
       setProfileLoading(true);
@@ -291,6 +401,64 @@ export default function Dashboard() {
 
           {/* PURCHASES */}
           <TabsContent value="purchases" className="space-y-4">
+            {/* Membership card */}
+            <Card className="p-6 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Sparkles size={16} className="text-primary" />
+                    <h2 className="font-semibold">Oversite Pro</h2>
+                    {isMemberActive ? (
+                      <Badge className="text-[10px]">
+                        {membership?.cancel_at_period_end ? "Ending soon" : "Active"}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px]">
+                        Not active
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {isMemberActive
+                      ? `You get the latest version of every product you've purchased — automatically. ${
+                          membership?.current_period_end
+                            ? `${
+                                membership?.cancel_at_period_end ? "Ends" : "Renews"
+                              } ${formatDate(membership.current_period_end)}.`
+                            : ""
+                        }`
+                      : "$9/month — instantly unlock the newest version of every product you own. Cancel anytime."}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {isMemberActive ? (
+                    <Button
+                      onClick={openCustomerPortal}
+                      disabled={portalLoading}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {portalLoading ? "Opening…" : "Manage"}
+                      <ExternalLink size={12} className="ml-1.5" />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="hero"
+                      size="sm"
+                      onClick={() =>
+                        setMembershipCheckoutItems([
+                          { priceId: "oversite_pro_monthly", quantity: 1 },
+                        ])
+                      }
+                    >
+                      <Sparkles size={14} className="mr-1.5" />
+                      Subscribe
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </Card>
+
             <Card className="p-6">
               <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
                 <div>
@@ -324,42 +492,82 @@ export default function Dashboard() {
               ) : (
                 <ul className="divide-y divide-border">
                   {purchases.map((p) => {
-                    // Stored amounts are in cents in their original currency.
-                    // Convert to USD baseline first, then formatPrice converts to user's preferred currency.
                     const usd = p.amount_cents / 100;
+                    const hasNewer =
+                      !!p.latest_version &&
+                      !!p.version &&
+                      p.latest_version !== p.version;
+                    const canStripeUpgrade =
+                      hasNewer && !!p.upgrade_price && p.upgrade_price > 0;
+                    const canRobuxUpgrade =
+                      hasNewer &&
+                      !!p.upgrade_price_robux &&
+                      !!p.upgrade_gamepass_url;
                     return (
-                      <li
-                        key={p.id}
-                        className="py-4 flex items-center justify-between gap-4"
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-medium truncate">{p.product_name}</p>
-                            {p.version && (
-                              <Badge variant="secondary" className="text-[10px] font-mono">
-                                {p.version}
-                              </Badge>
+                      <li key={p.id} className="py-4 space-y-2">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium truncate">{p.product_name}</p>
+                              {p.version && (
+                                <Badge variant="secondary" className="text-[10px] font-mono">
+                                  {p.version}
+                                </Badge>
+                              )}
+                              {hasNewer && !isMemberActive && (
+                                <Badge variant="outline" className="text-[10px] font-mono border-primary/40 text-primary">
+                                  ↑ {p.latest_version}
+                                </Badge>
+                              )}
+                              {isMemberActive && hasNewer && (
+                                <Badge className="text-[10px] font-mono">
+                                  Latest: {p.latest_version}
+                                </Badge>
+                              )}
+                              {p.environment === "sandbox" && (
+                                <Badge variant="outline" className="text-[10px]">
+                                  test
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {formatDate(p.created_at)} · {formatPrice(usd)}
+                            </p>
+                          </div>
+                          {(p.file_url || p.version) ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDownload(p)}
+                            >
+                              <Download size={14} className="mr-1.5" />
+                              Download
+                            </Button>
+                          ) : null}
+                        </div>
+                        {hasNewer && !isMemberActive && (canStripeUpgrade || canRobuxUpgrade) && (
+                          <div className="flex flex-wrap gap-2 pl-1">
+                            {canStripeUpgrade && (
+                              <Button
+                                size="sm"
+                                variant="hero"
+                                onClick={() => startUpgradeStripe(p)}
+                              >
+                                <ArrowUpCircle size={14} className="mr-1.5" />
+                                Upgrade for {formatPrice(Number(p.upgrade_price))}
+                              </Button>
                             )}
-                            {p.environment === "sandbox" && (
-                              <Badge variant="outline" className="text-[10px]">
-                                test
-                              </Badge>
+                            {canRobuxUpgrade && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => startUpgradeRobux(p)}
+                              >
+                                Upgrade · R$ {p.upgrade_price_robux?.toLocaleString()}
+                              </Button>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {formatDate(p.created_at)} · {formatPrice(usd)}
-                          </p>
-                        </div>
-                        {(p.file_url || p.version) ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDownload(p)}
-                          >
-                            <Download size={14} className="mr-1.5" />
-                            Download
-                          </Button>
-                        ) : null}
+                        )}
                       </li>
                     );
                   })}
@@ -367,6 +575,44 @@ export default function Dashboard() {
               )}
             </Card>
           </TabsContent>
+
+          {/* Membership checkout dialog */}
+          <CheckoutDialog
+            open={!!membershipCheckoutItems}
+            onOpenChange={(o) => {
+              if (!o) {
+                setMembershipCheckoutItems(null);
+                loadMembership();
+              }
+            }}
+            items={membershipCheckoutItems ?? []}
+            customerEmail={user.email ?? undefined}
+          />
+
+          {/* Upgrade checkout dialog */}
+          <CheckoutDialog
+            open={!!upgradeCheckout}
+            onOpenChange={(o) => {
+              if (!o) {
+                setUpgradeCheckout(null);
+                loadPurchases();
+              }
+            }}
+            items={upgradeCheckout ?? []}
+            customerEmail={user.email ?? undefined}
+          />
+
+          {/* Upgrade Robux dialog */}
+          <RobuxPurchaseDialog
+            open={!!upgradeRobux}
+            onOpenChange={(o) => {
+              if (!o) {
+                setUpgradeRobux(null);
+                loadPurchases();
+              }
+            }}
+            product={upgradeRobux}
+          />
 
           {/* SETTINGS */}
           <TabsContent value="settings" className="space-y-4">
