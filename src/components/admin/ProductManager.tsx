@@ -120,6 +120,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setAttachedFile(null);
     setPriceRobux(p.price_robux != null ? String(p.price_robux) : "");
     setGamepassUrl(p.gamepass_url ?? "");
+    setCurrentVersion(p.current_version ?? "");
     setOpen(true);
   };
 
