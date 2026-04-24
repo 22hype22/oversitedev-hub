@@ -32,6 +32,27 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          id: number
+          marketing_suspended: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: number
+          marketing_suspended?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: number
+          marketing_suspended?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -532,6 +553,10 @@ export type Database = {
           price: number | null
           price_robux: number | null
           updated_at: string | null
+          upgrade_gamepass_id: string | null
+          upgrade_gamepass_url: string | null
+          upgrade_price: number | null
+          upgrade_price_robux: number | null
         }
         Insert: {
           category?: string | null
@@ -549,6 +574,10 @@ export type Database = {
           price?: number | null
           price_robux?: number | null
           updated_at?: string | null
+          upgrade_gamepass_id?: string | null
+          upgrade_gamepass_url?: string | null
+          upgrade_price?: number | null
+          upgrade_price_robux?: number | null
         }
         Update: {
           category?: string | null
@@ -566,6 +595,10 @@ export type Database = {
           price?: number | null
           price_robux?: number | null
           updated_at?: string | null
+          upgrade_gamepass_id?: string | null
+          upgrade_gamepass_url?: string | null
+          upgrade_price?: number | null
+          upgrade_price_robux?: number | null
         }
         Relationships: []
       }
