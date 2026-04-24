@@ -350,7 +350,7 @@ export default function Dashboard() {
                             {formatDate(p.created_at)} · {formatPrice(usd)}
                           </p>
                         </div>
-                        {p.file_url ? (
+                        {(p.file_url || p.version) ? (
                           <Button
                             size="sm"
                             variant="outline"
