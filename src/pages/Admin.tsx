@@ -26,6 +26,9 @@ import {
 import { ProductManager } from "@/components/admin/ProductManager";
 import { MarketingKillSwitch, useMarketingShutdown } from "@/components/admin/MarketingKillSwitch";
 import { ResetPurchases } from "@/components/admin/ResetPurchases";
+import { AdminManager } from "@/components/admin/AdminManager";
+
+const SUPER_ADMIN_EMAIL = "everant00@gmail.com";
 
 import { Card } from "@/components/ui/card";
 
