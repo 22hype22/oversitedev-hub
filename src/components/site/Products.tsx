@@ -234,6 +234,7 @@ const ProductImage = ({
 
 export const Products = () => {
   const { user } = useAuth();
+  const suspended = useMarketingSuspended();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
   const [query, setQuery] = useState("");
