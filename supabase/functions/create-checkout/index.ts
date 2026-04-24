@@ -4,12 +4,10 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, createStripeClient } from "../_shared/stripe.ts";
 
 interface LineItemInput {
-  // Either provide a Stripe lookup key (legacy / pre-created prices)
   priceId?: string;
-  // OR provide dynamic pricing for a DB product
-  productId?: string; // uuid of a row in public.products
+  productId?: string;
   productName?: string;
-  amountCents?: number; // unit amount in cents
+  amountCents?: number;
   currency?: string;
   quantity?: number;
 }
@@ -19,6 +17,26 @@ const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
+const MAX_ITEMS = 20;
+const MAX_QUANTITY = 100;
+
+// Server-side determination of the active Stripe environment.
+// Prefer an explicit STRIPE_ENVIRONMENT secret; otherwise fall back based on
+// which API key is configured. The client cannot influence this value.
+function resolveStripeEnv(): StripeEnv {
+  const explicit = (Deno.env.get("STRIPE_ENVIRONMENT") || "").toLowerCase();
+  if (explicit === "live" || explicit === "sandbox") return explicit as StripeEnv;
+  if (Deno.env.get("STRIPE_LIVE_API_KEY")) return "live";
+  return "sandbox";
+}
+
+function badRequest(message: string) {
+  return new Response(JSON.stringify({ error: message }), {
+    status: 400,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -26,24 +44,22 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { items, customerEmail, returnUrl, environment } = body as {
+    const { items, customerEmail, returnUrl } = body as {
       items: LineItemInput[];
       customerEmail?: string;
       returnUrl?: string;
-      environment?: string;
     };
 
     if (!Array.isArray(items) || items.length === 0) {
-      return new Response(JSON.stringify({ error: "No items provided" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return badRequest("No items provided");
+    }
+    if (items.length > MAX_ITEMS) {
+      return badRequest("Too many items in cart");
     }
 
-    const env = ((environment || "sandbox") as StripeEnv);
+    const env = resolveStripeEnv();
     const stripe = createStripeClient(env);
 
-    // Resolve any lookup-key based items in one call
     const lookupKeys = items
       .map((i) => i.priceId)
       .filter((k): k is string => !!k);
@@ -61,30 +77,25 @@ serve(async (req) => {
     let hasOneTime = false;
 
     for (const it of items) {
+      const qty = it.quantity || 1;
+      if (!Number.isInteger(qty) || qty < 1 || qty > MAX_QUANTITY) {
+        return badRequest("Invalid item quantity");
+      }
       if (it.priceId) {
         if (!/^[a-zA-Z0-9_-]+$/.test(it.priceId)) {
-          return new Response(JSON.stringify({ error: "Invalid priceId" }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+          return badRequest("Invalid item");
         }
         const stripePrice = priceMap.get(it.priceId);
         if (!stripePrice) {
-          return new Response(
-            JSON.stringify({ error: `Price not found: ${it.priceId}` }),
-            { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
+          // Generic message — do not echo client-provided values back
+          return badRequest("One or more items are unavailable");
         }
         if (stripePrice.type === "recurring") hasRecurring = true;
         else hasOneTime = true;
-        lineItems.push({ price: stripePrice.id, quantity: it.quantity || 1 });
+        lineItems.push({ price: stripePrice.id, quantity: qty });
       } else if (it.productId && it.amountCents && it.productName) {
-        // Dynamic pricing for a DB product
         if (it.amountCents < 50) {
-          return new Response(
-            JSON.stringify({ error: `Amount too low for ${it.productName}` }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
+          return badRequest("Item amount too low");
         }
         hasOneTime = true;
         lineItems.push({
@@ -93,27 +104,19 @@ serve(async (req) => {
             product_data: { name: it.productName },
             unit_amount: it.amountCents,
           },
-          quantity: it.quantity || 1,
+          quantity: qty,
         });
       } else {
-        return new Response(JSON.stringify({ error: "Invalid line item" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return badRequest("Invalid line item");
       }
     }
 
     if (hasRecurring && hasOneTime) {
-      return new Response(
-        JSON.stringify({
-          error:
-            "Cannot mix subscriptions and one-time products in a single checkout. Please check out subscriptions separately.",
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      return badRequest(
+        "Cannot mix subscriptions and one-time products in a single checkout. Please check out subscriptions separately.",
       );
     }
 
-    // Build a compact list of DB product IDs to remember for fulfilment
     const productIds = items
       .map((i) => i.productId)
       .filter((p): p is string => !!p);
@@ -132,7 +135,6 @@ serve(async (req) => {
       },
     });
 
-    // Pre-create pending purchase rows for any DB products so we can fulfil later
     if (productIds.length > 0) {
       const { data: dbProducts } = await supabaseAdmin
         .from("products")
@@ -160,9 +162,11 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: (error as Error).message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // Log full detail server-side; return generic message to the client.
+    console.error("create-checkout failed:", error);
+    return new Response(
+      JSON.stringify({ error: "Checkout session could not be created. Please try again." }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 });
