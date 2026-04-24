@@ -61,7 +61,7 @@ export const Hero = () => {
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl">
             {[
               { value: "12K+", label: "Total members" },
-              { value: "150+", label: "Projects completed" },
+              { value: "23B", label: "Visits contributed too" },
               { value: "4.9/5", label: "Average review rating" },
             ].map((s) => (
               <div
