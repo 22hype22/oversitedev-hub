@@ -169,3 +169,13 @@
     animation-play-state: paused;
   }
 }
+
+/* When marketing is suspended, push the fixed navbar below the suspension banner */
+body.marketing-suspended header.fixed {
+  top: 52px;
+}
+@media (max-width: 640px) {
+  body.marketing-suspended header.fixed {
+    top: 72px;
+  }
+}
