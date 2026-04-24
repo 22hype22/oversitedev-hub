@@ -674,7 +674,7 @@ export const Products = () => {
               <Card
                 key={s.id}
                 className={`relative p-7 flex flex-col transition-smooth ${
-                  s.popular
+                  s.popular && !suspended
                     ? "border-2 border-primary shadow-elegant scale-[1.02] bg-card"
                     : "border-border bg-card hover:border-primary/40"
                 }`}
@@ -682,13 +682,6 @@ export const Products = () => {
                 {s.popular && !suspended && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase bg-primary text-primary-foreground shadow-glow">
                     Popular
-                  </div>
-                )}
-                {suspended && (
-                  <div className="absolute inset-0 z-20 bg-destructive/70 backdrop-blur-[2px] rounded-lg flex items-center justify-center pointer-events-none">
-                    <span className="px-4 py-1.5 rounded-md border-2 border-destructive-foreground text-destructive-foreground uppercase tracking-[0.3em] font-bold text-xs">
-                      Suspended
-                    </span>
                   </div>
                 )}
                 <div className="text-center">
