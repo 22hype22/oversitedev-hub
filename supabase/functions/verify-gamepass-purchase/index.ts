@@ -172,8 +172,9 @@ Deno.serve(async (req) => {
     return json({
       success: true,
       productName: product.name,
-      fileName: product.file_name,
+      fileName: downloadFileName,
       downloadUrl,
+      version: product.current_version ?? null,
     });
   } catch (e) {
     console.error("verify-gamepass-purchase error:", e);
