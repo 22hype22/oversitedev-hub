@@ -380,7 +380,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     (p.image_urls && p.image_urls[0]) || p.image_url || null;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+    <>
       {/* Upload Products card — same style as plugin tiles */}
       <Card
         onClick={() => setOpen(true)}
