@@ -284,6 +284,7 @@ export const Products = () => {
               isAvailable: available,
               priceRobux: p.price_robux ?? null,
               gamepassUrl: p.gamepass_url ?? null,
+              version: p.current_version ?? null,
             };
           }),
         );
