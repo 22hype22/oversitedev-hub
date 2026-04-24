@@ -196,8 +196,10 @@ const Admin = () => {
               </p>
             </Card>
           ) : (
-            <div className="space-y-6">
-              <CategoryManager />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
+                <CategoryManager />
+              </div>
               <ProductManager userId={user.id} />
             </div>
           )}
