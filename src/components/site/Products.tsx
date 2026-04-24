@@ -297,6 +297,7 @@ export const Products = () => {
             const available = p.is_available !== false;
             return {
               id: `custom-${p.id}`,
+              dbId: p.id,
               name: p.name,
               price: Number(p.price),
               category: (p.category === "Assets" ? "Assets" : "Systems") as "Systems" | "Assets",
@@ -309,6 +310,9 @@ export const Products = () => {
               priceRobux: p.price_robux ?? null,
               gamepassUrl: p.gamepass_url ?? null,
               version: p.current_version ?? null,
+              upgradePrice: p.upgrade_price ?? null,
+              upgradePriceRobux: p.upgrade_price_robux ?? null,
+              upgradeGamepassUrl: p.upgrade_gamepass_url ?? null,
             };
           }),
         );
