@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, X, Crown, Building2, Building, Sparkles } from "lucide-react";
+import { Check, X, Crown, Building2, Building, Sparkles, Lock } from "lucide-react";
+import { useMarketingSuspended } from "@/hooks/useMarketingSuspended";
 
 type Tier = {
   id: "franchise" | "corporation" | "enterprise";
