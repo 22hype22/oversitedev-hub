@@ -880,7 +880,8 @@ export const Products = () => {
 
                         {suspended ? (
                           <Button size="sm" variant="outline" disabled className="w-full">
-                            Suspended
+                            <Lock className="h-3.5 w-3.5" />
+                            Purchases suspended
                           </Button>
                         ) : p.isAvailable === false ? (
                           <Button size="sm" variant="outline" disabled className="w-full">
