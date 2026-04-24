@@ -50,6 +50,7 @@ import {
 
 type Purchase = {
   id: string;
+  product_id: string | null;
   product_name: string;
   amount_cents: number;
   currency: string;
@@ -58,6 +59,7 @@ type Purchase = {
   file_url: string | null;
   file_name: string | null;
   environment: string;
+  version: string | null;
 };
 
 type Profile = {
@@ -102,7 +104,7 @@ export default function Dashboard() {
     const { data, error } = await supabase
       .from("purchases")
       .select(
-        "id,product_name,amount_cents,currency,status,created_at,file_url,file_name,environment",
+        "id,product_id,product_name,amount_cents,currency,status,created_at,file_url,file_name,environment,version",
       )
       .or(filters.join(","))
       .eq("status", "paid")
@@ -116,12 +118,31 @@ export default function Dashboard() {
   };
 
   const handleDownload = async (p: Purchase) => {
-    if (!p.file_url) return;
-    // file_url may be either a full public URL or a storage path; normalize.
-    let path = p.file_url;
-    const marker = "/product-files/";
-    const idx = path.indexOf(marker);
-    if (idx !== -1) path = path.slice(idx + marker.length);
+    // If this purchase recorded a version, try to download the snapshot file
+    // for that exact version (so updates don't auto-bump existing buyers).
+    let path: string | null = null;
+    if (p.version && p.product_id) {
+      const { data: vRow } = await (supabase as any)
+        .from("product_versions")
+        .select("file_url")
+        .eq("product_id", p.product_id)
+        .eq("version", p.version)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (vRow?.file_url) path = vRow.file_url as string;
+    }
+    if (!path && p.file_url) {
+      // file_url may be either a full public URL or a storage path; normalize.
+      path = p.file_url;
+      const marker = "/product-files/";
+      const idx = path.indexOf(marker);
+      if (idx !== -1) path = path.slice(idx + marker.length);
+    }
+    if (!path) {
+      toast.error("No file is available for this purchase");
+      return;
+    }
     const { data, error } = await supabase.storage
       .from("product-files")
       .createSignedUrl(path, 60 * 10);
@@ -314,6 +335,11 @@ export default function Dashboard() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-medium truncate">{p.product_name}</p>
+                            {p.version && (
+                              <Badge variant="secondary" className="text-[10px] font-mono">
+                                {p.version}
+                              </Badge>
+                            )}
                             {p.environment === "sandbox" && (
                               <Badge variant="outline" className="text-[10px]">
                                 test
@@ -324,7 +350,7 @@ export default function Dashboard() {
                             {formatDate(p.created_at)} · {formatPrice(usd)}
                           </p>
                         </div>
-                        {p.file_url ? (
+                        {(p.file_url || p.version) ? (
                           <Button
                             size="sm"
                             variant="outline"

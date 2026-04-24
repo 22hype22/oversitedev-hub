@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
 
     const { data: product, error: productErr } = await supabase
       .from("products")
-      .select("id, name, gamepass_id, file_url, file_name, is_available")
+      .select("id, name, gamepass_id, file_url, file_name, is_available, current_version")
       .eq("id", dbId)
       .maybeSingle();
 
@@ -87,13 +87,14 @@ Deno.serve(async (req) => {
     const buyerId: number = robloxUser.id;
     const canonicalName: string = robloxUser.name || username;
 
-    // 2. Record/refresh pending purchase intent.
+    // 2. Record/refresh pending purchase intent (stamp the product's current version).
     supabase.from("pending_purchases").insert({
       product_id: product.id,
       roblox_user_id: buyerId,
       roblox_username: canonicalName,
       gamepass_id: product.gamepass_id,
       status: "pending",
+      version: product.current_version ?? null,
     }).then(({ error }) => {
       if (error) console.error("pending_purchases insert failed:", error);
     });
@@ -139,10 +140,31 @@ Deno.serve(async (req) => {
       .eq("status", "pending");
 
     let downloadUrl: string | null = null;
-    if (product.file_url) {
+    let downloadFileName: string | null = product.file_name ?? null;
+
+    // Resolve the file for this purchase: prefer the snapshot row matching the
+    // product's current version (so future updates don't auto-bump this buyer);
+    // fall back to the live `products.file_url`.
+    let filePath: string | null = product.file_url ?? null;
+    if (product.current_version) {
+      const { data: vRow } = await supabase
+        .from("product_versions")
+        .select("file_url, file_name")
+        .eq("product_id", product.id)
+        .eq("version", product.current_version)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (vRow?.file_url) {
+        filePath = vRow.file_url;
+        downloadFileName = vRow.file_name ?? downloadFileName;
+      }
+    }
+
+    if (filePath) {
       const { data: signed, error: signErr } = await supabase.storage
         .from("product-files")
-        .createSignedUrl(product.file_url, 60 * 10);
+        .createSignedUrl(filePath, 60 * 10);
       if (signErr) console.error("Sign URL failed:", signErr);
       else downloadUrl = signed?.signedUrl ?? null;
     }
@@ -150,8 +172,9 @@ Deno.serve(async (req) => {
     return json({
       success: true,
       productName: product.name,
-      fileName: product.file_name,
+      fileName: downloadFileName,
       downloadUrl,
+      version: product.current_version ?? null,
     });
   } catch (e) {
     console.error("verify-gamepass-purchase error:", e);
