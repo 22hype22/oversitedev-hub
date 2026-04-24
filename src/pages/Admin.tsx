@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 
 import { ProductManager } from "@/components/admin/ProductManager";
+import { MarketingKillSwitch, useMarketingShutdown } from "@/components/admin/MarketingKillSwitch";
 
 import { Card } from "@/components/ui/card";
 
@@ -52,6 +53,7 @@ const plugins: Plugin[] = [
 const Admin = () => {
   const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
+  const [marketingShutdown, setMarketingShutdown] = useMarketingShutdown();
 
   useEffect(() => {
     if (loading) return;
@@ -182,7 +184,17 @@ const Admin = () => {
             </div>
           </div>
 
-          <ProductManager userId={user.id} />
+          <MarketingKillSwitch shutdown={marketingShutdown} onChange={setMarketingShutdown} />
+
+          {marketingShutdown ? (
+            <Card className="p-10 text-center border-dashed border-destructive/40 bg-destructive/5">
+              <p className="text-sm text-muted-foreground">
+                Marketing management is currently disabled. Restore access above to manage products.
+              </p>
+            </Card>
+          ) : (
+            <ProductManager userId={user.id} />
+          )}
         </section>
       </div>
     </div>
