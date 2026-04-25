@@ -300,6 +300,25 @@ export const ProductManager = ({ userId }: { userId: string }) => {
       const trimmedVersion = currentVersion.trim() || null;
 
       if (editingId) {
+        // If admin typed an existing version without uploading a new file,
+        // reuse the previously stored file for that version.
+        let reusedFileUrl: string | null = null;
+        let reusedFileName: string | null = null;
+        if (!attachedFile && trimmedVersion) {
+          const { data: existingVersion } = await (supabase as any)
+            .from("product_versions")
+            .select("file_url, file_name")
+            .eq("product_id", editingId)
+            .eq("version", trimmedVersion)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (existingVersion?.file_url) {
+            reusedFileUrl = existingVersion.file_url;
+            reusedFileName = existingVersion.file_name;
+          }
+        }
+
         // Always persist the current ordered media list (existing + new uploads),
         // so reorders and removals are saved.
         const updatePayload: TablesUpdate<"products"> = {
@@ -319,6 +338,9 @@ export const ProductManager = ({ userId }: { userId: string }) => {
         if (attachedFile) {
           updatePayload.file_url = fileUrl;
           updatePayload.file_name = fileName;
+        } else if (reusedFileUrl) {
+          updatePayload.file_url = reusedFileUrl;
+          updatePayload.file_name = reusedFileName;
         }
         const { error: updateError } = await supabase
           .from("products")
