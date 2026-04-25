@@ -914,6 +914,7 @@ export const Products = () => {
                                 aria-label={`Upgrade for $${Number(p.upgradePrice).toFixed(2)}`}
                               >
                                 <CreditCard className="h-4 w-4" />
+                                Upgrade ${Number(p.upgradePrice).toFixed(2)}
                               </Button>
                             )}
                             {canUpgradeRobux && (
@@ -929,6 +930,7 @@ export const Products = () => {
                                 >
                                   R$
                                 </span>
+                                Upgrade R$ {p.upgradePriceRobux!.toLocaleString()}
                               </Button>
                             )}
                           </div>
