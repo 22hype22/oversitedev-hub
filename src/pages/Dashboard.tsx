@@ -62,6 +62,7 @@ import {
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
+import { compareVersions } from "@/lib/utils";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useMarketingSuspended } from "@/hooks/useMarketingSuspended";
 
@@ -613,7 +614,7 @@ export default function Dashboard() {
                       const hasNewer =
                         !!p.latest_version &&
                         !!p.version &&
-                        p.latest_version !== p.version;
+                        compareVersions(p.latest_version, p.version) > 0;
                       const canStripeUpgrade =
                         hasNewer && !!p.upgrade_price && p.upgrade_price > 0;
                       const canRobuxUpgrade = hasNewer;

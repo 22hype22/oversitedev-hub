@@ -46,6 +46,7 @@ import { useMembership } from "@/hooks/useMembership";
 import { useUserPurchases } from "@/hooks/useUserPurchases";
 import { useMarketingSuspended } from "@/components/SuspensionBanner";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
+import { compareVersions } from "@/lib/utils";
 
 // Maps internal product/subscription IDs to Stripe price IDs (lookup keys)
 const PRICE_MAP: Record<string, string> = {
@@ -840,7 +841,7 @@ export const Products = () => {
                       isOwned &&
                       !!p.version &&
                       !!ownedRow!.version &&
-                      p.version !== ownedRow!.version;
+                      compareVersions(p.version, ownedRow!.version) > 0;
                     const canUpgradeStripe =
                       hasNewer && !!p.upgradePrice && p.upgradePrice > 0;
                     const canUpgradeRobux = hasNewer;
