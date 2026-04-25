@@ -216,19 +216,25 @@ export default function Dashboard() {
       const { data: prods } = await supabase
         .from("public_products")
         .select(
-          "id,current_version,upgrade_price,upgrade_price_robux,upgrade_gamepass_url",
+          "id,current_version,price,price_robux,gamepass_url,upgrade_price,upgrade_price_robux,upgrade_gamepass_url",
         )
         .in("id", productIds);
       productMap = new Map((prods || []).map((p: any) => [p.id, p]));
     }
     const enriched: Purchase[] = rows.map((r) => {
       const p = r.product_id ? productMap.get(r.product_id) : null;
+      const fallbackPrice =
+        p?.upgrade_price && Number(p.upgrade_price) > 0
+          ? Number(p.upgrade_price)
+          : p?.price != null
+          ? Number(p.price)
+          : null;
       return {
         ...r,
         latest_version: p?.current_version ?? null,
-        upgrade_price: p?.upgrade_price ?? null,
-        upgrade_price_robux: p?.upgrade_price_robux ?? null,
-        upgrade_gamepass_url: p?.upgrade_gamepass_url ?? null,
+        upgrade_price: fallbackPrice,
+        upgrade_price_robux: p?.upgrade_price_robux ?? p?.price_robux ?? null,
+        upgrade_gamepass_url: p?.upgrade_gamepass_url ?? p?.gamepass_url ?? null,
       };
     });
     setPurchases(enriched);
