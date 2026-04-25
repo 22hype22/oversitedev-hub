@@ -592,17 +592,6 @@ export const ProductManager = ({ userId }: { userId: string }) => {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="prod-emoji">Emoji (fallback icon if no images)</Label>
-              <Input
-                id="prod-emoji"
-                placeholder="📦"
-                value={emoji}
-                onChange={(e) => setEmoji(e.target.value)}
-                maxLength={4}
-              />
-            </div>
-
-            <div className="space-y-1.5">
               <Label htmlFor="prod-desc">Description</Label>
               <Textarea
                 id="prod-desc"
