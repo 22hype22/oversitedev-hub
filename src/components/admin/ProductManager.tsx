@@ -54,10 +54,6 @@ const isVideoFile = (file: File) => file.type.startsWith("video/");
 // (Roughly tracks the Roblox Premium payout rate of ~80 R$ per $1.)
 const ROBUX_PER_USD = 80;
 
-const extractGamepassId = (url: string): string | null => {
-  const m = url.match(/game-pass\/(\d+)/i) || url.match(/gamepasses?\/(\d+)/i);
-  return m?.[1] ?? null;
-};
 
 type MediaItem =
   | { kind: "existing"; url: string; id: string }
@@ -86,7 +82,6 @@ export const ProductManager = ({ userId }: { userId: string }) => {
   const [isAvailable, setIsAvailable] = useState(true);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [priceRobux, setPriceRobux] = useState("");
-  const [gamepassUrl, setGamepassUrl] = useState("");
   const [currentVersion, setCurrentVersion] = useState("");
 
   const resetForm = () => {
@@ -100,7 +95,6 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setIsAvailable(true);
     setAttachedFile(null);
     setPriceRobux("");
-    setGamepassUrl("");
     setCurrentVersion("");
   };
 
@@ -120,7 +114,6 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setIsAvailable(p.is_available);
     setAttachedFile(null);
     setPriceRobux(p.price_robux != null ? String(p.price_robux) : "");
-    setGamepassUrl(p.gamepass_url ?? "");
     setCurrentVersion(p.current_version ?? "");
     setOpen(true);
   };
@@ -258,14 +251,50 @@ export const ProductManager = ({ userId }: { userId: string }) => {
       if (priceRobux.trim() && (robuxNum === null || isNaN(robuxNum) || robuxNum < 0)) {
         throw new Error("Robux price must be a non-negative whole number.");
       }
-      let trimmedGamepass = gamepassUrl.trim();
-      // Auto-prepend https:// if the user pasted "www.roblox.com/..." without a protocol.
-      if (trimmedGamepass && !/^https?:\/\//i.test(trimmedGamepass)) {
-        trimmedGamepass = `https://${trimmedGamepass.replace(/^\/+/, "")}`;
-      }
-      const gamepassId = trimmedGamepass ? extractGamepassId(trimmedGamepass) : null;
-      if (trimmedGamepass && !gamepassId) {
-        throw new Error("Couldn't read a gamepass ID from that URL. It should look like https://www.roblox.com/game-pass/12345678/...");
+      // Auto-create or auto-update the Roblox gamepass when a Robux price is set.
+      // The edge function uses ROBLOX_COOKIE to create/update the pass on our game.
+      // Determine current gamepass id (for edits) so we can decide create vs update.
+      const existingProduct = editingId
+        ? products.find((p) => p.id === editingId)
+        : null;
+      let gamepassId: string | null = existingProduct?.gamepass_id ?? null;
+      let gamepassUrl: string | null = existingProduct?.gamepass_url ?? null;
+
+      if (robuxNum !== null && robuxNum > 0) {
+        const coverImage = finalUrls[0];
+        if (!coverImage) {
+          throw new Error("Add at least one product image — it's used as the gamepass icon.");
+        }
+
+        if (!gamepassId) {
+          // Create new gamepass.
+          const { data, error } = await supabase.functions.invoke("manage-roblox-gamepass", {
+            body: {
+              action: "create",
+              name: name.trim(),
+              priceRobux: robuxNum,
+              iconUrl: coverImage,
+            },
+          });
+          if (error) throw new Error(`Couldn't create Roblox gamepass: ${error.message}`);
+          if (!data?.gamepassId) throw new Error("Roblox gamepass create returned no id");
+          gamepassId = String(data.gamepassId);
+          gamepassUrl = String(data.gamepassUrl ?? `https://www.roblox.com/game-pass/${gamepassId}/`);
+        } else if (existingProduct && existingProduct.price_robux !== robuxNum) {
+          // Price changed — sync to Roblox.
+          const { error } = await supabase.functions.invoke("manage-roblox-gamepass", {
+            body: {
+              action: "update_price",
+              gamepassId,
+              priceRobux: robuxNum,
+            },
+          });
+          if (error) throw new Error(`Couldn't update Roblox gamepass price: ${error.message}`);
+        }
+      } else {
+        // No Robux price — clear gamepass linkage.
+        gamepassId = null;
+        gamepassUrl = null;
       }
 
       const trimmedVersion = currentVersion.trim() || null;
@@ -282,7 +311,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
           is_available: isAvailable,
           price_robux: robuxNum,
           gamepass_id: gamepassId,
-          gamepass_url: trimmedGamepass || null,
+          gamepass_url: gamepassUrl,
           image_url: finalUrls[0] ?? null,
           image_urls: finalUrls,
           current_version: trimmedVersion,
@@ -327,7 +356,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
             file_name: fileName,
             price_robux: robuxNum,
             gamepass_id: gamepassId,
-            gamepass_url: trimmedGamepass || null,
+            gamepass_url: gamepassUrl,
             current_version: trimmedVersion,
             created_by: userId,
           })
@@ -706,55 +735,43 @@ export const ProductManager = ({ userId }: { userId: string }) => {
                 <Label className="text-sm font-medium">Buy with Robux (optional)</Label>
               </div>
               <p className="text-xs text-muted-foreground -mt-1">
-                Add a Roblox gamepass so customers can pay in R$. Our bot verifies the
-                purchase from group sales and fulfils via Discord DM.
+                Set a Robux price and we'll automatically create a gamepass on
+                your Roblox game using the product's name and cover image. Leave
+                blank to skip Robux purchases.
               </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="prod-robux">Price (R$)</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="prod-robux"
-                      type="number"
-                      step="1"
-                      min="0"
-                      placeholder="2400"
-                      value={priceRobux}
-                      onChange={(e) => setPriceRobux(e.target.value)}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="shrink-0"
-                      onClick={() => {
-                        const usd = parseFloat(price);
-                        if (isNaN(usd) || usd <= 0) {
-                          sonnerToast.error("Enter a USD price first");
-                          return;
-                        }
-                        setPriceRobux(String(Math.round(usd * ROBUX_PER_USD)));
-                      }}
-                    >
-                      Auto
-                    </Button>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    "Auto" suggests ~{ROBUX_PER_USD} R$ per $1.
-                  </p>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="prod-gamepass">Gamepass URL</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-robux">Price (R$)</Label>
+                <div className="flex gap-2">
                   <Input
-                    id="prod-gamepass"
-                    placeholder="https://www.roblox.com/game-pass/12345678/..."
-                    value={gamepassUrl}
-                    onChange={(e) => setGamepassUrl(e.target.value)}
+                    id="prod-robux"
+                    type="number"
+                    step="1"
+                    min="0"
+                    placeholder="2400"
+                    value={priceRobux}
+                    onChange={(e) => setPriceRobux(e.target.value)}
                   />
-                  <p className="text-[11px] text-muted-foreground">
-                    Must be in the group set as <code>ROBLOX_GROUP_ID</code>.
-                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => {
+                      const usd = parseFloat(price);
+                      if (isNaN(usd) || usd <= 0) {
+                        sonnerToast.error("Enter a USD price first");
+                        return;
+                      }
+                      setPriceRobux(String(Math.round(usd * ROBUX_PER_USD)));
+                    }}
+                  >
+                    Auto
+                  </Button>
                 </div>
+                <p className="text-[11px] text-muted-foreground">
+                  "Auto" suggests ~{ROBUX_PER_USD} R$ per $1. Changing this
+                  price on an existing product also updates it on Roblox.
+                </p>
               </div>
             </div>
 
