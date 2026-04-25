@@ -28,6 +28,8 @@ import { MarketingKillSwitch, useMarketingShutdown } from "@/components/admin/Ma
 import { ResetPurchases } from "@/components/admin/ResetPurchases";
 import { AdminManager } from "@/components/admin/AdminManager";
 import { CategoryManager } from "@/components/admin/CategoryManager";
+import { UserVersionUpgrader } from "@/components/admin/UserVersionUpgrader";
+import { PurchaseLog } from "@/components/admin/PurchaseLog";
 
 const SUPER_ADMIN_EMAIL = "everant00@gmail.com";
 
@@ -201,6 +203,13 @@ const Admin = () => {
                 <CategoryManager />
               </div>
               <ProductManager userId={user.id} />
+            </div>
+          )}
+
+          {!marketingShutdown && (
+            <div className="mt-10 pt-6 border-t border-border space-y-6">
+              <UserVersionUpgrader />
+              <PurchaseLog />
             </div>
           )}
 
