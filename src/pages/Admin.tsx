@@ -206,6 +206,13 @@ const Admin = () => {
             </div>
           )}
 
+          {!marketingShutdown && (
+            <div className="mt-10 pt-6 border-t border-border space-y-6">
+              <UserVersionUpgrader />
+              <PurchaseLog />
+            </div>
+          )}
+
           <div className="mt-10 pt-6 border-t border-border">
             <div className="mb-4">
               <h3 className="text-lg font-semibold tracking-tight text-destructive">Danger Zone</h3>
