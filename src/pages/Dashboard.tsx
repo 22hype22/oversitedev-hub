@@ -62,6 +62,7 @@ import {
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
+import { compareVersions } from "@/lib/utils";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useMarketingSuspended } from "@/hooks/useMarketingSuspended";
 
