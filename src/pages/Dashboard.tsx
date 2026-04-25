@@ -740,6 +740,32 @@ export default function Dashboard() {
             product={upgradeRobux}
           />
 
+          {/* Robux upgrade ticket prompt */}
+          <AlertDialog
+            open={robuxUpgradePromptOpen}
+            onOpenChange={setRobuxUpgradePromptOpen}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Upgrade with Robux</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Robux version upgrades are handled manually. Please open a
+                  ticket in the{" "}
+                  <span className="font-medium">Oversite Marketplace</span>{" "}
+                  Discord and our team will set up your version upgrade gamepass.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Close</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => setRobuxUpgradePromptOpen(false)}
+                >
+                  Got it
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           {/* SETTINGS */}
           <TabsContent value="settings" className="space-y-4">
             {/* Appearance */}
