@@ -41,6 +41,8 @@ type DbProduct = {
   gamepass_id: string | null;
   gamepass_url: string | null;
   current_version: string | null;
+  upgrade_price: number | null;
+  upgrade_price_robux: number | null;
   created_at: string;
 };
 
@@ -83,6 +85,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [priceRobux, setPriceRobux] = useState("");
   const [currentVersion, setCurrentVersion] = useState("");
+  const [upgradePrice, setUpgradePrice] = useState("");
+  const [upgradePriceRobux, setUpgradePriceRobux] = useState("");
 
   const resetForm = () => {
     setEditingId(null);
@@ -96,6 +100,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setAttachedFile(null);
     setPriceRobux("");
     setCurrentVersion("");
+    setUpgradePrice("");
+    setUpgradePriceRobux("");
   };
 
   const startEdit = (p: DbProduct) => {
@@ -115,6 +121,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setAttachedFile(null);
     setPriceRobux(p.price_robux != null ? String(p.price_robux) : "");
     setCurrentVersion(p.current_version ?? "");
+    setUpgradePrice(p.upgrade_price != null && Number(p.upgrade_price) > 0 ? String(p.upgrade_price) : "");
+    setUpgradePriceRobux(p.upgrade_price_robux != null ? String(p.upgrade_price_robux) : "");
     setOpen(true);
   };
 
@@ -251,6 +259,14 @@ export const ProductManager = ({ userId }: { userId: string }) => {
       if (priceRobux.trim() && (robuxNum === null || isNaN(robuxNum) || robuxNum < 0)) {
         throw new Error("Robux price must be a non-negative whole number.");
       }
+      const upgradePriceNum = upgradePrice.trim() ? parseFloat(upgradePrice.trim()) : null;
+      if (upgradePrice.trim() && (upgradePriceNum === null || isNaN(upgradePriceNum) || upgradePriceNum < 0)) {
+        throw new Error("Upgrade price (USD) must be a non-negative number.");
+      }
+      const upgradeRobuxNum = upgradePriceRobux.trim() ? parseInt(upgradePriceRobux.trim(), 10) : null;
+      if (upgradePriceRobux.trim() && (upgradeRobuxNum === null || isNaN(upgradeRobuxNum) || upgradeRobuxNum < 0)) {
+        throw new Error("Upgrade price (R$) must be a non-negative whole number.");
+      }
       // Auto-create or auto-update the Roblox gamepass when a Robux price is set.
       // The edge function uses ROBLOX_COOKIE to create/update the pass on our game.
       // Determine current gamepass id (for edits) so we can decide create vs update.
@@ -334,6 +350,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
           image_url: finalUrls[0] ?? null,
           image_urls: finalUrls,
           current_version: trimmedVersion,
+          upgrade_price: upgradePriceNum,
+          upgrade_price_robux: upgradeRobuxNum,
         };
         if (attachedFile) {
           updatePayload.file_url = fileUrl;
@@ -380,6 +398,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
             gamepass_id: gamepassId,
             gamepass_url: gamepassUrl,
             current_version: trimmedVersion,
+            upgrade_price: upgradePriceNum,
+            upgrade_price_robux: upgradeRobuxNum,
             created_by: userId,
           })
           .select("id")
@@ -859,7 +879,43 @@ export const ProductManager = ({ userId }: { userId: string }) => {
               </p>
             </div>
 
-            {/* Availability / teaser toggle */}
+            {/* Version upgrade pricing */}
+            <div className="space-y-3 p-3 rounded-lg border border-border bg-background/50">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <Label className="text-sm font-medium">Version upgrade pricing</Label>
+              </div>
+              <p className="text-xs text-muted-foreground -mt-1">
+                What existing owners pay to upgrade to this version. Robux upgrades
+                are handled manually via support ticket.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="prod-upgrade-usd">Upgrade price (USD)</Label>
+                  <Input
+                    id="prod-upgrade-usd"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="9.99"
+                    value={upgradePrice}
+                    onChange={(e) => setUpgradePrice(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="prod-upgrade-robux">Upgrade price (R$)</Label>
+                  <Input
+                    id="prod-upgrade-robux"
+                    type="number"
+                    step="1"
+                    min="0"
+                    placeholder="800"
+                    value={upgradePriceRobux}
+                    onChange={(e) => setUpgradePriceRobux(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
             <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-background/50">
               <div className="h-10 w-10 rounded-md bg-primary/10 grid place-items-center shrink-0">
                 <Sparkles className="h-5 w-5 text-primary" />

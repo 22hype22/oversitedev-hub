@@ -850,20 +850,20 @@ export const Products = () => {
                         {isOwned ? (
                           <div>
                             <div className="text-xs text-muted-foreground">
-                              {hasNewer ? "Version upgrade available" : "You own this"}
+                              {hasNewer ? "Version Upgrade" : "You own this"}
                             </div>
                             {hasNewer ? (
-                              <div className="flex items-baseline gap-2">
+                              <div className="flex items-baseline gap-2 flex-wrap">
                                 {canUpgradeStripe && (
                                   <span className="text-xl font-bold">
                                     ${Number(p.upgradePrice).toFixed(2)}
                                   </span>
                                 )}
-                                {canUpgradeRobux && (
-                                  <span className={`${canUpgradeStripe ? "ml-1 text-xs text-muted-foreground" : "text-sm font-medium"}`}>
-                                    {canUpgradeStripe ? "or Robux (via ticket)" : "Robux upgrade via ticket"}
+                                {canUpgradeRobux && p.upgradePriceRobux ? (
+                                  <span className={canUpgradeStripe ? "text-xs text-muted-foreground" : "text-sm font-medium"}>
+                                    {canUpgradeStripe ? "or " : ""}R$ {p.upgradePriceRobux.toLocaleString()}
                                   </span>
-                                )}
+                                ) : null}
                                 {p.version && (
                                   <span className="text-[10px] font-mono text-muted-foreground">
                                     → {p.version}
@@ -911,10 +911,10 @@ export const Products = () => {
                                 size="sm"
                                 variant="hero"
                                 onClick={() => startUpgradeStripe(p)}
-                                aria-label={`Upgrade for $${Number(p.upgradePrice).toFixed(2)}`}
+                                aria-label={`Upgrade with card for $${Number(p.upgradePrice).toFixed(2)}`}
+                                title={`Upgrade with card · $${Number(p.upgradePrice).toFixed(2)}`}
                               >
                                 <CreditCard className="h-4 w-4" />
-                                Upgrade ${Number(p.upgradePrice).toFixed(2)}
                               </Button>
                             )}
                             {canUpgradeRobux && (
@@ -923,6 +923,7 @@ export const Products = () => {
                                 variant="outlineGlow"
                                 onClick={() => startUpgradeRobux(p)}
                                 aria-label="Upgrade with Robux via support ticket"
+                                title={p.upgradePriceRobux ? `Upgrade with Robux · R$ ${p.upgradePriceRobux.toLocaleString()} (via ticket)` : "Upgrade with Robux (via ticket)"}
                               >
                                 <span
                                   aria-hidden
@@ -930,7 +931,6 @@ export const Products = () => {
                                 >
                                   R$
                                 </span>
-                                Upgrade with Robux
                               </Button>
                             )}
                           </div>
