@@ -606,10 +606,7 @@ export default function Dashboard() {
                         p.latest_version !== p.version;
                       const canStripeUpgrade =
                         hasNewer && !!p.upgrade_price && p.upgrade_price > 0;
-                      const canRobuxUpgrade =
-                        hasNewer &&
-                        !!p.upgrade_price_robux &&
-                        !!p.upgrade_gamepass_url;
+                      const canRobuxUpgrade = hasNewer;
                       const purchaseLabel =
                         p.source === "gamepass"
                           ? "Robux purchase"
