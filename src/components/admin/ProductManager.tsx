@@ -85,6 +85,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [priceRobux, setPriceRobux] = useState("");
   const [currentVersion, setCurrentVersion] = useState("");
+  const [upgradePrice, setUpgradePrice] = useState("");
+  const [upgradePriceRobux, setUpgradePriceRobux] = useState("");
 
   const resetForm = () => {
     setEditingId(null);
@@ -98,6 +100,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setAttachedFile(null);
     setPriceRobux("");
     setCurrentVersion("");
+    setUpgradePrice("");
+    setUpgradePriceRobux("");
   };
 
   const startEdit = (p: DbProduct) => {
@@ -117,6 +121,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
     setAttachedFile(null);
     setPriceRobux(p.price_robux != null ? String(p.price_robux) : "");
     setCurrentVersion(p.current_version ?? "");
+    setUpgradePrice(p.upgrade_price != null && Number(p.upgrade_price) > 0 ? String(p.upgrade_price) : "");
+    setUpgradePriceRobux(p.upgrade_price_robux != null ? String(p.upgrade_price_robux) : "");
     setOpen(true);
   };
 
