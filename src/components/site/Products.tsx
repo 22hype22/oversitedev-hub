@@ -299,18 +299,8 @@ export const Products = () => {
     setCheckoutOpen(true);
   };
 
-  const startUpgradeRobux = (p: Product) => {
-    const ownedRow = p.dbId ? owned.get(p.dbId) : undefined;
-    if (!p.dbId || !ownedRow || !p.upgradePriceRobux || !p.upgradeGamepassUrl) return;
-    setRobuxProduct({
-      id: p.dbId,
-      name: `${p.name} — Upgrade to ${p.version ?? ""}`.trim(),
-      priceRobux: p.upgradePriceRobux,
-      gamepassUrl: p.upgradeGamepassUrl,
-      parentPurchaseId: ownedRow.purchaseId,
-      upgradeMode: true,
-    } as any);
-    setRobuxOpen(true);
+  const startUpgradeRobux = (_p: Product) => {
+    setRobuxUpgradePromptOpen(true);
   };
 
   const startRobuxPurchase = (p: Product) => {
