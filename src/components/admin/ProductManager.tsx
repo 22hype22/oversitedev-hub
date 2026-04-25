@@ -41,6 +41,8 @@ type DbProduct = {
   gamepass_id: string | null;
   gamepass_url: string | null;
   current_version: string | null;
+  upgrade_price: number | null;
+  upgrade_price_robux: number | null;
   created_at: string;
 };
 
