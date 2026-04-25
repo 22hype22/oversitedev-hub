@@ -54,10 +54,6 @@ const isVideoFile = (file: File) => file.type.startsWith("video/");
 // (Roughly tracks the Roblox Premium payout rate of ~80 R$ per $1.)
 const ROBUX_PER_USD = 80;
 
-const extractGamepassId = (url: string): string | null => {
-  const m = url.match(/game-pass\/(\d+)/i) || url.match(/gamepasses?\/(\d+)/i);
-  return m?.[1] ?? null;
-};
 
 type MediaItem =
   | { kind: "existing"; url: string; id: string }
