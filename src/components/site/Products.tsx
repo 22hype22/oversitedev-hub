@@ -843,10 +843,7 @@ export const Products = () => {
                       p.version !== ownedRow!.version;
                     const canUpgradeStripe =
                       hasNewer && !!p.upgradePrice && p.upgradePrice > 0;
-                    const canUpgradeRobux =
-                      hasNewer &&
-                      !!p.upgradePriceRobux &&
-                      !!p.upgradeGamepassUrl;
+                    const canUpgradeRobux = hasNewer;
 
                     return (
                       <div className="mt-5 pt-4 border-t border-border space-y-3">
