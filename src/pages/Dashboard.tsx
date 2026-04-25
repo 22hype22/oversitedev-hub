@@ -671,26 +671,49 @@ export default function Dashboard() {
                           ) : null}
                         </div>
                         {hasNewer && !isMemberActive && (canStripeUpgrade || canRobuxUpgrade) && (
-                          <div className="flex flex-wrap gap-2 pl-1">
+                          <div className="flex flex-wrap items-center gap-2 pl-1">
+                            <span className="text-xs text-muted-foreground">
+                              Version Upgrade:
+                            </span>
                             {canStripeUpgrade && (
-                              <Button
-                                size="sm"
-                                variant="hero"
-                                onClick={() => startUpgradeStripe(p)}
-                              >
-                                <ArrowUpCircle size={14} className="mr-1.5" />
-                                Upgrade for {formatPrice(Number(p.upgrade_price))}
-                              </Button>
+                              <span className="text-sm font-semibold">
+                                {formatPrice(Number(p.upgrade_price))}
+                              </span>
                             )}
-                            {canRobuxUpgrade && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => startUpgradeRobux(p)}
-                              >
-                                Upgrade with Robux
-                              </Button>
-                            )}
+                            {canRobuxUpgrade && p.upgrade_price_robux ? (
+                              <span className="text-xs text-muted-foreground">
+                                {canStripeUpgrade ? "or " : ""}R$ {p.upgrade_price_robux.toLocaleString()}
+                              </span>
+                            ) : null}
+                            <div className="flex gap-2 ml-auto">
+                              {canStripeUpgrade && (
+                                <Button
+                                  size="sm"
+                                  variant="hero"
+                                  onClick={() => startUpgradeStripe(p)}
+                                  aria-label={`Upgrade with card for ${formatPrice(Number(p.upgrade_price))}`}
+                                  title={`Upgrade with card · ${formatPrice(Number(p.upgrade_price))}`}
+                                >
+                                  <CreditCard size={14} />
+                                </Button>
+                              )}
+                              {canRobuxUpgrade && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => startUpgradeRobux(p)}
+                                  aria-label="Upgrade with Robux via support ticket"
+                                  title={p.upgrade_price_robux ? `Upgrade with Robux · R$ ${p.upgrade_price_robux.toLocaleString()} (via ticket)` : "Upgrade with Robux (via ticket)"}
+                                >
+                                  <span
+                                    aria-hidden
+                                    className="inline-flex h-3.5 w-3.5 items-center justify-center font-bold text-[10px] leading-none"
+                                  >
+                                    R$
+                                  </span>
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         )}
                       </li>
