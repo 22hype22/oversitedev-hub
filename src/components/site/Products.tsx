@@ -860,8 +860,8 @@ export const Products = () => {
                                   </span>
                                 )}
                                 {canUpgradeRobux && (
-                                  <span className={`${canUpgradeStripe ? "ml-1 text-xs text-muted-foreground" : "text-xl font-bold"}`}>
-                                    {canUpgradeStripe ? "or " : ""}R$ {p.upgradePriceRobux!.toLocaleString()}
+                                  <span className={`${canUpgradeStripe ? "ml-1 text-xs text-muted-foreground" : "text-sm font-medium"}`}>
+                                    {canUpgradeStripe ? "or Robux (via ticket)" : "Robux upgrade via ticket"}
                                   </span>
                                 )}
                                 {p.version && (
