@@ -255,14 +255,50 @@ export const ProductManager = ({ userId }: { userId: string }) => {
       if (priceRobux.trim() && (robuxNum === null || isNaN(robuxNum) || robuxNum < 0)) {
         throw new Error("Robux price must be a non-negative whole number.");
       }
-      let trimmedGamepass = gamepassUrl.trim();
-      // Auto-prepend https:// if the user pasted "www.roblox.com/..." without a protocol.
-      if (trimmedGamepass && !/^https?:\/\//i.test(trimmedGamepass)) {
-        trimmedGamepass = `https://${trimmedGamepass.replace(/^\/+/, "")}`;
-      }
-      const gamepassId = trimmedGamepass ? extractGamepassId(trimmedGamepass) : null;
-      if (trimmedGamepass && !gamepassId) {
-        throw new Error("Couldn't read a gamepass ID from that URL. It should look like https://www.roblox.com/game-pass/12345678/...");
+      // Auto-create or auto-update the Roblox gamepass when a Robux price is set.
+      // The edge function uses ROBLOX_COOKIE to create/update the pass on our game.
+      // Determine current gamepass id (for edits) so we can decide create vs update.
+      const existingProduct = editingId
+        ? products.find((p) => p.id === editingId)
+        : null;
+      let gamepassId: string | null = existingProduct?.gamepass_id ?? null;
+      let gamepassUrl: string | null = existingProduct?.gamepass_url ?? null;
+
+      if (robuxNum !== null && robuxNum > 0) {
+        const coverImage = finalUrls[0];
+        if (!coverImage) {
+          throw new Error("Add at least one product image — it's used as the gamepass icon.");
+        }
+
+        if (!gamepassId) {
+          // Create new gamepass.
+          const { data, error } = await supabase.functions.invoke("manage-roblox-gamepass", {
+            body: {
+              action: "create",
+              name: name.trim(),
+              priceRobux: robuxNum,
+              iconUrl: coverImage,
+            },
+          });
+          if (error) throw new Error(`Couldn't create Roblox gamepass: ${error.message}`);
+          if (!data?.gamepassId) throw new Error("Roblox gamepass create returned no id");
+          gamepassId = String(data.gamepassId);
+          gamepassUrl = String(data.gamepassUrl ?? `https://www.roblox.com/game-pass/${gamepassId}/`);
+        } else if (existingProduct && existingProduct.price_robux !== robuxNum) {
+          // Price changed — sync to Roblox.
+          const { error } = await supabase.functions.invoke("manage-roblox-gamepass", {
+            body: {
+              action: "update_price",
+              gamepassId,
+              priceRobux: robuxNum,
+            },
+          });
+          if (error) throw new Error(`Couldn't update Roblox gamepass price: ${error.message}`);
+        }
+      } else {
+        // No Robux price — clear gamepass linkage.
+        gamepassId = null;
+        gamepassUrl = null;
       }
 
       const trimmedVersion = currentVersion.trim() || null;
@@ -279,7 +315,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
           is_available: isAvailable,
           price_robux: robuxNum,
           gamepass_id: gamepassId,
-          gamepass_url: trimmedGamepass || null,
+          gamepass_url: gamepassUrl,
           image_url: finalUrls[0] ?? null,
           image_urls: finalUrls,
           current_version: trimmedVersion,
@@ -324,7 +360,7 @@ export const ProductManager = ({ userId }: { userId: string }) => {
             file_name: fileName,
             price_robux: robuxNum,
             gamepass_id: gamepassId,
-            gamepass_url: trimmedGamepass || null,
+            gamepass_url: gamepassUrl,
             current_version: trimmedVersion,
             created_by: userId,
           })
