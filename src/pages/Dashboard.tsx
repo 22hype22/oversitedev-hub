@@ -326,16 +326,8 @@ export default function Dashboard() {
     ]);
   };
 
-  const startUpgradeRobux = (p: Purchase) => {
-    if (!p.product_id || !p.upgrade_price_robux || !p.upgrade_gamepass_url) return;
-    setUpgradeRobux({
-      id: p.product_id,
-      name: `${p.product_name} — Upgrade to ${p.latest_version}`,
-      priceRobux: p.upgrade_price_robux,
-      gamepassUrl: p.upgrade_gamepass_url,
-      parentPurchaseId: p.id,
-      upgradeMode: true,
-    } as any);
+  const startUpgradeRobux = (_p: Purchase) => {
+    setRobuxUpgradePromptOpen(true);
   };
 
   useEffect(() => {
