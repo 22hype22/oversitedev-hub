@@ -771,11 +771,18 @@ export default function Dashboard() {
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Upgrade with Robux</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Robux version upgrades are handled manually. Please open a
-                  ticket in the{" "}
-                  <span className="font-medium">Oversite Marketplace</span>{" "}
-                  Discord and our team will set up your version upgrade gamepass.
+                <AlertDialogDescription asChild>
+                  <div className="space-y-3">
+                    <p>
+                      Robux version upgrades are handled manually. Please open a
+                      ticket in the{" "}
+                      <span className="font-medium">Oversite Marketplace</span>{" "}
+                      Discord and our team will set up your version upgrade gamepass.
+                    </p>
+                    <p className="text-xs font-mono rounded-md bg-muted px-3 py-2">
+                      .gg/oversitemarketplace ➜ Support ➜ Payment Support ➜ Version Upgrade
+                    </p>
+                  </div>
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
