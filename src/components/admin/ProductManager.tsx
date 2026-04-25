@@ -350,6 +350,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
           image_url: finalUrls[0] ?? null,
           image_urls: finalUrls,
           current_version: trimmedVersion,
+          upgrade_price: upgradePriceNum,
+          upgrade_price_robux: upgradeRobuxNum,
         };
         if (attachedFile) {
           updatePayload.file_url = fileUrl;
@@ -396,6 +398,8 @@ export const ProductManager = ({ userId }: { userId: string }) => {
             gamepass_id: gamepassId,
             gamepass_url: gamepassUrl,
             current_version: trimmedVersion,
+            upgrade_price: upgradePriceNum,
+            upgrade_price_robux: upgradeRobuxNum,
             created_by: userId,
           })
           .select("id")
