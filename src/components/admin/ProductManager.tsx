@@ -259,6 +259,14 @@ export const ProductManager = ({ userId }: { userId: string }) => {
       if (priceRobux.trim() && (robuxNum === null || isNaN(robuxNum) || robuxNum < 0)) {
         throw new Error("Robux price must be a non-negative whole number.");
       }
+      const upgradePriceNum = upgradePrice.trim() ? parseFloat(upgradePrice.trim()) : null;
+      if (upgradePrice.trim() && (upgradePriceNum === null || isNaN(upgradePriceNum) || upgradePriceNum < 0)) {
+        throw new Error("Upgrade price (USD) must be a non-negative number.");
+      }
+      const upgradeRobuxNum = upgradePriceRobux.trim() ? parseInt(upgradePriceRobux.trim(), 10) : null;
+      if (upgradePriceRobux.trim() && (upgradeRobuxNum === null || isNaN(upgradeRobuxNum) || upgradeRobuxNum < 0)) {
+        throw new Error("Upgrade price (R$) must be a non-negative whole number.");
+      }
       // Auto-create or auto-update the Roblox gamepass when a Robux price is set.
       // The edge function uses ROBLOX_COOKIE to create/update the pass on our game.
       // Determine current gamepass id (for edits) so we can decide create vs update.
