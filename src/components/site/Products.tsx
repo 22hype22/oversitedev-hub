@@ -345,9 +345,11 @@ export const Products = () => {
               priceRobux: p.price_robux ?? null,
               gamepassUrl: p.gamepass_url ?? null,
               version: p.current_version ?? null,
-              upgradePrice: p.upgrade_price ?? null,
-              upgradePriceRobux: p.upgrade_price_robux ?? null,
-              upgradeGamepassUrl: p.upgrade_gamepass_url ?? null,
+              upgradePrice: p.upgrade_price && Number(p.upgrade_price) > 0
+                ? Number(p.upgrade_price)
+                : Number(p.price) || null,
+              upgradePriceRobux: p.upgrade_price_robux ?? p.price_robux ?? null,
+              upgradeGamepassUrl: p.upgrade_gamepass_url ?? p.gamepass_url ?? null,
             };
           }),
         );
