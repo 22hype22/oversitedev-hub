@@ -614,7 +614,7 @@ export default function Dashboard() {
                       const hasNewer =
                         !!p.latest_version &&
                         !!p.version &&
-                        p.latest_version !== p.version;
+                        compareVersions(p.latest_version, p.version) > 0;
                       const canStripeUpgrade =
                         hasNewer && !!p.upgrade_price && p.upgrade_price > 0;
                       const canRobuxUpgrade = hasNewer;
