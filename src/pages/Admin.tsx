@@ -28,6 +28,8 @@ import { MarketingKillSwitch, useMarketingShutdown } from "@/components/admin/Ma
 import { ResetPurchases } from "@/components/admin/ResetPurchases";
 import { AdminManager } from "@/components/admin/AdminManager";
 import { CategoryManager } from "@/components/admin/CategoryManager";
+import { UserVersionUpgrader } from "@/components/admin/UserVersionUpgrader";
+import { PurchaseLog } from "@/components/admin/PurchaseLog";
 
 const SUPER_ADMIN_EMAIL = "everant00@gmail.com";
 
