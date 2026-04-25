@@ -841,7 +841,7 @@ export const Products = () => {
                       isOwned &&
                       !!p.version &&
                       !!ownedRow!.version &&
-                      p.version !== ownedRow!.version;
+                      compareVersions(p.version, ownedRow!.version) > 0;
                     const canUpgradeStripe =
                       hasNewer && !!p.upgradePrice && p.upgradePrice > 0;
                     const canUpgradeRobux = hasNewer;
