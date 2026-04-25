@@ -86,7 +86,6 @@ export const ProductManager = ({ userId }: { userId: string }) => {
   const [isAvailable, setIsAvailable] = useState(true);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [priceRobux, setPriceRobux] = useState("");
-  const [gamepassUrl, setGamepassUrl] = useState("");
   const [currentVersion, setCurrentVersion] = useState("");
 
   const resetForm = () => {
