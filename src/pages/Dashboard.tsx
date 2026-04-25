@@ -678,7 +678,7 @@ export default function Dashboard() {
                                 variant="outline"
                                 onClick={() => startUpgradeRobux(p)}
                               >
-                                Upgrade · R$ {p.upgrade_price_robux?.toLocaleString()}
+                                Upgrade with Robux
                               </Button>
                             )}
                           </div>
