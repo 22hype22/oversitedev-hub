@@ -279,6 +279,7 @@ export const Products = () => {
   const [customProducts, setCustomProducts] = useState<Product[]>([]);
   const [robuxOpen, setRobuxOpen] = useState(false);
   const [robuxProduct, setRobuxProduct] = useState<RobuxPurchaseProduct | null>(null);
+  const [robuxUpgradePromptOpen, setRobuxUpgradePromptOpen] = useState(false);
 
   const startUpgradeStripe = (p: Product) => {
     const ownedRow = p.dbId ? owned.get(p.dbId) : undefined;
