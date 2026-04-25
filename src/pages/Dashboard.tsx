@@ -122,6 +122,7 @@ export default function Dashboard() {
     | (RobuxPurchaseProduct & { parentPurchaseId: string; upgradeMode: true })
     | null
   >(null);
+  const [robuxUpgradePromptOpen, setRobuxUpgradePromptOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
