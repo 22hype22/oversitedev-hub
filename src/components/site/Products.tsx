@@ -922,7 +922,7 @@ export const Products = () => {
                                 size="sm"
                                 variant="outlineGlow"
                                 onClick={() => startUpgradeRobux(p)}
-                                aria-label={`Upgrade with R$ ${p.upgradePriceRobux!.toLocaleString()}`}
+                                aria-label="Upgrade with Robux via support ticket"
                               >
                                 <span
                                   aria-hidden
@@ -930,7 +930,7 @@ export const Products = () => {
                                 >
                                   R$
                                 </span>
-                                Upgrade R$ {p.upgradePriceRobux!.toLocaleString()}
+                                Upgrade with Robux
                               </Button>
                             )}
                           </div>
