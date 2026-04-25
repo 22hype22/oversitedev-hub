@@ -13,6 +13,16 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   ShoppingCart,
   Plus,
   Minus,
@@ -269,6 +279,7 @@ export const Products = () => {
   const [customProducts, setCustomProducts] = useState<Product[]>([]);
   const [robuxOpen, setRobuxOpen] = useState(false);
   const [robuxProduct, setRobuxProduct] = useState<RobuxPurchaseProduct | null>(null);
+  const [robuxUpgradePromptOpen, setRobuxUpgradePromptOpen] = useState(false);
 
   const startUpgradeStripe = (p: Product) => {
     const ownedRow = p.dbId ? owned.get(p.dbId) : undefined;
@@ -288,18 +299,8 @@ export const Products = () => {
     setCheckoutOpen(true);
   };
 
-  const startUpgradeRobux = (p: Product) => {
-    const ownedRow = p.dbId ? owned.get(p.dbId) : undefined;
-    if (!p.dbId || !ownedRow || !p.upgradePriceRobux || !p.upgradeGamepassUrl) return;
-    setRobuxProduct({
-      id: p.dbId,
-      name: `${p.name} — Upgrade to ${p.version ?? ""}`.trim(),
-      priceRobux: p.upgradePriceRobux,
-      gamepassUrl: p.upgradeGamepassUrl,
-      parentPurchaseId: ownedRow.purchaseId,
-      upgradeMode: true,
-    } as any);
-    setRobuxOpen(true);
+  const startUpgradeRobux = (_p: Product) => {
+    setRobuxUpgradePromptOpen(true);
   };
 
   const startRobuxPurchase = (p: Product) => {
@@ -842,10 +843,7 @@ export const Products = () => {
                       p.version !== ownedRow!.version;
                     const canUpgradeStripe =
                       hasNewer && !!p.upgradePrice && p.upgradePrice > 0;
-                    const canUpgradeRobux =
-                      hasNewer &&
-                      !!p.upgradePriceRobux &&
-                      !!p.upgradeGamepassUrl;
+                    const canUpgradeRobux = hasNewer;
 
                     return (
                       <div className="mt-5 pt-4 border-t border-border space-y-3">
@@ -862,8 +860,8 @@ export const Products = () => {
                                   </span>
                                 )}
                                 {canUpgradeRobux && (
-                                  <span className={`${canUpgradeStripe ? "ml-1 text-xs text-muted-foreground" : "text-xl font-bold"}`}>
-                                    {canUpgradeStripe ? "or " : ""}R$ {p.upgradePriceRobux!.toLocaleString()}
+                                  <span className={`${canUpgradeStripe ? "ml-1 text-xs text-muted-foreground" : "text-sm font-medium"}`}>
+                                    {canUpgradeStripe ? "or Robux (via ticket)" : "Robux upgrade via ticket"}
                                   </span>
                                 )}
                                 {p.version && (
@@ -924,7 +922,7 @@ export const Products = () => {
                                 size="sm"
                                 variant="outlineGlow"
                                 onClick={() => startUpgradeRobux(p)}
-                                aria-label={`Upgrade with R$ ${p.upgradePriceRobux!.toLocaleString()}`}
+                                aria-label="Upgrade with Robux via support ticket"
                               >
                                 <span
                                   aria-hidden
@@ -932,7 +930,7 @@ export const Products = () => {
                                 >
                                   R$
                                 </span>
-                                Upgrade R$ {p.upgradePriceRobux!.toLocaleString()}
+                                Upgrade with Robux
                               </Button>
                             )}
                           </div>
@@ -1014,6 +1012,24 @@ export const Products = () => {
         onOpenChange={setRobuxOpen}
         product={robuxProduct}
       />
+      <AlertDialog open={robuxUpgradePromptOpen} onOpenChange={setRobuxUpgradePromptOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Upgrade with Robux</AlertDialogTitle>
+            <AlertDialogDescription>
+              Robux version upgrades are handled manually. Please open a ticket
+              in the <span className="font-medium">Oversite Marketplace</span> Discord
+              and our team will set up your version upgrade gamepass.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Close</AlertDialogCancel>
+            <AlertDialogAction onClick={() => setRobuxUpgradePromptOpen(false)}>
+              Got it
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 };

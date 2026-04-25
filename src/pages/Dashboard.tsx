@@ -22,6 +22,16 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -122,6 +132,7 @@ export default function Dashboard() {
     | (RobuxPurchaseProduct & { parentPurchaseId: string; upgradeMode: true })
     | null
   >(null);
+  const [robuxUpgradePromptOpen, setRobuxUpgradePromptOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
@@ -325,16 +336,8 @@ export default function Dashboard() {
     ]);
   };
 
-  const startUpgradeRobux = (p: Purchase) => {
-    if (!p.product_id || !p.upgrade_price_robux || !p.upgrade_gamepass_url) return;
-    setUpgradeRobux({
-      id: p.product_id,
-      name: `${p.product_name} — Upgrade to ${p.latest_version}`,
-      priceRobux: p.upgrade_price_robux,
-      gamepassUrl: p.upgrade_gamepass_url,
-      parentPurchaseId: p.id,
-      upgradeMode: true,
-    } as any);
+  const startUpgradeRobux = (_p: Purchase) => {
+    setRobuxUpgradePromptOpen(true);
   };
 
   useEffect(() => {
@@ -613,10 +616,7 @@ export default function Dashboard() {
                         p.latest_version !== p.version;
                       const canStripeUpgrade =
                         hasNewer && !!p.upgrade_price && p.upgrade_price > 0;
-                      const canRobuxUpgrade =
-                        hasNewer &&
-                        !!p.upgrade_price_robux &&
-                        !!p.upgrade_gamepass_url;
+                      const canRobuxUpgrade = hasNewer;
                       const purchaseLabel =
                         p.source === "gamepass"
                           ? "Robux purchase"
@@ -688,7 +688,7 @@ export default function Dashboard() {
                                 variant="outline"
                                 onClick={() => startUpgradeRobux(p)}
                               >
-                                Upgrade · R$ {p.upgrade_price_robux?.toLocaleString()}
+                                Upgrade with Robux
                               </Button>
                             )}
                           </div>
@@ -739,6 +739,32 @@ export default function Dashboard() {
             }}
             product={upgradeRobux}
           />
+
+          {/* Robux upgrade ticket prompt */}
+          <AlertDialog
+            open={robuxUpgradePromptOpen}
+            onOpenChange={setRobuxUpgradePromptOpen}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Upgrade with Robux</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Robux version upgrades are handled manually. Please open a
+                  ticket in the{" "}
+                  <span className="font-medium">Oversite Marketplace</span>{" "}
+                  Discord and our team will set up your version upgrade gamepass.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Close</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => setRobuxUpgradePromptOpen(false)}
+                >
+                  Got it
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {/* SETTINGS */}
           <TabsContent value="settings" className="space-y-4">
