@@ -879,7 +879,43 @@ export const ProductManager = ({ userId }: { userId: string }) => {
               </p>
             </div>
 
-            {/* Availability / teaser toggle */}
+            {/* Version upgrade pricing */}
+            <div className="space-y-3 p-3 rounded-lg border border-border bg-background/50">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <Label className="text-sm font-medium">Version upgrade pricing</Label>
+              </div>
+              <p className="text-xs text-muted-foreground -mt-1">
+                What existing owners pay to upgrade to this version. Robux upgrades
+                are handled manually via support ticket.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="prod-upgrade-usd">Upgrade price (USD)</Label>
+                  <Input
+                    id="prod-upgrade-usd"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="9.99"
+                    value={upgradePrice}
+                    onChange={(e) => setUpgradePrice(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="prod-upgrade-robux">Upgrade price (R$)</Label>
+                  <Input
+                    id="prod-upgrade-robux"
+                    type="number"
+                    step="1"
+                    min="0"
+                    placeholder="800"
+                    value={upgradePriceRobux}
+                    onChange={(e) => setUpgradePriceRobux(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
             <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-background/50">
               <div className="h-10 w-10 rounded-md bg-primary/10 grid place-items-center shrink-0">
                 <Sparkles className="h-5 w-5 text-primary" />
