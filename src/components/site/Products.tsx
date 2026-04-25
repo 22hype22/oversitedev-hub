@@ -971,7 +971,7 @@ export const Products = () => {
                           </div>
                         )}
 
-                        {!isOwned && !isMember && (
+                        {!isMember && (!isOwned || hasNewer) && (
                           <UpgradeNotice compact className="mt-1" />
                         )}
                       </div>
