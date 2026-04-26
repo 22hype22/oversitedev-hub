@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, ExternalLink, CheckCircle2, Copy, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 function normalizeGamepassUrl(rawUrl: string) {
   const url = (rawUrl || "").trim();
@@ -42,11 +43,32 @@ interface Props {
 type Step = "username" | "purchase" | "success";
 
 export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
+  const { user } = useAuth();
   const [step, setStep] = useState<Step>("username");
   const [username, setUsername] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+
+  // Auto-fill the saved Roblox username from the user's profile when the
+  // dialog opens. The user can still edit it before continuing.
+  useEffect(() => {
+    if (!open || !user) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("roblox_username")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const saved = data?.roblox_username?.trim();
+      if (saved) setUsername((prev) => (prev ? prev : saved));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, user]);
 
   const reset = () => {
     setStep("username");
