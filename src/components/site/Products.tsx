@@ -238,20 +238,20 @@ const ProductImage = ({
           <button
             type="button"
             onClick={(e) => go(e, -1)}
-            className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 hover:bg-background grid place-items-center backdrop-blur transition-smooth opacity-0 group-hover:opacity-100"
+            className="absolute left-2 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-background/80 hover:bg-background grid place-items-center backdrop-blur transition-smooth shadow-md"
             aria-label="Previous image"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-5 w-5" />
           </button>
           <button
             type="button"
             onClick={(e) => go(e, 1)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 hover:bg-background grid place-items-center backdrop-blur transition-smooth opacity-0 group-hover:opacity-100"
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-background/80 hover:bg-background grid place-items-center backdrop-blur transition-smooth shadow-md"
             aria-label="Next image"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-5 w-5" />
           </button>
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 px-2 py-1.5 rounded-full bg-background/60 backdrop-blur">
             {images.map((_, i) => (
               <button
                 key={i}
@@ -261,8 +261,8 @@ const ProductImage = ({
                   e.stopPropagation();
                   setIdx(i);
                 }}
-                className={`h-1.5 rounded-full transition-all ${
-                  i === idx ? "w-5 bg-primary" : "w-1.5 bg-background/70 hover:bg-background"
+                className={`h-2.5 rounded-full transition-all cursor-pointer hover:scale-125 ${
+                  i === idx ? "w-6 bg-primary" : "w-2.5 bg-foreground/40 hover:bg-foreground/70"
                 }`}
                 aria-label={`Image ${i + 1}`}
               />
