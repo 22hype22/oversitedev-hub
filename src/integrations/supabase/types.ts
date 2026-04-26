@@ -340,6 +340,7 @@ export type Database = {
           created_at: string
           discord_username: string
           id: string
+          is_banned: boolean
           notify_discord: boolean
           notify_email: boolean
           preferred_contact: string
@@ -355,6 +356,7 @@ export type Database = {
           created_at?: string
           discord_username: string
           id?: string
+          is_banned?: boolean
           notify_discord?: boolean
           notify_email?: boolean
           preferred_contact?: string
@@ -370,6 +372,7 @@ export type Database = {
           created_at?: string
           discord_username?: string
           id?: string
+          is_banned?: boolean
           notify_discord?: boolean
           notify_email?: boolean
           preferred_contact?: string
