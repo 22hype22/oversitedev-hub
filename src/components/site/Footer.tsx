@@ -67,6 +67,7 @@ export const Footer = () => {
         <div className="mt-12 pt-6 border-t border-border flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
           <div>© {year} Oversite. All rights reserved.</div>
           <div className="flex items-center gap-4">
+            <Link to="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
             <span>Instant delivery on every order</span>
           </div>
         </div>
