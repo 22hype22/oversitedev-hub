@@ -233,11 +233,9 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
                 <Copy className="h-4 w-4" />
                 Copy link
               </Button>
-              <Button variant="outline" asChild className="w-full">
-                <a href={gamepassUrl} target={robloxLinkTarget} rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                  Open link
-                </a>
+              <Button variant="outline" onClick={openGamepassLink} className="w-full">
+                <ExternalLink className="h-4 w-4" />
+                Open link
               </Button>
               <Button variant="hero" onClick={handleVerify} disabled={verifying} className="w-full">
                 {verifying ? (
