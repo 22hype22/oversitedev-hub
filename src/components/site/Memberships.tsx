@@ -176,7 +176,7 @@ export const Memberships = () => {
                   {tier.tagline}
                 </p>
 
-                <div className="flex items-baseline gap-1 mb-6">
+                <div className="flex items-baseline gap-1 mb-6" data-no-translate>
                   <span className="text-4xl font-bold tracking-tight">
                     ${price.toFixed(2).replace(/\.00$/, "")}
                   </span>
