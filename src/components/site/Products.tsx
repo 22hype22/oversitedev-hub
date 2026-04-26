@@ -299,6 +299,43 @@ const ProductImage = ({
           >
             <XIcon className="h-5 w-5" />
           </button>
+          {multi && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => go(e, -1)}
+                className="absolute left-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-background/80 hover:bg-background grid place-items-center backdrop-blur transition-smooth shadow-lg"
+                aria-label="Previous image"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => go(e, 1)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-background/80 hover:bg-background grid place-items-center backdrop-blur transition-smooth shadow-lg"
+                aria-label="Next image"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </button>
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 px-3 py-2 rounded-full bg-background/60 backdrop-blur">
+                {images.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIdx(i);
+                    }}
+                    className={`h-2.5 rounded-full transition-all cursor-pointer hover:scale-125 ${
+                      i === idx ? "w-6 bg-primary" : "w-2.5 bg-foreground/40 hover:bg-foreground/70"
+                    }`}
+                    aria-label={`Image ${i + 1}`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
