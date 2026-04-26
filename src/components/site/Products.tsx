@@ -270,6 +270,37 @@ const ProductImage = ({
           </div>
         </>
       )}
+      {zoomed && current && !isVideo && (
+        <div
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setZoomed(false);
+          }}
+          className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 cursor-zoom-out animate-fade-in"
+          role="dialog"
+          aria-label="Image preview"
+        >
+          <img
+            src={current}
+            alt={alt}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[95vh] max-w-[95vw] object-contain rounded-md shadow-2xl"
+          />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setZoomed(false);
+            }}
+            className="absolute top-4 right-4 h-10 w-10 rounded-full bg-background/80 hover:bg-background grid place-items-center backdrop-blur transition-smooth"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
