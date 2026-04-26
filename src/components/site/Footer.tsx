@@ -35,7 +35,7 @@ export const Footer = () => {
             <h4 className="text-sm font-semibold mb-3">Account</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link to="/auth" className="hover:text-foreground transition-colors">Sign in</Link></li>
-              <li><Link to="/auth" className="hover:text-foreground transition-colors">Create account</Link></li>
+              <li><Link to="/auth?mode=signup" className="hover:text-foreground transition-colors">Create account</Link></li>
               <li><Link to="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link></li>
               <li><Link to="/products" className="hover:text-foreground transition-colors">Memberships</Link></li>
             </ul>
