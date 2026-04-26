@@ -229,12 +229,16 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
                 <Copy className="h-4 w-4" />
                 Copy link
               </Button>
-              <Button variant="outline" asChild className="w-full">
-                <a href={gamepassUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                  Open link
-                </a>
-              </Button>
+              <a
+                href={gamepassUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(event) => event.stopPropagation()}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 whitespace-nowrap rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open link
+              </a>
               <Button variant="hero" onClick={handleVerify} disabled={verifying} className="w-full">
                 {verifying ? (
                   <>
