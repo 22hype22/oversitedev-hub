@@ -1,8 +1,12 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Mail, MessageCircle } from "lucide-react";
 
 export const Footer = () => {
   const year = new Date().getFullYear();
+  const { pathname } = useLocation();
+  const membershipHref = pathname.startsWith("/bots")
+    ? "/bots#memberships"
+    : "/products#memberships";
 
   return (
     <footer className="border-t border-border bg-card/30 mt-12">
@@ -37,7 +41,7 @@ export const Footer = () => {
               <li><Link to="/auth" className="hover:text-foreground transition-colors">Sign in</Link></li>
               <li><Link to="/auth?mode=signup" className="hover:text-foreground transition-colors">Create account</Link></li>
               <li><Link to="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link></li>
-              <li><Link to="/products" className="hover:text-foreground transition-colors">Memberships</Link></li>
+              <li><Link to={membershipHref} className="hover:text-foreground transition-colors">Memberships</Link></li>
             </ul>
           </div>
 
