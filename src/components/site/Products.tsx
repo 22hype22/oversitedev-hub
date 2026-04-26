@@ -187,6 +187,7 @@ const ProductImage = ({
   alt: string;
 }) => {
   const [idx, setIdx] = useState(0);
+  const [zoomed, setZoomed] = useState(false);
   const has = images.length > 0;
   const multi = images.length > 1;
   const current = has ? images[idx] : null;
@@ -196,6 +197,13 @@ const ProductImage = ({
     e.preventDefault();
     e.stopPropagation();
     setIdx((i) => (i + dir + images.length) % images.length);
+  };
+
+  const openZoom = (e: React.MouseEvent) => {
+    if (!current || isVideo) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setZoomed(true);
   };
 
   return (
@@ -215,7 +223,8 @@ const ProductImage = ({
           <img
             src={current!}
             alt={alt}
-            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-smooth"
+            onClick={openZoom}
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-smooth cursor-zoom-in"
             loading="lazy"
           />
         )
