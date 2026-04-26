@@ -744,7 +744,7 @@ export const Products = () => {
                 <Button
                   variant={s.popular && !suspended ? "hero" : "outlineGlow"}
                   className="w-full mt-7 rounded-full"
-                  onClick={() => addSubscriptionToCart(s)}
+                  onClick={() => startSubscriptionCheckout(s)}
                   disabled={suspended}
                 >
                   {suspended ? (
