@@ -1066,6 +1066,54 @@ export const Products = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!previewProduct} onOpenChange={(o) => !o && setPreviewProduct(null)}>
+        <DialogContent className="w-[min(calc(100vw-2rem),72rem)] max-w-[72rem] max-h-[92vh] overflow-y-auto p-0">
+          {previewProduct && (
+            <>
+              <div className="bg-black/40">
+                <ProductImage
+                  images={
+                    previewProduct.imageUrls && previewProduct.imageUrls.length > 0
+                      ? previewProduct.imageUrls
+                      : previewProduct.imageUrl
+                      ? [previewProduct.imageUrl]
+                      : []
+                  }
+                  emoji={previewProduct.emoji}
+                  alt={previewProduct.name}
+                />
+              </div>
+              <div className="p-6 space-y-3">
+                <DialogHeader>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="secondary" className="text-xs font-medium">
+                      {previewProduct.category}
+                    </Badge>
+                    {previewProduct.version && (
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        {previewProduct.version}
+                      </span>
+                    )}
+                  </div>
+                  <DialogTitle className="text-2xl">{previewProduct.name}</DialogTitle>
+                  <DialogDescription className="whitespace-pre-line text-sm leading-relaxed">
+                    {previewProduct.blurb}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex items-baseline gap-2 pt-2">
+                  <span className="text-2xl font-bold">${previewProduct.price}</span>
+                  {previewProduct.priceRobux && previewProduct.gamepassUrl && (
+                    <span className="text-sm text-muted-foreground">
+                      or R$ {previewProduct.priceRobux.toLocaleString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 };
