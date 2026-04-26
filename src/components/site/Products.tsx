@@ -1072,7 +1072,7 @@ export const Products = () => {
                               size="sm"
                               variant="hero"
                               onClick={() => addProductToCart(p)}
-                              aria-label={`Buy with $${p.price}`}
+                              aria-label={`Buy with ${formatPrice(Number(p.price))}`}
                             >
                               <CreditCard className="h-4 w-4" />
                             </Button>
