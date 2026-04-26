@@ -1034,8 +1034,8 @@ export const Products = () => {
                                 size="sm"
                                 variant="hero"
                                 onClick={() => startUpgradeStripe(p)}
-                                aria-label={`Upgrade with card for $${Number(p.upgradePrice).toFixed(2)}`}
-                                title={`Upgrade with card · $${Number(p.upgradePrice).toFixed(2)}`}
+                                aria-label={`Upgrade with card for ${formatPrice(Number(p.upgradePrice))}`}
+                                title={`Upgrade with card · ${formatPrice(Number(p.upgradePrice))}`}
                               >
                                 <CreditCard className="h-4 w-4" />
                               </Button>
