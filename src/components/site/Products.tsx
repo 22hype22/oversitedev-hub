@@ -768,7 +768,7 @@ export const Products = () => {
                 <SheetFooter className="border-t border-border pt-4 flex-col gap-3 sm:flex-col">
                   <div className="flex justify-between items-center w-full">
                     <span className="text-muted-foreground">Total</span>
-                    <span className="text-2xl font-bold">${cartTotal.toFixed(2)}</span>
+                    <span className="text-2xl font-bold">{formatPrice(cartTotal)}</span>
                   </div>
                   <Button
                     variant="hero"
