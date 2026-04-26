@@ -32,18 +32,32 @@ export const Contact = () => {
             </p>
 
             <div className="mt-8 space-y-4">
-              <div className="flex items-center gap-3 text-sm">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center">
+              <a
+                href="https://discord.gg/B23N33DfUU"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 text-sm group"
+              >
+                <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center group-hover:bg-primary/20 transition-colors">
                   <Mail size={16} className="text-primary" />
                 </div>
-                <span className="text-muted-foreground">contact@oversite.dev</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center">
+                <span className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  contact@oversite.dev
+                </span>
+              </a>
+              <a
+                href="https://discord.gg/B23N33DfUU"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 text-sm group"
+              >
+                <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center group-hover:bg-primary/20 transition-colors">
                   <MessageSquare size={16} className="text-primary" />
                 </div>
-                <span className="text-muted-foreground">Dedicated team support, start to launch</span>
-              </div>
+                <span className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  Join our Discord — dedicated team support, start to launch
+                </span>
+              </a>
             </div>
           </div>
 
