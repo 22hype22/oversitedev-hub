@@ -176,11 +176,15 @@ export const Memberships = () => {
                   {tier.tagline}
                 </p>
 
-                <div className="flex items-baseline gap-1 mb-6" data-no-translate>
+                <div key={billing} className="flex items-baseline gap-1 mb-6" data-no-translate>
                   <span className="text-4xl font-bold tracking-tight">
                     ${price.toFixed(2).replace(/\.00$/, "")}
                   </span>
-                  <span className="text-muted-foreground">{suffix}</span>
+                  <span
+                    className="text-muted-foreground after:content-[attr(data-suffix)]"
+                    data-suffix={suffix}
+                    aria-label={billing === "monthly" ? "per month" : "per year"}
+                  />
                 </div>
 
                 <Button
