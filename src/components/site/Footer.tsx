@@ -52,7 +52,7 @@ export const Footer = () => {
                 </a>
               </li>
               <li>
-                <a href="https://discord.gg/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:text-foreground transition-colors">
+                <a href="https://discord.gg/B23N33DfUU" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:text-foreground transition-colors">
                   <MessageCircle className="h-4 w-4" />
                   Discord
                 </a>
