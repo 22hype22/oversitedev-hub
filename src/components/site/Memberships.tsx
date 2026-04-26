@@ -225,6 +225,13 @@ export const Memberships = () => {
           );
         })}
       </div>
+
+      <CheckoutDialog
+        open={checkoutOpen}
+        onOpenChange={setCheckoutOpen}
+        items={checkoutItems}
+        customerEmail={user?.email}
+      />
     </section>
   );
 };
