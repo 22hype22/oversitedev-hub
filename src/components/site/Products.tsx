@@ -828,17 +828,7 @@ export const Products = () => {
             {filtered.map((p) => (
               <Card
                 key={p.id}
-                onClick={() => setPreviewProduct(p)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setPreviewProduct(p);
-                  }
-                }}
-                className="group p-0 overflow-hidden bg-card border-border hover:border-primary/50 hover:shadow-elegant transition-smooth flex flex-col cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label={`Preview ${p.name}`}
+                className="group p-0 overflow-hidden bg-card border-border hover:border-primary/50 hover:shadow-elegant transition-smooth flex flex-col"
               >
                 <div className="relative">
                   <ProductImage
@@ -852,7 +842,7 @@ export const Products = () => {
                     </Badge>
                   )}
                 </div>
-                <div onClick={(e) => e.stopPropagation()} className="p-5 flex flex-col flex-1">
+                <div className="p-5 flex flex-col flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <Badge variant="secondary" className="text-xs font-medium">
                       {p.category}
