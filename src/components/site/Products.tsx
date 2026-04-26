@@ -265,6 +265,81 @@ const ProductImage = ({
   );
 };
 
+const ComingSoonRotator = ({
+  items,
+  suspended,
+}: {
+  items: Product[];
+  suspended: boolean;
+}) => {
+  const [idx, setIdx] = useState(0);
+  const multi = items.length > 1;
+
+  useEffect(() => {
+    if (!multi) return;
+    const t = setInterval(() => {
+      setIdx((i) => (i + 1) % items.length);
+    }, 5000);
+    return () => clearInterval(t);
+  }, [multi, items.length]);
+
+  const safeIdx = idx % items.length;
+  const p = items[safeIdx];
+  const img = p.imageUrls?.[0] || p.imageUrl;
+
+  return (
+    <div className="w-full border-b border-border mt-6">
+      <div className="relative h-72 md:h-[24rem] overflow-hidden bg-gradient-hero ring-2 ring-inset ring-primary">
+        <div key={p.id} className="absolute inset-0 animate-fade-in">
+          {img && !isVideoUrl(img) ? (
+            <img
+              src={img}
+              alt={p.name}
+              className="absolute inset-0 h-full w-full object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-6xl opacity-80">
+              {p.emoji}
+            </div>
+          )}
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center gap-3">
+            <h3 className="text-4xl md:text-7xl font-bold uppercase tracking-[0.25em] text-white drop-shadow-lg line-clamp-2">
+              {p.name}
+            </h3>
+            <span className="inline-flex items-center justify-center px-4 py-1.5 rounded-full border-2 border-white text-white uppercase tracking-widest text-xs font-semibold">
+              Coming soon
+            </span>
+          </div>
+        </div>
+        {suspended && (
+          <div className="absolute inset-0 bg-destructive/70 backdrop-blur-[2px] flex items-center justify-center z-10">
+            <span className="px-5 py-2 rounded-md border-2 border-destructive-foreground text-destructive-foreground uppercase tracking-[0.3em] font-bold text-sm md:text-base">
+              Suspended
+            </span>
+          </div>
+        )}
+        {multi && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+            {items.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setIdx(i)}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === safeIdx ? "w-6 bg-white" : "w-1.5 bg-white/50 hover:bg-white/80"
+                }`}
+                aria-label={`Show coming-soon item ${i + 1}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const Products = () => {
   const { user } = useAuth();
   const { isMember } = useMembership();
