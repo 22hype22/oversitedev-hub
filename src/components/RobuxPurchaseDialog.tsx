@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, ExternalLink, CheckCircle2, Copy, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 function normalizeGamepassUrl(rawUrl: string) {
   const url = (rawUrl || "").trim();
