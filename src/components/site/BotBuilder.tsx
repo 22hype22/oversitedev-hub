@@ -623,7 +623,7 @@ export const BotBuilder = () => {
         </div>
 
         {/* Right: light/blue live preview */}
-        <aside className={`${showPayment ? "" : "lg:sticky lg:top-24"} h-fit space-y-4`}>
+        <aside data-no-translate className={`${showPayment ? "" : "lg:sticky lg:top-24"} h-fit space-y-4`}>
           {/* Profile card — adapts to light/dark mode */}
           <div className="rounded-2xl overflow-hidden border border-primary/20 bg-white dark:bg-[hsl(220_8%_14%)] dark:border-white/10 shadow-elegant">
             {/* Banner */}
