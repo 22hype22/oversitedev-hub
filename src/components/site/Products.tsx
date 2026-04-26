@@ -453,6 +453,19 @@ export const Products = () => {
     notifyAdded(product.name);
   };
 
+  const startSubscriptionCheckout = (sub: Subscription) => {
+    const priceId = PRICE_MAP[sub.id];
+    if (!priceId) {
+      sonnerToast.error("Checkout unavailable", {
+        description: "This membership isn't set up for purchase yet.",
+      });
+      return;
+    }
+    setCheckoutItems([{ priceId, quantity: 1 }]);
+    setCartOpen(false);
+    setCheckoutOpen(true);
+  };
+
   const addSubscriptionToCart = (sub: Subscription) => {
     if (cart.find((i) => i.id === sub.id)) {
       sonnerToast.info("Already in cart", { description: sub.name });
