@@ -831,13 +831,20 @@ export const Products = () => {
                 className="group p-0 overflow-hidden bg-card border-border hover:border-primary/50 hover:shadow-elegant transition-smooth flex flex-col"
               >
                 <div className="relative">
-                  <ProductImage
-                    images={p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : p.imageUrl ? [p.imageUrl] : []}
-                    emoji={p.emoji}
-                    alt={p.name}
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setPreviewProduct(p)}
+                    className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={`Preview ${p.name}`}
+                  >
+                    <ProductImage
+                      images={p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : p.imageUrl ? [p.imageUrl] : []}
+                      emoji={p.emoji}
+                      alt={p.name}
+                    />
+                  </button>
                   {p.tag && (
-                    <Badge className="absolute top-3 left-3 z-10 bg-primary text-primary-foreground hover:bg-primary">
+                    <Badge className="absolute top-3 left-3 z-10 bg-primary text-primary-foreground hover:bg-primary pointer-events-none">
                       {p.tag}
                     </Badge>
                   )}
