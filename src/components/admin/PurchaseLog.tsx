@@ -27,13 +27,20 @@ type LogRow = {
 };
 
 type SourceFilter = "all" | "card" | "robux";
+type StatusFilter = "fulfilled" | "all" | "pending";
 
 const PAGE_SIZE = 50;
+
+const isFulfilledStatus = (s: string) => {
+  const v = (s ?? "").toLowerCase();
+  return v === "paid" || v === "fulfilled" || v === "completed" || v === "complete" || v === "succeeded";
+};
 
 export const PurchaseLog = () => {
   const [rows, setRows] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<SourceFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("fulfilled");
   const [search, setSearch] = useState("");
 
   const load = async () => {
