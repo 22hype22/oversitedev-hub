@@ -923,7 +923,7 @@ export const Products = () => {
             No products match your search.
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((p) => (
               <Card
                 key={p.id}
@@ -953,7 +953,7 @@ export const Products = () => {
                     )}
                   </div>
                   <h3 className="font-semibold text-base leading-tight">{p.name}</h3>
-                  <p className="text-sm text-muted-foreground mt-1.5 flex-1">{p.blurb}</p>
+                  <p className="text-sm text-muted-foreground mt-1.5 flex-1 whitespace-pre-wrap break-words">{p.blurb}</p>
                   {(() => {
                     const ownedRow = p.dbId ? owned.get(p.dbId) : undefined;
                     const isOwned = !!ownedRow;
