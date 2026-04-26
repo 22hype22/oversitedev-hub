@@ -979,7 +979,7 @@ export const Products = () => {
                               <div className="flex items-baseline gap-2 flex-wrap">
                                 {canUpgradeStripe && (
                                   <span className="text-xl font-bold">
-                                    ${Number(p.upgradePrice).toFixed(2)}
+                                    {formatPrice(Number(p.upgradePrice))}
                                   </span>
                                 )}
                                 {canUpgradeRobux && p.upgradePriceRobux ? (
