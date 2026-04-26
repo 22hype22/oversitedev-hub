@@ -10,6 +10,7 @@ import { SuspensionBanner } from "@/components/SuspensionBanner";
 import { SignupPromoDialog } from "@/components/SignupPromoDialog";
 import { PreferencesProvider } from "@/hooks/usePreferences";
 import { AutoTranslator } from "@/components/AutoTranslator";
+import { ScrollToTop } from "@/components/ScrollToTop";
 import Index from "./pages/Index.tsx";
 import ProcessPage from "./pages/ProcessPage.tsx";
 import ProductsPage from "./pages/ProductsPage.tsx";
@@ -43,6 +44,7 @@ const App = () => {
         {showSplash && <SplashScreen onDone={handleSplashDone} />}
         <BrowserRouter>
           <PreferencesProvider>
+          <ScrollToTop />
           <AutoTranslator />
           <SignupPromoDialog />
           <Routes>
