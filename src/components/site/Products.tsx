@@ -927,7 +927,7 @@ export const Products = () => {
             {filtered.map((p) => (
               <Card
                 key={p.id}
-                className="group p-0 overflow-hidden bg-card border-border hover:border-primary/50 hover:shadow-elegant transition-smooth flex flex-col"
+                className="group p-0 overflow-hidden bg-card border-border hover:border-primary/50 hover:shadow-elegant transition-smooth flex flex-col min-h-[640px]"
               >
                 <div className="relative">
                   <ProductImage
