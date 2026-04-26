@@ -36,7 +36,7 @@ const TIERS: Tier[] = [
     icon: Building,
     tagline: "Scale up with more add-ons, servers, and priority support.",
     monthly: 24.99,
-    yearly: 249,
+    yearly: 249.99,
     popular: true,
     accent: "from-[hsl(280_30%_70%)]/15 to-transparent",
     border: "border-[hsl(280_30%_70%)]/40 hover:border-[hsl(280_30%_70%)]/70",
