@@ -23,6 +23,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   ShoppingCart,
   Plus,
   Minus,
@@ -281,6 +288,7 @@ export const Products = () => {
   const [robuxOpen, setRobuxOpen] = useState(false);
   const [robuxProduct, setRobuxProduct] = useState<RobuxPurchaseProduct | null>(null);
   const [robuxUpgradePromptOpen, setRobuxUpgradePromptOpen] = useState(false);
+  const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
 
   const startUpgradeStripe = (p: Product) => {
     const ownedRow = p.dbId ? owned.get(p.dbId) : undefined;
@@ -823,13 +831,20 @@ export const Products = () => {
                 className="group p-0 overflow-hidden bg-card border-border hover:border-primary/50 hover:shadow-elegant transition-smooth flex flex-col"
               >
                 <div className="relative">
-                  <ProductImage
-                    images={p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : p.imageUrl ? [p.imageUrl] : []}
-                    emoji={p.emoji}
-                    alt={p.name}
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setPreviewProduct(p)}
+                    className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={`Preview ${p.name}`}
+                  >
+                    <ProductImage
+                      images={p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : p.imageUrl ? [p.imageUrl] : []}
+                      emoji={p.emoji}
+                      alt={p.name}
+                    />
+                  </button>
                   {p.tag && (
-                    <Badge className="absolute top-3 left-3 z-10 bg-primary text-primary-foreground hover:bg-primary">
+                    <Badge className="absolute top-3 left-3 z-10 bg-primary text-primary-foreground hover:bg-primary pointer-events-none">
                       {p.tag}
                     </Badge>
                   )}
@@ -1051,6 +1066,54 @@ export const Products = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!previewProduct} onOpenChange={(o) => !o && setPreviewProduct(null)}>
+        <DialogContent className="w-[min(calc(100vw-2rem),72rem)] max-w-[72rem] max-h-[92vh] overflow-y-auto p-0">
+          {previewProduct && (
+            <>
+              <div className="bg-black/40">
+                <ProductImage
+                  images={
+                    previewProduct.imageUrls && previewProduct.imageUrls.length > 0
+                      ? previewProduct.imageUrls
+                      : previewProduct.imageUrl
+                      ? [previewProduct.imageUrl]
+                      : []
+                  }
+                  emoji={previewProduct.emoji}
+                  alt={previewProduct.name}
+                />
+              </div>
+              <div className="p-6 space-y-3">
+                <DialogHeader>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="secondary" className="text-xs font-medium">
+                      {previewProduct.category}
+                    </Badge>
+                    {previewProduct.version && (
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        {previewProduct.version}
+                      </span>
+                    )}
+                  </div>
+                  <DialogTitle className="text-2xl">{previewProduct.name}</DialogTitle>
+                  <DialogDescription className="whitespace-pre-line text-sm leading-relaxed">
+                    {previewProduct.blurb}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex items-baseline gap-2 pt-2">
+                  <span className="text-2xl font-bold">${previewProduct.price}</span>
+                  {previewProduct.priceRobux && previewProduct.gamepassUrl && (
+                    <span className="text-sm text-muted-foreground">
+                      or R$ {previewProduct.priceRobux.toLocaleString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 };
