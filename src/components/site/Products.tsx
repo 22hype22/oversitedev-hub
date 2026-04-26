@@ -251,7 +251,7 @@ const ProductImage = ({
           >
             <ChevronRight className="h-4 w-4" />
           </button>
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 px-2 py-1.5 rounded-full bg-background/60 backdrop-blur">
             {images.map((_, i) => (
               <button
                 key={i}
@@ -261,8 +261,8 @@ const ProductImage = ({
                   e.stopPropagation();
                   setIdx(i);
                 }}
-                className={`h-1.5 rounded-full transition-all ${
-                  i === idx ? "w-5 bg-primary" : "w-1.5 bg-background/70 hover:bg-background"
+                className={`h-2.5 rounded-full transition-all cursor-pointer hover:scale-125 ${
+                  i === idx ? "w-6 bg-primary" : "w-2.5 bg-foreground/40 hover:bg-foreground/70"
                 }`}
                 aria-label={`Image ${i + 1}`}
               />
