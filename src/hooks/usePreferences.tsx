@@ -151,6 +151,9 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   const setPrefs = useCallback(
     async (patch: Partial<Preferences>) => {
       const next = { ...prefs, ...patch };
+      const languageChanged =
+        patch.preferred_language !== undefined &&
+        patch.preferred_language !== prefs.preferred_language;
       setPrefsState(next);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       if (user) {
@@ -158,6 +161,11 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
           .from("profiles")
           .update(patch)
           .eq("user_id", user.id);
+      }
+      // Auto-refresh after a language change so all translated DOM text
+      // is re-rendered cleanly in the new language.
+      if (languageChanged && typeof window !== "undefined") {
+        window.location.reload();
       }
     },
     [prefs, user],
