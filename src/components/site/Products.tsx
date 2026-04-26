@@ -1004,7 +1004,7 @@ export const Products = () => {
                             <div className="text-xs text-muted-foreground">
                               {p.isAvailable === false ? "Coming soon" : "Price"}
                             </div>
-                            <span className="text-xl font-bold">${p.price}</span>
+                            <span className="text-xl font-bold">{formatPrice(Number(p.price))}</span>
                             {p.priceRobux && p.gamepassUrl && (
                               <span className="ml-2 text-xs text-muted-foreground">
                                 or R$ {p.priceRobux.toLocaleString()}
