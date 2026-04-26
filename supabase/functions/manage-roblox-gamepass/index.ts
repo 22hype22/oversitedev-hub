@@ -104,19 +104,22 @@ async function createGamepass(
   const { blob, ext } = await fetchIcon(iconUrl);
 
   const form = new FormData();
-  form.append("Name", name.slice(0, 100));
-  form.append("UniverseId", universeId);
-  form.append("File", blob, `icon.${ext}`);
+  form.append("name", name.slice(0, 100));
+  form.append("universeId", universeId);
+  form.append("file", blob, `icon.${ext}`);
 
   const doCreate = async (token: string) =>
-    await fetch("https://apis.roblox.com/game-passes/v1/game-passes", {
-      method: "POST",
-      headers: {
-        Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}`,
-        "x-csrf-token": token,
+    await fetch(
+      `https://itemconfiguration.roblox.com/v1/game-passes`,
+      {
+        method: "POST",
+        headers: {
+          Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}`,
+          "x-csrf-token": token,
+        },
+        body: form,
       },
-      body: form,
-    });
+    );
 
   let res = await doCreate(csrf);
   if (res.status === 403) {
