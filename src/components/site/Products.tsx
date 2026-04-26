@@ -453,6 +453,19 @@ export const Products = () => {
     notifyAdded(product.name);
   };
 
+  const startSubscriptionCheckout = (sub: Subscription) => {
+    const priceId = PRICE_MAP[sub.id];
+    if (!priceId) {
+      sonnerToast.error("Checkout unavailable", {
+        description: "This membership isn't set up for purchase yet.",
+      });
+      return;
+    }
+    setCheckoutItems([{ priceId, quantity: 1 }]);
+    setCartOpen(false);
+    setCheckoutOpen(true);
+  };
+
   const addSubscriptionToCart = (sub: Subscription) => {
     if (cart.find((i) => i.id === sub.id)) {
       sonnerToast.info("Already in cart", { description: sub.name });
@@ -703,7 +716,7 @@ export const Products = () => {
                 )}
                 <div className="text-center">
                   <h3 className="text-xl font-bold">{s.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wider">
+                  <p className="text-sm text-muted-foreground mt-1">
                     {s.tagline}
                   </p>
                   <div className="mt-5 flex items-baseline justify-center gap-1">
@@ -731,7 +744,7 @@ export const Products = () => {
                 <Button
                   variant={s.popular && !suspended ? "hero" : "outlineGlow"}
                   className="w-full mt-7 rounded-full"
-                  onClick={() => addSubscriptionToCart(s)}
+                  onClick={() => startSubscriptionCheckout(s)}
                   disabled={suspended}
                 >
                   {suspended ? (
