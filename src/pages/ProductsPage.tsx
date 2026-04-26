@@ -1,6 +1,6 @@
 import { Navbar } from "@/components/site/Navbar";
 import { Products } from "@/components/site/Products";
-import { Memberships } from "@/components/site/Memberships";
+import { ProductMemberships } from "@/components/site/ProductMemberships";
 import { Footer } from "@/components/site/Footer";
 
 const ProductsPage = () => {
@@ -10,7 +10,7 @@ const ProductsPage = () => {
       <main>
         <Products />
         <div className="container mx-auto px-4">
-          <Memberships />
+          <ProductMemberships />
         </div>
       </main>
       <Footer />
@@ -19,3 +19,4 @@ const ProductsPage = () => {
 };
 
 export default ProductsPage;
+
