@@ -423,6 +423,7 @@ export const Products = () => {
   const { isMember } = useMembership();
   const { owned } = useUserPurchases();
   const { suspended } = useMarketingSuspended();
+  const { formatPrice } = usePreferences();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [category, setCategory] = useState<string>("All");
   const [categories, setCategories] = useState<string[]>([...FALLBACK_CATEGORIES]);
