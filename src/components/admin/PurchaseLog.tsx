@@ -197,13 +197,23 @@ export const PurchaseLog = () => {
           className="flex-1 min-w-[220px]"
         />
         <Select value={filter} onValueChange={(v) => setFilter(v as SourceFilter)}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[150px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All sources</SelectItem>
             <SelectItem value="card">Card only</SelectItem>
             <SelectItem value="robux">Robux only</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+          <SelectTrigger className="w-[170px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="fulfilled">Fulfilled only</SelectItem>
+            <SelectItem value="pending">Pending only</SelectItem>
+            <SelectItem value="all">All statuses</SelectItem>
           </SelectContent>
         </Select>
       </div>
