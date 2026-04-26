@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Mail, MessageCircle } from "lucide-react";
 
 export const Footer = () => {
