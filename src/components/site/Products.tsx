@@ -297,7 +297,7 @@ const ProductImage = ({
             className="absolute top-4 right-4 h-10 w-10 rounded-full bg-background/80 hover:bg-background grid place-items-center backdrop-blur transition-smooth"
             aria-label="Close"
           >
-            <X className="h-5 w-5" />
+            <XIcon className="h-5 w-5" />
           </button>
         </div>
       )}
