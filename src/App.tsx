@@ -44,6 +44,7 @@ const App = () => {
         {showSplash && <SplashScreen onDone={handleSplashDone} />}
         <BrowserRouter>
           <PreferencesProvider>
+          <ScrollToTop />
           <AutoTranslator />
           <SignupPromoDialog />
           <Routes>
