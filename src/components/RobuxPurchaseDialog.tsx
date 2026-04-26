@@ -232,11 +232,17 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => window.open(gamepassUrl, "_blank", "noopener,noreferrer")}
+                asChild
                 className="w-full"
               >
-                <ExternalLink className="h-4 w-4" />
-                Open anyway
+                <a
+                  href={gamepassUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Open anyway
+                </a>
               </Button>
               <Button variant="hero" onClick={handleVerify} disabled={verifying} className="w-full">
                 {verifying ? (
