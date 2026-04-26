@@ -170,7 +170,7 @@ export const Process = () => (
     </section>
 
     {/* FAQ */}
-    <section className="py-20 md:py-28">
+    <section id="faq" className="py-20 md:py-28 scroll-mt-24">
       <div className="container mx-auto px-4 max-w-3xl">
         <div className="text-center mb-12">
           <div className="text-primary text-sm font-medium mb-3">FAQ</div>
