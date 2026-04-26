@@ -49,10 +49,11 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { items, customerEmail, returnUrl } = body as {
+    const { items, customerEmail, returnUrl, environment } = body as {
       items: LineItemInput[];
       customerEmail?: string;
       returnUrl?: string;
+      environment?: StripeEnv;
     };
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -62,7 +63,7 @@ serve(async (req) => {
       return badRequest("Too many items in cart");
     }
 
-    const env = resolveStripeEnv();
+    const env = environment === "sandbox" || environment === "live" ? environment : resolveStripeEnv();
     const stripe = createStripeClient(env);
 
     const lookupKeys = items
