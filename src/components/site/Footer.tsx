@@ -3,10 +3,8 @@ import { Mail, MessageCircle } from "lucide-react";
 
 export const Footer = () => {
   const year = new Date().getFullYear();
-  const { pathname } = useLocation();
-  const membershipHref = pathname.startsWith("/bots")
-    ? "/bots#memberships"
-    : "/products#memberships";
+  // Memberships only live on the Bots page, so always link there.
+  const membershipHref = "/bots#memberships";
 
   return (
     <footer className="border-t border-border bg-card/30 mt-12">
