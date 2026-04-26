@@ -510,53 +510,7 @@ export const Products = () => {
   return (
     <section>
       {comingSoon.length > 0 && (
-        <div className="w-full border-b border-border mt-6">
-          <div
-            className="grid w-full"
-            style={{
-              gridTemplateColumns: `repeat(${comingSoon.length}, minmax(0, 1fr))`,
-            }}
-          >
-            {comingSoon.map((p) => {
-              const img = p.imageUrls?.[0] || p.imageUrl;
-              return (
-                <div
-                  key={p.id}
-                  className="relative h-72 md:h-[24rem] overflow-hidden bg-gradient-hero ring-2 ring-inset ring-primary"
-                >
-                  {img && !isVideoUrl(img) ? (
-                    <img
-                      src={img}
-                      alt={p.name}
-                      className="absolute inset-0 h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-6xl opacity-80">
-                      {p.emoji}
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/40" />
-                  <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center gap-3">
-                    <h3 className="text-4xl md:text-7xl font-bold uppercase tracking-[0.25em] text-white drop-shadow-lg line-clamp-2">
-                      {p.name}
-                    </h3>
-                    <span className="inline-flex items-center justify-center px-4 py-1.5 rounded-full border-2 border-white text-white uppercase tracking-widest text-xs font-semibold">
-                      Coming soon
-                    </span>
-                  </div>
-                  {suspended && (
-                    <div className="absolute inset-0 bg-destructive/70 backdrop-blur-[2px] flex items-center justify-center">
-                      <span className="px-5 py-2 rounded-md border-2 border-destructive-foreground text-destructive-foreground uppercase tracking-[0.3em] font-bold text-sm md:text-base">
-                        Suspended
-                      </span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <ComingSoonRotator items={comingSoon} suspended={suspended} />
       )}
       <div className="container mx-auto px-4 pt-20 pb-12 md:pt-24 md:pb-16">
         {/* Header */}
