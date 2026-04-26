@@ -793,7 +793,89 @@ export const Products = () => {
           </Sheet>
         </div>
 
-        {/* Products header */}
+        {/* Subscriptions */}
+        <div id="memberships" className="mb-20 scroll-mt-24">
+          <div className="text-center max-w-2xl mx-auto mb-10">
+            <div className="inline-flex items-center gap-2 text-primary text-xs font-semibold uppercase tracking-widest mb-3">
+              <Sparkles className="h-3.5 w-3.5" />
+              Monthly Subscriptions
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+              Choose your <span className="text-gradient">growth plan</span>
+            </h2>
+            <p className="mt-3 text-muted-foreground">
+              Flexible monthly pricing to fit any community's needs.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+            {SUBSCRIPTIONS.map((s) => (
+              <Card
+                key={s.id}
+                className={`relative p-7 flex flex-col transition-smooth ${
+                  s.popular && !suspended
+                    ? "border-2 border-primary shadow-elegant scale-[1.02] bg-card"
+                    : "border-border bg-card hover:border-primary/40"
+                }`}
+              >
+                {s.popular && !suspended && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase bg-primary text-primary-foreground shadow-glow">
+                    Popular
+                  </div>
+                )}
+                <div className="text-center">
+                  <h3 className="text-xl font-bold">{s.name}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {s.tagline}
+                  </p>
+                  <div className="mt-5 flex items-baseline justify-center gap-1">
+                    <span className="text-sm text-muted-foreground self-start mt-2">$</span>
+                    <span className="text-5xl font-bold tracking-tight">{s.price}</span>
+                    <span className="text-muted-foreground text-sm">/mo</span>
+                  </div>
+                </div>
+
+                <ul className="mt-7 space-y-3 flex-1">
+                  {s.features.map((f) => (
+                    <li key={f.label} className="flex items-center gap-2 text-sm">
+                      {f.included ? (
+                        <Check className="h-4 w-4 text-primary shrink-0" />
+                      ) : (
+                        <XIcon className="h-4 w-4 text-destructive/70 shrink-0" />
+                      )}
+                      <span className={f.included ? "" : "text-muted-foreground line-through"}>
+                        {f.label}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                <Button
+                  variant={s.popular && !suspended ? "hero" : "outlineGlow"}
+                  className="w-full mt-7 rounded-full"
+                  onClick={() => startSubscriptionCheckout(s)}
+                  disabled={suspended}
+                >
+                  {suspended ? (
+                    <>
+                      <Lock className="h-4 w-4" />
+                      Suspended
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-4 w-4" />
+                      Purchase
+                    </>
+                  )}
+                </Button>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-border mb-12" />
+
         <div className="text-center max-w-2xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 text-primary text-xs font-semibold uppercase tracking-widest mb-3">
             <Package className="h-3.5 w-3.5" />
