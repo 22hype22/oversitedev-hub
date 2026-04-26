@@ -47,6 +47,7 @@ import { useUserPurchases } from "@/hooks/useUserPurchases";
 import { useMarketingSuspended } from "@/components/SuspensionBanner";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
 import { compareVersions } from "@/lib/utils";
+import { usePreferences } from "@/hooks/usePreferences";
 
 // Maps internal product/subscription IDs to Stripe price IDs (lookup keys)
 const PRICE_MAP: Record<string, string> = {
