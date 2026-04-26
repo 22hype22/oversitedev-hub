@@ -828,28 +828,31 @@ export const Products = () => {
             {filtered.map((p) => (
               <Card
                 key={p.id}
-                className="group p-0 overflow-hidden bg-card border-border hover:border-primary/50 hover:shadow-elegant transition-smooth flex flex-col"
+                onClick={() => setPreviewProduct(p)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setPreviewProduct(p);
+                  }
+                }}
+                className="group p-0 overflow-hidden bg-card border-border hover:border-primary/50 hover:shadow-elegant transition-smooth flex flex-col cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`Preview ${p.name}`}
               >
                 <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setPreviewProduct(p)}
-                    className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    aria-label={`Preview ${p.name}`}
-                  >
-                    <ProductImage
-                      images={p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : p.imageUrl ? [p.imageUrl] : []}
-                      emoji={p.emoji}
-                      alt={p.name}
-                    />
-                  </button>
+                  <ProductImage
+                    images={p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : p.imageUrl ? [p.imageUrl] : []}
+                    emoji={p.emoji}
+                    alt={p.name}
+                  />
                   {p.tag && (
                     <Badge className="absolute top-3 left-3 z-10 bg-primary text-primary-foreground hover:bg-primary pointer-events-none">
                       {p.tag}
                     </Badge>
                   )}
                 </div>
-                <div className="p-5 flex flex-col flex-1">
+                <div onClick={(e) => e.stopPropagation()} className="p-5 flex flex-col flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <Badge variant="secondary" className="text-xs font-medium">
                       {p.category}
@@ -1068,50 +1071,149 @@ export const Products = () => {
       </AlertDialog>
 
       <Dialog open={!!previewProduct} onOpenChange={(o) => !o && setPreviewProduct(null)}>
-        <DialogContent className="w-[min(calc(100vw-2rem),72rem)] max-w-[72rem] max-h-[92vh] overflow-y-auto p-0">
-          {previewProduct && (
-            <>
-              <div className="bg-black/40">
-                <ProductImage
-                  images={
-                    previewProduct.imageUrls && previewProduct.imageUrls.length > 0
-                      ? previewProduct.imageUrls
-                      : previewProduct.imageUrl
-                      ? [previewProduct.imageUrl]
-                      : []
-                  }
-                  emoji={previewProduct.emoji}
-                  alt={previewProduct.name}
-                />
-              </div>
-              <div className="p-6 space-y-3">
-                <DialogHeader>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="secondary" className="text-xs font-medium">
-                      {previewProduct.category}
-                    </Badge>
-                    {previewProduct.version && (
-                      <span className="text-[10px] font-mono text-muted-foreground">
-                        {previewProduct.version}
-                      </span>
+        <DialogContent className="w-[min(calc(100vw-2rem),64rem)] max-w-[64rem] p-0 overflow-hidden gap-0">
+          {previewProduct && (() => {
+            const p = previewProduct;
+            const ownedRow = p.dbId ? owned.get(p.dbId) : undefined;
+            const isOwned = !!ownedRow;
+            const hasNewer =
+              isOwned &&
+              !!p.version &&
+              !!ownedRow!.version &&
+              compareVersions(p.version, ownedRow!.version) > 0;
+            const canUpgradeStripe = hasNewer && !!p.upgradePrice && p.upgradePrice > 0;
+            const canUpgradeRobux = hasNewer;
+            const close = () => setPreviewProduct(null);
+            return (
+              <div className="grid md:grid-cols-2">
+                {/* Image side */}
+                <div className="bg-black/40 md:aspect-auto">
+                  <ProductImage
+                    images={
+                      p.imageUrls && p.imageUrls.length > 0
+                        ? p.imageUrls
+                        : p.imageUrl
+                        ? [p.imageUrl]
+                        : []
+                    }
+                    emoji={p.emoji}
+                    alt={p.name}
+                  />
+                </div>
+                {/* Details side */}
+                <div className="p-6 md:p-8 flex flex-col gap-4">
+                  <DialogHeader className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs font-medium">
+                        {p.category}
+                      </Badge>
+                      {p.version && (
+                        <span className="text-[10px] font-mono text-muted-foreground">
+                          {p.version}
+                        </span>
+                      )}
+                    </div>
+                    <DialogTitle className="text-2xl leading-tight">{p.name}</DialogTitle>
+                    <DialogDescription className="whitespace-pre-line text-sm leading-relaxed line-clamp-6">
+                      {p.blurb}
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="mt-auto pt-4 border-t border-border space-y-4">
+                    <div>
+                      <div className="text-xs text-muted-foreground">
+                        {isOwned ? (hasNewer ? "Version upgrade" : "You own this") : p.isAvailable === false ? "Coming soon" : "Price"}
+                      </div>
+                      {isOwned && hasNewer ? (
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                          {canUpgradeStripe && (
+                            <span className="text-2xl font-bold">
+                              ${Number(p.upgradePrice).toFixed(2)}
+                            </span>
+                          )}
+                          {canUpgradeRobux && p.upgradePriceRobux ? (
+                            <span className={canUpgradeStripe ? "text-sm text-muted-foreground" : "text-base font-medium"}>
+                              {canUpgradeStripe ? "or " : ""}R$ {p.upgradePriceRobux.toLocaleString()}
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : isOwned ? (
+                        <span className="text-base font-medium text-primary">
+                          Latest version{p.version ? ` (${p.version})` : ""}
+                        </span>
+                      ) : (
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                          <span className="text-2xl font-bold">${p.price}</span>
+                          {p.priceRobux && p.gamepassUrl && (
+                            <span className="text-sm text-muted-foreground">
+                              or R$ {p.priceRobux.toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {suspended ? (
+                      <Button variant="outline" disabled className="w-full">
+                        <Lock className="h-4 w-4" />
+                        Suspended
+                      </Button>
+                    ) : p.isAvailable === false ? (
+                      <Button variant="outline" disabled className="w-full">
+                        <Sparkles className="h-4 w-4" />
+                        Coming soon
+                      </Button>
+                    ) : isOwned && hasNewer ? (
+                      <div className={`grid gap-2 ${canUpgradeStripe && canUpgradeRobux ? "grid-cols-2" : "grid-cols-1"}`}>
+                        {canUpgradeStripe && (
+                          <Button
+                            variant="hero"
+                            onClick={() => { close(); startUpgradeStripe(p); }}
+                          >
+                            <CreditCard className="h-4 w-4" />
+                            Upgrade ${Number(p.upgradePrice).toFixed(2)}
+                          </Button>
+                        )}
+                        {canUpgradeRobux && (
+                          <Button
+                            variant="outlineGlow"
+                            onClick={() => { close(); startUpgradeRobux(p); }}
+                          >
+                            <span aria-hidden className="font-bold text-xs">R$</span>
+                            Upgrade with Robux
+                          </Button>
+                        )}
+                      </div>
+                    ) : isOwned ? (
+                      <Button variant="outline" disabled className="w-full">
+                        <Check className="h-4 w-4" />
+                        Owned
+                      </Button>
+                    ) : (
+                      <div className={`grid gap-2 ${p.priceRobux && p.gamepassUrl ? "grid-cols-2" : "grid-cols-1"}`}>
+                        <Button
+                          variant="hero"
+                          onClick={() => { close(); addProductToCart(p); }}
+                        >
+                          <CreditCard className="h-4 w-4" />
+                          Buy ${p.price}
+                        </Button>
+                        {p.priceRobux && p.gamepassUrl && (
+                          <Button
+                            variant="outlineGlow"
+                            onClick={() => { close(); startRobuxPurchase(p); }}
+                          >
+                            <span aria-hidden className="font-bold text-xs">R$</span>
+                            R$ {p.priceRobux.toLocaleString()}
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
-                  <DialogTitle className="text-2xl">{previewProduct.name}</DialogTitle>
-                  <DialogDescription className="whitespace-pre-line text-sm leading-relaxed">
-                    {previewProduct.blurb}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="flex items-baseline gap-2 pt-2">
-                  <span className="text-2xl font-bold">${previewProduct.price}</span>
-                  {previewProduct.priceRobux && previewProduct.gamepassUrl && (
-                    <span className="text-sm text-muted-foreground">
-                      or R$ {previewProduct.priceRobux.toLocaleString()}
-                    </span>
-                  )}
                 </div>
               </div>
-            </>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </section>
