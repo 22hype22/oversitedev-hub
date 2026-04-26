@@ -27,13 +27,20 @@ type LogRow = {
 };
 
 type SourceFilter = "all" | "card" | "robux";
+type StatusFilter = "fulfilled" | "all" | "pending";
 
 const PAGE_SIZE = 50;
+
+const isFulfilledStatus = (s: string) => {
+  const v = (s ?? "").toLowerCase();
+  return v === "paid" || v === "fulfilled" || v === "completed" || v === "complete" || v === "succeeded";
+};
 
 export const PurchaseLog = () => {
   const [rows, setRows] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<SourceFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("fulfilled");
   const [search, setSearch] = useState("");
 
   const load = async () => {
@@ -117,6 +124,8 @@ export const PurchaseLog = () => {
     const term = search.trim().toLowerCase();
     return rows.filter((r) => {
       if (filter !== "all" && r.source !== filter) return false;
+      if (statusFilter === "fulfilled" && !isFulfilledStatus(r.status)) return false;
+      if (statusFilter === "pending" && isFulfilledStatus(r.status)) return false;
       if (!term) return true;
       return (
         r.product_name.toLowerCase().includes(term) ||
@@ -124,7 +133,7 @@ export const PurchaseLog = () => {
         (r.version ?? "").toLowerCase().includes(term)
       );
     });
-  }, [rows, filter, search]);
+  }, [rows, filter, statusFilter, search]);
 
   const visible = filtered.slice(0, PAGE_SIZE);
 
@@ -188,13 +197,23 @@ export const PurchaseLog = () => {
           className="flex-1 min-w-[220px]"
         />
         <Select value={filter} onValueChange={(v) => setFilter(v as SourceFilter)}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[150px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All sources</SelectItem>
             <SelectItem value="card">Card only</SelectItem>
             <SelectItem value="robux">Robux only</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+          <SelectTrigger className="w-[170px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="fulfilled">Fulfilled only</SelectItem>
+            <SelectItem value="pending">Pending only</SelectItem>
+            <SelectItem value="all">All statuses</SelectItem>
           </SelectContent>
         </Select>
       </div>
