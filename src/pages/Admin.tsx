@@ -30,6 +30,7 @@ import { AdminManager } from "@/components/admin/AdminManager";
 import { CategoryManager } from "@/components/admin/CategoryManager";
 import { UserVersionUpgrader } from "@/components/admin/UserVersionUpgrader";
 import { PurchaseLog } from "@/components/admin/PurchaseLog";
+import { AccountsLog } from "@/components/admin/AccountsLog";
 
 const SUPER_ADMIN_EMAIL = "everant00@gmail.com";
 
@@ -210,6 +211,7 @@ const Admin = () => {
             <div className="mt-10 pt-6 border-t border-border space-y-6">
               <UserVersionUpgrader />
               <PurchaseLog />
+              <AccountsLog />
             </div>
           )}
 
