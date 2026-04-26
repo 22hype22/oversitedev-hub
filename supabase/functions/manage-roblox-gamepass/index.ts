@@ -103,21 +103,26 @@ async function createGamepass(
   let csrf = await getCsrfToken();
   const { blob, ext } = await fetchIcon(iconUrl);
 
-  const form = new FormData();
-  form.append("name", name.slice(0, 100));
-  form.append("universeId", universeId);
-  form.append("file", blob, `icon.${ext}`);
+  const buildForm = () => {
+    const form = new FormData();
+    form.append("name", name.slice(0, 100));
+    form.append("description", "");
+    form.append("isForSale", priceRobux > 0 ? "true" : "false");
+    form.append("price", String(priceRobux));
+    form.append("imageFile", blob, `icon.${ext}`);
+    return form;
+  };
 
   const doCreate = async (token: string) =>
     await fetch(
-      `https://itemconfiguration.roblox.com/v1/game-passes`,
+      `https://apis.roblox.com/game-passes/v1/universes/${universeId}/game-passes`,
       {
         method: "POST",
         headers: {
           Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}`,
           "x-csrf-token": token,
         },
-        body: form,
+        body: buildForm(),
       },
     );
 
@@ -137,14 +142,10 @@ async function createGamepass(
     );
   }
   const data = await res.json();
-  // Response shape: { gamePassId: number } (camelCase varies — handle both)
   const id = String(
     data?.gamePassId ?? data?.gamepassId ?? data?.id ?? "",
   );
   if (!id) throw new Error("Roblox response missing gamepass id");
-
-  // Now set price + on-sale.
-  await updateGamepassPrice(id, priceRobux, csrf);
 
   return id;
 }
@@ -154,26 +155,28 @@ async function updateGamepassPrice(
   priceRobux: number,
   csrfToken?: string,
 ): Promise<void> {
+  const universeId = await resolveUniverseId();
   let csrf = csrfToken ?? (await getCsrfToken());
 
-  const body = JSON.stringify({
-    Name: undefined, // omit so Roblox keeps existing name
-    Description: undefined,
-    Price: priceRobux,
-    IsForSale: priceRobux > 0,
-  });
+  const buildForm = () => {
+    const form = new FormData();
+    form.append("isForSale", priceRobux > 0 ? "true" : "false");
+    form.append("price", String(priceRobux));
+    return form;
+  };
 
-  const url = `https://economy.roblox.com/v1/game-pass/${gamepassId}/update`;
   const doUpdate = async (token: string) =>
-    await fetch(url, {
-      method: "POST",
-      headers: {
-        Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}`,
-        "x-csrf-token": token,
-        "Content-Type": "application/json",
+    await fetch(
+      `https://apis.roblox.com/game-passes/v1/universes/${universeId}/game-passes/${gamepassId}`,
+      {
+        method: "PATCH",
+        headers: {
+          Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}`,
+          "x-csrf-token": token,
+        },
+        body: buildForm(),
       },
-      body,
-    });
+    );
 
   let res = await doUpdate(csrf);
   if (res.status === 403) {
