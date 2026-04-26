@@ -140,10 +140,6 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
   if (!product) return null;
 
   const gamepassUrl = normalizeGamepassUrl(product.gamepassUrl);
-  const openGamepassLink = () => {
-    window.location.assign(gamepassUrl);
-  };
-
   const handleCopyGamepass = async () => {
     try {
       await navigator.clipboard.writeText(gamepassUrl);
