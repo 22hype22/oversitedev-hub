@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Check, X, Crown, Building2, Building, Sparkles, Lock } from "lucide-react";
 import { useMarketingSuspended } from "@/hooks/useMarketingSuspended";
+import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
+import { useAuth } from "@/hooks/useAuth";
 
 type Tier = {
   id: "franchise" | "corporation" | "enterprise";
@@ -82,6 +84,15 @@ const FEATURES: FeatureRow[] = [
 export const Memberships = () => {
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
   const { suspended } = useMarketingSuspended();
+  const { user } = useAuth();
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutItems, setCheckoutItems] = useState<CheckoutItem[]>([]);
+
+  const handleSubscribe = (tierId: Tier["id"]) => {
+    const priceId = `membership_${tierId}_${billing === "monthly" ? "monthly" : "yearly"}`;
+    setCheckoutItems([{ priceId, quantity: 1 }]);
+    setCheckoutOpen(true);
+  };
 
   return (
     <section id="memberships" className="mt-24 scroll-mt-24">
@@ -176,8 +187,8 @@ export const Memberships = () => {
                   variant={tier.popular ? "hero" : "outlineGlow"}
                   size="lg"
                   className="w-full"
-                  asChild={!suspended}
                   disabled={suspended}
+                  onClick={() => !suspended && handleSubscribe(tier.id)}
                 >
                   {suspended ? (
                     <span className="inline-flex items-center justify-center gap-2">
@@ -185,7 +196,7 @@ export const Memberships = () => {
                       Suspended
                     </span>
                   ) : (
-                    <a href="/#contact">Get {tier.name}</a>
+                    <span>Get {tier.name}</span>
                   )}
                 </Button>
 
