@@ -22,7 +22,7 @@ export function UpgradeNotice({ compact = false, className = "" }: UpgradeNotice
         <Sparkles className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
         <p className="text-muted-foreground leading-snug">
           New versions roll out for free with a{" "}
-          <Link to="/products#memberships" className="text-primary font-medium hover:underline">
+          <Link to="/bots#memberships" className="text-primary font-medium hover:underline">
             membership
           </Link>
           , or upgrade for a small fee anytime.
@@ -46,7 +46,7 @@ export function UpgradeNotice({ compact = false, className = "" }: UpgradeNotice
             available.
           </p>
           <Button asChild size="sm" variant="hero" className="mt-3">
-            <Link to="/products#memberships">View memberships</Link>
+            <Link to="/bots#memberships">View memberships</Link>
           </Button>
         </div>
       </div>
