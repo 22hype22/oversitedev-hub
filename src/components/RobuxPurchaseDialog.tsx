@@ -140,6 +140,13 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
   if (!product) return null;
 
   const gamepassUrl = normalizeGamepassUrl(product.gamepassUrl);
+  const robloxLinkTarget = (() => {
+    try {
+      return window.self !== window.top ? "_top" : "_blank";
+    } catch {
+      return "_top";
+    }
+  })();
 
   const handleCopyGamepass = async () => {
     try {
@@ -195,7 +202,7 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
             <DialogHeader className="px-6 pt-6">
               <DialogTitle>Complete your purchase on Roblox</DialogTitle>
               <DialogDescription>
-                The preview can block Roblox links. Open the gamepass manually, buy it as{" "}
+                The preview can block popups, so this opens Roblox as a normal link. Buy it as{" "}
                 <span className="font-semibold">{username}</span>, then come back here.
               </DialogDescription>
             </DialogHeader>
@@ -230,13 +237,11 @@ export function RobuxPurchaseDialog({ open, onOpenChange, product }: Props) {
                 <Copy className="h-4 w-4" />
                 Copy link
               </Button>
-              <Button
-                variant="outline"
-                onClick={handleCopyGamepass}
-                className="w-full"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Copy Roblox link
+              <Button variant="outline" asChild className="w-full">
+                <a href={gamepassUrl} target={robloxLinkTarget} rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4" />
+                  Open link
+                </a>
               </Button>
               <Button variant="hero" onClick={handleVerify} disabled={verifying} className="w-full">
                 {verifying ? (
