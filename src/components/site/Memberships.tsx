@@ -48,7 +48,7 @@ const TIERS: Tier[] = [
     icon: Building2,
     tagline: "The full toolkit — white-labeled, branded, and dedicated.",
     monthly: 49.99,
-    yearly: 479,
+    yearly: 474.99,
     accent: "from-primary/20 to-transparent",
     border: "border-primary/40 hover:border-primary/70",
     iconColor: "text-primary",
