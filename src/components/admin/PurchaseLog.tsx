@@ -124,6 +124,8 @@ export const PurchaseLog = () => {
     const term = search.trim().toLowerCase();
     return rows.filter((r) => {
       if (filter !== "all" && r.source !== filter) return false;
+      if (statusFilter === "fulfilled" && !isFulfilledStatus(r.status)) return false;
+      if (statusFilter === "pending" && isFulfilledStatus(r.status)) return false;
       if (!term) return true;
       return (
         r.product_name.toLowerCase().includes(term) ||
@@ -131,7 +133,7 @@ export const PurchaseLog = () => {
         (r.version ?? "").toLowerCase().includes(term)
       );
     });
-  }, [rows, filter, search]);
+  }, [rows, filter, statusFilter, search]);
 
   const visible = filtered.slice(0, PAGE_SIZE);
 
