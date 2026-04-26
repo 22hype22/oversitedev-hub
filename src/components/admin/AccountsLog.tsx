@@ -4,13 +4,25 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Download, Users } from "lucide-react";
+import { RefreshCw, Download, Users, Ban, Trash2, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type AccountRow = {
   id: string;
   user_id: string;
   roblox_username: string;
   discord_username: string;
+  is_banned: boolean;
   created_at: string;
 };
 
@@ -20,12 +32,14 @@ export const AccountsLog = () => {
   const [rows, setRows] = useState<AccountRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<AccountRow | null>(null);
 
   const load = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, user_id, roblox_username, discord_username, created_at")
+      .select("id, user_id, roblox_username, discord_username, is_banned, created_at")
       .order("created_at", { ascending: false })
       .limit(500);
     if (!error && data) setRows(data as AccountRow[]);
@@ -50,11 +64,11 @@ export const AccountsLog = () => {
   const visible = filtered.slice(0, PAGE_SIZE);
 
   const exportCsv = () => {
-    const header = ["created_at", "roblox_username", "discord_username", "user_id"];
+    const header = ["created_at", "roblox_username", "discord_username", "is_banned", "user_id"];
     const lines = [header.join(",")];
     for (const r of filtered) {
       lines.push(
-        [r.created_at, r.roblox_username, r.discord_username, r.user_id]
+        [r.created_at, r.roblox_username, r.discord_username, r.is_banned, r.user_id]
           .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`)
           .join(","),
       );
@@ -66,6 +80,40 @@ export const AccountsLog = () => {
     a.download = `accounts-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const toggleBan = async (row: AccountRow) => {
+    setBusyId(row.user_id);
+    const next = !row.is_banned;
+    const { error } = await supabase
+      .from("profiles")
+      .update({ is_banned: next })
+      .eq("user_id", row.user_id);
+    setBusyId(null);
+    if (error) {
+      toast.error(`Failed: ${error.message}`);
+      return;
+    }
+    setRows((prev) =>
+      prev.map((r) => (r.user_id === row.user_id ? { ...r, is_banned: next } : r)),
+    );
+    toast.success(next ? "Account banned" : "Account unbanned");
+  };
+
+  const deleteAccount = async (row: AccountRow) => {
+    setBusyId(row.user_id);
+    const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+      body: { targetUserId: row.user_id },
+    });
+    setBusyId(null);
+    setConfirmDelete(null);
+    if (error || (data && (data as { error?: string }).error)) {
+      const msg = error?.message || (data as { error?: string })?.error || "Failed";
+      toast.error(`Delete failed: ${msg}`);
+      return;
+    }
+    setRows((prev) => prev.filter((r) => r.user_id !== row.user_id));
+    toast.success("Account deleted");
   };
 
   return (
@@ -107,7 +155,7 @@ export const AccountsLog = () => {
       ) : visible.length === 0 ? (
         <p className="text-sm text-muted-foreground py-6 text-center">No accounts found.</p>
       ) : (
-        <div className="border border-border rounded-lg divide-y divide-border max-h-[420px] overflow-auto">
+        <div className="border border-border rounded-lg divide-y divide-border max-h-[480px] overflow-auto">
           {visible.map((r) => (
             <div
               key={r.id}
@@ -119,13 +167,45 @@ export const AccountsLog = () => {
                   <Badge variant="secondary" className="font-normal">
                     Discord: {r.discord_username}
                   </Badge>
+                  {r.is_banned && (
+                    <Badge variant="destructive" className="font-normal">Banned</Badge>
+                  )}
                 </div>
                 <div className="text-xs text-muted-foreground truncate mt-0.5">
                   {r.user_id}
                 </div>
               </div>
-              <div className="text-xs text-muted-foreground whitespace-nowrap">
-                {new Date(r.created_at).toLocaleString()}
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs text-muted-foreground whitespace-nowrap hidden md:block">
+                  {new Date(r.created_at).toLocaleString()}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => toggleBan(r)}
+                  disabled={busyId === r.user_id}
+                >
+                  {r.is_banned ? (
+                    <>
+                      <ShieldCheck className="h-4 w-4 mr-1" />
+                      Unban
+                    </>
+                  ) : (
+                    <>
+                      <Ban className="h-4 w-4 mr-1" />
+                      Ban
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setConfirmDelete(r)}
+                  disabled={busyId === r.user_id}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete
+                </Button>
               </div>
             </div>
           ))}
@@ -137,6 +217,32 @@ export const AccountsLog = () => {
           Showing {PAGE_SIZE} of {filtered.length} matching accounts. Refine search to narrow.
         </p>
       )}
+
+      <AlertDialog
+        open={!!confirmDelete}
+        onOpenChange={(o) => !o && setConfirmDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes <strong>{confirmDelete?.roblox_username}</strong>'s
+              login, profile, and role. This cannot be undone. Their past purchase records
+              will remain in the purchase log.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!busyId}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => confirmDelete && deleteAccount(confirmDelete)}
+              disabled={!!busyId}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
