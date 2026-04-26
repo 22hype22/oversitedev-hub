@@ -25,7 +25,7 @@ const TIERS: Tier[] = [
     icon: Crown,
     tagline: "Everything a small server needs to get started.",
     monthly: 9.99,
-    yearly: 99,
+    yearly: 99.99,
     accent: "from-[hsl(70_30%_70%)]/15 to-transparent",
     border: "border-[hsl(70_30%_70%)]/30 hover:border-[hsl(70_30%_70%)]/60",
     iconColor: "text-[hsl(70_30%_70%)]",
