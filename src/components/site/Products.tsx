@@ -716,7 +716,7 @@ export const Products = () => {
                 )}
                 <div className="text-center">
                   <h3 className="text-xl font-bold">{s.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wider">
+                  <p className="text-sm text-muted-foreground mt-1">
                     {s.tagline}
                   </p>
                   <div className="mt-5 flex items-baseline justify-center gap-1">
