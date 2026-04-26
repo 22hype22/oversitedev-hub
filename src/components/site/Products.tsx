@@ -47,6 +47,7 @@ import { useUserPurchases } from "@/hooks/useUserPurchases";
 import { useMarketingSuspended } from "@/components/SuspensionBanner";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
 import { compareVersions } from "@/lib/utils";
+import { usePreferences } from "@/hooks/usePreferences";
 
 // Maps internal product/subscription IDs to Stripe price IDs (lookup keys)
 const PRICE_MAP: Record<string, string> = {
@@ -422,6 +423,7 @@ export const Products = () => {
   const { isMember } = useMembership();
   const { owned } = useUserPurchases();
   const { suspended } = useMarketingSuspended();
+  const { formatPrice } = usePreferences();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [category, setCategory] = useState<string>("All");
   const [categories, setCategories] = useState<string[]>([...FALLBACK_CATEGORIES]);
@@ -714,7 +716,7 @@ export const Products = () => {
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm truncate">{item.name}</div>
                           <div className="text-xs text-muted-foreground">
-                            ${item.price}
+                            {formatPrice(Number(item.price))}
                             {isSub ? " / month" : " each"}
                           </div>
                         </div>
@@ -766,7 +768,7 @@ export const Products = () => {
                 <SheetFooter className="border-t border-border pt-4 flex-col gap-3 sm:flex-col">
                   <div className="flex justify-between items-center w-full">
                     <span className="text-muted-foreground">Total</span>
-                    <span className="text-2xl font-bold">${cartTotal.toFixed(2)}</span>
+                    <span className="text-2xl font-bold">{formatPrice(cartTotal)}</span>
                   </div>
                   <Button
                     variant="hero"
@@ -977,7 +979,7 @@ export const Products = () => {
                               <div className="flex items-baseline gap-2 flex-wrap">
                                 {canUpgradeStripe && (
                                   <span className="text-xl font-bold">
-                                    ${Number(p.upgradePrice).toFixed(2)}
+                                    {formatPrice(Number(p.upgradePrice))}
                                   </span>
                                 )}
                                 {canUpgradeRobux && p.upgradePriceRobux ? (
@@ -1002,7 +1004,7 @@ export const Products = () => {
                             <div className="text-xs text-muted-foreground">
                               {p.isAvailable === false ? "Coming soon" : "Price"}
                             </div>
-                            <span className="text-xl font-bold">${p.price}</span>
+                            <span className="text-xl font-bold">{formatPrice(Number(p.price))}</span>
                             {p.priceRobux && p.gamepassUrl && (
                               <span className="ml-2 text-xs text-muted-foreground">
                                 or R$ {p.priceRobux.toLocaleString()}
@@ -1032,8 +1034,8 @@ export const Products = () => {
                                 size="sm"
                                 variant="hero"
                                 onClick={() => startUpgradeStripe(p)}
-                                aria-label={`Upgrade with card for $${Number(p.upgradePrice).toFixed(2)}`}
-                                title={`Upgrade with card · $${Number(p.upgradePrice).toFixed(2)}`}
+                                aria-label={`Upgrade with card for ${formatPrice(Number(p.upgradePrice))}`}
+                                title={`Upgrade with card · ${formatPrice(Number(p.upgradePrice))}`}
                               >
                                 <CreditCard className="h-4 w-4" />
                               </Button>
@@ -1070,7 +1072,7 @@ export const Products = () => {
                               size="sm"
                               variant="hero"
                               onClick={() => addProductToCart(p)}
-                              aria-label={`Buy with $${p.price}`}
+                              aria-label={`Buy with ${formatPrice(Number(p.price))}`}
                             >
                               <CreditCard className="h-4 w-4" />
                             </Button>
