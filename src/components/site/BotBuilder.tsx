@@ -125,6 +125,7 @@ const BASES: Base[] = [
     price: 99,
     included: [
       "Ticket system (unlimited categories)",
+      "Claim system",
       "Ban appeals",
       "Member reports",
       "Welcome / goodbye messages",
