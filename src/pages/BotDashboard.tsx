@@ -2,6 +2,11 @@ import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useOwnedBots, type OwnedBot } from "@/hooks/useOwnedBots";
+import {
+  BOT_BASE_LABELS,
+  BOT_BASE_TAGLINES,
+  getAddonLabel,
+} from "@/lib/botCatalog";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -25,6 +30,9 @@ import {
   ArrowLeft,
   Globe,
   Terminal,
+  Package,
+  Layers,
+  Server,
 } from "lucide-react";
 
 type Plugin = {
