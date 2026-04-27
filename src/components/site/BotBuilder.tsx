@@ -80,6 +80,7 @@ import {
   Languages,
   Save,
   Settings2,
+  MessageSquare,
 } from "lucide-react";
 
 type Base = {
