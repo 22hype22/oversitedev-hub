@@ -138,7 +138,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
           { value: "90", label: "90 days" },
         ],
       },
-      toggle("kickUnverified", "Kick users who don't verify within 24h", false),
+      toggle("kickUnverified", "Kick users who don't verify within 74h", false),
     ],
   },
 
