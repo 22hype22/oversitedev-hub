@@ -180,6 +180,43 @@ const BotSection = ({
         </div>
       </div>
 
+      {showPreorderBanner && (
+        <Card className="p-4 bg-amber-500/5 border-amber-500/30">
+          <div className="flex items-start gap-3">
+            <Clock className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
+            <div className="text-sm">
+              <div className="font-semibold text-amber-300">Preorder received</div>
+              <p className="text-muted-foreground mt-1">
+                {queuePosition
+                  ? `You're #${queuePosition} in the build queue. `
+                  : "We've added your bot to the build queue. "}
+                We'll reach out within 24 hours to confirm scope and finalize payment.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {showReadyBanner && (
+        <Card className="p-4 bg-emerald-500/5 border-emerald-500/30">
+          <div className="flex items-start gap-3">
+            <Sparkles className="h-5 w-5 text-emerald-400 mt-0.5 shrink-0" />
+            <div className="text-sm flex-1">
+              <div className="font-semibold text-emerald-300">Your bot is ready</div>
+              <p className="text-muted-foreground mt-1">
+                Use the link below to invite or download your bot.
+              </p>
+              <Button asChild variant="outline" size="sm" className="mt-3">
+                <a href={bot.delivery_url ?? "#"} target="_blank" rel="noopener noreferrer">
+                  <ArrowRight className="h-4 w-4 mr-1.5" />
+                  Open delivery link
+                </a>
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* What you bought — system + add-ons summary */}
       <Card className="bg-card/60 border-border p-5">
         <div className="flex items-center gap-2 mb-4">
