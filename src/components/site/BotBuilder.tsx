@@ -1097,7 +1097,7 @@ export const BotBuilder = () => {
                     </div>
                   </div>
                   <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    You won't be charged until we confirm your build scope.
+                    This locks in your spot in the build queue. We'll only finalize the charge once we've confirmed your build scope.
                   </p>
                 </div>
               </div>
