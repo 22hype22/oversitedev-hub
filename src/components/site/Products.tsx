@@ -472,10 +472,10 @@ export const Products = () => {
 
   useEffect(() => {
     const load = async () => {
-      // Use the public_products view, which excludes internal file paths
+      // Use the safe catalog table, which excludes internal file paths
       // (file_url, file_name) so they aren't exposed to anonymous visitors.
       const { data } = await (supabase as any)
-        .from("public_products")
+        .from("product_catalog")
         .select("*")
         .order("created_at", { ascending: false });
       if (data) {
