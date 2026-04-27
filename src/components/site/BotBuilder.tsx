@@ -103,24 +103,47 @@ type Addon = {
 const BASES: Base[] = [
   {
     id: "protection",
-    name: "Protection",
+    name: "Oversite Protection",
     tagline: "Automod, anti-raid, and a full mod toolkit.",
     icon: Shield,
     price: 99,
+    included: [
+      "Verification system",
+      "Warn, mute, ban, kick",
+      "Anti-spam",
+      "Anti-raid",
+      "Basic logging (bans/kicks/joins only)",
+      "Phishing link detection",
+    ],
   },
   {
     id: "support",
-    name: "Support",
+    name: "Oversite Support",
     tagline: "Tickets, appeals, reports, and welcomes.",
     icon: LifeBuoy,
     price: 99,
+    included: [
+      "Ticket system (up to 2 categories)",
+      "Ban appeals",
+      "Member reports",
+      "Welcome / goodbye messages",
+    ],
   },
   {
     id: "utilities",
-    name: "Utilities",
+    name: "Oversite Utilities",
     tagline: "Announcements, roles, Roblox, music, more.",
     icon: Wrench,
     price: 99,
+    included: [
+      "/say and /announce",
+      "Reaction roles (up to 3)",
+      "Autorole",
+      "Poll",
+      "Userinfo, serverinfo, avatar",
+      "Basic music (no Spotify, no auto-radio)",
+      "8ball, coinflip",
+    ],
   },
   {
     id: "scratch",
@@ -128,6 +151,11 @@ const BASES: Base[] = [
     tagline: "Protection + Support + Utilities — every base in one bot.",
     icon: Sparkles,
     price: 199,
+    included: [
+      "Everything in Oversite Protection",
+      "Everything in Oversite Support",
+      "Everything in Oversite Utilities",
+    ],
   },
 ];
 
