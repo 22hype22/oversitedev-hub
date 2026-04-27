@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
+import { useOwnedBots } from "@/hooks/useOwnedBots";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import oversiteLogo from "@/assets/oversite-logo.png";
@@ -26,6 +27,8 @@ export const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
+  const { hasDashboardAccess } = useOwnedBots();
+  const canDashboard = isAdmin || hasDashboardAccess;
 
   useEffect(() => {
     setOpen(false);
