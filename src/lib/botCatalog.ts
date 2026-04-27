@@ -172,6 +172,35 @@ const ADDON_IDS_BY_BASE: Record<string, string[]> = {
 
 const SHARED_ADDON_IDS = ["branding", "dashboard", "multi-server"];
 
+/**
+ * Features included for free with each base bot. They're not "add-ons" you
+ * buy — they ship with the base — but the dashboard renders config boxes
+ * for them so customers can tweak the included behavior.
+ */
+export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
+  protection: [
+    "verification-system",
+    "mod-actions",
+    "anti-spam",
+    "anti-raid",
+    "basic-logging",
+    "phishing-detection",
+  ],
+  support: [],
+  utilities: [],
+};
+
+export function getIncludedAddonsForBase(baseId: string): string[] {
+  if (baseId === "scratch") {
+    return [
+      ...BASE_INCLUDED_ADDONS.protection,
+      ...BASE_INCLUDED_ADDONS.support,
+      ...BASE_INCLUDED_ADDONS.utilities,
+    ];
+  }
+  return BASE_INCLUDED_ADDONS[baseId] ?? [];
+}
+
 /** All add-on ids available for a given bot base, including shared ones. */
 export function getAddonIdsForBase(baseId: string): string[] {
   if (baseId === "scratch") {
