@@ -93,10 +93,12 @@ const getStatusMeta = (s: string): StatusMeta =>
 
 const BotSection = ({
   bot,
+  queuePosition,
   onCancel,
   onAddAddons,
 }: {
   bot: OwnedBot;
+  queuePosition: number | null;
   onCancel: (bot: OwnedBot) => void;
   onAddAddons: (bot: OwnedBot) => void;
 }) => {
@@ -108,6 +110,9 @@ const BotSection = ({
   const enabledPlugins = plugins.filter(
     (p) => !p.requires || p.requires.some((id) => ownedAddons.has(id))
   );
+  const showQueue = queuePosition && (bot.status === "submitted" || bot.status === "paid");
+  const showPreorderBanner = bot.status === "submitted";
+  const showReadyBanner = bot.status === "ready" && bot.delivery_url;
 
   return (
     <section className="space-y-5">
@@ -128,6 +133,11 @@ const BotSection = ({
               <Badge variant="outline" className={`text-xs ${statusMeta.className}`}>
                 {statusMeta.label}
               </Badge>
+              {showQueue && (
+                <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/30">
+                  Queue position #{queuePosition}
+                </Badge>
+              )}
               <Badge variant="secondary" className="text-xs">
                 {baseLabel}
               </Badge>
