@@ -131,15 +131,17 @@ const BotSection = ({
 }) => {
   const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
   const baseTagline = BOT_BASE_TAGLINES[bot.base];
-  const cancellable = canCancelStatus(bot.status);
+  const cancellable = !bot.isDemo && canCancelStatus(bot.status);
   const statusMeta = getStatusMeta(bot.status);
   const ownedAddons = new Set(bot.addons);
-  const enabledPlugins = plugins.filter(
-    (p) => !p.requires || p.requires.some((id) => ownedAddons.has(id))
-  );
-  const showQueue = queuePosition && (bot.status === "submitted" || bot.status === "paid");
-  const showPreorderBanner = bot.status === "submitted";
-  const showReadyBanner = bot.status === "ready" && bot.delivery_url;
+  // Group owned add-ons by category for the configuration boxes section.
+  const groupedAddons = ADDON_GROUPS
+    .map((g) => ({ ...g, owned: g.ids.filter((id) => ownedAddons.has(id)) }))
+    .filter((g) => g.owned.length > 0);
+  const totalConfigurable = groupedAddons.reduce((n, g) => n + g.owned.length, 0);
+  const showQueue = !bot.isDemo && queuePosition && (bot.status === "submitted" || bot.status === "paid");
+  const showPreorderBanner = !bot.isDemo && bot.status === "submitted";
+  const showReadyBanner = !bot.isDemo && bot.status === "ready" && bot.delivery_url;
 
   return (
     <section className="space-y-5">
