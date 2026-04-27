@@ -207,8 +207,28 @@ const BotSection = ({
 
 const BotDashboard = () => {
   const { user, isAdmin, loading } = useAuth();
-  const { dashboardBots, loading: botsLoading } = useOwnedBots();
+  const { dashboardBots, loading: botsLoading, reload } = useOwnedBots();
   const navigate = useNavigate();
+  const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+
+  const cancelOrder = async (bot: OwnedBot) => {
+    if (!user) return;
+    setCancelling(true);
+    const { error } = await (supabase as any)
+      .from("bot_orders")
+      .update({ status: "cancelled" })
+      .eq("id", bot.id)
+      .eq("user_id", user.id);
+    setCancelling(false);
+    if (error) {
+      toast.error("Couldn't cancel — " + error.message);
+      return;
+    }
+    toast.success(`Cancelled "${bot.bot_name}"`);
+    setCancelTarget(null);
+    reload();
+  };
 
   useEffect(() => {
     if (loading) return;
@@ -313,11 +333,42 @@ const BotDashboard = () => {
         ) : (
           <div className="space-y-16">
             {dashboardBots.map((bot) => (
-              <BotSection key={bot.id} bot={bot} />
+              <BotSection key={bot.id} bot={bot} onCancel={setCancelTarget} />
             ))}
           </div>
         )}
       </div>
+
+      <AlertDialog
+        open={!!cancelTarget}
+        onOpenChange={(o) => !o && !cancelling && setCancelTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Cancel "{cancelTarget?.bot_name}"?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will cancel your bot order. You won't be charged, and it
+              will be removed from your dashboard. You can always start a new
+              build from the Bot Builder later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={cancelling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                if (cancelTarget) cancelOrder(cancelTarget);
+              }}
+            >
+              {cancelling ? "Cancelling…" : "Yes, cancel it"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
