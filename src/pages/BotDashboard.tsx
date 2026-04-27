@@ -6,6 +6,7 @@ import {
   BOT_BASE_LABELS,
   BOT_BASE_TAGLINES,
   getAddonLabel,
+  getIncludedAddonsForBase,
 } from "@/lib/botCatalog";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
