@@ -1002,7 +1002,7 @@ export const BotBuilder = () => {
                   It's <span className="text-gradient">sent!</span>
                 </h3>
                 {user ? (
-                  addons.includes("dashboard") ? (
+                  addons.includes("dashboard") || dashboardAlreadyOwned ? (
                     <>
                       <p className="mt-3 text-base md:text-lg text-muted-foreground">
                         We're getting right to work on your build. Manage{" "}
