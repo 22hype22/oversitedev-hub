@@ -117,7 +117,7 @@ export function useOwnedBots() {
       }));
 
     // Always include the practice bot so users can preview every add-on.
-    setBots([buildDemoBot(), ...mapped]);
+    setBots([...buildDemoBots(), ...mapped]);
     setLoading(false);
   }, [user]);
 
