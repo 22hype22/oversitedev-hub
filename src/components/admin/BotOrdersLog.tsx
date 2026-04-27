@@ -71,6 +71,60 @@ export const BotOrdersLog = () => {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, { status: string; notes: string; delivery_url: string }>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  const setDraft = (id: string, patch: Partial<{ status: string; notes: string; delivery_url: string }>) => {
+    setDrafts((prev) => ({
+      ...prev,
+      [id]: {
+        status: prev[id]?.status ?? "",
+        notes: prev[id]?.notes ?? "",
+        delivery_url: prev[id]?.delivery_url ?? "",
+        ...patch,
+      },
+    }));
+  };
+
+  const startEdit = (row: OrderRow) => {
+    setExpandedId((cur) => (cur === row.id ? null : row.id));
+    setDrafts((prev) => ({
+      ...prev,
+      [row.id]: {
+        status: row.status,
+        notes: row.notes ?? "",
+        delivery_url: row.delivery_url ?? "",
+      },
+    }));
+  };
+
+  const saveRow = async (row: OrderRow) => {
+    const draft = drafts[row.id];
+    if (!draft) return;
+    setSavingId(row.id);
+    const { error } = await supabase
+      .from("bot_orders")
+      .update({
+        status: draft.status,
+        notes: draft.notes || null,
+        delivery_url: draft.delivery_url || null,
+      })
+      .eq("id", row.id);
+    setSavingId(null);
+    if (error) {
+      toast.error("Couldn't save", { description: error.message });
+      return;
+    }
+    toast.success(`Updated "${row.bot_name}"`);
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === row.id
+          ? { ...r, status: draft.status, notes: draft.notes || null, delivery_url: draft.delivery_url || null }
+          : r,
+      ),
+    );
+  };
 
   const load = async () => {
     setLoading(true);
