@@ -225,14 +225,35 @@ const SCRATCH_CATEGORIES: { id: string; label: string; icon: typeof Shield; addo
   { id: "utilities", label: "Utilities options", icon: Wrench, addons: ADDONS_BY_BASE.utilities },
 ];
 
+type Identity = {
+  name: string;
+  description: string;
+  icon: string | null;
+  banner: string | null;
+};
+
+const EMPTY_IDENTITY: Identity = { name: "", description: "", icon: null, banner: null };
+
+const PACK_TABS: { id: string; label: string; icon: typeof Shield }[] = [
+  { id: "protection", label: "Protection bot", icon: Shield },
+  { id: "support", label: "Support bot", icon: LifeBuoy },
+  { id: "utilities", label: "Utilities bot", icon: Wrench },
+];
+
 export const BotBuilder = () => {
   const { user } = useAuth();
   const { hasDashboardAccess: dashboardAlreadyOwned } = useOwnedBots();
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [icon, setIcon] = useState<string | null>(null);
-  const [banner, setBanner] = useState<string | null>(null);
   const [base, setBase] = useState<string>("protection");
+  // Single-bot identity (for non-pack bases)
+  const [identity, setIdentity] = useState<Identity>({ ...EMPTY_IDENTITY });
+  // Pack identities (for All-in-One Pack)
+  const [packIdentities, setPackIdentities] = useState<Record<string, Identity>>({
+    protection: { ...EMPTY_IDENTITY },
+    support: { ...EMPTY_IDENTITY },
+    utilities: { ...EMPTY_IDENTITY },
+  });
+  const [activePackTab, setActivePackTab] = useState<string>("protection");
+  const [tabDirection, setTabDirection] = useState<1 | -1>(1);
   const [addons, setAddons] = useState<string[]>([]);
   const [monthlyHosting, setMonthlyHosting] = useState(true);
   const [notes, setNotes] = useState("");
