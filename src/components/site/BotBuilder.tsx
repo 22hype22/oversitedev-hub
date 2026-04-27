@@ -736,6 +736,31 @@ export const BotBuilder = () => {
                 <span className="text-xs text-muted-foreground font-normal"> one-time*</span>
               </span>
             </div>
+            {monthlyHosting && (
+              <div className="mt-1 flex items-center justify-between">
+                <span className="text-xs uppercase tracking-widest text-muted-foreground">
+                  Plus
+                </span>
+                <span className="text-base font-semibold tracking-tight text-primary">
+                  $20.00
+                  <span className="text-xs text-muted-foreground font-normal"> /month</span>
+                </span>
+              </div>
+            )}
+            <label className="mt-3 flex items-start gap-2 rounded-lg border border-primary/20 bg-card/50 p-3 cursor-pointer hover:bg-card/70 transition-colors">
+              <input
+                type="checkbox"
+                checked={monthlyHosting}
+                onChange={(e) => setMonthlyHosting(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-primary cursor-pointer"
+              />
+              <div className="flex-1 text-xs">
+                <div className="font-medium text-foreground">Add hosting & maintenance — $20/mo</div>
+                <div className="text-muted-foreground mt-0.5">
+                  Always-on hosting, updates, and priority fixes. Cancel anytime.
+                </div>
+              </div>
+            </label>
             {addons.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {addons.map((id) => {
