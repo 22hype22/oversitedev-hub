@@ -23,21 +23,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
+import { AddonConfigCard } from "@/components/dashboard/AddonConfigCard";
 import {
   LogOut,
   Settings,
-  MessageSquare,
   Bot,
-  ShieldAlert,
-  Code2,
-  ScrollText,
-  Gavel,
   Sparkles,
-  Flag,
   Clock,
   Lock,
-  Star,
-  Hand,
   ArrowRight,
   ArrowLeft,
   Globe,
@@ -47,35 +40,69 @@ import {
   Server,
   XCircle,
   Plus,
+  ShieldCheck,
+  LifeBuoy,
+  Wrench,
+  Star,
 } from "lucide-react";
+
+/** Add-on ids grouped by category — used to render config boxes per group. */
+const PROTECTION_ADDON_IDS = [
+  "advanced-logging",
+  "nsfw-invite-scanner",
+  "avatar-nsfw-detection",
+  "bio-phrase-detection",
+  "account-age-gating",
+  "auto-escalating-warnings",
+  "softban-massban",
+  "channel-lockdown",
+  "staff-notes",
+  "moderation-history",
+  "auto-slowmode",
+  "temp-bans",
+];
+const SUPPORT_ADDON_IDS = [
+  "staff-performance",
+  "ticket-logs",
+  "per-category-roles",
+  "ticket-notes",
+  "ticket-add-remove",
+  "close-all-tickets",
+  "ticket-message-customization",
+  "priority-flagging",
+  "auto-close-inactive",
+  "anonymous-reporting",
+];
+const UTILITIES_ADDON_IDS = [
+  "music-addon",
+  "auto-radio",
+  "roblox-verification",
+  "starboard",
+  "recurring-messages",
+  "giveaway-system",
+  "birthday-announcements",
+  "server-stats-channels",
+  "live-notifications",
+  "leveling-system",
+  "economy-system",
+  "remindme",
+];
+const SHARED_ADDON_IDS = ["branding", "dashboard", "multi-server"];
 
 const canCancelStatus = (status: string) =>
   status === "draft" || status === "submitted";
 
-type Plugin = {
-  name: string;
-  description: string;
+/** Visual category metadata for grouped add-on config sections. */
+const ADDON_GROUPS: {
+  key: "protection" | "support" | "utilities" | "shared";
+  label: string;
   icon: React.ComponentType<{ className?: string }>;
-  /** Addon ids that unlock this plugin. If omitted, plugin is always shown (core). */
-  requires?: string[];
-};
-
-const plugins: Plugin[] = [
-  // Core — always available
-  { name: "Settings", description: "Configure your bot's core settings.", icon: Settings },
-  // Add-on gated
-  { name: "Auto Reply", description: "Have your bot respond automatically to certain triggers.", icon: MessageSquare, requires: ["auto-response"] },
-  { name: "Automod", description: "Let your bot automatically moderate your server and give your mods a break.", icon: Bot, requires: ["anti-spam","profanity-filter","link-filter","scam-detector","caps-filter","emoji-spam","attachment-filter","mention-guard","nsfw-filter"] },
-  { name: "Ban Appeal", description: "Ditch Google forms, handle your ban appeals with your bot!", icon: ShieldAlert, requires: ["application-system","ticket-system"] },
-  { name: "Custom Commands", description: "Create commands with your own code to run with your bot.", icon: Code2, requires: ["custom-commands"] },
-  { name: "Logging", description: "Log everything that happens in your server to a text channel (or multiple).", icon: ScrollText, requires: ["logging-system","audit-logger"] },
-  { name: "Moderation", description: "Defend your server with a large arsenal of moderation commands.", icon: Gavel, requires: ["auto-mute","auto-kick","auto-ban","slowmode","invite-control","new-account-guard","alt-detection","verification-gate","vpn-blocker"] },
-  { name: "Reaction Roles", description: "Allow your server members to easily assign themselves roles via buttons or reactions.", icon: Sparkles, requires: ["reaction-roles"] },
-  { name: "Report", description: "Give your members a way to easily report rule-breaking messages to your moderators.", icon: Flag, requires: ["report-system"] },
-  { name: "Recurring Reminders", description: "Send repeating messages on a set interval to a channel of your choice.", icon: Clock, requires: ["scheduled-messages","reminder-system","rule-reminder"] },
-  { name: "Roblox", description: "Link Roblox accounts to Discord users, assign roles to users based on their group rank.", icon: Lock, requires: ["role-manager"] },
-  { name: "Starboard", description: "Save messages directly to a text channel by reacting with a star.", icon: Star, requires: ["starboard"] },
-  { name: "Welcome", description: "Set an autorole and welcome/goodbye messages.", icon: Hand, requires: ["welcome","goodbye","onboarding"] },
+  ids: string[];
+}[] = [
+  { key: "protection", label: "Protection", icon: ShieldCheck, ids: PROTECTION_ADDON_IDS },
+  { key: "support",    label: "Support",    icon: LifeBuoy,    ids: SUPPORT_ADDON_IDS },
+  { key: "utilities",  label: "Utilities",  icon: Wrench,      ids: UTILITIES_ADDON_IDS },
+  { key: "shared",     label: "Extras",     icon: Star,        ids: SHARED_ADDON_IDS },
 ];
 
 type StatusMeta = { label: string; className: string };
@@ -104,15 +131,17 @@ const BotSection = ({
 }) => {
   const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
   const baseTagline = BOT_BASE_TAGLINES[bot.base];
-  const cancellable = canCancelStatus(bot.status);
+  const cancellable = !bot.isDemo && canCancelStatus(bot.status);
   const statusMeta = getStatusMeta(bot.status);
   const ownedAddons = new Set(bot.addons);
-  const enabledPlugins = plugins.filter(
-    (p) => !p.requires || p.requires.some((id) => ownedAddons.has(id))
-  );
-  const showQueue = queuePosition && (bot.status === "submitted" || bot.status === "paid");
-  const showPreorderBanner = bot.status === "submitted";
-  const showReadyBanner = bot.status === "ready" && bot.delivery_url;
+  // Group owned add-ons by category for the configuration boxes section.
+  const groupedAddons = ADDON_GROUPS
+    .map((g) => ({ ...g, owned: g.ids.filter((id) => ownedAddons.has(id)) }))
+    .filter((g) => g.owned.length > 0);
+  const totalConfigurable = groupedAddons.reduce((n, g) => n + g.owned.length, 0);
+  const showQueue = !bot.isDemo && queuePosition && (bot.status === "submitted" || bot.status === "paid");
+  const showPreorderBanner = !bot.isDemo && bot.status === "submitted";
+  const showReadyBanner = !bot.isDemo && bot.status === "ready" && bot.delivery_url;
 
   return (
     <section className="space-y-5">
@@ -154,31 +183,55 @@ const BotSection = ({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onAddAddons(bot)}
-          >
-            <Plus className="h-4 w-4 mr-1.5" />
-            Add more add-ons
-          </Button>
-          {cancellable ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => onCancel(bot)}
-            >
-              <XCircle className="h-4 w-4 mr-1.5" />
-              Cancel subscription
-            </Button>
+          {bot.isDemo ? (
+            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+              Practice bot — explore freely
+            </Badge>
           ) : (
-            <span className="text-xs text-muted-foreground self-center">
-              Contact support to cancel subscription
-            </span>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onAddAddons(bot)}
+              >
+                <Plus className="h-4 w-4 mr-1.5" />
+                Add more add-ons
+              </Button>
+              {cancellable ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => onCancel(bot)}
+                >
+                  <XCircle className="h-4 w-4 mr-1.5" />
+                  Cancel subscription
+                </Button>
+              ) : (
+                <span className="text-xs text-muted-foreground self-center">
+                  Contact support to cancel subscription
+                </span>
+              )}
+            </>
           )}
         </div>
       </div>
+
+      {bot.isDemo && (
+        <Card className="p-4 bg-primary/5 border-primary/30">
+          <div className="flex items-start gap-3">
+            <Sparkles className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+            <div className="text-sm">
+              <div className="font-semibold text-foreground">This is your practice bot</div>
+              <p className="text-muted-foreground mt-1">
+                Every add-on is enabled here so you can preview each
+                configuration box. Settings you change won't affect a real
+                Discord server.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {showPreorderBanner && (
         <Card className="p-4 bg-amber-500/5 border-amber-500/30">
@@ -256,52 +309,54 @@ const BotSection = ({
         </div>
       </Card>
 
-      <div>
-        <div className="flex items-center gap-2 mb-4 mt-2">
+      <div className="space-y-10">
+        <div className="flex items-center gap-2 mt-2">
           <Settings className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
-            Plugins ({enabledPlugins.length})
+            Configure add-ons ({totalConfigurable})
           </h3>
         </div>
-        {enabledPlugins.length === 0 ? (
+
+        {totalConfigurable === 0 ? (
           <Card className="bg-card/40 border-dashed border-border p-8 text-center">
             <p className="text-sm text-muted-foreground">
-              No plugins enabled yet. Add an add-on to unlock plugins for{" "}
-              <span className="text-foreground font-medium">{bot.bot_name}</span>.
+              No add-ons on this bot yet. Add one to unlock its configuration box.
             </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4"
-              onClick={() => onAddAddons(bot)}
-            >
-              <Plus className="h-4 w-4 mr-1.5" />
-              Browse add-ons
-            </Button>
+            {!bot.isDemo && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={() => onAddAddons(bot)}
+              >
+                <Plus className="h-4 w-4 mr-1.5" />
+                Browse add-ons
+              </Button>
+            )}
           </Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {enabledPlugins.map((p) => {
-              const Icon = p.icon;
-              return (
-                <Card
-                  key={`${bot.id}-${p.name}`}
-                  className="group cursor-pointer bg-card hover:bg-card/80 border-border hover:border-primary/50 hover:shadow-elegant transition-smooth p-6 flex flex-col min-h-[170px]"
-                >
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0 group-hover:bg-primary/15 transition-smooth">
-                      <Icon className="h-5 w-5 text-primary" />
-                    </div>
-                    <h3 className="font-semibold text-base leading-tight pt-1.5">{p.name}</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground flex-1">{p.description}</p>
-                  <div className="flex justify-end mt-3">
-                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-smooth" />
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
+          groupedAddons.map((group) => {
+            const GroupIcon = group.icon;
+            return (
+              <div key={group.key} className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <GroupIcon className="h-4 w-4 text-primary" />
+                  <h4 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
+                    {group.label} ({group.owned.length})
+                  </h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                  {group.owned.map((id) => (
+                    <AddonConfigCard
+                      key={`${bot.id}-${id}`}
+                      addonId={id}
+                      botName={bot.bot_name}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
     </section>
