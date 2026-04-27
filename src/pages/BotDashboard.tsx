@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
 import {
   LogOut,
   Settings,
