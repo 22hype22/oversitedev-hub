@@ -92,30 +92,17 @@ const SHARED_ADDON_IDS = ["branding", "dashboard", "multi-server"];
 const canCancelStatus = (status: string) =>
   status === "draft" || status === "submitted";
 
-type Plugin = {
-  name: string;
-  description: string;
+/** Visual category metadata for grouped add-on config sections. */
+const ADDON_GROUPS: {
+  key: "protection" | "support" | "utilities" | "shared";
+  label: string;
   icon: React.ComponentType<{ className?: string }>;
-  /** Addon ids that unlock this plugin. If omitted, plugin is always shown (core). */
-  requires?: string[];
-};
-
-const plugins: Plugin[] = [
-  // Core — always available
-  { name: "Settings", description: "Configure your bot's core settings.", icon: Settings },
-  // Add-on gated
-  { name: "Auto Reply", description: "Have your bot respond automatically to certain triggers.", icon: MessageSquare, requires: ["auto-response"] },
-  { name: "Automod", description: "Let your bot automatically moderate your server and give your mods a break.", icon: Bot, requires: ["anti-spam","profanity-filter","link-filter","scam-detector","caps-filter","emoji-spam","attachment-filter","mention-guard","nsfw-filter"] },
-  { name: "Ban Appeal", description: "Ditch Google forms, handle your ban appeals with your bot!", icon: ShieldAlert, requires: ["application-system","ticket-system"] },
-  { name: "Custom Commands", description: "Create commands with your own code to run with your bot.", icon: Code2, requires: ["custom-commands"] },
-  { name: "Logging", description: "Log everything that happens in your server to a text channel (or multiple).", icon: ScrollText, requires: ["logging-system","audit-logger"] },
-  { name: "Moderation", description: "Defend your server with a large arsenal of moderation commands.", icon: Gavel, requires: ["auto-mute","auto-kick","auto-ban","slowmode","invite-control","new-account-guard","alt-detection","verification-gate","vpn-blocker"] },
-  { name: "Reaction Roles", description: "Allow your server members to easily assign themselves roles via buttons or reactions.", icon: Sparkles, requires: ["reaction-roles"] },
-  { name: "Report", description: "Give your members a way to easily report rule-breaking messages to your moderators.", icon: Flag, requires: ["report-system"] },
-  { name: "Recurring Reminders", description: "Send repeating messages on a set interval to a channel of your choice.", icon: Clock, requires: ["scheduled-messages","reminder-system","rule-reminder"] },
-  { name: "Roblox", description: "Link Roblox accounts to Discord users, assign roles to users based on their group rank.", icon: Lock, requires: ["role-manager"] },
-  { name: "Starboard", description: "Save messages directly to a text channel by reacting with a star.", icon: Star, requires: ["starboard"] },
-  { name: "Welcome", description: "Set an autorole and welcome/goodbye messages.", icon: Hand, requires: ["welcome","goodbye","onboarding"] },
+  ids: string[];
+}[] = [
+  { key: "protection", label: "Protection", icon: ShieldCheck, ids: PROTECTION_ADDON_IDS },
+  { key: "support",    label: "Support",    icon: LifeBuoy,    ids: SUPPORT_ADDON_IDS },
+  { key: "utilities",  label: "Utilities",  icon: Wrench,      ids: UTILITIES_ADDON_IDS },
+  { key: "shared",     label: "Extras",     icon: Star,        ids: SHARED_ADDON_IDS },
 ];
 
 type StatusMeta = { label: string; className: string };
