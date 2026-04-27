@@ -415,7 +415,7 @@ export default function Dashboard() {
       }
       setProfileLoading(false);
     })();
-  }, [user, loadPurchases]);
+  }, [user, loadPurchases, loadBotOrders]);
 
   useEffect(() => {
     if (!user) return;
