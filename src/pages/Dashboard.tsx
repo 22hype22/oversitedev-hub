@@ -191,8 +191,8 @@ export default function Dashboard() {
 
       let pendingProductMap = new Map<string, any>();
       if (pendingProductIds.length > 0) {
-        const { data: pendingProducts } = await supabase
-          .from("public_products")
+        const { data: pendingProducts } = await (supabase as any)
+          .from("product_catalog")
           .select("id,name")
           .in("id", pendingProductIds);
         pendingProductMap = new Map((pendingProducts ?? []).map((p: any) => [p.id, p]));
@@ -225,8 +225,8 @@ export default function Dashboard() {
     );
     let productMap = new Map<string, any>();
     if (productIds.length > 0) {
-      const { data: prods } = await supabase
-        .from("public_products")
+      const { data: prods } = await (supabase as any)
+        .from("product_catalog")
         .select(
           "id,current_version,price,price_robux,gamepass_url,upgrade_price,upgrade_price_robux,upgrade_gamepass_url",
         )
