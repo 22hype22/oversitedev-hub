@@ -88,6 +88,7 @@ type Base = {
   tagline: string;
   icon: typeof Shield;
   price: number;
+  included: string[];
 };
 
 type Addon = {
