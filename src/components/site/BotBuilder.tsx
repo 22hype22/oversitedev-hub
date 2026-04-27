@@ -977,17 +977,48 @@ export const BotBuilder = () => {
           {/* Center message — appears right when the plane flies past */}
           {showSuccessText && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="relative text-center px-6 animate-burst-in">
+              <div className="relative text-center px-6 animate-burst-in max-w-lg">
                 <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-primary shadow-glow mb-6">
                   <Check size={42} className="text-primary-foreground" strokeWidth={3} />
                 </div>
                 <h3 className="text-3xl md:text-5xl font-bold tracking-tight">
                   It's <span className="text-gradient">sent!</span>
                 </h3>
-                <p className="mt-3 text-base md:text-lg text-muted-foreground max-w-md mx-auto">
-                  We're getting right to work on your build. Check your inbox — we'll
-                  be in touch shortly.
-                </p>
+                {user ? (
+                  addons.includes("dashboard") ? (
+                    <>
+                      <p className="mt-3 text-base md:text-lg text-muted-foreground">
+                        We're getting right to work on your build. Manage{" "}
+                        <span className="text-foreground font-medium">{displayName}</span>{" "}
+                        any time from your{" "}
+                        <span className="text-foreground font-medium">Bot Dashboard</span>.
+                      </p>
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        Open the account menu (top-right) → <span className="text-foreground">Dashboard</span>,
+                        or we'll redirect you in a moment.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mt-3 text-base md:text-lg text-muted-foreground">
+                        We're getting right to work on your build. Track{" "}
+                        <span className="text-foreground font-medium">{displayName}</span>{" "}
+                        from <span className="text-foreground font-medium">Settings → Bot Orders</span>.
+                      </p>
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        Tip: add the <span className="text-foreground">Web Dashboard</span> add-on
+                        to manage your bot from this site. Otherwise use{" "}
+                        <code className="text-foreground bg-muted px-1.5 py-0.5 rounded text-xs">/cmds</code>{" "}
+                        in your Discord server.
+                      </p>
+                    </>
+                  )
+                ) : (
+                  <p className="mt-3 text-base md:text-lg text-muted-foreground">
+                    We're getting right to work on your build. Check your inbox — we'll
+                    be in touch shortly.
+                  </p>
+                )}
               </div>
             </div>
           )}
