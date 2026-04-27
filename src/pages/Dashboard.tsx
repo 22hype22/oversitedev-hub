@@ -397,6 +397,7 @@ export default function Dashboard() {
     setNewEmail(user.email ?? "");
     loadPurchases();
     loadMembership();
+    loadBotOrders();
 
     (async () => {
       setProfileLoading(true);
