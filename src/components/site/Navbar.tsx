@@ -108,7 +108,7 @@ export const Navbar = () => {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate("/dashboard")}>
                   <LayoutDashboard size={14} className="mr-2" />
-                  Dashboard
+                  Settings
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => isAdmin && navigate("/admin")}
@@ -210,7 +210,7 @@ export const Navbar = () => {
                     className="flex items-center gap-2 py-2 text-sm text-muted-foreground"
                   >
                     <LayoutDashboard size={14} />
-                    Dashboard
+                    Settings
                   </NavLink>
                   {isAdmin ? (
                     <NavLink
