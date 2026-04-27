@@ -27,6 +27,12 @@ import {
   History,
   Snowflake,
   Clock,
+  ShieldCheck,
+  Shield,
+  MessageSquareX,
+  Swords,
+  ClipboardList,
+  Link2Off,
 } from "lucide-react";
 
 export type AddonFieldType =
@@ -83,7 +89,175 @@ const toggle = (
 ): AddonField => ({ key, label, type: "toggle", defaultValue, help });
 
 export const ADDON_CONFIGS: Record<string, AddonConfig> = {
-  // ─── Protection ──────────────────────────────────────────────
+  // ─── Protection: included base features ──────────────────────
+  "verification-system": {
+    title: "Verification System",
+    summary: "Gate new joiners behind a verification step.",
+    icon: ShieldCheck,
+    fields: [
+      channel("channel", "Verification channel", "Where the verify button is posted."),
+      role("verifiedRole", "Verified role", "Granted once a user verifies."),
+      {
+        key: "method",
+        label: "Verification method",
+        type: "select",
+        defaultValue: "button",
+        options: [
+          { value: "button", label: "Click a button" },
+          { value: "captcha", label: "Solve a captcha" },
+          { value: "reaction", label: "React to a message" },
+        ],
+      },
+      {
+        key: "message",
+        label: "Verification message",
+        type: "textarea",
+        defaultValue:
+          "Welcome to {server}! Click the button below to verify and unlock the server.",
+      },
+      {
+        key: "buttonLabel",
+        label: "Button label",
+        type: "text",
+        defaultValue: "Verify me",
+      },
+      toggle("kickUnverified", "Kick users who don't verify within 24h", false),
+    ],
+  },
+
+  "mod-actions": {
+    title: "Warn / Mute / Ban / Kick",
+    summary: "Core moderation commands and defaults.",
+    icon: Shield,
+    fields: [
+      role("modRole", "Moderator role", "Who can use these commands."),
+      channel("logChannel", "Mod-action log channel"),
+      {
+        key: "defaultMuteDuration",
+        label: "Default mute duration",
+        type: "select",
+        defaultValue: "1h",
+        options: [
+          { value: "10m", label: "10 minutes" },
+          { value: "1h", label: "1 hour" },
+          { value: "6h", label: "6 hours" },
+          { value: "1d", label: "1 day" },
+        ],
+      },
+      toggle("dmOnAction", "DM the user when they're warned/muted/banned/kicked"),
+      toggle("requireReason", "Require a reason for every action"),
+    ],
+  },
+
+  "anti-spam": {
+    title: "Anti-Spam",
+    summary: "Auto-mute users who flood chat.",
+    icon: MessageSquareX,
+    fields: [
+      {
+        key: "messageThreshold",
+        label: "Messages per 5 seconds before triggering",
+        type: "number",
+        defaultValue: 6,
+      },
+      {
+        key: "action",
+        label: "Action on spam",
+        type: "select",
+        defaultValue: "mute",
+        options: [
+          { value: "delete", label: "Delete messages" },
+          { value: "mute", label: "Mute user" },
+          { value: "kick", label: "Kick user" },
+          { value: "ban", label: "Ban user" },
+        ],
+      },
+      {
+        key: "muteDuration",
+        label: "Mute duration",
+        type: "select",
+        defaultValue: "10m",
+        options: [
+          { value: "5m", label: "5 minutes" },
+          { value: "10m", label: "10 minutes" },
+          { value: "1h", label: "1 hour" },
+        ],
+      },
+      channel("logChannel", "Log channel"),
+      toggle("ignoreMods", "Ignore staff & mods"),
+    ],
+  },
+
+  "anti-raid": {
+    title: "Anti-Raid",
+    summary: "Detect and shut down mass-join raids automatically.",
+    icon: Swords,
+    fields: [
+      {
+        key: "joinThreshold",
+        label: "Joins per 10 seconds before triggering",
+        type: "number",
+        defaultValue: 8,
+      },
+      {
+        key: "action",
+        label: "Action when raid detected",
+        type: "select",
+        defaultValue: "lockdown",
+        options: [
+          { value: "lockdown", label: "Lock the server" },
+          { value: "kick", label: "Kick raiders" },
+          { value: "ban", label: "Ban raiders" },
+        ],
+      },
+      channel("alertChannel", "Alert channel"),
+      role("pingRole", "Role to ping on raid"),
+      toggle("autoUnlock", "Auto-unlock after the raid stops"),
+    ],
+  },
+
+  "basic-logging": {
+    title: "Basic Logging",
+    summary: "Logs bans, kicks, and member joins.",
+    icon: ClipboardList,
+    fields: [
+      channel("channel", "Log channel"),
+      toggle("logJoins", "Log member joins"),
+      toggle("logLeaves", "Log member leaves"),
+      toggle("logBans", "Log bans"),
+      toggle("logKicks", "Log kicks"),
+    ],
+  },
+
+  "phishing-detection": {
+    title: "Phishing Link Detection",
+    summary: "Auto-delete known phishing & scam links.",
+    icon: Link2Off,
+    fields: [
+      {
+        key: "action",
+        label: "On phishing link",
+        type: "select",
+        defaultValue: "delete-warn",
+        options: [
+          { value: "delete", label: "Delete only" },
+          { value: "delete-warn", label: "Delete and warn" },
+          { value: "mute", label: "Delete and mute" },
+          { value: "ban", label: "Ban the user" },
+        ],
+      },
+      channel("logChannel", "Log channel"),
+      {
+        key: "extraDomains",
+        label: "Extra blocked domains (one per line)",
+        type: "textarea",
+        placeholder: "scam-site.com\nfake-nitro.gg",
+      },
+      toggle("scanEdits", "Re-scan messages when edited"),
+    ],
+  },
+
+  // ─── Protection: paid add-ons ────────────────────────────────
   "advanced-logging": {
     title: "Advanced Logging",
     summary: "Pick which events get logged and where they go.",

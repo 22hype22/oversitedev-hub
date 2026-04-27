@@ -6,6 +6,7 @@ import {
   BOT_BASE_LABELS,
   BOT_BASE_TAGLINES,
   getAddonLabel,
+  getIncludedAddonsForBase,
 } from "@/lib/botCatalog";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -46,8 +47,18 @@ import {
   Star,
 } from "lucide-react";
 
-/** Add-on ids grouped by category — used to render config boxes per group. */
+/** Add-on ids grouped by category — used to render config boxes per group.
+ *  Order here is the exact left→right, top→bottom order shown in the dashboard.
+ *  Base-included features come first, then paid add-ons. */
 const PROTECTION_ADDON_IDS = [
+  // Included with the Protection base
+  "verification-system",
+  "mod-actions",
+  "anti-spam",
+  "anti-raid",
+  "basic-logging",
+  "phishing-detection",
+  // Paid add-ons (in catalog order)
   "advanced-logging",
   "nsfw-invite-scanner",
   "avatar-nsfw-detection",
@@ -133,7 +144,11 @@ const BotSection = ({
   const baseTagline = BOT_BASE_TAGLINES[bot.base];
   const cancellable = !bot.isDemo && canCancelStatus(bot.status);
   const statusMeta = getStatusMeta(bot.status);
-  const ownedAddons = new Set(bot.addons);
+  // Owned add-ons + features that ship with the base — both get config boxes.
+  const ownedAddons = new Set<string>([
+    ...bot.addons,
+    ...getIncludedAddonsForBase(bot.base),
+  ]);
   // Group owned add-ons by category for the configuration boxes section.
   const groupedAddons = ADDON_GROUPS
     .map((g) => ({ ...g, owned: g.ids.filter((id) => ownedAddons.has(id)) }))
