@@ -290,6 +290,34 @@ export default function Dashboard() {
     setMembership((data as Membership) ?? null);
   };
 
+  const loadBotOrders = useCallback(async () => {
+    if (!user) return;
+    setBotOrdersLoading(true);
+    const [{ data: orders, error }, { data: jobs }] = await Promise.all([
+      (supabase as any)
+        .from("bot_orders")
+        .select("id,bot_name,base,addons,monthly_hosting,status,total_amount,currency,created_at,submitted_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false }),
+      (supabase as any)
+        .from("bot_build_jobs")
+        .select("order_id,status,delivery_url,error_message")
+        .eq("user_id", user.id),
+    ]);
+    if (error) {
+      toast.error("Couldn't load your bot orders");
+      setBotOrdersLoading(false);
+      return;
+    }
+    setBotOrders((orders as BotOrder[]) ?? []);
+    const jobMap: Record<string, BotJob> = {};
+    ((jobs as BotJob[]) ?? []).forEach((j) => {
+      jobMap[j.order_id] = j;
+    });
+    setBotJobs(jobMap);
+    setBotOrdersLoading(false);
+  }, [user]);
+
   const isMemberActive = (() => {
     if (!membership) return false;
     const periodEnd = membership.current_period_end
