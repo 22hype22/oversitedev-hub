@@ -309,52 +309,54 @@ const BotSection = ({
         </div>
       </Card>
 
-      <div>
-        <div className="flex items-center gap-2 mb-4 mt-2">
+      <div className="space-y-10">
+        <div className="flex items-center gap-2 mt-2">
           <Settings className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
-            Plugins ({enabledPlugins.length})
+            Configure add-ons ({totalConfigurable})
           </h3>
         </div>
-        {enabledPlugins.length === 0 ? (
+
+        {totalConfigurable === 0 ? (
           <Card className="bg-card/40 border-dashed border-border p-8 text-center">
             <p className="text-sm text-muted-foreground">
-              No plugins enabled yet. Add an add-on to unlock plugins for{" "}
-              <span className="text-foreground font-medium">{bot.bot_name}</span>.
+              No add-ons on this bot yet. Add one to unlock its configuration box.
             </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4"
-              onClick={() => onAddAddons(bot)}
-            >
-              <Plus className="h-4 w-4 mr-1.5" />
-              Browse add-ons
-            </Button>
+            {!bot.isDemo && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={() => onAddAddons(bot)}
+              >
+                <Plus className="h-4 w-4 mr-1.5" />
+                Browse add-ons
+              </Button>
+            )}
           </Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {enabledPlugins.map((p) => {
-              const Icon = p.icon;
-              return (
-                <Card
-                  key={`${bot.id}-${p.name}`}
-                  className="group cursor-pointer bg-card hover:bg-card/80 border-border hover:border-primary/50 hover:shadow-elegant transition-smooth p-6 flex flex-col min-h-[170px]"
-                >
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0 group-hover:bg-primary/15 transition-smooth">
-                      <Icon className="h-5 w-5 text-primary" />
-                    </div>
-                    <h3 className="font-semibold text-base leading-tight pt-1.5">{p.name}</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground flex-1">{p.description}</p>
-                  <div className="flex justify-end mt-3">
-                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-smooth" />
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
+          groupedAddons.map((group) => {
+            const GroupIcon = group.icon;
+            return (
+              <div key={group.key} className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <GroupIcon className="h-4 w-4 text-primary" />
+                  <h4 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
+                    {group.label} ({group.owned.length})
+                  </h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                  {group.owned.map((id) => (
+                    <AddonConfigCard
+                      key={`${bot.id}-${id}`}
+                      addonId={id}
+                      botName={bot.bot_name}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
     </section>
