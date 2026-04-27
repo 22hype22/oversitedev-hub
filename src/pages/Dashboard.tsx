@@ -58,6 +58,7 @@ import {
   CreditCard,
   Sparkles,
   ArrowUpCircle,
+  Bot,
 } from "lucide-react";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
@@ -107,6 +108,28 @@ export default function Dashboard() {
 
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [purchasesLoading, setPurchasesLoading] = useState(true);
+
+  type BotOrder = {
+    id: string;
+    bot_name: string;
+    base: string;
+    addons: string[] | null;
+    monthly_hosting: boolean;
+    status: string;
+    total_amount: number | string;
+    currency: string;
+    created_at: string;
+    submitted_at: string | null;
+  };
+  type BotJob = {
+    order_id: string;
+    status: string;
+    delivery_url: string | null;
+    error_message: string | null;
+  };
+  const [botOrders, setBotOrders] = useState<BotOrder[]>([]);
+  const [botJobs, setBotJobs] = useState<Record<string, BotJob>>({});
+  const [botOrdersLoading, setBotOrdersLoading] = useState(true);
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -267,6 +290,34 @@ export default function Dashboard() {
     setMembership((data as Membership) ?? null);
   };
 
+  const loadBotOrders = useCallback(async () => {
+    if (!user) return;
+    setBotOrdersLoading(true);
+    const [{ data: orders, error }, { data: jobs }] = await Promise.all([
+      (supabase as any)
+        .from("bot_orders")
+        .select("id,bot_name,base,addons,monthly_hosting,status,total_amount,currency,created_at,submitted_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false }),
+      (supabase as any)
+        .from("bot_build_jobs")
+        .select("order_id,status,delivery_url,error_message")
+        .eq("user_id", user.id),
+    ]);
+    if (error) {
+      toast.error("Couldn't load your bot orders");
+      setBotOrdersLoading(false);
+      return;
+    }
+    setBotOrders((orders as BotOrder[]) ?? []);
+    const jobMap: Record<string, BotJob> = {};
+    ((jobs as BotJob[]) ?? []).forEach((j) => {
+      jobMap[j.order_id] = j;
+    });
+    setBotJobs(jobMap);
+    setBotOrdersLoading(false);
+  }, [user]);
+
   const isMemberActive = (() => {
     if (!membership) return false;
     const periodEnd = membership.current_period_end
@@ -346,6 +397,7 @@ export default function Dashboard() {
     setNewEmail(user.email ?? "");
     loadPurchases();
     loadMembership();
+    loadBotOrders();
 
     (async () => {
       setProfileLoading(true);
@@ -363,7 +415,7 @@ export default function Dashboard() {
       }
       setProfileLoading(false);
     })();
-  }, [user, loadPurchases]);
+  }, [user, loadPurchases, loadBotOrders]);
 
   useEffect(() => {
     if (!user) return;
@@ -493,10 +545,14 @@ export default function Dashboard() {
         </div>
 
         <Tabs defaultValue="purchases" className="space-y-6">
-          <TabsList className="grid grid-cols-3 w-full max-w-md">
+          <TabsList className="grid grid-cols-4 w-full max-w-2xl">
             <TabsTrigger value="purchases">
               <ShoppingBag size={14} className="mr-1.5" />
               Purchases
+            </TabsTrigger>
+            <TabsTrigger value="bots">
+              <Bot size={14} className="mr-1.5" />
+              Bot Orders
             </TabsTrigger>
             <TabsTrigger value="settings">
               <SettingsIcon size={14} className="mr-1.5" />
@@ -722,6 +778,121 @@ export default function Dashboard() {
                   })}
                 </ul>
                 </>
+              )}
+            </Card>
+          </TabsContent>
+
+          {/* BOT ORDERS */}
+          <TabsContent value="bots" className="space-y-4">
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                <div>
+                  <h2 className="font-semibold flex items-center gap-2">
+                    <Bot size={16} className="text-primary" />
+                    My Bot Orders
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {botOrders.length} total
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={loadBotOrders} variant="outline" size="sm">
+                    Refresh
+                  </Button>
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/bots">Build a bot</Link>
+                  </Button>
+                </div>
+              </div>
+
+              {botOrdersLoading ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : botOrders.length === 0 ? (
+                <div className="text-center py-12 border border-dashed border-border rounded-lg">
+                  <Bot size={32} className="mx-auto text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground mb-4">
+                    No bot orders yet.
+                  </p>
+                  <Button asChild variant="hero" size="sm">
+                    <Link to="/bots">Build your first bot</Link>
+                  </Button>
+                </div>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {botOrders.map((o) => {
+                    const job = botJobs[o.id];
+                    const orderStatus = o.status;
+                    const jobStatus = job?.status;
+                    const statusColor: Record<string, string> = {
+                      draft: "bg-muted text-muted-foreground",
+                      submitted: "bg-amber-500/15 text-amber-600 border border-amber-500/30",
+                      paid: "bg-blue-500/15 text-blue-600 border border-blue-500/30",
+                      pending: "bg-amber-500/15 text-amber-600 border border-amber-500/30",
+                      claimed: "bg-blue-500/15 text-blue-600 border border-blue-500/30",
+                      building: "bg-blue-500/15 text-blue-600 border border-blue-500/30",
+                      ready: "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30",
+                      delivered: "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30",
+                      failed: "bg-destructive/15 text-destructive border border-destructive/30",
+                    };
+                    const total = Number(o.total_amount) || 0;
+                    return (
+                      <li key={o.id} className="py-4 space-y-2">
+                        <div className="flex items-start justify-between gap-4 flex-wrap">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium truncate">{o.bot_name}</p>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] ${statusColor[orderStatus] ?? ""}`}
+                              >
+                                {orderStatus}
+                              </Badge>
+                              {jobStatus && (
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[10px] ${statusColor[jobStatus] ?? ""}`}
+                                >
+                                  build: {jobStatus}
+                                </Badge>
+                              )}
+                              {o.monthly_hosting && (
+                                <Badge variant="secondary" className="text-[10px]">
+                                  hosted
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Base: {o.base}
+                              {o.addons && o.addons.length > 0
+                                ? ` · ${o.addons.length} add-on${o.addons.length === 1 ? "" : "s"}`
+                                : ""}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDate(o.created_at)} · {formatPrice(total)}
+                            </p>
+                            {job?.error_message && (
+                              <p className="text-xs text-destructive mt-1">
+                                {job.error_message}
+                              </p>
+                            )}
+                          </div>
+                          {job?.delivery_url && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                window.open(job.delivery_url!, "_blank", "noopener,noreferrer")
+                              }
+                            >
+                              <Download size={14} className="mr-1.5" />
+                              Get bot
+                            </Button>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               )}
             </Card>
           </TabsContent>
