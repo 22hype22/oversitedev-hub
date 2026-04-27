@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast as sonnerToast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Shield,
   LifeBuoy,
@@ -223,6 +225,7 @@ const SCRATCH_CATEGORIES: { id: string; label: string; icon: typeof Shield; addo
 ];
 
 export const BotBuilder = () => {
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [icon, setIcon] = useState<string | null>(null);
@@ -280,7 +283,31 @@ export const BotBuilder = () => {
     return baseCost + addonCost;
   }, [base, addons, currentAddons]);
 
-  const submit = () => {
+  const persistOrder = async () => {
+    if (!user) return true; // anonymous: skip persistence, keep legacy flow
+    const { error } = await (supabase as any).from("bot_orders").insert({
+      user_id: user.id,
+      bot_name: name.trim(),
+      bot_description: description.trim() || null,
+      icon_url: icon,
+      banner_url: banner,
+      base,
+      addons,
+      monthly_hosting: monthlyHosting,
+      notes: notes.trim() || null,
+      total_amount: total,
+      currency: "usd",
+      status: "submitted",
+      submitted_at: new Date().toISOString(),
+    });
+    if (error) {
+      sonnerToast.error("Couldn't save your order", { description: error.message });
+      return false;
+    }
+    return true;
+  };
+
+  const submit = async () => {
     if (!name.trim()) {
       sonnerToast.error("Give your bot a name", {
         description: "Even a working title helps us get started.",
@@ -298,6 +325,14 @@ export const BotBuilder = () => {
       return;
     }
     setSubmitting(true);
+
+    // Save the order to the database so Railway/Claude can later pick it up.
+    const ok = await persistOrder();
+    if (!ok) {
+      setSubmitting(false);
+      return;
+    }
+
     // Capture button center as the airplane's launch point
     const btn = confirmBtnRef.current;
     if (btn) {
@@ -313,7 +348,7 @@ export const BotBuilder = () => {
       setShowSuccessText(true);
     }, 2900);
     setTimeout(() => {
-      window.location.href = "/#contact";
+      window.location.href = user ? "/dashboard" : "/#contact";
     }, 6000);
   };
 
