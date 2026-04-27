@@ -109,6 +109,7 @@ const BASES: Base[] = [
     tagline: "Automod, anti-raid, and a full mod toolkit.",
     icon: Shield,
     price: 99,
+    oldPrice: 149,
     included: [
       "Verification system",
       "Warn, mute, ban, kick",
@@ -124,6 +125,7 @@ const BASES: Base[] = [
     tagline: "Tickets, appeals, reports, and welcomes.",
     icon: LifeBuoy,
     price: 99,
+    oldPrice: 149,
     included: [
       "Ticket system (unlimited categories)",
       "Claim system",
@@ -138,6 +140,7 @@ const BASES: Base[] = [
     tagline: "Announcements, roles, Roblox, music, more.",
     icon: Wrench,
     price: 99,
+    oldPrice: 149,
     included: [
       "/say and /announce",
       "Reaction roles (unlimited)",
@@ -154,6 +157,7 @@ const BASES: Base[] = [
     tagline: "Protection + Support + Utilities — every base in one bot.",
     icon: Sparkles,
     price: 199,
+    oldPrice: 249,
     included: [
       "Everything in Oversite Protection",
       "Everything in Oversite Support",
