@@ -1,61 +1,41 @@
-## Goal
+# Suggested follow-ups
 
-Make the Bot Dashboard (`/bot-dashboard`) the place where customers manage **their own bots**, with one section per bot they own. Access is unlocked only when a bot order includes the **$149.99 Web Dashboard** add-on (`addon id: "dashboard"`). Without it, users manage their bot via in-Discord `/cmds` only.
+These are gaps I noticed across the builder, dashboard, and ownership flow. Pick whichever feel useful — none are blockers.
 
-## Access rules
+## 1. Order status visibility
 
-A user has access to the Bot Dashboard if **any** of their `bot_orders` rows:
-- `status` is `paid` (or `submitted` while we don't have payments wired yet — see Open question), AND
-- `addons` array contains `"dashboard"`.
+Right now bots show up in the dashboard once they're `submitted` or `paid`, but the user can't tell which stage their bot is in. Add a status badge to each bot section: **Submitted → In build → Ready → Live**. Pulls from `bot_orders.status` (and optionally `bot_build_jobs.status` for finer-grained "we're building it now" state).
 
-Admins keep full access regardless.
+## 2. Edit bot identity
 
-In the navbar dropdown:
-- "Dashboard" link visible + clickable only when the user has at least one bot with the Web Dashboard add-on (or is admin).
-- Otherwise show it as Locked (same pattern as today).
+Once a bot is live, the user might want to rename it, swap the icon, or update the description without contacting support. Add an "Edit details" button on each bot section that opens a small dialog editing `bot_name`, `bot_description`, `icon_url`, `banner_url`.
 
-## Page structure
+## 3. Remove individual add-ons
 
-Rename and restructure `src/pages/BotDashboard.tsx`:
+We added "Add more add-ons" but there's no way to drop one if the user changes their mind (e.g. they're not using the music player anymore). Mirror the add flow with a "Manage add-ons" view showing currently-owned ones with a remove option. Self-serve for unbilled changes; "contact support" once it's been billed.
 
-- Header title: **"Manage Your Bots"** (replaces "Manage Oversite").
-- Sub-text: short blurb explaining each section below is one of their bots.
-- Below the header, render one section **per owned bot** the user has:
-  - Section heading: **"Managing {bot_name}"** with the bot's icon (or default Bot icon).
-  - Small badge under the name showing the base (Protection / Support / Utilities / From Scratch) and add-ons count.
-  - Below: the existing plugin grid (Settings, Auto Reply, Automod, …) — scoped visually to that bot.
-- If the user owns **0 bots with the Web Dashboard add-on**, show a friendly empty/locked state explaining:
-  - "The Web Dashboard add-on unlocks bot management from this site."
-  - "Without it, you can still configure your bot in Discord with `/cmds`."
-  - CTA button → `/bots` (Bot Builder) to add the Web Dashboard add-on.
+## 4. Invoice / billing history per bot
 
-For now plugins remain non-functional placeholder cards (same as today) — wiring real config comes later.
+Users currently can't see what they paid, when, or for which bot. A simple "Billing" tab on each bot section listing past charges (from `purchases` and `subscriptions`) would prevent a lot of "what am I paying for?" support tickets.
 
-## Data fetching
+## 5. Hosting status indicator
 
-In `BotDashboard.tsx`:
-- Use `useAuth` for the current user.
-- Query `bot_orders` for `user_id = auth.uid()`, filter client-side to rows where `addons` includes `"dashboard"` and (for now) `status in ('submitted','paid')`.
-- Map each qualifying order → one "Managing {bot_name}" section.
+If hosting is on, show a small live indicator (green dot = bot online, gray = offline, red = error) at the top of the bot section. Even a placeholder that just shows "Hosted" vs "Self-hosted" is useful right now until real telemetry is wired.
 
-No schema changes needed — `bot_orders` already stores `bot_name`, `icon_url`, `base`, `addons`, `status`.
+## 6. Onboarding / "next steps" after first bot purchase
 
-## Navbar gating
+The success screen tells the user where to find the dashboard, but the dashboard itself doesn't guide them. First time landing on `/bot-dashboard` after a build, show a one-time checklist: "Invite your bot to your server → Run `/setup` → Configure your first plugin." Dismissible.
 
-In `src/components/site/Navbar.tsx`:
-- Add a small hook (or inline query) that returns `hasBotDashboardAccess: boolean` based on the same `bot_orders` query above (admins always true).
-- Replace the current `isAdmin`-based gate on the "Dashboard" item (desktop dropdown + mobile menu) with `hasBotDashboardAccess`.
+## 7. Transfer bot ownership
 
-## Files to change
+Niche but real: server owners change. A "Transfer ownership" action that emails the new owner a claim link, then reassigns `user_id` on the `bot_orders` row.
 
-- `src/pages/BotDashboard.tsx` — restructure: title, per-bot sections, ownership query, empty state.
-- `src/components/site/Navbar.tsx` — gate "Dashboard" link by Web Dashboard ownership instead of admin-only.
-- (Optional) `src/hooks/useOwnedBots.tsx` — small new hook returning the user's qualifying bots so both pages share the logic.
+## 8. Plugin cards are decorative
 
-## Open question (will default if no answer)
+The plugin grid on each bot section currently links nowhere — clicking a card does nothing. Either wire each one to a real config page (bigger lift) or hide cards for plugins the user doesn't have enabled, so the dashboard reflects reality.
 
-Right now there is no payment flow wired into bot orders, so orders sit at `status = 'submitted'` after the builder form. Should access unlock:
-- **(default) On `submitted` or `paid`** — useful while testing, so users see their dashboard immediately after building, OR
-- **Strictly on `paid`** — only after a real payment lands.
+## My recommendation
 
-I'll go with the default (submitted or paid) and we can tighten to paid-only when checkout is wired up.
+If you only do two: **#1 (status badges)** and **#8 (only show enabled plugins)**. Together they make the dashboard feel honest about what state the bot is in and what the user actually owns. Everything else can wait until users start asking.
+
+Tell me which (if any) you want and I'll build them.
