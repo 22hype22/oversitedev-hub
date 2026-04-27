@@ -56,6 +56,134 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_build_jobs: {
+        Row: {
+          artifact_url: string | null
+          attempts: number
+          build_log: string | null
+          claimed_at: string | null
+          completed_at: string | null
+          created_at: string
+          delivery_url: string | null
+          error_message: string | null
+          id: string
+          order_id: string
+          selections: Json
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          worker_id: string | null
+        }
+        Insert: {
+          artifact_url?: string | null
+          attempts?: number
+          build_log?: string | null
+          claimed_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          delivery_url?: string | null
+          error_message?: string | null
+          id?: string
+          order_id: string
+          selections?: Json
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          worker_id?: string | null
+        }
+        Update: {
+          artifact_url?: string | null
+          attempts?: number
+          build_log?: string | null
+          claimed_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          delivery_url?: string | null
+          error_message?: string | null
+          id?: string
+          order_id?: string
+          selections?: Json
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_build_jobs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "bot_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_orders: {
+        Row: {
+          addons: string[]
+          banner_url: string | null
+          base: string
+          bot_description: string | null
+          bot_name: string
+          created_at: string
+          currency: string
+          icon_url: string | null
+          id: string
+          monthly_hosting: boolean
+          notes: string | null
+          purchase_id: string | null
+          status: string
+          submitted_at: string | null
+          subscription_id: string | null
+          total_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          addons?: string[]
+          banner_url?: string | null
+          base: string
+          bot_description?: string | null
+          bot_name: string
+          created_at?: string
+          currency?: string
+          icon_url?: string | null
+          id?: string
+          monthly_hosting?: boolean
+          notes?: string | null
+          purchase_id?: string | null
+          status?: string
+          submitted_at?: string | null
+          subscription_id?: string | null
+          total_amount?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          addons?: string[]
+          banner_url?: string | null
+          base?: string
+          bot_description?: string | null
+          bot_name?: string
+          created_at?: string
+          currency?: string
+          icon_url?: string | null
+          id?: string
+          monthly_hosting?: boolean
+          notes?: string | null
+          purchase_id?: string | null
+          status?: string
+          submitted_at?: string | null
+          subscription_id?: string | null
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
