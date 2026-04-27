@@ -59,7 +59,7 @@ const BotsPage = () => {
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
             <Button variant="hero" size="lg" asChild>
-              <a href="#build">
+              <a href="#pick-base">
                 <Wand2 /> Build your own bot
               </a>
             </Button>

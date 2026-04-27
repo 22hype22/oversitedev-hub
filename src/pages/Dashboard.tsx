@@ -845,7 +845,7 @@ export default function Dashboard() {
                     No bot orders yet.
                   </p>
                   <Button asChild variant="hero" size="sm">
-                    <Link to="/bots">Build your first bot</Link>
+                    <Link to="/bots#pick-base">Build your first bot</Link>
                   </Button>
                 </div>
               ) : (
