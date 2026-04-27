@@ -224,6 +224,7 @@ const BotDashboard = () => {
   const navigate = useNavigate();
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
 
   const cancelOrder = async (bot: OwnedBot) => {
     if (!user) return;
