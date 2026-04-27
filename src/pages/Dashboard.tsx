@@ -1017,6 +1017,38 @@ export default function Dashboard() {
             </AlertDialogContent>
           </AlertDialog>
 
+          {/* Cancel bot order confirm */}
+          <AlertDialog
+            open={!!cancelTarget}
+            onOpenChange={(o) => !o && !cancelling && setCancelTarget(null)}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Cancel "{cancelTarget?.bot_name}"?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will cancel your bot order. You won't be charged, and it
+                  will disappear from your Bot Dashboard. You can always start a
+                  new build later.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={cancelling}>Keep order</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={cancelling}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (cancelTarget) cancelOrder(cancelTarget);
+                  }}
+                >
+                  {cancelling ? "Cancelling…" : "Yes, cancel it"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           {/* SETTINGS */}
           <TabsContent value="settings" className="space-y-4">
             {/* Appearance */}
