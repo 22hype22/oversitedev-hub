@@ -78,7 +78,7 @@ export const BotOrdersLog = () => {
       const { data: orders, error } = await supabase
         .from("bot_orders")
         .select(
-          "id, created_at, submitted_at, bot_name, base, addons, total_amount, currency, status, monthly_hosting, user_id",
+          "id, created_at, submitted_at, bot_name, base, addons, total_amount, currency, status, monthly_hosting, user_id, notes, delivery_url",
         )
         .order("submitted_at", { ascending: true, nullsFirst: false })
         .limit(500);
@@ -114,6 +114,8 @@ export const BotOrdersLog = () => {
         monthly_hosting: !!o.monthly_hosting,
         user_id: o.user_id,
         buyer_email: emailByUser.get(o.user_id) ?? null,
+        notes: (o as any).notes ?? null,
+        delivery_url: (o as any).delivery_url ?? null,
       }));
 
       setRows(mapped);
