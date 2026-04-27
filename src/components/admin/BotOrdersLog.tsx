@@ -10,8 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Bot, RefreshCw, Download } from "lucide-react";
+import { Bot, RefreshCw, Download, ChevronDown, ChevronUp, Save } from "lucide-react";
 import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { BOT_BASE_LABELS } from "@/lib/botCatalog";
 
@@ -28,7 +29,11 @@ type OrderRow = {
   monthly_hosting: boolean;
   user_id: string;
   buyer_email: string | null;
+  notes: string | null;
+  delivery_url: string | null;
 };
+
+const EDITABLE_STATUSES = ["submitted", "paid", "building", "ready", "live", "cancelled"] as const;
 
 type StatusFilter = "all" | "preorder" | "paid" | "building" | "ready" | "live" | "cancelled";
 
