@@ -346,16 +346,17 @@ const BotDashboard = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Cancel "{cancelTarget?.bot_name}"?
+              Cancel subscription for "{cancelTarget?.bot_name}"?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This will cancel your bot order. You won't be charged, and it
-              will be removed from your dashboard. You can always start a new
-              build from the Bot Builder later.
+              This cancels your subscription and removes dashboard access for
+              this bot. Your bot itself isn't deleted from your server — you
+              can keep using it with /cmds. You can resubscribe anytime to
+              regain dashboard access.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancelling}>Keep it</AlertDialogCancel>
+            <AlertDialogCancel disabled={cancelling}>Keep subscription</AlertDialogCancel>
             <AlertDialogAction
               disabled={cancelling}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -364,7 +365,7 @@ const BotDashboard = () => {
                 if (cancelTarget) cancelOrder(cancelTarget);
               }}
             >
-              {cancelling ? "Cancelling…" : "Yes, cancel it"}
+              {cancelling ? "Cancelling…" : "Yes, cancel subscription"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
