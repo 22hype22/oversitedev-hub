@@ -109,6 +109,28 @@ export default function Dashboard() {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [purchasesLoading, setPurchasesLoading] = useState(true);
 
+  type BotOrder = {
+    id: string;
+    bot_name: string;
+    base: string;
+    addons: string[] | null;
+    monthly_hosting: boolean;
+    status: string;
+    total_amount: number | string;
+    currency: string;
+    created_at: string;
+    submitted_at: string | null;
+  };
+  type BotJob = {
+    order_id: string;
+    status: string;
+    delivery_url: string | null;
+    error_message: string | null;
+  };
+  const [botOrders, setBotOrders] = useState<BotOrder[]>([]);
+  const [botJobs, setBotJobs] = useState<Record<string, BotJob>>({});
+  const [botOrdersLoading, setBotOrdersLoading] = useState(true);
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
