@@ -89,6 +89,7 @@ type Base = {
   tagline: string;
   icon: typeof Shield;
   price: number;
+  oldPrice?: number;
   included: string[];
 };
 
@@ -108,6 +109,7 @@ const BASES: Base[] = [
     tagline: "Automod, anti-raid, and a full mod toolkit.",
     icon: Shield,
     price: 99,
+    oldPrice: 149,
     included: [
       "Verification system",
       "Warn, mute, ban, kick",
@@ -123,6 +125,7 @@ const BASES: Base[] = [
     tagline: "Tickets, appeals, reports, and welcomes.",
     icon: LifeBuoy,
     price: 99,
+    oldPrice: 149,
     included: [
       "Ticket system (unlimited categories)",
       "Claim system",
@@ -137,6 +140,7 @@ const BASES: Base[] = [
     tagline: "Announcements, roles, Roblox, music, more.",
     icon: Wrench,
     price: 99,
+    oldPrice: 149,
     included: [
       "/say and /announce",
       "Reaction roles (unlimited)",
@@ -153,6 +157,7 @@ const BASES: Base[] = [
     tagline: "Protection + Support + Utilities — every base in one bot.",
     icon: Sparkles,
     price: 199,
+    oldPrice: 249,
     included: [
       "Everything in Oversite Protection",
       "Everything in Oversite Support",
@@ -529,8 +534,17 @@ export const BotBuilder = () => {
                         </li>
                       ))}
                     </ul>
-                    <div className="mt-3 text-xs text-foreground/80">
-                      one-time <span className="font-semibold">${b.price}</span>
+                    <div className="mt-3 flex items-center gap-2 flex-wrap text-xs text-foreground/80">
+                      <span>one-time</span>
+                      {b.oldPrice && (
+                        <span className="text-muted-foreground line-through">${b.oldPrice}</span>
+                      )}
+                      <span className="font-semibold">${b.price}</span>
+                      {b.oldPrice && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-primary/15 border border-primary/30 text-primary text-[10px] font-semibold uppercase tracking-wide">
+                          Preorder sale
+                        </span>
+                      )}
                     </div>
                   </button>
                 );
