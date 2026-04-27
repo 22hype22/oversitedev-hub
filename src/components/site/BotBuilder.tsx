@@ -491,7 +491,7 @@ export const BotBuilder = () => {
         {/* Left: configurator */}
         <div className="lg:col-span-2 space-y-8">
           {/* Step 1 — Base */}
-          <div className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur p-6">
+          <div id="pick-base" className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur p-6 scroll-mt-24">
             <div className="flex items-center gap-3 mb-4">
               <div className="h-7 w-7 rounded-full bg-primary/15 border border-primary/30 grid place-items-center text-xs font-bold text-primary">
                 1
