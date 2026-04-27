@@ -56,7 +56,7 @@ const Auth = () => {
         if (error) throw error;
         toast({
           title: "Check your email",
-          description: "Confirm your email to finish creating your account. Your 10% off is waiting!",
+          description: "Confirm your email to finish creating your account — be sure to check your spam or junk folder if you don't see it. Your 10% off is waiting!",
         });
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
