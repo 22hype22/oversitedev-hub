@@ -347,7 +347,12 @@ const BotDashboard = () => {
         ) : (
           <div className="space-y-16">
             {dashboardBots.map((bot) => (
-              <BotSection key={bot.id} bot={bot} onCancel={setCancelTarget} />
+              <BotSection
+                key={bot.id}
+                bot={bot}
+                onCancel={setCancelTarget}
+                onAddAddons={setAddonsTarget}
+              />
             ))}
           </div>
         )}
