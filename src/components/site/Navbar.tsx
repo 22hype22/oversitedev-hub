@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Menu, X, Lock, User as UserIcon, LogOut, Shield, LayoutDashboard } from "lucide-react";
+import { Menu, X, Lock, User as UserIcon, LogOut, Shield, LayoutDashboard, Settings as SettingsIcon } from "lucide-react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -107,8 +107,30 @@ export const Navbar = () => {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate("/dashboard")}>
-                  <LayoutDashboard size={14} className="mr-2" />
+                  <SettingsIcon size={14} className="mr-2" />
                   Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => isAdmin && navigate("/bot-dashboard")}
+                  disabled={!isAdmin}
+                  className={!isAdmin ? "opacity-60" : ""}
+                >
+                  <span className="relative mr-2 inline-flex items-center justify-center">
+                    <LayoutDashboard size={14} />
+                    {!isAdmin && (
+                      <Lock
+                        size={9}
+                        className="absolute -bottom-0.5 -right-1 bg-popover rounded-sm p-[1px]"
+                        strokeWidth={3}
+                      />
+                    )}
+                  </span>
+                  Dashboard
+                  {!isAdmin && (
+                    <span className="ml-auto text-[10px] text-muted-foreground">
+                      Locked
+                    </span>
+                  )}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => isAdmin && navigate("/admin")}
@@ -209,9 +231,31 @@ export const Navbar = () => {
                     to="/dashboard"
                     className="flex items-center gap-2 py-2 text-sm text-muted-foreground"
                   >
-                    <LayoutDashboard size={14} />
+                    <SettingsIcon size={14} />
                     Settings
                   </NavLink>
+                  {isAdmin ? (
+                    <NavLink
+                      to="/bot-dashboard"
+                      className="flex items-center gap-2 py-2 text-sm text-muted-foreground"
+                    >
+                      <LayoutDashboard size={14} />
+                      Dashboard
+                    </NavLink>
+                  ) : (
+                    <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground/60">
+                      <span className="relative inline-flex items-center justify-center">
+                        <LayoutDashboard size={14} />
+                        <Lock
+                          size={9}
+                          className="absolute -bottom-0.5 -right-1 bg-background rounded-sm p-[1px]"
+                          strokeWidth={3}
+                        />
+                      </span>
+                      Dashboard
+                      <span className="ml-auto text-[10px]">Locked</span>
+                    </div>
+                  )}
                   {isAdmin ? (
                     <NavLink
                       to="/admin"
