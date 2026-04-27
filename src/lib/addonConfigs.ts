@@ -1,0 +1,376 @@
+/**
+ * Per-add-on configuration schema for the Bot Dashboard.
+ *
+ * Each entry describes the fields a customer would tweak for that add-on
+ * (channel, message, role, toggle, etc.). The Bot Dashboard renders a
+ * config "box" for every add-on the bot owns, and each box opens a dialog
+ * built from this schema.
+ *
+ * Currently scoped to Protection add-ons. Support / Utilities will follow.
+ *
+ * NOTE: This is mock UI only — values are kept in component state and a
+ * "save" toast is shown. No DB writes.
+ */
+
+import type { LucideIcon } from "lucide-react";
+import {
+  ScrollText,
+  ShieldAlert,
+  Image as ImageIcon,
+  MessageSquareWarning,
+  UserPlus,
+  Gavel,
+  Hammer,
+  Users,
+  Lock,
+  StickyNote,
+  History,
+  Snowflake,
+  Clock,
+} from "lucide-react";
+
+export type AddonFieldType =
+  | "channel"
+  | "role"
+  | "text"
+  | "textarea"
+  | "number"
+  | "toggle"
+  | "select";
+
+export type AddonField = {
+  key: string;
+  label: string;
+  type: AddonFieldType;
+  placeholder?: string;
+  help?: string;
+  defaultValue?: string | number | boolean;
+  options?: { value: string; label: string }[];
+};
+
+export type AddonConfig = {
+  /** Short headline shown on the box & dialog title. */
+  title: string;
+  /** One-liner shown on the box. */
+  summary: string;
+  /** Lucide icon for the box. */
+  icon: LucideIcon;
+  /** Form fields rendered inside the dialog. */
+  fields: AddonField[];
+};
+
+const channel = (key: string, label: string, help?: string): AddonField => ({
+  key,
+  label,
+  type: "channel",
+  placeholder: "#channel-name",
+  help,
+});
+
+const role = (key: string, label: string, help?: string): AddonField => ({
+  key,
+  label,
+  type: "role",
+  placeholder: "@role",
+  help,
+});
+
+const toggle = (
+  key: string,
+  label: string,
+  defaultValue = true,
+  help?: string,
+): AddonField => ({ key, label, type: "toggle", defaultValue, help });
+
+export const ADDON_CONFIGS: Record<string, AddonConfig> = {
+  // ─── Protection ──────────────────────────────────────────────
+  "advanced-logging": {
+    title: "Advanced Logging",
+    summary: "Pick which events get logged and where they go.",
+    icon: ScrollText,
+    fields: [
+      channel("channel", "Log channel", "Where every logged event is posted."),
+      toggle("logMessages", "Log message edits & deletes"),
+      toggle("logMembers", "Log member joins, leaves, role changes"),
+      toggle("logVoice", "Log voice channel activity", false),
+      toggle("logModeration", "Log moderation actions"),
+    ],
+  },
+
+  "nsfw-invite-scanner": {
+    title: "NSFW Invite Scanner + Censored Logs",
+    summary: "Scan invite links and censor logged NSFW content.",
+    icon: ShieldAlert,
+    fields: [
+      channel("channel", "Alert channel"),
+      {
+        key: "action",
+        label: "On NSFW invite",
+        type: "select",
+        defaultValue: "delete",
+        options: [
+          { value: "warn", label: "Warn user" },
+          { value: "delete", label: "Delete message" },
+          { value: "kick", label: "Kick user" },
+          { value: "ban", label: "Ban user" },
+        ],
+      },
+      toggle("censorLogs", "Censor NSFW content in log channels"),
+      toggle("scanDms", "Scan DMs sent through the bot", false),
+    ],
+  },
+
+  "avatar-nsfw-detection": {
+    title: "Avatar NSFW Detection",
+    summary: "Catch NSFW profile pictures on join.",
+    icon: ImageIcon,
+    fields: [
+      channel("channel", "Alert channel"),
+      {
+        key: "sensitivity",
+        label: "Detection sensitivity",
+        type: "select",
+        defaultValue: "medium",
+        options: [
+          { value: "low", label: "Low (fewer false positives)" },
+          { value: "medium", label: "Medium" },
+          { value: "high", label: "High (catch more)" },
+        ],
+      },
+      {
+        key: "action",
+        label: "On detection",
+        type: "select",
+        defaultValue: "kick",
+        options: [
+          { value: "alert", label: "Alert mods only" },
+          { value: "kick", label: "Kick" },
+          { value: "ban", label: "Ban" },
+        ],
+      },
+      {
+        key: "alertMessage",
+        label: "Alert message",
+        type: "textarea",
+        placeholder: "User {user} joined with a flagged avatar.",
+        defaultValue: "User {user} joined with a flagged avatar.",
+      },
+    ],
+  },
+
+  "bio-phrase-detection": {
+    title: "Bio Phrase Detection",
+    summary: "Flag members whose bio contains banned phrases.",
+    icon: MessageSquareWarning,
+    fields: [
+      channel("channel", "Alert channel"),
+      {
+        key: "phrases",
+        label: "Banned phrases (one per line)",
+        type: "textarea",
+        placeholder: "discord.gg/\nfree nitro\nonlyfans",
+      },
+      {
+        key: "action",
+        label: "On match",
+        type: "select",
+        defaultValue: "alert",
+        options: [
+          { value: "alert", label: "Alert mods" },
+          { value: "kick", label: "Kick" },
+          { value: "ban", label: "Ban" },
+        ],
+      },
+    ],
+  },
+
+  "account-age-gating": {
+    title: "New Account Age Gating",
+    summary: "Block accounts that are too new from joining.",
+    icon: UserPlus,
+    fields: [
+      {
+        key: "minAgeDays",
+        label: "Minimum account age (days)",
+        type: "number",
+        defaultValue: 7,
+      },
+      {
+        key: "action",
+        label: "On too-new account",
+        type: "select",
+        defaultValue: "kick",
+        options: [
+          { value: "kick", label: "Kick with DM" },
+          { value: "ban", label: "Ban" },
+          { value: "quarantine", label: "Quarantine role" },
+        ],
+      },
+      role("quarantineRole", "Quarantine role", "Used if action is Quarantine."),
+      channel("logChannel", "Log channel"),
+      {
+        key: "dmMessage",
+        label: "DM to blocked user",
+        type: "textarea",
+        defaultValue:
+          "Your account is too new to join {server}. Please come back in {days} days.",
+      },
+    ],
+  },
+
+  "auto-escalating-warnings": {
+    title: "Auto-Escalating Warnings",
+    summary: "Automatically punish users after X warnings.",
+    icon: Gavel,
+    fields: [
+      { key: "muteAt", label: "Mute after X warnings", type: "number", defaultValue: 3 },
+      { key: "kickAt", label: "Kick after X warnings", type: "number", defaultValue: 5 },
+      { key: "banAt", label: "Ban after X warnings", type: "number", defaultValue: 7 },
+      {
+        key: "muteDuration",
+        label: "Mute duration",
+        type: "select",
+        defaultValue: "1h",
+        options: [
+          { value: "10m", label: "10 minutes" },
+          { value: "1h", label: "1 hour" },
+          { value: "6h", label: "6 hours" },
+          { value: "1d", label: "1 day" },
+        ],
+      },
+      channel("channel", "Notification channel"),
+    ],
+  },
+
+  "softban-massban": {
+    title: "/softban and /massban",
+    summary: "Power tools for cleaning up raids and spam.",
+    icon: Hammer,
+    fields: [
+      role("allowedRole", "Role allowed to use these commands"),
+      channel("logChannel", "Log channel"),
+      {
+        key: "softbanDeleteDays",
+        label: "Softban: delete messages from last N days",
+        type: "number",
+        defaultValue: 1,
+      },
+      toggle("requireReason", "Require a reason for every action"),
+    ],
+  },
+
+  "channel-lockdown": {
+    title: "Channel Lockdown Command",
+    summary: "Lock channels instantly during raids.",
+    icon: Lock,
+    fields: [
+      role("allowedRole", "Role allowed to lock channels"),
+      {
+        key: "lockMessage",
+        label: "Lock announcement",
+        type: "textarea",
+        defaultValue: "🔒 This channel is now locked. We'll be back shortly.",
+      },
+      {
+        key: "unlockMessage",
+        label: "Unlock announcement",
+        type: "textarea",
+        defaultValue: "🔓 Channel unlocked — thanks for your patience.",
+      },
+      toggle("lockServerOption", "Allow /lockdown server (locks all channels)"),
+    ],
+  },
+
+  "staff-notes": {
+    title: "Staff Notes on Users",
+    summary: "Private notes only your staff can see.",
+    icon: StickyNote,
+    fields: [
+      role("staffRole", "Staff role (can view & add notes)"),
+      toggle("notifyOnNote", "Ping staff role when a new note is added", false),
+      {
+        key: "maxNotesPerUser",
+        label: "Max notes stored per user",
+        type: "number",
+        defaultValue: 50,
+      },
+    ],
+  },
+
+  "moderation-history": {
+    title: "Moderation History",
+    summary: "Full punishment history for any user.",
+    icon: History,
+    fields: [
+      role("staffRole", "Role allowed to view history"),
+      toggle("includeExpired", "Include expired punishments"),
+      {
+        key: "retentionDays",
+        label: "Retention (days, 0 = forever)",
+        type: "number",
+        defaultValue: 0,
+      },
+    ],
+  },
+
+  "auto-slowmode": {
+    title: "Auto Slowmode on Spam",
+    summary: "Slow channels down automatically when activity spikes.",
+    icon: Snowflake,
+    fields: [
+      {
+        key: "trigger",
+        label: "Trigger: messages per 10 seconds",
+        type: "number",
+        defaultValue: 15,
+      },
+      {
+        key: "slowmodeSeconds",
+        label: "Slowmode to apply (seconds)",
+        type: "number",
+        defaultValue: 5,
+      },
+      {
+        key: "duration",
+        label: "Keep slowmode on for",
+        type: "select",
+        defaultValue: "5m",
+        options: [
+          { value: "1m", label: "1 minute" },
+          { value: "5m", label: "5 minutes" },
+          { value: "15m", label: "15 minutes" },
+          { value: "1h", label: "1 hour" },
+        ],
+      },
+      channel("logChannel", "Log channel", "Notifies mods when slowmode triggers."),
+    ],
+  },
+
+  "temp-bans": {
+    title: "Temporary Bans (Auto-Unban)",
+    summary: "Bans that automatically expire.",
+    icon: Clock,
+    fields: [
+      role("allowedRole", "Role allowed to issue tempbans"),
+      {
+        key: "defaultDuration",
+        label: "Default duration",
+        type: "select",
+        defaultValue: "1d",
+        options: [
+          { value: "1h", label: "1 hour" },
+          { value: "1d", label: "1 day" },
+          { value: "7d", label: "7 days" },
+          { value: "30d", label: "30 days" },
+        ],
+      },
+      channel("logChannel", "Log channel"),
+      toggle("dmOnBan", "DM the user when they're banned"),
+      toggle("dmOnUnban", "DM the user when they're unbanned", false),
+    ],
+  },
+};
+
+export function getAddonConfig(id: string): AddonConfig | null {
+  return ADDON_CONFIGS[id] ?? null;
+}
