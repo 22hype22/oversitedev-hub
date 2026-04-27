@@ -72,39 +72,63 @@ const plugins: Plugin[] = [
   { name: "Welcome", description: "Set an autorole and welcome/goodbye messages.", icon: Hand },
 ];
 
-const BotSection = ({ bot }: { bot: OwnedBot }) => {
+const BotSection = ({
+  bot,
+  onCancel,
+}: {
+  bot: OwnedBot;
+  onCancel: (bot: OwnedBot) => void;
+}) => {
   const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
   const baseTagline = BOT_BASE_TAGLINES[bot.base];
+  const cancellable = canCancelStatus(bot.status);
 
   return (
     <section className="space-y-5">
-      <div className="flex items-center gap-3">
-        <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 grid place-items-center overflow-hidden shrink-0">
-          {bot.icon_url ? (
-            <img src={bot.icon_url} alt={bot.bot_name} className="h-full w-full object-cover" />
-          ) : (
-            <Bot className="h-6 w-6 text-primary" />
-          )}
-        </div>
-        <div className="min-w-0">
-          <h2 className="text-2xl font-bold tracking-tight truncate">
-            Managing <span className="text-gradient">{bot.bot_name}</span>
-          </h2>
-          <div className="flex flex-wrap items-center gap-2 mt-1">
-            <Badge variant="secondary" className="text-xs">
-              {baseLabel}
-            </Badge>
-            <span className="text-xs text-muted-foreground">
-              {bot.addons.length} add-on{bot.addons.length === 1 ? "" : "s"}
-            </span>
-            {bot.monthly_hosting && (
-              <Badge variant="outline" className="text-xs gap-1">
-                <Server className="h-3 w-3" />
-                Hosting
-              </Badge>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 grid place-items-center overflow-hidden shrink-0">
+            {bot.icon_url ? (
+              <img src={bot.icon_url} alt={bot.bot_name} className="h-full w-full object-cover" />
+            ) : (
+              <Bot className="h-6 w-6 text-primary" />
             )}
           </div>
+          <div className="min-w-0">
+            <h2 className="text-2xl font-bold tracking-tight truncate">
+              Managing <span className="text-gradient">{bot.bot_name}</span>
+            </h2>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <Badge variant="secondary" className="text-xs">
+                {baseLabel}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {bot.addons.length} add-on{bot.addons.length === 1 ? "" : "s"}
+              </span>
+              {bot.monthly_hosting && (
+                <Badge variant="outline" className="text-xs gap-1">
+                  <Server className="h-3 w-3" />
+                  Hosting
+                </Badge>
+              )}
+            </div>
+          </div>
         </div>
+        {cancellable ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => onCancel(bot)}
+          >
+            <XCircle className="h-4 w-4 mr-1.5" />
+            Cancel order
+          </Button>
+        ) : (
+          <span className="text-xs text-muted-foreground self-center">
+            Contact support to cancel
+          </span>
+        )}
       </div>
 
       {/* What you bought — system + add-ons summary */}
