@@ -123,8 +123,8 @@ const BASES: Base[] = [
   },
   {
     id: "scratch",
-    name: "From Scratch",
-    tagline: "Fully bespoke — we design everything for you.",
+    name: "All-in-One Pack",
+    tagline: "Protection + Support + Utilities — every base in one bot.",
     icon: Sparkles,
     price: 199,
   },
@@ -533,7 +533,7 @@ export const BotBuilder = () => {
             </div>
             <p className="text-xs text-muted-foreground mb-4">
               {base === "scratch"
-                ? "Pick from any category — Protection, Support, and Utilities."
+                ? "All three categories included. Stack on extras from Protection, Support, or Utilities."
                 : <>Tailored options for your <span className="text-primary font-medium">{selectedBase?.name}</span> base.</>}
             </p>
             {(() => {
