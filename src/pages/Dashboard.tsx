@@ -131,6 +131,8 @@ export default function Dashboard() {
   const [botOrders, setBotOrders] = useState<BotOrder[]>([]);
   const [botJobs, setBotJobs] = useState<Record<string, BotJob>>({});
   const [botOrdersLoading, setBotOrdersLoading] = useState(true);
+  const [cancelTarget, setCancelTarget] = useState<BotOrder | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -318,6 +320,34 @@ export default function Dashboard() {
     setBotJobs(jobMap);
     setBotOrdersLoading(false);
   }, [user]);
+
+  // Self-serve cancel: only allowed while the order is still draft or
+  // submitted (i.e. work hasn't started). Once paid, the customer must
+  // contact support so we can refund + stop any in-flight build job.
+  const canCancelOrder = (status: string) =>
+    status === "draft" || status === "submitted";
+
+  const cancelOrder = async (order: BotOrder) => {
+    if (!user) return;
+    if (!canCancelOrder(order.status)) {
+      toast.error("This order can no longer be cancelled — please contact support.");
+      return;
+    }
+    setCancelling(true);
+    const { error } = await (supabase as any)
+      .from("bot_orders")
+      .update({ status: "cancelled" })
+      .eq("id", order.id)
+      .eq("user_id", user.id);
+    setCancelling(false);
+    if (error) {
+      toast.error("Couldn't cancel — " + error.message);
+      return;
+    }
+    toast.success(`Cancelled "${order.bot_name}"`);
+    setCancelTarget(null);
+    loadBotOrders();
+  };
 
   const isMemberActive = (() => {
     if (!membership) return false;
