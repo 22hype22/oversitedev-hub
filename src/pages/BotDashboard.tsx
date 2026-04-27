@@ -45,6 +45,7 @@ import {
   Layers,
   Server,
   XCircle,
+  Plus,
 } from "lucide-react";
 
 const canCancelStatus = (status: string) =>
