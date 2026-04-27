@@ -80,12 +80,13 @@ const plugins: Plugin[] = [
 
 type StatusMeta = { label: string; className: string };
 const STATUS_META: Record<string, StatusMeta> = {
-  draft:     { label: "Draft",      className: "bg-muted text-muted-foreground border-border" },
-  submitted: { label: "Submitted",  className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
-  building:  { label: "In build",   className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-  ready:     { label: "Ready",      className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-  paid:      { label: "Live",       className: "bg-primary/15 text-primary border-primary/30" },
-  cancelled: { label: "Cancelled",  className: "bg-destructive/15 text-destructive border-destructive/30" },
+  draft:     { label: "Draft",            className: "bg-muted text-muted-foreground border-border" },
+  submitted: { label: "Preorder placed",  className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+  paid:      { label: "Paid — queued",    className: "bg-primary/15 text-primary border-primary/30" },
+  building:  { label: "In build",         className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  ready:     { label: "Ready to invite",  className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  live:      { label: "Live",             className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  cancelled: { label: "Cancelled",        className: "bg-destructive/15 text-destructive border-destructive/30" },
 };
 const getStatusMeta = (s: string): StatusMeta =>
   STATUS_META[s] ?? { label: s, className: "bg-muted text-muted-foreground border-border" };
