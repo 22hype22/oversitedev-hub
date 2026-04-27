@@ -804,20 +804,31 @@ export const BotBuilder = () => {
                 </span>
               </div>
             )}
-            <label className="mt-3 flex items-start gap-2 rounded-lg border border-primary/20 bg-card/50 p-3 cursor-pointer hover:bg-card/70 transition-colors">
-              <input
-                type="checkbox"
-                checked={monthlyHosting}
-                onChange={(e) => setMonthlyHosting(e.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-primary cursor-pointer"
-              />
-              <div className="flex-1 text-xs">
-                <div className="font-medium text-foreground">Add hosting & maintenance — $20/mo</div>
-                <div className="text-muted-foreground mt-0.5">
-                  Always-on hosting, updates, and priority fixes. Cancel anytime.
+            <div className="mt-3 rounded-lg border border-primary/20 bg-card/50 p-3">
+              <div className="flex items-start gap-2">
+                <div className="h-4 w-4 mt-0.5 rounded bg-primary/20 border border-primary grid place-items-center shrink-0">
+                  <Check className="h-3 w-3 text-primary" />
+                </div>
+                <div className="flex-1 text-xs">
+                  <div className="font-medium text-foreground">
+                    Hosting & maintenance — $20/mo
+                  </div>
+                  <div className="text-muted-foreground mt-0.5">
+                    Always-on hosting, updates, and priority fixes. Included by
+                    default — cancel anytime.
+                  </div>
                 </div>
               </div>
-            </label>
+              <label className="mt-2.5 flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <input
+                  type="checkbox"
+                  checked={!monthlyHosting}
+                  onChange={(e) => setMonthlyHosting(!e.target.checked)}
+                  className="h-3.5 w-3.5 accent-primary cursor-pointer"
+                />
+                <span>I'll host and maintain the bot myself (skip the $20/mo)</span>
+              </label>
+            </div>
             {addons.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {addons.map((id) => {
