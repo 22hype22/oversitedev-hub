@@ -164,8 +164,7 @@ const BotSection = ({ bot }: { bot: OwnedBot }) => {
     </section>
   );
 };
-  );
-};
+
 
 const BotDashboard = () => {
   const { user, isAdmin, loading } = useAuth();
