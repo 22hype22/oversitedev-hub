@@ -395,7 +395,7 @@ export const BotOrdersLog = () => {
                 const expanded = expandedId === r.id;
                 const draft = drafts[r.id];
                 return (
-                  <>
+                  <React.Fragment key={r.id}>
                     <tr key={r.id} className="hover:bg-muted/30">
                       <td className="px-3 py-2 tabular-nums text-muted-foreground">
                         {queuePos ? `#${queuePos}` : "—"}
