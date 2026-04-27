@@ -907,18 +907,35 @@ export default function Dashboard() {
                               </p>
                             )}
                           </div>
-                          {job?.delivery_url && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                window.open(job.delivery_url!, "_blank", "noopener,noreferrer")
-                              }
-                            >
-                              <Download size={14} className="mr-1.5" />
-                              Get bot
-                            </Button>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {job?.delivery_url && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  window.open(job.delivery_url!, "_blank", "noopener,noreferrer")
+                                }
+                              >
+                                <Download size={14} className="mr-1.5" />
+                                Get bot
+                              </Button>
+                            )}
+                            {canCancelOrder(orderStatus) ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() => setCancelTarget(o)}
+                              >
+                                <XCircle size={14} className="mr-1.5" />
+                                Cancel
+                              </Button>
+                            ) : orderStatus === "cancelled" ? null : (
+                              <span className="text-[11px] text-muted-foreground">
+                                Contact support to cancel
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </li>
                     );
