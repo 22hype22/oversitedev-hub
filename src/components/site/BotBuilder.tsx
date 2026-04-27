@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useOwnedBots } from "@/hooks/useOwnedBots";
 import {
   Shield,
   LifeBuoy,
