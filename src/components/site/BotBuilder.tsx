@@ -227,6 +227,7 @@ const SCRATCH_CATEGORIES: { id: string; label: string; icon: typeof Shield; addo
 
 export const BotBuilder = () => {
   const { user } = useAuth();
+  const { hasDashboardAccess: dashboardAlreadyOwned } = useOwnedBots();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [icon, setIcon] = useState<string | null>(null);
