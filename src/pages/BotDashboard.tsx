@@ -122,11 +122,11 @@ const BotSection = ({
             onClick={() => onCancel(bot)}
           >
             <XCircle className="h-4 w-4 mr-1.5" />
-            Cancel order
+            Cancel subscription
           </Button>
         ) : (
           <span className="text-xs text-muted-foreground self-center">
-            Contact support to cancel
+            Contact support to cancel subscription
           </span>
         )}
       </div>
