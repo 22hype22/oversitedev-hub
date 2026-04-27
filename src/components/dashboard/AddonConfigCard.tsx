@@ -82,8 +82,17 @@ export function AddonConfigCard({ addonId, botName }: Props) {
 
   const Icon = config.icon;
 
-  const setValue = (k: string, v: string | number | boolean) =>
+  const setValue = (k: string, v: string | number | boolean | string[]) =>
     setValues((prev) => ({ ...prev, [k]: v }));
+
+  const toggleMulti = (k: string, optionValue: string) =>
+    setValues((prev) => {
+      const current = Array.isArray(prev[k]) ? (prev[k] as string[]) : [];
+      const next = current.includes(optionValue)
+        ? current.filter((v) => v !== optionValue)
+        : [...current, optionValue];
+      return { ...prev, [k]: next };
+    });
 
   const renderField = (f: AddonField) => {
     const value = values[f.key];
