@@ -197,6 +197,72 @@ export type Database = {
           },
         ]
       }
+      product_catalog: {
+        Row: {
+          category: string
+          created_at: string
+          current_version: string | null
+          description: string | null
+          emoji: string | null
+          gamepass_id: string | null
+          gamepass_url: string | null
+          id: string
+          image_url: string | null
+          image_urls: string[]
+          is_available: boolean
+          name: string
+          price: number
+          price_robux: number | null
+          updated_at: string
+          upgrade_gamepass_id: string | null
+          upgrade_gamepass_url: string | null
+          upgrade_price: number | null
+          upgrade_price_robux: number | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          current_version?: string | null
+          description?: string | null
+          emoji?: string | null
+          gamepass_id?: string | null
+          gamepass_url?: string | null
+          id: string
+          image_url?: string | null
+          image_urls?: string[]
+          is_available?: boolean
+          name: string
+          price?: number
+          price_robux?: number | null
+          updated_at?: string
+          upgrade_gamepass_id?: string | null
+          upgrade_gamepass_url?: string | null
+          upgrade_price?: number | null
+          upgrade_price_robux?: number | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          current_version?: string | null
+          description?: string | null
+          emoji?: string | null
+          gamepass_id?: string | null
+          gamepass_url?: string | null
+          id?: string
+          image_url?: string | null
+          image_urls?: string[]
+          is_available?: boolean
+          name?: string
+          price?: number
+          price_robux?: number | null
+          updated_at?: string
+          upgrade_gamepass_id?: string | null
+          upgrade_gamepass_url?: string | null
+          upgrade_price?: number | null
+          upgrade_price_robux?: number | null
+        }
+        Relationships: []
+      }
       product_categories: {
         Row: {
           created_at: string
