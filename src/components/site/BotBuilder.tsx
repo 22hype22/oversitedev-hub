@@ -88,6 +88,7 @@ type Base = {
   tagline: string;
   icon: typeof Shield;
   price: number;
+  included: string[];
 };
 
 type Addon = {
@@ -102,24 +103,47 @@ type Addon = {
 const BASES: Base[] = [
   {
     id: "protection",
-    name: "Protection",
+    name: "Oversite Protection",
     tagline: "Automod, anti-raid, and a full mod toolkit.",
     icon: Shield,
     price: 99,
+    included: [
+      "Verification system",
+      "Warn, mute, ban, kick",
+      "Anti-spam",
+      "Anti-raid",
+      "Basic logging (bans/kicks/joins only)",
+      "Phishing link detection",
+    ],
   },
   {
     id: "support",
-    name: "Support",
+    name: "Oversite Support",
     tagline: "Tickets, appeals, reports, and welcomes.",
     icon: LifeBuoy,
     price: 99,
+    included: [
+      "Ticket system (up to 2 categories)",
+      "Ban appeals",
+      "Member reports",
+      "Welcome / goodbye messages",
+    ],
   },
   {
     id: "utilities",
-    name: "Utilities",
+    name: "Oversite Utilities",
     tagline: "Announcements, roles, Roblox, music, more.",
     icon: Wrench,
     price: 99,
+    included: [
+      "/say and /announce",
+      "Reaction roles (up to 3)",
+      "Autorole",
+      "Poll",
+      "Userinfo, serverinfo, avatar",
+      "Basic music (no Spotify, no auto-radio)",
+      "8ball, coinflip",
+    ],
   },
   {
     id: "scratch",
@@ -127,6 +151,11 @@ const BASES: Base[] = [
     tagline: "Protection + Support + Utilities — every base in one bot.",
     icon: Sparkles,
     price: 199,
+    included: [
+      "Everything in Oversite Protection",
+      "Everything in Oversite Support",
+      "Everything in Oversite Utilities",
+    ],
   },
 ];
 
@@ -517,6 +546,14 @@ export const BotBuilder = () => {
                     <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
                       {b.tagline}
                     </p>
+                    <ul className="mt-3 space-y-1">
+                      {b.included.map((feat) => (
+                        <li key={feat} className="flex items-start gap-1.5 text-[11px] text-foreground/75 leading-snug">
+                          <Check size={11} className={`mt-0.5 shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} />
+                          <span>{feat}</span>
+                        </li>
+                      ))}
+                    </ul>
                     <div className="mt-3 text-xs text-foreground/80">
                       one-time <span className="font-semibold">${b.price}</span>
                     </div>
