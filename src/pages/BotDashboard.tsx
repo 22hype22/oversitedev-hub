@@ -46,8 +46,18 @@ import {
   Star,
 } from "lucide-react";
 
-/** Add-on ids grouped by category — used to render config boxes per group. */
+/** Add-on ids grouped by category — used to render config boxes per group.
+ *  Order here is the exact left→right, top→bottom order shown in the dashboard.
+ *  Base-included features come first, then paid add-ons. */
 const PROTECTION_ADDON_IDS = [
+  // Included with the Protection base
+  "verification-system",
+  "mod-actions",
+  "anti-spam",
+  "anti-raid",
+  "basic-logging",
+  "phishing-detection",
+  // Paid add-ons (in catalog order)
   "advanced-logging",
   "nsfw-invite-scanner",
   "avatar-nsfw-detection",
