@@ -278,12 +278,14 @@ export const BotBuilder = () => {
 
   const total = useMemo(() => {
     const baseCost = BASES.find((b) => b.id === base)?.price ?? 0;
-    const addonCost = addons.reduce(
-      (sum, id) => sum + (currentAddons.find((a) => a.id === id)?.price ?? 0),
-      0
-    );
+    const addonCost = addons.reduce((sum, id) => {
+      // Dashboard add-on is a one-time, account-wide unlock.
+      // If the user already owns it on any prior bot, it costs $0 here.
+      if (id === "dashboard" && dashboardAlreadyOwned) return sum;
+      return sum + (currentAddons.find((a) => a.id === id)?.price ?? 0);
+    }, 0);
     return baseCost + addonCost;
-  }, [base, addons, currentAddons]);
+  }, [base, addons, currentAddons, dashboardAlreadyOwned]);
 
   const persistOrder = async () => {
     if (!user) return true; // anonymous: skip persistence, keep legacy flow
