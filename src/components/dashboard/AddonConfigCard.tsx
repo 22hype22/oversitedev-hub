@@ -41,15 +41,21 @@ export function AddonConfigCard({ addonId, botName }: Props) {
   const [open, setOpen] = useState(false);
 
   // Generic, untyped form state — schema-driven.
-  const [values, setValues] = useState<Record<string, string | number | boolean>>({});
+  const [values, setValues] = useState<Record<string, string | number | boolean | string[]>>({});
 
   useEffect(() => {
     if (!config) return;
-    const initial: Record<string, string | number | boolean> = {};
+    const initial: Record<string, string | number | boolean | string[]> = {};
     for (const f of config.fields) {
       initial[f.key] =
         f.defaultValue ??
-        (f.type === "toggle" ? false : f.type === "number" ? 0 : "");
+        (f.type === "toggle"
+          ? false
+          : f.type === "number"
+            ? 0
+            : f.type === "multiselect"
+              ? []
+              : "");
     }
     setValues(initial);
   }, [config, addonId]);
@@ -76,8 +82,17 @@ export function AddonConfigCard({ addonId, botName }: Props) {
 
   const Icon = config.icon;
 
-  const setValue = (k: string, v: string | number | boolean) =>
+  const setValue = (k: string, v: string | number | boolean | string[]) =>
     setValues((prev) => ({ ...prev, [k]: v }));
+
+  const toggleMulti = (k: string, optionValue: string) =>
+    setValues((prev) => {
+      const current = Array.isArray(prev[k]) ? (prev[k] as string[]) : [];
+      const next = current.includes(optionValue)
+        ? current.filter((v) => v !== optionValue)
+        : [...current, optionValue];
+      return { ...prev, [k]: next };
+    });
 
   const renderField = (f: AddonField) => {
     const value = values[f.key];
@@ -117,6 +132,35 @@ export function AddonConfigCard({ addonId, botName }: Props) {
               ))}
             </SelectContent>
           </Select>
+          {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
+        </div>
+      );
+    }
+
+    if (f.type === "multiselect") {
+      const selected = Array.isArray(value) ? (value as string[]) : [];
+      return (
+        <div className="space-y-2">
+          <Label>{f.label}</Label>
+          <div className="grid gap-2 rounded-md border border-border p-3">
+            {f.options?.map((o) => {
+              const checked = selected.includes(o.value);
+              return (
+                <label
+                  key={o.value}
+                  className="flex items-center gap-2 cursor-pointer text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    checked={checked}
+                    onChange={() => toggleMulti(f.key, o.value)}
+                  />
+                  <span>{o.label}</span>
+                </label>
+              );
+            })}
+          </div>
           {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
         </div>
       );

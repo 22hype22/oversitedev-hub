@@ -42,7 +42,8 @@ export type AddonFieldType =
   | "textarea"
   | "number"
   | "toggle"
-  | "select";
+  | "select"
+  | "multiselect";
 
 export type AddonField = {
   key: string;
@@ -50,7 +51,7 @@ export type AddonField = {
   type: AddonFieldType;
   placeholder?: string;
   help?: string;
-  defaultValue?: string | number | boolean;
+  defaultValue?: string | number | boolean | string[];
   options?: { value: string; label: string }[];
 };
 
@@ -231,14 +232,17 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         defaultValue: 8,
       },
       {
-        key: "action",
-        label: "Action when raid detected",
-        type: "select",
-        defaultValue: "lockdown",
+        key: "actions",
+        label: "Actions when raid detected",
+        type: "multiselect",
+        defaultValue: ["lockdown"],
+        help: "Pick one or more — e.g. lock the server AND kick raiders.",
         options: [
           { value: "lockdown", label: "Lock the server" },
           { value: "kick", label: "Kick raiders" },
           { value: "ban", label: "Ban raiders" },
+          { value: "timeout", label: "Timeout raiders" },
+          { value: "alert", label: "Alert staff only" },
         ],
       },
       channel("alertChannel", "Alert channel"),
