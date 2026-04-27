@@ -22,22 +22,30 @@ export type OwnedBot = {
 
 const ACCESS_STATUSES = new Set(["submitted", "paid"]);
 
-/** Stable synthetic id for the practice bot — never collides with a real UUID. */
-export const DEMO_BOT_ID = "demo-all-in-one";
+/** Stable synthetic ids for the practice bots — never collide with real UUIDs. */
+export const DEMO_BOT_IDS = {
+  protection: "demo-protection",
+  support: "demo-support",
+  utilities: "demo-utilities",
+} as const;
 
 /**
- * Practice bot: every add-on enabled (All-in-One = Protection + Support +
- * Utilities + shared) so the user can preview every config box. Never
- * persisted to the DB; always injected client-side.
+ * Practice bots: one per base (Protection / Support / Utilities) with every
+ * add-on for that base enabled, so users can preview each section's config
+ * boxes. Never persisted to the DB; always injected client-side.
  */
-function buildDemoBot(): OwnedBot {
+function buildDemoBot(
+  base: "protection" | "support" | "utilities",
+  name: string,
+  description: string,
+): OwnedBot {
   return {
-    id: DEMO_BOT_ID,
-    bot_name: "Practice Bot (Demo)",
-    bot_description: "All add-ons enabled — explore every configuration box.",
+    id: DEMO_BOT_IDS[base],
+    bot_name: name,
+    bot_description: description,
     icon_url: null,
-    base: "scratch",
-    addons: getAddonIdsForBase("scratch"),
+    base,
+    addons: getAddonIdsForBase(base),
     monthly_hosting: false,
     status: "paid",
     hasWebDashboard: true,
@@ -46,6 +54,26 @@ function buildDemoBot(): OwnedBot {
     delivery_url: null,
     isDemo: true,
   };
+}
+
+function buildDemoBots(): OwnedBot[] {
+  return [
+    buildDemoBot(
+      "protection",
+      "Practice Protection Bot",
+      "All Protection add-ons enabled — explore every config box.",
+    ),
+    buildDemoBot(
+      "support",
+      "Practice Support Bot",
+      "All Support add-ons enabled — explore every config box.",
+    ),
+    buildDemoBot(
+      "utilities",
+      "Practice Utilities Bot",
+      "All Utilities add-ons enabled — explore every config box.",
+    ),
+  ];
 }
 
 /**
@@ -89,7 +117,7 @@ export function useOwnedBots() {
       }));
 
     // Always include the practice bot so users can preview every add-on.
-    setBots([buildDemoBot(), ...mapped]);
+    setBots([...buildDemoBots(), ...mapped]);
     setLoading(false);
   }, [user]);
 
