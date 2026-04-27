@@ -1112,7 +1112,7 @@ export const BotBuilder = () => {
                 onClick={submit}
                 disabled={submitting}
               >
-                Confirm & Submit <ArrowRight />
+                Confirm preorder <ArrowRight />
               </Button>
             )}
 
