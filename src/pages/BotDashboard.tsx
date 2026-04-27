@@ -23,21 +23,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
+import { AddonConfigCard } from "@/components/dashboard/AddonConfigCard";
 import {
   LogOut,
   Settings,
-  MessageSquare,
   Bot,
-  ShieldAlert,
-  Code2,
-  ScrollText,
-  Gavel,
   Sparkles,
-  Flag,
   Clock,
   Lock,
-  Star,
-  Hand,
   ArrowRight,
   ArrowLeft,
   Globe,
@@ -47,7 +40,54 @@ import {
   Server,
   XCircle,
   Plus,
+  ShieldCheck,
+  LifeBuoy,
+  Wrench,
+  Star,
 } from "lucide-react";
+
+/** Add-on ids grouped by category — used to render config boxes per group. */
+const PROTECTION_ADDON_IDS = [
+  "advanced-logging",
+  "nsfw-invite-scanner",
+  "avatar-nsfw-detection",
+  "bio-phrase-detection",
+  "account-age-gating",
+  "auto-escalating-warnings",
+  "softban-massban",
+  "channel-lockdown",
+  "staff-notes",
+  "moderation-history",
+  "auto-slowmode",
+  "temp-bans",
+];
+const SUPPORT_ADDON_IDS = [
+  "staff-performance",
+  "ticket-logs",
+  "per-category-roles",
+  "ticket-notes",
+  "ticket-add-remove",
+  "close-all-tickets",
+  "ticket-message-customization",
+  "priority-flagging",
+  "auto-close-inactive",
+  "anonymous-reporting",
+];
+const UTILITIES_ADDON_IDS = [
+  "music-addon",
+  "auto-radio",
+  "roblox-verification",
+  "starboard",
+  "recurring-messages",
+  "giveaway-system",
+  "birthday-announcements",
+  "server-stats-channels",
+  "live-notifications",
+  "leveling-system",
+  "economy-system",
+  "remindme",
+];
+const SHARED_ADDON_IDS = ["branding", "dashboard", "multi-server"];
 
 const canCancelStatus = (status: string) =>
   status === "draft" || status === "submitted";
