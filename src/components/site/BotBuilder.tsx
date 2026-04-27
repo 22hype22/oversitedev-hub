@@ -348,7 +348,12 @@ export const BotBuilder = () => {
       setShowSuccessText(true);
     }, 2900);
     setTimeout(() => {
-      window.location.href = user ? "/dashboard" : "/#contact";
+      const hasDashboardAddon = addons.includes("dashboard");
+      window.location.href = user
+        ? hasDashboardAddon
+          ? "/bot-dashboard"
+          : "/dashboard"
+        : "/#contact";
     }, 6000);
   };
 
