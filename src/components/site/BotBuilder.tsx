@@ -229,6 +229,7 @@ export const BotBuilder = () => {
   const [banner, setBanner] = useState<string | null>(null);
   const [base, setBase] = useState<string>("protection");
   const [addons, setAddons] = useState<string[]>([]);
+  const [monthlyHosting, setMonthlyHosting] = useState(false);
   const [notes, setNotes] = useState("");
   const [showAllAddons, setShowAllAddons] = useState<Record<string, boolean>>({});
   const [showPayment, setShowPayment] = useState(false);
