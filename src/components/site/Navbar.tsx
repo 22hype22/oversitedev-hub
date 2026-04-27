@@ -114,13 +114,13 @@ export const Navbar = () => {
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => isAdmin && navigate("/bot-dashboard")}
-                  disabled={!isAdmin}
-                  className={!isAdmin ? "opacity-60" : ""}
+                  onClick={() => canDashboard && navigate("/bot-dashboard")}
+                  disabled={!canDashboard}
+                  className={!canDashboard ? "opacity-60" : ""}
                 >
                   <span className="relative mr-2 inline-flex items-center justify-center">
                     <LayoutDashboard size={14} />
-                    {!isAdmin && (
+                    {!canDashboard && (
                       <Lock
                         size={9}
                         className="absolute -bottom-0.5 -right-1 bg-popover rounded-sm p-[1px]"
@@ -129,7 +129,7 @@ export const Navbar = () => {
                     )}
                   </span>
                   Dashboard
-                  {!isAdmin && (
+                  {!canDashboard && (
                     <span className="ml-auto text-[10px] text-muted-foreground">
                       Locked
                     </span>
@@ -237,7 +237,7 @@ export const Navbar = () => {
                     <SettingsIcon size={14} />
                     Settings
                   </NavLink>
-                  {isAdmin ? (
+                  {canDashboard ? (
                     <NavLink
                       to="/bot-dashboard"
                       className="flex items-center gap-2 py-2 text-sm text-muted-foreground"
