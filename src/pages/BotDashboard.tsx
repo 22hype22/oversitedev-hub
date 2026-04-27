@@ -102,6 +102,11 @@ const BotSection = ({
   const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
   const baseTagline = BOT_BASE_TAGLINES[bot.base];
   const cancellable = canCancelStatus(bot.status);
+  const statusMeta = getStatusMeta(bot.status);
+  const ownedAddons = new Set(bot.addons);
+  const enabledPlugins = plugins.filter(
+    (p) => !p.requires || p.requires.some((id) => ownedAddons.has(id))
+  );
 
   return (
     <section className="space-y-5">
@@ -119,6 +124,9 @@ const BotSection = ({
               Managing <span className="text-gradient">{bot.bot_name}</span>
             </h2>
             <div className="flex flex-wrap items-center gap-2 mt-1">
+              <Badge variant="outline" className={`text-xs ${statusMeta.className}`}>
+                {statusMeta.label}
+              </Badge>
               <Badge variant="secondary" className="text-xs">
                 {baseLabel}
               </Badge>
