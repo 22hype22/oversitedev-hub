@@ -88,7 +88,8 @@ export function useOwnedBots() {
         delivery_url: row.delivery_url ?? null,
       }));
 
-    setBots(mapped);
+    // Always include the practice bot so users can preview every add-on.
+    setBots([buildDemoBot(), ...mapped]);
     setLoading(false);
   }, [user]);
 
@@ -98,7 +99,8 @@ export function useOwnedBots() {
 
   // The Web Dashboard add-on is a one-time, account-wide unlock. Once any
   // bot order includes it, the user can manage ALL of their bots from the
-  // dashboard — current and future ones — without paying again.
+  // dashboard — current and future ones — without paying again. The demo
+  // bot also grants visibility so new users can explore the dashboard.
   const hasDashboardAccess = bots.some((b) => b.hasWebDashboard);
   const dashboardBots = hasDashboardAccess ? bots : [];
 
