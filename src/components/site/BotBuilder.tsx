@@ -1034,7 +1034,7 @@ export const BotBuilder = () => {
                 onClick={submit}
                 disabled={submitting}
               >
-                Submit My Details <ArrowRight />
+                Preorder my bot <ArrowRight />
               </Button>
             )}
 
