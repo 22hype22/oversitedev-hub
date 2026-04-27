@@ -1,9 +1,11 @@
 import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useOwnedBots, type OwnedBot } from "@/hooks/useOwnedBots";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   LogOut,
   Settings,
@@ -21,6 +23,8 @@ import {
   Hand,
   ArrowRight,
   ArrowLeft,
+  Globe,
+  Terminal,
 } from "lucide-react";
 
 type Plugin = {
@@ -30,11 +34,11 @@ type Plugin = {
 };
 
 const plugins: Plugin[] = [
-  { name: "Settings", description: "Configure Oversite's core settings.", icon: Settings },
-  { name: "Auto Reply", description: "Have Oversite respond automatically to certain triggers.", icon: MessageSquare },
-  { name: "Automod", description: "Let Oversite automatically moderate your server and give your mods a break.", icon: Bot },
-  { name: "Ban Appeal", description: "Ditch Google forms, handle your ban appeals with Oversite!", icon: ShieldAlert },
-  { name: "Custom Commands", description: "Create commands with your own code to run with Oversite.", icon: Code2 },
+  { name: "Settings", description: "Configure your bot's core settings.", icon: Settings },
+  { name: "Auto Reply", description: "Have your bot respond automatically to certain triggers.", icon: MessageSquare },
+  { name: "Automod", description: "Let your bot automatically moderate your server and give your mods a break.", icon: Bot },
+  { name: "Ban Appeal", description: "Ditch Google forms, handle your ban appeals with your bot!", icon: ShieldAlert },
+  { name: "Custom Commands", description: "Create commands with your own code to run with your bot.", icon: Code2 },
   { name: "Logging", description: "Log everything that happens in your server to a text channel (or multiple).", icon: ScrollText },
   { name: "Moderation", description: "Defend your server with a large arsenal of moderation commands.", icon: Gavel },
   { name: "Reaction Roles", description: "Allow your server members to easily assign themselves roles via buttons or reactions.", icon: Sparkles },
@@ -45,8 +49,68 @@ const plugins: Plugin[] = [
   { name: "Welcome", description: "Set an autorole and welcome/goodbye messages.", icon: Hand },
 ];
 
+const BASE_LABELS: Record<string, string> = {
+  protection: "Protection",
+  support: "Support",
+  utilities: "Utilities",
+  scratch: "From Scratch",
+};
+
+const BotSection = ({ bot }: { bot: OwnedBot }) => {
+  return (
+    <section className="space-y-5">
+      <div className="flex items-center gap-3">
+        <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 grid place-items-center overflow-hidden shrink-0">
+          {bot.icon_url ? (
+            <img src={bot.icon_url} alt={bot.bot_name} className="h-full w-full object-cover" />
+          ) : (
+            <Bot className="h-6 w-6 text-primary" />
+          )}
+        </div>
+        <div className="min-w-0">
+          <h2 className="text-2xl font-bold tracking-tight truncate">
+            Managing <span className="text-gradient">{bot.bot_name}</span>
+          </h2>
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            <Badge variant="secondary" className="text-xs">
+              {BASE_LABELS[bot.base] ?? bot.base}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {bot.addons.length} add-on{bot.addons.length === 1 ? "" : "s"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        {plugins.map((p) => {
+          const Icon = p.icon;
+          return (
+            <Card
+              key={`${bot.id}-${p.name}`}
+              className="group cursor-pointer bg-card hover:bg-card/80 border-border hover:border-primary/50 hover:shadow-elegant transition-smooth p-6 flex flex-col min-h-[170px]"
+            >
+              <div className="flex items-start gap-3 mb-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0 group-hover:bg-primary/15 transition-smooth">
+                  <Icon className="h-5 w-5 text-primary" />
+                </div>
+                <h3 className="font-semibold text-base leading-tight pt-1.5">{p.name}</h3>
+              </div>
+              <p className="text-sm text-muted-foreground flex-1">{p.description}</p>
+              <div className="flex justify-end mt-3">
+                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-smooth" />
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+    </section>
+  );
+};
+
 const BotDashboard = () => {
   const { user, isAdmin, loading } = useAuth();
+  const { dashboardBots, loading: botsLoading } = useOwnedBots();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -56,7 +120,7 @@ const BotDashboard = () => {
     }
   }, [user, loading, navigate]);
 
-  if (loading) {
+  if (loading || botsLoading) {
     return (
       <div className="min-h-screen bg-background grid place-items-center text-muted-foreground">
         Loading...
@@ -66,20 +130,33 @@ const BotDashboard = () => {
 
   if (!user) return null;
 
-  // Bot Dashboard is gated — not yet accessible to general users.
-  if (!isAdmin) {
+  const hasAccess = isAdmin || dashboardBots.length > 0;
+
+  // No Web Dashboard add-on on any of their bots — show locked / explainer state.
+  if (!hasAccess) {
     return (
       <div className="min-h-screen bg-background grid place-items-center px-4">
-        <div className="max-w-md text-center space-y-4">
+        <div className="max-w-md text-center space-y-5">
           <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 border border-primary/20 grid place-items-center">
             <Lock className="h-5 w-5 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold">Bot Dashboard — Coming soon</h1>
+          <h1 className="text-2xl font-bold">Web Dashboard not enabled</h1>
           <p className="text-muted-foreground">
-            The Bot Dashboard isn't available yet. Check back later for plugin
-            management and bot configuration.
+            The <span className="text-foreground font-medium">Web Dashboard</span>{" "}
+            add-on unlocks bot management from this site. Without it, you can
+            still configure your bot in Discord with{" "}
+            <code className="text-foreground bg-muted px-1.5 py-0.5 rounded text-sm">
+              /cmds
+            </code>
+            .
           </p>
           <div className="flex gap-3 justify-center">
+            <Button asChild>
+              <Link to="/bots">
+                <Globe className="h-4 w-4 mr-2" />
+                Add Web Dashboard
+              </Link>
+            </Button>
             <Button variant="outline" asChild>
               <Link to="/">Back to site</Link>
             </Button>
@@ -118,44 +195,31 @@ const BotDashboard = () => {
             Bot Dashboard
           </div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-            Manage <span className="text-gradient">Oversite</span>
+            Manage <span className="text-gradient">Your Bots</span>
           </h1>
+          <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
+            Each section below is one of your bots. Configure plugins,
+            settings, and behavior per bot.
+          </p>
         </div>
 
-        <section>
-          <div className="flex items-center gap-3 mb-6">
-            <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center">
-              <Bot className="h-5 w-5 text-primary" />
+        {dashboardBots.length === 0 && isAdmin ? (
+          <div className="max-w-md mx-auto text-center space-y-4 py-12">
+            <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 border border-primary/20 grid place-items-center">
+              <Terminal className="h-5 w-5 text-primary" />
             </div>
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">Managing Oversite</h2>
-              <p className="text-sm text-muted-foreground">Configure plugins for our bots.</p>
-            </div>
+            <p className="text-muted-foreground">
+              You're viewing as admin but don't have any bots with the Web
+              Dashboard add-on yet.
+            </p>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {plugins.map((p) => {
-              const Icon = p.icon;
-              return (
-                <Card
-                  key={p.name}
-                  className="group cursor-pointer bg-card hover:bg-card/80 border-border hover:border-primary/50 hover:shadow-elegant transition-smooth p-6 flex flex-col min-h-[170px]"
-                >
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0 group-hover:bg-primary/15 transition-smooth">
-                      <Icon className="h-5 w-5 text-primary" />
-                    </div>
-                    <h3 className="font-semibold text-base leading-tight pt-1.5">{p.name}</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground flex-1">{p.description}</p>
-                  <div className="flex justify-end mt-3">
-                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-smooth" />
-                  </div>
-                </Card>
-              );
-            })}
+        ) : (
+          <div className="space-y-16">
+            {dashboardBots.map((bot) => (
+              <BotSection key={bot.id} bot={bot} />
+            ))}
           </div>
-        </section>
+        )}
       </div>
     </div>
   );
