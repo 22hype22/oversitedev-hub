@@ -279,6 +279,42 @@ const BotDashboard = () => {
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
+  const [queuePositions, setQueuePositions] = useState<Map<string, number>>(new Map());
+
+  // Compute global queue position for any of the user's bots that are still
+  // pending build. Anonymous-friendly: we only read submitted_at + id of
+  // queueable orders (no other PII), and the read is filtered to those rows
+  // owned by the user — but the position is computed against the global queue
+  // by counting earlier submitted_at values across all queueable orders.
+  useEffect(() => {
+    if (!dashboardBots.length) {
+      setQueuePositions(new Map());
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const myQueueable = dashboardBots.filter(
+        (b) => (b.status === "submitted" || b.status === "paid") && b.submitted_at,
+      );
+      if (!myQueueable.length) {
+        setQueuePositions(new Map());
+        return;
+      }
+      const positions = new Map<string, number>();
+      for (const b of myQueueable) {
+        const { count } = await (supabase as any)
+          .from("bot_orders")
+          .select("id", { count: "exact", head: true })
+          .in("status", ["submitted", "paid"])
+          .lt("submitted_at", b.submitted_at);
+        positions.set(b.id, (count ?? 0) + 1);
+      }
+      if (!cancelled) setQueuePositions(positions);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dashboardBots]);
 
   const cancelOrder = async (bot: OwnedBot) => {
     if (!user) return;
