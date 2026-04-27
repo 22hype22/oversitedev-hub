@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useOwnedBots, type OwnedBot } from "@/hooks/useOwnedBots";
@@ -11,6 +11,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import {
   LogOut,
   Settings,
@@ -33,7 +44,11 @@ import {
   Package,
   Layers,
   Server,
+  XCircle,
 } from "lucide-react";
+
+const canCancelStatus = (status: string) =>
+  status === "draft" || status === "submitted";
 
 type Plugin = {
   name: string;
