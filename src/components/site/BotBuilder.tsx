@@ -297,17 +297,19 @@ export const BotBuilder = () => {
   const setIcon = (v: string) => updateActiveIdentity({ icon: v });
   const setBanner = (v: string) => updateActiveIdentity({ banner: v });
 
-  // When the user finishes the description on a pack tab and there's a next tab,
+  // When the user finishes a field on a pack tab and there's a next tab,
   // auto-advance with a slide animation.
-  const handleDescriptionBlur = () => {
+  const advanceToNextTab = () => {
     if (!isPack) return;
-    if (!activeIdentity.name.trim()) return;
+    const current = packIdentities[activePackTab];
+    if (!current.name.trim() || !current.description.trim()) return;
     const idx = PACK_TABS.findIndex((t) => t.id === activePackTab);
     if (idx >= 0 && idx < PACK_TABS.length - 1) {
       setTabDirection(1);
       setActivePackTab(PACK_TABS[idx + 1].id);
     }
   };
+  const handleDescriptionBlur = () => advanceToNextTab();
 
   const goToTab = (id: string) => {
     const fromIdx = PACK_TABS.findIndex((t) => t.id === activePackTab);
