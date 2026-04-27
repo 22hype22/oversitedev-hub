@@ -9,14 +9,14 @@ export const BOT_BASE_LABELS: Record<string, string> = {
   protection: "Protection",
   support: "Support",
   utilities: "Utilities",
-  scratch: "From Scratch",
+  scratch: "All-in-One Pack",
 };
 
 export const BOT_BASE_TAGLINES: Record<string, string> = {
   protection: "Automod, anti-raid, and a full mod toolkit.",
   support: "Tickets, appeals, reports, and welcomes.",
   utilities: "Announcements, roles, Roblox, music, more.",
-  scratch: "Fully bespoke — designed from the ground up.",
+  scratch: "Protection + Support + Utilities — every base in one bot.",
 };
 
 /**
