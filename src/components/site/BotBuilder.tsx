@@ -567,12 +567,25 @@ export const BotBuilder = () => {
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                       {a.desc}
                     </p>
-                    <div className="mt-2 text-xs text-foreground/80 flex items-center gap-2">
-                      <span>+${a.price.toFixed(2)}</span>
-                      {a.oldPrice && (
+                    <div className="mt-2 text-xs text-foreground/80 flex items-center gap-2 flex-wrap">
+                      {a.id === "dashboard" && dashboardAlreadyOwned ? (
                         <>
-                          <span className="line-through text-muted-foreground/70">${a.oldPrice.toFixed(2)}</span>
-                          <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">SALE</span>
+                          <span className="text-primary font-medium">Included — already unlocked</span>
+                          <span className="line-through text-muted-foreground/70">${a.price.toFixed(2)}</span>
+                          <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">ONE-TIME</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>+${a.price.toFixed(2)}</span>
+                          {a.oldPrice && (
+                            <>
+                              <span className="line-through text-muted-foreground/70">${a.oldPrice.toFixed(2)}</span>
+                              <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">SALE</span>
+                            </>
+                          )}
+                          {a.id === "dashboard" && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px] font-semibold">ONE-TIME · ALL BOTS</span>
+                          )}
                         </>
                       )}
                     </div>
