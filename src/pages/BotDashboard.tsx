@@ -391,6 +391,12 @@ const BotDashboard = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AddAddonsDialog
+        bot={addonsTarget}
+        open={!!addonsTarget}
+        onOpenChange={(o) => !o && setAddonsTarget(null)}
+      />
     </div>
   );
 };
