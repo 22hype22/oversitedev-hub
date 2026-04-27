@@ -135,6 +135,7 @@ const Admin = () => {
           {!marketingShutdown && (
             <div className="mt-10 pt-6 border-t border-border space-y-6">
               <UserVersionUpgrader />
+              <BotOrdersLog />
               <PurchaseLog />
               <AccountsLog />
             </div>
