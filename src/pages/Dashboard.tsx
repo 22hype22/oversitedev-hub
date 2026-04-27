@@ -312,7 +312,7 @@ export default function Dashboard() {
       setBotOrdersLoading(false);
       return;
     }
-    setBotOrders((orders as BotOrder[]) ?? []);
+    setBotOrders(((orders as BotOrder[]) ?? []).filter((o) => o.status !== "cancelled"));
     const jobMap: Record<string, BotJob> = {};
     ((jobs as BotJob[]) ?? []).forEach((j) => {
       jobMap[j.order_id] = j;
