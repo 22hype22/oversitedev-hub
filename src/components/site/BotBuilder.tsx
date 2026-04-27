@@ -225,14 +225,35 @@ const SCRATCH_CATEGORIES: { id: string; label: string; icon: typeof Shield; addo
   { id: "utilities", label: "Utilities options", icon: Wrench, addons: ADDONS_BY_BASE.utilities },
 ];
 
+type Identity = {
+  name: string;
+  description: string;
+  icon: string | null;
+  banner: string | null;
+};
+
+const EMPTY_IDENTITY: Identity = { name: "", description: "", icon: null, banner: null };
+
+const PACK_TABS: { id: string; label: string; icon: typeof Shield }[] = [
+  { id: "protection", label: "Protection bot", icon: Shield },
+  { id: "support", label: "Support bot", icon: LifeBuoy },
+  { id: "utilities", label: "Utilities bot", icon: Wrench },
+];
+
 export const BotBuilder = () => {
   const { user } = useAuth();
   const { hasDashboardAccess: dashboardAlreadyOwned } = useOwnedBots();
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [icon, setIcon] = useState<string | null>(null);
-  const [banner, setBanner] = useState<string | null>(null);
   const [base, setBase] = useState<string>("protection");
+  // Single-bot identity (for non-pack bases)
+  const [identity, setIdentity] = useState<Identity>({ ...EMPTY_IDENTITY });
+  // Pack identities (for All-in-One Pack)
+  const [packIdentities, setPackIdentities] = useState<Record<string, Identity>>({
+    protection: { ...EMPTY_IDENTITY },
+    support: { ...EMPTY_IDENTITY },
+    utilities: { ...EMPTY_IDENTITY },
+  });
+  const [activePackTab, setActivePackTab] = useState<string>("protection");
+  const [tabDirection, setTabDirection] = useState<1 | -1>(1);
   const [addons, setAddons] = useState<string[]>([]);
   const [monthlyHosting, setMonthlyHosting] = useState(true);
   const [notes, setNotes] = useState("");
@@ -254,6 +275,47 @@ export const BotBuilder = () => {
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
 
   const currentAddons = useMemo(() => getAddonsForBase(base), [base]);
+
+  // Active identity: for the All-in-One Pack, this is the currently-shown tab's identity.
+  // For all other bases, it's the single shared identity.
+  const isPack = base === "scratch";
+  const activeIdentity: Identity = isPack ? packIdentities[activePackTab] : identity;
+  const { name, description, icon, banner } = activeIdentity;
+
+  const updateActiveIdentity = (patch: Partial<Identity>) => {
+    if (isPack) {
+      setPackIdentities((prev) => ({
+        ...prev,
+        [activePackTab]: { ...prev[activePackTab], ...patch },
+      }));
+    } else {
+      setIdentity((prev) => ({ ...prev, ...patch }));
+    }
+  };
+  const setName = (v: string) => updateActiveIdentity({ name: v });
+  const setDescription = (v: string) => updateActiveIdentity({ description: v });
+  const setIcon = (v: string) => updateActiveIdentity({ icon: v });
+  const setBanner = (v: string) => updateActiveIdentity({ banner: v });
+
+  // When the user finishes the description on a pack tab and there's a next tab,
+  // auto-advance with a slide animation.
+  const handleDescriptionBlur = () => {
+    if (!isPack) return;
+    if (!activeIdentity.name.trim()) return;
+    const idx = PACK_TABS.findIndex((t) => t.id === activePackTab);
+    if (idx >= 0 && idx < PACK_TABS.length - 1) {
+      setTabDirection(1);
+      setActivePackTab(PACK_TABS[idx + 1].id);
+    }
+  };
+
+  const goToTab = (id: string) => {
+    const fromIdx = PACK_TABS.findIndex((t) => t.id === activePackTab);
+    const toIdx = PACK_TABS.findIndex((t) => t.id === id);
+    setTabDirection(toIdx >= fromIdx ? 1 : -1);
+    setActivePackTab(id);
+  };
+
 
   const handleFile = (file: File | undefined, setter: (v: string) => void) => {
     if (!file) return;
@@ -287,18 +349,40 @@ export const BotBuilder = () => {
     return baseCost + addonCost;
   }, [base, addons, currentAddons, dashboardAlreadyOwned]);
 
+  // For the All-in-One Pack we use the Protection identity as the primary record
+  // and append the other two identities as a JSON block in the notes for the build team.
+  const buildSubmissionPayload = () => {
+    if (!isPack) {
+      return {
+        primary: identity,
+        notesField: notes.trim() || null,
+      };
+    }
+    const primary = packIdentities.protection;
+    const extras = {
+      support: packIdentities.support,
+      utilities: packIdentities.utilities,
+    };
+    const extraNotes = `\n\n--- All-in-One Pack additional bots ---\n${JSON.stringify(extras, null, 2)}`;
+    return {
+      primary,
+      notesField: ((notes.trim() ? notes.trim() : "") + extraNotes).trim(),
+    };
+  };
+
   const persistOrder = async () => {
     if (!user) return true; // anonymous: skip persistence, keep legacy flow
+    const { primary, notesField } = buildSubmissionPayload();
     const { error } = await (supabase as any).from("bot_orders").insert({
       user_id: user.id,
-      bot_name: name.trim(),
-      bot_description: description.trim() || null,
-      icon_url: icon,
-      banner_url: banner,
+      bot_name: primary.name.trim(),
+      bot_description: primary.description.trim() || null,
+      icon_url: primary.icon,
+      banner_url: primary.banner,
       base,
       addons,
       monthly_hosting: monthlyHosting,
-      notes: notes.trim() || null,
+      notes: notesField,
       total_amount: total,
       currency: "usd",
       status: "submitted",
@@ -312,7 +396,17 @@ export const BotBuilder = () => {
   };
 
   const submit = async () => {
-    if (!name.trim()) {
+    if (isPack) {
+      const missing = PACK_TABS.find((t) => !packIdentities[t.id].name.trim());
+      if (missing) {
+        sonnerToast.error(`Name your ${missing.label}`, {
+          description: "Each bot in the pack needs at least a name.",
+        });
+        setTabDirection(1);
+        setActivePackTab(missing.id);
+        return;
+      }
+    } else if (!name.trim()) {
       sonnerToast.error("Give your bot a name", {
         description: "Even a working title helps us get started.",
       });
@@ -385,103 +479,11 @@ export const BotBuilder = () => {
       <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: configurator */}
         <div className="lg:col-span-2 space-y-8">
-          {/* Step 1 — Identity */}
-          <div className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="h-7 w-7 rounded-full bg-primary/15 border border-primary/30 grid place-items-center text-xs font-bold text-primary">
-                1
-              </div>
-              <h3 className="text-lg font-semibold">Bot identity</h3>
-            </div>
-
-            {/* Banner + Icon uploaders */}
-            <div className="space-y-4 mb-5">
-              <div>
-                <Label className="text-xs text-muted-foreground mb-2 block">Banner</Label>
-                <button
-                  type="button"
-                  onClick={() => bannerInputRef.current?.click()}
-                  className="relative w-full h-28 rounded-xl border border-dashed border-border/60 bg-background/40 hover:border-primary/50 transition-smooth overflow-hidden group"
-                >
-                  {banner ? (
-                    <img src={banner} alt="Banner preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-muted-foreground gap-2 text-sm">
-                      <ImagePlus size={16} />
-                      Upload banner
-                    </div>
-                  )}
-                </button>
-                <input
-                  ref={bannerInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => handleFile(e.target.files?.[0], setBanner)}
-                />
-              </div>
-
-              <div className="flex items-end gap-4">
-                <div>
-                  <Label className="text-xs text-muted-foreground mb-2 block">Icon</Label>
-                  <button
-                    type="button"
-                    onClick={() => iconInputRef.current?.click()}
-                    className="relative h-20 w-20 rounded-full border border-dashed border-border/60 bg-background/40 hover:border-primary/50 transition-smooth overflow-hidden grid place-items-center"
-                  >
-                    {icon ? (
-                      <img src={icon} alt="Icon preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <Upload size={18} className="text-muted-foreground" />
-                    )}
-                  </button>
-                  <input
-                    ref={iconInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => handleFile(e.target.files?.[0], setIcon)}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground pb-2 leading-relaxed">
-                  PNG/JPG up to 4MB. Icon shows as the bot's avatar; banner appears at the top of the profile.
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="bot-name" className="text-xs text-muted-foreground mb-2 block">
-                  Name
-                </Label>
-                <Input
-                  id="bot-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Sentinel, Helper, NovaBot..."
-                  className="h-11"
-                />
-              </div>
-              <div>
-                <Label htmlFor="bot-desc" className="text-xs text-muted-foreground mb-2 block">
-                  Description
-                </Label>
-                <Textarea
-                  id="bot-desc"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Tell us about your bot — what it does, its personality, the vibe you're going for, and anything that makes it uniquely yours."
-                  rows={5}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Step 2 — Base */}
+          {/* Step 1 — Base */}
           <div className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="h-7 w-7 rounded-full bg-primary/15 border border-primary/30 grid place-items-center text-xs font-bold text-primary">
-                2
+                1
               </div>
               <h3 className="text-lg font-semibold">Pick a starting point</h3>
             </div>
@@ -519,6 +521,155 @@ export const BotBuilder = () => {
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Step 2 — Identity */}
+          <div className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur p-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="h-7 w-7 rounded-full bg-primary/15 border border-primary/30 grid place-items-center text-xs font-bold text-primary">
+                2
+              </div>
+              <h3 className="text-lg font-semibold">
+                {isPack ? "Design your three bots" : "Bot identity"}
+              </h3>
+            </div>
+
+            {isPack && (
+              <>
+                <p className="text-xs text-muted-foreground mb-4">
+                  The All-in-One Pack ships as three focused bots. Give each one its own name,
+                  icon, banner, and vibe — finish the description and we'll slide you to the next.
+                </p>
+                <div className="relative grid grid-cols-3 gap-2 mb-5 rounded-xl border border-border/60 bg-background/40 p-1">
+                  {PACK_TABS.map((t) => {
+                    const TIcon = t.icon;
+                    const active = activePackTab === t.id;
+                    const filled = !!packIdentities[t.id].name.trim();
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => goToTab(t.id)}
+                        className={`relative flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-smooth ${
+                          active
+                            ? "bg-primary/15 text-primary border border-primary/40 shadow-glow"
+                            : "text-muted-foreground hover:text-foreground border border-transparent"
+                        }`}
+                      >
+                        <TIcon size={14} />
+                        <span className="truncate">{t.label}</span>
+                        {filled && (
+                          <span className="ml-1 h-1.5 w-1.5 rounded-full bg-primary" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            <div
+              key={isPack ? activePackTab : "single"}
+              className={`${
+                isPack
+                  ? tabDirection === 1
+                    ? "animate-tab-slide-in-right"
+                    : "animate-tab-slide-in-left"
+                  : ""
+              }`}
+            >
+              {/* Banner + Icon uploaders */}
+              <div className="space-y-4 mb-5">
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-2 block">Banner</Label>
+                  <button
+                    type="button"
+                    onClick={() => bannerInputRef.current?.click()}
+                    className="relative w-full h-28 rounded-xl border border-dashed border-border/60 bg-background/40 hover:border-primary/50 transition-smooth overflow-hidden group"
+                  >
+                    {banner ? (
+                      <img src={banner} alt="Banner preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-muted-foreground gap-2 text-sm">
+                        <ImagePlus size={16} />
+                        Upload banner
+                      </div>
+                    )}
+                  </button>
+                  <input
+                    ref={bannerInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleFile(e.target.files?.[0], setBanner)}
+                  />
+                </div>
+
+                <div className="flex items-end gap-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">Icon</Label>
+                    <button
+                      type="button"
+                      onClick={() => iconInputRef.current?.click()}
+                      className="relative h-20 w-20 rounded-full border border-dashed border-border/60 bg-background/40 hover:border-primary/50 transition-smooth overflow-hidden grid place-items-center"
+                    >
+                      {icon ? (
+                        <img src={icon} alt="Icon preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <Upload size={18} className="text-muted-foreground" />
+                      )}
+                    </button>
+                    <input
+                      ref={iconInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleFile(e.target.files?.[0], setIcon)}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground pb-2 leading-relaxed">
+                    PNG/JPG up to 4MB. Icon shows as the bot's avatar; banner appears at the top of the profile.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="bot-name" className="text-xs text-muted-foreground mb-2 block">
+                    Name
+                  </Label>
+                  <Input
+                    id="bot-name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder={
+                      isPack
+                        ? `e.g. ${PACK_TABS.find((t) => t.id === activePackTab)?.label}`
+                        : "e.g. Sentinel, Helper, NovaBot..."
+                    }
+                    className="h-11"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="bot-desc" className="text-xs text-muted-foreground mb-2 block">
+                    Description
+                  </Label>
+                  <Textarea
+                    id="bot-desc"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    onBlur={handleDescriptionBlur}
+                    placeholder="Tell us about your bot — what it does, its personality, the vibe you're going for, and anything that makes it uniquely yours."
+                    rows={5}
+                  />
+                  {isPack && (
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      Tip: click out of this box to slide to the next bot.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 

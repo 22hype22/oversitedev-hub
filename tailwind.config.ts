@@ -121,6 +121,14 @@ export default {
           "0%": { transform: "translateY(-20vh) rotate(0deg)", opacity: "1" },
           "100%": { transform: "translateY(110vh) rotate(720deg)", opacity: "0" },
         },
+        "tab-slide-in-right": {
+          "0%": { transform: "translateX(24px)", opacity: "0" },
+          "100%": { transform: "translateX(0)", opacity: "1" },
+        },
+        "tab-slide-in-left": {
+          "0%": { transform: "translateX(-24px)", opacity: "0" },
+          "100%": { transform: "translateX(0)", opacity: "1" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -135,6 +143,8 @@ export default {
         "burst-in": "burst-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
         "ring-expand": "ring-expand 1.4s ease-out forwards",
         "confetti-fall": "confetti-fall 3s ease-in forwards",
+        "tab-slide-in-right": "tab-slide-in-right 0.32s cubic-bezier(0.22, 1, 0.36, 1)",
+        "tab-slide-in-left": "tab-slide-in-left 0.32s cubic-bezier(0.22, 1, 0.36, 1)",
       },
     },
   },
