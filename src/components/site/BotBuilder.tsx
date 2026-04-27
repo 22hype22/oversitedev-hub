@@ -276,6 +276,47 @@ export const BotBuilder = () => {
 
   const currentAddons = useMemo(() => getAddonsForBase(base), [base]);
 
+  // Active identity: for the All-in-One Pack, this is the currently-shown tab's identity.
+  // For all other bases, it's the single shared identity.
+  const isPack = base === "scratch";
+  const activeIdentity: Identity = isPack ? packIdentities[activePackTab] : identity;
+  const { name, description, icon, banner } = activeIdentity;
+
+  const updateActiveIdentity = (patch: Partial<Identity>) => {
+    if (isPack) {
+      setPackIdentities((prev) => ({
+        ...prev,
+        [activePackTab]: { ...prev[activePackTab], ...patch },
+      }));
+    } else {
+      setIdentity((prev) => ({ ...prev, ...patch }));
+    }
+  };
+  const setName = (v: string) => updateActiveIdentity({ name: v });
+  const setDescription = (v: string) => updateActiveIdentity({ description: v });
+  const setIcon = (v: string) => updateActiveIdentity({ icon: v });
+  const setBanner = (v: string) => updateActiveIdentity({ banner: v });
+
+  // When the user finishes the description on a pack tab and there's a next tab,
+  // auto-advance with a slide animation.
+  const handleDescriptionBlur = () => {
+    if (!isPack) return;
+    if (!activeIdentity.name.trim()) return;
+    const idx = PACK_TABS.findIndex((t) => t.id === activePackTab);
+    if (idx >= 0 && idx < PACK_TABS.length - 1) {
+      setTabDirection(1);
+      setActivePackTab(PACK_TABS[idx + 1].id);
+    }
+  };
+
+  const goToTab = (id: string) => {
+    const fromIdx = PACK_TABS.findIndex((t) => t.id === activePackTab);
+    const toIdx = PACK_TABS.findIndex((t) => t.id === id);
+    setTabDirection(toIdx >= fromIdx ? 1 : -1);
+    setActivePackTab(id);
+  };
+
+
   const handleFile = (file: File | undefined, setter: (v: string) => void) => {
     if (!file) return;
     if (file.size > 4 * 1024 * 1024) {
