@@ -80,22 +80,25 @@ const plugins: Plugin[] = [
 
 type StatusMeta = { label: string; className: string };
 const STATUS_META: Record<string, StatusMeta> = {
-  draft:     { label: "Draft",      className: "bg-muted text-muted-foreground border-border" },
-  submitted: { label: "Submitted",  className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
-  building:  { label: "In build",   className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-  ready:     { label: "Ready",      className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-  paid:      { label: "Live",       className: "bg-primary/15 text-primary border-primary/30" },
-  cancelled: { label: "Cancelled",  className: "bg-destructive/15 text-destructive border-destructive/30" },
+  draft:     { label: "Draft",            className: "bg-muted text-muted-foreground border-border" },
+  submitted: { label: "Preorder placed",  className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+  paid:      { label: "Paid — queued",    className: "bg-primary/15 text-primary border-primary/30" },
+  building:  { label: "In build",         className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  ready:     { label: "Ready to invite",  className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  live:      { label: "Live",             className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  cancelled: { label: "Cancelled",        className: "bg-destructive/15 text-destructive border-destructive/30" },
 };
 const getStatusMeta = (s: string): StatusMeta =>
   STATUS_META[s] ?? { label: s, className: "bg-muted text-muted-foreground border-border" };
 
 const BotSection = ({
   bot,
+  queuePosition,
   onCancel,
   onAddAddons,
 }: {
   bot: OwnedBot;
+  queuePosition: number | null;
   onCancel: (bot: OwnedBot) => void;
   onAddAddons: (bot: OwnedBot) => void;
 }) => {
@@ -107,6 +110,9 @@ const BotSection = ({
   const enabledPlugins = plugins.filter(
     (p) => !p.requires || p.requires.some((id) => ownedAddons.has(id))
   );
+  const showQueue = queuePosition && (bot.status === "submitted" || bot.status === "paid");
+  const showPreorderBanner = bot.status === "submitted";
+  const showReadyBanner = bot.status === "ready" && bot.delivery_url;
 
   return (
     <section className="space-y-5">
@@ -127,6 +133,11 @@ const BotSection = ({
               <Badge variant="outline" className={`text-xs ${statusMeta.className}`}>
                 {statusMeta.label}
               </Badge>
+              {showQueue && (
+                <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/30">
+                  Queue position #{queuePosition}
+                </Badge>
+              )}
               <Badge variant="secondary" className="text-xs">
                 {baseLabel}
               </Badge>
@@ -168,6 +179,43 @@ const BotSection = ({
           )}
         </div>
       </div>
+
+      {showPreorderBanner && (
+        <Card className="p-4 bg-amber-500/5 border-amber-500/30">
+          <div className="flex items-start gap-3">
+            <Clock className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
+            <div className="text-sm">
+              <div className="font-semibold text-amber-300">Preorder received</div>
+              <p className="text-muted-foreground mt-1">
+                {queuePosition
+                  ? `You're #${queuePosition} in the build queue. `
+                  : "We've added your bot to the build queue. "}
+                We'll reach out within 24 hours to confirm scope and finalize payment.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {showReadyBanner && (
+        <Card className="p-4 bg-emerald-500/5 border-emerald-500/30">
+          <div className="flex items-start gap-3">
+            <Sparkles className="h-5 w-5 text-emerald-400 mt-0.5 shrink-0" />
+            <div className="text-sm flex-1">
+              <div className="font-semibold text-emerald-300">Your bot is ready</div>
+              <p className="text-muted-foreground mt-1">
+                Use the link below to invite or download your bot.
+              </p>
+              <Button asChild variant="outline" size="sm" className="mt-3">
+                <a href={bot.delivery_url ?? "#"} target="_blank" rel="noopener noreferrer">
+                  <ArrowRight className="h-4 w-4 mr-1.5" />
+                  Open delivery link
+                </a>
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* What you bought — system + add-ons summary */}
       <Card className="bg-card/60 border-border p-5">
@@ -268,6 +316,42 @@ const BotDashboard = () => {
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
+  const [queuePositions, setQueuePositions] = useState<Map<string, number>>(new Map());
+
+  // Compute global queue position for any of the user's bots that are still
+  // pending build. Anonymous-friendly: we only read submitted_at + id of
+  // queueable orders (no other PII), and the read is filtered to those rows
+  // owned by the user — but the position is computed against the global queue
+  // by counting earlier submitted_at values across all queueable orders.
+  useEffect(() => {
+    if (!dashboardBots.length) {
+      setQueuePositions(new Map());
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const myQueueable = dashboardBots.filter(
+        (b) => (b.status === "submitted" || b.status === "paid") && b.submitted_at,
+      );
+      if (!myQueueable.length) {
+        setQueuePositions(new Map());
+        return;
+      }
+      const positions = new Map<string, number>();
+      for (const b of myQueueable) {
+        const { count } = await (supabase as any)
+          .from("bot_orders")
+          .select("id", { count: "exact", head: true })
+          .in("status", ["submitted", "paid"])
+          .lt("submitted_at", b.submitted_at);
+        positions.set(b.id, (count ?? 0) + 1);
+      }
+      if (!cancelled) setQueuePositions(positions);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dashboardBots]);
 
   const cancelOrder = async (bot: OwnedBot) => {
     if (!user) return;
@@ -393,6 +477,7 @@ const BotDashboard = () => {
               <BotSection
                 key={bot.id}
                 bot={bot}
+                queuePosition={queuePositions.get(bot.id) ?? null}
                 onCancel={setCancelTarget}
                 onAddAddons={setAddonsTarget}
               />

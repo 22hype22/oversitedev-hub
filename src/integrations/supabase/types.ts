@@ -130,6 +130,7 @@ export type Database = {
           bot_name: string
           created_at: string
           currency: string
+          delivery_url: string | null
           icon_url: string | null
           id: string
           monthly_hosting: boolean
@@ -150,6 +151,7 @@ export type Database = {
           bot_name: string
           created_at?: string
           currency?: string
+          delivery_url?: string | null
           icon_url?: string | null
           id?: string
           monthly_hosting?: boolean
@@ -170,6 +172,7 @@ export type Database = {
           bot_name?: string
           created_at?: string
           currency?: string
+          delivery_url?: string | null
           icon_url?: string | null
           id?: string
           monthly_hosting?: boolean

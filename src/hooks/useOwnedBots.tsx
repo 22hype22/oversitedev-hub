@@ -13,6 +13,8 @@ export type OwnedBot = {
   status: string;
   hasWebDashboard: boolean;
   created_at: string;
+  submitted_at: string | null;
+  delivery_url: string | null;
 };
 
 const ACCESS_STATUSES = new Set(["submitted", "paid"]);
@@ -36,7 +38,7 @@ export function useOwnedBots() {
     setLoading(true);
     const { data } = await (supabase as any)
       .from("bot_orders")
-      .select("id,bot_name,bot_description,icon_url,base,addons,monthly_hosting,status,created_at")
+      .select("id,bot_name,bot_description,icon_url,base,addons,monthly_hosting,status,created_at,submitted_at,delivery_url")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true });
 
@@ -53,6 +55,8 @@ export function useOwnedBots() {
         status: row.status,
         hasWebDashboard: Array.isArray(row.addons) && row.addons.includes("dashboard"),
         created_at: row.created_at,
+        submitted_at: row.submitted_at ?? null,
+        delivery_url: row.delivery_url ?? null,
       }));
 
     setBots(mapped);
