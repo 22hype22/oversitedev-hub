@@ -183,31 +183,55 @@ const BotSection = ({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onAddAddons(bot)}
-          >
-            <Plus className="h-4 w-4 mr-1.5" />
-            Add more add-ons
-          </Button>
-          {cancellable ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => onCancel(bot)}
-            >
-              <XCircle className="h-4 w-4 mr-1.5" />
-              Cancel subscription
-            </Button>
+          {bot.isDemo ? (
+            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+              Practice bot — explore freely
+            </Badge>
           ) : (
-            <span className="text-xs text-muted-foreground self-center">
-              Contact support to cancel subscription
-            </span>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onAddAddons(bot)}
+              >
+                <Plus className="h-4 w-4 mr-1.5" />
+                Add more add-ons
+              </Button>
+              {cancellable ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => onCancel(bot)}
+                >
+                  <XCircle className="h-4 w-4 mr-1.5" />
+                  Cancel subscription
+                </Button>
+              ) : (
+                <span className="text-xs text-muted-foreground self-center">
+                  Contact support to cancel subscription
+                </span>
+              )}
+            </>
           )}
         </div>
       </div>
+
+      {bot.isDemo && (
+        <Card className="p-4 bg-primary/5 border-primary/30">
+          <div className="flex items-start gap-3">
+            <Sparkles className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+            <div className="text-sm">
+              <div className="font-semibold text-foreground">This is your practice bot</div>
+              <p className="text-muted-foreground mt-1">
+                Every add-on is enabled here so you can preview each
+                configuration box. Settings you change won't affect a real
+                Discord server.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {showPreorderBanner && (
         <Card className="p-4 bg-amber-500/5 border-amber-500/30">
