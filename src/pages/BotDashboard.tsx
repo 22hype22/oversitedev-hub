@@ -144,7 +144,11 @@ const BotSection = ({
   const baseTagline = BOT_BASE_TAGLINES[bot.base];
   const cancellable = !bot.isDemo && canCancelStatus(bot.status);
   const statusMeta = getStatusMeta(bot.status);
-  const ownedAddons = new Set(bot.addons);
+  // Owned add-ons + features that ship with the base — both get config boxes.
+  const ownedAddons = new Set<string>([
+    ...bot.addons,
+    ...getIncludedAddonsForBase(bot.base),
+  ]);
   // Group owned add-ons by category for the configuration boxes section.
   const groupedAddons = ADDON_GROUPS
     .map((g) => ({ ...g, owned: g.ids.filter((id) => ownedAddons.has(id)) }))
