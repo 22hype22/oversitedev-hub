@@ -349,10 +349,11 @@ const BotDashboard = () => {
               Cancel subscription for "{cancelTarget?.bot_name}"?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This cancels your subscription and removes dashboard access for
-              this bot. Your bot itself isn't deleted from your server — you
-              can keep using it with /cmds. You can resubscribe anytime to
-              regain dashboard access.
+              This is a full shutdown for this bot — all recurring payments
+              and hosting stop, the bot goes offline, and it's removed from
+              your dashboard. Use this if you've shut your server down or
+              don't need this bot anymore. This can't be undone, but you can
+              always build a new bot later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -63,12 +63,16 @@ export function useOwnedBots() {
     reload();
   }, [reload]);
 
-  const dashboardBots = bots.filter((b) => b.hasWebDashboard);
+  // The Web Dashboard add-on is a one-time, account-wide unlock. Once any
+  // bot order includes it, the user can manage ALL of their bots from the
+  // dashboard — current and future ones — without paying again.
+  const hasDashboardAccess = bots.some((b) => b.hasWebDashboard);
+  const dashboardBots = hasDashboardAccess ? bots : [];
 
   return {
     bots,
     dashboardBots,
-    hasDashboardAccess: dashboardBots.length > 0,
+    hasDashboardAccess,
     loading,
     reload,
   };

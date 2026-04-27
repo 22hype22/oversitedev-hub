@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useOwnedBots } from "@/hooks/useOwnedBots";
 import {
   Shield,
   LifeBuoy,
@@ -226,6 +227,7 @@ const SCRATCH_CATEGORIES: { id: string; label: string; icon: typeof Shield; addo
 
 export const BotBuilder = () => {
   const { user } = useAuth();
+  const { hasDashboardAccess: dashboardAlreadyOwned } = useOwnedBots();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [icon, setIcon] = useState<string | null>(null);
@@ -276,12 +278,14 @@ export const BotBuilder = () => {
 
   const total = useMemo(() => {
     const baseCost = BASES.find((b) => b.id === base)?.price ?? 0;
-    const addonCost = addons.reduce(
-      (sum, id) => sum + (currentAddons.find((a) => a.id === id)?.price ?? 0),
-      0
-    );
+    const addonCost = addons.reduce((sum, id) => {
+      // Dashboard add-on is a one-time, account-wide unlock.
+      // If the user already owns it on any prior bot, it costs $0 here.
+      if (id === "dashboard" && dashboardAlreadyOwned) return sum;
+      return sum + (currentAddons.find((a) => a.id === id)?.price ?? 0);
+    }, 0);
     return baseCost + addonCost;
-  }, [base, addons, currentAddons]);
+  }, [base, addons, currentAddons, dashboardAlreadyOwned]);
 
   const persistOrder = async () => {
     if (!user) return true; // anonymous: skip persistence, keep legacy flow
@@ -348,9 +352,9 @@ export const BotBuilder = () => {
       setShowSuccessText(true);
     }, 2900);
     setTimeout(() => {
-      const hasDashboardAddon = addons.includes("dashboard");
+      const canUseDashboard = addons.includes("dashboard") || dashboardAlreadyOwned;
       window.location.href = user
-        ? hasDashboardAddon
+        ? canUseDashboard
           ? "/bot-dashboard"
           : "/dashboard"
         : "/#contact";
@@ -563,12 +567,25 @@ export const BotBuilder = () => {
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                       {a.desc}
                     </p>
-                    <div className="mt-2 text-xs text-foreground/80 flex items-center gap-2">
-                      <span>+${a.price.toFixed(2)}</span>
-                      {a.oldPrice && (
+                    <div className="mt-2 text-xs text-foreground/80 flex items-center gap-2 flex-wrap">
+                      {a.id === "dashboard" && dashboardAlreadyOwned ? (
                         <>
-                          <span className="line-through text-muted-foreground/70">${a.oldPrice.toFixed(2)}</span>
-                          <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">SALE</span>
+                          <span className="text-primary font-medium">Included — already unlocked</span>
+                          <span className="line-through text-muted-foreground/70">${a.price.toFixed(2)}</span>
+                          <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">ONE-TIME</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>+${a.price.toFixed(2)}</span>
+                          {a.oldPrice && (
+                            <>
+                              <span className="line-through text-muted-foreground/70">${a.oldPrice.toFixed(2)}</span>
+                              <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">SALE</span>
+                            </>
+                          )}
+                          {a.id === "dashboard" && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px] font-semibold">ONE-TIME · ALL BOTS</span>
+                          )}
                         </>
                       )}
                     </div>
@@ -985,7 +1002,7 @@ export const BotBuilder = () => {
                   It's <span className="text-gradient">sent!</span>
                 </h3>
                 {user ? (
-                  addons.includes("dashboard") ? (
+                  addons.includes("dashboard") || dashboardAlreadyOwned ? (
                     <>
                       <p className="mt-3 text-base md:text-lg text-muted-foreground">
                         We're getting right to work on your build. Manage{" "}
