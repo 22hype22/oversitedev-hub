@@ -58,6 +58,7 @@ import {
   CreditCard,
   Sparkles,
   ArrowUpCircle,
+  Bot,
 } from "lucide-react";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
