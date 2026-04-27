@@ -378,12 +378,13 @@ export const BotOrdersLog = () => {
                 <th className="text-right font-medium px-3 py-2">Total</th>
                 <th className="text-left font-medium px-3 py-2">Hosting</th>
                 <th className="text-left font-medium px-3 py-2">Status</th>
+                <th className="text-right font-medium px-3 py-2">Edit</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {pageRows.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-3 py-10 text-center text-muted-foreground">
+                  <td colSpan={10} className="px-3 py-10 text-center text-muted-foreground">
                     {loading ? "Loading…" : "No orders match your filters yet."}
                   </td>
                 </tr>
@@ -391,38 +392,109 @@ export const BotOrdersLog = () => {
               {pageRows.map((r) => {
                 const meta = STATUS_META[r.status] ?? STATUS_META.draft;
                 const queuePos = queueOrder.get(r.id);
+                const expanded = expandedId === r.id;
+                const draft = drafts[r.id];
                 return (
-                  <tr key={r.id} className="hover:bg-muted/30">
-                    <td className="px-3 py-2 tabular-nums text-muted-foreground">
-                      {queuePos ? `#${queuePos}` : "—"}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
-                      {formatDate(r.submitted_at ?? r.created_at)}
-                    </td>
-                    <td className="px-3 py-2 font-medium">{r.bot_name}</td>
-                    <td className="px-3 py-2 text-muted-foreground">
-                      {BOT_BASE_LABELS[r.base] ?? r.base}
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-xs">
-                        {(r.addons ?? []).length}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-muted-foreground truncate max-w-[14rem]">
-                      {r.buyer_email ?? <span className="opacity-60">—</span>}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums font-medium">
-                      {formatMoney(r.total_amount, r.currency)}
-                    </td>
-                    <td className="px-3 py-2 text-xs text-muted-foreground">
-                      {r.monthly_hosting ? "$20/mo" : "Self-hosted"}
-                    </td>
-                    <td className="px-3 py-2">
-                      <Badge variant="outline" className={meta.className}>
-                        {meta.label}
-                      </Badge>
-                    </td>
-                  </tr>
+                  <>
+                    <tr key={r.id} className="hover:bg-muted/30">
+                      <td className="px-3 py-2 tabular-nums text-muted-foreground">
+                        {queuePos ? `#${queuePos}` : "—"}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+                        {formatDate(r.submitted_at ?? r.created_at)}
+                      </td>
+                      <td className="px-3 py-2 font-medium">{r.bot_name}</td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {BOT_BASE_LABELS[r.base] ?? r.base}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-xs">
+                          {(r.addons ?? []).length}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground truncate max-w-[14rem]">
+                        {r.buyer_email ?? <span className="opacity-60">—</span>}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums font-medium">
+                        {formatMoney(r.total_amount, r.currency)}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground">
+                        {r.monthly_hosting ? "$20/mo" : "Self-hosted"}
+                      </td>
+                      <td className="px-3 py-2">
+                        <Badge variant="outline" className={meta.className}>
+                          {meta.label}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <Button variant="ghost" size="sm" onClick={() => startEdit(r)}>
+                          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </Button>
+                      </td>
+                    </tr>
+                    {expanded && draft && (
+                      <tr key={`${r.id}-edit`} className="bg-muted/20">
+                        <td colSpan={10} className="px-4 py-4">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">Status</label>
+                              <Select
+                                value={draft.status}
+                                onValueChange={(v) => setDraft(r.id, { status: v })}
+                              >
+                                <SelectTrigger className="mt-1">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {EDITABLE_STATUSES.map((s) => (
+                                    <SelectItem key={s} value={s}>
+                                      {STATUS_META[s]?.label ?? s}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                                Delivery URL <span className="opacity-60">(shown to user when status is "Ready")</span>
+                              </label>
+                              <Input
+                                className="mt-1"
+                                placeholder="https://discord.com/oauth2/authorize?... or download link"
+                                value={draft.delivery_url}
+                                onChange={(e) => setDraft(r.id, { delivery_url: e.target.value })}
+                              />
+                            </div>
+                            <div className="md:col-span-3">
+                              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                                Internal notes <span className="opacity-60">(not shown to user)</span>
+                              </label>
+                              <Textarea
+                                className="mt-1 min-h-[70px]"
+                                placeholder="Build blockers, links to artifacts, scope clarifications…"
+                                value={draft.notes}
+                                onChange={(e) => setDraft(r.id, { notes: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-end gap-2 mt-3">
+                            <Button variant="ghost" size="sm" onClick={() => setExpandedId(null)}>
+                              Cancel
+                            </Button>
+                            <Button
+                              variant="hero"
+                              size="sm"
+                              onClick={() => saveRow(r)}
+                              disabled={savingId === r.id}
+                            >
+                              <Save className="h-4 w-4 mr-1.5" />
+                              {savingId === r.id ? "Saving…" : "Save changes"}
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 );
               })}
             </tbody>
