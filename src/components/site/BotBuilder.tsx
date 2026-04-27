@@ -479,103 +479,11 @@ export const BotBuilder = () => {
       <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: configurator */}
         <div className="lg:col-span-2 space-y-8">
-          {/* Step 1 — Identity */}
-          <div className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="h-7 w-7 rounded-full bg-primary/15 border border-primary/30 grid place-items-center text-xs font-bold text-primary">
-                1
-              </div>
-              <h3 className="text-lg font-semibold">Bot identity</h3>
-            </div>
-
-            {/* Banner + Icon uploaders */}
-            <div className="space-y-4 mb-5">
-              <div>
-                <Label className="text-xs text-muted-foreground mb-2 block">Banner</Label>
-                <button
-                  type="button"
-                  onClick={() => bannerInputRef.current?.click()}
-                  className="relative w-full h-28 rounded-xl border border-dashed border-border/60 bg-background/40 hover:border-primary/50 transition-smooth overflow-hidden group"
-                >
-                  {banner ? (
-                    <img src={banner} alt="Banner preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-muted-foreground gap-2 text-sm">
-                      <ImagePlus size={16} />
-                      Upload banner
-                    </div>
-                  )}
-                </button>
-                <input
-                  ref={bannerInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => handleFile(e.target.files?.[0], setBanner)}
-                />
-              </div>
-
-              <div className="flex items-end gap-4">
-                <div>
-                  <Label className="text-xs text-muted-foreground mb-2 block">Icon</Label>
-                  <button
-                    type="button"
-                    onClick={() => iconInputRef.current?.click()}
-                    className="relative h-20 w-20 rounded-full border border-dashed border-border/60 bg-background/40 hover:border-primary/50 transition-smooth overflow-hidden grid place-items-center"
-                  >
-                    {icon ? (
-                      <img src={icon} alt="Icon preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <Upload size={18} className="text-muted-foreground" />
-                    )}
-                  </button>
-                  <input
-                    ref={iconInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => handleFile(e.target.files?.[0], setIcon)}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground pb-2 leading-relaxed">
-                  PNG/JPG up to 4MB. Icon shows as the bot's avatar; banner appears at the top of the profile.
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="bot-name" className="text-xs text-muted-foreground mb-2 block">
-                  Name
-                </Label>
-                <Input
-                  id="bot-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Sentinel, Helper, NovaBot..."
-                  className="h-11"
-                />
-              </div>
-              <div>
-                <Label htmlFor="bot-desc" className="text-xs text-muted-foreground mb-2 block">
-                  Description
-                </Label>
-                <Textarea
-                  id="bot-desc"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Tell us about your bot — what it does, its personality, the vibe you're going for, and anything that makes it uniquely yours."
-                  rows={5}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Step 2 — Base */}
+          {/* Step 1 — Base */}
           <div className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="h-7 w-7 rounded-full bg-primary/15 border border-primary/30 grid place-items-center text-xs font-bold text-primary">
-                2
+                1
               </div>
               <h3 className="text-lg font-semibold">Pick a starting point</h3>
             </div>
@@ -613,6 +521,155 @@ export const BotBuilder = () => {
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Step 2 — Identity */}
+          <div className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur p-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="h-7 w-7 rounded-full bg-primary/15 border border-primary/30 grid place-items-center text-xs font-bold text-primary">
+                2
+              </div>
+              <h3 className="text-lg font-semibold">
+                {isPack ? "Design your three bots" : "Bot identity"}
+              </h3>
+            </div>
+
+            {isPack && (
+              <>
+                <p className="text-xs text-muted-foreground mb-4">
+                  The All-in-One Pack ships as three focused bots. Give each one its own name,
+                  icon, banner, and vibe — finish the description and we'll slide you to the next.
+                </p>
+                <div className="relative grid grid-cols-3 gap-2 mb-5 rounded-xl border border-border/60 bg-background/40 p-1">
+                  {PACK_TABS.map((t) => {
+                    const TIcon = t.icon;
+                    const active = activePackTab === t.id;
+                    const filled = !!packIdentities[t.id].name.trim();
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => goToTab(t.id)}
+                        className={`relative flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-smooth ${
+                          active
+                            ? "bg-primary/15 text-primary border border-primary/40 shadow-glow"
+                            : "text-muted-foreground hover:text-foreground border border-transparent"
+                        }`}
+                      >
+                        <TIcon size={14} />
+                        <span className="truncate">{t.label}</span>
+                        {filled && (
+                          <span className="ml-1 h-1.5 w-1.5 rounded-full bg-primary" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            <div
+              key={isPack ? activePackTab : "single"}
+              className={`${
+                isPack
+                  ? tabDirection === 1
+                    ? "animate-tab-slide-in-right"
+                    : "animate-tab-slide-in-left"
+                  : ""
+              }`}
+            >
+              {/* Banner + Icon uploaders */}
+              <div className="space-y-4 mb-5">
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-2 block">Banner</Label>
+                  <button
+                    type="button"
+                    onClick={() => bannerInputRef.current?.click()}
+                    className="relative w-full h-28 rounded-xl border border-dashed border-border/60 bg-background/40 hover:border-primary/50 transition-smooth overflow-hidden group"
+                  >
+                    {banner ? (
+                      <img src={banner} alt="Banner preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-muted-foreground gap-2 text-sm">
+                        <ImagePlus size={16} />
+                        Upload banner
+                      </div>
+                    )}
+                  </button>
+                  <input
+                    ref={bannerInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleFile(e.target.files?.[0], setBanner)}
+                  />
+                </div>
+
+                <div className="flex items-end gap-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">Icon</Label>
+                    <button
+                      type="button"
+                      onClick={() => iconInputRef.current?.click()}
+                      className="relative h-20 w-20 rounded-full border border-dashed border-border/60 bg-background/40 hover:border-primary/50 transition-smooth overflow-hidden grid place-items-center"
+                    >
+                      {icon ? (
+                        <img src={icon} alt="Icon preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <Upload size={18} className="text-muted-foreground" />
+                      )}
+                    </button>
+                    <input
+                      ref={iconInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleFile(e.target.files?.[0], setIcon)}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground pb-2 leading-relaxed">
+                    PNG/JPG up to 4MB. Icon shows as the bot's avatar; banner appears at the top of the profile.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="bot-name" className="text-xs text-muted-foreground mb-2 block">
+                    Name
+                  </Label>
+                  <Input
+                    id="bot-name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder={
+                      isPack
+                        ? `e.g. ${PACK_TABS.find((t) => t.id === activePackTab)?.label}`
+                        : "e.g. Sentinel, Helper, NovaBot..."
+                    }
+                    className="h-11"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="bot-desc" className="text-xs text-muted-foreground mb-2 block">
+                    Description
+                  </Label>
+                  <Textarea
+                    id="bot-desc"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    onBlur={handleDescriptionBlur}
+                    placeholder="Tell us about your bot — what it does, its personality, the vibe you're going for, and anything that makes it uniquely yours."
+                    rows={5}
+                  />
+                  {isPack && (
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      Tip: click out of this box to slide to the next bot.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
