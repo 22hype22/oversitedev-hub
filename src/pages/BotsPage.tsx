@@ -110,6 +110,10 @@ const BotsPage = () => {
           })}
         </div>
 
+        <Memberships />
+
+        <BotBuilder />
+
         <section className="mt-24">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-medium mb-6">
@@ -174,40 +178,6 @@ const BotsPage = () => {
             })}
           </div>
         </section>
-
-        <section className="mt-24 relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-card/60 to-background backdrop-blur p-10 md:p-14">
-          <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
-          <div className="relative max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-medium mb-6">
-              <Sparkles size={14} />
-              Custom Builds
-            </div>
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight">
-              Interested in your own <span className="text-gradient">custom server bot?</span>
-            </h2>
-            <p className="mt-6 text-lg text-muted-foreground leading-relaxed">
-              Need something the suite doesn't cover? We build fully custom Discord bots tailored
-              to your community — bespoke commands, integrations, dashboards, and automations
-              designed around exactly how your server runs.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-4">
-              <Button variant="hero" size="lg" asChild>
-                <a href="/#contact">
-                  Request a custom bot <ArrowRight />
-                </a>
-              </Button>
-              <Button variant="outlineGlow" size="lg" asChild>
-                <a href="#build">
-                  <Wand2 /> Build your custom bot
-                </a>
-              </Button>
-            </div>
-          </div>
-        </section>
-
-        <Memberships />
-
-        <BotBuilder />
       </main>
       <Footer />
     </div>
