@@ -59,6 +59,7 @@ import {
   Sparkles,
   ArrowUpCircle,
   Bot,
+  XCircle,
 } from "lucide-react";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
@@ -130,6 +131,8 @@ export default function Dashboard() {
   const [botOrders, setBotOrders] = useState<BotOrder[]>([]);
   const [botJobs, setBotJobs] = useState<Record<string, BotJob>>({});
   const [botOrdersLoading, setBotOrdersLoading] = useState(true);
+  const [cancelTarget, setCancelTarget] = useState<BotOrder | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -317,6 +320,34 @@ export default function Dashboard() {
     setBotJobs(jobMap);
     setBotOrdersLoading(false);
   }, [user]);
+
+  // Self-serve cancel: only allowed while the order is still draft or
+  // submitted (i.e. work hasn't started). Once paid, the customer must
+  // contact support so we can refund + stop any in-flight build job.
+  const canCancelOrder = (status: string) =>
+    status === "draft" || status === "submitted";
+
+  const cancelOrder = async (order: BotOrder) => {
+    if (!user) return;
+    if (!canCancelOrder(order.status)) {
+      toast.error("This order can no longer be cancelled — please contact support.");
+      return;
+    }
+    setCancelling(true);
+    const { error } = await (supabase as any)
+      .from("bot_orders")
+      .update({ status: "cancelled" })
+      .eq("id", order.id)
+      .eq("user_id", user.id);
+    setCancelling(false);
+    if (error) {
+      toast.error("Couldn't cancel — " + error.message);
+      return;
+    }
+    toast.success(`Cancelled "${order.bot_name}"`);
+    setCancelTarget(null);
+    loadBotOrders();
+  };
 
   const isMemberActive = (() => {
     if (!membership) return false;
@@ -833,6 +864,7 @@ export default function Dashboard() {
                       ready: "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30",
                       delivered: "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30",
                       failed: "bg-destructive/15 text-destructive border border-destructive/30",
+                      cancelled: "bg-muted text-muted-foreground border border-border",
                     };
                     const total = Number(o.total_amount) || 0;
                     return (
@@ -876,18 +908,35 @@ export default function Dashboard() {
                               </p>
                             )}
                           </div>
-                          {job?.delivery_url && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                window.open(job.delivery_url!, "_blank", "noopener,noreferrer")
-                              }
-                            >
-                              <Download size={14} className="mr-1.5" />
-                              Get bot
-                            </Button>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {job?.delivery_url && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  window.open(job.delivery_url!, "_blank", "noopener,noreferrer")
+                                }
+                              >
+                                <Download size={14} className="mr-1.5" />
+                                Get bot
+                              </Button>
+                            )}
+                            {canCancelOrder(orderStatus) ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() => setCancelTarget(o)}
+                              >
+                                <XCircle size={14} className="mr-1.5" />
+                                Cancel
+                              </Button>
+                            ) : orderStatus === "cancelled" ? null : (
+                              <span className="text-[11px] text-muted-foreground">
+                                Contact support to cancel
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </li>
                     );
@@ -963,6 +1012,38 @@ export default function Dashboard() {
                   onClick={() => setRobuxUpgradePromptOpen(false)}
                 >
                   Got it
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Cancel bot order confirm */}
+          <AlertDialog
+            open={!!cancelTarget}
+            onOpenChange={(o) => !o && !cancelling && setCancelTarget(null)}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Cancel "{cancelTarget?.bot_name}"?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will cancel your bot order. You won't be charged, and it
+                  will disappear from your Bot Dashboard. You can always start a
+                  new build later.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={cancelling}>Keep order</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={cancelling}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (cancelTarget) cancelOrder(cancelTarget);
+                  }}
+                >
+                  {cancelling ? "Cancelling…" : "Yes, cancel it"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

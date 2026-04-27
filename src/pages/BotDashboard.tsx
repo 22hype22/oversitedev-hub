@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useOwnedBots, type OwnedBot } from "@/hooks/useOwnedBots";
@@ -11,6 +11,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import {
   LogOut,
   Settings,
@@ -33,7 +44,11 @@ import {
   Package,
   Layers,
   Server,
+  XCircle,
 } from "lucide-react";
+
+const canCancelStatus = (status: string) =>
+  status === "draft" || status === "submitted";
 
 type Plugin = {
   name: string;
@@ -57,39 +72,63 @@ const plugins: Plugin[] = [
   { name: "Welcome", description: "Set an autorole and welcome/goodbye messages.", icon: Hand },
 ];
 
-const BotSection = ({ bot }: { bot: OwnedBot }) => {
+const BotSection = ({
+  bot,
+  onCancel,
+}: {
+  bot: OwnedBot;
+  onCancel: (bot: OwnedBot) => void;
+}) => {
   const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
   const baseTagline = BOT_BASE_TAGLINES[bot.base];
+  const cancellable = canCancelStatus(bot.status);
 
   return (
     <section className="space-y-5">
-      <div className="flex items-center gap-3">
-        <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 grid place-items-center overflow-hidden shrink-0">
-          {bot.icon_url ? (
-            <img src={bot.icon_url} alt={bot.bot_name} className="h-full w-full object-cover" />
-          ) : (
-            <Bot className="h-6 w-6 text-primary" />
-          )}
-        </div>
-        <div className="min-w-0">
-          <h2 className="text-2xl font-bold tracking-tight truncate">
-            Managing <span className="text-gradient">{bot.bot_name}</span>
-          </h2>
-          <div className="flex flex-wrap items-center gap-2 mt-1">
-            <Badge variant="secondary" className="text-xs">
-              {baseLabel}
-            </Badge>
-            <span className="text-xs text-muted-foreground">
-              {bot.addons.length} add-on{bot.addons.length === 1 ? "" : "s"}
-            </span>
-            {bot.monthly_hosting && (
-              <Badge variant="outline" className="text-xs gap-1">
-                <Server className="h-3 w-3" />
-                Hosting
-              </Badge>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 grid place-items-center overflow-hidden shrink-0">
+            {bot.icon_url ? (
+              <img src={bot.icon_url} alt={bot.bot_name} className="h-full w-full object-cover" />
+            ) : (
+              <Bot className="h-6 w-6 text-primary" />
             )}
           </div>
+          <div className="min-w-0">
+            <h2 className="text-2xl font-bold tracking-tight truncate">
+              Managing <span className="text-gradient">{bot.bot_name}</span>
+            </h2>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <Badge variant="secondary" className="text-xs">
+                {baseLabel}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {bot.addons.length} add-on{bot.addons.length === 1 ? "" : "s"}
+              </span>
+              {bot.monthly_hosting && (
+                <Badge variant="outline" className="text-xs gap-1">
+                  <Server className="h-3 w-3" />
+                  Hosting
+                </Badge>
+              )}
+            </div>
+          </div>
         </div>
+        {cancellable ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => onCancel(bot)}
+          >
+            <XCircle className="h-4 w-4 mr-1.5" />
+            Cancel order
+          </Button>
+        ) : (
+          <span className="text-xs text-muted-foreground self-center">
+            Contact support to cancel
+          </span>
+        )}
       </div>
 
       {/* What you bought — system + add-ons summary */}
@@ -168,8 +207,28 @@ const BotSection = ({ bot }: { bot: OwnedBot }) => {
 
 const BotDashboard = () => {
   const { user, isAdmin, loading } = useAuth();
-  const { dashboardBots, loading: botsLoading } = useOwnedBots();
+  const { dashboardBots, loading: botsLoading, reload } = useOwnedBots();
   const navigate = useNavigate();
+  const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+
+  const cancelOrder = async (bot: OwnedBot) => {
+    if (!user) return;
+    setCancelling(true);
+    const { error } = await (supabase as any)
+      .from("bot_orders")
+      .update({ status: "cancelled" })
+      .eq("id", bot.id)
+      .eq("user_id", user.id);
+    setCancelling(false);
+    if (error) {
+      toast.error("Couldn't cancel — " + error.message);
+      return;
+    }
+    toast.success(`Cancelled "${bot.bot_name}"`);
+    setCancelTarget(null);
+    reload();
+  };
 
   useEffect(() => {
     if (loading) return;
@@ -274,11 +333,42 @@ const BotDashboard = () => {
         ) : (
           <div className="space-y-16">
             {dashboardBots.map((bot) => (
-              <BotSection key={bot.id} bot={bot} />
+              <BotSection key={bot.id} bot={bot} onCancel={setCancelTarget} />
             ))}
           </div>
         )}
       </div>
+
+      <AlertDialog
+        open={!!cancelTarget}
+        onOpenChange={(o) => !o && !cancelling && setCancelTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Cancel "{cancelTarget?.bot_name}"?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will cancel your bot order. You won't be charged, and it
+              will be removed from your dashboard. You can always start a new
+              build from the Bot Builder later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={cancelling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                if (cancelTarget) cancelOrder(cancelTarget);
+              }}
+            >
+              {cancelling ? "Cancelling…" : "Yes, cancel it"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
