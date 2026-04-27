@@ -98,6 +98,13 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       channel("channel", "Verification channel", "Where the verify button is posted."),
       role("verifiedRole", "Verified role", "Granted once a user verifies."),
       {
+        key: "message",
+        label: "Verification message",
+        type: "textarea",
+        defaultValue:
+          "Welcome to {server}! Click the button below to verify and unlock the server.",
+      },
+      {
         key: "method",
         label: "Verification method",
         type: "select",
@@ -109,17 +116,27 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         ],
       },
       {
-        key: "message",
-        label: "Verification message",
-        type: "textarea",
-        defaultValue:
-          "Welcome to {server}! Click the button below to verify and unlock the server.",
-      },
-      {
         key: "buttonLabel",
         label: "Button label",
         type: "text",
         defaultValue: "Verify me",
+      },
+      {
+        key: "minAccountAge",
+        label: "Minimum account age to verify",
+        type: "select",
+        defaultValue: "0",
+        help: "Reject verification from accounts younger than this.",
+        options: [
+          { value: "0", label: "No minimum" },
+          { value: "1", label: "1 day" },
+          { value: "5", label: "5 days" },
+          { value: "10", label: "10 days" },
+          { value: "20", label: "20 days" },
+          { value: "30", label: "30 days" },
+          { value: "60", label: "60 days" },
+          { value: "90", label: "90 days" },
+        ],
       },
       toggle("kickUnverified", "Kick users who don't verify within 24h", false),
     ],
