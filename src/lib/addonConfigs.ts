@@ -27,6 +27,12 @@ import {
   History,
   Snowflake,
   Clock,
+  ShieldCheck,
+  Shield,
+  MessageSquareX,
+  Swords,
+  ClipboardList,
+  Link2Off,
 } from "lucide-react";
 
 export type AddonFieldType =
