@@ -57,14 +57,10 @@ const plugins: Plugin[] = [
   { name: "Welcome", description: "Set an autorole and welcome/goodbye messages.", icon: Hand },
 ];
 
-const BASE_LABELS: Record<string, string> = {
-  protection: "Protection",
-  support: "Support",
-  utilities: "Utilities",
-  scratch: "From Scratch",
-};
-
 const BotSection = ({ bot }: { bot: OwnedBot }) => {
+  const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
+  const baseTagline = BOT_BASE_TAGLINES[bot.base];
+
   return (
     <section className="space-y-5">
       <div className="flex items-center gap-3">
@@ -81,38 +77,93 @@ const BotSection = ({ bot }: { bot: OwnedBot }) => {
           </h2>
           <div className="flex flex-wrap items-center gap-2 mt-1">
             <Badge variant="secondary" className="text-xs">
-              {BASE_LABELS[bot.base] ?? bot.base}
+              {baseLabel}
             </Badge>
             <span className="text-xs text-muted-foreground">
               {bot.addons.length} add-on{bot.addons.length === 1 ? "" : "s"}
             </span>
+            {bot.monthly_hosting && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <Server className="h-3 w-3" />
+                Hosting
+              </Badge>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-        {plugins.map((p) => {
-          const Icon = p.icon;
-          return (
-            <Card
-              key={`${bot.id}-${p.name}`}
-              className="group cursor-pointer bg-card hover:bg-card/80 border-border hover:border-primary/50 hover:shadow-elegant transition-smooth p-6 flex flex-col min-h-[170px]"
-            >
-              <div className="flex items-start gap-3 mb-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0 group-hover:bg-primary/15 transition-smooth">
-                  <Icon className="h-5 w-5 text-primary" />
+      {/* What you bought — system + add-ons summary */}
+      <Card className="bg-card/60 border-border p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Package className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
+            Your build
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div>
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground mb-2">
+              <Layers className="h-3.5 w-3.5" />
+              System
+            </div>
+            <div className="font-semibold">{baseLabel}</div>
+            {baseTagline && (
+              <p className="text-sm text-muted-foreground mt-1">{baseTagline}</p>
+            )}
+          </div>
+          <div>
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground mb-2">
+              <Sparkles className="h-3.5 w-3.5" />
+              Add-ons ({bot.addons.length})
+            </div>
+            {bot.addons.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No add-ons selected.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {bot.addons.map((id) => (
+                  <Badge key={id} variant="secondary" className="text-xs font-normal">
+                    {getAddonLabel(id)}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      <div>
+        <div className="flex items-center gap-2 mb-4 mt-2">
+          <Settings className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
+            Plugins
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {plugins.map((p) => {
+            const Icon = p.icon;
+            return (
+              <Card
+                key={`${bot.id}-${p.name}`}
+                className="group cursor-pointer bg-card hover:bg-card/80 border-border hover:border-primary/50 hover:shadow-elegant transition-smooth p-6 flex flex-col min-h-[170px]"
+              >
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0 group-hover:bg-primary/15 transition-smooth">
+                    <Icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="font-semibold text-base leading-tight pt-1.5">{p.name}</h3>
                 </div>
-                <h3 className="font-semibold text-base leading-tight pt-1.5">{p.name}</h3>
-              </div>
-              <p className="text-sm text-muted-foreground flex-1">{p.description}</p>
-              <div className="flex justify-end mt-3">
-                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-smooth" />
-              </div>
-            </Card>
-          );
-        })}
+                <p className="text-sm text-muted-foreground flex-1">{p.description}</p>
+                <div className="flex justify-end mt-3">
+                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-smooth" />
+                </div>
+              </Card>
+            );
+          })}
+        </div>
       </div>
     </section>
+  );
+};
   );
 };
 
