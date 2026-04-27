@@ -123,7 +123,7 @@ const BASES: Base[] = [
     icon: LifeBuoy,
     price: 99,
     included: [
-      "Ticket system (up to 2 categories)",
+      "Ticket system (unlimited categories)",
       "Ban appeals",
       "Member reports",
       "Welcome / goodbye messages",
@@ -137,7 +137,7 @@ const BASES: Base[] = [
     price: 99,
     included: [
       "/say and /announce",
-      "Reaction roles (up to 3)",
+      "Reaction roles (unlimited)",
       "Autorole",
       "Poll",
       "Userinfo, serverinfo, avatar",
