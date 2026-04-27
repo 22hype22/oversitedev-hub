@@ -13,6 +13,7 @@ import { CategoryManager } from "@/components/admin/CategoryManager";
 import { UserVersionUpgrader } from "@/components/admin/UserVersionUpgrader";
 import { PurchaseLog } from "@/components/admin/PurchaseLog";
 import { AccountsLog } from "@/components/admin/AccountsLog";
+import { BotOrdersLog } from "@/components/admin/BotOrdersLog";
 
 const SUPER_ADMIN_EMAIL = "everant00@gmail.com";
 
@@ -134,6 +135,7 @@ const Admin = () => {
           {!marketingShutdown && (
             <div className="mt-10 pt-6 border-t border-border space-y-6">
               <UserVersionUpgrader />
+              <BotOrdersLog />
               <PurchaseLog />
               <AccountsLog />
             </div>
