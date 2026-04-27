@@ -349,18 +349,40 @@ export const BotBuilder = () => {
     return baseCost + addonCost;
   }, [base, addons, currentAddons, dashboardAlreadyOwned]);
 
+  // For the All-in-One Pack we use the Protection identity as the primary record
+  // and append the other two identities as a JSON block in the notes for the build team.
+  const buildSubmissionPayload = () => {
+    if (!isPack) {
+      return {
+        primary: identity,
+        notesField: notes.trim() || null,
+      };
+    }
+    const primary = packIdentities.protection;
+    const extras = {
+      support: packIdentities.support,
+      utilities: packIdentities.utilities,
+    };
+    const extraNotes = `\n\n--- All-in-One Pack additional bots ---\n${JSON.stringify(extras, null, 2)}`;
+    return {
+      primary,
+      notesField: ((notes.trim() ? notes.trim() : "") + extraNotes).trim(),
+    };
+  };
+
   const persistOrder = async () => {
     if (!user) return true; // anonymous: skip persistence, keep legacy flow
+    const { primary, notesField } = buildSubmissionPayload();
     const { error } = await (supabase as any).from("bot_orders").insert({
       user_id: user.id,
-      bot_name: name.trim(),
-      bot_description: description.trim() || null,
-      icon_url: icon,
-      banner_url: banner,
+      bot_name: primary.name.trim(),
+      bot_description: primary.description.trim() || null,
+      icon_url: primary.icon,
+      banner_url: primary.banner,
       base,
       addons,
       monthly_hosting: monthlyHosting,
-      notes: notes.trim() || null,
+      notes: notesField,
       total_amount: total,
       currency: "usd",
       status: "submitted",
@@ -374,7 +396,17 @@ export const BotBuilder = () => {
   };
 
   const submit = async () => {
-    if (!name.trim()) {
+    if (isPack) {
+      const missing = PACK_TABS.find((t) => !packIdentities[t.id].name.trim());
+      if (missing) {
+        sonnerToast.error(`Name your ${missing.label}`, {
+          description: "Each bot in the pack needs at least a name.",
+        });
+        setTabDirection(1);
+        setActivePackTab(missing.id);
+        return;
+      }
+    } else if (!name.trim()) {
       sonnerToast.error("Give your bot a name", {
         description: "Even a working title helps us get started.",
       });
