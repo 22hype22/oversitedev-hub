@@ -545,10 +545,14 @@ export default function Dashboard() {
         </div>
 
         <Tabs defaultValue="purchases" className="space-y-6">
-          <TabsList className="grid grid-cols-3 w-full max-w-md">
+          <TabsList className="grid grid-cols-4 w-full max-w-2xl">
             <TabsTrigger value="purchases">
               <ShoppingBag size={14} className="mr-1.5" />
               Purchases
+            </TabsTrigger>
+            <TabsTrigger value="bots">
+              <Bot size={14} className="mr-1.5" />
+              Bot Orders
             </TabsTrigger>
             <TabsTrigger value="settings">
               <SettingsIcon size={14} className="mr-1.5" />
