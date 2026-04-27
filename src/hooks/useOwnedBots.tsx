@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getAddonIdsForBase } from "@/lib/botCatalog";
 
 export type OwnedBot = {
   id: string;
@@ -15,9 +16,37 @@ export type OwnedBot = {
   created_at: string;
   submitted_at: string | null;
   delivery_url: string | null;
+  /** Demo/practice bot that's not backed by a real bot_orders row. */
+  isDemo?: boolean;
 };
 
 const ACCESS_STATUSES = new Set(["submitted", "paid"]);
+
+/** Stable synthetic id for the practice bot — never collides with a real UUID. */
+export const DEMO_BOT_ID = "demo-all-in-one";
+
+/**
+ * Practice bot: every add-on enabled (All-in-One = Protection + Support +
+ * Utilities + shared) so the user can preview every config box. Never
+ * persisted to the DB; always injected client-side.
+ */
+function buildDemoBot(): OwnedBot {
+  return {
+    id: DEMO_BOT_ID,
+    bot_name: "Practice Bot (Demo)",
+    bot_description: "All add-ons enabled — explore every configuration box.",
+    icon_url: null,
+    base: "scratch",
+    addons: getAddonIdsForBase("scratch"),
+    monthly_hosting: false,
+    status: "paid",
+    hasWebDashboard: true,
+    created_at: new Date(0).toISOString(),
+    submitted_at: null,
+    delivery_url: null,
+    isDemo: true,
+  };
+}
 
 /**
  * Loads bots the signed-in user has ordered. `bots` is everything they've
