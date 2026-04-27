@@ -75,9 +75,11 @@ const plugins: Plugin[] = [
 const BotSection = ({
   bot,
   onCancel,
+  onAddAddons,
 }: {
   bot: OwnedBot;
   onCancel: (bot: OwnedBot) => void;
+  onAddAddons: (bot: OwnedBot) => void;
 }) => {
   const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
   const baseTagline = BOT_BASE_TAGLINES[bot.base];
