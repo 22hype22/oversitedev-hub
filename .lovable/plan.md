@@ -1,41 +1,66 @@
-# Suggested follow-ups
+# What I'd add next
 
-These are gaps I noticed across the builder, dashboard, and ownership flow. Pick whichever feel useful — none are blockers.
+We just built the preorder flow and the admin orders log, but the loop isn't closed yet. The user can preorder, and you can *see* the queue — but there's no way to move an order through stages, and the user has no idea what's happening with their bot after they hit "Preorder."
 
-## 1. Order status visibility
+Here's what I'd add, in priority order. Pick any subset.
 
-Right now bots show up in the dashboard once they're `submitted` or `paid`, but the user can't tell which stage their bot is in. Add a status badge to each bot section: **Submitted → In build → Ready → Live**. Pulls from `bot_orders.status` (and optionally `bot_build_jobs.status` for finer-grained "we're building it now" state).
+---
 
-## 2. Edit bot identity
+## 1. Admin: change order status from the log (high value, small lift)
 
-Once a bot is live, the user might want to rename it, swap the icon, or update the description without contacting support. Add an "Edit details" button on each bot section that opens a small dialog editing `bot_name`, `bot_description`, `icon_url`, `banner_url`.
+Right now `BotOrdersLog` is read-only. You can see "Preorder / Paid / In-Build / Live" but can't change them. Add a status dropdown on each row so you can manually advance an order:
 
-## 3. Remove individual add-ons
+`Preorder → Paid → In Build → Ready → Live` (or `Cancelled`)
 
-We added "Add more add-ons" but there's no way to drop one if the user changes their mind (e.g. they're not using the music player anymore). Mirror the add flow with a "Manage add-ons" view showing currently-owned ones with a remove option. Self-serve for unbilled changes; "contact support" once it's been billed.
+Also add:
+- A notes field you can edit per order (build notes, blockers, links to the artifact)
+- Optional "delivery URL" field so when you mark it Ready, the user sees a download/invite link
 
-## 4. Invoice / billing history per bot
+This is what actually makes the queue useful — without it the log is just a viewer.
 
-Users currently can't see what they paid, when, or for which bot. A simple "Billing" tab on each bot section listing past charges (from `purchases` and `subscriptions`) would prevent a lot of "what am I paying for?" support tickets.
+## 2. User: status badge on each bot in the dashboard (high value, small lift)
 
-## 5. Hosting status indicator
+Pulled straight from `.lovable/plan.md` #1. Each bot section in `/bot-dashboard` shows a badge:
 
-If hosting is on, show a small live indicator (green dot = bot online, gray = offline, red = error) at the top of the bot section. Even a placeholder that just shows "Hosted" vs "Self-hosted" is useful right now until real telemetry is wired.
+`Preorder placed` · `In build` · `Ready to invite` · `Live`
 
-## 6. Onboarding / "next steps" after first bot purchase
+Reads from `bot_orders.status`. Pairs perfectly with #1 — you flip the status, the user sees it update.
 
-The success screen tells the user where to find the dashboard, but the dashboard itself doesn't guide them. First time landing on `/bot-dashboard` after a build, show a one-time checklist: "Invite your bot to your server → Run `/setup` → Configure your first plugin." Dismissible.
+## 3. User: preorder confirmation / "what happens next" screen
 
-## 7. Transfer bot ownership
+After preorder submission the user gets a toast and... that's it. Add a small confirmation card on the dashboard for any order in `submitted` state:
 
-Niche but real: server owners change. A "Transfer ownership" action that emails the new owner a claim link, then reassigns `user_id` on the `bot_orders` row.
+> **Preorder #X received** — you're #3 in the queue. We'll reach out within 24h to confirm scope and finalize payment.
 
-## 8. Plugin cards are decorative
+Reduces "did it go through?" support questions.
 
-The plugin grid on each bot section currently links nowhere — clicking a card does nothing. Either wire each one to a real config page (bigger lift) or hide cards for plugins the user doesn't have enabled, so the dashboard reflects reality.
+## 4. Admin: queue position is visible to the user
 
-## My recommendation
+Tiny addition to #2 — show "Position #3 in build queue" on Preorder-status bots. Calculated the same way `BotOrdersLog` already does it (`submitted_at` ascending).
 
-If you only do two: **#1 (status badges)** and **#8 (only show enabled plugins)**. Together they make the dashboard feel honest about what state the bot is in and what the user actually owns. Everything else can wait until users start asking.
+## 5. Hide plugin cards the user doesn't own
 
-Tell me which (if any) you want and I'll build them.
+From `.lovable/plan.md` #8. The plugin grid currently shows every possible plugin even if the user only bought Protection. Filter to enabled ones based on `addons[]` on the order. Makes the dashboard feel honest.
+
+---
+
+## My pick if you want just one thing
+
+**Do #1 + #2 together.** They're the same feature from two sides (admin moves the lever, user sees the result) and together they make the preorder system actually function instead of just collecting rows in a table.
+
+## What I'd skip for now
+
+- Transfer ownership, edit identity, remove add-ons, billing history — all real but no one is asking yet
+- Real hosting telemetry — placeholder isn't worth the visual noise
+- Onboarding checklist — wait until you have enough live bots to know what trips users up
+
+---
+
+## Technical notes
+
+- All status changes go through existing `bot_orders` UPDATE policy (admins only) — no schema changes needed for #1 unless we add a `delivery_url` column
+- For #1 delivery URL: one column add, `delivery_url text nullable` on `bot_orders`
+- #2/#3/#4 are pure frontend reads from `bot_orders.status` + `submitted_at`
+- #5 is a filter on the existing `plugins` array against `order.addons`
+
+Want me to build #1 + #2, or pick a different combination?
