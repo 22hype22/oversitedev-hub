@@ -168,11 +168,47 @@ const SHARED_ADDONS: Addon[] = [
 ];
 
 const ADDONS_BY_BASE: Record<string, Addon[]> = {
-  protection: [],
-  support: [],
-  utilities: [],
+  protection: [
+    { id: "advanced-logging", name: "Advanced Logging", desc: "Message edits, deletes, and full activity logs.", icon: FileText, price: 2.99 },
+    { id: "nsfw-invite-scanner", name: "NSFW Invite Scanner + Censored Logs", desc: "Catches NSFW invites and stores censored evidence.", icon: ShieldCheck, price: 2.99 },
+    { id: "avatar-nsfw-detection", name: "Avatar NSFW Detection", desc: "Flags NSFW avatars. Requires Censored Logs.", icon: EyeOff, price: 1.99 },
+    { id: "bio-phrase-detection", name: "Bio Phrase Detection", desc: "Catches banned phrases in user bios. Requires Censored Logs.", icon: TextCursorInput, price: 0.99 },
+    { id: "account-age-gating", name: "New Account Age Gating", desc: "Block freshly-made accounts from joining.", icon: UserX, price: 0.99 },
+    { id: "auto-escalating-warnings", name: "Auto-Escalating Warnings", desc: "Warns auto-escalate to mute/ban thresholds.", icon: AlertTriangle, price: 1.99 },
+    { id: "softban-massban", name: "/softban and /massban", desc: "Quick cleanup tools for serious incidents.", icon: Ban, price: 1.99 },
+    { id: "channel-lockdown", name: "Channel Lockdown Command", desc: "Instantly lock a channel or the whole server.", icon: Lock, price: 1.99 },
+    { id: "staff-notes", name: "Staff Notes on Users", desc: "Private notes staff can attach to any member.", icon: ClipboardList, price: 1.99 },
+    { id: "moderation-history", name: "Moderation History", desc: "Full mod-log history per user.", icon: BookOpen, price: 1.99 },
+    { id: "auto-slowmode", name: "Auto Slowmode on Spam", desc: "Triggers slowmode when spam is detected.", icon: Timer, price: 1.99 },
+    { id: "temp-bans", name: "Temporary Bans (Auto-Unban)", desc: "Time-limited bans that lift themselves.", icon: AlarmClock, price: 1.99 },
+  ],
+  support: [
+    { id: "staff-performance", name: "Staff Performance Tracking", desc: "Track tickets handled, response times, and more.", icon: BarChart2, price: 1.99 },
+    { id: "ticket-logs", name: "Ticket Logs", desc: "Full transcripts and history of every ticket.", icon: FileText, price: 0.99 },
+    { id: "per-category-roles", name: "Per-Category Role Access", desc: "Limit which roles can see each ticket category.", icon: UserCog, price: 0.99 },
+    { id: "ticket-notes", name: "Ticket Notes", desc: "Internal staff notes inside tickets.", icon: ClipboardList, price: 0.99 },
+    { id: "ticket-add-remove", name: "Add / Remove Members", desc: "Pull people in or out of a ticket.", icon: UserPlus, price: 0.99 },
+    { id: "close-all-tickets", name: "Close All Tickets", desc: "One command to close every open ticket.", icon: Trash2, price: 0.99 },
+    { id: "ticket-message-customization", name: "Ticket Message Customization", desc: "Customize open/close/welcome messages.", icon: MessageSquare, price: 1.99 },
+    { id: "priority-flagging", name: "Priority Ticket Flagging", desc: "Mark tickets as urgent for staff.", icon: Flag, price: 0.99 },
+    { id: "auto-close-inactive", name: "Auto-Close Inactive Tickets", desc: "Closes tickets that go idle.", icon: Clock, price: 0.99 },
+    { id: "anonymous-reporting", name: "Anonymous Reporting", desc: "Members can report without revealing identity.", icon: EyeOff, price: 0.99 },
+  ],
+  utilities: [
+    { id: "music-addon", name: "Music Add-On", desc: "Full music playback with queues and controls.", icon: Music, price: 1.99 },
+    { id: "auto-radio", name: "Auto Radio by Genre", desc: "Non-stop radio by genre. Requires Music Add-On.", icon: Headphones, price: 0.99 },
+    { id: "roblox-verification", name: "Roblox Verification", desc: "Verify members against their Roblox account.", icon: UserCheck, price: 0.99 },
+    { id: "starboard", name: "Starboard", desc: "Highlight top reactions in a starboard channel.", icon: Star, price: 0.99 },
+    { id: "recurring-messages", name: "Recurring Messages", desc: "Schedule messages on a repeating timer.", icon: Calendar, price: 0.99 },
+    { id: "giveaway-system", name: "Giveaway System", desc: "Run giveaways with reactions and timers.", icon: Gift, price: 0.99 },
+    { id: "birthday-announcements", name: "Birthday Announcements", desc: "Auto-announce member birthdays.", icon: Cake, price: 0.99 },
+    { id: "server-stats-channels", name: "Server Stats Channels", desc: "Auto-updating channel names with member counts.", icon: Hash, price: 0.99 },
+    { id: "live-notifications", name: "Twitch / YouTube Notifications", desc: "Ping when streamers go live or upload.", icon: Bell, price: 0.99 },
+    { id: "leveling-system", name: "Leveling System", desc: "XP, level-ups, and role rewards.", icon: BarChart3, price: 2.99 },
+    { id: "economy-system", name: "Economy System", desc: "Currency, shop, and rewards.", icon: CreditCard, price: 1.99 },
+    { id: "remindme", name: "/remindme", desc: "Personal reminder commands.", icon: AlarmClock, price: 0.99 },
+  ],
   scratch: [],
-
 };
 
 const getAddonsForBase = (baseId: string): Addon[] => {
