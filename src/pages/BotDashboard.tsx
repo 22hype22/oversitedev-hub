@@ -56,23 +56,39 @@ type Plugin = {
   name: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
+  /** Addon ids that unlock this plugin. If omitted, plugin is always shown (core). */
+  requires?: string[];
 };
 
 const plugins: Plugin[] = [
+  // Core — always available
   { name: "Settings", description: "Configure your bot's core settings.", icon: Settings },
-  { name: "Auto Reply", description: "Have your bot respond automatically to certain triggers.", icon: MessageSquare },
-  { name: "Automod", description: "Let your bot automatically moderate your server and give your mods a break.", icon: Bot },
-  { name: "Ban Appeal", description: "Ditch Google forms, handle your ban appeals with your bot!", icon: ShieldAlert },
-  { name: "Custom Commands", description: "Create commands with your own code to run with your bot.", icon: Code2 },
-  { name: "Logging", description: "Log everything that happens in your server to a text channel (or multiple).", icon: ScrollText },
-  { name: "Moderation", description: "Defend your server with a large arsenal of moderation commands.", icon: Gavel },
-  { name: "Reaction Roles", description: "Allow your server members to easily assign themselves roles via buttons or reactions.", icon: Sparkles },
-  { name: "Report", description: "Give your members a way to easily report rule-breaking messages to your moderators.", icon: Flag },
-  { name: "Recurring Reminders", description: "Send repeating messages on a set interval to a channel of your choice.", icon: Clock },
-  { name: "Roblox", description: "Link Roblox accounts to Discord users, assign roles to users based on their group rank.", icon: Lock },
-  { name: "Starboard", description: "Save messages directly to a text channel by reacting with a star.", icon: Star },
-  { name: "Welcome", description: "Set an autorole and welcome/goodbye messages.", icon: Hand },
+  // Add-on gated
+  { name: "Auto Reply", description: "Have your bot respond automatically to certain triggers.", icon: MessageSquare, requires: ["auto-response"] },
+  { name: "Automod", description: "Let your bot automatically moderate your server and give your mods a break.", icon: Bot, requires: ["anti-spam","profanity-filter","link-filter","scam-detector","caps-filter","emoji-spam","attachment-filter","mention-guard","nsfw-filter"] },
+  { name: "Ban Appeal", description: "Ditch Google forms, handle your ban appeals with your bot!", icon: ShieldAlert, requires: ["application-system","ticket-system"] },
+  { name: "Custom Commands", description: "Create commands with your own code to run with your bot.", icon: Code2, requires: ["custom-commands"] },
+  { name: "Logging", description: "Log everything that happens in your server to a text channel (or multiple).", icon: ScrollText, requires: ["logging-system","audit-logger"] },
+  { name: "Moderation", description: "Defend your server with a large arsenal of moderation commands.", icon: Gavel, requires: ["auto-mute","auto-kick","auto-ban","slowmode","invite-control","new-account-guard","alt-detection","verification-gate","vpn-blocker"] },
+  { name: "Reaction Roles", description: "Allow your server members to easily assign themselves roles via buttons or reactions.", icon: Sparkles, requires: ["reaction-roles"] },
+  { name: "Report", description: "Give your members a way to easily report rule-breaking messages to your moderators.", icon: Flag, requires: ["report-system"] },
+  { name: "Recurring Reminders", description: "Send repeating messages on a set interval to a channel of your choice.", icon: Clock, requires: ["scheduled-messages","reminder-system","rule-reminder"] },
+  { name: "Roblox", description: "Link Roblox accounts to Discord users, assign roles to users based on their group rank.", icon: Lock, requires: ["role-manager"] },
+  { name: "Starboard", description: "Save messages directly to a text channel by reacting with a star.", icon: Star, requires: ["starboard"] },
+  { name: "Welcome", description: "Set an autorole and welcome/goodbye messages.", icon: Hand, requires: ["welcome","goodbye","onboarding"] },
 ];
+
+type StatusMeta = { label: string; className: string };
+const STATUS_META: Record<string, StatusMeta> = {
+  draft:     { label: "Draft",      className: "bg-muted text-muted-foreground border-border" },
+  submitted: { label: "Submitted",  className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+  building:  { label: "In build",   className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  ready:     { label: "Ready",      className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  paid:      { label: "Live",       className: "bg-primary/15 text-primary border-primary/30" },
+  cancelled: { label: "Cancelled",  className: "bg-destructive/15 text-destructive border-destructive/30" },
+};
+const getStatusMeta = (s: string): StatusMeta =>
+  STATUS_META[s] ?? { label: s, className: "bg-muted text-muted-foreground border-border" };
 
 const BotSection = ({
   bot,
