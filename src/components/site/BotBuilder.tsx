@@ -352,7 +352,7 @@ export const BotBuilder = () => {
       setShowSuccessText(true);
     }, 2900);
     setTimeout(() => {
-      const hasDashboardAddon = addons.includes("dashboard");
+      const canUseDashboard = addons.includes("dashboard") || dashboardAlreadyOwned;
       window.location.href = user
         ? hasDashboardAddon
           ? "/bot-dashboard"
