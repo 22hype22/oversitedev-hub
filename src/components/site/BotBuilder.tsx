@@ -297,17 +297,19 @@ export const BotBuilder = () => {
   const setIcon = (v: string) => updateActiveIdentity({ icon: v });
   const setBanner = (v: string) => updateActiveIdentity({ banner: v });
 
-  // When the user finishes the description on a pack tab and there's a next tab,
+  // When the user finishes a field on a pack tab and there's a next tab,
   // auto-advance with a slide animation.
-  const handleDescriptionBlur = () => {
+  const advanceToNextTab = () => {
     if (!isPack) return;
-    if (!activeIdentity.name.trim()) return;
+    const current = packIdentities[activePackTab];
+    if (!current.name.trim() || !current.description.trim()) return;
     const idx = PACK_TABS.findIndex((t) => t.id === activePackTab);
     if (idx >= 0 && idx < PACK_TABS.length - 1) {
       setTabDirection(1);
       setActivePackTab(PACK_TABS[idx + 1].id);
     }
   };
+  const handleDescriptionBlur = () => advanceToNextTab();
 
   const goToTab = (id: string) => {
     const fromIdx = PACK_TABS.findIndex((t) => t.id === activePackTab);
@@ -671,6 +673,37 @@ export const BotBuilder = () => {
                 </div>
               </div>
             </div>
+
+            {isPack && (() => {
+              const idx = PACK_TABS.findIndex((t) => t.id === activePackTab);
+              const prev = idx > 0 ? PACK_TABS[idx - 1] : null;
+              const next = idx < PACK_TABS.length - 1 ? PACK_TABS[idx + 1] : null;
+              return (
+                <div className="mt-5 flex items-center justify-between gap-3 pt-4 border-t border-border/40">
+                  <Button
+                    type="button"
+                    variant="outlineGlow"
+                    size="sm"
+                    disabled={!prev}
+                    onClick={() => prev && goToTab(prev.id)}
+                  >
+                    ← {prev ? prev.label : "Previous"}
+                  </Button>
+                  <span className="text-[11px] text-muted-foreground">
+                    Bot {idx + 1} of {PACK_TABS.length}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="hero"
+                    size="sm"
+                    disabled={!next}
+                    onClick={() => next && goToTab(next.id)}
+                  >
+                    {next ? `Next: ${next.label}` : "All set"} →
+                  </Button>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Step 3 — Add-ons (depend on base) */}
