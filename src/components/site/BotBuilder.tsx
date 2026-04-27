@@ -546,6 +546,14 @@ export const BotBuilder = () => {
                     <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
                       {b.tagline}
                     </p>
+                    <ul className="mt-3 space-y-1">
+                      {b.included.map((feat) => (
+                        <li key={feat} className="flex items-start gap-1.5 text-[11px] text-foreground/75 leading-snug">
+                          <Check size={11} className={`mt-0.5 shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} />
+                          <span>{feat}</span>
+                        </li>
+                      ))}
+                    </ul>
                     <div className="mt-3 text-xs text-foreground/80">
                       one-time <span className="font-semibold">${b.price}</span>
                     </div>
