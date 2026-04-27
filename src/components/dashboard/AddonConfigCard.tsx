@@ -137,6 +137,35 @@ export function AddonConfigCard({ addonId, botName }: Props) {
       );
     }
 
+    if (f.type === "multiselect") {
+      const selected = Array.isArray(value) ? (value as string[]) : [];
+      return (
+        <div className="space-y-2">
+          <Label>{f.label}</Label>
+          <div className="grid gap-2 rounded-md border border-border p-3">
+            {f.options?.map((o) => {
+              const checked = selected.includes(o.value);
+              return (
+                <label
+                  key={o.value}
+                  className="flex items-center gap-2 cursor-pointer text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    checked={checked}
+                    onChange={() => toggleMulti(f.key, o.value)}
+                  />
+                  <span>{o.label}</span>
+                </label>
+              );
+            })}
+          </div>
+          {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
+        </div>
+      );
+    }
+
     if (f.type === "textarea") {
       return (
         <div className="space-y-2">
