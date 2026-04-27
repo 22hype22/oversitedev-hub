@@ -864,6 +864,7 @@ export default function Dashboard() {
                       ready: "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30",
                       delivered: "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30",
                       failed: "bg-destructive/15 text-destructive border border-destructive/30",
+                      cancelled: "bg-muted text-muted-foreground border border-border",
                     };
                     const total = Number(o.total_amount) || 0;
                     return (
