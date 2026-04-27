@@ -123,8 +123,8 @@ const BASES: Base[] = [
   },
   {
     id: "scratch",
-    name: "From Scratch",
-    tagline: "Fully bespoke — we design everything for you.",
+    name: "All-in-One Pack",
+    tagline: "Protection + Support + Utilities — every base in one bot.",
     icon: Sparkles,
     price: 199,
   },
