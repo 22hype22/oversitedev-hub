@@ -116,21 +116,31 @@ const BotSection = ({
             </div>
           </div>
         </div>
-        {cancellable ? (
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => onCancel(bot)}
+            onClick={() => onAddAddons(bot)}
           >
-            <XCircle className="h-4 w-4 mr-1.5" />
-            Cancel subscription
+            <Plus className="h-4 w-4 mr-1.5" />
+            Add more add-ons
           </Button>
-        ) : (
-          <span className="text-xs text-muted-foreground self-center">
-            Contact support to cancel subscription
-          </span>
-        )}
+          {cancellable ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => onCancel(bot)}
+            >
+              <XCircle className="h-4 w-4 mr-1.5" />
+              Cancel subscription
+            </Button>
+          ) : (
+            <span className="text-xs text-muted-foreground self-center">
+              Contact support to cancel subscription
+            </span>
+          )}
+        </div>
       </div>
 
       {/* What you bought — system + add-ons summary */}
