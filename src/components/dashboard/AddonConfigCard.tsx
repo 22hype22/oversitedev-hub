@@ -41,15 +41,21 @@ export function AddonConfigCard({ addonId, botName }: Props) {
   const [open, setOpen] = useState(false);
 
   // Generic, untyped form state — schema-driven.
-  const [values, setValues] = useState<Record<string, string | number | boolean>>({});
+  const [values, setValues] = useState<Record<string, string | number | boolean | string[]>>({});
 
   useEffect(() => {
     if (!config) return;
-    const initial: Record<string, string | number | boolean> = {};
+    const initial: Record<string, string | number | boolean | string[]> = {};
     for (const f of config.fields) {
       initial[f.key] =
         f.defaultValue ??
-        (f.type === "toggle" ? false : f.type === "number" ? 0 : "");
+        (f.type === "toggle"
+          ? false
+          : f.type === "number"
+            ? 0
+            : f.type === "multiselect"
+              ? []
+              : "");
     }
     setValues(initial);
   }, [config, addonId]);
