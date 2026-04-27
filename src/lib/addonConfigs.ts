@@ -201,7 +201,9 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         ],
       },
       channel("logChannel", "Log channel"),
-      toggle("ignoreMods", "Ignore staff & mods"),
+      role("exemptRole1", "Exempt role #1", "Members with this role bypass anti-spam."),
+      role("exemptRole2", "Exempt role #2 (optional)", "A second role to exempt from anti-spam."),
+      role("exemptRole3", "Exempt role #3 (optional)", "A third role to exempt from anti-spam."),
     ],
   },
 
