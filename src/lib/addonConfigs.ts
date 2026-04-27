@@ -42,7 +42,8 @@ export type AddonFieldType =
   | "textarea"
   | "number"
   | "toggle"
-  | "select";
+  | "select"
+  | "multiselect";
 
 export type AddonField = {
   key: string;
@@ -50,7 +51,7 @@ export type AddonField = {
   type: AddonFieldType;
   placeholder?: string;
   help?: string;
-  defaultValue?: string | number | boolean;
+  defaultValue?: string | number | boolean | string[];
   options?: { value: string; label: string }[];
 };
 
