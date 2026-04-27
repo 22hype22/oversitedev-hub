@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
 import {
   LogOut,
   Settings,
@@ -45,6 +46,7 @@ import {
   Layers,
   Server,
   XCircle,
+  Plus,
 } from "lucide-react";
 
 const canCancelStatus = (status: string) =>
@@ -75,9 +77,11 @@ const plugins: Plugin[] = [
 const BotSection = ({
   bot,
   onCancel,
+  onAddAddons,
 }: {
   bot: OwnedBot;
   onCancel: (bot: OwnedBot) => void;
+  onAddAddons: (bot: OwnedBot) => void;
 }) => {
   const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
   const baseTagline = BOT_BASE_TAGLINES[bot.base];
@@ -114,21 +118,31 @@ const BotSection = ({
             </div>
           </div>
         </div>
-        {cancellable ? (
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => onCancel(bot)}
+            onClick={() => onAddAddons(bot)}
           >
-            <XCircle className="h-4 w-4 mr-1.5" />
-            Cancel subscription
+            <Plus className="h-4 w-4 mr-1.5" />
+            Add more add-ons
           </Button>
-        ) : (
-          <span className="text-xs text-muted-foreground self-center">
-            Contact support to cancel subscription
-          </span>
-        )}
+          {cancellable ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => onCancel(bot)}
+            >
+              <XCircle className="h-4 w-4 mr-1.5" />
+              Cancel subscription
+            </Button>
+          ) : (
+            <span className="text-xs text-muted-foreground self-center">
+              Contact support to cancel subscription
+            </span>
+          )}
+        </div>
       </div>
 
       {/* What you bought — system + add-ons summary */}
@@ -211,6 +225,7 @@ const BotDashboard = () => {
   const navigate = useNavigate();
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
 
   const cancelOrder = async (bot: OwnedBot) => {
     if (!user) return;
@@ -333,7 +348,12 @@ const BotDashboard = () => {
         ) : (
           <div className="space-y-16">
             {dashboardBots.map((bot) => (
-              <BotSection key={bot.id} bot={bot} onCancel={setCancelTarget} />
+              <BotSection
+                key={bot.id}
+                bot={bot}
+                onCancel={setCancelTarget}
+                onAddAddons={setAddonsTarget}
+              />
             ))}
           </div>
         )}
@@ -371,6 +391,12 @@ const BotDashboard = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AddAddonsDialog
+        bot={addonsTarget}
+        open={!!addonsTarget}
+        onOpenChange={(o) => !o && setAddonsTarget(null)}
+      />
     </div>
   );
 };
