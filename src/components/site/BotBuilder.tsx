@@ -435,12 +435,8 @@ export const BotBuilder = () => {
       (sum, id) => sum + (BASES.find((b) => b.id === id)?.price ?? 0),
       0,
     );
-    const addonCost = addons.reduce((sum, id) => {
-      // Dashboard add-on is a one-time, account-wide unlock.
-      if (id === "dashboard" && dashboardAlreadyOwned) return sum;
-      return sum + (currentAddons.find((a) => a.id === id)?.price ?? 0);
-    }, 0);
-    return baseCost + addonCost;
+    // Add-ons are now included free — they no longer add to the total.
+    return baseCost;
   }, [bases, addons, currentAddons, dashboardAlreadyOwned]);
 
   // For the All-in-One Pack OR multi-select, we use the first selected category's
