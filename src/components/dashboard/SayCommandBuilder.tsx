@@ -605,6 +605,9 @@ function DiscordMessagePreview({
             <EmbedPreview key={e.id} embed={e} />
           ))}
         </div>
+        {trailingContent && (
+          <p className="whitespace-pre-wrap break-words mt-2">{trailingContent}</p>
+        )}
         {files && files.length > 0 && (
           <div className="mt-2 space-y-1">
             {files.map((f) => (
