@@ -88,7 +88,20 @@ export function SayCommandBuilder({
       footerText: botName,
     },
   ]);
-  const [trailingContent, setTrailingContent] = useState("");
+  // Profile overrides (per-message bot identity)
+  const [profileName, setProfileName] = useState("");
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState("");
+  // Thread targeting
+  const [threadId, setThreadId] = useState("");
+  const [threadName, setThreadName] = useState("");
+  // Flags
+  const [flagSilent, setFlagSilent] = useState(false);
+  const [flagSuppressEmbeds, setFlagSuppressEmbeds] = useState(false);
+  const [flagSuppressNotifications, setFlagSuppressNotifications] = useState(false);
+  // Files (mock: just track names)
+  const [files, setFiles] = useState<string[]>([]);
+
+  const contentLimit = 2000;
 
   const updateEmbed = (id: string, patch: Partial<Embed>) =>
     setEmbeds((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
