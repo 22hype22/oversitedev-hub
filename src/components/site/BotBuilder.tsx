@@ -1024,6 +1024,7 @@ export const BotBuilder = () => {
 
               const renderList = (key: string, list: Addon[]) => {
                 const expanded = !!showAllAddons[key];
+                console.log("[addons]", key, "expanded=", expanded, "state=", showAllAddons);
                 const visible = expanded ? list : list.slice(0, 10);
                 return (
                   <>
