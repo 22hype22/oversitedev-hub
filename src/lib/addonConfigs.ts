@@ -391,40 +391,6 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
-  "account-age-gating": {
-    title: "New Account Age Gating",
-    summary: "Block accounts that are too new from joining.",
-    icon: UserPlus,
-    fields: [
-      {
-        key: "minAgeDays",
-        label: "Minimum account age (days)",
-        type: "number",
-        defaultValue: 7,
-      },
-      {
-        key: "action",
-        label: "On too-new account",
-        type: "select",
-        defaultValue: "kick",
-        options: [
-          { value: "kick", label: "Kick with DM" },
-          { value: "ban", label: "Ban" },
-          { value: "quarantine", label: "Quarantine role" },
-        ],
-      },
-      role("quarantineRole", "Quarantine role", "Used if action is Quarantine."),
-      channel("logChannel", "Log channel"),
-      {
-        key: "dmMessage",
-        label: "DM to blocked user",
-        type: "textarea",
-        defaultValue:
-          "Your account is too new to join {server}. Please come back in {days} days.",
-      },
-    ],
-  },
-
   "auto-escalating-warnings": {
     title: "Auto-Escalating Warnings",
     summary: "Automatically punish users after X warnings.",
