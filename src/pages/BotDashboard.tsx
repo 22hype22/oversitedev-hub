@@ -341,8 +341,6 @@ const BotSection = ({
   );
 };
 
-        <FixesBar />
-
 
 const BotDashboard = () => {
   const { user, isAdmin, loading } = useAuth();
