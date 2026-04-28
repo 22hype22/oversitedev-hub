@@ -228,6 +228,22 @@ const getAddonsForBase = (baseId: string): Addon[] => {
   return [...(ADDONS_BY_BASE[baseId] ?? []), ...SHARED_ADDONS];
 };
 
+// Build the combined add-on pool for any set of selected bases.
+const getAddonsForBases = (baseIds: string[]): Addon[] => {
+  if (baseIds.includes("scratch")) return getAddonsForBase("scratch");
+  const seen = new Set<string>();
+  const result: Addon[] = [];
+  for (const id of baseIds) {
+    for (const a of ADDONS_BY_BASE[id] ?? []) {
+      if (!seen.has(a.id)) { seen.add(a.id); result.push(a); }
+    }
+  }
+  for (const a of SHARED_ADDONS) {
+    if (!seen.has(a.id)) { seen.add(a.id); result.push(a); }
+  }
+  return result;
+};
+
 const SCRATCH_CATEGORIES: { id: string; label: string; icon: typeof Shield; addons: Addon[] }[] = [
   { id: "protection", label: "Protection options", icon: Shield, addons: ADDONS_BY_BASE.protection },
   { id: "support", label: "Support options", icon: LifeBuoy, addons: ADDONS_BY_BASE.support },
