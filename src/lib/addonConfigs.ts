@@ -563,6 +563,493 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  // ─── Support add-ons ─────────────────────────────────────────
+  "staff-performance": {
+    title: "Staff Performance Tracking",
+    summary: "Track tickets handled, response times, and activity per staff member.",
+    icon: BarChart3,
+    fields: [
+      role("staffRole", "Staff role to track"),
+      channel("reportChannel", "Weekly report channel"),
+      {
+        key: "reportFrequency",
+        label: "Report frequency",
+        type: "select",
+        defaultValue: "weekly",
+        options: [
+          { value: "daily", label: "Daily" },
+          { value: "weekly", label: "Weekly" },
+          { value: "monthly", label: "Monthly" },
+        ],
+      },
+      toggle("trackResponseTime", "Track first-response time"),
+      toggle("trackResolutionTime", "Track ticket resolution time"),
+    ],
+  },
+
+  "ticket-logs": {
+    title: "Ticket Logs",
+    summary: "Save full transcripts of every closed ticket.",
+    icon: FileText,
+    fields: [
+      channel("logChannel", "Transcript log channel"),
+      {
+        key: "format",
+        label: "Transcript format",
+        type: "select",
+        defaultValue: "html",
+        options: [
+          { value: "html", label: "HTML file" },
+          { value: "txt", label: "Plain text" },
+          { value: "embed", label: "Discord embed" },
+        ],
+      },
+      toggle("dmUser", "DM the transcript to the user", false),
+      toggle("includeAttachments", "Include attachments"),
+    ],
+  },
+
+  "per-category-roles": {
+    title: "Per-Category Role Access",
+    summary: "Restrict each ticket category to specific staff roles.",
+    icon: Users,
+    fields: [
+      {
+        key: "mappings",
+        label: "Category → role mappings (one per line)",
+        type: "textarea",
+        placeholder: "billing: @Billing Staff\nreports: @Mods\nappeals: @Admins",
+        help: "Format: category-name: @role",
+      },
+      toggle("hideFromOthers", "Hide tickets from staff outside the category"),
+    ],
+  },
+
+  "ticket-notes": {
+    title: "Ticket Notes",
+    summary: "Internal staff-only notes attached to tickets.",
+    icon: StickyNote,
+    fields: [
+      role("staffRole", "Role allowed to add notes"),
+      toggle("notifyOnNote", "Ping staff when a new note is added", false),
+      toggle("includeInTranscript", "Include notes in ticket transcripts", false),
+    ],
+  },
+
+  "ticket-add-remove": {
+    title: "Add / Remove Members",
+    summary: "Pull other members or roles into a ticket.",
+    icon: UserPlus,
+    fields: [
+      role("staffRole", "Role allowed to add/remove members"),
+      toggle("logChanges", "Log every add/remove inside the ticket"),
+      toggle("allowUserAdd", "Let ticket opener add their own friends", false),
+    ],
+  },
+
+  "close-all-tickets": {
+    title: "Close All Tickets",
+    summary: "Mass-close every open ticket with one command.",
+    icon: XCircle,
+    fields: [
+      role("allowedRole", "Role allowed to use /closeall"),
+      toggle("requireConfirmation", "Require a confirmation prompt"),
+      toggle("saveTranscripts", "Save transcripts before closing"),
+      {
+        key: "closeMessage",
+        label: "Closing message",
+        type: "textarea",
+        defaultValue: "This ticket is being closed as part of a mass close. Reopen if needed.",
+      },
+    ],
+  },
+
+  "ticket-message-customization": {
+    title: "Ticket Message Customization",
+    summary: "Customize the panel, opening, and closing messages.",
+    icon: MessageSquare,
+    fields: [
+      {
+        key: "panelTitle",
+        label: "Panel title",
+        type: "text",
+        defaultValue: "Need help? Open a ticket",
+      },
+      {
+        key: "panelDescription",
+        label: "Panel description",
+        type: "textarea",
+        defaultValue: "Click the button below to open a ticket with our staff.",
+      },
+      {
+        key: "openMessage",
+        label: "Ticket opening message",
+        type: "textarea",
+        defaultValue: "Hey {user}, a staff member will be with you shortly.",
+      },
+      {
+        key: "closeMessage",
+        label: "Ticket closing message",
+        type: "textarea",
+        defaultValue: "This ticket has been closed. Thanks for reaching out!",
+      },
+      { key: "embedColor", label: "Embed accent color (hex)", type: "text", placeholder: "#5865F2" },
+    ],
+  },
+
+  "priority-flagging": {
+    title: "Priority Ticket Flagging",
+    summary: "Mark tickets as low / normal / high / urgent.",
+    icon: Flag,
+    fields: [
+      role("staffRole", "Role allowed to set priority"),
+      role("urgentPingRole", "Role to ping on urgent tickets"),
+      channel("urgentChannel", "Urgent ticket alert channel"),
+      toggle("colorCodeChannel", "Color-code ticket channel names by priority"),
+    ],
+  },
+
+  "auto-close-inactive": {
+    title: "Auto-Close Inactive Tickets",
+    summary: "Automatically close tickets with no activity.",
+    icon: Timer,
+    fields: [
+      {
+        key: "inactivityHours",
+        label: "Close after X hours of inactivity",
+        type: "number",
+        defaultValue: 48,
+      },
+      {
+        key: "warnHoursBefore",
+        label: "Warn user X hours before closing",
+        type: "number",
+        defaultValue: 12,
+      },
+      {
+        key: "warnMessage",
+        label: "Inactivity warning message",
+        type: "textarea",
+        defaultValue: "This ticket will close soon due to inactivity. Reply to keep it open.",
+      },
+      toggle("saveTranscript", "Save a transcript on auto-close"),
+    ],
+  },
+
+  "anonymous-reporting": {
+    title: "Anonymous Reporting",
+    summary: "Let members report users without revealing their identity.",
+    icon: EyeOff,
+    fields: [
+      channel("reportChannel", "Anonymous report channel"),
+      role("staffRole", "Role that can view reports"),
+      toggle("requireEvidence", "Require evidence (screenshot/link)", false),
+      {
+        key: "cooldownMinutes",
+        label: "Cooldown between reports per user (minutes)",
+        type: "number",
+        defaultValue: 10,
+      },
+    ],
+  },
+
+  // ─── Utilities add-ons ───────────────────────────────────────
+  "music-addon": {
+    title: "Music Add-On",
+    summary: "Play music in voice channels from YouTube, Spotify, and more.",
+    icon: Music,
+    fields: [
+      role("djRole", "DJ role (can skip / control playback)"),
+      toggle("everyoneCanQueue", "Let everyone add songs to the queue"),
+      {
+        key: "maxQueueLength",
+        label: "Max queue length",
+        type: "number",
+        defaultValue: 100,
+      },
+      {
+        key: "defaultVolume",
+        label: "Default volume (1-100)",
+        type: "number",
+        defaultValue: 50,
+      },
+      toggle("autoLeaveEmpty", "Auto-leave when voice channel is empty"),
+    ],
+  },
+
+  "auto-radio": {
+    title: "Auto Radio by Genre",
+    summary: "24/7 music streaming by genre in a voice channel.",
+    icon: Radio,
+    fields: [
+      channel("voiceChannel", "Voice channel for radio"),
+      {
+        key: "genre",
+        label: "Default genre",
+        type: "select",
+        defaultValue: "lofi",
+        options: [
+          { value: "lofi", label: "Lo-fi" },
+          { value: "pop", label: "Pop" },
+          { value: "rock", label: "Rock" },
+          { value: "edm", label: "EDM" },
+          { value: "hiphop", label: "Hip-hop" },
+          { value: "classical", label: "Classical" },
+          { value: "jazz", label: "Jazz" },
+        ],
+      },
+      toggle("autoStart", "Start automatically when bot comes online"),
+      toggle("allowGenreVote", "Let members vote to change the genre"),
+    ],
+  },
+
+  "roblox-verification": {
+    title: "Roblox Verification",
+    summary: "Link Discord accounts to Roblox profiles.",
+    icon: Gamepad2,
+    fields: [
+      channel("verifyChannel", "Verification channel"),
+      role("verifiedRole", "Role given to verified users"),
+      {
+        key: "groupId",
+        label: "Roblox group ID (optional)",
+        type: "text",
+        placeholder: "123456",
+        help: "If set, only members of this group can verify.",
+      },
+      toggle("syncNickname", "Sync Discord nickname to Roblox username"),
+      toggle("syncGroupRoles", "Sync Discord roles to Roblox group ranks", false),
+    ],
+  },
+
+  starboard: {
+    title: "Starboard",
+    summary: "Highlight popular messages in a starboard channel.",
+    icon: Star,
+    fields: [
+      channel("starboardChannel", "Starboard channel"),
+      {
+        key: "starsRequired",
+        label: "Stars required to post",
+        type: "number",
+        defaultValue: 5,
+      },
+      {
+        key: "emoji",
+        label: "Reaction emoji",
+        type: "text",
+        defaultValue: "⭐",
+      },
+      toggle("allowSelfStar", "Allow users to star their own messages", false),
+      toggle("ignoreNsfw", "Ignore messages from NSFW channels"),
+    ],
+  },
+
+  "recurring-messages": {
+    title: "Recurring Messages",
+    summary: "Auto-post messages on a schedule.",
+    icon: Repeat,
+    fields: [
+      {
+        key: "messages",
+        label: "Scheduled messages (one per line)",
+        type: "textarea",
+        placeholder: "#general | 6h | Don't forget to read the rules!\n#announcements | 1d | Daily check-in",
+        help: "Format: #channel | interval | message",
+      },
+      toggle("deletePrevious", "Delete the previous post before sending the next"),
+    ],
+  },
+
+  "giveaway-system": {
+    title: "Giveaway System",
+    summary: "Run timed giveaways with auto-picked winners.",
+    icon: Gift,
+    fields: [
+      role("hostRole", "Role allowed to host giveaways"),
+      channel("defaultChannel", "Default giveaway channel"),
+      {
+        key: "emoji",
+        label: "Entry reaction emoji",
+        type: "text",
+        defaultValue: "🎉",
+      },
+      toggle("requireMembership", "Require a specific role to enter", false),
+      toggle("dmWinners", "DM winners when picked"),
+    ],
+  },
+
+  "birthday-announcements": {
+    title: "Birthday Announcements",
+    summary: "Wish members happy birthday in a channel.",
+    icon: Cake,
+    fields: [
+      channel("channel", "Birthday channel"),
+      role("birthdayRole", "Role to give on someone's birthday"),
+      {
+        key: "message",
+        label: "Birthday message",
+        type: "textarea",
+        defaultValue: "🎂 Happy birthday {user}! Have an amazing day!",
+      },
+      {
+        key: "announceTime",
+        label: "Announce at (24h, server time)",
+        type: "select",
+        defaultValue: "09:00",
+        options: [
+          { value: "00:00", label: "Midnight" },
+          { value: "09:00", label: "9:00 AM" },
+          { value: "12:00", label: "Noon" },
+          { value: "18:00", label: "6:00 PM" },
+        ],
+      },
+    ],
+  },
+
+  "server-stats-channels": {
+    title: "Server Stats Channels",
+    summary: "Voice channels showing live member counts.",
+    icon: BarChart,
+    fields: [
+      toggle("showTotalMembers", "Show total members"),
+      toggle("showOnlineMembers", "Show online members"),
+      toggle("showBots", "Show bot count", false),
+      toggle("showBoosts", "Show boost count"),
+      {
+        key: "format",
+        label: "Channel name format",
+        type: "text",
+        defaultValue: "📊 Members: {count}",
+        help: "Use {count} as the placeholder.",
+      },
+      {
+        key: "updateMinutes",
+        label: "Update interval (minutes)",
+        type: "number",
+        defaultValue: 10,
+      },
+    ],
+  },
+
+  "live-notifications": {
+    title: "Twitch / YouTube Notifications",
+    summary: "Ping a channel when streamers go live or post videos.",
+    icon: Bell,
+    fields: [
+      channel("channel", "Notification channel"),
+      role("pingRole", "Role to ping"),
+      {
+        key: "twitchChannels",
+        label: "Twitch channels (one per line)",
+        type: "textarea",
+        placeholder: "username1\nusername2",
+      },
+      {
+        key: "youtubeChannels",
+        label: "YouTube channels (one per line)",
+        type: "textarea",
+        placeholder: "UCxxxxxxxxxxxxxxxxxxxxxx\nUCyyyyyyyyyyyyyyyyyyyyyy",
+      },
+      {
+        key: "message",
+        label: "Notification message",
+        type: "textarea",
+        defaultValue: "🔴 {streamer} just went live! {url}",
+      },
+    ],
+  },
+
+  "leveling-system": {
+    title: "Leveling System",
+    summary: "XP and levels for chat activity, with role rewards.",
+    icon: TrendingUp,
+    fields: [
+      channel("levelUpChannel", "Level-up announcement channel", "Leave blank to ping in current channel."),
+      {
+        key: "xpPerMessage",
+        label: "XP per message",
+        type: "number",
+        defaultValue: 15,
+      },
+      {
+        key: "cooldownSeconds",
+        label: "XP cooldown (seconds)",
+        type: "number",
+        defaultValue: 60,
+      },
+      {
+        key: "roleRewards",
+        label: "Level role rewards (one per line)",
+        type: "textarea",
+        placeholder: "5: @Active\n10: @Regular\n25: @Veteran",
+        help: "Format: level: @role",
+      },
+      toggle("stackRoles", "Stack roles (keep old ones on level up)", false),
+      toggle("ignoreBots", "Ignore bot messages"),
+    ],
+  },
+
+  "economy-system": {
+    title: "Economy System",
+    summary: "Virtual currency, daily rewards, and a shop.",
+    icon: Coins,
+    fields: [
+      {
+        key: "currencyName",
+        label: "Currency name",
+        type: "text",
+        defaultValue: "coins",
+      },
+      {
+        key: "currencyEmoji",
+        label: "Currency emoji",
+        type: "text",
+        defaultValue: "🪙",
+      },
+      {
+        key: "dailyAmount",
+        label: "Daily reward amount",
+        type: "number",
+        defaultValue: 100,
+      },
+      {
+        key: "workCooldownMinutes",
+        label: "/work cooldown (minutes)",
+        type: "number",
+        defaultValue: 30,
+      },
+      toggle("enableShop", "Enable role shop"),
+      toggle("enableGambling", "Enable gambling commands", false),
+    ],
+  },
+
+  remindme: {
+    title: "/remindme",
+    summary: "Personal reminders sent via DM or in-channel.",
+    icon: AlarmClock,
+    fields: [
+      {
+        key: "maxPerUser",
+        label: "Max active reminders per user",
+        type: "number",
+        defaultValue: 25,
+      },
+      {
+        key: "deliveryMethod",
+        label: "Delivery method",
+        type: "select",
+        defaultValue: "dm",
+        options: [
+          { value: "dm", label: "Direct message" },
+          { value: "channel", label: "Original channel" },
+          { value: "both", label: "Both" },
+        ],
+      },
+      toggle("allowRecurring", "Allow recurring reminders"),
+    ],
+  },
+
   // ─── Shared extras ───────────────────────────────────────────
   "branding-multi-server": {
     title: "Multi-Server License & Custom Branding",
