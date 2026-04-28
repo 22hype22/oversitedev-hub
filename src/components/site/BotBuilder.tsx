@@ -930,7 +930,7 @@ export const BotBuilder = () => {
                 );
               };
 
-              if (base === "scratch") {
+              if (isPack) {
                 return (
                   <div className="space-y-8">
                     {SCRATCH_CATEGORIES.map((cat) => {
@@ -956,12 +956,27 @@ export const BotBuilder = () => {
                 );
               }
 
-              const baseAddons = ADDONS_BY_BASE[base] ?? [];
+              // One section per selected base, then Extras at the bottom.
               return (
                 <div className="space-y-8">
-                  <div>
-                    {renderList("default", baseAddons)}
-                  </div>
+                  {bases.map((bid) => {
+                    const cat = SCRATCH_CATEGORIES.find((c) => c.id === bid);
+                    const list = ADDONS_BY_BASE[bid] ?? [];
+                    const CatIcon = cat?.icon ?? Sparkles;
+                    return (
+                      <div key={bid}>
+                        {isMulti && (
+                          <div className="flex items-center gap-2 mb-3">
+                            <CatIcon size={16} className="text-primary" />
+                            <h4 className="text-sm font-semibold tracking-tight">
+                              {cat?.label ?? bid} stack-ons
+                            </h4>
+                          </div>
+                        )}
+                        {renderList(bid, list)}
+                      </div>
+                    );
+                  })}
                   <div>
                     <div className="flex items-center gap-2 mb-3">
                       <Sparkles size={16} className="text-primary" />
