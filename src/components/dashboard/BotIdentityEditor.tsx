@@ -189,58 +189,65 @@ export const BotIdentityEditor = ({ bot, onUpdated, badges, actions }: Props) =>
           />
         </div>
 
-        <div className="flex-1 min-w-0 pt-10">
-          {editingName ? (
-            <div className="flex items-center gap-2">
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={50}
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") saveName();
-                  if (e.key === "Escape") {
+        <div className="flex-1 min-w-0 pt-10 flex items-end justify-between gap-3 flex-wrap">
+          <div className="min-w-0 flex-1">
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={50}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveName();
+                    if (e.key === "Escape") {
+                      setName(bot.bot_name);
+                      setEditingName(false);
+                    }
+                  }}
+                  className="max-w-sm"
+                />
+                <Button size="sm" onClick={saveName} disabled={savingName}>
+                  {savingName ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
                     setName(bot.bot_name);
                     setEditingName(false);
-                  }
-                }}
-                className="max-w-sm"
-              />
-              <Button size="sm" onClick={saveName} disabled={savingName}>
-                {savingName ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setName(bot.bot_name);
-                  setEditingName(false);
-                }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 min-w-0">
-              <h3 className="text-xl font-bold truncate">{bot.bot_name}</h3>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7 shrink-0"
-                onClick={() => setEditingName(true)}
-                disabled={isDemo}
-                aria-label="Rename bot"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 min-w-0">
+                <h2 className="text-2xl font-bold tracking-tight truncate">{bot.bot_name}</h2>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 shrink-0"
+                  onClick={() => setEditingName(true)}
+                  disabled={isDemo}
+                  aria-label="Rename bot"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+            {badges && (
+              <div className="flex flex-wrap items-center gap-2 mt-2">{badges}</div>
+            )}
+          </div>
+          {actions && (
+            <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>
           )}
-          <p className="text-xs text-muted-foreground mt-1">
-            {isDemo
-              ? "Practice bot — customization is disabled."
-              : "PNG / JPG, up to 5 MB. Square icons look best."}
-          </p>
         </div>
+      </div>
+    </Card>
+  );
+};
       </div>
     </Card>
   );
