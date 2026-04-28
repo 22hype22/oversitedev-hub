@@ -542,6 +542,32 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       toggle("dmOnUnban", "DM the user when they're unbanned", false),
     ],
   },
+
+  // ─── Shared extras ───────────────────────────────────────────
+  "branding-multi-server": {
+    title: "Multi-Server License & Custom Branding",
+    summary: "Run your bot across multiple servers and match your brand.",
+    icon: Sparkles,
+    fields: [
+      toggle("multiServerEnabled", "Enable multi-server license", true,
+        "Allow this bot to be added to more than one Discord server."),
+      {
+        key: "allowedServerIds",
+        label: "Allowed server IDs (one per line)",
+        type: "textarea",
+        placeholder: "123456789012345678\n987654321098765432",
+        help: "Leave blank to allow every server you invite the bot to.",
+      },
+      { key: "brandName", label: "Brand / bot display name", type: "text",
+        placeholder: "Your community name" },
+      { key: "brandColor", label: "Accent color (hex)", type: "text",
+        placeholder: "#5865F2" },
+      { key: "brandFooter", label: "Footer text on embeds", type: "text",
+        placeholder: "Powered by Your Community" },
+      { key: "brandIconUrl", label: "Embed icon URL", type: "text",
+        placeholder: "https://..." },
+    ],
+  },
 };
 
 export function getAddonConfig(id: string): AddonConfig | null {
