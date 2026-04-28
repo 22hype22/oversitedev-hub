@@ -357,6 +357,15 @@ export function SayCommandBuilder({
         >
           <Plus className="h-3.5 w-3.5 mr-1" /> Add embed
         </Button>
+
+        <Section title="Message below embed">
+          <Textarea
+            value={trailingContent}
+            onChange={(e) => setTrailingContent(e.target.value)}
+            rows={3}
+            placeholder="Optional plain message shown below the embed."
+          />
+        </Section>
       </div>
 
       {/* Preview */}
@@ -367,6 +376,7 @@ export function SayCommandBuilder({
             botName={botName}
             botAvatarUrl={botAvatarUrl ?? undefined}
             content={content}
+            trailingContent={trailingContent}
             embeds={embeds}
           />
         </div>
