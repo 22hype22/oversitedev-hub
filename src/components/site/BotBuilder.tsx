@@ -283,7 +283,6 @@ export const BotBuilder = () => {
   const [activePackTab, setActivePackTab] = useState<string>("protection");
   const [tabDirection, setTabDirection] = useState<1 | -1>(1);
   const [addons, setAddons] = useState<string[]>([]);
-  const [monthlyHosting, setMonthlyHosting] = useState(true);
   const [notes, setNotes] = useState("");
   const [showAllAddons, setShowAllAddons] = useState<Record<string, boolean>>({});
   const [showPayment, setShowPayment] = useState(false);
