@@ -15,9 +15,7 @@ const bots = [
     image: protectionLogo,
     icon: Shield,
     features: ["Automod & filters", "Anti-raid defense", "Full audit logging", "Moderation toolkit"],
-    accent: "from-[hsl(70_30%_70%)]/20 to-transparent",
-    border: "border-[hsl(70_30%_70%)]/30 hover:border-[hsl(70_30%_70%)]/60",
-    iconColor: "text-[hsl(70_30%_70%)]",
+    accentHsl: "70 30% 70%",
   },
   {
     name: "Oversite Support",
@@ -25,9 +23,7 @@ const bots = [
     image: supportLogo,
     icon: LifeBuoy,
     features: ["Ticket system", "Ban appeals", "User reports", "Member welcomes"],
-    accent: "from-[hsl(280_30%_70%)]/20 to-transparent",
-    border: "border-[hsl(280_30%_70%)]/30 hover:border-[hsl(280_30%_70%)]/60",
-    iconColor: "text-[hsl(280_30%_70%)]",
+    accentHsl: "280 30% 70%",
   },
   {
     name: "Oversite Utilities",
@@ -35,9 +31,7 @@ const bots = [
     image: utilitiesLogo,
     icon: Wrench,
     features: ["Announcements", "Role management", "Roblox integration", "Music & more"],
-    accent: "from-primary/20 to-transparent",
-    border: "border-primary/30 hover:border-primary/60",
-    iconColor: "text-primary",
+    accentHsl: "var(--primary)",
   },
 ];
 
