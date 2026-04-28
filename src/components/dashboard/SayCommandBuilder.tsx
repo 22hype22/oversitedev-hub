@@ -265,13 +265,14 @@ export function SayCommandBuilder({
                     >
                       <div className="flex items-center gap-2">
                         <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-                        <Input
+                        <Textarea
                           placeholder="Field name"
+                          rows={1}
                           value={f.name}
                           onChange={(e) =>
                             updateField(embed.id, f.id, { name: e.target.value })
                           }
-                          className="h-8"
+                          className="min-h-8 py-1.5"
                         />
                         <Button
                           type="button"
