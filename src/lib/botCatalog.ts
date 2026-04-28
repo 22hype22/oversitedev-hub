@@ -42,7 +42,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   "temp-bans": "Temporary Bans (Auto-Unban)",
 
   // Support — included base features
-  "say-command": "/say Command",
+  messages: "Messages",
 
   // Support
   "staff-performance": "Staff Performance Tracking",
@@ -189,7 +189,7 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
     "basic-logging",
     "phishing-detection",
   ],
-  support: ["say-command"],
+  support: ["messages"],
   utilities: [],
 };
 

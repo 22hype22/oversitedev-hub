@@ -565,9 +565,9 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
   },
 
   // ─── Support add-ons ─────────────────────────────────────────
-  "say-command": {
-    title: "/say Command",
-    summary: "Send custom messages and rich embeds — Discohook-style builder.",
+  messages: {
+    title: "Messages",
+    summary: "Send custom messages and rich embeds with a Discohook-style builder.",
     icon: Megaphone,
     fields: [],
   },
