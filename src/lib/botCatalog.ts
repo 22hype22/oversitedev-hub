@@ -189,7 +189,7 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
     "basic-logging",
     "phishing-detection",
   ],
-  support: [],
+  support: ["say-command"],
   utilities: [],
 };
 
