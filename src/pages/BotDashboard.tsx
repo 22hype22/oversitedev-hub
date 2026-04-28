@@ -161,96 +161,61 @@ const BotSection = ({
   const showPreorderBanner = !bot.isDemo && bot.status === "submitted";
   const showReadyBanner = !bot.isDemo && bot.status === "ready" && bot.delivery_url;
 
+  const headerBadges = (
+    <>
+      <Badge variant="outline" className={`text-xs ${statusMeta.className}`}>
+        {statusMeta.label}
+      </Badge>
+      {showQueue && (
+        <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/30">
+          Queue position #{queuePosition}
+        </Badge>
+      )}
+      <Badge variant="secondary" className="text-xs">
+        {baseLabel}
+      </Badge>
+      {bot.monthly_hosting && (
+        <Badge variant="outline" className="text-xs gap-1">
+          <Server className="h-3 w-3" />
+          Hosting
+        </Badge>
+      )}
+      {bot.isDemo && (
+        <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+          Practice bot
+        </Badge>
+      )}
+    </>
+  );
+
+  const headerActions = !bot.isDemo ? (
+    <>
+      <Button variant="outline" size="sm" onClick={() => onAddAddons(bot)}>
+        <Plus className="h-4 w-4 mr-1.5" />
+        Add add-ons
+      </Button>
+      {cancellable && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+          onClick={() => onCancel(bot)}
+        >
+          <XCircle className="h-4 w-4 mr-1.5" />
+          Cancel
+        </Button>
+      )}
+    </>
+  ) : null;
+
   return (
     <section className="space-y-5">
-      <BotIdentityEditor bot={bot} onUpdated={onReload} />
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 grid place-items-center overflow-hidden shrink-0">
-            {bot.icon_url ? (
-              <img src={bot.icon_url} alt={bot.bot_name} className="h-full w-full object-cover" />
-            ) : (
-              <Bot className="h-6 w-6 text-primary" />
-            )}
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-2xl font-bold tracking-tight truncate">
-              Managing <span className="text-gradient">{bot.bot_name}</span>
-            </h2>
-            <div className="flex flex-wrap items-center gap-2 mt-1">
-              <Badge variant="outline" className={`text-xs ${statusMeta.className}`}>
-                {statusMeta.label}
-              </Badge>
-              {showQueue && (
-                <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/30">
-                  Queue position #{queuePosition}
-                </Badge>
-              )}
-              <Badge variant="secondary" className="text-xs">
-                {baseLabel}
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                {bot.addons.length} add-on{bot.addons.length === 1 ? "" : "s"}
-              </span>
-              {bot.monthly_hosting && (
-                <Badge variant="outline" className="text-xs gap-1">
-                  <Server className="h-3 w-3" />
-                  Hosting
-                </Badge>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {bot.isDemo ? (
-            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
-              Practice bot — explore freely
-            </Badge>
-          ) : (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onAddAddons(bot)}
-              >
-                <Plus className="h-4 w-4 mr-1.5" />
-                Add more add-ons
-              </Button>
-              {cancellable ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-                  onClick={() => onCancel(bot)}
-                >
-                  <XCircle className="h-4 w-4 mr-1.5" />
-                  Cancel subscription
-                </Button>
-              ) : (
-                <span className="text-xs text-muted-foreground self-center">
-                  Contact support to cancel subscription
-                </span>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {bot.isDemo && (
-        <Card className="p-4 bg-primary/5 border-primary/30">
-          <div className="flex items-start gap-3">
-            <Sparkles className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-            <div className="text-sm">
-              <div className="font-semibold text-foreground">This is your practice bot</div>
-              <p className="text-muted-foreground mt-1">
-                Every add-on is enabled here so you can preview each
-                configuration box. Settings you change won't affect a real
-                Discord server.
-              </p>
-            </div>
-          </div>
-        </Card>
-      )}
+      <BotIdentityEditor
+        bot={bot}
+        onUpdated={onReload}
+        badges={headerBadges}
+        actions={headerActions}
+      />
 
       {showPreorderBanner && (
         <Card className="p-4 bg-amber-500/5 border-amber-500/30">
@@ -275,9 +240,6 @@ const BotSection = ({
             <Sparkles className="h-5 w-5 text-emerald-400 mt-0.5 shrink-0" />
             <div className="text-sm flex-1">
               <div className="font-semibold text-emerald-300">Your bot is ready</div>
-              <p className="text-muted-foreground mt-1">
-                Use the link below to invite or download your bot.
-              </p>
               <Button asChild variant="outline" size="sm" className="mt-3">
                 <a href={bot.delivery_url ?? "#"} target="_blank" rel="noopener noreferrer">
                   <ArrowRight className="h-4 w-4 mr-1.5" />
@@ -289,44 +251,38 @@ const BotSection = ({
         </Card>
       )}
 
-      {/* What you bought — system + add-ons summary */}
-      <Card className="bg-card/60 border-border p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Package className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
-            Your build
-          </h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div>
-            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground mb-2">
-              <Layers className="h-3.5 w-3.5" />
-              System
-            </div>
-            <div className="font-semibold">{baseLabel}</div>
-            {baseTagline && (
-              <p className="text-sm text-muted-foreground mt-1">{baseTagline}</p>
-            )}
+      {/* Compact build summary — collapsible details */}
+      <details className="group rounded-lg border border-border bg-card/40">
+        <summary className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer list-none">
+          <div className="flex items-center gap-2 text-sm min-w-0">
+            <Package className="h-4 w-4 text-primary shrink-0" />
+            <span className="font-medium truncate">{baseLabel}</span>
+            <span className="text-muted-foreground shrink-0">
+              · {bot.addons.length} add-on{bot.addons.length === 1 ? "" : "s"}
+            </span>
           </div>
-          <div>
-            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground mb-2">
-              <Sparkles className="h-3.5 w-3.5" />
-              Add-ons ({bot.addons.length})
+          <span className="text-xs text-muted-foreground shrink-0 group-open:hidden">
+            Show details
+          </span>
+          <span className="text-xs text-muted-foreground shrink-0 hidden group-open:inline">
+            Hide
+          </span>
+        </summary>
+        <div className="px-4 pb-4 pt-1 space-y-3 border-t border-border">
+          {baseTagline && (
+            <p className="text-sm text-muted-foreground">{baseTagline}</p>
+          )}
+          {bot.addons.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {bot.addons.map((id) => (
+                <Badge key={id} variant="secondary" className="text-xs font-normal">
+                  {getAddonLabel(id)}
+                </Badge>
+              ))}
             </div>
-            {bot.addons.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No add-ons selected.</p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {bot.addons.map((id) => (
-                  <Badge key={id} variant="secondary" className="text-xs font-normal">
-                    {getAddonLabel(id)}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
+          )}
         </div>
-      </Card>
+      </details>
 
       <div className="space-y-10">
         <div className="flex items-center gap-2 mt-2">
