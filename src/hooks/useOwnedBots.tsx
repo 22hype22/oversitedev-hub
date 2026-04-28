@@ -45,6 +45,7 @@ function buildDemoBot(
     bot_name: name,
     bot_description: description,
     icon_url: null,
+    banner_url: null,
     base,
     addons: getAddonIdsForBase(base),
     monthly_hosting: false,
