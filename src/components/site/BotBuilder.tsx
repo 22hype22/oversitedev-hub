@@ -294,6 +294,7 @@ export const BotBuilder = () => {
   const [payCvc, setPayCvc] = useState("");
   const [payZip, setPayZip] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [paymentPlan, setPaymentPlan] = useState<"full" | "3" | "6" | "10">("full");
   const [showSuccess, setShowSuccess] = useState(false);
   const [showSuccessText, setShowSuccessText] = useState(false);
   const [planeOrigin, setPlaneOrigin] = useState<{ x: number; y: number } | null>(null);
