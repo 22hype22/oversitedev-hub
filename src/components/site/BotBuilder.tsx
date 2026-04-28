@@ -1036,9 +1036,15 @@ export const BotBuilder = () => {
                           type="button"
                           variant="outlineGlow"
                           size="sm"
-                          onClick={() =>
-                            setShowAllAddons((prev) => ({ ...prev, [key]: !prev[key] }))
-                          }
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowAllAddons((prev) => {
+                              const next = { ...prev };
+                              next[key] = !prev[key];
+                              return next;
+                            });
+                          }}
                         >
                           {expanded ? "Show less" : `View more (${list.length - 10})`}
                         </Button>
