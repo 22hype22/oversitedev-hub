@@ -133,6 +133,7 @@ export type Database = {
           delivery_url: string | null
           discount_amount: number
           discount_code: string | null
+          engine_version: string
           icon_url: string | null
           id: string
           installment_amount: number | null
@@ -160,6 +161,7 @@ export type Database = {
           delivery_url?: string | null
           discount_amount?: number
           discount_code?: string | null
+          engine_version?: string
           icon_url?: string | null
           id?: string
           installment_amount?: number | null
@@ -187,6 +189,7 @@ export type Database = {
           delivery_url?: string | null
           discount_amount?: number
           discount_code?: string | null
+          engine_version?: string
           icon_url?: string | null
           id?: string
           installment_amount?: number | null
