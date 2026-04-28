@@ -18,7 +18,7 @@ import {
   ShieldAlert,
   Image as ImageIcon,
   MessageSquareWarning,
-  UserPlus,
+  
   Gavel,
   Hammer,
   Users,
