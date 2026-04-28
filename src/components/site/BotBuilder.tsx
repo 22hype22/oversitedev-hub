@@ -295,6 +295,13 @@ export const BotBuilder = () => {
   const [payZip, setPayZip] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [paymentPlan, setPaymentPlan] = useState<"full" | "3" | "6" | "10">("full");
+  const [discountCodeInput, setDiscountCodeInput] = useState("");
+  const [appliedDiscount, setAppliedDiscount] = useState<{
+    code: string;
+    kind: "percent" | "amount";
+    value: number;
+  } | null>(null);
+  const [applyingDiscount, setApplyingDiscount] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showSuccessText, setShowSuccessText] = useState(false);
   const [planeOrigin, setPlaneOrigin] = useState<{ x: number; y: number } | null>(null);
