@@ -291,6 +291,17 @@ export const BotBuilder = () => {
   const activeIdentity: Identity = isPack ? packIdentities[activePackTab] : identity;
   const { name, description, icon, banner } = activeIdentity;
 
+  // Monthly hosting pricing — incentivizes the All-in-One Pack:
+  //   • Single bot (Protection / Support / Utilities): $4.99/mo each
+  //   • All-in-One Pack (one bot, all three categories): $9.99/mo
+  //   • Buying all three as separate bots adds up to $14.99/mo, so the
+  //     All-in-One saves $5/mo vs running them separately.
+  const ALL_IN_ONE_PRICE = 9.99;
+  const SINGLE_BOT_PRICE = 4.99;
+  const SEPARATE_BOTS_PRICE = 14.99;
+  const monthlyHostingPrice = isPack ? ALL_IN_ONE_PRICE : SINGLE_BOT_PRICE;
+  const monthlySavingsVsSeparate = SEPARATE_BOTS_PRICE - ALL_IN_ONE_PRICE;
+
   const updateActiveIdentity = (patch: Partial<Identity>) => {
     if (isPack) {
       setPackIdentities((prev) => ({
@@ -1009,7 +1020,7 @@ export const BotBuilder = () => {
                   Plus
                 </span>
                 <span className="text-base font-semibold tracking-tight text-primary">
-                  $20.00
+                  ${monthlyHostingPrice.toFixed(2)}
                   <span className="text-xs text-muted-foreground font-normal"> /month</span>
                 </span>
               </div>
@@ -1021,7 +1032,7 @@ export const BotBuilder = () => {
                 </div>
                 <div className="flex-1 text-xs">
                   <div className="font-medium text-foreground">
-                    Hosting & maintenance — $20/mo
+                    Hosting &amp; maintenance — ${monthlyHostingPrice.toFixed(2)}/mo
                   </div>
                   <div className="text-muted-foreground mt-0.5">
                     Always-on hosting, updates, and priority fixes. Included by
@@ -1036,9 +1047,39 @@ export const BotBuilder = () => {
                   onChange={(e) => setMonthlyHosting(!e.target.checked)}
                   className="h-3.5 w-3.5 accent-primary cursor-pointer"
                 />
-                <span>I'll host and maintain the bot myself (skip the $20/mo)</span>
+                <span>
+                  I'll host and maintain the bot myself (skip the $
+                  {monthlyHostingPrice.toFixed(2)}/mo)
+                </span>
               </label>
             </div>
+
+            {/* Nudge: when the user picks a single category, remind them the
+                All-in-One Pack is cheaper than running all 3 separately. */}
+            {!isPack && (
+              <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+                <div className="flex items-start gap-2">
+                  <Sparkles className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="flex-1 text-xs">
+                    <div className="font-medium text-foreground">
+                      Save ${monthlySavingsVsSeparate.toFixed(2)}/mo with the All-in-One Pack
+                    </div>
+                    <div className="text-muted-foreground mt-0.5">
+                      Three separate bots = ${SEPARATE_BOTS_PRICE.toFixed(2)}/mo.
+                      One All-in-One bot with all features = $
+                      {ALL_IN_ONE_PRICE.toFixed(2)}/mo.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setBase("scratch")}
+                      className="mt-1.5 text-amber-400 hover:text-amber-300 font-medium underline-offset-2 hover:underline transition-colors"
+                    >
+                      Switch to All-in-One →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {addons.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {addons.map((id) => {
