@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
 import { getAddonLabel } from "@/lib/botCatalog";
 import { SayCommandBuilder } from "./SayCommandBuilder";
+import { TicketPanelBuilder } from "./TicketPanelBuilder";
 
 type Props = {
   addonId: string;
@@ -40,6 +41,7 @@ type Props = {
  */
 export function AddonConfigCard({ addonId, botName, botAvatarUrl }: Props) {
   const isSayCommand = addonId === "messages";
+  const isTicketPanel = addonId === "ticket-message-customization";
   const config = getAddonConfig(addonId);
   const [open, setOpen] = useState(false);
 
@@ -252,6 +254,8 @@ export function AddonConfigCard({ addonId, botName, botAvatarUrl }: Props) {
             <div className="py-2">
               <SayCommandBuilder botName={botName} botAvatarUrl={botAvatarUrl} />
             </div>
+          ) : isTicketPanel ? (
+            <TicketPanelBuilder botName={botName} />
           ) : (
             <div className="space-y-5 py-2">
               {config.fields.map((f) => (
