@@ -285,12 +285,6 @@ const BotSection = ({
       </details>
 
       <div className="space-y-10">
-        <div className="flex items-center gap-2 mt-2">
-          <Settings className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
-            Configure add-ons ({totalConfigurable})
-          </h3>
-        </div>
 
         {totalConfigurable === 0 ? (
           <Card className="bg-card/40 border-dashed border-border p-8 text-center">
