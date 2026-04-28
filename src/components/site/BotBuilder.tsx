@@ -435,12 +435,8 @@ export const BotBuilder = () => {
       (sum, id) => sum + (BASES.find((b) => b.id === id)?.price ?? 0),
       0,
     );
-    const addonCost = addons.reduce((sum, id) => {
-      // Dashboard add-on is a one-time, account-wide unlock.
-      if (id === "dashboard" && dashboardAlreadyOwned) return sum;
-      return sum + (currentAddons.find((a) => a.id === id)?.price ?? 0);
-    }, 0);
-    return baseCost + addonCost;
+    // Add-ons are now included free — they no longer add to the total.
+    return baseCost;
   }, [bases, addons, currentAddons, dashboardAlreadyOwned]);
 
   // For the All-in-One Pack OR multi-select, we use the first selected category's
@@ -879,25 +875,18 @@ export const BotBuilder = () => {
                       {a.desc}
                     </p>
                     <div className="mt-2 text-xs text-foreground/80 flex items-center gap-2 flex-wrap">
-                      {a.id === "dashboard" && dashboardAlreadyOwned ? (
-                        <>
-                          <span className="text-primary font-medium">Included — already unlocked</span>
-                          <span className="line-through text-muted-foreground/70">${a.price.toFixed(2)}</span>
-                          <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">ONE-TIME</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>+${a.price.toFixed(2)}</span>
-                          {a.oldPrice && (
-                            <>
-                              <span className="line-through text-muted-foreground/70">${a.oldPrice.toFixed(2)}</span>
-                              <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">SALE</span>
-                            </>
-                          )}
-                          {a.id === "dashboard" && (
-                            <span className="px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px] font-semibold">ONE-TIME · ALL BOTS</span>
-                          )}
-                        </>
+                      <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">
+                        INCLUDED
+                      </span>
+                      {a.price > 0 && (
+                        <span className="line-through text-muted-foreground/70">
+                          ${a.price.toFixed(2)}
+                        </span>
+                      )}
+                      {a.id === "dashboard" && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px] font-semibold">
+                          ALL BOTS
+                        </span>
                       )}
                     </div>
                   </button>
