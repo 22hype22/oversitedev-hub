@@ -353,6 +353,7 @@ const BotSection = ({
           groupedAddons.map((group) => {
             const GroupIcon = group.icon;
             const showSourceCard = group.key === "shared" && !bot.isDemo;
+            const isSharedFlat = group.key === "shared";
             return (
               <div key={group.key} className="space-y-4">
                 <div className="flex items-center gap-2">
@@ -361,17 +362,28 @@ const BotSection = ({
                     {group.label} ({group.owned.length + (showSourceCard ? 1 : 0)})
                   </h4>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                  {showSourceCard && <SourceCodeCard sourceUrl={bot.source_url} />}
-                </div>
-                <SortableAddonGrid
-                  userId={userId}
-                  botId={bot.id}
-                  botName={bot.bot_name}
-                  botAvatarUrl={bot.icon_url}
-                  groupKey={group.key}
-                  ids={group.owned}
-                />
+                {isSharedFlat ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                    {showSourceCard && <SourceCodeCard sourceUrl={bot.source_url} />}
+                    {group.owned.map((id) => (
+                      <AddonConfigCard
+                        key={`${bot.id}-${id}`}
+                        addonId={id}
+                        botName={bot.bot_name}
+                        botAvatarUrl={bot.icon_url}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <SortableAddonGrid
+                    userId={userId}
+                    botId={bot.id}
+                    botName={bot.bot_name}
+                    botAvatarUrl={bot.icon_url}
+                    groupKey={group.key}
+                    ids={group.owned}
+                  />
+                )}
               </div>
             );
           })
