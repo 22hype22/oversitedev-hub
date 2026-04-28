@@ -38,9 +38,8 @@ export const HexagonLoader = ({
         strokeWidth={8}
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeDasharray="80 320"
+        strokeDasharray="60 280"
         className="hex-loader-trace"
-        style={{ pathLength: 1 }}
       />
     </svg>
   );
