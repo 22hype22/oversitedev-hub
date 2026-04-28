@@ -440,11 +440,13 @@ function DiscordMessagePreview({
   botName,
   botAvatarUrl,
   content,
+  trailingContent,
   embeds,
 }: {
   botName: string;
   botAvatarUrl?: string;
   content: string;
+  trailingContent?: string;
   embeds: Embed[];
 }) {
   return (
@@ -478,6 +480,9 @@ function DiscordMessagePreview({
             <EmbedPreview key={e.id} embed={e} />
           ))}
         </div>
+        {trailingContent && (
+          <p className="whitespace-pre-wrap break-words mt-2">{trailingContent}</p>
+        )}
       </div>
     </div>
   );
