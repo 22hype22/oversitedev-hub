@@ -443,21 +443,23 @@ export const BotBuilder = () => {
     return baseCost + addonCost;
   }, [bases, addons, currentAddons, dashboardAlreadyOwned]);
 
-  // For the All-in-One Pack we use the Protection identity as the primary record
-  // and append the other two identities as a JSON block in the notes for the build team.
+  // For the All-in-One Pack OR multi-select, we use the first selected category's
+  // identity as the primary record and append the others as a JSON block in notes.
   const buildSubmissionPayload = () => {
-    if (!isPack) {
+    if (!usesPackTabs) {
       return {
         primary: identity,
         notesField: notes.trim() || null,
       };
     }
-    const primary = packIdentities.protection;
-    const extras = {
-      support: packIdentities.support,
-      utilities: packIdentities.utilities,
-    };
-    const extraNotes = `\n\n--- All-in-One Pack additional bots ---\n${JSON.stringify(extras, null, 2)}`;
+    const tabs = isPack ? PACK_TABS : visibleIdentityTabs;
+    const primary = packIdentities[tabs[0].id];
+    const extras: Record<string, Identity> = {};
+    for (const t of tabs.slice(1)) extras[t.id] = packIdentities[t.id];
+    const header = isPack
+      ? "--- All-in-One Pack additional bots ---"
+      : "--- Additional bots in this order ---";
+    const extraNotes = `\n\n${header}\n${JSON.stringify(extras, null, 2)}`;
     return {
       primary,
       notesField: ((notes.trim() ? notes.trim() : "") + extraNotes).trim(),
@@ -467,13 +469,14 @@ export const BotBuilder = () => {
   const persistOrder = async () => {
     if (!user) return true; // anonymous: skip persistence, keep legacy flow
     const { primary, notesField } = buildSubmissionPayload();
+    const baseField = isPack ? "scratch" : bases.join("+");
     const { error } = await (supabase as any).from("bot_orders").insert({
       user_id: user.id,
       bot_name: primary.name.trim(),
       bot_description: primary.description.trim() || null,
       icon_url: primary.icon,
       banner_url: primary.banner,
-      base,
+      base: baseField,
       addons,
       monthly_hosting: monthlyHosting,
       notes: notesField,
