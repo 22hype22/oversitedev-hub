@@ -592,14 +592,15 @@ export const BotBuilder = () => {
               best monthly rate.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {BASES.map((b) => {
+              {(() => {
+                // First selected single bot keeps full price; any other single bot
+                // (whether already selected or available) shows the $50 add-on price.
+                const firstSingle = bases.find((id) => id !== "scratch");
+                return BASES.map((b) => {
                 const Icon = b.icon;
                 const active = bases.includes(b.id);
-                // If a single bot is already selected and this card is a different
-                // single bot (not the All-in-One Pack), show the discounted $50 add-on price.
-                const hasSingleSelected = bases.some((id) => id !== "scratch");
                 const isDiscountedSecond =
-                  b.id !== "scratch" && hasSingleSelected && !active;
+                  b.id !== "scratch" && !!firstSingle && b.id !== firstSingle;
                 const displayPrice = isDiscountedSecond ? 50 : b.price;
                 const displayOldPrice = isDiscountedSecond ? b.price : b.oldPrice;
                 return (
