@@ -788,6 +788,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
           { value: "hiphop", label: "Hip-hop" },
           { value: "classical", label: "Classical" },
           { value: "jazz", label: "Jazz" },
+          { value: "country", label: "Country" },
         ],
       },
       toggle("autoStart", "Start automatically when bot comes online"),
