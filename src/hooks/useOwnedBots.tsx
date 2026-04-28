@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { getAddonIdsForBase } from "@/lib/botCatalog";
+
 
 export type OwnedBot = {
   id: string;
@@ -21,62 +21,9 @@ export type OwnedBot = {
   isDemo?: boolean;
 };
 
-const ACCESS_STATUSES = new Set(["submitted", "paid"]);
-
-/** Stable synthetic ids for the practice bots — never collide with real UUIDs. */
-export const DEMO_BOT_IDS = {
-  protection: "demo-protection",
-  support: "demo-support",
-  utilities: "demo-utilities",
-} as const;
-
-/**
- * Practice bots: one per base (Protection / Support / Utilities) with every
- * add-on for that base enabled, so users can preview each section's config
- * boxes. Never persisted to the DB; always injected client-side.
- */
-function buildDemoBot(
-  base: "protection" | "support" | "utilities",
-  name: string,
-  description: string,
-): OwnedBot {
-  return {
-    id: DEMO_BOT_IDS[base],
-    bot_name: name,
-    bot_description: description,
-    icon_url: null,
-    banner_url: null,
-    base,
-    addons: getAddonIdsForBase(base),
-    monthly_hosting: false,
-    status: "paid",
-    hasWebDashboard: true,
-    created_at: new Date(0).toISOString(),
-    submitted_at: null,
-    delivery_url: null,
-    isDemo: true,
-  };
-}
-
-function buildDemoBots(): OwnedBot[] {
-  return [
-    buildDemoBot(
-      "protection",
-      "Practice Protection Bot",
-      "All Protection add-ons enabled — explore every config box.",
-    ),
-    buildDemoBot(
-      "support",
-      "Practice Support Bot",
-      "All Support add-ons enabled — explore every config box.",
-    ),
-    buildDemoBot(
-      "utilities",
-      "Practice Utilities Bot",
-      "All Utilities add-ons enabled — explore every config box.",
-    ),
-  ];
-}
+// Only bots that are paid and live show up in the dashboard. Drafts,
+// submitted-but-unpaid, cancelled, etc. are hidden until they go live.
+const ACCESS_STATUSES = new Set(["paid"]);
 
 /**
  * Loads bots the signed-in user has ordered. `bots` is everything they've
@@ -119,8 +66,7 @@ export function useOwnedBots() {
         delivery_url: row.delivery_url ?? null,
       }));
 
-    // Always include the practice bot so users can preview every add-on.
-    setBots([...buildDemoBots(), ...mapped]);
+    setBots(mapped);
     setLoading(false);
   }, [user]);
 
