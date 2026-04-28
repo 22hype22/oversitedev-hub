@@ -1040,9 +1040,11 @@ export const BotBuilder = () => {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            console.log("[viewmore-click]", key);
                             setShowAllAddons((prev) => {
                               const next = { ...prev };
                               next[key] = !prev[key];
+                              console.log("[viewmore-next]", next);
                               return next;
                             });
                           }}
