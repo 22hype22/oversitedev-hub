@@ -53,6 +53,7 @@ import {
   TrendingUp,
   Coins,
   AlarmClock,
+  Megaphone,
 } from "lucide-react";
 
 export type AddonFieldType =
