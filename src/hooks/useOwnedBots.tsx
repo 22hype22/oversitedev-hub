@@ -45,7 +45,7 @@ export function useOwnedBots() {
     setLoading(true);
     const { data } = await (supabase as any)
       .from("bot_orders")
-      .select("id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,status,created_at,submitted_at,delivery_url")
+      .select("id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,status,created_at,submitted_at,delivery_url,source_url")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true });
 
