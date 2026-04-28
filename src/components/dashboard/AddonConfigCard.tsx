@@ -237,7 +237,9 @@ export function AddonConfigCard({ addonId, botName, botAvatarUrl }: Props) {
           className={
             isSayCommand
               ? "max-w-5xl max-h-[90vh] overflow-y-auto"
-              : "max-w-lg max-h-[85vh] overflow-y-auto"
+              : isTicketPanel || isAnonReport
+                ? "max-w-2xl max-h-[90vh] overflow-y-auto"
+                : "max-w-lg max-h-[85vh] overflow-y-auto"
           }
         >
           <DialogHeader>
