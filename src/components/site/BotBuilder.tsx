@@ -1398,6 +1398,53 @@ export const BotBuilder = () => {
                   </p>
                 </div>
 
+                {/* Discount code */}
+                <div className="mt-3 rounded-xl border border-primary/20 bg-card/70 backdrop-blur p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium text-foreground mb-2">
+                    <Tag size={12} className="text-primary" />
+                    Have a discount code?
+                  </div>
+                  {appliedDiscount ? (
+                    <div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+                      <div className="text-xs">
+                        <div className="font-mono font-semibold text-foreground">{appliedDiscount.code}</div>
+                        <div className="text-emerald-500">
+                          {appliedDiscount.kind === "percent"
+                            ? `${appliedDiscount.value}% off`
+                            : `$${appliedDiscount.value} off`}{" "}
+                          (−${discountAmount.toFixed(2)})
+                        </div>
+                      </div>
+                      <Button type="button" size="sm" variant="ghost" onClick={removeDiscount}>
+                        Remove
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input
+                        value={discountCodeInput}
+                        onChange={(e) => setDiscountCodeInput(e.target.value.toUpperCase())}
+                        placeholder="WELCOME10"
+                        maxLength={32}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            applyDiscount();
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={applyDiscount}
+                        disabled={applyingDiscount || !discountCodeInput.trim()}
+                      >
+                        {applyingDiscount ? "…" : "Apply"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
                 {/* Financing — split the total into monthly installments */}
                 <div className="mt-3 rounded-xl border border-primary/20 bg-card/70 backdrop-blur p-4">
                   <div className="flex items-center gap-2 text-xs font-medium text-foreground mb-2">
@@ -1406,10 +1453,10 @@ export const BotBuilder = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {([
-                      { id: "full", label: "Pay in full", sub: `$${total.toFixed(2)} once` },
-                      { id: "3", label: "3 months", sub: `$${(total / 3).toFixed(2)}/mo` },
-                      { id: "6", label: "6 months", sub: `$${(total / 6).toFixed(2)}/mo` },
-                      { id: "10", label: "10 months", sub: `$${(total / 10).toFixed(2)}/mo` },
+                      { id: "full", label: "Pay in full", sub: `$${finalTotal.toFixed(2)} once` },
+                      { id: "3", label: "3 months", sub: `$${(finalTotal / 3).toFixed(2)}/mo` },
+                      { id: "6", label: "6 months", sub: `$${(finalTotal / 6).toFixed(2)}/mo` },
+                      { id: "10", label: "10 months", sub: `$${(finalTotal / 10).toFixed(2)}/mo` },
                     ] as const).map((opt) => {
                       const active = paymentPlan === opt.id;
                       return (
