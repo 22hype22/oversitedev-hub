@@ -151,9 +151,12 @@ const BotSection = ({
   const cancellable = !bot.isDemo && canCancelStatus(bot.status);
   const statusMeta = getStatusMeta(bot.status);
   // Owned add-ons + features that ship with the base — both get config boxes.
+  // The combined Multi-Server / Branding card is always shown here because the
+  // dashboard page itself is gated to users who own the Web Dashboard add-on.
   const ownedAddons = new Set<string>([
     ...bot.addons,
     ...getIncludedAddonsForBase(bot.base),
+    "branding-multi-server",
   ]);
   // Group owned add-ons by category for the configuration boxes section.
   const groupedAddons = ADDON_GROUPS
