@@ -8,6 +8,7 @@ export type OwnedBot = {
   bot_name: string;
   bot_description: string | null;
   icon_url: string | null;
+  banner_url: string | null;
   base: string;
   addons: string[];
   monthly_hosting: boolean;
