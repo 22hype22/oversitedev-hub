@@ -556,14 +556,14 @@ function DiscordMessagePreview({
   botName,
   botAvatarUrl,
   content,
-  trailingContent,
   embeds,
+  files,
 }: {
   botName: string;
   botAvatarUrl?: string;
   content: string;
-  trailingContent?: string;
   embeds: Embed[];
+  files?: string[];
 }) {
   return (
     <div className="flex gap-3">
@@ -596,8 +596,17 @@ function DiscordMessagePreview({
             <EmbedPreview key={e.id} embed={e} />
           ))}
         </div>
-        {trailingContent && (
-          <p className="whitespace-pre-wrap break-words mt-2">{trailingContent}</p>
+        {files && files.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {files.map((f) => (
+              <div
+                key={f}
+                className="text-xs text-[#00a8fc] bg-[#2b2d31] rounded px-2 py-1 inline-block mr-1"
+              >
+                📎 {f}
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
