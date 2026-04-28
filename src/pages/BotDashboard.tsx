@@ -412,6 +412,10 @@ const BotSection = ({
         </Card>
       )}
 
+      {!bot.isDemo && (
+        <EngineVersionSwitcher bot={bot} onReload={onReload} />
+      )}
+
       {/* Compact build summary — collapsible details */}
       <details className="group rounded-lg border border-border bg-card/40">
         <summary className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer list-none">
