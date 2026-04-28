@@ -29,6 +29,7 @@ import { SayCommandBuilder } from "./SayCommandBuilder";
 type Props = {
   addonId: string;
   botName: string;
+  botAvatarUrl?: string | null;
 };
 
 /**
