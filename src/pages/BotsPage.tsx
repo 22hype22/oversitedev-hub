@@ -125,9 +125,6 @@ const BotsPage = () => {
             );
           })}
         </div>
-
-        <Memberships />
-
         <BotBuilder />
 
         <section className="mt-24">
