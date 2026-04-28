@@ -39,7 +39,7 @@ type Props = {
  * Mock UI only — values live in local state and "save" shows a toast.
  */
 export function AddonConfigCard({ addonId, botName, botAvatarUrl }: Props) {
-  const isSayCommand = addonId === "say-command";
+  const isSayCommand = addonId === "messages";
   const config = getAddonConfig(addonId);
   const [open, setOpen] = useState(false);
 
