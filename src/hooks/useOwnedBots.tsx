@@ -61,6 +61,7 @@ export function useOwnedBots() {
         base: row.base,
         addons: Array.isArray(row.addons) ? row.addons : [],
         monthly_hosting: !!row.monthly_hosting,
+        engine_version: row.engine_version === "v2" ? "v2" : "v1",
         status: row.status,
         hasWebDashboard: Array.isArray(row.addons) && row.addons.includes("dashboard"),
         created_at: row.created_at,
