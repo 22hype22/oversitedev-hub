@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ChevronDown, Plus, Trash2, GripVertical } from "lucide-react";
+import { toast } from "sonner";
 
 /**
  * Discohook-style /say command builder.
@@ -88,18 +89,12 @@ export function SayCommandBuilder({
       footerText: botName,
     },
   ]);
-  // Profile overrides (per-message bot identity)
-  const [profileName, setProfileName] = useState("");
-  const [profileAvatarUrl, setProfileAvatarUrl] = useState("");
-  // Thread targeting
-  const [threadId, setThreadId] = useState("");
-  const [threadName, setThreadName] = useState("");
-  // Flags
-  const [flagSilent, setFlagSilent] = useState(false);
-  const [flagSuppressEmbeds, setFlagSuppressEmbeds] = useState(false);
-  const [flagSuppressNotifications, setFlagSuppressNotifications] = useState(false);
-  // Files (mock: just track names)
-  const [files, setFiles] = useState<string[]>([]);
+  // Optional trailing message (shown below the embeds)
+  const [trailingContent, setTrailingContent] = useState<string | null>(null);
+  // Files actually attached by the user
+  const [files, setFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
   const contentLimit = 2000;
 
@@ -370,92 +365,6 @@ export function SayCommandBuilder({
           </Section>
         ))}
 
-        <Section title="Profile">
-          <div className="space-y-2">
-            <Input
-              placeholder="Override username"
-              value={profileName}
-              onChange={(e) => setProfileName(e.target.value)}
-            />
-            <Input
-              placeholder="Override avatar URL"
-              value={profileAvatarUrl}
-              onChange={(e) => setProfileAvatarUrl(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Leave blank to use the bot's default identity.
-            </p>
-          </div>
-        </Section>
-
-        <Section title="Thread">
-          <div className="space-y-2">
-            <Input
-              placeholder="Thread ID (post inside an existing thread)"
-              value={threadId}
-              onChange={(e) => setThreadId(e.target.value)}
-            />
-            <Input
-              placeholder="Thread name (create a new thread)"
-              value={threadName}
-              onChange={(e) => setThreadName(e.target.value)}
-            />
-          </div>
-        </Section>
-
-        <Section title="Flags">
-          <div className="space-y-2">
-            <FlagRow
-              label="Suppress notifications (silent)"
-              checked={flagSilent}
-              onChange={setFlagSilent}
-            />
-            <FlagRow
-              label="Suppress embeds"
-              checked={flagSuppressEmbeds}
-              onChange={setFlagSuppressEmbeds}
-            />
-            <FlagRow
-              label="Suppress @everyone / @here pings"
-              checked={flagSuppressNotifications}
-              onChange={setFlagSuppressNotifications}
-            />
-          </div>
-        </Section>
-
-        <div className="space-y-2">
-          <div className="flex items-baseline justify-between">
-            <Label className="font-semibold">Files</Label>
-            <span className="text-xs text-muted-foreground italic">25 MB max.</span>
-          </div>
-          <div className="flex gap-2">
-            <Input
-              readOnly
-              value={files.join(", ")}
-              placeholder="No files attached"
-              className="flex-1"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setFiles((f) => [...f, `attachment-${f.length + 1}.png`])
-              }
-            >
-              Clipboard
-            </Button>
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              onClick={() => setFiles([])}
-            >
-              Clear
-            </Button>
-          </div>
-        </div>
-
         <Button
           type="button"
           variant="default"
@@ -465,6 +374,120 @@ export function SayCommandBuilder({
         >
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Embed
         </Button>
+
+        {trailingContent !== null && (
+          <div className="space-y-2">
+            <div className="flex items-baseline justify-between">
+              <Label htmlFor="say-trailing" className="font-semibold">
+                Message
+              </Label>
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-destructive transition-smooth"
+                onClick={() => setTrailingContent(null)}
+              >
+                Remove
+              </button>
+            </div>
+            <Textarea
+              id="say-trailing"
+              value={trailingContent}
+              onChange={(e) =>
+                setTrailingContent(e.target.value.slice(0, contentLimit))
+              }
+              rows={4}
+              placeholder="Plain message shown below the embed."
+              className="resize-y"
+            />
+          </div>
+        )}
+
+        {trailingContent === null && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setTrailingContent("")}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add Message
+          </Button>
+        )}
+
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <Label className="font-semibold">Files</Label>
+            <span className="text-xs text-muted-foreground italic">
+              25 MB max per file
+            </span>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const picked = Array.from(e.target.files ?? []);
+              const accepted: File[] = [];
+              for (const f of picked) {
+                if (f.size > MAX_FILE_BYTES) {
+                  toast.error(`${f.name} is over the 25 MB limit.`);
+                  continue;
+                }
+                accepted.push(f);
+              }
+              if (accepted.length) {
+                setFiles((prev) => [...prev, ...accepted]);
+              }
+              // Allow re-selecting the same file later
+              if (fileInputRef.current) fileInputRef.current.value = "";
+            }}
+          />
+          {files.length > 0 && (
+            <div className="rounded-md border border-border bg-card/40 p-2 space-y-1">
+              {files.map((f, i) => (
+                <div
+                  key={`${f.name}-${i}`}
+                  className="flex items-center justify-between text-xs"
+                >
+                  <span className="truncate flex-1 mr-2">
+                    📎 {f.name}{" "}
+                    <span className="text-muted-foreground">
+                      ({(f.size / 1024).toFixed(1)} KB)
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-destructive transition-smooth"
+                    onClick={() =>
+                      setFiles((prev) => prev.filter((_, idx) => idx !== i))
+                    }
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Upload files
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setFiles([])}
+              disabled={files.length === 0}
+            >
+              Clear
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Preview */}
@@ -472,31 +495,15 @@ export function SayCommandBuilder({
         <Label className="text-xs text-muted-foreground">Preview</Label>
         <div className="mt-2 rounded-lg border border-border bg-[#313338] p-4 text-[#dbdee1] font-sans text-sm">
           <DiscordMessagePreview
-            botName={profileName || botName}
-            botAvatarUrl={profileAvatarUrl || botAvatarUrl || undefined}
+            botName={botName}
+            botAvatarUrl={botAvatarUrl ?? undefined}
             content={content}
-            embeds={flagSuppressEmbeds ? [] : embeds}
-            files={files}
+            trailingContent={trailingContent ?? undefined}
+            embeds={embeds}
+            files={files.map((f) => f.name)}
           />
         </div>
       </div>
-    </div>
-  );
-}
-
-function FlagRow({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <Label className="text-sm cursor-pointer">{label}</Label>
-      <Switch checked={checked} onCheckedChange={onChange} />
     </div>
   );
 }
@@ -556,12 +563,14 @@ function DiscordMessagePreview({
   botName,
   botAvatarUrl,
   content,
+  trailingContent,
   embeds,
   files,
 }: {
   botName: string;
   botAvatarUrl?: string;
   content: string;
+  trailingContent?: string;
   embeds: Embed[];
   files?: string[];
 }) {
@@ -596,6 +605,9 @@ function DiscordMessagePreview({
             <EmbedPreview key={e.id} embed={e} />
           ))}
         </div>
+        {trailingContent && (
+          <p className="whitespace-pre-wrap break-words mt-2">{trailingContent}</p>
+        )}
         {files && files.length > 0 && (
           <div className="mt-2 space-y-1">
             {files.map((f) => (
