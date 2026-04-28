@@ -25,6 +25,7 @@ import {
 import { toast } from "sonner";
 import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
 import { SortableAddonGrid } from "@/components/dashboard/SortableAddonGrid";
+import { FixesBar } from "@/components/dashboard/FixesBar";
 import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
 import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import {
@@ -456,6 +457,8 @@ const BotDashboard = () => {
             settings, and behavior per bot.
           </p>
         </div>
+
+        <FixesBar />
 
         {dashboardBots.length === 0 && isAdmin ? (
           <div className="max-w-md mx-auto text-center space-y-4 py-12">
