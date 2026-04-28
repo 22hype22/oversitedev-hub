@@ -472,6 +472,17 @@ export const BotOrdersLog = () => {
                             </div>
                             <div className="md:col-span-3">
                               <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                                GitHub source URL <span className="opacity-60">(shown as "Source code" button on the user's dashboard — they can view, edit, and PR from there)</span>
+                              </label>
+                              <Input
+                                className="mt-1"
+                                placeholder="https://github.com/your-org/bot-repo"
+                                value={draft.source_url}
+                                onChange={(e) => setDraft(r.id, { source_url: e.target.value })}
+                              />
+                            </div>
+                            <div className="md:col-span-3">
+                              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
                                 Internal notes <span className="opacity-60">(not shown to user)</span>
                               </label>
                               <Textarea
