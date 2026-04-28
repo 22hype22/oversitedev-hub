@@ -33,6 +33,7 @@ import {
   Swords,
   ClipboardList,
   Link2Off,
+  Sparkles,
 } from "lucide-react";
 
 export type AddonFieldType =
