@@ -636,11 +636,15 @@ export const BotBuilder = () => {
                     </ul>
                     <div className="mt-3 flex items-center gap-2 flex-wrap text-xs text-foreground/80">
                       <span>one-time</span>
-                      {b.oldPrice && (
-                        <span className="text-muted-foreground line-through">${b.oldPrice}</span>
+                      {displayOldPrice && (
+                        <span className="text-muted-foreground line-through">${displayOldPrice}</span>
                       )}
-                      <span className="font-semibold">${b.price}</span>
-                      {b.oldPrice && (
+                      <span className="font-semibold">${displayPrice}</span>
+                      {isDiscountedSecond ? (
+                        <span className="px-1.5 py-0.5 rounded-full bg-primary/15 border border-primary/30 text-primary text-[10px] font-semibold uppercase tracking-wide">
+                          Add for $50
+                        </span>
+                      ) : b.oldPrice && (
                         <span className="px-1.5 py-0.5 rounded-full bg-primary/15 border border-primary/30 text-primary text-[10px] font-semibold uppercase tracking-wide">
                           Preorder sale
                         </span>
