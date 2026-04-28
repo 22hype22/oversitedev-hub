@@ -439,11 +439,16 @@ export function SayCommandBuilder({
             ref={fileInputRef}
             type="file"
             multiple
+            accept="image/png,image/jpeg,image/gif,image/webp"
             className="hidden"
             onChange={(e) => {
               const picked = Array.from(e.target.files ?? []);
               const accepted: File[] = [];
               for (const f of picked) {
+                if (!f.type.startsWith("image/")) {
+                  toast.error(`${f.name} isn't an image.`);
+                  continue;
+                }
                 if (f.size > MAX_FILE_BYTES) {
                   toast.error(`${f.name} is over the 25 MB limit.`);
                   continue;
