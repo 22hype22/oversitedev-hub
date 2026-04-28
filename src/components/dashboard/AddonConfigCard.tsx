@@ -70,7 +70,7 @@ export function AddonConfigCard({ addonId, botName, botAvatarUrl }: Props) {
   // it's owned but configuration is still wired up.
   if (!config) {
     return (
-      <Card className="bg-card/40 border-dashed border-border p-6 flex flex-col min-h-[170px]">
+      <Card className="bg-card/40 border-dashed border-border p-6 flex flex-col h-[210px]">
         <div className="flex items-start gap-3 mb-3">
           <div className="h-10 w-10 rounded-lg bg-muted/40 border border-border grid place-items-center shrink-0">
             <Settings2 className="h-5 w-5 text-muted-foreground" />
