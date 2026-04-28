@@ -52,7 +52,7 @@ import {
  *  Order here is the exact left→right, top→bottom order shown in the dashboard.
  *  Base-included features come first, then paid add-ons. */
 const PROTECTION_ADDON_IDS = [
-  // Included with the Protection base
+  "advanced-logging",
   "verification-system",
   "mod-actions",
   "anti-spam",
@@ -60,7 +60,6 @@ const PROTECTION_ADDON_IDS = [
   "basic-logging",
   "phishing-detection",
   // Paid add-ons (in catalog order)
-  "advanced-logging",
   "nsfw-invite-scanner",
   "avatar-nsfw-detection",
   "bio-phrase-detection",
