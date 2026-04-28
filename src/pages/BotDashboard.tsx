@@ -318,6 +318,7 @@ const BotSection = ({
                       key={`${bot.id}-${id}`}
                       addonId={id}
                       botName={bot.bot_name}
+                      botAvatarUrl={bot.icon_url}
                     />
                   ))}
                 </div>
