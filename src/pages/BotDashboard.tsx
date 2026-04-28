@@ -320,17 +320,12 @@ const BotSection = ({
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                   {group.owned.map((id) => {
-                    // The Messages builder's preview should reflect the
-                    // utilities bot (the one that actually sends messages),
-                    // not whichever bot the config card lives under.
-                    const utilitiesBot = allBots.find((b) => b.base === "utilities");
-                    const previewBot = id === "messages" && utilitiesBot ? utilitiesBot : bot;
                     return (
                       <AddonConfigCard
                         key={`${bot.id}-${id}`}
                         addonId={id}
-                        botName={previewBot.bot_name}
-                        botAvatarUrl={previewBot.icon_url}
+                        botName={bot.bot_name}
+                        botAvatarUrl={bot.icon_url}
                       />
                     );
                   })}
