@@ -1229,6 +1229,7 @@ export const BotBuilder = () => {
                 </span>
               </div>
             )}
+            {addons.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {addons.map((id) => {
                   const a = currentAddons.find((x) => x.id === id);
