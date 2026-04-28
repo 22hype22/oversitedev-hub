@@ -765,7 +765,7 @@ function EmbedPreview({ embed }: { embed: Embed }) {
                     f.inline ? "col-span-1 min-w-0" : "col-span-3 min-w-0"
                   }
                 >
-                  <div className="text-xs font-semibold text-white">
+                  <div className="text-xs font-semibold text-white whitespace-pre-wrap break-words">
                     {f.name || "Field name"}
                   </div>
                   <div className="text-sm whitespace-pre-wrap break-words">
