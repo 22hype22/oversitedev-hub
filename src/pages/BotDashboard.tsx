@@ -178,6 +178,111 @@ const SourceCodeCard = ({ sourceUrl }: { sourceUrl: string | null }) => {
   return content;
 };
 
+const EngineVersionSwitcher = ({
+  bot,
+  onReload,
+}: {
+  bot: OwnedBot;
+  onReload: () => void;
+}) => {
+  const [confirmTarget, setConfirmTarget] = useState<"v1" | "v2" | null>(null);
+  const [saving, setSaving] = useState(false);
+  const current = bot.engine_version === "v2" ? "v2" : "v1";
+
+  const switchTo = async (target: "v1" | "v2") => {
+    setSaving(true);
+    const { error } = await (supabase as any)
+      .from("bot_orders")
+      .update({ engine_version: target, updated_at: new Date().toISOString() })
+      .eq("id", bot.id);
+    setSaving(false);
+    setConfirmTarget(null);
+    if (error) {
+      toast.error("Couldn't switch engine version", { description: error.message });
+      return;
+    }
+    toast.success(`Switching to Component ${target.toUpperCase()}`, {
+      description:
+        "Your bot may experience a short period of downtime while the engine swaps over.",
+    });
+    onReload();
+  };
+
+  return (
+    <>
+      <Card className="p-4">
+        <div className="flex items-start gap-3 mb-3">
+          <Code2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+          <div className="text-sm flex-1">
+            <div className="font-semibold text-foreground">Bot engine version</div>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Switch between Component V1 (stable) and V2 (newest features).
+              Switching causes a short period of downtime while we swap engines.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {(["v1", "v2"] as const).map((id) => {
+            const active = current === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                disabled={saving || active}
+                onClick={() => setConfirmTarget(id)}
+                className={`text-left rounded-lg border p-3 transition-all ${
+                  active
+                    ? "border-primary bg-primary/10 ring-1 ring-primary/40"
+                    : "border-border hover:border-primary/40 hover:bg-card disabled:opacity-50"
+                }`}
+              >
+                <div className="text-sm font-medium text-foreground flex items-center justify-between">
+                  Component {id.toUpperCase()}
+                  {active && (
+                    <Badge variant="secondary" className="text-[10px]">Active</Badge>
+                  )}
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  {id === "v1" ? "Stable — recommended" : "Newest — latest features"}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
+      <AlertDialog
+        open={confirmTarget !== null}
+        onOpenChange={(o) => !o && !saving && setConfirmTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-400" />
+              Switch to Component {confirmTarget?.toUpperCase()}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Your bot may experience a short period of downtime while the engine
+              swaps over. Commands and events may be briefly unavailable. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={saving}
+              onClick={() => confirmTarget && switchTo(confirmTarget)}
+            >
+              <RefreshCw className="h-4 w-4 mr-1.5" />
+              {saving ? "Switching…" : "Switch version"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+};
+
+
 const BotSection = ({
   bot,
   allBots,
