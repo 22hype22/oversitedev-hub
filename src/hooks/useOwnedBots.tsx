@@ -17,6 +17,7 @@ export type OwnedBot = {
   created_at: string;
   submitted_at: string | null;
   delivery_url: string | null;
+  source_url: string | null;
   /** Demo/practice bot that's not backed by a real bot_orders row. */
   isDemo?: boolean;
 };
