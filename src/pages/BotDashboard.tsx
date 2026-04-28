@@ -75,6 +75,7 @@ const PROTECTION_ADDON_IDS = [
   "temp-bans",
 ];
 const SUPPORT_ADDON_IDS = [
+  "messages",
   "staff-performance",
   "ticket-logs",
   "per-category-roles",
