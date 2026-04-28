@@ -482,7 +482,7 @@ export function SayCommandBuilder({
               size="sm"
               onClick={() => fileInputRef.current?.click()}
             >
-              Upload files
+              Upload images
             </Button>
             <Button
               type="button"
@@ -505,9 +505,9 @@ export function SayCommandBuilder({
             botName={botName}
             botAvatarUrl={botAvatarUrl ?? undefined}
             content={content}
-            trailingContent={trailingContent ?? undefined}
+            trailingMessages={trailingMessages.map((m) => m.text)}
             embeds={embeds}
-            files={files.map((f) => f.name)}
+            files={files}
           />
         </div>
       </div>
