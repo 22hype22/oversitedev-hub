@@ -20,10 +20,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowRight, Save, Settings2 } from "lucide-react";
+import { ArrowRight, Save, Settings2, Megaphone } from "lucide-react";
 import { toast } from "sonner";
 import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
 import { getAddonLabel } from "@/lib/botCatalog";
+import { SayCommandBuilder } from "./SayCommandBuilder";
 
 type Props = {
   addonId: string;
