@@ -223,6 +223,12 @@ const BotSection = ({
       <Badge variant="secondary" className="text-xs">
         {baseLabel}
       </Badge>
+      {!bot.isDemo && (
+        <Badge variant="outline" className="text-xs gap-1">
+          <Code2 className="h-3 w-3" />
+          Component {bot.engine_version === "v2" ? "V2" : "V1"}
+        </Badge>
+      )}
       {bot.monthly_hosting && (
         <Badge variant="outline" className="text-xs gap-1">
           <Server className="h-3 w-3" />
