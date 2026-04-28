@@ -205,8 +205,9 @@ export function SayCommandBuilder({
               {/* Body */}
               <Section title="Body" small defaultOpen>
                 <div className="space-y-2">
-                  <Input
+                  <Textarea
                     placeholder="Title"
+                    rows={1}
                     value={embed.title}
                     onChange={(e) =>
                       updateEmbed(embed.id, { title: e.target.value })
@@ -264,13 +265,14 @@ export function SayCommandBuilder({
                     >
                       <div className="flex items-center gap-2">
                         <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-                        <Input
+                        <Textarea
                           placeholder="Field name"
+                          rows={1}
                           value={f.name}
                           onChange={(e) =>
                             updateField(embed.id, f.id, { name: e.target.value })
                           }
-                          className="h-8"
+                          className="min-h-8 py-1.5"
                         />
                         <Button
                           type="button"
@@ -742,12 +744,12 @@ function EmbedPreview({ embed }: { embed: Embed }) {
                 href={embed.url}
                 target="_blank"
                 rel="noreferrer"
-                className="block text-[#00a8fc] hover:underline font-semibold"
+                className="block text-[#00a8fc] hover:underline font-semibold whitespace-pre-wrap break-words"
               >
                 {embed.title}
               </a>
             ) : (
-              <div className="text-white font-semibold">{embed.title}</div>
+              <div className="text-white font-semibold whitespace-pre-wrap break-words">{embed.title}</div>
             ))}
           {embed.description && (
             <p className="whitespace-pre-wrap break-words text-sm text-[#dbdee1]">
@@ -763,7 +765,7 @@ function EmbedPreview({ embed }: { embed: Embed }) {
                     f.inline ? "col-span-1 min-w-0" : "col-span-3 min-w-0"
                   }
                 >
-                  <div className="text-xs font-semibold text-white">
+                  <div className="text-xs font-semibold text-white whitespace-pre-wrap break-words">
                     {f.name || "Field name"}
                   </div>
                   <div className="text-sm whitespace-pre-wrap break-words">
