@@ -1308,6 +1308,47 @@ export const BotBuilder = () => {
                     This locks in your spot in the build queue. We'll only finalize the charge once we've confirmed your build scope.
                   </p>
                 </div>
+
+                {/* Financing — split the total into monthly installments */}
+                <div className="mt-3 rounded-xl border border-primary/20 bg-card/70 backdrop-blur p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium text-foreground mb-2">
+                    <CreditCard size={12} className="text-primary" />
+                    How would you like to pay?
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { id: "full", label: "Pay in full", sub: `$${total.toFixed(2)} once` },
+                      { id: "3", label: "3 months", sub: `$${(total / 3).toFixed(2)}/mo` },
+                      { id: "6", label: "6 months", sub: `$${(total / 6).toFixed(2)}/mo` },
+                      { id: "10", label: "10 months", sub: `$${(total / 10).toFixed(2)}/mo` },
+                    ] as const).map((opt) => {
+                      const active = paymentPlan === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setPaymentPlan(opt.id)}
+                          className={`text-left rounded-lg border p-2.5 transition-all ${
+                            active
+                              ? "border-primary bg-primary/10 ring-1 ring-primary/40"
+                              : "border-border hover:border-primary/40 hover:bg-card"
+                          }`}
+                        >
+                          <div className="text-xs font-medium text-foreground flex items-center justify-between">
+                            {opt.label}
+                            {active && <Check size={12} className="text-primary" />}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5">{opt.sub}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-2.5 leading-relaxed">
+                    {paymentPlan === "full"
+                      ? "One charge once we confirm your build scope."
+                      : `${paymentPlan} equal monthly payments — no fees, no interest. Build starts after the first payment clears.`}
+                  </p>
+                </div>
               </div>
             </div>
 
