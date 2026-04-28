@@ -187,6 +187,66 @@ export type Database = {
         }
         Relationships: []
       }
+      dashboard_addon_order: {
+        Row: {
+          bot_id: string
+          group_key: string
+          id: string
+          ordered_ids: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bot_id: string
+          group_key: string
+          id?: string
+          ordered_ids?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bot_id?: string
+          group_key?: string
+          id?: string
+          ordered_ids?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      dashboard_fixes: {
+        Row: {
+          body: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          severity: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          severity?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          severity?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
