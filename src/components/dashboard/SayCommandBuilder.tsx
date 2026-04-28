@@ -648,9 +648,9 @@ function SingleMessage({
           </div>
         )}
         {files && files.length > 0 && (
-          <div className="mt-2 grid grid-cols-2 gap-2 max-w-md">
+          <div className={`mt-2 ${files.length > 1 ? "grid grid-cols-2 gap-2 max-w-md" : ""}`}>
             {files.map((f, i) => (
-              <PreviewImage key={`${f.name}-${i}`} file={f} />
+              <PreviewImage key={`${f.name}-${i}`} file={f} single={files.length === 1} />
             ))}
           </div>
         )}
@@ -659,13 +659,17 @@ function SingleMessage({
   );
 }
 
-function PreviewImage({ file }: { file: File }) {
+function PreviewImage({ file, single }: { file: File; single?: boolean }) {
   const [url] = useState(() => URL.createObjectURL(file));
   return (
     <img
       src={url}
       alt={file.name}
-      className="rounded max-h-60 w-full object-cover border border-[#1f2023]"
+      className={
+        single
+          ? "rounded max-w-[550px] w-full h-auto border border-[#1f2023]"
+          : "rounded max-h-60 w-full object-cover border border-[#1f2023]"
+      }
     />
   );
 }
