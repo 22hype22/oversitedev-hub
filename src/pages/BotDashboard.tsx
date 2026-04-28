@@ -137,11 +137,13 @@ const getStatusMeta = (s: string): StatusMeta =>
 
 const BotSection = ({
   bot,
+  allBots,
   onCancel,
   onAddAddons,
   onReload,
 }: {
   bot: OwnedBot;
+  allBots: OwnedBot[];
   onCancel: (bot: OwnedBot) => void;
   onAddAddons: (bot: OwnedBot) => void;
   onReload: () => void;
