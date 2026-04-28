@@ -133,8 +133,11 @@ export type Database = {
           delivery_url: string | null
           icon_url: string | null
           id: string
+          installment_amount: number | null
           monthly_hosting: boolean
           notes: string | null
+          payment_plan: string
+          plan_months: number | null
           purchase_id: string | null
           source_url: string | null
           status: string
@@ -155,8 +158,11 @@ export type Database = {
           delivery_url?: string | null
           icon_url?: string | null
           id?: string
+          installment_amount?: number | null
           monthly_hosting?: boolean
           notes?: string | null
+          payment_plan?: string
+          plan_months?: number | null
           purchase_id?: string | null
           source_url?: string | null
           status?: string
@@ -177,8 +183,11 @@ export type Database = {
           delivery_url?: string | null
           icon_url?: string | null
           id?: string
+          installment_amount?: number | null
           monthly_hosting?: boolean
           notes?: string | null
+          payment_plan?: string
+          plan_months?: number | null
           purchase_id?: string | null
           source_url?: string | null
           status?: string
