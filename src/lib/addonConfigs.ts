@@ -617,22 +617,6 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
-  "per-category-roles": {
-    title: "Per-Category Role Access",
-    summary: "Restrict each ticket category to specific staff roles.",
-    icon: Users,
-    fields: [
-      {
-        key: "mappings",
-        label: "Category → role mappings (one per line)",
-        type: "textarea",
-        placeholder: "billing: @Billing Staff\nreports: @Mods\nappeals: @Admins",
-        help: "Format: category-name: @role",
-      },
-      toggle("hideFromOthers", "Hide tickets from staff outside the category"),
-    ],
-  },
-
   "ticket-notes": {
     title: "Ticket Notes",
     summary: "Internal staff-only notes attached to tickets.",
