@@ -841,9 +841,11 @@ export const BotBuilder = () => {
               <span className="ml-auto text-xs text-muted-foreground">Tap to toggle</span>
             </div>
             <p className="text-xs text-muted-foreground mb-4">
-              {base === "scratch"
+              {isPack
                 ? "All three categories included. Stack on extras from Protection, Support, or Utilities."
-                : <>Tailored options for your <span className="text-primary font-medium">{selectedBase?.name}</span> base.</>}
+                : isMulti
+                  ? <>Tailored options for each of your selected bots — stacked separately so you can mix &amp; match.</>
+                  : <>Tailored options for your <span className="text-primary font-medium">{selectedBase?.name}</span> base.</>}
             </p>
             {(() => {
               const renderAddonCard = (a: Addon) => {
