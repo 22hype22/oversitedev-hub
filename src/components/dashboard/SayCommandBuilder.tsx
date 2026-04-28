@@ -89,8 +89,10 @@ export function SayCommandBuilder({
       footerText: botName,
     },
   ]);
-  // Optional trailing message (shown below the embeds)
-  const [trailingContent, setTrailingContent] = useState<string | null>(null);
+  // Extra messages shown below the embeds (each is a separate message)
+  const [trailingMessages, setTrailingMessages] = useState<
+    { id: string; text: string }[]
+  >([]);
   // Files actually attached by the user
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -375,60 +377,78 @@ export function SayCommandBuilder({
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Embed
         </Button>
 
-        {trailingContent !== null && (
-          <div className="space-y-2">
+        {trailingMessages.map((msg, idx) => (
+          <div className="space-y-2" key={msg.id}>
             <div className="flex items-baseline justify-between">
-              <Label htmlFor="say-trailing" className="font-semibold">
-                Message
+              <Label htmlFor={`say-trailing-${msg.id}`} className="font-semibold">
+                Message {idx + 2}
               </Label>
               <button
                 type="button"
                 className="text-xs text-muted-foreground hover:text-destructive transition-smooth"
-                onClick={() => setTrailingContent(null)}
+                onClick={() =>
+                  setTrailingMessages((prev) =>
+                    prev.filter((m) => m.id !== msg.id),
+                  )
+                }
               >
                 Remove
               </button>
             </div>
             <Textarea
-              id="say-trailing"
-              value={trailingContent}
+              id={`say-trailing-${msg.id}`}
+              value={msg.text}
               onChange={(e) =>
-                setTrailingContent(e.target.value.slice(0, contentLimit))
+                setTrailingMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === msg.id
+                      ? { ...m, text: e.target.value.slice(0, contentLimit) }
+                      : m,
+                  ),
+                )
               }
               rows={4}
-              placeholder="Plain message shown below the embed."
+              placeholder="Plain message shown below."
               className="resize-y"
             />
           </div>
-        )}
+        ))}
 
-        {trailingContent === null && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setTrailingContent("")}
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" /> Add Message
-          </Button>
-        )}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            setTrailingMessages((prev) => [
+              ...prev,
+              { id: crypto.randomUUID(), text: "" },
+            ])
+          }
+        >
+          <Plus className="h-3.5 w-3.5 mr-1" /> Add Message
+        </Button>
 
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
-            <Label className="font-semibold">Files</Label>
+            <Label className="font-semibold">Images</Label>
             <span className="text-xs text-muted-foreground italic">
-              25 MB max per file
+              PNG, JPG, GIF, WebP — 25 MB max per image
             </span>
           </div>
           <input
             ref={fileInputRef}
             type="file"
             multiple
+            accept="image/png,image/jpeg,image/gif,image/webp"
             className="hidden"
             onChange={(e) => {
               const picked = Array.from(e.target.files ?? []);
               const accepted: File[] = [];
               for (const f of picked) {
+                if (!f.type.startsWith("image/")) {
+                  toast.error(`${f.name} isn't an image.`);
+                  continue;
+                }
                 if (f.size > MAX_FILE_BYTES) {
                   toast.error(`${f.name} is over the 25 MB limit.`);
                   continue;
@@ -443,28 +463,15 @@ export function SayCommandBuilder({
             }}
           />
           {files.length > 0 && (
-            <div className="rounded-md border border-border bg-card/40 p-2 space-y-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 rounded-md border border-border bg-card/40 p-2">
               {files.map((f, i) => (
-                <div
+                <FileThumb
                   key={`${f.name}-${i}`}
-                  className="flex items-center justify-between text-xs"
-                >
-                  <span className="truncate flex-1 mr-2">
-                    📎 {f.name}{" "}
-                    <span className="text-muted-foreground">
-                      ({(f.size / 1024).toFixed(1)} KB)
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-destructive transition-smooth"
-                    onClick={() =>
-                      setFiles((prev) => prev.filter((_, idx) => idx !== i))
-                    }
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                  file={f}
+                  onRemove={() =>
+                    setFiles((prev) => prev.filter((_, idx) => idx !== i))
+                  }
+                />
               ))}
             </div>
           )}
@@ -475,7 +482,7 @@ export function SayCommandBuilder({
               size="sm"
               onClick={() => fileInputRef.current?.click()}
             >
-              Upload files
+              Upload images
             </Button>
             <Button
               type="button"
@@ -498,9 +505,9 @@ export function SayCommandBuilder({
             botName={botName}
             botAvatarUrl={botAvatarUrl ?? undefined}
             content={content}
-            trailingContent={trailingContent ?? undefined}
+            trailingMessages={trailingMessages.map((m) => m.text)}
             embeds={embeds}
-            files={files.map((f) => f.name)}
+            files={files}
           />
         </div>
       </div>
@@ -563,26 +570,59 @@ function DiscordMessagePreview({
   botName,
   botAvatarUrl,
   content,
-  trailingContent,
+  trailingMessages,
   embeds,
   files,
 }: {
   botName: string;
   botAvatarUrl?: string;
   content: string;
-  trailingContent?: string;
+  trailingMessages?: string[];
   embeds: Embed[];
-  files?: string[];
+  files?: File[];
+}) {
+  return (
+    <div className="space-y-4">
+      <SingleMessage
+        botName={botName}
+        botAvatarUrl={botAvatarUrl}
+        content={content}
+        embeds={embeds}
+        files={files}
+      />
+      {trailingMessages
+        ?.filter((t) => t.trim().length > 0)
+        .map((t, i) => (
+          <SingleMessage
+            key={i}
+            botName={botName}
+            botAvatarUrl={botAvatarUrl}
+            content={t}
+            embeds={[]}
+          />
+        ))}
+    </div>
+  );
+}
+
+function SingleMessage({
+  botName,
+  botAvatarUrl,
+  content,
+  embeds,
+  files,
+}: {
+  botName: string;
+  botAvatarUrl?: string;
+  content: string;
+  embeds: Embed[];
+  files?: File[];
 }) {
   return (
     <div className="flex gap-3">
       <div className="h-10 w-10 rounded-full bg-[#5865F2] grid place-items-center shrink-0 overflow-hidden">
         {botAvatarUrl ? (
-          <img
-            src={botAvatarUrl}
-            alt=""
-            className="h-full w-full object-cover"
-          />
+          <img src={botAvatarUrl} alt="" className="h-full w-full object-cover" />
         ) : (
           <span className="text-white text-sm font-bold">
             {botName.slice(0, 1).toUpperCase()}
@@ -600,27 +640,57 @@ function DiscordMessagePreview({
         {content && (
           <p className="whitespace-pre-wrap break-words mt-0.5">{content}</p>
         )}
-        <div className="space-y-2 mt-1">
-          {embeds.map((e) => (
-            <EmbedPreview key={e.id} embed={e} />
-          ))}
-        </div>
-        {trailingContent && (
-          <p className="whitespace-pre-wrap break-words mt-2">{trailingContent}</p>
+        {embeds.length > 0 && (
+          <div className="space-y-2 mt-1">
+            {embeds.map((e) => (
+              <EmbedPreview key={e.id} embed={e} />
+            ))}
+          </div>
         )}
         {files && files.length > 0 && (
-          <div className="mt-2 space-y-1">
-            {files.map((f) => (
-              <div
-                key={f}
-                className="text-xs text-[#00a8fc] bg-[#2b2d31] rounded px-2 py-1 inline-block mr-1"
-              >
-                📎 {f}
-              </div>
+          <div className="mt-2 grid grid-cols-2 gap-2 max-w-md">
+            {files.map((f, i) => (
+              <PreviewImage key={`${f.name}-${i}`} file={f} />
             ))}
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function PreviewImage({ file }: { file: File }) {
+  const [url] = useState(() => URL.createObjectURL(file));
+  return (
+    <img
+      src={url}
+      alt={file.name}
+      className="rounded max-h-60 w-full object-cover border border-[#1f2023]"
+    />
+  );
+}
+
+function FileThumb({
+  file,
+  onRemove,
+}: {
+  file: File;
+  onRemove: () => void;
+}) {
+  const [url] = useState(() => URL.createObjectURL(file));
+  return (
+    <div className="relative group rounded-md overflow-hidden border border-border bg-card">
+      <img src={url} alt={file.name} className="w-full h-24 object-cover" />
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 py-1 text-[10px] text-white truncate">
+        {file.name} · {(file.size / 1024).toFixed(0)} KB
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute top-1 right-1 h-6 w-6 grid place-items-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-smooth hover:bg-destructive"
+      >
+        <Trash2 className="h-3 w-3" />
+      </button>
     </div>
   );
 }
