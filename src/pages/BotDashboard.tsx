@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
-import { AddonConfigCard } from "@/components/dashboard/AddonConfigCard";
+import { SortableAddonGrid } from "@/components/dashboard/SortableAddonGrid";
 import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
 import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import {
@@ -77,16 +77,15 @@ const PROTECTION_ADDON_IDS = [
   "messages",
 ];
 const SUPPORT_ADDON_IDS = [
+  "ticket-message-customization",
+  "anonymous-reporting",
   "staff-performance",
   "ticket-logs",
-  "per-category-roles",
   "ticket-notes",
   "ticket-add-remove",
   "close-all-tickets",
-  "ticket-message-customization",
   "priority-flagging",
   "auto-close-inactive",
-  "anonymous-reporting",
   "messages",
 ];
 const UTILITIES_ADDON_IDS = [
@@ -141,12 +140,14 @@ const getStatusMeta = (s: string): StatusMeta =>
 const BotSection = ({
   bot,
   allBots,
+  userId,
   onCancel,
   onAddAddons,
   onReload,
 }: {
   bot: OwnedBot;
   allBots: OwnedBot[];
+  userId: string;
   onCancel: (bot: OwnedBot) => void;
   onAddAddons: (bot: OwnedBot) => void;
   onReload: () => void;
@@ -322,18 +323,14 @@ const BotSection = ({
                     {group.label} ({group.owned.length})
                   </h4>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                  {group.owned.map((id) => {
-                    return (
-                      <AddonConfigCard
-                        key={`${bot.id}-${id}`}
-                        addonId={id}
-                        botName={bot.bot_name}
-                        botAvatarUrl={bot.icon_url}
-                      />
-                    );
-                  })}
-                </div>
+                <SortableAddonGrid
+                  userId={userId}
+                  botId={bot.id}
+                  botName={bot.bot_name}
+                  botAvatarUrl={bot.icon_url}
+                  groupKey={group.key}
+                  ids={group.owned}
+                />
               </div>
             );
           })
@@ -477,6 +474,7 @@ const BotDashboard = () => {
                 key={bot.id}
                 bot={bot}
                 allBots={dashboardBots}
+                userId={user.id}
                 onCancel={setCancelTarget}
                 onAddAddons={setAddonsTarget}
                 onReload={reload}

@@ -190,7 +190,7 @@ const ADDONS_BY_BASE: Record<string, Addon[]> = {
   support: [
     { id: "staff-performance", name: "Staff Performance Tracking", desc: "Track tickets handled, response times, and more.", icon: BarChart2, price: 1.99 },
     { id: "ticket-logs", name: "Ticket Logs", desc: "Full transcripts and history of every ticket.", icon: FileText, price: 0.99 },
-    { id: "per-category-roles", name: "Per-Category Role Access", desc: "Limit which roles can see each ticket category.", icon: UserCog, price: 0.99 },
+    
     { id: "ticket-notes", name: "Ticket Notes", desc: "Internal staff notes inside tickets.", icon: ClipboardList, price: 0.99 },
     { id: "ticket-add-remove", name: "Add / Remove Members", desc: "Pull people in or out of a ticket.", icon: UserPlus, price: 0.99 },
     { id: "close-all-tickets", name: "Close All Tickets", desc: "One command to close every open ticket.", icon: Trash2, price: 0.99 },

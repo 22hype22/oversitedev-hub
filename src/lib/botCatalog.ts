@@ -47,7 +47,6 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   // Support
   "staff-performance": "Staff Performance Tracking",
   "ticket-logs": "Ticket Logs",
-  "per-category-roles": "Per-Category Role Access",
   "ticket-notes": "Ticket Notes",
   "ticket-add-remove": "Add / Remove Members",
   "close-all-tickets": "Close All Tickets",
@@ -101,7 +100,6 @@ export const BOT_ADDON_PRICES: Record<string, number> = {
   // Support
   "staff-performance": 1.99,
   "ticket-logs": 0.99,
-  "per-category-roles": 0.99,
   "ticket-notes": 0.99,
   "ticket-add-remove": 0.99,
   "close-all-tickets": 0.99,
@@ -148,7 +146,6 @@ const ADDON_IDS_BY_BASE: Record<string, string[]> = {
   support: [
     "staff-performance",
     "ticket-logs",
-    "per-category-roles",
     "ticket-notes",
     "ticket-add-remove",
     "close-all-tickets",

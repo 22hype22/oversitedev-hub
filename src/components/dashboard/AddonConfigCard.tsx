@@ -42,6 +42,7 @@ type Props = {
 export function AddonConfigCard({ addonId, botName, botAvatarUrl }: Props) {
   const isSayCommand = addonId === "messages";
   const isTicketPanel = addonId === "ticket-message-customization";
+  const isAnonReport = addonId === "anonymous-reporting";
   const config = getAddonConfig(addonId);
   const [open, setOpen] = useState(false);
 
@@ -236,7 +237,9 @@ export function AddonConfigCard({ addonId, botName, botAvatarUrl }: Props) {
           className={
             isSayCommand
               ? "max-w-5xl max-h-[90vh] overflow-y-auto"
-              : "max-w-lg max-h-[85vh] overflow-y-auto"
+              : isTicketPanel || isAnonReport
+                ? "max-w-2xl max-h-[90vh] overflow-y-auto"
+                : "max-w-lg max-h-[85vh] overflow-y-auto"
           }
         >
           <DialogHeader>
@@ -255,7 +258,9 @@ export function AddonConfigCard({ addonId, botName, botAvatarUrl }: Props) {
               <SayCommandBuilder botName={botName} botAvatarUrl={botAvatarUrl} />
             </div>
           ) : isTicketPanel ? (
-            <TicketPanelBuilder botName={botName} />
+            <TicketPanelBuilder botName={botName} variant="ticket" />
+          ) : isAnonReport ? (
+            <TicketPanelBuilder botName={botName} variant="report" />
           ) : (
             <div className="space-y-5 py-2">
               {config.fields.map((f) => (
