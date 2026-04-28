@@ -52,23 +52,24 @@ import {
  *  Order here is the exact left→right, top→bottom order shown in the dashboard.
  *  Base-included features come first, then paid add-ons. */
 const PROTECTION_ADDON_IDS = [
+  // Reordered per product: Moderation History first, Advanced Logging second,
+  // Auto-Escalating Warnings third — then everything else.
+  "moderation-history",
   "advanced-logging",
+  "auto-escalating-warnings",
   "verification-system",
   "mod-actions",
   "anti-spam",
   "anti-raid",
   "basic-logging",
   "phishing-detection",
-  // Paid add-ons (in catalog order)
+  // Remaining paid add-ons
   "nsfw-invite-scanner",
   "avatar-nsfw-detection",
   "bio-phrase-detection",
-  "account-age-gating",
-  "auto-escalating-warnings",
   "softban-massban",
   "channel-lockdown",
   "staff-notes",
-  "moderation-history",
   "auto-slowmode",
   "temp-bans",
 ];
