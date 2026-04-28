@@ -75,7 +75,6 @@ const PROTECTION_ADDON_IDS = [
   "temp-bans",
 ];
 const SUPPORT_ADDON_IDS = [
-  "messages",
   "staff-performance",
   "ticket-logs",
   "per-category-roles",
@@ -87,6 +86,7 @@ const SUPPORT_ADDON_IDS = [
   "auto-close-inactive",
   "anonymous-reporting",
 ];
+const MESSAGES_ADDON_IDS = ["messages"];
 const UTILITIES_ADDON_IDS = [
   "music-addon",
   "auto-radio",
