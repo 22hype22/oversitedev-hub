@@ -540,6 +540,7 @@ export const BotBuilder = () => {
       installment_amount: installmentAmount,
       discount_code: appliedDiscount?.code ?? null,
       discount_amount: discountAmount,
+      engine_version: engineVersion,
     });
     if (error) {
       sonnerToast.error("Couldn't save your order", { description: error.message });
