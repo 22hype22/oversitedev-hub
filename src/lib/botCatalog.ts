@@ -32,7 +32,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   "nsfw-invite-scanner": "NSFW Invite Scanner + Censored Logs",
   "avatar-nsfw-detection": "Avatar NSFW Detection",
   "bio-phrase-detection": "Bio Phrase Detection",
-  "account-age-gating": "New Account Age Gating",
+  
   "auto-escalating-warnings": "Auto-Escalating Warnings",
   "softban-massban": "/softban and /massban",
   "channel-lockdown": "Channel Lockdown Command",
