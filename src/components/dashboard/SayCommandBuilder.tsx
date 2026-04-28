@@ -508,23 +508,6 @@ export function SayCommandBuilder({
   );
 }
 
-function FlagRow({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <Label className="text-sm cursor-pointer">{label}</Label>
-      <Switch checked={checked} onCheckedChange={onChange} />
-    </div>
-  );
-}
-
 function Section({
   title,
   children,
