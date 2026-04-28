@@ -66,8 +66,7 @@ export function useOwnedBots() {
         delivery_url: row.delivery_url ?? null,
       }));
 
-    // Always include the practice bot so users can preview every add-on.
-    setBots([...buildDemoBots(), ...mapped]);
+    setBots(mapped);
     setLoading(false);
   }, [user]);
 
