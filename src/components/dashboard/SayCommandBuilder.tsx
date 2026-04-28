@@ -88,6 +88,7 @@ export function SayCommandBuilder({
       footerText: botName,
     },
   ]);
+  const [trailingContent, setTrailingContent] = useState("");
 
   const updateEmbed = (id: string, patch: Partial<Embed>) =>
     setEmbeds((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
@@ -356,6 +357,15 @@ export function SayCommandBuilder({
         >
           <Plus className="h-3.5 w-3.5 mr-1" /> Add embed
         </Button>
+
+        <Section title="Message below embed">
+          <Textarea
+            value={trailingContent}
+            onChange={(e) => setTrailingContent(e.target.value)}
+            rows={3}
+            placeholder="Optional plain message shown below the embed."
+          />
+        </Section>
       </div>
 
       {/* Preview */}
@@ -366,6 +376,7 @@ export function SayCommandBuilder({
             botName={botName}
             botAvatarUrl={botAvatarUrl ?? undefined}
             content={content}
+            trailingContent={trailingContent}
             embeds={embeds}
           />
         </div>
@@ -429,11 +440,13 @@ function DiscordMessagePreview({
   botName,
   botAvatarUrl,
   content,
+  trailingContent,
   embeds,
 }: {
   botName: string;
   botAvatarUrl?: string;
   content: string;
+  trailingContent?: string;
   embeds: Embed[];
 }) {
   return (
@@ -467,6 +480,9 @@ function DiscordMessagePreview({
             <EmbedPreview key={e.id} embed={e} />
           ))}
         </div>
+        {trailingContent && (
+          <p className="whitespace-pre-wrap break-words mt-2">{trailingContent}</p>
+        )}
       </div>
     </div>
   );
