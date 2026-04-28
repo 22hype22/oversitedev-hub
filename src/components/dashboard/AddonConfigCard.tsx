@@ -20,14 +20,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowRight, Save, Settings2 } from "lucide-react";
+import { ArrowRight, Save, Settings2, Megaphone } from "lucide-react";
 import { toast } from "sonner";
 import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
 import { getAddonLabel } from "@/lib/botCatalog";
+import { SayCommandBuilder } from "./SayCommandBuilder";
 
 type Props = {
   addonId: string;
   botName: string;
+  botAvatarUrl?: string | null;
 };
 
 /**
@@ -36,7 +38,8 @@ type Props = {
  *
  * Mock UI only — values live in local state and "save" shows a toast.
  */
-export function AddonConfigCard({ addonId, botName }: Props) {
+export function AddonConfigCard({ addonId, botName, botAvatarUrl }: Props) {
+  const isSayCommand = addonId === "say-command";
   const config = getAddonConfig(addonId);
   const [open, setOpen] = useState(false);
 
@@ -227,7 +230,13 @@ export function AddonConfigCard({ addonId, botName }: Props) {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent
+          className={
+            isSayCommand
+              ? "max-w-5xl max-h-[90vh] overflow-y-auto"
+              : "max-w-lg max-h-[85vh] overflow-y-auto"
+          }
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Icon className="h-5 w-5 text-primary" />
@@ -239,11 +248,17 @@ export function AddonConfigCard({ addonId, botName }: Props) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-5 py-2">
-            {config.fields.map((f) => (
-              <div key={f.key}>{renderField(f)}</div>
-            ))}
-          </div>
+          {isSayCommand ? (
+            <div className="py-2">
+              <SayCommandBuilder botName={botName} botAvatarUrl={botAvatarUrl} />
+            </div>
+          ) : (
+            <div className="space-y-5 py-2">
+              {config.fields.map((f) => (
+                <div key={f.key}>{renderField(f)}</div>
+              ))}
+            </div>
+          )}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
