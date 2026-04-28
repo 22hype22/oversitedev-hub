@@ -579,6 +579,16 @@ export const BotBuilder = () => {
       <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: configurator */}
         <div className="lg:col-span-2 space-y-8">
+          {/* Two-bot deal callout */}
+          <div className="rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-3 flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-primary/15 border border-primary/30 grid place-items-center shrink-0">
+              <Sparkles size={16} className="text-primary" />
+            </div>
+            <div className="text-xs sm:text-sm">
+              <span className="font-semibold text-foreground">Any two bots = $149 one-time.</span>{" "}
+              <span className="text-muted-foreground">Mix and match — protection, support, or utilities. Same price no matter which two.</span>
+            </div>
+          </div>
           {/* Step 1 — Base */}
           <div id="pick-base" className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur p-6 scroll-mt-24">
             <div className="flex items-center gap-3 mb-4">
