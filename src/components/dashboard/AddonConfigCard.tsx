@@ -70,7 +70,7 @@ export function AddonConfigCard({ addonId, botName, botAvatarUrl }: Props) {
   // it's owned but configuration is still wired up.
   if (!config) {
     return (
-      <Card className="bg-card/40 border-dashed border-border p-6 flex flex-col min-h-[170px]">
+      <Card className="bg-card/40 border-dashed border-border p-6 flex flex-col h-[210px]">
         <div className="flex items-start gap-3 mb-3">
           <div className="h-10 w-10 rounded-lg bg-muted/40 border border-border grid place-items-center shrink-0">
             <Settings2 className="h-5 w-5 text-muted-foreground" />
@@ -213,7 +213,7 @@ export function AddonConfigCard({ addonId, botName, botAvatarUrl }: Props) {
     <>
       <Card
         onClick={() => setOpen(true)}
-        className="group cursor-pointer bg-card hover:bg-card/80 border-border hover:border-primary/50 hover:shadow-elegant transition-smooth p-6 flex flex-col min-h-[170px]"
+        className="group cursor-pointer bg-card hover:bg-card/80 border-border hover:border-primary/50 hover:shadow-elegant transition-smooth p-6 flex flex-col h-[210px]"
       >
         <div className="flex items-start gap-3 mb-3">
           <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0 group-hover:bg-primary/15 transition-smooth">
