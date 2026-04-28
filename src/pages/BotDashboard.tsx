@@ -25,6 +25,7 @@ import {
 import { toast } from "sonner";
 import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
 import { AddonConfigCard } from "@/components/dashboard/AddonConfigCard";
+import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
 import {
   LogOut,
   Settings,
