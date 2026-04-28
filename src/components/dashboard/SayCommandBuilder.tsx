@@ -205,8 +205,9 @@ export function SayCommandBuilder({
               {/* Body */}
               <Section title="Body" small defaultOpen>
                 <div className="space-y-2">
-                  <Input
+                  <Textarea
                     placeholder="Title"
+                    rows={1}
                     value={embed.title}
                     onChange={(e) =>
                       updateEmbed(embed.id, { title: e.target.value })
