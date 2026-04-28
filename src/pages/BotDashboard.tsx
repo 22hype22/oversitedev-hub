@@ -49,6 +49,7 @@ import {
   Wrench,
   Star,
   MessageSquare,
+  Github,
 } from "lucide-react";
 
 /** Add-on ids grouped by category — used to render config boxes per group.
