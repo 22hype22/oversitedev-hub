@@ -94,11 +94,11 @@ const BotsPage = () => {
                   }}
                 />
                 <div className="relative">
-                  <div className="aspect-[16/9] grid place-items-center mb-6 overflow-hidden">
+                  <div className="aspect-[4/3] grid place-items-center mb-6 overflow-hidden -mx-2">
                     <img
                       src={bot.image}
                       alt={`${bot.name} logo`}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-contain scale-110"
                     />
                   </div>
 
