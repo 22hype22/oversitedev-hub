@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
-import { AddonConfigCard } from "@/components/dashboard/AddonConfigCard";
 import { SortableAddonGrid } from "@/components/dashboard/SortableAddonGrid";
 import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
 import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
