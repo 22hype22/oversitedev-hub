@@ -927,13 +927,44 @@ export const BotBuilder = () => {
 
           {/* Step 3 — Add-ons (depend on base) */}
           <div className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="h-7 w-7 rounded-full bg-primary/15 border border-primary/30 grid place-items-center text-xs font-bold text-primary">
-                3
-              </div>
-              <h3 className="text-lg font-semibold">Stack on add-ons</h3>
-              <span className="ml-auto text-xs text-muted-foreground">Tap to toggle</span>
-            </div>
+            {(() => {
+              const allAvailableIds = (
+                isPack
+                  ? [
+                      ...ADDONS_BY_BASE.protection,
+                      ...ADDONS_BY_BASE.support,
+                      ...ADDONS_BY_BASE.utilities,
+                      ...SHARED_ADDONS,
+                    ]
+                  : [
+                      ...bases.flatMap((b) => ADDONS_BY_BASE[b] ?? []),
+                      ...SHARED_ADDONS,
+                    ]
+              ).map((a) => a.id);
+              const allSelected =
+                allAvailableIds.length > 0 &&
+                allAvailableIds.every((id) => addons.includes(id));
+              const toggleAll = () =>
+                setAddons(allSelected ? [] : Array.from(new Set(allAvailableIds)));
+              return (
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="h-7 w-7 rounded-full bg-primary/15 border border-primary/30 grid place-items-center text-xs font-bold text-primary">
+                    3
+                  </div>
+                  <h3 className="text-lg font-semibold">Stack on add-ons</h3>
+                  <Button
+                    type="button"
+                    variant="outlineGlow"
+                    size="sm"
+                    className="ml-auto h-7 text-xs"
+                    onClick={toggleAll}
+                  >
+                    {allSelected ? "Clear all" : "Select all"}
+                  </Button>
+                  <span className="text-xs text-muted-foreground">Tap to toggle</span>
+                </div>
+              );
+            })()}
             <p className="text-xs text-muted-foreground mb-4">
               {isPack
                 ? "All three categories included. Stack on extras from Protection, Support, or Utilities."
