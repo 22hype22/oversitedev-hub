@@ -135,11 +135,13 @@ const BotSection = ({
   queuePosition,
   onCancel,
   onAddAddons,
+  onReload,
 }: {
   bot: OwnedBot;
   queuePosition: number | null;
   onCancel: (bot: OwnedBot) => void;
   onAddAddons: (bot: OwnedBot) => void;
+  onReload: () => void;
 }) => {
   const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
   const baseTagline = BOT_BASE_TAGLINES[bot.base];
