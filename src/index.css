@@ -178,6 +178,14 @@
   .animate-marquee:hover {
     animation-play-state: paused;
   }
+
+  @keyframes hex-loader-trace {
+    to { stroke-dashoffset: -340; }
+  }
+  .hex-loader-trace {
+    stroke-dashoffset: 0;
+    animation: hex-loader-trace 2.4s linear infinite;
+  }
 }
 
 /* When marketing is suspended, push the fixed navbar below the suspension banner */
