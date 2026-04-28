@@ -112,6 +112,7 @@ export const BotOrdersLog = () => {
         status: draft.status,
         notes: draft.notes || null,
         delivery_url: draft.delivery_url || null,
+        source_url: draft.source_url || null,
       })
       .eq("id", row.id);
     setSavingId(null);
@@ -123,7 +124,7 @@ export const BotOrdersLog = () => {
     setRows((prev) =>
       prev.map((r) =>
         r.id === row.id
-          ? { ...r, status: draft.status, notes: draft.notes || null, delivery_url: draft.delivery_url || null }
+          ? { ...r, status: draft.status, notes: draft.notes || null, delivery_url: draft.delivery_url || null, source_url: draft.source_url || null }
           : r,
       ),
     );
