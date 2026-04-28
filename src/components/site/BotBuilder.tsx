@@ -228,6 +228,22 @@ const getAddonsForBase = (baseId: string): Addon[] => {
   return [...(ADDONS_BY_BASE[baseId] ?? []), ...SHARED_ADDONS];
 };
 
+// Build the combined add-on pool for any set of selected bases.
+const getAddonsForBases = (baseIds: string[]): Addon[] => {
+  if (baseIds.includes("scratch")) return getAddonsForBase("scratch");
+  const seen = new Set<string>();
+  const result: Addon[] = [];
+  for (const id of baseIds) {
+    for (const a of ADDONS_BY_BASE[id] ?? []) {
+      if (!seen.has(a.id)) { seen.add(a.id); result.push(a); }
+    }
+  }
+  for (const a of SHARED_ADDONS) {
+    if (!seen.has(a.id)) { seen.add(a.id); result.push(a); }
+  }
+  return result;
+};
+
 const SCRATCH_CATEGORIES: { id: string; label: string; icon: typeof Shield; addons: Addon[] }[] = [
   { id: "protection", label: "Protection options", icon: Shield, addons: ADDONS_BY_BASE.protection },
   { id: "support", label: "Support options", icon: LifeBuoy, addons: ADDONS_BY_BASE.support },
@@ -252,10 +268,13 @@ const PACK_TABS: { id: string; label: string; icon: typeof Shield }[] = [
 export const BotBuilder = () => {
   const { user } = useAuth();
   const { hasDashboardAccess: dashboardAlreadyOwned } = useOwnedBots();
-  const [base, setBase] = useState<string>("protection");
-  // Single-bot identity (for non-pack bases)
+  // Multi-select bases. Rules:
+  //  • All-in-One Pack ("scratch") is exclusive — selecting it clears others.
+  //  • Otherwise the user can select up to 2 single bots (Protection / Support / Utilities).
+  const [bases, setBases] = useState<string[]>(["protection"]);
+  // Single-bot identity (used when exactly one non-pack base is selected)
   const [identity, setIdentity] = useState<Identity>({ ...EMPTY_IDENTITY });
-  // Pack identities (for All-in-One Pack)
+  // Per-category identities (used for the All-in-One Pack OR multi-select)
   const [packIdentities, setPackIdentities] = useState<Record<string, Identity>>({
     protection: { ...EMPTY_IDENTITY },
     support: { ...EMPTY_IDENTITY },
@@ -283,30 +302,48 @@ export const BotBuilder = () => {
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
 
-  const currentAddons = useMemo(() => getAddonsForBase(base), [base]);
+  const isPack = bases.includes("scratch");
+  const isMulti = !isPack && bases.length > 1;
+  // When more than one identity is needed (pack OR multi-select)
+  const usesPackTabs = isPack || isMulti;
+  // Which tabs to show in the identity step
+  const visibleIdentityTabs = useMemo(() => {
+    if (isPack) return PACK_TABS;
+    return PACK_TABS.filter((t) => bases.includes(t.id));
+  }, [isPack, bases]);
 
-  // Active identity: for the All-in-One Pack, this is the currently-shown tab's identity.
-  // For all other bases, it's the single shared identity.
-  const isPack = base === "scratch";
-  const activeIdentity: Identity = isPack ? packIdentities[activePackTab] : identity;
+  // Keep the active pack tab valid as `bases` changes
+  if (usesPackTabs && !visibleIdentityTabs.find((t) => t.id === activePackTab)) {
+    // defer state update to next tick by scheduling via setTimeout would
+    // create churn; instead just use the first visible tab during render.
+  }
+  const effectiveActiveTab = visibleIdentityTabs.find((t) => t.id === activePackTab)
+    ? activePackTab
+    : visibleIdentityTabs[0]?.id ?? "protection";
+
+  const currentAddons = useMemo(() => getAddonsForBases(bases), [bases]);
+
+  const activeIdentity: Identity = usesPackTabs ? packIdentities[effectiveActiveTab] : identity;
   const { name, description, icon, banner } = activeIdentity;
 
   // Monthly hosting pricing — incentivizes the All-in-One Pack:
-  //   • Single bot (Protection / Support / Utilities): $4.99/mo each
-  //   • All-in-One Pack (one bot, all three categories): $9.99/mo
-  //   • Buying all three as separate bots adds up to $14.99/mo, so the
-  //     All-in-One saves $5/mo vs running them separately.
+  //   • Single bot: $4.99/mo
+  //   • Two single bots: $9.98/mo (2 × $4.99)
+  //   • All three as separate bots: $14.99/mo
+  //   • All-in-One Pack (one bot, all three categories): $9.99/mo  ← cheapest 3-cat option
   const ALL_IN_ONE_PRICE = 9.99;
   const SINGLE_BOT_PRICE = 4.99;
   const SEPARATE_BOTS_PRICE = 14.99;
-  const monthlyHostingPrice = isPack ? ALL_IN_ONE_PRICE : SINGLE_BOT_PRICE;
+  const monthlyHostingPrice = isPack
+    ? ALL_IN_ONE_PRICE
+    : SINGLE_BOT_PRICE * bases.length;
   const monthlySavingsVsSeparate = SEPARATE_BOTS_PRICE - ALL_IN_ONE_PRICE;
 
   const updateActiveIdentity = (patch: Partial<Identity>) => {
-    if (isPack) {
+    if (usesPackTabs) {
       setPackIdentities((prev) => ({
         ...prev,
-        [activePackTab]: { ...prev[activePackTab], ...patch },
+        [effectiveActiveTab]: { ...prev[effectiveActiveTab], ...patch },
       }));
     } else {
       setIdentity((prev) => ({ ...prev, ...patch }));
@@ -317,23 +354,22 @@ export const BotBuilder = () => {
   const setIcon = (v: string) => updateActiveIdentity({ icon: v });
   const setBanner = (v: string) => updateActiveIdentity({ banner: v });
 
-  // When the user finishes a field on a pack tab and there's a next tab,
-  // auto-advance with a slide animation.
+  // Auto-advance to the next visible identity tab when finishing a description
   const advanceToNextTab = () => {
-    if (!isPack) return;
-    const current = packIdentities[activePackTab];
-    if (!current.name.trim() || !current.description.trim()) return;
-    const idx = PACK_TABS.findIndex((t) => t.id === activePackTab);
-    if (idx >= 0 && idx < PACK_TABS.length - 1) {
+    if (!usesPackTabs) return;
+    const current = packIdentities[effectiveActiveTab];
+    if (!current?.name.trim() || !current?.description.trim()) return;
+    const idx = visibleIdentityTabs.findIndex((t) => t.id === effectiveActiveTab);
+    if (idx >= 0 && idx < visibleIdentityTabs.length - 1) {
       setTabDirection(1);
-      setActivePackTab(PACK_TABS[idx + 1].id);
+      setActivePackTab(visibleIdentityTabs[idx + 1].id);
     }
   };
   const handleDescriptionBlur = () => advanceToNextTab();
 
   const goToTab = (id: string) => {
-    const fromIdx = PACK_TABS.findIndex((t) => t.id === activePackTab);
-    const toIdx = PACK_TABS.findIndex((t) => t.id === id);
+    const fromIdx = visibleIdentityTabs.findIndex((t) => t.id === effectiveActiveTab);
+    const toIdx = visibleIdentityTabs.findIndex((t) => t.id === id);
     setTabDirection(toIdx >= fromIdx ? 1 : -1);
     setActivePackTab(id);
   };
@@ -353,39 +389,77 @@ export const BotBuilder = () => {
   const toggleAddon = (id: string) =>
     setAddons((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
 
-  // Reset addons when base changes (since addon lists are per-base)
-  const selectBase = (id: string) => {
-    setBase(id);
+  // Toggle a base with the multi-select rules.
+  const toggleBase = (id: string) => {
     setAddons([]);
     setShowAllAddons({});
+    if (id === "scratch") {
+      // Pack is exclusive
+      setBases(["scratch"]);
+      setActivePackTab("protection");
+      return;
+    }
+    setBases((prev) => {
+      // If pack is currently selected, replace with this single
+      if (prev.includes("scratch")) {
+        setActivePackTab(id);
+        return [id];
+      }
+      // Toggle off (but keep at least one selected)
+      if (prev.includes(id)) {
+        if (prev.length === 1) {
+          sonnerToast.info("Pick at least one bot", {
+            description: "You need to keep one base selected.",
+          });
+          return prev;
+        }
+        const next = prev.filter((b) => b !== id);
+        if (!next.includes(activePackTab)) setActivePackTab(next[0]);
+        return next;
+      }
+      // Add — cap at 2 single bots
+      if (prev.length >= 2) {
+        sonnerToast.info("Two-bot limit", {
+          description: "You can pick up to two bots — or grab the All-in-One Pack for all three.",
+        });
+        return prev;
+      }
+      const next = [...prev, id];
+      setActivePackTab(next[0]);
+      return next;
+    });
   };
 
   const total = useMemo(() => {
-    const baseCost = BASES.find((b) => b.id === base)?.price ?? 0;
+    const baseCost = bases.reduce(
+      (sum, id) => sum + (BASES.find((b) => b.id === id)?.price ?? 0),
+      0,
+    );
     const addonCost = addons.reduce((sum, id) => {
       // Dashboard add-on is a one-time, account-wide unlock.
-      // If the user already owns it on any prior bot, it costs $0 here.
       if (id === "dashboard" && dashboardAlreadyOwned) return sum;
       return sum + (currentAddons.find((a) => a.id === id)?.price ?? 0);
     }, 0);
     return baseCost + addonCost;
-  }, [base, addons, currentAddons, dashboardAlreadyOwned]);
+  }, [bases, addons, currentAddons, dashboardAlreadyOwned]);
 
-  // For the All-in-One Pack we use the Protection identity as the primary record
-  // and append the other two identities as a JSON block in the notes for the build team.
+  // For the All-in-One Pack OR multi-select, we use the first selected category's
+  // identity as the primary record and append the others as a JSON block in notes.
   const buildSubmissionPayload = () => {
-    if (!isPack) {
+    if (!usesPackTabs) {
       return {
         primary: identity,
         notesField: notes.trim() || null,
       };
     }
-    const primary = packIdentities.protection;
-    const extras = {
-      support: packIdentities.support,
-      utilities: packIdentities.utilities,
-    };
-    const extraNotes = `\n\n--- All-in-One Pack additional bots ---\n${JSON.stringify(extras, null, 2)}`;
+    const tabs = isPack ? PACK_TABS : visibleIdentityTabs;
+    const primary = packIdentities[tabs[0].id];
+    const extras: Record<string, Identity> = {};
+    for (const t of tabs.slice(1)) extras[t.id] = packIdentities[t.id];
+    const header = isPack
+      ? "--- All-in-One Pack additional bots ---"
+      : "--- Additional bots in this order ---";
+    const extraNotes = `\n\n${header}\n${JSON.stringify(extras, null, 2)}`;
     return {
       primary,
       notesField: ((notes.trim() ? notes.trim() : "") + extraNotes).trim(),
@@ -395,13 +469,14 @@ export const BotBuilder = () => {
   const persistOrder = async () => {
     if (!user) return true; // anonymous: skip persistence, keep legacy flow
     const { primary, notesField } = buildSubmissionPayload();
+    const baseField = isPack ? "scratch" : bases.join("+");
     const { error } = await (supabase as any).from("bot_orders").insert({
       user_id: user.id,
       bot_name: primary.name.trim(),
       bot_description: primary.description.trim() || null,
       icon_url: primary.icon,
       banner_url: primary.banner,
-      base,
+      base: baseField,
       addons,
       monthly_hosting: monthlyHosting,
       notes: notesField,
@@ -418,11 +493,11 @@ export const BotBuilder = () => {
   };
 
   const submit = async () => {
-    if (isPack) {
-      const missing = PACK_TABS.find((t) => !packIdentities[t.id].name.trim());
+    if (usesPackTabs) {
+      const missing = visibleIdentityTabs.find((t) => !packIdentities[t.id]?.name.trim());
       if (missing) {
         sonnerToast.error(`Name your ${missing.label}`, {
-          description: "Each bot in the pack needs at least a name.",
+          description: "Each bot in your order needs at least a name.",
         });
         setTabDirection(1);
         setActivePackTab(missing.id);
@@ -477,7 +552,7 @@ export const BotBuilder = () => {
     }, 6000);
   };
 
-  const selectedBase = BASES.find((b) => b.id === base);
+  const selectedBase = BASES.find((b) => b.id === (isPack ? "scratch" : bases[0]));
   const SelectedIcon = selectedBase?.icon ?? Bot;
   const displayName = name.trim() || "Your Bot";
   const displayTag = (name.trim() || "yourbot").toLowerCase().replace(/\s+/g, "") + "#0001";
@@ -509,15 +584,19 @@ export const BotBuilder = () => {
               </div>
               <h3 className="text-lg font-semibold">Pick a starting point</h3>
             </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Pick one bot, mix two, or grab the All-in-One Pack to bundle all three at the
+              best monthly rate.
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {BASES.map((b) => {
                 const Icon = b.icon;
-                const active = base === b.id;
+                const active = bases.includes(b.id);
                 return (
                   <button
                     key={b.id}
                     type="button"
-                    onClick={() => selectBase(b.id)}
+                    onClick={() => toggleBase(b.id)}
                     className={`group text-left rounded-xl border p-4 transition-smooth ${
                       active
                         ? "border-primary bg-primary/10 shadow-glow"
@@ -570,21 +649,29 @@ export const BotBuilder = () => {
                 2
               </div>
               <h3 className="text-lg font-semibold">
-                {isPack ? "Design your three bots" : "Bot identity"}
+                {isPack
+                  ? "Design your three bots"
+                  : isMulti
+                    ? `Design your ${visibleIdentityTabs.length} bots`
+                    : "Bot identity"}
               </h3>
             </div>
 
-            {isPack && (
+            {usesPackTabs && (
               <>
                 <p className="text-xs text-muted-foreground mb-4">
-                  The All-in-One Pack ships as three focused bots. Give each one its own name,
-                  icon, banner, and vibe — finish the description and we'll slide you to the next.
+                  {isPack
+                    ? "The All-in-One Pack ships as three focused bots. Give each one its own name, icon, banner, and vibe — finish the description and we'll slide you to the next."
+                    : "You picked more than one bot. Give each one its own name, icon, banner, and vibe — finish the description and we'll slide you to the next."}
                 </p>
-                <div className="relative grid grid-cols-3 gap-2 mb-5 rounded-xl border border-border/60 bg-background/40 p-1">
-                  {PACK_TABS.map((t) => {
+                <div
+                  className="relative grid gap-2 mb-5 rounded-xl border border-border/60 bg-background/40 p-1"
+                  style={{ gridTemplateColumns: `repeat(${visibleIdentityTabs.length}, minmax(0, 1fr))` }}
+                >
+                  {visibleIdentityTabs.map((t) => {
                     const TIcon = t.icon;
-                    const active = activePackTab === t.id;
-                    const filled = !!packIdentities[t.id].name.trim();
+                    const active = effectiveActiveTab === t.id;
+                    const filled = !!packIdentities[t.id]?.name.trim();
                     return (
                       <button
                         key={t.id}
@@ -609,9 +696,9 @@ export const BotBuilder = () => {
             )}
 
             <div
-              key={isPack ? activePackTab : "single"}
+              key={usesPackTabs ? effectiveActiveTab : "single"}
               className={`${
-                isPack
+                usesPackTabs
                   ? tabDirection === 1
                     ? "animate-tab-slide-in-right"
                     : "animate-tab-slide-in-left"
@@ -711,10 +798,11 @@ export const BotBuilder = () => {
               </div>
             </div>
 
-            {isPack && (() => {
-              const idx = PACK_TABS.findIndex((t) => t.id === activePackTab);
-              const prev = idx > 0 ? PACK_TABS[idx - 1] : null;
-              const next = idx < PACK_TABS.length - 1 ? PACK_TABS[idx + 1] : null;
+            {usesPackTabs && visibleIdentityTabs.length > 1 && (() => {
+              const tabs = visibleIdentityTabs;
+              const idx = tabs.findIndex((t) => t.id === effectiveActiveTab);
+              const prev = idx > 0 ? tabs[idx - 1] : null;
+              const next = idx < tabs.length - 1 ? tabs[idx + 1] : null;
               return (
                 <div className="mt-5 flex items-center justify-between gap-3 pt-4 border-t border-border/40">
                   <Button
@@ -727,7 +815,7 @@ export const BotBuilder = () => {
                     ← {prev ? prev.label : "Previous"}
                   </Button>
                   <span className="text-[11px] text-muted-foreground">
-                    Bot {idx + 1} of {PACK_TABS.length}
+                    Bot {idx + 1} of {tabs.length}
                   </span>
                   <Button
                     type="button"
@@ -753,9 +841,11 @@ export const BotBuilder = () => {
               <span className="ml-auto text-xs text-muted-foreground">Tap to toggle</span>
             </div>
             <p className="text-xs text-muted-foreground mb-4">
-              {base === "scratch"
+              {isPack
                 ? "All three categories included. Stack on extras from Protection, Support, or Utilities."
-                : <>Tailored options for your <span className="text-primary font-medium">{selectedBase?.name}</span> base.</>}
+                : isMulti
+                  ? <>Tailored options for each of your selected bots — stacked separately so you can mix &amp; match.</>
+                  : <>Tailored options for your <span className="text-primary font-medium">{selectedBase?.name}</span> base.</>}
             </p>
             {(() => {
               const renderAddonCard = (a: Addon) => {
@@ -840,7 +930,7 @@ export const BotBuilder = () => {
                 );
               };
 
-              if (base === "scratch") {
+              if (isPack) {
                 return (
                   <div className="space-y-8">
                     {SCRATCH_CATEGORIES.map((cat) => {
@@ -866,12 +956,27 @@ export const BotBuilder = () => {
                 );
               }
 
-              const baseAddons = ADDONS_BY_BASE[base] ?? [];
+              // One section per selected base, then Extras at the bottom.
               return (
                 <div className="space-y-8">
-                  <div>
-                    {renderList("default", baseAddons)}
-                  </div>
+                  {bases.map((bid) => {
+                    const cat = SCRATCH_CATEGORIES.find((c) => c.id === bid);
+                    const list = ADDONS_BY_BASE[bid] ?? [];
+                    const CatIcon = cat?.icon ?? Sparkles;
+                    return (
+                      <div key={bid}>
+                        {isMulti && (
+                          <div className="flex items-center gap-2 mb-3">
+                            <CatIcon size={16} className="text-primary" />
+                            <h4 className="text-sm font-semibold tracking-tight">
+                              {cat?.label ?? bid} stack-ons
+                            </h4>
+                          </div>
+                        )}
+                        {renderList(bid, list)}
+                      </div>
+                    );
+                  })}
                   <div>
                     <div className="flex items-center gap-2 mb-3">
                       <Sparkles size={16} className="text-primary" />
@@ -969,10 +1074,19 @@ export const BotBuilder = () => {
                   Roles
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-200 bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30 rounded-full px-2 py-0.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                    {selectedBase?.name}
-                  </span>
+                  {(isPack ? ["scratch"] : bases).map((bid) => {
+                    const b = BASES.find((x) => x.id === bid);
+                    if (!b) return null;
+                    return (
+                      <span
+                        key={bid}
+                        className="inline-flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-200 bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30 rounded-full px-2 py-0.5"
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                        {b.name}
+                      </span>
+                    );
+                  })}
                   {addons.slice(0, 3).map((id) => {
                     const a = currentAddons.find((x) => x.id === id);
                     if (!a) return null;
@@ -1062,16 +1176,18 @@ export const BotBuilder = () => {
                   <Sparkles className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
                   <div className="flex-1 text-xs">
                     <div className="font-medium text-foreground">
-                      Save ${monthlySavingsVsSeparate.toFixed(2)}/mo with the All-in-One Pack
+                      {isMulti
+                        ? `Add the third category for just $${(ALL_IN_ONE_PRICE - monthlyHostingPrice).toFixed(2)}/mo more`
+                        : `Save $${monthlySavingsVsSeparate.toFixed(2)}/mo with the All-in-One Pack`}
                     </div>
                     <div className="text-muted-foreground mt-0.5">
-                      Three separate bots = ${SEPARATE_BOTS_PRICE.toFixed(2)}/mo.
-                      One All-in-One bot with all features = $
-                      {ALL_IN_ONE_PRICE.toFixed(2)}/mo.
+                      {isMulti
+                        ? <>You're at ${monthlyHostingPrice.toFixed(2)}/mo for {bases.length} bots. The All-in-One bundles all three for just ${ALL_IN_ONE_PRICE.toFixed(2)}/mo.</>
+                        : <>Three separate bots = ${SEPARATE_BOTS_PRICE.toFixed(2)}/mo. One All-in-One bot with all features = ${ALL_IN_ONE_PRICE.toFixed(2)}/mo.</>}
                     </div>
                     <button
                       type="button"
-                      onClick={() => setBase("scratch")}
+                      onClick={() => { setBases(["scratch"]); setActivePackTab("protection"); setAddons([]); setShowAllAddons({}); }}
                       className="mt-1.5 text-amber-400 hover:text-amber-300 font-medium underline-offset-2 hover:underline transition-colors"
                     >
                       Switch to All-in-One →
