@@ -12,6 +12,7 @@ export type OwnedBot = {
   base: string;
   addons: string[];
   monthly_hosting: boolean;
+  engine_version: "v1" | "v2";
   status: string;
   hasWebDashboard: boolean;
   created_at: string;
@@ -45,7 +46,7 @@ export function useOwnedBots() {
     setLoading(true);
     const { data } = await (supabase as any)
       .from("bot_orders")
-      .select("id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,status,created_at,submitted_at,delivery_url,source_url")
+      .select("id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true });
 
@@ -60,6 +61,7 @@ export function useOwnedBots() {
         base: row.base,
         addons: Array.isArray(row.addons) ? row.addons : [],
         monthly_hosting: !!row.monthly_hosting,
+        engine_version: row.engine_version === "v2" ? "v2" : "v1",
         status: row.status,
         hasWebDashboard: Array.isArray(row.addons) && row.addons.includes("dashboard"),
         created_at: row.created_at,

@@ -294,6 +294,7 @@ export const BotBuilder = () => {
   const [payZip, setPayZip] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [paymentPlan, setPaymentPlan] = useState<"full" | "3" | "6" | "10">("full");
+  const [engineVersion, setEngineVersion] = useState<"v1" | "v2">("v1");
   const [discountCodeInput, setDiscountCodeInput] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState<{
     code: string;
@@ -539,6 +540,7 @@ export const BotBuilder = () => {
       installment_amount: installmentAmount,
       discount_code: appliedDiscount?.code ?? null,
       discount_amount: discountAmount,
+      engine_version: engineVersion,
     });
     if (error) {
       sonnerToast.error("Couldn't save your order", { description: error.message });
@@ -1361,6 +1363,43 @@ export const BotBuilder = () => {
                       </Button>
                     </div>
                   )}
+                </div>
+
+                {/* Engine version picker */}
+                <div className="mt-3 rounded-xl border border-primary/20 bg-card/70 backdrop-blur p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium text-foreground mb-2">
+                    <Code2 size={12} className="text-primary" />
+                    Bot engine version
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { id: "v1", label: "Component V1", sub: "Stable — recommended" },
+                      { id: "v2", label: "Component V2", sub: "Newest — latest features" },
+                    ] as const).map((opt) => {
+                      const active = engineVersion === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setEngineVersion(opt.id)}
+                          className={`text-left rounded-lg border p-2.5 transition-all ${
+                            active
+                              ? "border-primary bg-primary/10 ring-1 ring-primary/40"
+                              : "border-border hover:border-primary/40 hover:bg-card"
+                          }`}
+                        >
+                          <div className="text-xs font-medium text-foreground flex items-center justify-between">
+                            {opt.label}
+                            {active && <Check size={12} className="text-primary" />}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5">{opt.sub}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-2.5 leading-relaxed">
+                    You can switch versions later from your bot's dashboard.
+                  </p>
                 </div>
 
                 {/* Financing — split the total into monthly installments */}
