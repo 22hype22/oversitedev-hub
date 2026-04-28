@@ -283,7 +283,6 @@ export const BotBuilder = () => {
   const [activePackTab, setActivePackTab] = useState<string>("protection");
   const [tabDirection, setTabDirection] = useState<1 | -1>(1);
   const [addons, setAddons] = useState<string[]>([]);
-  const [monthlyHosting, setMonthlyHosting] = useState(true);
   const [notes, setNotes] = useState("");
   const [showAllAddons, setShowAllAddons] = useState<Record<string, boolean>>({});
   const [showPayment, setShowPayment] = useState(false);
@@ -334,18 +333,6 @@ export const BotBuilder = () => {
   const activeIdentity: Identity = usesPackTabs ? packIdentities[effectiveActiveTab] : identity;
   const { name, description, icon, banner } = activeIdentity;
 
-  // Monthly hosting pricing — incentivizes the All-in-One Pack:
-  //   • Single bot: $4.99/mo
-  //   • Two single bots: $9.98/mo (2 × $4.99)
-  //   • All three as separate bots: $14.99/mo
-  //   • All-in-One Pack (one bot, all three categories): $9.99/mo  ← cheapest 3-cat option
-  const ALL_IN_ONE_PRICE = 9.99;
-  const SINGLE_BOT_PRICE = 4.99;
-  const SEPARATE_BOTS_PRICE = 14.99;
-  const monthlyHostingPrice = isPack
-    ? ALL_IN_ONE_PRICE
-    : SINGLE_BOT_PRICE * bases.length;
-  const monthlySavingsVsSeparate = SEPARATE_BOTS_PRICE - ALL_IN_ONE_PRICE;
 
   const updateActiveIdentity = (patch: Partial<Identity>) => {
     if (usesPackTabs) {
@@ -541,7 +528,7 @@ export const BotBuilder = () => {
       banner_url: primary.banner,
       base: baseField,
       addons,
-      monthly_hosting: monthlyHosting,
+      monthly_hosting: false,
       notes: notesField,
       total_amount: finalTotal,
       currency: "usd",
@@ -678,8 +665,7 @@ export const BotBuilder = () => {
               <h3 className="text-lg font-semibold">Pick a starting point</h3>
             </div>
             <p className="text-xs text-muted-foreground mb-3">
-              Pick one bot, mix two, or grab the All-in-One Pack to bundle all three at the
-              best monthly rate.
+              Pick one bot, mix two, or grab the All-in-One Pack to bundle all three.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {(() => {
@@ -1240,74 +1226,6 @@ export const BotBuilder = () => {
                 <span className="text-emerald-500 font-medium">
                   −${discountAmount.toFixed(2)}
                 </span>
-              </div>
-            )}
-            {monthlyHosting && (
-              <div className="mt-1 flex items-center justify-between">
-                <span className="text-xs uppercase tracking-widest text-muted-foreground">
-                  Plus
-                </span>
-                <span className="text-base font-semibold tracking-tight text-primary">
-                  ${monthlyHostingPrice.toFixed(2)}
-                  <span className="text-xs text-muted-foreground font-normal"> /month</span>
-                </span>
-              </div>
-            )}
-            <div className="mt-3 rounded-lg border border-primary/20 bg-card/50 p-3">
-              <div className="flex items-start gap-2">
-                <div className="h-4 w-4 mt-0.5 rounded bg-primary/20 border border-primary grid place-items-center shrink-0">
-                  <Check className="h-3 w-3 text-primary" />
-                </div>
-                <div className="flex-1 text-xs">
-                  <div className="font-medium text-foreground">
-                    Hosting &amp; maintenance — ${monthlyHostingPrice.toFixed(2)}/mo
-                  </div>
-                  <div className="text-muted-foreground mt-0.5">
-                    Always-on hosting, updates, and priority fixes. Included by
-                    default — cancel anytime.
-                  </div>
-                </div>
-              </div>
-              <label className="mt-2.5 flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors">
-                <input
-                  type="checkbox"
-                  checked={!monthlyHosting}
-                  onChange={(e) => setMonthlyHosting(!e.target.checked)}
-                  className="h-3.5 w-3.5 accent-primary cursor-pointer"
-                />
-                <span>
-                  I'll host and maintain the bot myself (skip the $
-                  {monthlyHostingPrice.toFixed(2)}/mo)
-                </span>
-              </label>
-            </div>
-
-            {/* Nudge: when the user picks a single category, remind them the
-                All-in-One Pack is cheaper than running all 3 separately. */}
-            {!isPack && (
-              <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
-                <div className="flex items-start gap-2">
-                  <Sparkles className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-                  <div className="flex-1 text-xs">
-                    <div className="font-medium text-foreground">
-                      {isMulti
-                        ? `Add the third category for just $${(ALL_IN_ONE_PRICE - monthlyHostingPrice).toFixed(2)}/mo more`
-                        : `Save $${monthlySavingsVsSeparate.toFixed(2)}/mo with the All-in-One Pack`}
-                    </div>
-                    <div className="text-muted-foreground mt-0.5">
-                      {isMulti
-                        ? <>You're at ${monthlyHostingPrice.toFixed(2)}/mo for {bases.length} bots. The All-in-One bundles all three for just ${ALL_IN_ONE_PRICE.toFixed(2)}/mo.</>
-                        : <>Three separate bots = ${SEPARATE_BOTS_PRICE.toFixed(2)}/mo. One All-in-One bot with all features = ${ALL_IN_ONE_PRICE.toFixed(2)}/mo.</>}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => { setBases(["scratch"]); setActivePackTab("protection"); setAddons([]); setShowAllAddons({}); }}
-                      className="mt-1.5 text-amber-400 hover:text-amber-300 font-medium underline-offset-2 hover:underline transition-colors"
-                    >
-                      Switch to All-in-One →
-                    </button>
-                  </div>
-                </div>
               </div>
             )}
             {addons.length > 0 && (
