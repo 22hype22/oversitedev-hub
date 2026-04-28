@@ -364,92 +364,6 @@ export function SayCommandBuilder({
           </Section>
         ))}
 
-        <Section title="Profile">
-          <div className="space-y-2">
-            <Input
-              placeholder="Override username"
-              value={profileName}
-              onChange={(e) => setProfileName(e.target.value)}
-            />
-            <Input
-              placeholder="Override avatar URL"
-              value={profileAvatarUrl}
-              onChange={(e) => setProfileAvatarUrl(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Leave blank to use the bot's default identity.
-            </p>
-          </div>
-        </Section>
-
-        <Section title="Thread">
-          <div className="space-y-2">
-            <Input
-              placeholder="Thread ID (post inside an existing thread)"
-              value={threadId}
-              onChange={(e) => setThreadId(e.target.value)}
-            />
-            <Input
-              placeholder="Thread name (create a new thread)"
-              value={threadName}
-              onChange={(e) => setThreadName(e.target.value)}
-            />
-          </div>
-        </Section>
-
-        <Section title="Flags">
-          <div className="space-y-2">
-            <FlagRow
-              label="Suppress notifications (silent)"
-              checked={flagSilent}
-              onChange={setFlagSilent}
-            />
-            <FlagRow
-              label="Suppress embeds"
-              checked={flagSuppressEmbeds}
-              onChange={setFlagSuppressEmbeds}
-            />
-            <FlagRow
-              label="Suppress @everyone / @here pings"
-              checked={flagSuppressNotifications}
-              onChange={setFlagSuppressNotifications}
-            />
-          </div>
-        </Section>
-
-        <div className="space-y-2">
-          <div className="flex items-baseline justify-between">
-            <Label className="font-semibold">Files</Label>
-            <span className="text-xs text-muted-foreground italic">25 MB max.</span>
-          </div>
-          <div className="flex gap-2">
-            <Input
-              readOnly
-              value={files.join(", ")}
-              placeholder="No files attached"
-              className="flex-1"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setFiles((f) => [...f, `attachment-${f.length + 1}.png`])
-              }
-            >
-              Clipboard
-            </Button>
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              onClick={() => setFiles([])}
-            >
-              Clear
-            </Button>
-          </div>
-        </div>
-
         <Button
           type="button"
           variant="default"
@@ -459,6 +373,120 @@ export function SayCommandBuilder({
         >
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Embed
         </Button>
+
+        {trailingContent !== null && (
+          <div className="space-y-2">
+            <div className="flex items-baseline justify-between">
+              <Label htmlFor="say-trailing" className="font-semibold">
+                Message
+              </Label>
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-destructive transition-smooth"
+                onClick={() => setTrailingContent(null)}
+              >
+                Remove
+              </button>
+            </div>
+            <Textarea
+              id="say-trailing"
+              value={trailingContent}
+              onChange={(e) =>
+                setTrailingContent(e.target.value.slice(0, contentLimit))
+              }
+              rows={4}
+              placeholder="Plain message shown below the embed."
+              className="resize-y"
+            />
+          </div>
+        )}
+
+        {trailingContent === null && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setTrailingContent("")}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add Message
+          </Button>
+        )}
+
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <Label className="font-semibold">Files</Label>
+            <span className="text-xs text-muted-foreground italic">
+              25 MB max per file
+            </span>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const picked = Array.from(e.target.files ?? []);
+              const accepted: File[] = [];
+              for (const f of picked) {
+                if (f.size > MAX_FILE_BYTES) {
+                  toast.error(`${f.name} is over the 25 MB limit.`);
+                  continue;
+                }
+                accepted.push(f);
+              }
+              if (accepted.length) {
+                setFiles((prev) => [...prev, ...accepted]);
+              }
+              // Allow re-selecting the same file later
+              if (fileInputRef.current) fileInputRef.current.value = "";
+            }}
+          />
+          {files.length > 0 && (
+            <div className="rounded-md border border-border bg-card/40 p-2 space-y-1">
+              {files.map((f, i) => (
+                <div
+                  key={`${f.name}-${i}`}
+                  className="flex items-center justify-between text-xs"
+                >
+                  <span className="truncate flex-1 mr-2">
+                    📎 {f.name}{" "}
+                    <span className="text-muted-foreground">
+                      ({(f.size / 1024).toFixed(1)} KB)
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-destructive transition-smooth"
+                    onClick={() =>
+                      setFiles((prev) => prev.filter((_, idx) => idx !== i))
+                    }
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Upload files
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setFiles([])}
+              disabled={files.length === 0}
+            >
+              Clear
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Preview */}
@@ -466,11 +494,12 @@ export function SayCommandBuilder({
         <Label className="text-xs text-muted-foreground">Preview</Label>
         <div className="mt-2 rounded-lg border border-border bg-[#313338] p-4 text-[#dbdee1] font-sans text-sm">
           <DiscordMessagePreview
-            botName={profileName || botName}
-            botAvatarUrl={profileAvatarUrl || botAvatarUrl || undefined}
+            botName={botName}
+            botAvatarUrl={botAvatarUrl ?? undefined}
             content={content}
-            embeds={flagSuppressEmbeds ? [] : embeds}
-            files={files}
+            trailingContent={trailingContent ?? undefined}
+            embeds={embeds}
+            files={files.map((f) => f.name)}
           />
         </div>
       </div>
