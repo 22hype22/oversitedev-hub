@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
 import { AddonConfigCard } from "@/components/dashboard/AddonConfigCard";
 import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
+import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import {
   LogOut,
   Settings,
