@@ -136,6 +136,7 @@ export type Database = {
           monthly_hosting: boolean
           notes: string | null
           purchase_id: string | null
+          source_url: string | null
           status: string
           submitted_at: string | null
           subscription_id: string | null
@@ -157,6 +158,7 @@ export type Database = {
           monthly_hosting?: boolean
           notes?: string | null
           purchase_id?: string | null
+          source_url?: string | null
           status?: string
           submitted_at?: string | null
           subscription_id?: string | null
@@ -178,6 +180,7 @@ export type Database = {
           monthly_hosting?: boolean
           notes?: string | null
           purchase_id?: string | null
+          source_url?: string | null
           status?: string
           submitted_at?: string | null
           subscription_id?: string | null

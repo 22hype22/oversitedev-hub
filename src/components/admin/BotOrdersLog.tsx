@@ -31,6 +31,7 @@ type OrderRow = {
   buyer_email: string | null;
   notes: string | null;
   delivery_url: string | null;
+  source_url: string | null;
 };
 
 const EDITABLE_STATUSES = ["submitted", "paid", "building", "ready", "live", "cancelled"] as const;
@@ -72,16 +73,17 @@ export const BotOrdersLog = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, { status: string; notes: string; delivery_url: string }>>({});
+  const [drafts, setDrafts] = useState<Record<string, { status: string; notes: string; delivery_url: string; source_url: string }>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  const setDraft = (id: string, patch: Partial<{ status: string; notes: string; delivery_url: string }>) => {
+  const setDraft = (id: string, patch: Partial<{ status: string; notes: string; delivery_url: string; source_url: string }>) => {
     setDrafts((prev) => ({
       ...prev,
       [id]: {
         status: prev[id]?.status ?? "",
         notes: prev[id]?.notes ?? "",
         delivery_url: prev[id]?.delivery_url ?? "",
+        source_url: prev[id]?.source_url ?? "",
         ...patch,
       },
     }));
@@ -95,6 +97,7 @@ export const BotOrdersLog = () => {
         status: row.status,
         notes: row.notes ?? "",
         delivery_url: row.delivery_url ?? "",
+        source_url: row.source_url ?? "",
       },
     }));
   };
@@ -109,6 +112,7 @@ export const BotOrdersLog = () => {
         status: draft.status,
         notes: draft.notes || null,
         delivery_url: draft.delivery_url || null,
+        source_url: draft.source_url || null,
       })
       .eq("id", row.id);
     setSavingId(null);
@@ -120,7 +124,7 @@ export const BotOrdersLog = () => {
     setRows((prev) =>
       prev.map((r) =>
         r.id === row.id
-          ? { ...r, status: draft.status, notes: draft.notes || null, delivery_url: draft.delivery_url || null }
+          ? { ...r, status: draft.status, notes: draft.notes || null, delivery_url: draft.delivery_url || null, source_url: draft.source_url || null }
           : r,
       ),
     );
@@ -132,7 +136,7 @@ export const BotOrdersLog = () => {
       const { data: orders, error } = await supabase
         .from("bot_orders")
         .select(
-          "id, created_at, submitted_at, bot_name, base, addons, total_amount, currency, status, monthly_hosting, user_id, notes, delivery_url",
+          "id, created_at, submitted_at, bot_name, base, addons, total_amount, currency, status, monthly_hosting, user_id, notes, delivery_url, source_url",
         )
         .order("submitted_at", { ascending: true, nullsFirst: false })
         .limit(500);
@@ -170,6 +174,7 @@ export const BotOrdersLog = () => {
         buyer_email: emailByUser.get(o.user_id) ?? null,
         notes: (o as any).notes ?? null,
         delivery_url: (o as any).delivery_url ?? null,
+        source_url: (o as any).source_url ?? null,
       }));
 
       setRows(mapped);
@@ -463,6 +468,17 @@ export const BotOrdersLog = () => {
                                 placeholder="https://discord.com/oauth2/authorize?... or download link"
                                 value={draft.delivery_url}
                                 onChange={(e) => setDraft(r.id, { delivery_url: e.target.value })}
+                              />
+                            </div>
+                            <div className="md:col-span-3">
+                              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                                GitHub source URL <span className="opacity-60">(shown as "Source code" button on the user's dashboard — they can view, edit, and PR from there)</span>
+                              </label>
+                              <Input
+                                className="mt-1"
+                                placeholder="https://github.com/your-org/bot-repo"
+                                value={draft.source_url}
+                                onChange={(e) => setDraft(r.id, { source_url: e.target.value })}
                               />
                             </div>
                             <div className="md:col-span-3">

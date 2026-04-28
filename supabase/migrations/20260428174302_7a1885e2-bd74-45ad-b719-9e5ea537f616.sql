@@ -1,0 +1,1 @@
+ALTER TABLE public.bot_orders ADD COLUMN IF NOT EXISTS source_url text;

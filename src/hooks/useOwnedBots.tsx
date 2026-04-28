@@ -17,6 +17,7 @@ export type OwnedBot = {
   created_at: string;
   submitted_at: string | null;
   delivery_url: string | null;
+  source_url: string | null;
   /** Demo/practice bot that's not backed by a real bot_orders row. */
   isDemo?: boolean;
 };
@@ -44,7 +45,7 @@ export function useOwnedBots() {
     setLoading(true);
     const { data } = await (supabase as any)
       .from("bot_orders")
-      .select("id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,status,created_at,submitted_at,delivery_url")
+      .select("id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,status,created_at,submitted_at,delivery_url,source_url")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true });
 
@@ -64,6 +65,7 @@ export function useOwnedBots() {
         created_at: row.created_at,
         submitted_at: row.submitted_at ?? null,
         delivery_url: row.delivery_url ?? null,
+        source_url: row.source_url ?? null,
       }));
 
     setBots(mapped);
