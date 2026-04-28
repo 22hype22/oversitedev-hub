@@ -563,12 +563,14 @@ function DiscordMessagePreview({
   botName,
   botAvatarUrl,
   content,
+  trailingContent,
   embeds,
   files,
 }: {
   botName: string;
   botAvatarUrl?: string;
   content: string;
+  trailingContent?: string;
   embeds: Embed[];
   files?: string[];
 }) {
