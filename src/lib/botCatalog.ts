@@ -188,9 +188,10 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
     "anti-raid",
     "basic-logging",
     "phishing-detection",
+    "messages",
   ],
   support: ["messages"],
-  utilities: [],
+  utilities: ["messages"],
 };
 
 export function getIncludedAddonsForBase(baseId: string): string[] {

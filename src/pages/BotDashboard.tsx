@@ -47,6 +47,7 @@ import {
   LifeBuoy,
   Wrench,
   Star,
+  MessageSquare,
 } from "lucide-react";
 
 /** Add-on ids grouped by category — used to render config boxes per group.
@@ -75,7 +76,6 @@ const PROTECTION_ADDON_IDS = [
   "temp-bans",
 ];
 const SUPPORT_ADDON_IDS = [
-  "messages",
   "staff-performance",
   "ticket-logs",
   "per-category-roles",
@@ -87,6 +87,7 @@ const SUPPORT_ADDON_IDS = [
   "auto-close-inactive",
   "anonymous-reporting",
 ];
+const MESSAGES_ADDON_IDS = ["messages"];
 const UTILITIES_ADDON_IDS = [
   "music-addon",
   "auto-radio",
@@ -111,15 +112,16 @@ const canCancelStatus = (status: string) =>
 
 /** Visual category metadata for grouped add-on config sections. */
 const ADDON_GROUPS: {
-  key: "protection" | "support" | "utilities" | "shared";
+  key: "protection" | "support" | "utilities" | "shared" | "messages";
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   ids: string[];
 }[] = [
-  { key: "protection", label: "Protection", icon: ShieldCheck, ids: PROTECTION_ADDON_IDS },
-  { key: "support",    label: "Support",    icon: LifeBuoy,    ids: SUPPORT_ADDON_IDS },
-  { key: "utilities",  label: "Utilities",  icon: Wrench,      ids: UTILITIES_ADDON_IDS },
-  { key: "shared",     label: "Extras",     icon: Star,        ids: SHARED_ADDON_IDS },
+  { key: "protection", label: "Protection", icon: ShieldCheck,   ids: PROTECTION_ADDON_IDS },
+  { key: "support",    label: "Support",    icon: LifeBuoy,      ids: SUPPORT_ADDON_IDS },
+  { key: "utilities",  label: "Utilities",  icon: Wrench,        ids: UTILITIES_ADDON_IDS },
+  { key: "shared",     label: "Extras",     icon: Star,          ids: SHARED_ADDON_IDS },
+  { key: "messages",   label: "Messages",   icon: MessageSquare, ids: MESSAGES_ADDON_IDS },
 ];
 
 type StatusMeta = { label: string; className: string; loading?: boolean };
