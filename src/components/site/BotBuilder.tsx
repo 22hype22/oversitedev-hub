@@ -1223,10 +1223,25 @@ export const BotBuilder = () => {
                 Estimated
               </span>
               <span className="text-2xl font-bold tracking-tight">
-                ${total.toFixed(2)}
+                {appliedDiscount && (
+                  <span className="text-base text-muted-foreground line-through font-normal mr-2">
+                    ${total.toFixed(2)}
+                  </span>
+                )}
+                ${finalTotal.toFixed(2)}
                 <span className="text-xs text-muted-foreground font-normal"> one-time*</span>
               </span>
             </div>
+            {appliedDiscount && (
+              <div className="mt-1 flex items-center justify-between text-xs">
+                <span className="text-emerald-500 font-medium">
+                  Code {appliedDiscount.code} applied
+                </span>
+                <span className="text-emerald-500 font-medium">
+                  −${discountAmount.toFixed(2)}
+                </span>
+              </div>
+            )}
             {monthlyHosting && (
               <div className="mt-1 flex items-center justify-between">
                 <span className="text-xs uppercase tracking-widest text-muted-foreground">
