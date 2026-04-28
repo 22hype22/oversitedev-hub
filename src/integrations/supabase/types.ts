@@ -131,6 +131,8 @@ export type Database = {
           created_at: string
           currency: string
           delivery_url: string | null
+          discount_amount: number
+          discount_code: string | null
           icon_url: string | null
           id: string
           installment_amount: number | null
@@ -156,6 +158,8 @@ export type Database = {
           created_at?: string
           currency?: string
           delivery_url?: string | null
+          discount_amount?: number
+          discount_code?: string | null
           icon_url?: string | null
           id?: string
           installment_amount?: number | null
@@ -181,6 +185,8 @@ export type Database = {
           created_at?: string
           currency?: string
           delivery_url?: string | null
+          discount_amount?: number
+          discount_code?: string | null
           icon_url?: string | null
           id?: string
           installment_amount?: number | null
@@ -256,6 +262,51 @@ export type Database = {
           severity?: string
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      discount_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          kind: string
+          max_uses: number | null
+          notes: string | null
+          times_used: number
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          kind: string
+          max_uses?: number | null
+          notes?: string | null
+          times_used?: number
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: string
+          max_uses?: number | null
+          notes?: string | null
+          times_used?: number
+          updated_at?: string
+          value?: number
         }
         Relationships: []
       }
