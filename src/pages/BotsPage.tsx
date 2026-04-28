@@ -15,9 +15,7 @@ const bots = [
     image: protectionLogo,
     icon: Shield,
     features: ["Automod & filters", "Anti-raid defense", "Full audit logging", "Moderation toolkit"],
-    accent: "from-[hsl(70_30%_70%)]/20 to-transparent",
-    border: "border-[hsl(70_30%_70%)]/30 hover:border-[hsl(70_30%_70%)]/60",
-    iconColor: "text-[hsl(70_30%_70%)]",
+    accentHsl: "70 30% 70%",
   },
   {
     name: "Oversite Support",
@@ -25,9 +23,7 @@ const bots = [
     image: supportLogo,
     icon: LifeBuoy,
     features: ["Ticket system", "Ban appeals", "User reports", "Member welcomes"],
-    accent: "from-[hsl(280_30%_70%)]/20 to-transparent",
-    border: "border-[hsl(280_30%_70%)]/30 hover:border-[hsl(280_30%_70%)]/60",
-    iconColor: "text-[hsl(280_30%_70%)]",
+    accentHsl: "280 30% 70%",
   },
   {
     name: "Oversite Utilities",
@@ -35,9 +31,7 @@ const bots = [
     image: utilitiesLogo,
     icon: Wrench,
     features: ["Announcements", "Role management", "Roblox integration", "Music & more"],
-    accent: "from-primary/20 to-transparent",
-    border: "border-primary/30 hover:border-primary/60",
-    iconColor: "text-primary",
+    accentHsl: "var(--primary)",
   },
 ];
 
@@ -72,13 +66,32 @@ const BotsPage = () => {
         <div id="bot-suite" className="mt-16 grid grid-cols-1 lg:grid-cols-3 gap-6 scroll-mt-24">
           {bots.map((bot) => {
             const Icon = bot.icon;
+            const accent = bot.accentHsl.startsWith("var(")
+              ? `hsl(${bot.accentHsl})`
+              : `hsl(${bot.accentHsl})`;
             return (
               <article
                 key={bot.name}
-                className={`group relative overflow-hidden rounded-2xl border bg-card/60 backdrop-blur p-8 transition-smooth ${bot.border}`}
+                style={{
+                  ["--accent" as any]: accent,
+                  borderColor: "color-mix(in hsl, var(--accent) 30%, transparent)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor =
+                    "color-mix(in hsl, var(--accent) 60%, transparent)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor =
+                    "color-mix(in hsl, var(--accent) 30%, transparent)";
+                }}
+                className="group relative overflow-hidden rounded-2xl border bg-card/60 backdrop-blur p-8 transition-smooth"
               >
                 <div
-                  className={`absolute inset-0 bg-gradient-to-br ${bot.accent} opacity-0 group-hover:opacity-100 transition-smooth pointer-events-none`}
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-smooth pointer-events-none"
+                  style={{
+                    background:
+                      "linear-gradient(to bottom right, color-mix(in hsl, var(--accent) 20%, transparent), transparent)",
+                  }}
                 />
                 <div className="relative">
                   <div className="aspect-[16/9] rounded-xl bg-background/40 border border-border/50 grid place-items-center mb-6 overflow-hidden">
@@ -90,7 +103,7 @@ const BotsPage = () => {
                   </div>
 
                   <div className="flex items-center gap-2 mb-3">
-                    <Icon size={18} className={bot.iconColor} />
+                    <Icon size={18} style={{ color: "var(--accent)" }} />
                     <h2 className="text-xl font-semibold tracking-tight">{bot.name}</h2>
                   </div>
 
@@ -99,7 +112,10 @@ const BotsPage = () => {
                   <ul className="space-y-2">
                     {bot.features.map((f) => (
                       <li key={f} className="flex items-center gap-2 text-sm">
-                        <span className={`h-1.5 w-1.5 rounded-full ${bot.iconColor.replace("text-", "bg-")}`} />
+                        <span
+                          className="h-1.5 w-1.5 rounded-full"
+                          style={{ background: "var(--accent)" }}
+                        />
                         <span className="text-foreground/90">{f}</span>
                       </li>
                     ))}
