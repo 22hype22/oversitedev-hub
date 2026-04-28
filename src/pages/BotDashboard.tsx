@@ -120,12 +120,12 @@ const ADDON_GROUPS: {
   { key: "shared",     label: "Extras",     icon: Star,        ids: SHARED_ADDON_IDS },
 ];
 
-type StatusMeta = { label: string; className: string };
+type StatusMeta = { label: string; className: string; loading?: boolean };
 const STATUS_META: Record<string, StatusMeta> = {
   draft:     { label: "Draft",            className: "bg-muted text-muted-foreground border-border" },
-  submitted: { label: "Preorder placed",  className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
-  paid:      { label: "Paid — queued",    className: "bg-primary/15 text-primary border-primary/30" },
-  building:  { label: "In build",         className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  submitted: { label: "Building",         className: "bg-primary/15 text-primary border-primary/30", loading: true },
+  paid:      { label: "Building",         className: "bg-primary/15 text-primary border-primary/30", loading: true },
+  building:  { label: "Building",         className: "bg-blue-500/15 text-blue-400 border-blue-500/30", loading: true },
   ready:     { label: "Ready to invite",  className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
   live:      { label: "Live",             className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
   cancelled: { label: "Cancelled",        className: "bg-destructive/15 text-destructive border-destructive/30" },
@@ -135,13 +135,11 @@ const getStatusMeta = (s: string): StatusMeta =>
 
 const BotSection = ({
   bot,
-  queuePosition,
   onCancel,
   onAddAddons,
   onReload,
 }: {
   bot: OwnedBot;
-  queuePosition: number | null;
   onCancel: (bot: OwnedBot) => void;
   onAddAddons: (bot: OwnedBot) => void;
   onReload: () => void;
@@ -163,20 +161,15 @@ const BotSection = ({
     .map((g) => ({ ...g, owned: g.ids.filter((id) => ownedAddons.has(id)) }))
     .filter((g) => g.owned.length > 0);
   const totalConfigurable = groupedAddons.reduce((n, g) => n + g.owned.length, 0);
-  const showQueue = !bot.isDemo && queuePosition && (bot.status === "submitted" || bot.status === "paid");
-  const showPreorderBanner = !bot.isDemo && bot.status === "submitted";
+  const showPreorderBanner = !bot.isDemo && (bot.status === "submitted" || bot.status === "paid");
   const showReadyBanner = !bot.isDemo && bot.status === "ready" && bot.delivery_url;
 
   const headerBadges = (
     <>
-      <Badge variant="outline" className={`text-xs ${statusMeta.className}`}>
+      <Badge variant="outline" className={`text-xs gap-1.5 ${statusMeta.className}`}>
+        {statusMeta.loading && !bot.isDemo && <HexagonLoader size={12} />}
         {statusMeta.label}
       </Badge>
-      {showQueue && (
-        <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/30">
-          Queue position #{queuePosition}
-        </Badge>
-      )}
       <Badge variant="secondary" className="text-xs">
         {baseLabel}
       </Badge>
@@ -224,16 +217,14 @@ const BotSection = ({
       />
 
       {showPreorderBanner && (
-        <Card className="p-4 bg-amber-500/5 border-amber-500/30">
+        <Card className="p-4 bg-primary/5 border-primary/30">
           <div className="flex items-start gap-3">
-            <Clock className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
+            <HexagonLoader size={22} className="mt-0.5" />
             <div className="text-sm">
-              <div className="font-semibold text-amber-300">Preorder received</div>
+              <div className="font-semibold text-primary">Your bot is being built</div>
               <p className="text-muted-foreground mt-1">
-                {queuePosition
-                  ? `You're #${queuePosition} in the build queue. `
-                  : "We've added your bot to the build queue. "}
-                We'll reach out within 24 hours to confirm scope and finalize payment.
+                We're putting your bot together. You'll get an email the moment it's
+                ready to invite — no action needed from you right now.
               </p>
             </div>
           </div>
