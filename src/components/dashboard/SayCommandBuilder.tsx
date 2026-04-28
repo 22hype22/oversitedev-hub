@@ -377,43 +377,56 @@ export function SayCommandBuilder({
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Embed
         </Button>
 
-        {trailingContent !== null && (
-          <div className="space-y-2">
+        {trailingMessages.map((msg, idx) => (
+          <div className="space-y-2" key={msg.id}>
             <div className="flex items-baseline justify-between">
-              <Label htmlFor="say-trailing" className="font-semibold">
-                Message
+              <Label htmlFor={`say-trailing-${msg.id}`} className="font-semibold">
+                Message {idx + 2}
               </Label>
               <button
                 type="button"
                 className="text-xs text-muted-foreground hover:text-destructive transition-smooth"
-                onClick={() => setTrailingContent(null)}
+                onClick={() =>
+                  setTrailingMessages((prev) =>
+                    prev.filter((m) => m.id !== msg.id),
+                  )
+                }
               >
                 Remove
               </button>
             </div>
             <Textarea
-              id="say-trailing"
-              value={trailingContent}
+              id={`say-trailing-${msg.id}`}
+              value={msg.text}
               onChange={(e) =>
-                setTrailingContent(e.target.value.slice(0, contentLimit))
+                setTrailingMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === msg.id
+                      ? { ...m, text: e.target.value.slice(0, contentLimit) }
+                      : m,
+                  ),
+                )
               }
               rows={4}
-              placeholder="Plain message shown below the embed."
+              placeholder="Plain message shown below."
               className="resize-y"
             />
           </div>
-        )}
+        ))}
 
-        {trailingContent === null && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setTrailingContent("")}
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" /> Add Message
-          </Button>
-        )}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            setTrailingMessages((prev) => [
+              ...prev,
+              { id: crypto.randomUUID(), text: "" },
+            ])
+          }
+        >
+          <Plus className="h-3.5 w-3.5 mr-1" /> Add Message
+        </Button>
 
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
