@@ -31,6 +31,7 @@ type OrderRow = {
   buyer_email: string | null;
   notes: string | null;
   delivery_url: string | null;
+  source_url: string | null;
 };
 
 const EDITABLE_STATUSES = ["submitted", "paid", "building", "ready", "live", "cancelled"] as const;
