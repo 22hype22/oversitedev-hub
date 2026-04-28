@@ -665,8 +665,7 @@ export const BotBuilder = () => {
               <h3 className="text-lg font-semibold">Pick a starting point</h3>
             </div>
             <p className="text-xs text-muted-foreground mb-3">
-              Pick one bot, mix two, or grab the All-in-One Pack to bundle all three at the
-              best monthly rate.
+              Pick one bot, mix two, or grab the All-in-One Pack to bundle all three.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {(() => {
