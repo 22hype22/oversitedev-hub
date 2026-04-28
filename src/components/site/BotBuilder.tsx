@@ -653,7 +653,8 @@ export const BotBuilder = () => {
                     </div>
                   </button>
                 );
-              })}
+              });
+              })()}
             </div>
           </div>
 
