@@ -3,12 +3,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Trash2, AlertTriangle } from "lucide-react";
 
 type Category = {
   id: string;
   name: string;
-  roles: string; // comma separated role names
+  roles: string;
+  openingMessage: string;
 };
 
 const uid = () =>
@@ -16,21 +24,96 @@ const uid = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
 
-export function TicketPanelBuilder({ botName }: { botName: string }) {
+/**
+ * Mock channel list — once the bot is linked we'll swap this with channels
+ * fetched from the bot's connected guild.
+ */
+const MOCK_CHANNELS = [
+  "#general",
+  "#tickets",
+  "#support",
+  "#reports",
+  "#staff-only",
+];
+
+type Variant = "ticket" | "report";
+
+type Props = {
+  botName: string;
+  variant?: Variant;
+};
+
+const COPY: Record<Variant, {
+  panelTitleLabel: string;
+  panelTitlePlaceholder: string;
+  panelDescLabel: string;
+  panelDescPlaceholder: string;
+  channelLabel: string;
+  channelHelp: string;
+  categoriesLabel: string;
+  categoryNamePlaceholder: string;
+  rolesPlaceholder: string;
+  openingLabel: string;
+  openingPlaceholder: string;
+}> = {
+  ticket: {
+    panelTitleLabel: "Panel Title",
+    panelTitlePlaceholder: "e.g. Open a Ticket",
+    panelDescLabel: "Panel Description",
+    panelDescPlaceholder: "e.g. Select a category below to open a ticket.",
+    channelLabel: "Panel channel",
+    channelHelp: "Where the ticket panel message gets posted.",
+    categoriesLabel: "Categories",
+    categoryNamePlaceholder: "e.g. Development",
+    rolesPlaceholder: "e.g. Board of Directors, Development Team",
+    openingLabel: "Message sent when this ticket opens",
+    openingPlaceholder:
+      "e.g. Thanks for opening a Development ticket — a team member will be with you shortly.",
+  },
+  report: {
+    panelTitleLabel: "Panel Title",
+    panelTitlePlaceholder: "e.g. Submit an Anonymous Report",
+    panelDescLabel: "Panel Description",
+    panelDescPlaceholder:
+      "e.g. Select a category below to submit a confidential report.",
+    channelLabel: "Panel channel",
+    channelHelp: "Where the anonymous report panel message gets posted.",
+    categoriesLabel: "Report Categories",
+    categoryNamePlaceholder: "e.g. Harassment",
+    rolesPlaceholder: "e.g. Moderators, Admins",
+    openingLabel: "Message sent when this report is submitted",
+    openingPlaceholder:
+      "e.g. Your report has been received anonymously. Staff will review it shortly.",
+  },
+};
+
+export function TicketPanelBuilder({ botName, variant = "ticket" }: Props) {
+  const copy = COPY[variant];
+  const isReport = variant === "report";
+
+  const [panelChannel, setPanelChannel] = useState<string>("");
   const [panelTitle, setPanelTitle] = useState("");
   const [panelDescription, setPanelDescription] = useState("");
+  const [cooldownMinutes, setCooldownMinutes] = useState<number>(10);
   const [categories, setCategories] = useState<Category[]>([
-    { id: uid(), name: "", roles: "" },
+    { id: uid(), name: "", roles: "", openingMessage: "" },
   ]);
 
   const updateCategory = (id: string, patch: Partial<Category>) =>
-    setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+    setCategories((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+    );
 
   const addCategory = () =>
-    setCategories((prev) => [...prev, { id: uid(), name: "", roles: "" }]);
+    setCategories((prev) => [
+      ...prev,
+      { id: uid(), name: "", roles: "", openingMessage: "" },
+    ]);
 
   const removeCategory = (id: string) =>
-    setCategories((prev) => (prev.length === 1 ? prev : prev.filter((c) => c.id !== id)));
+    setCategories((prev) =>
+      prev.length === 1 ? prev : prev.filter((c) => c.id !== id),
+    );
 
   return (
     <div className="space-y-5 py-2">
@@ -39,19 +122,42 @@ export function TicketPanelBuilder({ botName }: { botName: string }) {
         <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
         <p className="text-sm text-foreground/90">
           This form will be submitted to{" "}
-          <span className="font-semibold">{botName}</span>. Do not share passwords or
-          other sensitive information.
+          <span className="font-semibold">{botName}</span>. Do not share
+          passwords or other sensitive information.
+        </p>
+      </div>
+
+      {/* Panel channel */}
+      <div className="space-y-2">
+        <Label htmlFor="panel-channel">
+          {copy.channelLabel} <span className="text-destructive">*</span>
+        </Label>
+        <Select value={panelChannel} onValueChange={setPanelChannel}>
+          <SelectTrigger id="panel-channel">
+            <SelectValue placeholder="Select a channel…" />
+          </SelectTrigger>
+          <SelectContent>
+            {MOCK_CHANNELS.map((c) => (
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          {copy.channelHelp} Once your bot is linked, this list will show every
+          channel from your server.
         </p>
       </div>
 
       {/* Panel title */}
       <div className="space-y-2">
         <Label htmlFor="panel-title">
-          Panel Title <span className="text-destructive">*</span>
+          {copy.panelTitleLabel} <span className="text-destructive">*</span>
         </Label>
         <Input
           id="panel-title"
-          placeholder="e.g. Open a Ticket"
+          placeholder={copy.panelTitlePlaceholder}
           value={panelTitle}
           onChange={(e) => setPanelTitle(e.target.value)}
         />
@@ -60,24 +166,49 @@ export function TicketPanelBuilder({ botName }: { botName: string }) {
       {/* Panel description */}
       <div className="space-y-2">
         <Label htmlFor="panel-description">
-          Panel Description <span className="text-destructive">*</span>
+          {copy.panelDescLabel} <span className="text-destructive">*</span>
         </Label>
         <Textarea
           id="panel-description"
-          placeholder="e.g. Select a category below to open a ticket."
+          placeholder={copy.panelDescPlaceholder}
           value={panelDescription}
           onChange={(e) => setPanelDescription(e.target.value)}
           rows={3}
         />
       </div>
 
-      {/* Categories — each with a paired roles area */}
+      {/* Cooldown — report variant only */}
+      {isReport && (
+        <div className="space-y-2">
+          <Label htmlFor="cooldown">
+            Cooldown between reports per user (minutes)
+          </Label>
+          <Input
+            id="cooldown"
+            type="number"
+            min={0}
+            value={cooldownMinutes}
+            onChange={(e) => setCooldownMinutes(Number(e.target.value))}
+          />
+          <p className="text-xs text-muted-foreground">
+            How long a member has to wait before submitting another report.
+          </p>
+        </div>
+      )}
+
+      {/* Categories — each with a paired roles + opening message */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <Label>
-            Categories <span className="text-destructive">*</span>
+            {copy.categoriesLabel}{" "}
+            <span className="text-destructive">*</span>
           </Label>
-          <Button type="button" size="sm" variant="outline" onClick={addCategory}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={addCategory}
+          >
             <Plus className="h-4 w-4 mr-1.5" />
             Add category
           </Button>
@@ -111,9 +242,11 @@ export function TicketPanelBuilder({ botName }: { botName: string }) {
                 </Label>
                 <Input
                   id={`cat-name-${cat.id}`}
-                  placeholder="e.g. Development"
+                  placeholder={copy.categoryNamePlaceholder}
                   value={cat.name}
-                  onChange={(e) => updateCategory(cat.id, { name: e.target.value })}
+                  onChange={(e) =>
+                    updateCategory(cat.id, { name: e.target.value })
+                  }
                 />
               </div>
 
@@ -123,14 +256,31 @@ export function TicketPanelBuilder({ botName }: { botName: string }) {
                 </Label>
                 <Textarea
                   id={`cat-roles-${cat.id}`}
-                  placeholder="e.g. Board of Directors, Development Team"
+                  placeholder={copy.rolesPlaceholder}
                   value={cat.roles}
-                  onChange={(e) => updateCategory(cat.id, { roles: e.target.value })}
+                  onChange={(e) =>
+                    updateCategory(cat.id, { roles: e.target.value })
+                  }
                   rows={2}
                 />
                 <p className="text-xs text-muted-foreground">
                   Comma-separate multiple roles. One line per group if needed.
                 </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor={`cat-open-${cat.id}`} className="text-sm">
+                  {copy.openingLabel}
+                </Label>
+                <Textarea
+                  id={`cat-open-${cat.id}`}
+                  placeholder={copy.openingPlaceholder}
+                  value={cat.openingMessage}
+                  onChange={(e) =>
+                    updateCategory(cat.id, { openingMessage: e.target.value })
+                  }
+                  rows={3}
+                />
               </div>
             </div>
           ))}
