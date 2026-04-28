@@ -317,10 +317,9 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         type: "select",
         defaultValue: "delete",
         options: [
-          { value: "warn", label: "Warn user" },
-          { value: "delete", label: "Delete message" },
-          { value: "kick", label: "Kick user" },
-          { value: "ban", label: "Ban user" },
+          { value: "delete", label: "Delete all messages" },
+          { value: "purge-kick", label: "Delete all messages and kick" },
+          { value: "purge-ban", label: "Delete all messages and ban" },
         ],
       },
       toggle("censorLogs", "Censor NSFW content in log channels"),
