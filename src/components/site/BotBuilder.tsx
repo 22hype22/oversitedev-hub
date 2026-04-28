@@ -552,7 +552,7 @@ export const BotBuilder = () => {
     }, 6000);
   };
 
-  const selectedBase = BASES.find((b) => b.id === base);
+  const selectedBase = BASES.find((b) => b.id === (isPack ? "scratch" : bases[0]));
   const SelectedIcon = selectedBase?.icon ?? Bot;
   const displayName = name.trim() || "Your Bot";
   const displayTag = (name.trim() || "yourbot").toLowerCase().replace(/\s+/g, "") + "#0001";
@@ -584,15 +584,19 @@ export const BotBuilder = () => {
               </div>
               <h3 className="text-lg font-semibold">Pick a starting point</h3>
             </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Pick one bot, mix two, or grab the All-in-One Pack to bundle all three at the
+              best monthly rate.
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {BASES.map((b) => {
                 const Icon = b.icon;
-                const active = base === b.id;
+                const active = bases.includes(b.id);
                 return (
                   <button
                     key={b.id}
                     type="button"
-                    onClick={() => selectBase(b.id)}
+                    onClick={() => toggleBase(b.id)}
                     className={`group text-left rounded-xl border p-4 transition-smooth ${
                       active
                         ? "border-primary bg-primary/10 shadow-glow"
