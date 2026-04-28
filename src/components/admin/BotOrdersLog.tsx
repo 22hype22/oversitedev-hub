@@ -136,7 +136,7 @@ export const BotOrdersLog = () => {
       const { data: orders, error } = await supabase
         .from("bot_orders")
         .select(
-          "id, created_at, submitted_at, bot_name, base, addons, total_amount, currency, status, monthly_hosting, user_id, notes, delivery_url",
+          "id, created_at, submitted_at, bot_name, base, addons, total_amount, currency, status, monthly_hosting, user_id, notes, delivery_url, source_url",
         )
         .order("submitted_at", { ascending: true, nullsFirst: false })
         .limit(500);
