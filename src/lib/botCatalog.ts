@@ -32,7 +32,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   "nsfw-invite-scanner": "NSFW Invite Scanner + Censored Logs",
   "avatar-nsfw-detection": "Avatar NSFW Detection",
   "bio-phrase-detection": "Bio Phrase Detection",
-  "account-age-gating": "New Account Age Gating",
+  
   "auto-escalating-warnings": "Auto-Escalating Warnings",
   "softban-massban": "/softban and /massban",
   "channel-lockdown": "Channel Lockdown Command",
@@ -86,7 +86,7 @@ export const BOT_ADDON_PRICES: Record<string, number> = {
   "nsfw-invite-scanner": 2.99,
   "avatar-nsfw-detection": 1.99,
   "bio-phrase-detection": 0.99,
-  "account-age-gating": 0.99,
+  
   "auto-escalating-warnings": 1.99,
   "softban-massban": 1.99,
   "channel-lockdown": 1.99,
@@ -133,7 +133,7 @@ const ADDON_IDS_BY_BASE: Record<string, string[]> = {
     "nsfw-invite-scanner",
     "avatar-nsfw-detection",
     "bio-phrase-detection",
-    "account-age-gating",
+    
     "auto-escalating-warnings",
     "softban-massban",
     "channel-lockdown",

@@ -18,7 +18,7 @@ import {
   ShieldAlert,
   Image as ImageIcon,
   MessageSquareWarning,
-  UserPlus,
+  
   Gavel,
   Hammer,
   Users,
@@ -33,6 +33,7 @@ import {
   Swords,
   ClipboardList,
   Link2Off,
+  Sparkles,
 } from "lucide-react";
 
 export type AddonFieldType =
@@ -391,40 +392,6 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
-  "account-age-gating": {
-    title: "New Account Age Gating",
-    summary: "Block accounts that are too new from joining.",
-    icon: UserPlus,
-    fields: [
-      {
-        key: "minAgeDays",
-        label: "Minimum account age (days)",
-        type: "number",
-        defaultValue: 7,
-      },
-      {
-        key: "action",
-        label: "On too-new account",
-        type: "select",
-        defaultValue: "kick",
-        options: [
-          { value: "kick", label: "Kick with DM" },
-          { value: "ban", label: "Ban" },
-          { value: "quarantine", label: "Quarantine role" },
-        ],
-      },
-      role("quarantineRole", "Quarantine role", "Used if action is Quarantine."),
-      channel("logChannel", "Log channel"),
-      {
-        key: "dmMessage",
-        label: "DM to blocked user",
-        type: "textarea",
-        defaultValue:
-          "Your account is too new to join {server}. Please come back in {days} days.",
-      },
-    ],
-  },
-
   "auto-escalating-warnings": {
     title: "Auto-Escalating Warnings",
     summary: "Automatically punish users after X warnings.",
@@ -574,6 +541,32 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       channel("logChannel", "Log channel"),
       toggle("dmOnBan", "DM the user when they're banned"),
       toggle("dmOnUnban", "DM the user when they're unbanned", false),
+    ],
+  },
+
+  // ─── Shared extras ───────────────────────────────────────────
+  "branding-multi-server": {
+    title: "Multi-Server License & Custom Branding",
+    summary: "Run your bot across multiple servers and match your brand.",
+    icon: Sparkles,
+    fields: [
+      toggle("multiServerEnabled", "Enable multi-server license", true,
+        "Allow this bot to be added to more than one Discord server."),
+      {
+        key: "allowedServerIds",
+        label: "Allowed server IDs (one per line)",
+        type: "textarea",
+        placeholder: "123456789012345678\n987654321098765432",
+        help: "Leave blank to allow every server you invite the bot to.",
+      },
+      { key: "brandName", label: "Brand / bot display name", type: "text",
+        placeholder: "Your community name" },
+      { key: "brandColor", label: "Accent color (hex)", type: "text",
+        placeholder: "#5865F2" },
+      { key: "brandFooter", label: "Footer text on embeds", type: "text",
+        placeholder: "Powered by Your Community" },
+      { key: "brandIconUrl", label: "Embed icon URL", type: "text",
+        placeholder: "https://..." },
     ],
   },
 };

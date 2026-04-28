@@ -52,23 +52,24 @@ import {
  *  Order here is the exact left→right, top→bottom order shown in the dashboard.
  *  Base-included features come first, then paid add-ons. */
 const PROTECTION_ADDON_IDS = [
+  // Reordered per product: Moderation History first, Advanced Logging second,
+  // Auto-Escalating Warnings third — then everything else.
+  "moderation-history",
   "advanced-logging",
+  "auto-escalating-warnings",
   "verification-system",
   "mod-actions",
   "anti-spam",
   "anti-raid",
   "basic-logging",
   "phishing-detection",
-  // Paid add-ons (in catalog order)
+  // Remaining paid add-ons
   "nsfw-invite-scanner",
   "avatar-nsfw-detection",
   "bio-phrase-detection",
-  "account-age-gating",
-  "auto-escalating-warnings",
   "softban-massban",
   "channel-lockdown",
   "staff-notes",
-  "moderation-history",
   "auto-slowmode",
   "temp-bans",
 ];
@@ -98,7 +99,10 @@ const UTILITIES_ADDON_IDS = [
   "economy-system",
   "remindme",
 ];
-const SHARED_ADDON_IDS = ["branding", "dashboard", "multi-server"];
+// Combined card replaces the old per-bot Custom Branding / Multi-Server / Web
+// Dashboard trio. The dashboard page is already gated to users who own the
+// Web Dashboard add-on, so we just always render this single combined box.
+const SHARED_ADDON_IDS = ["branding-multi-server"];
 
 const canCancelStatus = (status: string) =>
   status === "draft" || status === "submitted";
@@ -147,9 +151,12 @@ const BotSection = ({
   const cancellable = !bot.isDemo && canCancelStatus(bot.status);
   const statusMeta = getStatusMeta(bot.status);
   // Owned add-ons + features that ship with the base — both get config boxes.
+  // The combined Multi-Server / Branding card is always shown here because the
+  // dashboard page itself is gated to users who own the Web Dashboard add-on.
   const ownedAddons = new Set<string>([
     ...bot.addons,
     ...getIncludedAddonsForBase(bot.base),
+    "branding-multi-server",
   ]);
   // Group owned add-ons by category for the configuration boxes section.
   const groupedAddons = ADDON_GROUPS
