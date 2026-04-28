@@ -595,6 +595,13 @@ export const BotBuilder = () => {
               {BASES.map((b) => {
                 const Icon = b.icon;
                 const active = bases.includes(b.id);
+                // If a single bot is already selected and this card is a different
+                // single bot (not the All-in-One Pack), show the discounted $50 add-on price.
+                const hasSingleSelected = bases.some((id) => id !== "scratch");
+                const isDiscountedSecond =
+                  b.id !== "scratch" && hasSingleSelected && !active;
+                const displayPrice = isDiscountedSecond ? 50 : b.price;
+                const displayOldPrice = isDiscountedSecond ? b.price : b.oldPrice;
                 return (
                   <button
                     key={b.id}
