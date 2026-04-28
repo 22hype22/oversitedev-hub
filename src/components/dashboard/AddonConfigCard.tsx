@@ -230,7 +230,13 @@ export function AddonConfigCard({ addonId, botName, botAvatarUrl }: Props) {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent
+          className={
+            isSayCommand
+              ? "max-w-5xl max-h-[90vh] overflow-y-auto"
+              : "max-w-lg max-h-[85vh] overflow-y-auto"
+          }
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Icon className="h-5 w-5 text-primary" />
@@ -242,11 +248,17 @@ export function AddonConfigCard({ addonId, botName, botAvatarUrl }: Props) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-5 py-2">
-            {config.fields.map((f) => (
-              <div key={f.key}>{renderField(f)}</div>
-            ))}
-          </div>
+          {isSayCommand ? (
+            <div className="py-2">
+              <SayCommandBuilder botName={botName} botAvatarUrl={botAvatarUrl} />
+            </div>
+          ) : (
+            <div className="space-y-5 py-2">
+              {config.fields.map((f) => (
+                <div key={f.key}>{renderField(f)}</div>
+              ))}
+            </div>
+          )}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
