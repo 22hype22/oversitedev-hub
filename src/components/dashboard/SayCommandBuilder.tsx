@@ -88,7 +88,20 @@ export function SayCommandBuilder({
       footerText: botName,
     },
   ]);
-  const [trailingContent, setTrailingContent] = useState("");
+  // Profile overrides (per-message bot identity)
+  const [profileName, setProfileName] = useState("");
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState("");
+  // Thread targeting
+  const [threadId, setThreadId] = useState("");
+  const [threadName, setThreadName] = useState("");
+  // Flags
+  const [flagSilent, setFlagSilent] = useState(false);
+  const [flagSuppressEmbeds, setFlagSuppressEmbeds] = useState(false);
+  const [flagSuppressNotifications, setFlagSuppressNotifications] = useState(false);
+  // Files (mock: just track names)
+  const [files, setFiles] = useState<string[]>([]);
+
+  const contentLimit = 2000;
 
   const updateEmbed = (id: string, patch: Partial<Embed>) =>
     setEmbeds((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
@@ -139,14 +152,24 @@ export function SayCommandBuilder({
           </p>
         </div>
 
-        <Section title="Message" defaultOpen>
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <Label htmlFor="say-content" className="font-semibold">
+              Content
+            </Label>
+            <span className="text-xs text-muted-foreground italic">
+              {content.length}/{contentLimit}
+            </span>
+          </div>
           <Textarea
+            id="say-content"
             value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={3}
-            placeholder="Plain message text shown above the embed."
+            onChange={(e) => setContent(e.target.value.slice(0, contentLimit))}
+            rows={5}
+            placeholder="Message content (supports markdown)."
+            className="resize-y"
           />
-        </Section>
+        </div>
 
         {embeds.map((embed, i) => (
           <Section
@@ -347,25 +370,101 @@ export function SayCommandBuilder({
           </Section>
         ))}
 
+        <Section title="Profile">
+          <div className="space-y-2">
+            <Input
+              placeholder="Override username"
+              value={profileName}
+              onChange={(e) => setProfileName(e.target.value)}
+            />
+            <Input
+              placeholder="Override avatar URL"
+              value={profileAvatarUrl}
+              onChange={(e) => setProfileAvatarUrl(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Leave blank to use the bot's default identity.
+            </p>
+          </div>
+        </Section>
+
+        <Section title="Thread">
+          <div className="space-y-2">
+            <Input
+              placeholder="Thread ID (post inside an existing thread)"
+              value={threadId}
+              onChange={(e) => setThreadId(e.target.value)}
+            />
+            <Input
+              placeholder="Thread name (create a new thread)"
+              value={threadName}
+              onChange={(e) => setThreadName(e.target.value)}
+            />
+          </div>
+        </Section>
+
+        <Section title="Flags">
+          <div className="space-y-2">
+            <FlagRow
+              label="Suppress notifications (silent)"
+              checked={flagSilent}
+              onChange={setFlagSilent}
+            />
+            <FlagRow
+              label="Suppress embeds"
+              checked={flagSuppressEmbeds}
+              onChange={setFlagSuppressEmbeds}
+            />
+            <FlagRow
+              label="Suppress @everyone / @here pings"
+              checked={flagSuppressNotifications}
+              onChange={setFlagSuppressNotifications}
+            />
+          </div>
+        </Section>
+
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <Label className="font-semibold">Files</Label>
+            <span className="text-xs text-muted-foreground italic">25 MB max.</span>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              readOnly
+              value={files.join(", ")}
+              placeholder="No files attached"
+              className="flex-1"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setFiles((f) => [...f, `attachment-${f.length + 1}.png`])
+              }
+            >
+              Clipboard
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={() => setFiles([])}
+            >
+              Clear
+            </Button>
+          </div>
+        </div>
+
         <Button
           type="button"
-          variant="outline"
+          variant="default"
           size="sm"
-          className="w-full"
           onClick={() => setEmbeds((p) => [...p, newEmbed()])}
           disabled={embeds.length >= 10}
         >
-          <Plus className="h-3.5 w-3.5 mr-1" /> Add embed
+          <Plus className="h-3.5 w-3.5 mr-1" /> Add Embed
         </Button>
-
-        <Section title="Message below embed">
-          <Textarea
-            value={trailingContent}
-            onChange={(e) => setTrailingContent(e.target.value)}
-            rows={3}
-            placeholder="Optional plain message shown below the embed."
-          />
-        </Section>
       </div>
 
       {/* Preview */}
@@ -373,14 +472,31 @@ export function SayCommandBuilder({
         <Label className="text-xs text-muted-foreground">Preview</Label>
         <div className="mt-2 rounded-lg border border-border bg-[#313338] p-4 text-[#dbdee1] font-sans text-sm">
           <DiscordMessagePreview
-            botName={botName}
-            botAvatarUrl={botAvatarUrl ?? undefined}
+            botName={profileName || botName}
+            botAvatarUrl={profileAvatarUrl || botAvatarUrl || undefined}
             content={content}
-            trailingContent={trailingContent}
-            embeds={embeds}
+            embeds={flagSuppressEmbeds ? [] : embeds}
+            files={files}
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+function FlagRow({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <Label className="text-sm cursor-pointer">{label}</Label>
+      <Switch checked={checked} onCheckedChange={onChange} />
     </div>
   );
 }
@@ -440,14 +556,14 @@ function DiscordMessagePreview({
   botName,
   botAvatarUrl,
   content,
-  trailingContent,
   embeds,
+  files,
 }: {
   botName: string;
   botAvatarUrl?: string;
   content: string;
-  trailingContent?: string;
   embeds: Embed[];
+  files?: string[];
 }) {
   return (
     <div className="flex gap-3">
@@ -480,8 +596,17 @@ function DiscordMessagePreview({
             <EmbedPreview key={e.id} embed={e} />
           ))}
         </div>
-        {trailingContent && (
-          <p className="whitespace-pre-wrap break-words mt-2">{trailingContent}</p>
+        {files && files.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {files.map((f) => (
+              <div
+                key={f}
+                className="text-xs text-[#00a8fc] bg-[#2b2d31] rounded px-2 py-1 inline-block mr-1"
+              >
+                📎 {f}
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
