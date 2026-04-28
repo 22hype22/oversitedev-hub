@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Shield, LifeBuoy, Wrench, Sparkles, ArrowRight, Puzzle, Palette, BarChart3, Globe, Database, Bell, Wand2 } from "lucide-react";
 import { BotBuilder } from "@/components/site/BotBuilder";
 import { Memberships } from "@/components/site/Memberships";
-import protectionLogo from "@/assets/oversite-protection.png";
-import supportLogo from "@/assets/oversite-support.png";
-import utilitiesLogo from "@/assets/oversite-utilities.png";
+import protectionLogo from "@/assets/banner-protection.png";
+import supportLogo from "@/assets/banner-support.png";
+import utilitiesLogo from "@/assets/banner-utilities.png";
 
 const bots = [
   {
