@@ -1176,7 +1176,7 @@ export const BotBuilder = () => {
                     </div>
                     <button
                       type="button"
-                      onClick={() => setBase("scratch")}
+                      onClick={() => { setBases(["scratch"]); setActivePackTab("protection"); setAddons([]); setShowAllAddons({}); }}
                       className="mt-1.5 text-amber-400 hover:text-amber-300 font-medium underline-offset-2 hover:underline transition-colors"
                     >
                       Switch to All-in-One →
