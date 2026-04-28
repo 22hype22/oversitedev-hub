@@ -467,7 +467,7 @@ const BotDashboard = () => {
               <BotSection
                 key={bot.id}
                 bot={bot}
-                
+                allBots={dashboardBots}
                 onCancel={setCancelTarget}
                 onAddAddons={setAddonsTarget}
                 onReload={reload}
