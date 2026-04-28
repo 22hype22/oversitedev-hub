@@ -295,6 +295,13 @@ export const BotBuilder = () => {
   const [payZip, setPayZip] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [paymentPlan, setPaymentPlan] = useState<"full" | "3" | "6" | "10">("full");
+  const [discountCodeInput, setDiscountCodeInput] = useState("");
+  const [appliedDiscount, setAppliedDiscount] = useState<{
+    code: string;
+    kind: "percent" | "amount";
+    value: number;
+  } | null>(null);
+  const [applyingDiscount, setApplyingDiscount] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showSuccessText, setShowSuccessText] = useState(false);
   const [planeOrigin, setPlaneOrigin] = useState<{ x: number; y: number } | null>(null);
@@ -447,6 +454,56 @@ export const BotBuilder = () => {
     return baseCost;
   }, [bases, addons, currentAddons, dashboardAlreadyOwned]);
 
+  const discountAmount = useMemo(() => {
+    if (!appliedDiscount) return 0;
+    const raw =
+      appliedDiscount.kind === "percent"
+        ? (total * appliedDiscount.value) / 100
+        : appliedDiscount.value;
+    return Math.min(total, Math.max(0, Number(raw.toFixed(2))));
+  }, [appliedDiscount, total]);
+
+  const finalTotal = Math.max(0, Number((total - discountAmount).toFixed(2)));
+
+  const applyDiscount = async () => {
+    const code = discountCodeInput.trim().toUpperCase();
+    if (!code) return;
+    setApplyingDiscount(true);
+    const { data, error } = await (supabase as any)
+      .from("discount_codes")
+      .select("code, kind, value, max_uses, times_used, expires_at, is_active")
+      .ilike("code", code)
+      .maybeSingle();
+    setApplyingDiscount(false);
+    if (error || !data) {
+      sonnerToast.error("Invalid code");
+      return;
+    }
+    if (!data.is_active) {
+      sonnerToast.error("This code is disabled");
+      return;
+    }
+    if (data.expires_at && new Date(data.expires_at) < new Date()) {
+      sonnerToast.error("This code has expired");
+      return;
+    }
+    if (data.max_uses != null && data.times_used >= data.max_uses) {
+      sonnerToast.error("This code has reached its limit");
+      return;
+    }
+    setAppliedDiscount({
+      code: data.code,
+      kind: data.kind,
+      value: Number(data.value),
+    });
+    sonnerToast.success(`Code ${data.code} applied`);
+  };
+
+  const removeDiscount = () => {
+    setAppliedDiscount(null);
+    setDiscountCodeInput("");
+  };
+
   // For the All-in-One Pack OR multi-select, we use the first selected category's
   // identity as the primary record and append the others as a JSON block in notes.
   const buildSubmissionPayload = () => {
@@ -475,7 +532,7 @@ export const BotBuilder = () => {
     const { primary, notesField } = buildSubmissionPayload();
     const baseField = isPack ? "scratch" : bases.join("+");
     const planMonths = paymentPlan === "full" ? null : parseInt(paymentPlan, 10);
-    const installmentAmount = planMonths ? Number((total / planMonths).toFixed(2)) : null;
+    const installmentAmount = planMonths ? Number((finalTotal / planMonths).toFixed(2)) : null;
     const { error } = await (supabase as any).from("bot_orders").insert({
       user_id: user.id,
       bot_name: primary.name.trim(),
@@ -486,17 +543,34 @@ export const BotBuilder = () => {
       addons,
       monthly_hosting: monthlyHosting,
       notes: notesField,
-      total_amount: total,
+      total_amount: finalTotal,
       currency: "usd",
       status: "submitted",
       submitted_at: new Date().toISOString(),
       payment_plan: planMonths ? "installments" : "full",
       plan_months: planMonths,
       installment_amount: installmentAmount,
+      discount_code: appliedDiscount?.code ?? null,
+      discount_amount: discountAmount,
     });
     if (error) {
       sonnerToast.error("Couldn't save your order", { description: error.message });
       return false;
+    }
+    // Best-effort: bump times_used on the code (non-blocking).
+    if (appliedDiscount) {
+      (supabase as any).rpc; // noop reference to keep type narrowing happy
+      const { data: row } = await (supabase as any)
+        .from("discount_codes")
+        .select("id, times_used")
+        .ilike("code", appliedDiscount.code)
+        .maybeSingle();
+      if (row) {
+        await (supabase as any)
+          .from("discount_codes")
+          .update({ times_used: (row.times_used ?? 0) + 1 })
+          .eq("id", row.id);
+      }
     }
     return true;
   };
@@ -1149,10 +1223,25 @@ export const BotBuilder = () => {
                 Estimated
               </span>
               <span className="text-2xl font-bold tracking-tight">
-                ${total.toFixed(2)}
+                {appliedDiscount && (
+                  <span className="text-base text-muted-foreground line-through font-normal mr-2">
+                    ${total.toFixed(2)}
+                  </span>
+                )}
+                ${finalTotal.toFixed(2)}
                 <span className="text-xs text-muted-foreground font-normal"> one-time*</span>
               </span>
             </div>
+            {appliedDiscount && (
+              <div className="mt-1 flex items-center justify-between text-xs">
+                <span className="text-emerald-500 font-medium">
+                  Code {appliedDiscount.code} applied
+                </span>
+                <span className="text-emerald-500 font-medium">
+                  −${discountAmount.toFixed(2)}
+                </span>
+              </div>
+            )}
             {monthlyHosting && (
               <div className="mt-1 flex items-center justify-between">
                 <span className="text-xs uppercase tracking-widest text-muted-foreground">
@@ -1309,6 +1398,53 @@ export const BotBuilder = () => {
                   </p>
                 </div>
 
+                {/* Discount code */}
+                <div className="mt-3 rounded-xl border border-primary/20 bg-card/70 backdrop-blur p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium text-foreground mb-2">
+                    <Tag size={12} className="text-primary" />
+                    Have a discount code?
+                  </div>
+                  {appliedDiscount ? (
+                    <div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+                      <div className="text-xs">
+                        <div className="font-mono font-semibold text-foreground">{appliedDiscount.code}</div>
+                        <div className="text-emerald-500">
+                          {appliedDiscount.kind === "percent"
+                            ? `${appliedDiscount.value}% off`
+                            : `$${appliedDiscount.value} off`}{" "}
+                          (−${discountAmount.toFixed(2)})
+                        </div>
+                      </div>
+                      <Button type="button" size="sm" variant="ghost" onClick={removeDiscount}>
+                        Remove
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input
+                        value={discountCodeInput}
+                        onChange={(e) => setDiscountCodeInput(e.target.value.toUpperCase())}
+                        placeholder="WELCOME10"
+                        maxLength={32}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            applyDiscount();
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={applyDiscount}
+                        disabled={applyingDiscount || !discountCodeInput.trim()}
+                      >
+                        {applyingDiscount ? "…" : "Apply"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
                 {/* Financing — split the total into monthly installments */}
                 <div className="mt-3 rounded-xl border border-primary/20 bg-card/70 backdrop-blur p-4">
                   <div className="flex items-center gap-2 text-xs font-medium text-foreground mb-2">
@@ -1317,10 +1453,10 @@ export const BotBuilder = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {([
-                      { id: "full", label: "Pay in full", sub: `$${total.toFixed(2)} once` },
-                      { id: "3", label: "3 months", sub: `$${(total / 3).toFixed(2)}/mo` },
-                      { id: "6", label: "6 months", sub: `$${(total / 6).toFixed(2)}/mo` },
-                      { id: "10", label: "10 months", sub: `$${(total / 10).toFixed(2)}/mo` },
+                      { id: "full", label: "Pay in full", sub: `$${finalTotal.toFixed(2)} once` },
+                      { id: "3", label: "3 months", sub: `$${(finalTotal / 3).toFixed(2)}/mo` },
+                      { id: "6", label: "6 months", sub: `$${(finalTotal / 6).toFixed(2)}/mo` },
+                      { id: "10", label: "10 months", sub: `$${(finalTotal / 10).toFixed(2)}/mo` },
                     ] as const).map((opt) => {
                       const active = paymentPlan === opt.id;
                       return (
