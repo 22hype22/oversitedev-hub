@@ -88,18 +88,12 @@ export function SayCommandBuilder({
       footerText: botName,
     },
   ]);
-  // Profile overrides (per-message bot identity)
-  const [profileName, setProfileName] = useState("");
-  const [profileAvatarUrl, setProfileAvatarUrl] = useState("");
-  // Thread targeting
-  const [threadId, setThreadId] = useState("");
-  const [threadName, setThreadName] = useState("");
-  // Flags
-  const [flagSilent, setFlagSilent] = useState(false);
-  const [flagSuppressEmbeds, setFlagSuppressEmbeds] = useState(false);
-  const [flagSuppressNotifications, setFlagSuppressNotifications] = useState(false);
-  // Files (mock: just track names)
-  const [files, setFiles] = useState<string[]>([]);
+  // Optional trailing message (shown below the embeds)
+  const [trailingContent, setTrailingContent] = useState<string | null>(null);
+  // Files actually attached by the user
+  const [files, setFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
   const contentLimit = 2000;
 
