@@ -285,15 +285,6 @@ export const BotBuilder = () => {
 
   const currentAddons = useMemo(() => getAddonsForBase(base), [base]);
 
-  // Monthly hosting pricing — incentivizes the All-in-One Pack:
-  //   • Single bot (Protection / Support / Utilities): $4.99/mo
-  //   • All-in-One Pack (one bot, all three categories): $9.99/mo
-  //   • Buying all three as separate bots adds up to $14.99/mo — so the
-  //     All-in-One saves $5/mo over running them separately.
-  const monthlyHostingPrice = isPack ? 9.99 : 4.99;
-  const separateBotsPrice = 14.99;
-  const monthlySavingsVsSeparate = separateBotsPrice - 9.99;
-
   // Active identity: for the All-in-One Pack, this is the currently-shown tab's identity.
   // For all other bases, it's the single shared identity.
   const isPack = base === "scratch";
