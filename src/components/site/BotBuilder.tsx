@@ -649,21 +649,29 @@ export const BotBuilder = () => {
                 2
               </div>
               <h3 className="text-lg font-semibold">
-                {isPack ? "Design your three bots" : "Bot identity"}
+                {isPack
+                  ? "Design your three bots"
+                  : isMulti
+                    ? `Design your ${visibleIdentityTabs.length} bots`
+                    : "Bot identity"}
               </h3>
             </div>
 
-            {isPack && (
+            {usesPackTabs && (
               <>
                 <p className="text-xs text-muted-foreground mb-4">
-                  The All-in-One Pack ships as three focused bots. Give each one its own name,
-                  icon, banner, and vibe — finish the description and we'll slide you to the next.
+                  {isPack
+                    ? "The All-in-One Pack ships as three focused bots. Give each one its own name, icon, banner, and vibe — finish the description and we'll slide you to the next."
+                    : "You picked more than one bot. Give each one its own name, icon, banner, and vibe — finish the description and we'll slide you to the next."}
                 </p>
-                <div className="relative grid grid-cols-3 gap-2 mb-5 rounded-xl border border-border/60 bg-background/40 p-1">
-                  {PACK_TABS.map((t) => {
+                <div
+                  className="relative grid gap-2 mb-5 rounded-xl border border-border/60 bg-background/40 p-1"
+                  style={{ gridTemplateColumns: `repeat(${visibleIdentityTabs.length}, minmax(0, 1fr))` }}
+                >
+                  {visibleIdentityTabs.map((t) => {
                     const TIcon = t.icon;
-                    const active = activePackTab === t.id;
-                    const filled = !!packIdentities[t.id].name.trim();
+                    const active = effectiveActiveTab === t.id;
+                    const filled = !!packIdentities[t.id]?.name.trim();
                     return (
                       <button
                         key={t.id}
@@ -688,9 +696,9 @@ export const BotBuilder = () => {
             )}
 
             <div
-              key={isPack ? activePackTab : "single"}
+              key={usesPackTabs ? effectiveActiveTab : "single"}
               className={`${
-                isPack
+                usesPackTabs
                   ? tabDirection === 1
                     ? "animate-tab-slide-in-right"
                     : "animate-tab-slide-in-left"
