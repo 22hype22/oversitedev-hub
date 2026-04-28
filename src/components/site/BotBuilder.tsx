@@ -532,7 +532,7 @@ export const BotBuilder = () => {
     const { primary, notesField } = buildSubmissionPayload();
     const baseField = isPack ? "scratch" : bases.join("+");
     const planMonths = paymentPlan === "full" ? null : parseInt(paymentPlan, 10);
-    const installmentAmount = planMonths ? Number((total / planMonths).toFixed(2)) : null;
+    const installmentAmount = planMonths ? Number((finalTotal / planMonths).toFixed(2)) : null;
     const { error } = await (supabase as any).from("bot_orders").insert({
       user_id: user.id,
       bot_name: primary.name.trim(),
@@ -543,17 +543,34 @@ export const BotBuilder = () => {
       addons,
       monthly_hosting: monthlyHosting,
       notes: notesField,
-      total_amount: total,
+      total_amount: finalTotal,
       currency: "usd",
       status: "submitted",
       submitted_at: new Date().toISOString(),
       payment_plan: planMonths ? "installments" : "full",
       plan_months: planMonths,
       installment_amount: installmentAmount,
+      discount_code: appliedDiscount?.code ?? null,
+      discount_amount: discountAmount,
     });
     if (error) {
       sonnerToast.error("Couldn't save your order", { description: error.message });
       return false;
+    }
+    // Best-effort: bump times_used on the code (non-blocking).
+    if (appliedDiscount) {
+      (supabase as any).rpc; // noop reference to keep type narrowing happy
+      const { data: row } = await (supabase as any)
+        .from("discount_codes")
+        .select("id, times_used")
+        .ilike("code", appliedDiscount.code)
+        .maybeSingle();
+      if (row) {
+        await (supabase as any)
+          .from("discount_codes")
+          .update({ times_used: (row.times_used ?? 0) + 1 })
+          .eq("id", row.id);
+      }
     }
     return true;
   };
