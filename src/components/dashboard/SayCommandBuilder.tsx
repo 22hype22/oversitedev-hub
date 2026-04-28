@@ -570,26 +570,59 @@ function DiscordMessagePreview({
   botName,
   botAvatarUrl,
   content,
-  trailingContent,
+  trailingMessages,
   embeds,
   files,
 }: {
   botName: string;
   botAvatarUrl?: string;
   content: string;
-  trailingContent?: string;
+  trailingMessages?: string[];
   embeds: Embed[];
-  files?: string[];
+  files?: File[];
+}) {
+  return (
+    <div className="space-y-4">
+      <SingleMessage
+        botName={botName}
+        botAvatarUrl={botAvatarUrl}
+        content={content}
+        embeds={embeds}
+        files={files}
+      />
+      {trailingMessages
+        ?.filter((t) => t.trim().length > 0)
+        .map((t, i) => (
+          <SingleMessage
+            key={i}
+            botName={botName}
+            botAvatarUrl={botAvatarUrl}
+            content={t}
+            embeds={[]}
+          />
+        ))}
+    </div>
+  );
+}
+
+function SingleMessage({
+  botName,
+  botAvatarUrl,
+  content,
+  embeds,
+  files,
+}: {
+  botName: string;
+  botAvatarUrl?: string;
+  content: string;
+  embeds: Embed[];
+  files?: File[];
 }) {
   return (
     <div className="flex gap-3">
       <div className="h-10 w-10 rounded-full bg-[#5865F2] grid place-items-center shrink-0 overflow-hidden">
         {botAvatarUrl ? (
-          <img
-            src={botAvatarUrl}
-            alt=""
-            className="h-full w-full object-cover"
-          />
+          <img src={botAvatarUrl} alt="" className="h-full w-full object-cover" />
         ) : (
           <span className="text-white text-sm font-bold">
             {botName.slice(0, 1).toUpperCase()}
@@ -607,27 +640,57 @@ function DiscordMessagePreview({
         {content && (
           <p className="whitespace-pre-wrap break-words mt-0.5">{content}</p>
         )}
-        <div className="space-y-2 mt-1">
-          {embeds.map((e) => (
-            <EmbedPreview key={e.id} embed={e} />
-          ))}
-        </div>
-        {trailingContent && (
-          <p className="whitespace-pre-wrap break-words mt-2">{trailingContent}</p>
+        {embeds.length > 0 && (
+          <div className="space-y-2 mt-1">
+            {embeds.map((e) => (
+              <EmbedPreview key={e.id} embed={e} />
+            ))}
+          </div>
         )}
         {files && files.length > 0 && (
-          <div className="mt-2 space-y-1">
-            {files.map((f) => (
-              <div
-                key={f}
-                className="text-xs text-[#00a8fc] bg-[#2b2d31] rounded px-2 py-1 inline-block mr-1"
-              >
-                📎 {f}
-              </div>
+          <div className="mt-2 grid grid-cols-2 gap-2 max-w-md">
+            {files.map((f, i) => (
+              <PreviewImage key={`${f.name}-${i}`} file={f} />
             ))}
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function PreviewImage({ file }: { file: File }) {
+  const [url] = useState(() => URL.createObjectURL(file));
+  return (
+    <img
+      src={url}
+      alt={file.name}
+      className="rounded max-h-60 w-full object-cover border border-[#1f2023]"
+    />
+  );
+}
+
+function FileThumb({
+  file,
+  onRemove,
+}: {
+  file: File;
+  onRemove: () => void;
+}) {
+  const [url] = useState(() => URL.createObjectURL(file));
+  return (
+    <div className="relative group rounded-md overflow-hidden border border-border bg-card">
+      <img src={url} alt={file.name} className="w-full h-24 object-cover" />
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 py-1 text-[10px] text-white truncate">
+        {file.name} · {(file.size / 1024).toFixed(0)} KB
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute top-1 right-1 h-6 w-6 grid place-items-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-smooth hover:bg-destructive"
+      >
+        <Trash2 className="h-3 w-3" />
+      </button>
     </div>
   );
 }
