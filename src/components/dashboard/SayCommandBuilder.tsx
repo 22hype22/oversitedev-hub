@@ -430,9 +430,9 @@ export function SayCommandBuilder({
 
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
-            <Label className="font-semibold">Files</Label>
+            <Label className="font-semibold">Images</Label>
             <span className="text-xs text-muted-foreground italic">
-              25 MB max per file
+              PNG, JPG, GIF, WebP — 25 MB max per image
             </span>
           </div>
           <input
