@@ -10,6 +10,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ChevronDown, Plus, Trash2, GripVertical } from "lucide-react";
+import { toast } from "sonner";
 
 /**
  * Discohook-style /say command builder.
