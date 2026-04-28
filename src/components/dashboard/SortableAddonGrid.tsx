@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -16,13 +16,17 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { supabase } from "@/integrations/supabase/client";
 import { AddonConfigCard } from "./AddonConfigCard";
 
 /**
  * Per-user reorderable grid of addon config cards.
  *
- * Order is persisted in localStorage scoped by user id + bot id + group key,
- * so each viewer rearranges their own dashboard without affecting anyone else.
+ * Order is persisted in the `dashboard_addon_order` table scoped by user id +
+ * bot id + group key, so each viewer rearranges their own dashboard and the
+ * order follows them across devices. localStorage is also written as a
+ * fast-paint cache so reorders feel instant before/while the DB round-trip
+ * resolves.
  *
  * Cards can only be reordered within their own group (Protection / Support /
  * Utilities / Extras) — there's a separate <SortableAddonGrid> per group, so
@@ -103,6 +107,8 @@ export function SortableAddonGrid({
     [userId, botId, groupKey],
   );
 
+  // Initial value: hit localStorage cache for instant paint, reconcile against
+  // current ids. The DB-loaded order overrides this once it arrives.
   const [order, setOrder] = useState<string[]>(() => {
     if (typeof window === "undefined") return ids;
     try {
@@ -114,19 +120,75 @@ export function SortableAddonGrid({
     }
   });
 
+  // Skip persisting on the very first render (which just reflects the cached
+  // value, not a user action).
+  const skipSaveRef = useRef(true);
+  // Used to suppress the persistence effect when we apply a server-loaded order.
+  const justLoadedRef = useRef(false);
+
+  // Load order from the DB on mount / when scope changes.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from("dashboard_addon_order")
+        .select("ordered_ids")
+        .eq("user_id", userId)
+        .eq("bot_id", botId)
+        .eq("group_key", groupKey)
+        .maybeSingle();
+      if (cancelled || error) return;
+      const saved = (data?.ordered_ids ?? null) as string[] | null;
+      if (!saved) return;
+      const next = reconcile(saved, ids);
+      justLoadedRef.current = true;
+      setOrder(next);
+      try {
+        window.localStorage.setItem(key, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, botId, groupKey]);
+
   // Re-reconcile when the upstream ids list changes (e.g. user adds an addon).
   useEffect(() => {
     setOrder((prev) => reconcile(prev, ids));
   }, [ids]);
 
-  // Persist on change.
+  // Persist on change — to localStorage immediately, and upsert to DB.
   useEffect(() => {
+    if (skipSaveRef.current) {
+      skipSaveRef.current = false;
+      return;
+    }
+    if (justLoadedRef.current) {
+      justLoadedRef.current = false;
+      return;
+    }
     try {
       window.localStorage.setItem(key, JSON.stringify(order));
     } catch {
       /* ignore quota errors */
     }
-  }, [key, order]);
+    // Fire-and-forget upsert. Failures are non-critical (cache still has it).
+    void (supabase as any)
+      .from("dashboard_addon_order")
+      .upsert(
+        {
+          user_id: userId,
+          bot_id: botId,
+          group_key: groupKey,
+          ordered_ids: order,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,bot_id,group_key" },
+      );
+  }, [key, order, userId, botId, groupKey]);
 
   // PointerSensor with a small distance so click-to-open the dialog still works.
   const sensors = useSensors(
