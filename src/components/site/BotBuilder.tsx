@@ -178,7 +178,7 @@ const ADDONS_BY_BASE: Record<string, Addon[]> = {
     { id: "nsfw-invite-scanner", name: "NSFW Invite Scanner + Censored Logs", desc: "Catches NSFW invites and stores censored evidence.", icon: ShieldCheck, price: 2.99 },
     { id: "avatar-nsfw-detection", name: "Avatar NSFW Detection", desc: "Flags NSFW avatars. Requires Censored Logs.", icon: EyeOff, price: 1.99 },
     { id: "bio-phrase-detection", name: "Bio Phrase Detection", desc: "Catches banned phrases in user bios. Requires Censored Logs.", icon: TextCursorInput, price: 0.99 },
-    { id: "account-age-gating", name: "New Account Age Gating", desc: "Block freshly-made accounts from joining.", icon: UserX, price: 0.99 },
+    
     { id: "auto-escalating-warnings", name: "Auto-Escalating Warnings", desc: "Warns auto-escalate to mute/ban thresholds.", icon: AlertTriangle, price: 1.99 },
     { id: "softban-massban", name: "/softban and /massban", desc: "Quick cleanup tools for serious incidents.", icon: Ban, price: 1.99 },
     { id: "channel-lockdown", name: "Channel Lockdown Command", desc: "Instantly lock a channel or the whole server.", icon: Lock, price: 1.99 },
