@@ -493,11 +493,11 @@ export const BotBuilder = () => {
   };
 
   const submit = async () => {
-    if (isPack) {
-      const missing = PACK_TABS.find((t) => !packIdentities[t.id].name.trim());
+    if (usesPackTabs) {
+      const missing = visibleIdentityTabs.find((t) => !packIdentities[t.id]?.name.trim());
       if (missing) {
         sonnerToast.error(`Name your ${missing.label}`, {
-          description: "Each bot in the pack needs at least a name.",
+          description: "Each bot in your order needs at least a name.",
         });
         setTabDirection(1);
         setActivePackTab(missing.id);
