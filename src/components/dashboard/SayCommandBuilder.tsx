@@ -744,12 +744,12 @@ function EmbedPreview({ embed }: { embed: Embed }) {
                 href={embed.url}
                 target="_blank"
                 rel="noreferrer"
-                className="block text-[#00a8fc] hover:underline font-semibold"
+                className="block text-[#00a8fc] hover:underline font-semibold whitespace-pre-wrap break-words"
               >
                 {embed.title}
               </a>
             ) : (
-              <div className="text-white font-semibold">{embed.title}</div>
+              <div className="text-white font-semibold whitespace-pre-wrap break-words">{embed.title}</div>
             ))}
           {embed.description && (
             <p className="whitespace-pre-wrap break-words text-sm text-[#dbdee1]">
