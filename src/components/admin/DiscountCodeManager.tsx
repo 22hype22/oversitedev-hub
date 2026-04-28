@@ -243,11 +243,11 @@ export function DiscountCodeManager() {
                     </td>
                     <td className="py-2 px-2 text-right">
                       <div className="inline-flex gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => copy(c.code)} title="Copy">
-                          <Copy className="h-4 w-4" />
-                        </Button>
                         <Button size="icon" variant="ghost" onClick={() => toggleActive(c)} title="Toggle">
                           <Power className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => copy(c.code)} title="Copy">
+                          <Copy className="h-4 w-4" />
                         </Button>
                         <Button size="icon" variant="ghost" onClick={() => deleteCode(c)} title="Delete">
                           <Trash2 className="h-4 w-4 text-destructive" />
