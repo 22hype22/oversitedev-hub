@@ -268,10 +268,13 @@ const PACK_TABS: { id: string; label: string; icon: typeof Shield }[] = [
 export const BotBuilder = () => {
   const { user } = useAuth();
   const { hasDashboardAccess: dashboardAlreadyOwned } = useOwnedBots();
-  const [base, setBase] = useState<string>("protection");
-  // Single-bot identity (for non-pack bases)
+  // Multi-select bases. Rules:
+  //  • All-in-One Pack ("scratch") is exclusive — selecting it clears others.
+  //  • Otherwise the user can select up to 2 single bots (Protection / Support / Utilities).
+  const [bases, setBases] = useState<string[]>(["protection"]);
+  // Single-bot identity (used when exactly one non-pack base is selected)
   const [identity, setIdentity] = useState<Identity>({ ...EMPTY_IDENTITY });
-  // Pack identities (for All-in-One Pack)
+  // Per-category identities (used for the All-in-One Pack OR multi-select)
   const [packIdentities, setPackIdentities] = useState<Record<string, Identity>>({
     protection: { ...EMPTY_IDENTITY },
     support: { ...EMPTY_IDENTITY },
@@ -299,30 +302,48 @@ export const BotBuilder = () => {
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
 
-  const currentAddons = useMemo(() => getAddonsForBase(base), [base]);
+  const isPack = bases.includes("scratch");
+  const isMulti = !isPack && bases.length > 1;
+  // When more than one identity is needed (pack OR multi-select)
+  const usesPackTabs = isPack || isMulti;
+  // Which tabs to show in the identity step
+  const visibleIdentityTabs = useMemo(() => {
+    if (isPack) return PACK_TABS;
+    return PACK_TABS.filter((t) => bases.includes(t.id));
+  }, [isPack, bases]);
 
-  // Active identity: for the All-in-One Pack, this is the currently-shown tab's identity.
-  // For all other bases, it's the single shared identity.
-  const isPack = base === "scratch";
-  const activeIdentity: Identity = isPack ? packIdentities[activePackTab] : identity;
+  // Keep the active pack tab valid as `bases` changes
+  if (usesPackTabs && !visibleIdentityTabs.find((t) => t.id === activePackTab)) {
+    // defer state update to next tick by scheduling via setTimeout would
+    // create churn; instead just use the first visible tab during render.
+  }
+  const effectiveActiveTab = visibleIdentityTabs.find((t) => t.id === activePackTab)
+    ? activePackTab
+    : visibleIdentityTabs[0]?.id ?? "protection";
+
+  const currentAddons = useMemo(() => getAddonsForBases(bases), [bases]);
+
+  const activeIdentity: Identity = usesPackTabs ? packIdentities[effectiveActiveTab] : identity;
   const { name, description, icon, banner } = activeIdentity;
 
   // Monthly hosting pricing — incentivizes the All-in-One Pack:
-  //   • Single bot (Protection / Support / Utilities): $4.99/mo each
-  //   • All-in-One Pack (one bot, all three categories): $9.99/mo
-  //   • Buying all three as separate bots adds up to $14.99/mo, so the
-  //     All-in-One saves $5/mo vs running them separately.
+  //   • Single bot: $4.99/mo
+  //   • Two single bots: $9.98/mo (2 × $4.99)
+  //   • All three as separate bots: $14.99/mo
+  //   • All-in-One Pack (one bot, all three categories): $9.99/mo  ← cheapest 3-cat option
   const ALL_IN_ONE_PRICE = 9.99;
   const SINGLE_BOT_PRICE = 4.99;
   const SEPARATE_BOTS_PRICE = 14.99;
-  const monthlyHostingPrice = isPack ? ALL_IN_ONE_PRICE : SINGLE_BOT_PRICE;
+  const monthlyHostingPrice = isPack
+    ? ALL_IN_ONE_PRICE
+    : SINGLE_BOT_PRICE * bases.length;
   const monthlySavingsVsSeparate = SEPARATE_BOTS_PRICE - ALL_IN_ONE_PRICE;
 
   const updateActiveIdentity = (patch: Partial<Identity>) => {
-    if (isPack) {
+    if (usesPackTabs) {
       setPackIdentities((prev) => ({
         ...prev,
-        [activePackTab]: { ...prev[activePackTab], ...patch },
+        [effectiveActiveTab]: { ...prev[effectiveActiveTab], ...patch },
       }));
     } else {
       setIdentity((prev) => ({ ...prev, ...patch }));
@@ -333,23 +354,22 @@ export const BotBuilder = () => {
   const setIcon = (v: string) => updateActiveIdentity({ icon: v });
   const setBanner = (v: string) => updateActiveIdentity({ banner: v });
 
-  // When the user finishes a field on a pack tab and there's a next tab,
-  // auto-advance with a slide animation.
+  // Auto-advance to the next visible identity tab when finishing a description
   const advanceToNextTab = () => {
-    if (!isPack) return;
-    const current = packIdentities[activePackTab];
-    if (!current.name.trim() || !current.description.trim()) return;
-    const idx = PACK_TABS.findIndex((t) => t.id === activePackTab);
-    if (idx >= 0 && idx < PACK_TABS.length - 1) {
+    if (!usesPackTabs) return;
+    const current = packIdentities[effectiveActiveTab];
+    if (!current?.name.trim() || !current?.description.trim()) return;
+    const idx = visibleIdentityTabs.findIndex((t) => t.id === effectiveActiveTab);
+    if (idx >= 0 && idx < visibleIdentityTabs.length - 1) {
       setTabDirection(1);
-      setActivePackTab(PACK_TABS[idx + 1].id);
+      setActivePackTab(visibleIdentityTabs[idx + 1].id);
     }
   };
   const handleDescriptionBlur = () => advanceToNextTab();
 
   const goToTab = (id: string) => {
-    const fromIdx = PACK_TABS.findIndex((t) => t.id === activePackTab);
-    const toIdx = PACK_TABS.findIndex((t) => t.id === id);
+    const fromIdx = visibleIdentityTabs.findIndex((t) => t.id === effectiveActiveTab);
+    const toIdx = visibleIdentityTabs.findIndex((t) => t.id === id);
     setTabDirection(toIdx >= fromIdx ? 1 : -1);
     setActivePackTab(id);
   };
@@ -369,23 +389,59 @@ export const BotBuilder = () => {
   const toggleAddon = (id: string) =>
     setAddons((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
 
-  // Reset addons when base changes (since addon lists are per-base)
-  const selectBase = (id: string) => {
-    setBase(id);
+  // Toggle a base with the multi-select rules.
+  const toggleBase = (id: string) => {
     setAddons([]);
     setShowAllAddons({});
+    if (id === "scratch") {
+      // Pack is exclusive
+      setBases(["scratch"]);
+      setActivePackTab("protection");
+      return;
+    }
+    setBases((prev) => {
+      // If pack is currently selected, replace with this single
+      if (prev.includes("scratch")) {
+        setActivePackTab(id);
+        return [id];
+      }
+      // Toggle off (but keep at least one selected)
+      if (prev.includes(id)) {
+        if (prev.length === 1) {
+          sonnerToast.info("Pick at least one bot", {
+            description: "You need to keep one base selected.",
+          });
+          return prev;
+        }
+        const next = prev.filter((b) => b !== id);
+        if (!next.includes(activePackTab)) setActivePackTab(next[0]);
+        return next;
+      }
+      // Add — cap at 2 single bots
+      if (prev.length >= 2) {
+        sonnerToast.info("Two-bot limit", {
+          description: "You can pick up to two bots — or grab the All-in-One Pack for all three.",
+        });
+        return prev;
+      }
+      const next = [...prev, id];
+      setActivePackTab(next[0]);
+      return next;
+    });
   };
 
   const total = useMemo(() => {
-    const baseCost = BASES.find((b) => b.id === base)?.price ?? 0;
+    const baseCost = bases.reduce(
+      (sum, id) => sum + (BASES.find((b) => b.id === id)?.price ?? 0),
+      0,
+    );
     const addonCost = addons.reduce((sum, id) => {
       // Dashboard add-on is a one-time, account-wide unlock.
-      // If the user already owns it on any prior bot, it costs $0 here.
       if (id === "dashboard" && dashboardAlreadyOwned) return sum;
       return sum + (currentAddons.find((a) => a.id === id)?.price ?? 0);
     }, 0);
     return baseCost + addonCost;
-  }, [base, addons, currentAddons, dashboardAlreadyOwned]);
+  }, [bases, addons, currentAddons, dashboardAlreadyOwned]);
 
   // For the All-in-One Pack we use the Protection identity as the primary record
   // and append the other two identities as a JSON block in the notes for the build team.
