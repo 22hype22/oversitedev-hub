@@ -89,8 +89,10 @@ export function SayCommandBuilder({
       footerText: botName,
     },
   ]);
-  // Optional trailing message (shown below the embeds)
-  const [trailingContent, setTrailingContent] = useState<string | null>(null);
+  // Extra messages shown below the embeds (each is a separate message)
+  const [trailingMessages, setTrailingMessages] = useState<
+    { id: string; text: string }[]
+  >([]);
   // Files actually attached by the user
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
