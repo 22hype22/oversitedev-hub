@@ -554,6 +554,7 @@ const BotDashboard = () => {
                 queuePosition={queuePositions.get(bot.id) ?? null}
                 onCancel={setCancelTarget}
                 onAddAddons={setAddonsTarget}
+                onReload={reload}
               />
             ))}
           </div>
