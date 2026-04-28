@@ -97,17 +97,15 @@ export function useUserPurchases() {
     reload();
   }, [reload]);
 
-  // Auto-refresh ownership when new purchases land (Stripe webhook updates
-  // `purchases`, gamepass verification updates `pending_purchases`).
+  // Auto-refresh ownership when new purchases land. We only subscribe to
+  // `pending_purchases` realtime (no sensitive fields). The `purchases` table
+  // is intentionally excluded from realtime to avoid broadcasting emails /
+  // payment data; we instead refresh on focus and on a short interval after
+  // mount to catch Stripe webhook completions.
   useEffect(() => {
     if (!user) return;
     const channel = supabase
       .channel(`user-purchases-${user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "purchases" },
-        () => reload()
-      )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "pending_purchases" },
@@ -115,8 +113,6 @@ export function useUserPurchases() {
       )
       .subscribe();
 
-    // Also refresh when the tab regains focus (covers gamepass flows where
-    // the user verifies in another tab/window).
     const onFocus = () => reload();
     window.addEventListener("focus", onFocus);
 

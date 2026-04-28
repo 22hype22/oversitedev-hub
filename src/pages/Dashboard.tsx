@@ -451,13 +451,10 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user) return;
 
+    // Note: `purchases` is intentionally NOT in realtime (sensitive payment data).
+    // We refresh on focus and on `pending_purchases` / `profiles` changes instead.
     const channel = supabase
       .channel(`dashboard-purchases-${user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "purchases" },
-        () => loadPurchases(),
-      )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "pending_purchases" },
