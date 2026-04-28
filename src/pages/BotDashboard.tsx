@@ -25,6 +25,7 @@ import {
 import { toast } from "sonner";
 import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
 import { AddonConfigCard } from "@/components/dashboard/AddonConfigCard";
+import { SortableAddonGrid } from "@/components/dashboard/SortableAddonGrid";
 import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
 import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import {
@@ -140,12 +141,14 @@ const getStatusMeta = (s: string): StatusMeta =>
 const BotSection = ({
   bot,
   allBots,
+  userId,
   onCancel,
   onAddAddons,
   onReload,
 }: {
   bot: OwnedBot;
   allBots: OwnedBot[];
+  userId: string;
   onCancel: (bot: OwnedBot) => void;
   onAddAddons: (bot: OwnedBot) => void;
   onReload: () => void;
