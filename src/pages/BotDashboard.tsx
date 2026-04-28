@@ -164,9 +164,13 @@ const BotSection = ({
     "branding-multi-server",
   ]);
   // Group owned add-ons by category for the configuration boxes section.
+  // "messages" lives inside every category list so it shows under the bot's
+  // main section, but we don't want a standalone group (e.g. "Utilities") to
+  // appear just because of Messages — drop groups whose only item is Messages.
   const groupedAddons = ADDON_GROUPS
     .map((g) => ({ ...g, owned: g.ids.filter((id) => ownedAddons.has(id)) }))
-    .filter((g) => g.owned.length > 0);
+    .filter((g) => g.owned.length > 0)
+    .filter((g) => !(g.owned.length === 1 && g.owned[0] === "messages"));
   const totalConfigurable = groupedAddons.reduce((n, g) => n + g.owned.length, 0);
   const showPreorderBanner = !bot.isDemo && (bot.status === "submitted" || bot.status === "paid");
   const showReadyBanner = !bot.isDemo && bot.status === "ready" && bot.delivery_url;
