@@ -798,10 +798,11 @@ export const BotBuilder = () => {
               </div>
             </div>
 
-            {isPack && (() => {
-              const idx = PACK_TABS.findIndex((t) => t.id === activePackTab);
-              const prev = idx > 0 ? PACK_TABS[idx - 1] : null;
-              const next = idx < PACK_TABS.length - 1 ? PACK_TABS[idx + 1] : null;
+            {usesPackTabs && visibleIdentityTabs.length > 1 && (() => {
+              const tabs = visibleIdentityTabs;
+              const idx = tabs.findIndex((t) => t.id === effectiveActiveTab);
+              const prev = idx > 0 ? tabs[idx - 1] : null;
+              const next = idx < tabs.length - 1 ? tabs[idx + 1] : null;
               return (
                 <div className="mt-5 flex items-center justify-between gap-3 pt-4 border-t border-border/40">
                   <Button
@@ -814,7 +815,7 @@ export const BotBuilder = () => {
                     ← {prev ? prev.label : "Previous"}
                   </Button>
                   <span className="text-[11px] text-muted-foreground">
-                    Bot {idx + 1} of {PACK_TABS.length}
+                    Bot {idx + 1} of {tabs.length}
                   </span>
                   <Button
                     type="button"
