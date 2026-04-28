@@ -431,10 +431,17 @@ export const BotBuilder = () => {
   };
 
   const total = useMemo(() => {
-    const baseCost = bases.reduce(
-      (sum, id) => sum + (BASES.find((b) => b.id === id)?.price ?? 0),
-      0,
-    );
+    // Pack is its own flat price. For singles: first bot full price,
+    // each additional single bot is a discounted $50 add-on.
+    const SECOND_BOT_PRICE = 50;
+    if (bases.includes("scratch")) {
+      return BASES.find((b) => b.id === "scratch")?.price ?? 0;
+    }
+    const baseCost = bases.reduce((sum, id, idx) => {
+      const b = BASES.find((x) => x.id === id);
+      if (!b) return sum;
+      return sum + (idx === 0 ? b.price : SECOND_BOT_PRICE);
+    }, 0);
     // Add-ons are now included free — they no longer add to the total.
     return baseCost;
   }, [bases, addons, currentAddons, dashboardAlreadyOwned]);
