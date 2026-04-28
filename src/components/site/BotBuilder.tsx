@@ -294,6 +294,7 @@ export const BotBuilder = () => {
   const [payZip, setPayZip] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [paymentPlan, setPaymentPlan] = useState<"full" | "3" | "6" | "10">("full");
+  const [engineVersion, setEngineVersion] = useState<"v1" | "v2">("v1");
   const [discountCodeInput, setDiscountCodeInput] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState<{
     code: string;
