@@ -324,18 +324,14 @@ const BotSection = ({
                     {group.label} ({group.owned.length})
                   </h4>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                  {group.owned.map((id) => {
-                    return (
-                      <AddonConfigCard
-                        key={`${bot.id}-${id}`}
-                        addonId={id}
-                        botName={bot.bot_name}
-                        botAvatarUrl={bot.icon_url}
-                      />
-                    );
-                  })}
-                </div>
+                <SortableAddonGrid
+                  userId={userId}
+                  botId={bot.id}
+                  botName={bot.bot_name}
+                  botAvatarUrl={bot.icon_url}
+                  groupKey={group.key}
+                  ids={group.owned}
+                />
               </div>
             );
           })
@@ -479,6 +475,7 @@ const BotDashboard = () => {
                 key={bot.id}
                 bot={bot}
                 allBots={dashboardBots}
+                userId={user.id}
                 onCancel={setCancelTarget}
                 onAddAddons={setAddonsTarget}
                 onReload={reload}
