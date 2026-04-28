@@ -291,6 +291,17 @@ export const BotBuilder = () => {
   const activeIdentity: Identity = isPack ? packIdentities[activePackTab] : identity;
   const { name, description, icon, banner } = activeIdentity;
 
+  // Monthly hosting pricing — incentivizes the All-in-One Pack:
+  //   • Single bot (Protection / Support / Utilities): $4.99/mo each
+  //   • All-in-One Pack (one bot, all three categories): $9.99/mo
+  //   • Buying all three as separate bots adds up to $14.99/mo, so the
+  //     All-in-One saves $5/mo vs running them separately.
+  const ALL_IN_ONE_PRICE = 9.99;
+  const SINGLE_BOT_PRICE = 4.99;
+  const SEPARATE_BOTS_PRICE = 14.99;
+  const monthlyHostingPrice = isPack ? ALL_IN_ONE_PRICE : SINGLE_BOT_PRICE;
+  const monthlySavingsVsSeparate = SEPARATE_BOTS_PRICE - ALL_IN_ONE_PRICE;
+
   const updateActiveIdentity = (patch: Partial<Identity>) => {
     if (isPack) {
       setPackIdentities((prev) => ({
