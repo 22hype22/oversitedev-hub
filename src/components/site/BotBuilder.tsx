@@ -474,6 +474,8 @@ export const BotBuilder = () => {
     if (!user) return true; // anonymous: skip persistence, keep legacy flow
     const { primary, notesField } = buildSubmissionPayload();
     const baseField = isPack ? "scratch" : bases.join("+");
+    const planMonths = paymentPlan === "full" ? null : parseInt(paymentPlan, 10);
+    const installmentAmount = planMonths ? Number((total / planMonths).toFixed(2)) : null;
     const { error } = await (supabase as any).from("bot_orders").insert({
       user_id: user.id,
       bot_name: primary.name.trim(),
@@ -488,6 +490,9 @@ export const BotBuilder = () => {
       currency: "usd",
       status: "submitted",
       submitted_at: new Date().toISOString(),
+      payment_plan: planMonths ? "installments" : "full",
+      plan_months: planMonths,
+      installment_amount: installmentAmount,
     });
     if (error) {
       sonnerToast.error("Couldn't save your order", { description: error.message });
