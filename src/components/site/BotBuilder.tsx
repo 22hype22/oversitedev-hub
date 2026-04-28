@@ -1033,24 +1033,31 @@ export const BotBuilder = () => {
                     </div>
                     {list.length > 10 && (
                       <div className="mt-4 flex justify-center">
-                        <Button
-                          type="button"
-                          variant="outlineGlow"
-                          size="sm"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            console.log("[viewmore-click]", key);
-                            setShowAllAddons((prev) => {
-                              const next = { ...prev };
-                              next[key] = !prev[key];
-                              console.log("[viewmore-next]", next);
-                              return next;
-                            });
-                          }}
-                        >
-                          {expanded ? "Show less" : `View more (${list.length - 10})`}
-                        </Button>
+                        {expanded ? (
+                          <Button
+                            key={`${key}-less`}
+                            type="button"
+                            variant="outlineGlow"
+                            size="sm"
+                            onClick={() =>
+                              setShowAllAddons((prev) => ({ ...prev, [key]: false }))
+                            }
+                          >
+                            Show less
+                          </Button>
+                        ) : (
+                          <Button
+                            key={`${key}-more`}
+                            type="button"
+                            variant="outlineGlow"
+                            size="sm"
+                            onClick={() =>
+                              setShowAllAddons((prev) => ({ ...prev, [key]: true }))
+                            }
+                          >
+                            View more ({list.length - 10})
+                          </Button>
+                        )}
                       </div>
                     )}
                   </>
