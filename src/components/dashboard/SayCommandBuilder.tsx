@@ -88,6 +88,7 @@ export function SayCommandBuilder({
       footerText: botName,
     },
   ]);
+  const [trailingContent, setTrailingContent] = useState("");
 
   const updateEmbed = (id: string, patch: Partial<Embed>) =>
     setEmbeds((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
