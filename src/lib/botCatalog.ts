@@ -86,7 +86,7 @@ export const BOT_ADDON_PRICES: Record<string, number> = {
   "nsfw-invite-scanner": 2.99,
   "avatar-nsfw-detection": 1.99,
   "bio-phrase-detection": 0.99,
-  "account-age-gating": 0.99,
+  
   "auto-escalating-warnings": 1.99,
   "softban-massban": 1.99,
   "channel-lockdown": 1.99,
