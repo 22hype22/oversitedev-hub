@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
 import { AddonConfigCard } from "@/components/dashboard/AddonConfigCard";
 import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
+import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import {
   LogOut,
   Settings,
@@ -120,12 +121,12 @@ const ADDON_GROUPS: {
   { key: "shared",     label: "Extras",     icon: Star,        ids: SHARED_ADDON_IDS },
 ];
 
-type StatusMeta = { label: string; className: string };
+type StatusMeta = { label: string; className: string; loading?: boolean };
 const STATUS_META: Record<string, StatusMeta> = {
   draft:     { label: "Draft",            className: "bg-muted text-muted-foreground border-border" },
-  submitted: { label: "Preorder placed",  className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
-  paid:      { label: "Paid — queued",    className: "bg-primary/15 text-primary border-primary/30" },
-  building:  { label: "In build",         className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  submitted: { label: "Building",         className: "bg-primary/15 text-primary border-primary/30", loading: true },
+  paid:      { label: "Building",         className: "bg-primary/15 text-primary border-primary/30", loading: true },
+  building:  { label: "Building",         className: "bg-blue-500/15 text-blue-400 border-blue-500/30", loading: true },
   ready:     { label: "Ready to invite",  className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
   live:      { label: "Live",             className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
   cancelled: { label: "Cancelled",        className: "bg-destructive/15 text-destructive border-destructive/30" },
@@ -135,13 +136,11 @@ const getStatusMeta = (s: string): StatusMeta =>
 
 const BotSection = ({
   bot,
-  queuePosition,
   onCancel,
   onAddAddons,
   onReload,
 }: {
   bot: OwnedBot;
-  queuePosition: number | null;
   onCancel: (bot: OwnedBot) => void;
   onAddAddons: (bot: OwnedBot) => void;
   onReload: () => void;
@@ -163,20 +162,15 @@ const BotSection = ({
     .map((g) => ({ ...g, owned: g.ids.filter((id) => ownedAddons.has(id)) }))
     .filter((g) => g.owned.length > 0);
   const totalConfigurable = groupedAddons.reduce((n, g) => n + g.owned.length, 0);
-  const showQueue = !bot.isDemo && queuePosition && (bot.status === "submitted" || bot.status === "paid");
-  const showPreorderBanner = !bot.isDemo && bot.status === "submitted";
+  const showPreorderBanner = !bot.isDemo && (bot.status === "submitted" || bot.status === "paid");
   const showReadyBanner = !bot.isDemo && bot.status === "ready" && bot.delivery_url;
 
   const headerBadges = (
     <>
-      <Badge variant="outline" className={`text-xs ${statusMeta.className}`}>
+      <Badge variant="outline" className={`text-xs gap-1.5 ${statusMeta.className}`}>
+        {statusMeta.loading && !bot.isDemo && <HexagonLoader size={12} />}
         {statusMeta.label}
       </Badge>
-      {showQueue && (
-        <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/30">
-          Queue position #{queuePosition}
-        </Badge>
-      )}
       <Badge variant="secondary" className="text-xs">
         {baseLabel}
       </Badge>
@@ -224,16 +218,14 @@ const BotSection = ({
       />
 
       {showPreorderBanner && (
-        <Card className="p-4 bg-amber-500/5 border-amber-500/30">
+        <Card className="p-4 bg-primary/5 border-primary/30">
           <div className="flex items-start gap-3">
-            <Clock className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
+            <HexagonLoader size={22} className="mt-0.5" />
             <div className="text-sm">
-              <div className="font-semibold text-amber-300">Preorder received</div>
+              <div className="font-semibold text-primary">Your bot is being built</div>
               <p className="text-muted-foreground mt-1">
-                {queuePosition
-                  ? `You're #${queuePosition} in the build queue. `
-                  : "We've added your bot to the build queue. "}
-                We'll reach out within 24 hours to confirm scope and finalize payment.
+                We're putting your bot together. You'll get an email the moment it's
+                ready to invite — no action needed from you right now.
               </p>
             </div>
           </div>
@@ -346,42 +338,6 @@ const BotDashboard = () => {
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
-  const [queuePositions, setQueuePositions] = useState<Map<string, number>>(new Map());
-
-  // Compute global queue position for any of the user's bots that are still
-  // pending build. Anonymous-friendly: we only read submitted_at + id of
-  // queueable orders (no other PII), and the read is filtered to those rows
-  // owned by the user — but the position is computed against the global queue
-  // by counting earlier submitted_at values across all queueable orders.
-  useEffect(() => {
-    if (!dashboardBots.length) {
-      setQueuePositions(new Map());
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const myQueueable = dashboardBots.filter(
-        (b) => (b.status === "submitted" || b.status === "paid") && b.submitted_at,
-      );
-      if (!myQueueable.length) {
-        setQueuePositions(new Map());
-        return;
-      }
-      const positions = new Map<string, number>();
-      for (const b of myQueueable) {
-        const { count } = await (supabase as any)
-          .from("bot_orders")
-          .select("id", { count: "exact", head: true })
-          .in("status", ["submitted", "paid"])
-          .lt("submitted_at", b.submitted_at);
-        positions.set(b.id, (count ?? 0) + 1);
-      }
-      if (!cancelled) setQueuePositions(positions);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [dashboardBots]);
 
   const cancelOrder = async (bot: OwnedBot) => {
     if (!user) return;
@@ -507,7 +463,7 @@ const BotDashboard = () => {
               <BotSection
                 key={bot.id}
                 bot={bot}
-                queuePosition={queuePositions.get(bot.id) ?? null}
+                
                 onCancel={setCancelTarget}
                 onAddAddons={setAddonsTarget}
                 onReload={reload}
