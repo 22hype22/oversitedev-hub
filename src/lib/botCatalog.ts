@@ -41,6 +41,9 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   "auto-slowmode": "Auto Slowmode on Spam",
   "temp-bans": "Temporary Bans (Auto-Unban)",
 
+  // Support — included base features
+  "say-command": "/say Command",
+
   // Support
   "staff-performance": "Staff Performance Tracking",
   "ticket-logs": "Ticket Logs",
