@@ -73,16 +73,17 @@ export const BotOrdersLog = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, { status: string; notes: string; delivery_url: string }>>({});
+  const [drafts, setDrafts] = useState<Record<string, { status: string; notes: string; delivery_url: string; source_url: string }>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  const setDraft = (id: string, patch: Partial<{ status: string; notes: string; delivery_url: string }>) => {
+  const setDraft = (id: string, patch: Partial<{ status: string; notes: string; delivery_url: string; source_url: string }>) => {
     setDrafts((prev) => ({
       ...prev,
       [id]: {
         status: prev[id]?.status ?? "",
         notes: prev[id]?.notes ?? "",
         delivery_url: prev[id]?.delivery_url ?? "",
+        source_url: prev[id]?.source_url ?? "",
         ...patch,
       },
     }));
@@ -96,6 +97,7 @@ export const BotOrdersLog = () => {
         status: row.status,
         notes: row.notes ?? "",
         delivery_url: row.delivery_url ?? "",
+        source_url: row.source_url ?? "",
       },
     }));
   };
