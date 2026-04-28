@@ -1176,12 +1176,14 @@ export const BotBuilder = () => {
                   <Sparkles className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
                   <div className="flex-1 text-xs">
                     <div className="font-medium text-foreground">
-                      Save ${monthlySavingsVsSeparate.toFixed(2)}/mo with the All-in-One Pack
+                      {isMulti
+                        ? `Add the third category for just $${(ALL_IN_ONE_PRICE - monthlyHostingPrice).toFixed(2)}/mo more`
+                        : `Save $${monthlySavingsVsSeparate.toFixed(2)}/mo with the All-in-One Pack`}
                     </div>
                     <div className="text-muted-foreground mt-0.5">
-                      Three separate bots = ${SEPARATE_BOTS_PRICE.toFixed(2)}/mo.
-                      One All-in-One bot with all features = $
-                      {ALL_IN_ONE_PRICE.toFixed(2)}/mo.
+                      {isMulti
+                        ? <>You're at ${monthlyHostingPrice.toFixed(2)}/mo for {bases.length} bots. The All-in-One bundles all three for just ${ALL_IN_ONE_PRICE.toFixed(2)}/mo.</>
+                        : <>Three separate bots = ${SEPARATE_BOTS_PRICE.toFixed(2)}/mo. One All-in-One bot with all features = ${ALL_IN_ONE_PRICE.toFixed(2)}/mo.</>}
                     </div>
                     <button
                       type="button"
