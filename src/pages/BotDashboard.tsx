@@ -139,6 +139,41 @@ const STATUS_META: Record<string, StatusMeta> = {
 const getStatusMeta = (s: string): StatusMeta =>
   STATUS_META[s] ?? { label: s, className: "bg-muted text-muted-foreground border-border" };
 
+const SourceCodeCard = ({ sourceUrl }: { sourceUrl: string | null }) => {
+  const hasUrl = !!sourceUrl;
+  const content = (
+    <Card className="bg-card/40 border-border p-6 flex flex-col h-[210px] hover:border-primary/40 transition-smooth">
+      <div className="flex items-start gap-3 mb-3">
+        <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/30 grid place-items-center shrink-0">
+          <Github className="h-5 w-5 text-primary" />
+        </div>
+        <h3 className="font-semibold text-base leading-tight pt-1.5">Source code</h3>
+      </div>
+      <p className="text-sm text-muted-foreground flex-1">
+        {hasUrl
+          ? "View, edit, revert, and submit code changes for your bot on GitHub."
+          : "Your bot's GitHub repo will appear here once it's been set up by our team."}
+      </p>
+      <div className="mt-3">
+        {hasUrl ? (
+          <Button variant="outline" size="sm" className="w-full" asChild>
+            <a href={sourceUrl!} target="_blank" rel="noopener noreferrer">
+              <Github className="h-4 w-4 mr-1.5" />
+              Open on GitHub
+            </a>
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" className="w-full" disabled>
+            <Clock className="h-4 w-4 mr-1.5" />
+            Pending setup
+          </Button>
+        )}
+      </div>
+    </Card>
+  );
+  return content;
+};
+
 const BotSection = ({
   bot,
   allBots,
