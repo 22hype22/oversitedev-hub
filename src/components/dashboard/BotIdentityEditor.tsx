@@ -97,7 +97,19 @@ export const BotIdentityEditor = ({ bot, onUpdated, badges, actions }: Props) =>
         .eq("id", bot.id)
         .eq("user_id", user.id);
       if (dbErr) throw dbErr;
-      toast.success(`${kind === "icon" ? "Icon" : "Banner"} updated`);
+      if (kind === "banner") {
+        toast.success("Banner uploaded", {
+          description:
+            "Discord doesn't support automatic banner updates. Your new banner has been sent to the Oversite bot department and will be live on Discord within 24 hours. Thanks for your patience!",
+          duration: 10000,
+        });
+      } else {
+        toast.success("Icon uploaded", {
+          description:
+            "Discord doesn't support automatic avatar updates. Your new icon has been sent to the Oversite bot department and will be live on Discord within 24 hours. Thanks for your patience!",
+          duration: 10000,
+        });
+      }
       onUpdated();
     } catch (e: any) {
       toast.error("Upload failed — " + (e.message ?? "unknown error"));
