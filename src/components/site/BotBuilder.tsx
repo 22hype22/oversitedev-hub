@@ -1074,10 +1074,19 @@ export const BotBuilder = () => {
                   Roles
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-200 bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30 rounded-full px-2 py-0.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                    {selectedBase?.name}
-                  </span>
+                  {(isPack ? ["scratch"] : bases).map((bid) => {
+                    const b = BASES.find((x) => x.id === bid);
+                    if (!b) return null;
+                    return (
+                      <span
+                        key={bid}
+                        className="inline-flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-200 bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30 rounded-full px-2 py-0.5"
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                        {b.name}
+                      </span>
+                    );
+                  })}
                   {addons.slice(0, 3).map((id) => {
                     const a = currentAddons.find((x) => x.id === id);
                     if (!a) return null;
