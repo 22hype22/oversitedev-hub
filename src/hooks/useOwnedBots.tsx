@@ -12,6 +12,7 @@ export type OwnedBot = {
   base: string;
   addons: string[];
   monthly_hosting: boolean;
+  engine_version: "v1" | "v2";
   status: string;
   hasWebDashboard: boolean;
   created_at: string;
