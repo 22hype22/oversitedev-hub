@@ -454,6 +454,56 @@ export const BotBuilder = () => {
     return baseCost;
   }, [bases, addons, currentAddons, dashboardAlreadyOwned]);
 
+  const discountAmount = useMemo(() => {
+    if (!appliedDiscount) return 0;
+    const raw =
+      appliedDiscount.kind === "percent"
+        ? (total * appliedDiscount.value) / 100
+        : appliedDiscount.value;
+    return Math.min(total, Math.max(0, Number(raw.toFixed(2))));
+  }, [appliedDiscount, total]);
+
+  const finalTotal = Math.max(0, Number((total - discountAmount).toFixed(2)));
+
+  const applyDiscount = async () => {
+    const code = discountCodeInput.trim().toUpperCase();
+    if (!code) return;
+    setApplyingDiscount(true);
+    const { data, error } = await (supabase as any)
+      .from("discount_codes")
+      .select("code, kind, value, max_uses, times_used, expires_at, is_active")
+      .ilike("code", code)
+      .maybeSingle();
+    setApplyingDiscount(false);
+    if (error || !data) {
+      sonnerToast.error("Invalid code");
+      return;
+    }
+    if (!data.is_active) {
+      sonnerToast.error("This code is disabled");
+      return;
+    }
+    if (data.expires_at && new Date(data.expires_at) < new Date()) {
+      sonnerToast.error("This code has expired");
+      return;
+    }
+    if (data.max_uses != null && data.times_used >= data.max_uses) {
+      sonnerToast.error("This code has reached its limit");
+      return;
+    }
+    setAppliedDiscount({
+      code: data.code,
+      kind: data.kind,
+      value: Number(data.value),
+    });
+    sonnerToast.success(`Code ${data.code} applied`);
+  };
+
+  const removeDiscount = () => {
+    setAppliedDiscount(null);
+    setDiscountCodeInput("");
+  };
+
   // For the All-in-One Pack OR multi-select, we use the first selected category's
   // identity as the primary record and append the others as a JSON block in notes.
   const buildSubmissionPayload = () => {
