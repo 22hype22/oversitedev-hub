@@ -152,14 +152,24 @@ export function SayCommandBuilder({
           </p>
         </div>
 
-        <Section title="Message" defaultOpen>
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <Label htmlFor="say-content" className="font-semibold">
+              Content
+            </Label>
+            <span className="text-xs text-muted-foreground italic">
+              {content.length}/{contentLimit}
+            </span>
+          </div>
           <Textarea
+            id="say-content"
             value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={3}
-            placeholder="Plain message text shown above the embed."
+            onChange={(e) => setContent(e.target.value.slice(0, contentLimit))}
+            rows={5}
+            placeholder="Message content (supports markdown)."
+            className="resize-y"
           />
-        </Section>
+        </div>
 
         {embeds.map((embed, i) => (
           <Section
