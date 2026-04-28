@@ -463,28 +463,15 @@ export function SayCommandBuilder({
             }}
           />
           {files.length > 0 && (
-            <div className="rounded-md border border-border bg-card/40 p-2 space-y-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 rounded-md border border-border bg-card/40 p-2">
               {files.map((f, i) => (
-                <div
+                <FileThumb
                   key={`${f.name}-${i}`}
-                  className="flex items-center justify-between text-xs"
-                >
-                  <span className="truncate flex-1 mr-2">
-                    📎 {f.name}{" "}
-                    <span className="text-muted-foreground">
-                      ({(f.size / 1024).toFixed(1)} KB)
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-destructive transition-smooth"
-                    onClick={() =>
-                      setFiles((prev) => prev.filter((_, idx) => idx !== i))
-                    }
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                  file={f}
+                  onRemove={() =>
+                    setFiles((prev) => prev.filter((_, idx) => idx !== i))
+                  }
+                />
               ))}
             </div>
           )}
