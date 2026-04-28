@@ -203,6 +203,14 @@ const BotSection = ({
 
   const headerActions = !bot.isDemo ? (
     <>
+      {bot.source_url && (
+        <Button variant="outline" size="sm" asChild>
+          <a href={bot.source_url} target="_blank" rel="noopener noreferrer">
+            <Github className="h-4 w-4 mr-1.5" />
+            Source code
+          </a>
+        </Button>
+      )}
       <Button variant="outline" size="sm" onClick={() => onAddAddons(bot)}>
         <Plus className="h-4 w-4 mr-1.5" />
         Add add-ons
