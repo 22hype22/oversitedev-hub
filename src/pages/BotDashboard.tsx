@@ -74,6 +74,7 @@ const PROTECTION_ADDON_IDS = [
   "staff-notes",
   "auto-slowmode",
   "temp-bans",
+  "messages",
 ];
 const SUPPORT_ADDON_IDS = [
   "staff-performance",
@@ -86,8 +87,8 @@ const SUPPORT_ADDON_IDS = [
   "priority-flagging",
   "auto-close-inactive",
   "anonymous-reporting",
+  "messages",
 ];
-const MESSAGES_ADDON_IDS = ["messages"];
 const UTILITIES_ADDON_IDS = [
   "music-addon",
   "auto-radio",
@@ -101,6 +102,7 @@ const UTILITIES_ADDON_IDS = [
   "leveling-system",
   "economy-system",
   "remindme",
+  "messages",
 ];
 // Combined card replaces the old per-bot Custom Branding / Multi-Server / Web
 // Dashboard trio. The dashboard page is already gated to users who own the
