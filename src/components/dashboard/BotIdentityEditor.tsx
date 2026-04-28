@@ -248,7 +248,3 @@ export const BotIdentityEditor = ({ bot, onUpdated, badges, actions }: Props) =>
     </Card>
   );
 };
-      </div>
-    </Card>
-  );
-};
