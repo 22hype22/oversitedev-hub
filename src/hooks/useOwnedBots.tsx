@@ -65,6 +65,7 @@ export function useOwnedBots() {
         created_at: row.created_at,
         submitted_at: row.submitted_at ?? null,
         delivery_url: row.delivery_url ?? null,
+        source_url: row.source_url ?? null,
       }));
 
     setBots(mapped);
