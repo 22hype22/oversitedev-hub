@@ -11,11 +11,15 @@ import type { OwnedBot } from "@/hooks/useOwnedBots";
 type Props = {
   bot: OwnedBot;
   onUpdated: () => void;
+  /** Status / category badges rendered under the name. */
+  badges?: React.ReactNode;
+  /** Action buttons rendered on the right side of the header row. */
+  actions?: React.ReactNode;
 };
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 
-export const BotIdentityEditor = ({ bot, onUpdated }: Props) => {
+export const BotIdentityEditor = ({ bot, onUpdated, badges, actions }: Props) => {
   const { user } = useAuth();
   const iconInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
