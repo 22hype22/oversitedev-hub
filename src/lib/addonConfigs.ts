@@ -348,11 +348,11 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         key: "action",
         label: "On detection",
         type: "select",
-        defaultValue: "kick",
+        defaultValue: "delete",
         options: [
-          { value: "alert", label: "Alert mods only" },
-          { value: "kick", label: "Kick" },
-          { value: "ban", label: "Ban" },
+          { value: "delete", label: "Delete all messages" },
+          { value: "purge-kick", label: "Delete all messages and kick" },
+          { value: "purge-ban", label: "Delete all messages and ban" },
         ],
       },
       {
