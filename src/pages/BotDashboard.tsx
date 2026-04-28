@@ -74,6 +74,7 @@ const PROTECTION_ADDON_IDS = [
   "staff-notes",
   "auto-slowmode",
   "temp-bans",
+  "messages",
 ];
 const SUPPORT_ADDON_IDS = [
   "staff-performance",
@@ -86,8 +87,8 @@ const SUPPORT_ADDON_IDS = [
   "priority-flagging",
   "auto-close-inactive",
   "anonymous-reporting",
+  "messages",
 ];
-const MESSAGES_ADDON_IDS = ["messages"];
 const UTILITIES_ADDON_IDS = [
   "music-addon",
   "auto-radio",
@@ -101,6 +102,7 @@ const UTILITIES_ADDON_IDS = [
   "leveling-system",
   "economy-system",
   "remindme",
+  "messages",
 ];
 // Combined card replaces the old per-bot Custom Branding / Multi-Server / Web
 // Dashboard trio. The dashboard page is already gated to users who own the
@@ -112,16 +114,15 @@ const canCancelStatus = (status: string) =>
 
 /** Visual category metadata for grouped add-on config sections. */
 const ADDON_GROUPS: {
-  key: "protection" | "support" | "utilities" | "shared" | "messages";
+  key: "protection" | "support" | "utilities" | "shared";
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   ids: string[];
 }[] = [
-  { key: "protection", label: "Protection", icon: ShieldCheck,   ids: PROTECTION_ADDON_IDS },
-  { key: "support",    label: "Support",    icon: LifeBuoy,      ids: SUPPORT_ADDON_IDS },
-  { key: "utilities",  label: "Utilities",  icon: Wrench,        ids: UTILITIES_ADDON_IDS },
-  { key: "shared",     label: "Extras",     icon: Star,          ids: SHARED_ADDON_IDS },
-  { key: "messages",   label: "Messages",   icon: MessageSquare, ids: MESSAGES_ADDON_IDS },
+  { key: "protection", label: "Protection", icon: ShieldCheck, ids: PROTECTION_ADDON_IDS },
+  { key: "support",    label: "Support",    icon: LifeBuoy,    ids: SUPPORT_ADDON_IDS },
+  { key: "utilities",  label: "Utilities",  icon: Wrench,      ids: UTILITIES_ADDON_IDS },
+  { key: "shared",     label: "Extras",     icon: Star,        ids: SHARED_ADDON_IDS },
 ];
 
 type StatusMeta = { label: string; className: string; loading?: boolean };
