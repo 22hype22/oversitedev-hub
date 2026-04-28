@@ -213,7 +213,7 @@ export function DiscountCodeManager() {
                   <th className="text-left py-2 px-2">Discount</th>
                   <th className="text-left py-2 px-2">Used</th>
                   <th className="text-left py-2 px-2">Expires</th>
-                  <th className="text-left py-2 px-2">Status</th>
+                  <th className="text-center py-2 px-2">Status</th>
                   <th className="text-right py-2 px-2">Actions</th>
                 </tr>
               </thead>
@@ -230,11 +230,15 @@ export function DiscountCodeManager() {
                     <td className="py-2 px-2 text-muted-foreground">
                       {c.expires_at ? new Date(c.expires_at).toLocaleDateString() : "—"}
                     </td>
-                    <td className="py-2 px-2">
+                    <td className="py-2 px-2 text-center">
                       {c.is_active ? (
-                        <Badge variant="secondary">Active</Badge>
+                        <Badge className="bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 hover:bg-emerald-500/20">
+                          Active
+                        </Badge>
                       ) : (
-                        <Badge variant="outline">Disabled</Badge>
+                        <Badge className="bg-red-500/15 text-red-500 border border-red-500/30 hover:bg-red-500/20">
+                          Disabled
+                        </Badge>
                       )}
                     </td>
                     <td className="py-2 px-2 text-right">
