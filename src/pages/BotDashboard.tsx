@@ -77,16 +77,15 @@ const PROTECTION_ADDON_IDS = [
   "messages",
 ];
 const SUPPORT_ADDON_IDS = [
+  "ticket-message-customization",
+  "anonymous-reporting",
   "staff-performance",
   "ticket-logs",
-  "per-category-roles",
   "ticket-notes",
   "ticket-add-remove",
   "close-all-tickets",
-  "ticket-message-customization",
   "priority-flagging",
   "auto-close-inactive",
-  "anonymous-reporting",
   "messages",
 ];
 const UTILITIES_ADDON_IDS = [
