@@ -174,6 +174,7 @@ export const BotOrdersLog = () => {
         buyer_email: emailByUser.get(o.user_id) ?? null,
         notes: (o as any).notes ?? null,
         delivery_url: (o as any).delivery_url ?? null,
+        source_url: (o as any).source_url ?? null,
       }));
 
       setRows(mapped);
