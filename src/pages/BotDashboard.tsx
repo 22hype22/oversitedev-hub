@@ -317,13 +317,17 @@ const BotSection = ({
         ) : (
           groupedAddons.map((group) => {
             const GroupIcon = group.icon;
+            const showSourceCard = group.key === "shared" && !bot.isDemo;
             return (
               <div key={group.key} className="space-y-4">
                 <div className="flex items-center gap-2">
                   <GroupIcon className="h-4 w-4 text-primary" />
                   <h4 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
-                    {group.label} ({group.owned.length})
+                    {group.label} ({group.owned.length + (showSourceCard ? 1 : 0)})
                   </h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                  {showSourceCard && <SourceCodeCard sourceUrl={bot.source_url} />}
                 </div>
                 <SortableAddonGrid
                   userId={userId}
