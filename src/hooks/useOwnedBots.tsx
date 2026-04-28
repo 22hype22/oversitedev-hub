@@ -8,6 +8,7 @@ export type OwnedBot = {
   bot_name: string;
   bot_description: string | null;
   icon_url: string | null;
+  banner_url: string | null;
   base: string;
   addons: string[];
   monthly_hosting: boolean;
@@ -44,6 +45,7 @@ function buildDemoBot(
     bot_name: name,
     bot_description: description,
     icon_url: null,
+    banner_url: null,
     base,
     addons: getAddonIdsForBase(base),
     monthly_hosting: false,
@@ -95,7 +97,7 @@ export function useOwnedBots() {
     setLoading(true);
     const { data } = await (supabase as any)
       .from("bot_orders")
-      .select("id,bot_name,bot_description,icon_url,base,addons,monthly_hosting,status,created_at,submitted_at,delivery_url")
+      .select("id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,status,created_at,submitted_at,delivery_url")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true });
 
@@ -106,6 +108,7 @@ export function useOwnedBots() {
         bot_name: row.bot_name,
         bot_description: row.bot_description,
         icon_url: row.icon_url,
+        banner_url: row.banner_url,
         base: row.base,
         addons: Array.isArray(row.addons) ? row.addons : [],
         monthly_hosting: !!row.monthly_hosting,

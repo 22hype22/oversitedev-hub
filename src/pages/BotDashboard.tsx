@@ -25,6 +25,7 @@ import {
 import { toast } from "sonner";
 import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
 import { AddonConfigCard } from "@/components/dashboard/AddonConfigCard";
+import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
 import {
   LogOut,
   Settings,
@@ -134,11 +135,13 @@ const BotSection = ({
   queuePosition,
   onCancel,
   onAddAddons,
+  onReload,
 }: {
   bot: OwnedBot;
   queuePosition: number | null;
   onCancel: (bot: OwnedBot) => void;
   onAddAddons: (bot: OwnedBot) => void;
+  onReload: () => void;
 }) => {
   const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
   const baseTagline = BOT_BASE_TAGLINES[bot.base];
@@ -160,6 +163,7 @@ const BotSection = ({
 
   return (
     <section className="space-y-5">
+      <BotIdentityEditor bot={bot} onUpdated={onReload} />
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 grid place-items-center overflow-hidden shrink-0">
@@ -550,6 +554,7 @@ const BotDashboard = () => {
                 queuePosition={queuePositions.get(bot.id) ?? null}
                 onCancel={setCancelTarget}
                 onAddAddons={setAddonsTarget}
+                onReload={reload}
               />
             ))}
           </div>
