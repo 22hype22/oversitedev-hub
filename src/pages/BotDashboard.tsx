@@ -963,6 +963,7 @@ const BotDashboard = () => {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                onBlur={() => setSearch("")}
                 placeholder="Search your bots…"
                 className="pl-9 h-9 bg-card/60 border-primary/20 focus-visible:border-primary/50 focus-visible:ring-primary/20 shadow-sm"
               />
