@@ -65,11 +65,13 @@ function SortableCard({
   botId,
   botName,
   botAvatarUrl,
+  highlighted,
 }: {
   id: string;
   botId: string;
   botName: string;
   botAvatarUrl?: string | null;
+  highlighted?: boolean;
 }) {
   const {
     attributes,
@@ -92,7 +94,11 @@ function SortableCard({
       ref={setNodeRef}
       id={`addon-card-${botId}-${id}`}
       data-addon-id={id}
-      className="scroll-mt-28"
+      className={`scroll-mt-28 rounded-xl transition-all ${
+        highlighted
+          ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg shadow-primary/20"
+          : ""
+      }`}
       style={style}
       {...attributes}
       {...listeners}
