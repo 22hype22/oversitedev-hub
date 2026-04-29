@@ -589,11 +589,11 @@ const BotSection = ({
             </span>
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary group-open:hidden">
-            <ArrowRight className="h-3.5 w-3.5 -rotate-90" />
+            <ChevronDown className="h-3.5 w-3.5" />
             Expand
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hidden group-open:inline-flex">
-            <ArrowRight className="h-3.5 w-3.5 rotate-90" />
+          <span className="hidden group-open:inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground">
+            <ChevronUp className="h-3.5 w-3.5" />
             Collapse
           </span>
         </summary>
