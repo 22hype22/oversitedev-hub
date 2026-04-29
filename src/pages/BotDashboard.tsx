@@ -72,7 +72,9 @@ import {
   Gift,
   ChevronDown,
   ChevronUp,
+  Search,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 /** Add-on ids grouped by category — used to render config boxes per group.
  *  Order here is the exact left→right, top→bottom order shown in the dashboard.
@@ -777,6 +779,17 @@ const BotDashboard = () => {
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredBots = dashboardBots.filter((b) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      b.bot_name?.toLowerCase().includes(q) ||
+      b.base?.toLowerCase().includes(q) ||
+      b.addons?.some((a) => a.toLowerCase().includes(q))
+    );
+  });
 
   const cancelOrder = async (bot: OwnedBot) => {
     if (!user) return;
@@ -898,6 +911,17 @@ const BotDashboard = () => {
           />
         </div>
 
+        {dashboardBots.length > 1 && (
+          <div className="mb-8 relative max-w-md mx-auto">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search your bots by name, base, or add-on…"
+              className="pl-9"
+            />
+          </div>
+        )}
 
         {dashboardBots.length === 0 && isAdmin ? (
           <div className="max-w-md mx-auto text-center space-y-4 py-12">
@@ -909,9 +933,13 @@ const BotDashboard = () => {
               Dashboard add-on yet.
             </p>
           </div>
+        ) : filteredBots.length === 0 ? (
+          <div className="max-w-md mx-auto text-center py-12 text-sm text-muted-foreground">
+            No bots match "{search}".
+          </div>
         ) : (
           <div className="space-y-16">
-            {dashboardBots.map((bot) => (
+            {filteredBots.map((bot) => (
               <BotSection
                 key={bot.id}
                 bot={bot}
