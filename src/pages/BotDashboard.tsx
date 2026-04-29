@@ -781,15 +781,32 @@ const BotDashboard = () => {
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
   const [search, setSearch] = useState("");
 
-  const filteredBots = dashboardBots.filter((b) => {
+  // Find the first bot whose name / base / add-on label matches the query.
+  const matchedBotId = (() => {
     const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      b.bot_name?.toLowerCase().includes(q) ||
-      b.base?.toLowerCase().includes(q) ||
-      b.addons?.some((a) => a.toLowerCase().includes(q))
-    );
-  });
+    if (!q) return null;
+    const match = dashboardBots.find((b) => {
+      if (b.bot_name?.toLowerCase().includes(q)) return true;
+      if (b.base?.toLowerCase().includes(q)) return true;
+      return b.addons?.some(
+        (a) =>
+          a.toLowerCase().includes(q) ||
+          getAddonLabel(a).toLowerCase().includes(q),
+      );
+    });
+    return match?.id ?? null;
+  })();
+
+  // Scroll to the matching bot section as the user types (debounced).
+  useEffect(() => {
+    if (!matchedBotId) return;
+    const t = setTimeout(() => {
+      const el = document.getElementById(`bot-section-${matchedBotId}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 200);
+    return () => clearTimeout(t);
+  }, [matchedBotId]);
+
 
   const cancelOrder = async (bot: OwnedBot) => {
     if (!user) return;
@@ -937,27 +954,39 @@ const BotDashboard = () => {
               Dashboard add-on yet.
             </p>
           </div>
-        ) : filteredBots.length === 0 ? (
-          <div className="max-w-md mx-auto text-center py-12 text-sm text-muted-foreground">
-            No bots match "{search}".
-          </div>
         ) : (
           <div className="space-y-16">
-            {filteredBots.map((bot) => (
-              <BotSection
-                key={bot.id}
-                bot={bot}
-                allBots={dashboardBots}
-                userId={user.id}
-                freePeriod={freePeriods[bot.id]}
-                onCancel={setCancelTarget}
-                onAddAddons={setAddonsTarget}
-                onReload={() => {
-                  reload();
-                  reloadFreePeriods();
-                }}
-              />
-            ))}
+            {dashboardBots.map((bot) => {
+              const isMatch = matchedBotId === bot.id;
+              const isDimmed = !!matchedBotId && !isMatch;
+              return (
+                <div
+                  key={bot.id}
+                  id={`bot-section-${bot.id}`}
+                  className={`scroll-mt-24 transition-opacity duration-300 ${
+                    isDimmed ? "opacity-40" : "opacity-100"
+                  } ${isMatch ? "ring-2 ring-primary/40 rounded-2xl -m-2 p-2" : ""}`}
+                >
+                  <BotSection
+                    bot={bot}
+                    allBots={dashboardBots}
+                    userId={user.id}
+                    freePeriod={freePeriods[bot.id]}
+                    onCancel={setCancelTarget}
+                    onAddAddons={setAddonsTarget}
+                    onReload={() => {
+                      reload();
+                      reloadFreePeriods();
+                    }}
+                  />
+                </div>
+              );
+            })}
+            {search.trim() && !matchedBotId && (
+              <div className="text-center text-sm text-muted-foreground -mt-8">
+                No bots match "{search}".
+              </div>
+            )}
           </div>
         )}
 
