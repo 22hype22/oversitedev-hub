@@ -841,9 +841,13 @@ const BotDashboard = () => {
                 bot={bot}
                 allBots={dashboardBots}
                 userId={user.id}
+                freePeriod={freePeriods[bot.id]}
                 onCancel={setCancelTarget}
                 onAddAddons={setAddonsTarget}
-                onReload={reload}
+                onReload={() => {
+                  reload();
+                  reloadFreePeriods();
+                }}
               />
             ))}
           </div>
