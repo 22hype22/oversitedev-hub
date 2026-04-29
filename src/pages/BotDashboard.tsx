@@ -143,39 +143,189 @@ const STATUS_META: Record<string, StatusMeta> = {
 const getStatusMeta = (s: string): StatusMeta =>
   STATUS_META[s] ?? { label: s, className: "bg-muted text-muted-foreground border-border" };
 
+const FAKE_SOURCE_FILES: { name: string; lang: string; code: string }[] = [
+  {
+    name: "index.ts",
+    lang: "typescript",
+    code: `import { Client, GatewayIntentBits } from "discord.js";
+import { loadAddons } from "./core/addons";
+import { registerCommands } from "./core/commands";
+import { env } from "./config/env";
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
+  ],
+});
+
+client.once("ready", async () => {
+  console.log(\`✅ Logged in as \${client.user?.tag}\`);
+  await loadAddons(client);
+  await registerCommands(client);
+});
+
+client.login(env.DISCORD_TOKEN);`,
+  },
+  {
+    name: "core/addons.ts",
+    lang: "typescript",
+    code: `import type { Client } from "discord.js";
+import { antiSpam } from "../addons/anti-spam";
+import { moderationHistory } from "../addons/moderation-history";
+import { ticketSystem } from "../addons/tickets";
+
+const ENABLED_ADDONS = [antiSpam, moderationHistory, ticketSystem];
+
+export async function loadAddons(client: Client) {
+  for (const addon of ENABLED_ADDONS) {
+    try {
+      await addon.register(client);
+      console.log(\`  → loaded \${addon.id}\`);
+    } catch (err) {
+      console.error(\`  ✗ failed to load \${addon.id}\`, err);
+    }
+  }
+}`,
+  },
+  {
+    name: "addons/anti-spam.ts",
+    lang: "typescript",
+    code: `import type { Client, Message } from "discord.js";
+
+const recent = new Map<string, number[]>();
+const WINDOW_MS = 5_000;
+const LIMIT = 5;
+
+export const antiSpam = {
+  id: "anti-spam",
+  register(client: Client) {
+    client.on("messageCreate", (msg: Message) => {
+      if (msg.author.bot) return;
+      const now = Date.now();
+      const list = (recent.get(msg.author.id) ?? []).filter(
+        (t) => now - t < WINDOW_MS,
+      );
+      list.push(now);
+      recent.set(msg.author.id, list);
+      if (list.length > LIMIT) {
+        msg.delete().catch(() => {});
+        msg.channel.send(\`⚠️ <@\${msg.author.id}> slow down!\`);
+      }
+    });
+  },
+};`,
+  },
+];
+
 const SourceCodeCard = ({ sourceUrl }: { sourceUrl: string | null }) => {
   const hasUrl = !!sourceUrl;
-  const content = (
-    <Card className="bg-card/40 border-border p-6 flex flex-col h-[210px] hover:border-primary/40 transition-smooth">
-      <div className="flex items-start gap-3 mb-3">
-        <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/30 grid place-items-center shrink-0">
-          <Github className="h-5 w-5 text-primary" />
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [activeFile, setActiveFile] = useState(0);
+
+  return (
+    <>
+      <Card className="bg-card/40 border-border p-6 flex flex-col h-[210px] hover:border-primary/40 transition-smooth">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/30 grid place-items-center shrink-0">
+            <Github className="h-5 w-5 text-primary" />
+          </div>
+          <h3 className="font-semibold text-base leading-tight pt-1.5">Source code</h3>
         </div>
-        <h3 className="font-semibold text-base leading-tight pt-1.5">Source code</h3>
-      </div>
-      <p className="text-sm text-muted-foreground flex-1">
-        {hasUrl
-          ? "View, edit, revert, and submit code changes for your bot on GitHub."
-          : "Your bot's GitHub repo will appear here once it's been set up by our team."}
-      </p>
-      <div className="mt-3">
-        {hasUrl ? (
-          <Button variant="outline" size="sm" className="w-full" asChild>
-            <a href={sourceUrl!} target="_blank" rel="noopener noreferrer">
-              <Github className="h-4 w-4 mr-1.5" />
-              Open on GitHub
-            </a>
-          </Button>
-        ) : (
-          <Button variant="outline" size="sm" className="w-full" disabled>
-            <Clock className="h-4 w-4 mr-1.5" />
-            Pending setup
-          </Button>
-        )}
-      </div>
-    </Card>
+        <p className="text-sm text-muted-foreground flex-1">
+          {hasUrl
+            ? "View, edit, revert, and submit code changes for your bot on GitHub."
+            : "Preview your bot's source. The full GitHub repo unlocks once our team sets it up."}
+        </p>
+        <div className="mt-3">
+          {hasUrl ? (
+            <Button variant="outline" size="sm" className="w-full" asChild>
+              <a href={sourceUrl!} target="_blank" rel="noopener noreferrer">
+                <Github className="h-4 w-4 mr-1.5" />
+                Open on GitHub
+              </a>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => setPreviewOpen(true)}
+            >
+              <Code2 className="h-4 w-4 mr-1.5" />
+              Preview source
+            </Button>
+          )}
+        </div>
+      </Card>
+
+      <FakeSourceDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        activeFile={activeFile}
+        setActiveFile={setActiveFile}
+      />
+    </>
   );
-  return content;
+};
+
+const FakeSourceDialog = ({
+  open,
+  onOpenChange,
+  activeFile,
+  setActiveFile,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  activeFile: number;
+  setActiveFile: (i: number) => void;
+}) => {
+  const file = FAKE_SOURCE_FILES[activeFile];
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl p-0 overflow-hidden">
+        <DialogHeader className="px-5 pt-5 pb-3 border-b border-border">
+          <DialogTitle className="flex items-center gap-2">
+            <Github className="h-5 w-5 text-primary" />
+            Source preview
+            <Badge variant="secondary" className="ml-2 text-[10px]">Demo</Badge>
+          </DialogTitle>
+          <DialogDescription>
+            A sample of what your bot's source will look like. Real code lives on GitHub once setup is complete.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-[180px_1fr] h-[420px]">
+          <div className="border-r border-border bg-card/40 overflow-y-auto py-2">
+            {FAKE_SOURCE_FILES.map((f, i) => (
+              <button
+                key={f.name}
+                type="button"
+                onClick={() => setActiveFile(i)}
+                className={`w-full text-left px-3 py-2 text-xs font-mono transition-smooth ${
+                  i === activeFile
+                    ? "bg-primary/10 text-primary border-l-2 border-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-card border-l-2 border-transparent"
+                }`}
+              >
+                {f.name}
+              </button>
+            ))}
+          </div>
+          <div className="overflow-auto bg-background">
+            <div className="px-4 py-2 border-b border-border text-xs text-muted-foreground font-mono flex items-center justify-between">
+              <span>{file.name}</span>
+              <span className="uppercase tracking-wide">{file.lang}</span>
+            </div>
+            <pre className="text-xs font-mono p-4 leading-relaxed text-foreground whitespace-pre">
+              {file.code}
+            </pre>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 };
 
 const EngineVersionSwitcher = ({
