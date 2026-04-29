@@ -121,6 +121,51 @@ export type Database = {
           },
         ]
       }
+      bot_commands: {
+        Row: {
+          action: string
+          bot_id: string
+          claimed_at: string | null
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          requested_by: string
+          status: string
+          updated_at: string
+          user_id: string
+          worker_id: string | null
+        }
+        Insert: {
+          action: string
+          bot_id: string
+          claimed_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          requested_by: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          worker_id?: string | null
+        }
+        Update: {
+          action?: string
+          bot_id?: string
+          claimed_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          requested_by?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          worker_id?: string | null
+        }
+        Relationships: []
+      }
       bot_credits: {
         Row: {
           balance_cents: number
@@ -1464,6 +1509,10 @@ export type Database = {
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
+      }
+      enqueue_bot_command: {
+        Args: { _action: string; _bot_id: string }
+        Returns: Json
       }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
