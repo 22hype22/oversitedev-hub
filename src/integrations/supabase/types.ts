@@ -632,6 +632,48 @@ export type Database = {
           },
         ]
       }
+      bot_usage_metrics: {
+        Row: {
+          active_servers: number
+          bot_id: string
+          bucket_start: string
+          commands_count: number
+          created_at: string
+          errors_count: number
+          id: string
+          member_count: number
+          messages_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active_servers?: number
+          bot_id: string
+          bucket_start: string
+          commands_count?: number
+          created_at?: string
+          errors_count?: number
+          id?: string
+          member_count?: number
+          messages_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active_servers?: number
+          bot_id?: string
+          bucket_start?: string
+          commands_count?: number
+          created_at?: string
+          errors_count?: number
+          id?: string
+          member_count?: number
+          messages_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       dashboard_addon_order: {
         Row: {
           bot_id: string
@@ -1534,6 +1576,17 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_bot_usage_daily: {
+        Args: { _bot_id: string; _days?: number }
+        Returns: {
+          avg_active_servers: number
+          commands_count: number
+          day: string
+          errors_count: number
+          max_member_count: number
+          messages_count: number
+        }[]
+      }
       has_active_membership: {
         Args: { _env?: string; _user_id: string }
         Returns: boolean
@@ -1606,6 +1659,17 @@ export type Database = {
       runtime_get_bot_secret: {
         Args: { _bot_id: string; _key: string }
         Returns: string
+      }
+      runtime_record_bot_metrics: {
+        Args: {
+          _active_servers?: number
+          _bot_id: string
+          _commands_delta?: number
+          _errors_delta?: number
+          _member_count?: number
+          _messages_delta?: number
+        }
+        Returns: Json
       }
       runtime_set_bot_status: {
         Args: {
