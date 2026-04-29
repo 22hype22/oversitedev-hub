@@ -723,6 +723,8 @@ const BotSection = ({
           })
         )}
       </div>
+        </div>
+      </details>
     </section>
   );
 };
