@@ -306,6 +306,36 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_logs: {
+        Row: {
+          bot_id: string
+          context: Json | null
+          created_at: string
+          id: string
+          level: string
+          message: string
+          user_id: string
+        }
+        Insert: {
+          bot_id: string
+          context?: Json | null
+          created_at?: string
+          id?: string
+          level: string
+          message: string
+          user_id: string
+        }
+        Update: {
+          bot_id?: string
+          context?: Json | null
+          created_at?: string
+          id?: string
+          level?: string
+          message?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bot_orders: {
         Row: {
           addons: string[]
@@ -1422,6 +1452,7 @@ export type Database = {
     }
     Functions: {
       _bot_secrets_key: { Args: never; Returns: string }
+      cleanup_old_bot_logs: { Args: never; Returns: number }
       create_support_access_code: {
         Args: { _expires_in_hours: number; _notes?: string }
         Returns: Json
@@ -1513,6 +1544,15 @@ export type Database = {
       revoke_support_access_grant: {
         Args: { _grant_id: string }
         Returns: Json
+      }
+      runtime_append_bot_log: {
+        Args: {
+          _bot_id: string
+          _context?: Json
+          _level: string
+          _message: string
+        }
+        Returns: string
       }
       runtime_get_bot_secret: {
         Args: { _bot_id: string; _key: string }
