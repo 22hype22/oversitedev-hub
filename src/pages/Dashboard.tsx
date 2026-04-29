@@ -1122,6 +1122,9 @@ export default function Dashboard() {
               </div>
             </Card>
 
+            {/* Bot notifications (Discord DMs) */}
+            <BotNotificationsCard />
+
             {/* Localization: Currency / Language / Timezone */}
             <Card className="p-6 space-y-4">
               <div>
