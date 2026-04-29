@@ -16,6 +16,7 @@ import { AccountsLog } from "@/components/admin/AccountsLog";
 import { BotOrdersLog } from "@/components/admin/BotOrdersLog";
 import { FixesManager } from "@/components/admin/FixesManager";
 import { CodesManager } from "@/components/admin/CodesManager";
+import { BotSecretSlotManager } from "@/components/admin/BotSecretSlotManager";
 
 const SUPER_ADMIN_EMAIL = "everant00@gmail.com";
 
