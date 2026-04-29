@@ -63,6 +63,7 @@ import {
   Code2,
   RefreshCw,
   AlertTriangle,
+  Gift,
 } from "lucide-react";
 
 /** Add-on ids grouped by category — used to render config boxes per group.
