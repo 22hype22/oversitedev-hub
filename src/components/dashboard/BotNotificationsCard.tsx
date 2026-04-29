@@ -190,7 +190,11 @@ export function BotNotificationsCard() {
                 </span>
               </span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="default" onClick={sendTest} disabled={testing}>
+                {testing ? <Loader2 size={14} className="animate-spin mr-1" /> : <Send size={14} className="mr-1" />}
+                Send test DM
+              </Button>
               <Button size="sm" variant="outline" onClick={startLink} disabled={linking}>
                 {linking ? <Loader2 size={14} className="animate-spin mr-1" /> : <Link2 size={14} className="mr-1" />}
                 Re-link
