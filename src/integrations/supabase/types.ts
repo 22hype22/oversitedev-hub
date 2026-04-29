@@ -381,6 +381,54 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_notifications: {
+        Row: {
+          attempts: number
+          body: string
+          bot_id: string | null
+          context: Json | null
+          created_at: string
+          delivered_at: string | null
+          error_message: string | null
+          event_type: string
+          id: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          body: string
+          bot_id?: string | null
+          context?: Json | null
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          body?: string
+          bot_id?: string | null
+          context?: Json | null
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bot_orders: {
         Row: {
           addons: string[]
@@ -510,6 +558,7 @@ export type Database = {
           last_error: string | null
           last_error_at: string | null
           last_heartbeat_at: string | null
+          last_offline_alert_at: string | null
           started_at: string | null
           status: string
           updated_at: string
@@ -526,6 +575,7 @@ export type Database = {
           last_error?: string | null
           last_error_at?: string | null
           last_heartbeat_at?: string | null
+          last_offline_alert_at?: string | null
           started_at?: string | null
           status?: string
           updated_at?: string
@@ -542,6 +592,7 @@ export type Database = {
           last_error?: string | null
           last_error_at?: string | null
           last_heartbeat_at?: string | null
+          last_offline_alert_at?: string | null
           started_at?: string | null
           status?: string
           updated_at?: string
@@ -641,6 +692,7 @@ export type Database = {
           created_at: string
           errors_count: number
           id: string
+          last_error_alert_at: string | null
           member_count: number
           messages_count: number
           updated_at: string
@@ -654,6 +706,7 @@ export type Database = {
           created_at?: string
           errors_count?: number
           id?: string
+          last_error_alert_at?: string | null
           member_count?: number
           messages_count?: number
           updated_at?: string
@@ -667,6 +720,7 @@ export type Database = {
           created_at?: string
           errors_count?: number
           id?: string
+          last_error_alert_at?: string | null
           member_count?: number
           messages_count?: number
           updated_at?: string
@@ -1447,6 +1501,48 @@ export type Database = {
         }
         Relationships: []
       }
+      user_notification_prefs: {
+        Row: {
+          created_at: string
+          discord_linked_at: string | null
+          discord_user_id: string | null
+          discord_username: string | null
+          error_spike_threshold: number
+          notify_bot_offline: boolean
+          notify_command_finished: boolean
+          notify_error_spike: boolean
+          notify_free_period_expiring: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          discord_linked_at?: string | null
+          discord_user_id?: string | null
+          discord_username?: string | null
+          error_spike_threshold?: number
+          notify_bot_offline?: boolean
+          notify_command_finished?: boolean
+          notify_error_spike?: boolean
+          notify_free_period_expiring?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          discord_linked_at?: string | null
+          discord_user_id?: string | null
+          discord_username?: string | null
+          error_spike_threshold?: number
+          notify_bot_offline?: boolean
+          notify_command_finished?: boolean
+          notify_error_spike?: boolean
+          notify_free_period_expiring?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1539,6 +1635,17 @@ export type Database = {
     }
     Functions: {
       _bot_secrets_key: { Args: never; Returns: string }
+      _enqueue_bot_notification: {
+        Args: {
+          _body: string
+          _bot_id: string
+          _context?: Json
+          _event_type: string
+          _title: string
+          _user_id: string
+        }
+        Returns: string
+      }
       cleanup_old_bot_logs: { Args: never; Returns: number }
       create_support_access_code: {
         Args: { _expires_in_hours: number; _notes?: string }
