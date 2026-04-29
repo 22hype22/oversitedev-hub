@@ -461,6 +461,7 @@ const BotSection = ({
   onCancel,
   onAddAddons,
   onReload,
+  searchQuery,
 }: {
   bot: OwnedBot;
   allBots: OwnedBot[];
@@ -469,6 +470,7 @@ const BotSection = ({
   onCancel: (bot: OwnedBot) => void;
   onAddAddons: (bot: OwnedBot) => void;
   onReload: () => void;
+  searchQuery?: string;
 }) => {
   const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
   const baseTagline = BOT_BASE_TAGLINES[bot.base];
