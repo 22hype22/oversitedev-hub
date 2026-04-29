@@ -828,7 +828,6 @@ const BotDashboard = () => {
         <FixesBar />
 
         <div className="mb-8 space-y-6">
-          <SupportAccessManager />
           <RedeemFreeCodeBox
             bots={dashboardBots}
             onRedeemed={() => {
@@ -868,6 +867,10 @@ const BotDashboard = () => {
             ))}
           </div>
         )}
+
+        <div className="mt-16">
+          <SupportAccessManager />
+        </div>
       </div>
 
       <AlertDialog
