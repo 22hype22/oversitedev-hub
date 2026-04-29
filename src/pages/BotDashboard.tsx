@@ -864,17 +864,6 @@ const BotDashboard = () => {
   }, [matchedBotId, matchedAddonId]);
 
 
-  // Scroll to the matching bot section as the user types (debounced).
-  useEffect(() => {
-    if (!matchedBotId) return;
-    const t = setTimeout(() => {
-      const el = document.getElementById(`bot-section-${matchedBotId}`);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 200);
-    return () => clearTimeout(t);
-  }, [matchedBotId]);
-
-
   const cancelOrder = async (bot: OwnedBot) => {
     if (!user) return;
     setCancelling(true);
