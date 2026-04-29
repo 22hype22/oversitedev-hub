@@ -1140,6 +1140,121 @@ export type Database = {
         }
         Relationships: []
       }
+      support_access_audit: {
+        Row: {
+          action: string
+          admin_user_id: string
+          bot_id: string | null
+          created_at: string
+          details: Json | null
+          grant_id: string
+          id: string
+          owner_user_id: string
+        }
+        Insert: {
+          action: string
+          admin_user_id: string
+          bot_id?: string | null
+          created_at?: string
+          details?: Json | null
+          grant_id: string
+          id?: string
+          owner_user_id: string
+        }
+        Update: {
+          action?: string
+          admin_user_id?: string
+          bot_id?: string | null
+          created_at?: string
+          details?: Json | null
+          grant_id?: string
+          id?: string
+          owner_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_access_audit_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "support_access_grants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_access_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          id: string
+          notes: string | null
+          owner_user_id: string
+          redeemed_at: string | null
+          redeemed_by_admin_id: string | null
+          revoked_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          notes?: string | null
+          owner_user_id: string
+          redeemed_at?: string | null
+          redeemed_by_admin_id?: string | null
+          revoked_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          notes?: string | null
+          owner_user_id?: string
+          redeemed_at?: string | null
+          redeemed_by_admin_id?: string | null
+          revoked_at?: string | null
+        }
+        Relationships: []
+      }
+      support_access_grants: {
+        Row: {
+          admin_user_id: string
+          code_id: string
+          expires_at: string
+          granted_at: string
+          id: string
+          owner_user_id: string
+          revoked_at: string | null
+        }
+        Insert: {
+          admin_user_id: string
+          code_id: string
+          expires_at: string
+          granted_at?: string
+          id?: string
+          owner_user_id: string
+          revoked_at?: string | null
+        }
+        Update: {
+          admin_user_id?: string
+          code_id?: string
+          expires_at?: string
+          granted_at?: string
+          id?: string
+          owner_user_id?: string
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_access_grants_code_id_fkey"
+            columns: ["code_id"]
+            isOneToOne: false
+            referencedRelation: "support_access_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -1256,6 +1371,10 @@ export type Database = {
     }
     Functions: {
       _bot_secrets_key: { Args: never; Returns: string }
+      create_support_access_code: {
+        Args: { _expires_in_hours: number; _notes?: string }
+        Returns: Json
+      }
       delete_bot_secret: {
         Args: { _bot_id: string; _key: string }
         Returns: Json
@@ -1294,7 +1413,20 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_support_access: {
+        Args: { _admin_id: string; _owner_id: string }
+        Returns: boolean
+      }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      log_support_action: {
+        Args: {
+          _action: string
+          _bot_id?: string
+          _details?: Json
+          _grant_id: string
+        }
+        Returns: undefined
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -1320,8 +1452,14 @@ export type Database = {
         Args: { _bot_id: string; _code: string }
         Returns: Json
       }
+      redeem_support_access_code: { Args: { _code: string }; Returns: Json }
       reveal_bot_secret: {
-        Args: { _bot_id: string; _key: string; _password: string }
+        Args: { _bot_id: string; _key: string; _password?: string }
+        Returns: Json
+      }
+      revoke_support_access_code: { Args: { _code_id: string }; Returns: Json }
+      revoke_support_access_grant: {
+        Args: { _grant_id: string }
         Returns: Json
       }
       runtime_get_bot_secret: {
