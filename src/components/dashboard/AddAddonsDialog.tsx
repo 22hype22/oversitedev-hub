@@ -156,10 +156,76 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
           </DialogDescription>
         </DialogHeader>
 
+        {allAvailable.length > 0 && (
+          <div className="space-y-3 border-b border-border pb-3">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search add-ons…"
+                  className="pl-9 pr-9"
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 grid place-items-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-smooth"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+                <SelectTrigger className="sm:w-44">
+                  <SelectValue placeholder="Sort" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default order</SelectItem>
+                  <SelectItem value="name-asc">Name (A→Z)</SelectItem>
+                  <SelectItem value="price-asc">Price (low→high)</SelectItem>
+                  <SelectItem value="price-desc">Price (high→low)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {(Object.keys(CATEGORY_LABELS) as CategoryFilter[]).map((key) => {
+                const count = categoryCounts[key];
+                const active = category === key;
+                const disabled = key !== "all" && count === 0;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => setCategory(key)}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-smooth ${
+                      active
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : disabled
+                          ? "bg-background/40 border-border/40 text-muted-foreground/50 cursor-not-allowed"
+                          : "bg-background/40 border-border/60 text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                    }`}
+                  >
+                    {CATEGORY_LABELS[key]} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto pr-1 -mr-1">
-          {available.length === 0 ? (
+          {allAvailable.length === 0 ? (
             <div className="text-center py-8 text-sm text-muted-foreground">
               You already own every add-on available for this bot. 🎉
+            </div>
+          ) : available.length === 0 ? (
+            <div className="text-center py-8 text-sm text-muted-foreground">
+              No add-ons match your search or filter.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
