@@ -60,10 +60,12 @@ function reconcile(saved: string[] | null, current: string[]): string[] {
 
 function SortableCard({
   id,
+  botId,
   botName,
   botAvatarUrl,
 }: {
   id: string;
+  botId: string;
   botName: string;
   botAvatarUrl?: string | null;
 }) {
@@ -84,7 +86,15 @@ function SortableCard({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div
+      ref={setNodeRef}
+      id={`addon-card-${botId}-${id}`}
+      data-addon-id={id}
+      className="scroll-mt-28"
+      style={style}
+      {...attributes}
+      {...listeners}
+    >
       <AddonConfigCard
         addonId={id}
         botName={botName}
