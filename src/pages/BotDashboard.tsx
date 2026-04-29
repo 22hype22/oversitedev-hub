@@ -588,7 +588,7 @@ const BotSection = ({
             <Settings className="h-4 w-4 text-primary" />
             <span className="font-medium">Manage this bot</span>
             <span className="text-muted-foreground">
-              · banners, secrets, add-on configuration
+              · banners, engine, secrets, controls, logs
             </span>
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary group-open:hidden">
@@ -680,7 +680,29 @@ const BotSection = ({
       {!bot.isDemo && <BotUsageMetricsPanel botId={bot.id} />}
 
       {!bot.isDemo && <BotLogsPanel botId={bot.id} />}
+        </div>
+      </details>
 
+      <details className="group rounded-xl border border-border bg-card/30 overflow-hidden">
+        <summary className="flex items-center justify-between gap-3 px-5 py-4 cursor-pointer list-none hover:bg-card/60 transition-smooth">
+          <div className="flex items-center gap-2 text-sm">
+            <Layers className="h-4 w-4 text-primary" />
+            <span className="font-medium">Add-on configuration</span>
+            <span className="text-muted-foreground">
+              · tickets, say command, protection, utilities
+              {totalConfigurable > 0 && ` · ${totalConfigurable} block${totalConfigurable === 1 ? "" : "s"}`}
+            </span>
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary group-open:hidden">
+            <ChevronDown className="h-3.5 w-3.5" />
+            Expand
+          </span>
+          <span className="hidden group-open:inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground">
+            <ChevronUp className="h-3.5 w-3.5" />
+            Collapse
+          </span>
+        </summary>
+        <div className="px-5 pb-5 pt-2 space-y-5 border-t border-border">
       <div className="space-y-10">
 
         {totalConfigurable === 0 ? (
