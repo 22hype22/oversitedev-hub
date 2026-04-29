@@ -218,3 +218,22 @@ export function getAddonIdsForBase(baseId: string): string[] {
 export function getAddonPrice(id: string): number {
   return BOT_ADDON_PRICES[id] ?? 0;
 }
+
+export type AddonCategory = "protection" | "support" | "utilities" | "shared";
+
+/** Which catalog category a given add-on id belongs to. */
+export function getAddonCategory(id: string): AddonCategory {
+  if (SHARED_ADDON_IDS.includes(id) || id === "branding-multi-server") return "shared";
+  if (
+    ADDON_IDS_BY_BASE.protection.includes(id) ||
+    BASE_INCLUDED_ADDONS.protection.includes(id)
+  )
+    return "protection";
+  if (
+    ADDON_IDS_BY_BASE.support.includes(id) ||
+    BASE_INCLUDED_ADDONS.support.includes(id)
+  )
+    return "support";
+  return "utilities";
+}
+
