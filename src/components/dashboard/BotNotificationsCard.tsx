@@ -74,7 +74,7 @@ export function BotNotificationsCard() {
       });
       setLinking(false);
       sessionStorage.removeItem(STATE_KEY);
-      searchParams.delete("discord_code");
+      searchParams.delete("code");
       searchParams.delete("state");
       setSearchParams(searchParams, { replace: true });
 
