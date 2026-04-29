@@ -493,6 +493,39 @@ const BotSection = ({
     .filter((g) => g.owned.length > 0)
     .filter((g) => !(g.owned.length === 1 && g.owned[0] === "messages"));
   const totalConfigurable = groupedAddons.reduce((n, g) => n + g.owned.length, 0);
+
+  // ── Search-driven section auto-expand ──────────────────────────────────────
+  // When the user types in the dashboard search bar, expand whichever section
+  // (Manage / Add-on config) contains a match for their query, and collapse
+  // the one that doesn't. User clicks still override afterwards.
+  const [manageOpen, setManageOpen] = useState(false);
+  const [addonsOpen, setAddonsOpen] = useState(false);
+  const q = (searchQuery ?? "").trim().toLowerCase();
+
+  useEffect(() => {
+    if (!q) return; // keep whatever the user had — don't auto-collapse on clear
+    const manageKeywords = [
+      "manage", "banner", "engine", "secret", "control", "log", "metric",
+      "version", "delivery", "hosting", "summary", "build",
+      (BOT_BASE_LABELS[bot.base] ?? bot.base ?? "").toLowerCase(),
+      bot.base?.toLowerCase() ?? "",
+    ];
+    const addonTerms = Array.from(ownedAddons).flatMap((id) => [
+      id.toLowerCase(),
+      getAddonLabel(id).toLowerCase(),
+    ]);
+    const addonKeywords = [
+      "add-on", "addon", "configuration", "config",
+      "ticket", "say", "protection", "utilities", "utility", "extras",
+      ...addonTerms,
+    ];
+    const inManage = manageKeywords.some((k) => k && k.includes(q));
+    const inAddons = addonKeywords.some((k) => k && k.includes(q));
+    setManageOpen(inManage);
+    setAddonsOpen(inAddons);
+  }, [q, bot.base, bot.addons.join("|")]);
+  // ───────────────────────────────────────────────────────────────────────────
+
   const showPreorderBanner = !bot.isDemo && (bot.status === "submitted" || bot.status === "paid");
   const showReadyBanner = !bot.isDemo && bot.status === "ready" && bot.delivery_url;
   const freeActive =
