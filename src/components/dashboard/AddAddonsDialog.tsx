@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOwnedBots, type OwnedBot } from "@/hooks/useOwnedBots";
 import {
+  getAddonCategory,
   getAddonIdsForBase,
   getAddonLabel,
   getAddonPrice,
+  type AddonCategory,
 } from "@/lib/botCatalog";
 import {
   Dialog,
@@ -16,7 +18,15 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Plus, Sparkles } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Check, Plus, Search, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface AddAddonsDialogProps {
@@ -25,15 +35,35 @@ interface AddAddonsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type CategoryFilter = "all" | AddonCategory;
+type SortMode = "default" | "price-asc" | "price-desc" | "name-asc";
+
+const CATEGORY_LABELS: Record<CategoryFilter, string> = {
+  all: "All categories",
+  protection: "Protection",
+  support: "Support",
+  utilities: "Utilities",
+  shared: "Extras",
+};
+
 export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProps) {
   const { hasDashboardAccess, reload } = useOwnedBots();
   const [selected, setSelected] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<CategoryFilter>("all");
+  const [sortMode, setSortMode] = useState<SortMode>("default");
 
-  // Reset selection when the bot changes or dialog reopens
-  useMemo(() => {
-    if (open) setSelected([]);
+  // Reset selection + filters when the bot changes or dialog reopens
+  useEffect(() => {
+    if (open) {
+      setSelected([]);
+      setQuery("");
+      setCategory("all");
+      setSortMode("default");
+    }
   }, [open, bot?.id]);
+
 
   if (!bot) return null;
 
