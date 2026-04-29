@@ -243,6 +243,7 @@ export function SortableAddonGrid({
               botId={botId}
               botName={botName}
               botAvatarUrl={botAvatarUrl}
+              highlighted={highlightedAddonId === id}
             />
           ))}
         </div>
