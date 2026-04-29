@@ -530,6 +530,15 @@ const BotSection = ({
           Practice bot
         </Badge>
       )}
+      {bot.viaSupport && (
+        <Badge
+          variant="outline"
+          className="text-xs gap-1 bg-amber-500/10 text-amber-400 border-amber-500/30"
+        >
+          <LifeBuoy className="h-3 w-3" />
+          Support session
+        </Badge>
+      )}
     </>
   );
 
