@@ -119,6 +119,7 @@ export function SortableAddonGrid({
   botAvatarUrl,
   groupKey,
   ids,
+  highlightedAddonId,
 }: Props) {
   const key = useMemo(
     () => storageKey(userId, botId, groupKey),
