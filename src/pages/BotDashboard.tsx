@@ -912,13 +912,13 @@ const BotDashboard = () => {
         </div>
 
         {dashboardBots.length > 1 && (
-          <div className="mb-8 relative max-w-md mx-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <div className="mb-8 relative max-w-lg mx-auto">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/70 pointer-events-none" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search your bots by name, base, or add-on…"
-              className="pl-9"
+              className="pl-10 h-11 bg-card/60 border-primary/20 focus-visible:border-primary/50 focus-visible:ring-primary/20 shadow-sm"
             />
           </div>
         )}
