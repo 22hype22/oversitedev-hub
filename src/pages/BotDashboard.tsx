@@ -812,6 +812,17 @@ const BotDashboard = () => {
 
         <FixesBar />
 
+        <div className="mb-8">
+          <RedeemFreeCodeBox
+            bots={dashboardBots}
+            onRedeemed={() => {
+              reloadFreePeriods();
+              reload();
+            }}
+          />
+        </div>
+
+
         {dashboardBots.length === 0 && isAdmin ? (
           <div className="max-w-md mx-auto text-center space-y-4 py-12">
             <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 border border-primary/20 grid place-items-center">
