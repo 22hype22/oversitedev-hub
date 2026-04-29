@@ -540,6 +540,11 @@ const BotSection = ({
           Support session
         </Badge>
       )}
+      {!bot.isDemo && (
+        <div className="basis-full mt-1">
+          <BotHealthBadge botId={bot.id} />
+        </div>
+      )}
     </>
   );
 
