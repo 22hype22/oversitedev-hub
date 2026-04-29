@@ -696,6 +696,7 @@ const BotSection = ({
 const BotDashboard = () => {
   const { user, isAdmin, loading } = useAuth();
   const { dashboardBots, loading: botsLoading, reload } = useOwnedBots();
+  const { periods: freePeriods, reload: reloadFreePeriods } = useBotFreePeriods();
   const navigate = useNavigate();
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
   const [cancelling, setCancelling] = useState(false);
