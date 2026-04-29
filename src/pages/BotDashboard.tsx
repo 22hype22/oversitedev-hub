@@ -586,8 +586,14 @@ const BotSection = ({
               · banners, secrets, add-on configuration
             </span>
           </div>
-          <span className="text-xs text-muted-foreground group-open:hidden">Expand</span>
-          <span className="text-xs text-muted-foreground hidden group-open:inline">Collapse</span>
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary group-open:hidden">
+            <ArrowRight className="h-3.5 w-3.5 -rotate-90" />
+            Expand
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hidden group-open:inline-flex">
+            <ArrowRight className="h-3.5 w-3.5 rotate-90" />
+            Collapse
+          </span>
         </summary>
         <div className="px-5 pb-5 pt-2 space-y-5 border-t border-border">
 
