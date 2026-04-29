@@ -39,6 +39,7 @@ import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
 import { BotSecretsManager } from "@/components/dashboard/BotSecretsManager";
 import { SupportAccessManager } from "@/components/dashboard/SupportAccessManager";
+import { BotHealthBadge } from "@/components/dashboard/BotHealthBadge";
 import { useBotFreePeriods, type BotFreePeriod } from "@/hooks/useBotFreePeriods";
 import {
   LogOut,
