@@ -231,6 +231,7 @@ export function SortableAddonGrid({
             <SortableCard
               key={`${botId}-${id}`}
               id={id}
+              botId={botId}
               botName={botName}
               botAvatarUrl={botAvatarUrl}
             />
