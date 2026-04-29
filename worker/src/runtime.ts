@@ -135,6 +135,25 @@ export class BotRuntime {
       await appendLog(this.botId, "info", `Bot online in ${guilds.size} guild(s)`, {
         addons: this.activeAddons.map((a) => a.id),
       });
+
+      // Reconcile existing guilds against the paid slot limit.
+      // Process oldest-joined first so newcomers are the ones evicted.
+      const sorted = [...guilds.values()].sort(
+        (a, b) => (a.joinedTimestamp ?? 0) - (b.joinedTimestamp ?? 0),
+      );
+      for (const guild of sorted) {
+        const r = await upsertGuild(this.botId, guild.id, guild.name, guild.memberCount);
+        if (!r.allowed) {
+          await appendLog(
+            this.botId,
+            "warn",
+            `Over server limit on startup — leaving "${guild.name}"`,
+            { guild_id: guild.id },
+          );
+          try { await guild.leave(); } catch { /* ignore */ }
+        }
+      }
+
       await setStatus(this.botId, "online");
 
       // 3. Periodic heartbeat (keeps last_heartbeat_at fresh so the
