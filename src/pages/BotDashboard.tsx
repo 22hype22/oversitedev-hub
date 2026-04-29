@@ -36,6 +36,8 @@ import { AddonConfigCard } from "@/components/dashboard/AddonConfigCard";
 import { FixesBar } from "@/components/dashboard/FixesBar";
 import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
 import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
+import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
+import { useBotFreePeriods, type BotFreePeriod } from "@/hooks/useBotFreePeriods";
 import {
   LogOut,
   Settings,
