@@ -426,6 +426,57 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_runtime_status: {
+        Row: {
+          bot_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          last_error: string | null
+          last_error_at: string | null
+          last_heartbeat_at: string | null
+          started_at: string | null
+          status: string
+          updated_at: string
+          uptime_seconds: number
+          user_id: string
+          version: string | null
+          worker_id: string | null
+        }
+        Insert: {
+          bot_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          last_error?: string | null
+          last_error_at?: string | null
+          last_heartbeat_at?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          uptime_seconds?: number
+          user_id: string
+          version?: string | null
+          worker_id?: string | null
+        }
+        Update: {
+          bot_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          last_error?: string | null
+          last_error_at?: string | null
+          last_heartbeat_at?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          uptime_seconds?: number
+          user_id?: string
+          version?: string | null
+          worker_id?: string | null
+        }
+        Relationships: []
+      }
       bot_secret_slots: {
         Row: {
           addon_id: string
@@ -1387,6 +1438,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      get_bot_health: { Args: { _bot_id: string }; Returns: Json }
       get_bot_secrets_metadata: {
         Args: { _bot_id: string }
         Returns: {
@@ -1465,6 +1517,17 @@ export type Database = {
       runtime_get_bot_secret: {
         Args: { _bot_id: string; _key: string }
         Returns: string
+      }
+      runtime_set_bot_status: {
+        Args: {
+          _bot_id: string
+          _details?: Json
+          _last_error?: string
+          _status: string
+          _version?: string
+          _worker_id?: string
+        }
+        Returns: Json
       }
       set_bot_secret: {
         Args: { _bot_id: string; _key: string; _value: string }
