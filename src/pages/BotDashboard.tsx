@@ -38,6 +38,7 @@ import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
 import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
 import { BotSecretsManager } from "@/components/dashboard/BotSecretsManager";
+import { SupportAccessManager } from "@/components/dashboard/SupportAccessManager";
 import { useBotFreePeriods, type BotFreePeriod } from "@/hooks/useBotFreePeriods";
 import {
   LogOut,
@@ -529,6 +530,15 @@ const BotSection = ({
           Practice bot
         </Badge>
       )}
+      {bot.viaSupport && (
+        <Badge
+          variant="outline"
+          className="text-xs gap-1 bg-amber-500/10 text-amber-400 border-amber-500/30"
+        >
+          <LifeBuoy className="h-3 w-3" />
+          Support session
+        </Badge>
+      )}
     </>
   );
 
@@ -817,7 +827,8 @@ const BotDashboard = () => {
 
         <FixesBar />
 
-        <div className="mb-8">
+        <div className="mb-8 space-y-6">
+          <SupportAccessManager />
           <RedeemFreeCodeBox
             bots={dashboardBots}
             onRedeemed={() => {

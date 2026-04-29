@@ -17,6 +17,7 @@ import { BotOrdersLog } from "@/components/admin/BotOrdersLog";
 import { FixesManager } from "@/components/admin/FixesManager";
 import { CodesManager } from "@/components/admin/CodesManager";
 import { BotSecretSlotManager } from "@/components/admin/BotSecretSlotManager";
+import { SupportAccessRedeemer } from "@/components/admin/SupportAccessRedeemer";
 
 const SUPER_ADMIN_EMAIL = "everant00@gmail.com";
 
@@ -137,6 +138,7 @@ const Admin = () => {
 
           {!marketingShutdown && (
             <div className="mt-10 pt-6 border-t border-border space-y-6">
+              <SupportAccessRedeemer />
               <FixesManager />
               <CodesManager />
               <BotSecretSlotManager />
