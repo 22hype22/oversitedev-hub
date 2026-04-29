@@ -38,6 +38,7 @@ import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
 import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
 import { BotSecretsManager } from "@/components/dashboard/BotSecretsManager";
+import { BotLogsPanel } from "@/components/dashboard/BotLogsPanel";
 import { SupportAccessManager } from "@/components/dashboard/SupportAccessManager";
 import { BotHealthBadge } from "@/components/dashboard/BotHealthBadge";
 import { useBotFreePeriods, type BotFreePeriod } from "@/hooks/useBotFreePeriods";
@@ -671,6 +672,8 @@ const BotSection = ({
       {!bot.isDemo && (
         <BotSecretsManager botId={bot.id} ownedAddons={ownedAddons} />
       )}
+
+      {!bot.isDemo && <BotLogsPanel botId={bot.id} />}
 
       <div className="space-y-10">
 
