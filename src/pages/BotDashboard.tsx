@@ -954,27 +954,39 @@ const BotDashboard = () => {
               Dashboard add-on yet.
             </p>
           </div>
-        ) : filteredBots.length === 0 ? (
-          <div className="max-w-md mx-auto text-center py-12 text-sm text-muted-foreground">
-            No bots match "{search}".
-          </div>
         ) : (
           <div className="space-y-16">
-            {filteredBots.map((bot) => (
-              <BotSection
-                key={bot.id}
-                bot={bot}
-                allBots={dashboardBots}
-                userId={user.id}
-                freePeriod={freePeriods[bot.id]}
-                onCancel={setCancelTarget}
-                onAddAddons={setAddonsTarget}
-                onReload={() => {
-                  reload();
-                  reloadFreePeriods();
-                }}
-              />
-            ))}
+            {dashboardBots.map((bot) => {
+              const isMatch = matchedBotId === bot.id;
+              const isDimmed = !!matchedBotId && !isMatch;
+              return (
+                <div
+                  key={bot.id}
+                  id={`bot-section-${bot.id}`}
+                  className={`scroll-mt-24 transition-opacity duration-300 ${
+                    isDimmed ? "opacity-40" : "opacity-100"
+                  } ${isMatch ? "ring-2 ring-primary/40 rounded-2xl -m-2 p-2" : ""}`}
+                >
+                  <BotSection
+                    bot={bot}
+                    allBots={dashboardBots}
+                    userId={user.id}
+                    freePeriod={freePeriods[bot.id]}
+                    onCancel={setCancelTarget}
+                    onAddAddons={setAddonsTarget}
+                    onReload={() => {
+                      reload();
+                      reloadFreePeriods();
+                    }}
+                  />
+                </div>
+              );
+            })}
+            {search.trim() && !matchedBotId && (
+              <div className="text-center text-sm text-muted-foreground -mt-8">
+                No bots match "{search}".
+              </div>
+            )}
           </div>
         )}
 
