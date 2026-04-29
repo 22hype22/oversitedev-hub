@@ -65,12 +65,10 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
   }, [open, bot?.id]);
 
 
-  if (!bot) return null;
-
-  const owned = new Set(bot.addons);
+  const owned = useMemo(() => new Set(bot?.addons ?? []), [bot?.addons.join("|")]);
   const allAvailable = useMemo(
-    () => getAddonIdsForBase(bot.base).filter((id) => !owned.has(id)),
-    [bot.base, bot.addons.join("|")],
+    () => (bot ? getAddonIdsForBase(bot.base).filter((id) => !owned.has(id)) : []),
+    [bot?.base, bot?.addons.join("|"), owned],
   );
 
   // Counts per category — used to disable empty filter chips.
