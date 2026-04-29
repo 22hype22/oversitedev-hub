@@ -619,7 +619,11 @@ const BotSection = ({
         actions={headerActions}
       />
 
-      <details className="group rounded-xl border border-border bg-card/30 overflow-hidden">
+      <details
+        open={manageOpen}
+        onToggle={(e) => setManageOpen((e.target as HTMLDetailsElement).open)}
+        className="group rounded-xl border border-border bg-card/30 overflow-hidden"
+      >
         <summary className="flex items-center justify-between gap-3 px-5 py-4 cursor-pointer list-none hover:bg-card/60 transition-smooth">
           <div className="flex items-center gap-2 text-sm">
             <Settings className="h-4 w-4 text-primary" />
