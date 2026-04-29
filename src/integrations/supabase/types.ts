@@ -121,6 +121,75 @@ export type Database = {
           },
         ]
       }
+      bot_credits: {
+        Row: {
+          balance_cents: number
+          bot_id: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance_cents?: number
+          bot_id: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance_cents?: number
+          bot_id?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      bot_dashboard_redemptions: {
+        Row: {
+          bot_id: string
+          code: string
+          code_type: string
+          credit_added_cents: number | null
+          discount_code_id: string | null
+          free_period_code_id: string | null
+          id: string
+          months_granted: number | null
+          percent_off: number | null
+          redeemed_at: string
+          user_id: string
+        }
+        Insert: {
+          bot_id: string
+          code: string
+          code_type: string
+          credit_added_cents?: number | null
+          discount_code_id?: string | null
+          free_period_code_id?: string | null
+          id?: string
+          months_granted?: number | null
+          percent_off?: number | null
+          redeemed_at?: string
+          user_id: string
+        }
+        Update: {
+          bot_id?: string
+          code?: string
+          code_type?: string
+          credit_added_cents?: number | null
+          discount_code_id?: string | null
+          free_period_code_id?: string | null
+          id?: string
+          months_granted?: number | null
+          percent_off?: number | null
+          redeemed_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bot_free_period_codes: {
         Row: {
           code: string
@@ -320,6 +389,39 @@ export type Database = {
           subscription_id?: string | null
           total_amount?: number
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      bot_pending_discounts: {
+        Row: {
+          applied_at: string | null
+          bot_id: string
+          created_at: string
+          discount_code_id: string | null
+          id: string
+          percent_off: number
+          source: string
+          user_id: string
+        }
+        Insert: {
+          applied_at?: string | null
+          bot_id: string
+          created_at?: string
+          discount_code_id?: string | null
+          id?: string
+          percent_off: number
+          source?: string
+          user_id: string
+        }
+        Update: {
+          applied_at?: string | null
+          bot_id?: string
+          created_at?: string
+          discount_code_id?: string | null
+          id?: string
+          percent_off?: number
+          source?: string
           user_id?: string
         }
         Relationships: []
@@ -1109,6 +1211,10 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      redeem_bot_code: {
+        Args: { _bot_id: string; _code: string }
+        Returns: Json
       }
       redeem_bot_free_period_code: {
         Args: { _bot_id: string; _code: string }
