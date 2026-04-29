@@ -630,6 +630,10 @@ const BotSection = ({
         </div>
       </details>
 
+      {!bot.isDemo && (
+        <BotSecretsManager botId={bot.id} ownedAddons={ownedAddons} />
+      )}
+
       <div className="space-y-10">
 
         {totalConfigurable === 0 ? (
