@@ -12,6 +12,7 @@ import {
   type ContactMethod,
 } from "@/hooks/usePreferences";
 import { supabase } from "@/integrations/supabase/client";
+import { BotNotificationsCard } from "@/components/dashboard/BotNotificationsCard";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 import { Button } from "@/components/ui/button";
