@@ -40,5 +40,29 @@ export function useBotLogs(botId: string | null, limit = 50) {
     refresh();
   }, [refresh]);
 
+  // Live updates via realtime
+  useEffect(() => {
+    if (!botId) return;
+    const channel = supabase
+      .channel(`bot_logs:${botId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "bot_logs",
+          filter: `bot_id=eq.${botId}`,
+        },
+        (payload) => {
+          const row = payload.new as BotLog;
+          setLogs((prev) => [row, ...prev].slice(0, limit));
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [botId, limit]);
+
   return { logs, loading, error, refresh };
 }
