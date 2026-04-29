@@ -1015,13 +1015,15 @@ const BotDashboard = () => {
             {dashboardBots.map((bot) => {
               const isMatch = matchedBotId === bot.id;
               const isDimmed = !!matchedBotId && !isMatch;
+              // Only ring the whole bot when the match is bot-level (no specific add-on).
+              const showBotRing = isMatch && !matchedAddonId;
               return (
                 <div
                   key={bot.id}
                   id={`bot-section-${bot.id}`}
                   className={`scroll-mt-24 transition-opacity duration-300 ${
                     isDimmed ? "opacity-40" : "opacity-100"
-                  } ${isMatch ? "ring-2 ring-primary/40 rounded-2xl -m-2 p-2" : ""}`}
+                  } ${showBotRing ? "ring-2 ring-primary/40 rounded-2xl -m-2 p-2" : ""}`}
                 >
                   <BotSection
                     bot={bot}
@@ -1031,6 +1033,7 @@ const BotDashboard = () => {
                     onCancel={setCancelTarget}
                     onAddAddons={setAddonsTarget}
                     searchQuery={search}
+                    highlightedAddonId={isMatch ? matchedAddonId : null}
                     onReload={() => {
                       reload();
                       reloadFreePeriods();
