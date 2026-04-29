@@ -40,6 +40,7 @@ import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
 import { BotSecretsManager } from "@/components/dashboard/BotSecretsManager";
 import { BotLogsPanel } from "@/components/dashboard/BotLogsPanel";
 import { BotControlsPanel } from "@/components/dashboard/BotControlsPanel";
+import { BotUsageMetricsPanel } from "@/components/dashboard/BotUsageMetricsPanel";
 import { SupportAccessManager } from "@/components/dashboard/SupportAccessManager";
 import { BotHealthBadge } from "@/components/dashboard/BotHealthBadge";
 import { useBotFreePeriods, type BotFreePeriod } from "@/hooks/useBotFreePeriods";
@@ -675,6 +676,8 @@ const BotSection = ({
       )}
 
       {!bot.isDemo && <BotControlsPanel botId={bot.id} />}
+
+      {!bot.isDemo && <BotUsageMetricsPanel botId={bot.id} />}
 
       {!bot.isDemo && <BotLogsPanel botId={bot.id} />}
 
