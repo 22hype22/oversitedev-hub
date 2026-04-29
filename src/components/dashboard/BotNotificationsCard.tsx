@@ -58,20 +58,13 @@ export function BotNotificationsCard() {
     })();
   }, [user]);
 
-  // Handle OAuth callback (?discord_code=...)
+  // Handle OAuth callback (?code=...&state=... from Discord)
   useEffect(() => {
-    const code = searchParams.get("discord_code");
+    const code = searchParams.get("code");
     const returnedState = searchParams.get("state");
-    if (!code || !user) return;
-
     const expected = sessionStorage.getItem(STATE_KEY);
-    if (!expected || expected !== returnedState) {
-      toast.error("Discord link failed: state mismatch");
-      searchParams.delete("discord_code");
-      searchParams.delete("state");
-      setSearchParams(searchParams, { replace: true });
-      return;
-    }
+    // Only act if the state matches what *we* stored (don't hijack other OAuth flows)
+    if (!code || !user || !expected || expected !== returnedState) return;
 
     (async () => {
       setLinking(true);
