@@ -426,6 +426,86 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_secret_slots: {
+        Row: {
+          addon_id: string
+          created_at: string
+          description: string | null
+          id: string
+          is_required: boolean
+          key: string
+          label: string
+          placeholder: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          addon_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_required?: boolean
+          key: string
+          label: string
+          placeholder?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          addon_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_required?: boolean
+          key?: string
+          label?: string
+          placeholder?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      bot_secrets: {
+        Row: {
+          bot_id: string
+          created_at: string
+          id: string
+          key: string
+          last_four: string
+          updated_at: string
+          user_id: string
+          value_encrypted: string
+        }
+        Insert: {
+          bot_id: string
+          created_at?: string
+          id?: string
+          key: string
+          last_four?: string
+          updated_at?: string
+          user_id: string
+          value_encrypted: string
+        }
+        Update: {
+          bot_id?: string
+          created_at?: string
+          id?: string
+          key?: string
+          last_four?: string
+          updated_at?: string
+          user_id?: string
+          value_encrypted?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_secrets_bot_id_fkey"
+            columns: ["bot_id"]
+            isOneToOne: false
+            referencedRelation: "bot_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dashboard_addon_order: {
         Row: {
           bot_id: string
@@ -1175,6 +1255,11 @@ export type Database = {
       }
     }
     Functions: {
+      _bot_secrets_key: { Args: never; Returns: string }
+      delete_bot_secret: {
+        Args: { _bot_id: string; _key: string }
+        Returns: Json
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -1182,6 +1267,21 @@ export type Database = {
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
+      }
+      get_bot_secrets_metadata: {
+        Args: { _bot_id: string }
+        Returns: {
+          addon_id: string
+          description: string
+          is_required: boolean
+          is_set: boolean
+          key: string
+          label: string
+          last_four: string
+          placeholder: string
+          sort_order: number
+          updated_at: string
+        }[]
       }
       has_active_membership: {
         Args: { _env?: string; _user_id: string }
@@ -1218,6 +1318,18 @@ export type Database = {
       }
       redeem_bot_free_period_code: {
         Args: { _bot_id: string; _code: string }
+        Returns: Json
+      }
+      reveal_bot_secret: {
+        Args: { _bot_id: string; _key: string; _password: string }
+        Returns: Json
+      }
+      runtime_get_bot_secret: {
+        Args: { _bot_id: string; _key: string }
+        Returns: string
+      }
+      set_bot_secret: {
+        Args: { _bot_id: string; _key: string; _value: string }
         Returns: Json
       }
     }
