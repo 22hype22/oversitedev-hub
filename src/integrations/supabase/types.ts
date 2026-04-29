@@ -392,6 +392,7 @@ export type Database = {
           error_message: string | null
           event_type: string
           id: string
+          read_at: string | null
           status: string
           title: string
           updated_at: string
@@ -407,6 +408,7 @@ export type Database = {
           error_message?: string | null
           event_type: string
           id?: string
+          read_at?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -422,6 +424,7 @@ export type Database = {
           error_message?: string | null
           event_type?: string
           id?: string
+          read_at?: string | null
           status?: string
           title?: string
           updated_at?: string
@@ -1659,6 +1662,7 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      detect_stale_bots: { Args: never; Returns: number }
       enqueue_bot_command: {
         Args: { _action: string; _bot_id: string }
         Returns: Json
@@ -1667,6 +1671,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      enqueue_free_period_expiring_alerts: { Args: never; Returns: number }
       get_bot_health: { Args: { _bot_id: string }; Returns: Json }
       get_bot_secrets_metadata: {
         Args: { _bot_id: string }
@@ -1718,6 +1723,10 @@ export type Database = {
           _grant_id: string
         }
         Returns: undefined
+      }
+      mark_bot_notifications_read: {
+        Args: { _ids?: string[] }
+        Returns: number
       }
       move_to_dlq: {
         Args: {

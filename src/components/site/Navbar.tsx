@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useOwnedBots } from "@/hooks/useOwnedBots";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { NotificationBell } from "@/components/site/NotificationBell";
 import oversiteLogo from "@/assets/oversite-logo.png";
 
 const links = [
@@ -96,7 +97,9 @@ export const Navbar = () => {
           </Button>
 
           {user ? (
-            <DropdownMenu>
+            <>
+              <NotificationBell />
+              <DropdownMenu>
               <DropdownMenuTrigger
                 className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-border/60 text-muted-foreground hover:text-foreground hover:border-primary/40 transition-smooth"
                 aria-label="Account"
@@ -164,6 +167,7 @@ export const Navbar = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </>
           ) : (
             <NavLink
               to="/auth"

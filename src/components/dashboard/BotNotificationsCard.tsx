@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Bell, Link2, Unlink, Loader2, CheckCircle2 } from "lucide-react";
+import { Bell, Link2, Unlink, Loader2, CheckCircle2, Send } from "lucide-react";
 import { toast } from "sonner";
 
 type Prefs = {
@@ -41,6 +41,7 @@ export function BotNotificationsCard() {
   const [prefs, setPrefs] = useState<Prefs>(DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [linking, setLinking] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualId, setManualId] = useState("");
 
@@ -150,6 +151,19 @@ export function BotNotificationsCard() {
     toast.success("Discord ID saved");
   };
 
+  const sendTest = async () => {
+    setTesting(true);
+    const { data, error } = await supabase.functions.invoke("discord-test-notification", {
+      body: {},
+    });
+    setTesting(false);
+    if (error || !data?.ok) {
+      toast.error(data?.error || error?.message || "Couldn't send test");
+      return;
+    }
+    toast.success("Test notification queued — check Discord in a few seconds");
+  };
+
   const linked = !!prefs.discord_user_id;
 
   return (
@@ -176,7 +190,11 @@ export function BotNotificationsCard() {
                 </span>
               </span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="default" onClick={sendTest} disabled={testing}>
+                {testing ? <Loader2 size={14} className="animate-spin mr-1" /> : <Send size={14} className="mr-1" />}
+                Send test DM
+              </Button>
               <Button size="sm" variant="outline" onClick={startLink} disabled={linking}>
                 {linking ? <Loader2 size={14} className="animate-spin mr-1" /> : <Link2 size={14} className="mr-1" />}
                 Re-link
