@@ -1064,9 +1064,11 @@ const BotDashboard = () => {
           </div>
         )}
 
-        <div className="mt-16">
-          <SupportAccessManager />
-        </div>
+        {dashboardBots.length > 0 && (
+          <div className="mt-16">
+            <SupportAccessManager />
+          </div>
+        )}
       </div>
 
       <AlertDialog
