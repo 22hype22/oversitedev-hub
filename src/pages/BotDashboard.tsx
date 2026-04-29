@@ -781,15 +781,32 @@ const BotDashboard = () => {
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
   const [search, setSearch] = useState("");
 
-  const filteredBots = dashboardBots.filter((b) => {
+  // Find the first bot whose name / base / add-on label matches the query.
+  const matchedBotId = (() => {
     const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      b.bot_name?.toLowerCase().includes(q) ||
-      b.base?.toLowerCase().includes(q) ||
-      b.addons?.some((a) => a.toLowerCase().includes(q))
-    );
-  });
+    if (!q) return null;
+    const match = dashboardBots.find((b) => {
+      if (b.bot_name?.toLowerCase().includes(q)) return true;
+      if (b.base?.toLowerCase().includes(q)) return true;
+      return b.addons?.some(
+        (a) =>
+          a.toLowerCase().includes(q) ||
+          getAddonLabel(a).toLowerCase().includes(q),
+      );
+    });
+    return match?.id ?? null;
+  })();
+
+  // Scroll to the matching bot section as the user types (debounced).
+  useEffect(() => {
+    if (!matchedBotId) return;
+    const t = setTimeout(() => {
+      const el = document.getElementById(`bot-section-${matchedBotId}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 200);
+    return () => clearTimeout(t);
+  }, [matchedBotId]);
+
 
   const cancelOrder = async (bot: OwnedBot) => {
     if (!user) return;
