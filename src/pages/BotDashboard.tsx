@@ -777,6 +777,17 @@ const BotDashboard = () => {
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredBots = dashboardBots.filter((b) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      b.bot_name?.toLowerCase().includes(q) ||
+      b.base?.toLowerCase().includes(q) ||
+      b.addons?.some((a) => a.toLowerCase().includes(q))
+    );
+  });
 
   const cancelOrder = async (bot: OwnedBot) => {
     if (!user) return;
