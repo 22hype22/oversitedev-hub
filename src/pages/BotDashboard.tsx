@@ -588,7 +588,7 @@ const BotSection = ({
             <Settings className="h-4 w-4 text-primary" />
             <span className="font-medium">Manage this bot</span>
             <span className="text-muted-foreground">
-              · banners, secrets, add-on configuration
+              · banners, engine, secrets, controls, logs
             </span>
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary group-open:hidden">
