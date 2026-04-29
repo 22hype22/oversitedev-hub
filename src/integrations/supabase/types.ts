@@ -86,6 +86,39 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_active_guilds: {
+        Row: {
+          bot_id: string
+          guild_id: string
+          guild_name: string | null
+          id: string
+          joined_at: string
+          last_seen_at: string
+          member_count: number | null
+          user_id: string
+        }
+        Insert: {
+          bot_id: string
+          guild_id: string
+          guild_name?: string | null
+          id?: string
+          joined_at?: string
+          last_seen_at?: string
+          member_count?: number | null
+          user_id: string
+        }
+        Update: {
+          bot_id?: string
+          guild_id?: string
+          guild_name?: string | null
+          id?: string
+          joined_at?: string
+          last_seen_at?: string
+          member_count?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       bot_build_jobs: {
         Row: {
           artifact_url: string | null
@@ -715,6 +748,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      bot_server_slots: {
+        Row: {
+          bot_id: string
+          created_at: string
+          current_period_end: string | null
+          extra_slots: number
+          id: string
+          status: string
+          stripe_price_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bot_id: string
+          created_at?: string
+          current_period_end?: string | null
+          extra_slots?: number
+          id?: string
+          status?: string
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bot_id?: string
+          created_at?: string
+          current_period_end?: string | null
+          extra_slots?: number
+          id?: string
+          status?: string
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       bot_usage_metrics: {
         Row: {
@@ -1746,6 +1818,10 @@ export type Database = {
           token_id: string
         }[]
       }
+      admin_set_bot_extra_slots: {
+        Args: { _bot_id: string; _extra_slots: number }
+        Returns: Json
+      }
       cleanup_old_bot_logs: { Args: never; Returns: number }
       cleanup_old_notifications: { Args: never; Returns: number }
       cleanup_old_usage_metrics: { Args: never; Returns: number }
@@ -1795,6 +1871,7 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_bot_server_limit: { Args: { _bot_id: string }; Returns: Json }
       get_bot_usage_daily: {
         Args: { _bot_id: string; _days?: number }
         Returns: {
@@ -1918,6 +1995,10 @@ export type Database = {
         Returns: Json
       }
       runtime_release_stale_commands: { Args: never; Returns: number }
+      runtime_remove_bot_guild: {
+        Args: { _bot_id: string; _guild_id: string }
+        Returns: Json
+      }
       runtime_set_bot_status: {
         Args: {
           _bot_id: string
@@ -1926,6 +2007,15 @@ export type Database = {
           _status: string
           _version?: string
           _worker_id?: string
+        }
+        Returns: Json
+      }
+      runtime_upsert_bot_guild: {
+        Args: {
+          _bot_id: string
+          _guild_id: string
+          _guild_name?: string
+          _member_count?: number
         }
         Returns: Json
       }
