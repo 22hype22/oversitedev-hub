@@ -462,6 +462,7 @@ const BotSection = ({
   onAddAddons,
   onReload,
   searchQuery,
+  highlightedAddonId,
 }: {
   bot: OwnedBot;
   allBots: OwnedBot[];
@@ -471,6 +472,7 @@ const BotSection = ({
   onAddAddons: (bot: OwnedBot) => void;
   onReload: () => void;
   searchQuery?: string;
+  highlightedAddonId?: string | null;
 }) => {
   const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
   const baseTagline = BOT_BASE_TAGLINES[bot.base];
