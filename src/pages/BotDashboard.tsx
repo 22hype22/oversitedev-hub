@@ -577,6 +577,20 @@ const BotSection = ({
         actions={headerActions}
       />
 
+      <details className="group rounded-xl border border-border bg-card/30 overflow-hidden">
+        <summary className="flex items-center justify-between gap-3 px-5 py-4 cursor-pointer list-none hover:bg-card/60 transition-smooth">
+          <div className="flex items-center gap-2 text-sm">
+            <Settings className="h-4 w-4 text-primary" />
+            <span className="font-medium">Manage this bot</span>
+            <span className="text-muted-foreground">
+              · banners, secrets, add-on configuration
+            </span>
+          </div>
+          <span className="text-xs text-muted-foreground group-open:hidden">Expand</span>
+          <span className="text-xs text-muted-foreground hidden group-open:inline">Collapse</span>
+        </summary>
+        <div className="px-5 pb-5 pt-2 space-y-5 border-t border-border">
+
       {showPreorderBanner && (
         <Card className="p-4 bg-primary/5 border-primary/30">
           <div className="flex items-start gap-3">
