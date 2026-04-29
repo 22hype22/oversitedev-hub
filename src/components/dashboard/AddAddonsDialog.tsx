@@ -68,7 +68,46 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
   if (!bot) return null;
 
   const owned = new Set(bot.addons);
-  const available = getAddonIdsForBase(bot.base).filter((id) => !owned.has(id));
+  const allAvailable = useMemo(
+    () => getAddonIdsForBase(bot.base).filter((id) => !owned.has(id)),
+    [bot.base, bot.addons.join("|")],
+  );
+
+  // Counts per category — used to disable empty filter chips.
+  const categoryCounts = useMemo(() => {
+    const counts: Record<CategoryFilter, number> = {
+      all: allAvailable.length,
+      protection: 0,
+      support: 0,
+      utilities: 0,
+      shared: 0,
+    };
+    for (const id of allAvailable) counts[getAddonCategory(id)]++;
+    return counts;
+  }, [allAvailable]);
+
+  // Apply search + category + sort.
+  const available = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let list = allAvailable.filter((id) => {
+      if (category !== "all" && getAddonCategory(id) !== category) return false;
+      if (!q) return true;
+      return (
+        getAddonLabel(id).toLowerCase().includes(q) ||
+        id.toLowerCase().includes(q)
+      );
+    });
+    if (sortMode === "price-asc") {
+      list = [...list].sort((a, b) => getAddonPrice(a) - getAddonPrice(b));
+    } else if (sortMode === "price-desc") {
+      list = [...list].sort((a, b) => getAddonPrice(b) - getAddonPrice(a));
+    } else if (sortMode === "name-asc") {
+      list = [...list].sort((a, b) =>
+        getAddonLabel(a).localeCompare(getAddonLabel(b)),
+      );
+    }
+    return list;
+  }, [allAvailable, query, category, sortMode]);
 
   const total = selected.reduce((sum, id) => {
     // Dashboard add-on is a one-time, account-wide unlock — free if owned
@@ -80,6 +119,7 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
+
 
   const submit = async () => {
     if (selected.length === 0) return;
