@@ -139,6 +139,7 @@ const Admin = () => {
             <div className="mt-10 pt-6 border-t border-border space-y-6">
               <FixesManager />
               <DiscountCodeManager />
+              <BotFreePeriodCodeManager />
               <UserVersionUpgrader />
               <BotOrdersLog />
               <PurchaseLog />
