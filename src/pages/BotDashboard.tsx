@@ -483,6 +483,15 @@ const BotSection = ({
   const totalConfigurable = groupedAddons.reduce((n, g) => n + g.owned.length, 0);
   const showPreorderBanner = !bot.isDemo && (bot.status === "submitted" || bot.status === "paid");
   const showReadyBanner = !bot.isDemo && bot.status === "ready" && bot.delivery_url;
+  const freeActive =
+    freePeriod && new Date(freePeriod.free_until).getTime() > Date.now();
+  const freeUntilLabel = freeActive
+    ? new Date(freePeriod!.free_until).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : null;
 
   const headerBadges = (
     <>
