@@ -830,21 +830,39 @@ const BotDashboard = () => {
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
   const [search, setSearch] = useState("");
 
-  // Find the first bot whose name / base / add-on label matches the query.
-  const matchedBotId = (() => {
+  // Find the best match: prefer a specific add-on, fall back to bot-level.
+  const { matchedBotId, matchedAddonId } = (() => {
     const q = search.trim().toLowerCase();
-    if (!q) return null;
-    const match = dashboardBots.find((b) => {
-      if (b.bot_name?.toLowerCase().includes(q)) return true;
-      if (b.base?.toLowerCase().includes(q)) return true;
-      return b.addons?.some(
+    if (!q) return { matchedBotId: null as string | null, matchedAddonId: null as string | null };
+    for (const b of dashboardBots) {
+      const addonHit = b.addons?.find(
         (a) =>
           a.toLowerCase().includes(q) ||
           getAddonLabel(a).toLowerCase().includes(q),
       );
-    });
-    return match?.id ?? null;
+      if (addonHit) return { matchedBotId: b.id, matchedAddonId: addonHit };
+    }
+    const botHit = dashboardBots.find(
+      (b) =>
+        b.bot_name?.toLowerCase().includes(q) ||
+        b.base?.toLowerCase().includes(q),
+    );
+    return { matchedBotId: botHit?.id ?? null, matchedAddonId: null };
   })();
+
+  // Scroll to the matching add-on card (preferred) or bot section as the user types.
+  useEffect(() => {
+    if (!matchedBotId) return;
+    const t = setTimeout(() => {
+      const target =
+        (matchedAddonId &&
+          document.getElementById(`addon-card-${matchedBotId}-${matchedAddonId}`)) ||
+        document.getElementById(`bot-section-${matchedBotId}`);
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [matchedBotId, matchedAddonId]);
+
 
   // Scroll to the matching bot section as the user types (debounced).
   useEffect(() => {
