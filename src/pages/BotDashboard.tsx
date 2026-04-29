@@ -1017,6 +1017,7 @@ const BotDashboard = () => {
                     freePeriod={freePeriods[bot.id]}
                     onCancel={setCancelTarget}
                     onAddAddons={setAddonsTarget}
+                    searchQuery={search}
                     onReload={() => {
                       reload();
                       reloadFreePeriods();
