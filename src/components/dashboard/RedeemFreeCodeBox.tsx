@@ -22,9 +22,12 @@ interface RedeemFreeCodeBoxProps {
 }
 
 /**
- * Lets the signed-in user paste a free-period code (e.g. handed out to a
- * giveaway winner) and apply it to one of their bots. Stacks on top of any
- * existing free period server-side via the redeem_bot_free_period_code RPC.
+ * Generic redeem-code box. Accepts:
+ *  - Free-period codes (e.g. giveaway winners — adds free months to a bot)
+ *  - $-off discount codes (added as credit to the bot, rolls over month to month)
+ *  - %-off discount codes (queued for next month's hosting charge)
+ *
+ * All three are handled atomically by the redeem_bot_code RPC.
  */
 export function RedeemFreeCodeBox({ bots, defaultBotId, onRedeemed }: RedeemFreeCodeBoxProps) {
   const eligibleBots = bots.filter((b) => !b.isDemo);
@@ -48,7 +51,7 @@ export function RedeemFreeCodeBox({ bots, defaultBotId, onRedeemed }: RedeemFree
     }
     setSubmitting(true);
     const { data, error } = await (supabase as any).rpc(
-      "redeem_bot_free_period_code",
+      "redeem_bot_code",
       { _code: trimmed, _bot_id: botId },
     );
     setSubmitting(false);
@@ -62,20 +65,35 @@ export function RedeemFreeCodeBox({ bots, defaultBotId, onRedeemed }: RedeemFree
       return;
     }
 
-    const months = data.months_granted as number;
-    const until = new Date(data.free_until as string);
-    toast.success(
-      data.stacked
-        ? `Added ${months} more free month${months === 1 ? "" : "s"}!`
-        : `${months} free month${months === 1 ? "" : "s"} unlocked!`,
-      {
-        description: `Your bot is free until ${until.toLocaleDateString(undefined, {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-        })}.`,
-      },
-    );
+    if (data.type === "free_period") {
+      const months = data.months_granted as number;
+      const until = new Date(data.free_until as string);
+      toast.success(
+        data.stacked
+          ? `Added ${months} more free month${months === 1 ? "" : "s"}!`
+          : `${months} free month${months === 1 ? "" : "s"} unlocked!`,
+        {
+          description: `Your bot is free until ${until.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })}.`,
+        },
+      );
+    } else if (data.type === "discount_amount") {
+      const added = ((data.credit_added_cents as number) / 100).toFixed(2);
+      const balance = ((data.new_balance_cents as number) / 100).toFixed(2);
+      toast.success(`$${added} credit added!`, {
+        description: `New balance: $${balance}. It rolls over each month until used up.`,
+      });
+    } else if (data.type === "discount_percent") {
+      toast.success(`${data.percent_off}% off your next month!`, {
+        description: "We'll apply it to your next monthly hosting charge.",
+      });
+    } else {
+      toast.success("Code redeemed!");
+    }
+
     setCode("");
     onRedeemed?.();
   };
@@ -88,20 +106,20 @@ export function RedeemFreeCodeBox({ bots, defaultBotId, onRedeemed }: RedeemFree
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-sm flex items-center gap-2">
-            Redeem a free-period code
+            Redeem code
             <Badge variant="secondary" className="text-[10px]">
               <Sparkles className="h-2.5 w-2.5 mr-0.5" />
               Bonus
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Got a code from a giveaway or promo? Paste it here to add free months to one of your bots.
+            Got a code? Paste it here — works for free months, $ off (rolls over month to month), or % off your next month.
           </p>
         </div>
       </div>
       <div className="grid gap-2 sm:grid-cols-[1fr_220px_auto]">
         <Input
-          placeholder="Paste your code (e.g. GIVEAWAY-XYZ)"
+          placeholder="Paste your code"
           value={code}
           onChange={(e) => setCode(e.target.value)}
           maxLength={100}
