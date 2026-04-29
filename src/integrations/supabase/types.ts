@@ -121,6 +121,122 @@ export type Database = {
           },
         ]
       }
+      bot_free_period_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          max_uses: number | null
+          months: number
+          notes: string | null
+          times_used: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          months?: number
+          notes?: string | null
+          times_used?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          months?: number
+          notes?: string | null
+          times_used?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      bot_free_period_redemptions: {
+        Row: {
+          bot_id: string
+          code_id: string
+          id: string
+          months_granted: number
+          new_free_until: string
+          previous_free_until: string | null
+          redeemed_at: string
+          user_id: string
+        }
+        Insert: {
+          bot_id: string
+          code_id: string
+          id?: string
+          months_granted: number
+          new_free_until: string
+          previous_free_until?: string | null
+          redeemed_at?: string
+          user_id: string
+        }
+        Update: {
+          bot_id?: string
+          code_id?: string
+          id?: string
+          months_granted?: number
+          new_free_until?: string
+          previous_free_until?: string | null
+          redeemed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_free_period_redemptions_code_id_fkey"
+            columns: ["code_id"]
+            isOneToOne: false
+            referencedRelation: "bot_free_period_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_free_periods: {
+        Row: {
+          bot_id: string
+          created_at: string
+          free_until: string
+          id: string
+          reminder_sent_at: string | null
+          resumed_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bot_id: string
+          created_at?: string
+          free_until: string
+          id?: string
+          reminder_sent_at?: string | null
+          resumed_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bot_id?: string
+          created_at?: string
+          free_until?: string
+          id?: string
+          reminder_sent_at?: string | null
+          resumed_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bot_orders: {
         Row: {
           addons: string[]
@@ -993,6 +1109,10 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      redeem_bot_free_period_code: {
+        Args: { _bot_id: string; _code: string }
+        Returns: Json
       }
     }
     Enums: {

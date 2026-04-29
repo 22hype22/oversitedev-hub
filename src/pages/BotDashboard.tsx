@@ -36,6 +36,8 @@ import { AddonConfigCard } from "@/components/dashboard/AddonConfigCard";
 import { FixesBar } from "@/components/dashboard/FixesBar";
 import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
 import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
+import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
+import { useBotFreePeriods, type BotFreePeriod } from "@/hooks/useBotFreePeriods";
 import {
   LogOut,
   Settings,
@@ -61,6 +63,7 @@ import {
   Code2,
   RefreshCw,
   AlertTriangle,
+  Gift,
 } from "lucide-react";
 
 /** Add-on ids grouped by category — used to render config boxes per group.
@@ -444,6 +447,7 @@ const BotSection = ({
   bot,
   allBots,
   userId,
+  freePeriod,
   onCancel,
   onAddAddons,
   onReload,
@@ -451,6 +455,7 @@ const BotSection = ({
   bot: OwnedBot;
   allBots: OwnedBot[];
   userId: string;
+  freePeriod?: BotFreePeriod;
   onCancel: (bot: OwnedBot) => void;
   onAddAddons: (bot: OwnedBot) => void;
   onReload: () => void;
@@ -478,6 +483,15 @@ const BotSection = ({
   const totalConfigurable = groupedAddons.reduce((n, g) => n + g.owned.length, 0);
   const showPreorderBanner = !bot.isDemo && (bot.status === "submitted" || bot.status === "paid");
   const showReadyBanner = !bot.isDemo && bot.status === "ready" && bot.delivery_url;
+  const freeActive =
+    freePeriod && new Date(freePeriod.free_until).getTime() > Date.now();
+  const freeUntilLabel = freeActive
+    ? new Date(freePeriod!.free_until).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : null;
 
   const headerBadges = (
     <>
@@ -498,6 +512,15 @@ const BotSection = ({
         <Badge variant="outline" className="text-xs gap-1">
           <Server className="h-3 w-3" />
           Hosting
+        </Badge>
+      )}
+      {freeActive && (
+        <Badge
+          variant="outline"
+          className="text-xs gap-1 bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+        >
+          <Gift className="h-3 w-3" />
+          Free until {freeUntilLabel}
         </Badge>
       )}
       {bot.isDemo && (
@@ -673,6 +696,7 @@ const BotSection = ({
 const BotDashboard = () => {
   const { user, isAdmin, loading } = useAuth();
   const { dashboardBots, loading: botsLoading, reload } = useOwnedBots();
+  const { periods: freePeriods, reload: reloadFreePeriods } = useBotFreePeriods();
   const navigate = useNavigate();
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
   const [cancelling, setCancelling] = useState(false);
@@ -788,6 +812,17 @@ const BotDashboard = () => {
 
         <FixesBar />
 
+        <div className="mb-8">
+          <RedeemFreeCodeBox
+            bots={dashboardBots}
+            onRedeemed={() => {
+              reloadFreePeriods();
+              reload();
+            }}
+          />
+        </div>
+
+
         {dashboardBots.length === 0 && isAdmin ? (
           <div className="max-w-md mx-auto text-center space-y-4 py-12">
             <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 border border-primary/20 grid place-items-center">
@@ -806,9 +841,13 @@ const BotDashboard = () => {
                 bot={bot}
                 allBots={dashboardBots}
                 userId={user.id}
+                freePeriod={freePeriods[bot.id]}
                 onCancel={setCancelTarget}
                 onAddAddons={setAddonsTarget}
-                onReload={reload}
+                onReload={() => {
+                  reload();
+                  reloadFreePeriods();
+                }}
               />
             ))}
           </div>
