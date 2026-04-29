@@ -514,6 +514,15 @@ const BotSection = ({
           Hosting
         </Badge>
       )}
+      {freeActive && (
+        <Badge
+          variant="outline"
+          className="text-xs gap-1 bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+        >
+          <Gift className="h-3 w-3" />
+          Free until {freeUntilLabel}
+        </Badge>
+      )}
       {bot.isDemo && (
         <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
           Practice bot
