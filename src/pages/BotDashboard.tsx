@@ -784,12 +784,18 @@ const BotSection = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                     {showSourceCard && <SourceCodeCard sourceUrl={bot.source_url} />}
                     {group.owned.map((id) => (
-                      <AddonConfigCard
+                      <div
                         key={`${bot.id}-${id}`}
-                        addonId={id}
-                        botName={bot.bot_name}
-                        botAvatarUrl={bot.icon_url}
-                      />
+                        id={`addon-card-${bot.id}-${id}`}
+                        data-addon-id={id}
+                        className="scroll-mt-28"
+                      >
+                        <AddonConfigCard
+                          addonId={id}
+                          botName={bot.bot_name}
+                          botAvatarUrl={bot.icon_url}
+                        />
+                      </div>
                     ))}
                   </div>
                 ) : (
