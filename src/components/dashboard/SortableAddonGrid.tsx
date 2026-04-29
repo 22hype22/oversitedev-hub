@@ -41,6 +41,8 @@ type Props = {
   groupKey: string;
   /** Default order coming from the catalog. */
   ids: string[];
+  /** Optional addon id to highlight (search match). */
+  highlightedAddonId?: string | null;
 };
 
 const storageKey = (userId: string, botId: string, groupKey: string) =>
@@ -63,11 +65,13 @@ function SortableCard({
   botId,
   botName,
   botAvatarUrl,
+  highlighted,
 }: {
   id: string;
   botId: string;
   botName: string;
   botAvatarUrl?: string | null;
+  highlighted?: boolean;
 }) {
   const {
     attributes,
@@ -90,7 +94,11 @@ function SortableCard({
       ref={setNodeRef}
       id={`addon-card-${botId}-${id}`}
       data-addon-id={id}
-      className="scroll-mt-28"
+      className={`scroll-mt-28 rounded-xl transition-all ${
+        highlighted
+          ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg shadow-primary/20"
+          : ""
+      }`}
       style={style}
       {...attributes}
       {...listeners}
@@ -111,6 +119,7 @@ export function SortableAddonGrid({
   botAvatarUrl,
   groupKey,
   ids,
+  highlightedAddonId,
 }: Props) {
   const key = useMemo(
     () => storageKey(userId, botId, groupKey),
@@ -234,6 +243,7 @@ export function SortableAddonGrid({
               botId={botId}
               botName={botName}
               botAvatarUrl={botAvatarUrl}
+              highlighted={highlightedAddonId === id}
             />
           ))}
         </div>

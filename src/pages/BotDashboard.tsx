@@ -462,6 +462,7 @@ const BotSection = ({
   onAddAddons,
   onReload,
   searchQuery,
+  highlightedAddonId,
 }: {
   bot: OwnedBot;
   allBots: OwnedBot[];
@@ -471,6 +472,7 @@ const BotSection = ({
   onAddAddons: (bot: OwnedBot) => void;
   onReload: () => void;
   searchQuery?: string;
+  highlightedAddonId?: string | null;
 }) => {
   const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
   const baseTagline = BOT_BASE_TAGLINES[bot.base];
@@ -783,20 +785,27 @@ const BotSection = ({
                 {isSharedFlat ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                     {showSourceCard && <SourceCodeCard sourceUrl={bot.source_url} />}
-                    {group.owned.map((id) => (
-                      <div
-                        key={`${bot.id}-${id}`}
-                        id={`addon-card-${bot.id}-${id}`}
-                        data-addon-id={id}
-                        className="scroll-mt-28"
-                      >
-                        <AddonConfigCard
-                          addonId={id}
-                          botName={bot.bot_name}
-                          botAvatarUrl={bot.icon_url}
-                        />
-                      </div>
-                    ))}
+                    {group.owned.map((id) => {
+                      const isHighlighted = highlightedAddonId === id;
+                      return (
+                        <div
+                          key={`${bot.id}-${id}`}
+                          id={`addon-card-${bot.id}-${id}`}
+                          data-addon-id={id}
+                          className={`scroll-mt-28 rounded-xl transition-all ${
+                            isHighlighted
+                              ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg shadow-primary/20"
+                              : ""
+                          }`}
+                        >
+                          <AddonConfigCard
+                            addonId={id}
+                            botName={bot.bot_name}
+                            botAvatarUrl={bot.icon_url}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <SortableAddonGrid
@@ -806,6 +815,7 @@ const BotSection = ({
                     botAvatarUrl={bot.icon_url}
                     groupKey={group.key}
                     ids={group.owned}
+                    highlightedAddonId={highlightedAddonId}
                   />
                 )}
               </div>
@@ -1015,13 +1025,15 @@ const BotDashboard = () => {
             {dashboardBots.map((bot) => {
               const isMatch = matchedBotId === bot.id;
               const isDimmed = !!matchedBotId && !isMatch;
+              // Only ring the whole bot when the match is bot-level (no specific add-on).
+              const showBotRing = isMatch && !matchedAddonId;
               return (
                 <div
                   key={bot.id}
                   id={`bot-section-${bot.id}`}
                   className={`scroll-mt-24 transition-opacity duration-300 ${
                     isDimmed ? "opacity-40" : "opacity-100"
-                  } ${isMatch ? "ring-2 ring-primary/40 rounded-2xl -m-2 p-2" : ""}`}
+                  } ${showBotRing ? "ring-2 ring-primary/40 rounded-2xl -m-2 p-2" : ""}`}
                 >
                   <BotSection
                     bot={bot}
@@ -1031,6 +1043,7 @@ const BotDashboard = () => {
                     onCancel={setCancelTarget}
                     onAddAddons={setAddonsTarget}
                     searchQuery={search}
+                    highlightedAddonId={isMatch ? matchedAddonId : null}
                     onReload={() => {
                       reload();
                       reloadFreePeriods();
