@@ -865,17 +865,33 @@ const BotDashboard = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-4 py-10 max-w-7xl">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3 mb-8">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-smooth"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-smooth shrink-0"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to site
           </Link>
+
+          {dashboardBots.length > 1 ? (
+            <div className="relative flex-1 max-w-md mx-auto">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/70 pointer-events-none" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search your bots…"
+                className="pl-9 h-9 bg-card/60 border-primary/20 focus-visible:border-primary/50 focus-visible:ring-primary/20 shadow-sm"
+              />
+            </div>
+          ) : (
+            <div className="flex-1" />
+          )}
+
           <Button
             variant="outline"
             size="sm"
+            className="shrink-0"
             onClick={async () => {
               await supabase.auth.signOut();
               navigate("/auth", { replace: true });
@@ -910,18 +926,6 @@ const BotDashboard = () => {
             }}
           />
         </div>
-
-        {dashboardBots.length > 1 && (
-          <div className="mb-8 relative max-w-lg mx-auto">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/70 pointer-events-none" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search your bots by name, base, or add-on…"
-              className="pl-10 h-11 bg-card/60 border-primary/20 focus-visible:border-primary/50 focus-visible:ring-primary/20 shadow-sm"
-            />
-          </div>
-        )}
 
         {dashboardBots.length === 0 && isAdmin ? (
           <div className="max-w-md mx-auto text-center space-y-4 py-12">
