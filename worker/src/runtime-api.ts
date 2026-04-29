@@ -72,3 +72,31 @@ export async function getSecret(botId: string, key: string): Promise<string | nu
   }
   return (data as string) ?? null;
 }
+
+export async function upsertGuild(
+  botId: string,
+  guildId: string,
+  guildName?: string,
+  memberCount?: number,
+): Promise<{ allowed: boolean; limit?: number; current?: number }> {
+  const { data, error } = await supabase.rpc("runtime_upsert_bot_guild", {
+    _bot_id: botId,
+    _guild_id: guildId,
+    _guild_name: guildName ?? null,
+    _member_count: memberCount ?? null,
+  });
+  if (error) {
+    console.error(`[${botId}] upsertGuild failed:`, error.message);
+    return { allowed: true }; // fail-open so we don't accidentally kick users on a glitch
+  }
+  const r = data as { allowed?: boolean; limit?: number; current?: number };
+  return { allowed: r?.allowed ?? true, limit: r?.limit, current: r?.current };
+}
+
+export async function removeGuild(botId: string, guildId: string) {
+  const { error } = await supabase.rpc("runtime_remove_bot_guild", {
+    _bot_id: botId,
+    _guild_id: guildId,
+  });
+  if (error) console.error(`[${botId}] removeGuild failed:`, error.message);
+}

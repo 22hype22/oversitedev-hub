@@ -6,7 +6,7 @@ import {
   Routes,
   type Interaction,
 } from "discord.js";
-import { setStatus, appendLog, recordMetrics, getSecret } from "./runtime-api.js";
+import { setStatus, appendLog, recordMetrics, getSecret, upsertGuild, removeGuild } from "./runtime-api.js";
 import { HEARTBEAT_INTERVAL_MS } from "./supabase.js";
 import { loadBotConfig } from "./config.js";
 import { ADDONS, type AddonContext, type Addon } from "./addons/index.js";
@@ -92,6 +92,35 @@ export class BotRuntime {
         appendLog(this.botId, "error", `client error: ${err.message}`).catch(() => {});
       });
 
+      // Server-slot enforcement: leave any guild over the paid limit.
+      client.on(Events.GuildCreate, async (guild) => {
+        const result = await upsertGuild(this.botId, guild.id, guild.name, guild.memberCount);
+        if (!result.allowed) {
+          await appendLog(
+            this.botId,
+            "warn",
+            `Server limit reached (${result.current}/${result.limit}) — leaving "${guild.name}"`,
+            { guild_id: guild.id, guild_name: guild.name },
+          );
+          try {
+            await guild.leave();
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            await appendLog(this.botId, "error", `Failed to leave over-limit guild: ${msg}`);
+          }
+        } else {
+          await appendLog(this.botId, "info", `Joined guild "${guild.name}"`, {
+            guild_id: guild.id,
+            members: guild.memberCount,
+          });
+        }
+      });
+
+      client.on(Events.GuildDelete, async (guild) => {
+        await removeGuild(this.botId, guild.id);
+        await appendLog(this.botId, "info", `Left guild "${guild.name ?? guild.id}"`);
+      });
+
       // 6. Login
       await client.login(token);
       await this.registerSlashCommands(token, client.user!.id);
@@ -106,6 +135,25 @@ export class BotRuntime {
       await appendLog(this.botId, "info", `Bot online in ${guilds.size} guild(s)`, {
         addons: this.activeAddons.map((a) => a.id),
       });
+
+      // Reconcile existing guilds against the paid slot limit.
+      // Process oldest-joined first so newcomers are the ones evicted.
+      const sorted = [...guilds.values()].sort(
+        (a, b) => (a.joinedTimestamp ?? 0) - (b.joinedTimestamp ?? 0),
+      );
+      for (const guild of sorted) {
+        const r = await upsertGuild(this.botId, guild.id, guild.name, guild.memberCount);
+        if (!r.allowed) {
+          await appendLog(
+            this.botId,
+            "warn",
+            `Over server limit on startup — leaving "${guild.name}"`,
+            { guild_id: guild.id },
+          );
+          try { await guild.leave(); } catch { /* ignore */ }
+        }
+      }
+
       await setStatus(this.botId, "online");
 
       // 3. Periodic heartbeat (keeps last_heartbeat_at fresh so the
