@@ -5,8 +5,11 @@ import {
   POLL_INTERVAL_MS,
 } from "./supabase.js";
 import { BotRuntime } from "./runtime.js";
+import { startHealthServer } from "./health.js";
 
 const runtimes = new Map<string, BotRuntime>();
+const health = { startedAt: Date.now(), runtimes, lastPollAt: Date.now() };
+startHealthServer(health);
 
 function getRuntime(botId: string): BotRuntime {
   let r = runtimes.get(botId);
@@ -80,6 +83,7 @@ async function pollLoop() {
   console.log(`Worker ${WORKER_ID} polling every ${POLL_INTERVAL_MS}ms…`);
   while (true) {
     try {
+      health.lastPollAt = Date.now();
       const cmd = await claimNextCommand();
       if (cmd) {
         // Don't await — let multiple commands run in parallel.

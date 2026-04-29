@@ -11,8 +11,9 @@ Node.js worker that runs Discord bots provisioned through the Oversite dashboard
    - Logs into Discord with `discord.js` v14
    - Registers slash commands from the enabled addons
    - Reports status, logs, and usage metrics back to the database
+3. Exposes `GET /health` on `$PORT` (default 3000) for Railway/Docker healthchecks.
 
-## Setup
+## Local setup
 
 ```bash
 cd worker
@@ -22,10 +23,40 @@ cp .env.example .env
 #   SUPABASE_SERVICE_ROLE_KEY     - service role key (server only!)
 #   WORKER_TOKEN                  - generate in Admin → Worker tokens
 #   WORKER_ID                     - any unique label (defaults to hostname)
+#   PORT                          - optional, defaults to 3000
 
-bun install        # or npm install
-bun run dev        # tsx watch
+npm install
+npm run dev        # tsx watch
 ```
+
+## Deploy to Railway
+
+1. Push this repo to GitHub.
+2. In Railway: **New Project → Deploy from GitHub repo**.
+3. Set the **Root Directory** to `worker`.
+4. Add environment variables (same as `.env.example`):
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `WORKER_TOKEN`
+   - `WORKER_ID` (optional)
+5. Railway auto-detects `railway.json` + `nixpacks.toml` and:
+   - Builds with `npm install && npm run build`
+   - Starts with `node dist/index.js`
+   - Hits `/health` for healthchecks
+   - Restarts on failure (max 10 retries)
+
+For multiple workers, just **Duplicate Service** — they cooperate via
+`FOR UPDATE SKIP LOCKED`.
+
+## Deploy with Docker (Fly.io / generic)
+
+```bash
+docker build -t oversite-worker ./worker
+docker run --env-file worker/.env -p 3000:3000 oversite-worker
+```
+
+The `Dockerfile` is multi-stage, runs as Node 20-alpine, and includes a
+container-level `HEALTHCHECK` against `/health`.
 
 ## Adding an addon
 
@@ -54,23 +85,19 @@ export const welcomeAddon: Addon = {
 Then register it in `src/addons/index.ts`:
 
 ```ts
-import { welcomeAddon } from "./addons/welcome.js";
+import { welcomeAddon } from "./welcome.js";
 export const ADDONS = {
   [sayAddon.id]: sayAddon,
   [welcomeAddon.id]: welcomeAddon,
 };
 ```
 
-## Production deploy
-
-Recommended: Railway, Fly.io, or any VPS that runs Node 20+.
-Run `bun run build && node dist/index.js`.
-
-The worker is stateless — you can run multiple replicas and they'll cooperatively
-claim commands without duplicating work (`FOR UPDATE SKIP LOCKED` on the RPC).
-
 ## Security
 
 - The `WORKER_TOKEN` is hashed at rest in `worker_tokens`. Treat the plaintext like a password.
 - Tokens can be scoped to a single bot (set `bot_id` when creating in admin) or revoked at any time.
 - The service role key bypasses RLS; never expose it to clients or commit it.
+
+## For AI agents
+
+See [`CLAUDE.md`](./CLAUDE.md) for architectural rules and conventions.
