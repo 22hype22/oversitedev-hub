@@ -41,6 +41,8 @@ type Props = {
   groupKey: string;
   /** Default order coming from the catalog. */
   ids: string[];
+  /** Optional addon id to highlight (search match). */
+  highlightedAddonId?: string | null;
 };
 
 const storageKey = (userId: string, botId: string, groupKey: string) =>
