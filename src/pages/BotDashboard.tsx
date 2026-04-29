@@ -867,6 +867,10 @@ const BotDashboard = () => {
             ))}
           </div>
         )}
+
+        <div className="mt-16">
+          <SupportAccessManager />
+        </div>
       </div>
 
       <AlertDialog
