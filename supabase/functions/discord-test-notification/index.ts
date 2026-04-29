@@ -38,6 +38,18 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
+    // Rate limit: max 5 test DMs per hour per user (uses the user's auth context)
+    const { data: rateCheck } = await userClient.rpc("consume_notification_rate", {
+      _kind: "test_dm",
+      _max: 5,
+    });
+    if (rateCheck && (rateCheck as { ok: boolean }).ok === false) {
+      return new Response(
+        JSON.stringify(rateCheck),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Verify they have a discord_user_id linked
     const { data: prefs } = await admin
       .from("user_notification_prefs")

@@ -35,6 +35,36 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_audit_log: {
+        Row: {
+          action: string
+          admin_user_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          target_bot_id: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action: string
+          admin_user_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_bot_id?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          admin_user_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_bot_id?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           id: number
@@ -923,6 +953,27 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_rate_limits: {
+        Row: {
+          bucket_start: string
+          count: number
+          kind: string
+          user_id: string
+        }
+        Insert: {
+          bucket_start: string
+          count?: number
+          kind: string
+          user_id: string
+        }
+        Update: {
+          bucket_start?: string
+          count?: number
+          kind?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pending_purchases: {
         Row: {
           created_at: string
@@ -1567,6 +1618,45 @@ export type Database = {
         }
         Relationships: []
       }
+      worker_tokens: {
+        Row: {
+          bot_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          last_used_at: string | null
+          name: string
+          notes: string | null
+          revoked_at: string | null
+          token_hash: string
+          token_prefix: string
+        }
+        Insert: {
+          bot_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_used_at?: string | null
+          name: string
+          notes?: string | null
+          revoked_at?: string | null
+          token_hash: string
+          token_prefix: string
+        }
+        Update: {
+          bot_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_used_at?: string | null
+          name?: string
+          notes?: string | null
+          revoked_at?: string | null
+          token_hash?: string
+          token_prefix?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       public_products: {
@@ -1649,9 +1739,26 @@ export type Database = {
         }
         Returns: string
       }
+      _worker_token_lookup: {
+        Args: { _token: string }
+        Returns: {
+          bot_id: string
+          token_id: string
+        }[]
+      }
       cleanup_old_bot_logs: { Args: never; Returns: number }
+      cleanup_old_notifications: { Args: never; Returns: number }
+      cleanup_old_usage_metrics: { Args: never; Returns: number }
+      consume_notification_rate: {
+        Args: { _kind: string; _max?: number }
+        Returns: Json
+      }
       create_support_access_code: {
         Args: { _expires_in_hours: number; _notes?: string }
+        Returns: Json
+      }
+      create_worker_token: {
+        Args: { _bot_id?: string; _name: string; _notes?: string }
         Returns: Json
       }
       delete_bot_secret: {
@@ -1715,6 +1822,15 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      log_admin_action: {
+        Args: {
+          _action: string
+          _details?: Json
+          _target_bot_id?: string
+          _target_user_id?: string
+        }
+        Returns: string
+      }
       log_support_action: {
         Args: {
           _action: string
@@ -1763,6 +1879,7 @@ export type Database = {
         Args: { _grant_id: string }
         Returns: Json
       }
+      revoke_worker_token: { Args: { _id: string }; Returns: Json }
       runtime_append_bot_log: {
         Args: {
           _bot_id: string
@@ -1771,6 +1888,19 @@ export type Database = {
           _message: string
         }
         Returns: string
+      }
+      runtime_claim_next_command: {
+        Args: { _token: string; _worker_id?: string }
+        Returns: Json
+      }
+      runtime_complete_command: {
+        Args: {
+          _command_id: string
+          _error?: string
+          _status: string
+          _token: string
+        }
+        Returns: Json
       }
       runtime_get_bot_secret: {
         Args: { _bot_id: string; _key: string }
@@ -1787,6 +1917,7 @@ export type Database = {
         }
         Returns: Json
       }
+      runtime_release_stale_commands: { Args: never; Returns: number }
       runtime_set_bot_status: {
         Args: {
           _bot_id: string

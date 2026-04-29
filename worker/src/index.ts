@@ -1,4 +1,9 @@
-import { supabase, WORKER_ID, POLL_INTERVAL_MS } from "./supabase.js";
+import {
+  supabase,
+  WORKER_ID,
+  WORKER_TOKEN_VALUE,
+  POLL_INTERVAL_MS,
+} from "./supabase.js";
 import { BotRuntime } from "./runtime.js";
 
 const runtimes = new Map<string, BotRuntime>();
@@ -19,38 +24,29 @@ type Cmd = {
 };
 
 async function claimNextCommand(): Promise<Cmd | null> {
-  // Atomically claim one pending command for this worker.
-  // Uses a CTE-style update so two workers don't race for the same row.
-  const { data, error } = await supabase
-    .from("bot_commands")
-    .update({
-      status: "claimed",
-      worker_id: WORKER_ID,
-      claimed_at: new Date().toISOString(),
-    })
-    .eq("status", "pending")
-    .is("worker_id", null)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .select("id, bot_id, action")
-    .maybeSingle();
-
+  const { data, error } = await supabase.rpc("runtime_claim_next_command", {
+    _token: WORKER_TOKEN_VALUE,
+    _worker_id: WORKER_ID,
+  });
   if (error) {
     console.error("claim error:", error.message);
     return null;
   }
-  return (data as Cmd) ?? null;
+  const result = data as { ok: boolean; command: Cmd | null; error?: string };
+  if (!result?.ok) {
+    console.error("claim refused:", result?.error);
+    return null;
+  }
+  return result.command ?? null;
 }
 
 async function completeCommand(id: string, ok: boolean, errorMessage?: string) {
-  await supabase
-    .from("bot_commands")
-    .update({
-      status: ok ? "done" : "failed",
-      error_message: errorMessage ?? null,
-      completed_at: new Date().toISOString(),
-    })
-    .eq("id", id);
+  await supabase.rpc("runtime_complete_command", {
+    _token: WORKER_TOKEN_VALUE,
+    _command_id: id,
+    _status: ok ? "done" : "failed",
+    _error: errorMessage ?? null,
+  });
 }
 
 async function processCommand(cmd: Cmd) {
