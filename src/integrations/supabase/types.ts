@@ -1724,6 +1724,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      mark_bot_notifications_read: {
+        Args: { _ids?: string[] }
+        Returns: number
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
