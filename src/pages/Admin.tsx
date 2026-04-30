@@ -19,6 +19,7 @@ import { CodesManager } from "@/components/admin/CodesManager";
 import { BotSecretSlotManager } from "@/components/admin/BotSecretSlotManager";
 import { SupportAccessRedeemer } from "@/components/admin/SupportAccessRedeemer";
 import { WorkerTokensManager } from "@/components/admin/WorkerTokensManager";
+import { TokenPoolManager } from "@/components/admin/TokenPoolManager";
 import { AdminAuditLog } from "@/components/admin/AdminAuditLog";
 
 const SUPER_ADMIN_EMAIL = "everant00@gmail.com";
@@ -144,6 +145,7 @@ const Admin = () => {
               <FixesManager />
               <CodesManager />
               <BotSecretSlotManager />
+              <TokenPoolManager />
               <WorkerTokensManager />
               <UserVersionUpgrader />
               <BotOrdersLog />
