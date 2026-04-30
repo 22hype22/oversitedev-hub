@@ -262,7 +262,26 @@ const Admin = () => {
             </AccordionContent>
           </AccordionItem>
 
-          {/* ─── Danger Zone ───────────────────────────────────────── */}
+          {/* ─── Super Admin ───────────────────────────────────────── */}
+          {isSuperAdmin && (
+            <AccordionItem
+              value="super-admin"
+              className="border rounded-xl bg-card px-4 sm:px-5"
+            >
+              <AccordionTrigger className="hover:no-underline py-4">
+                <SectionHeader
+                  icon={ShieldCheck}
+                  title="Super admin"
+                  description="Manage who has admin access to the platform."
+                />
+              </AccordionTrigger>
+              <AccordionContent className="pt-2 pb-5">
+                <AdminManager />
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {/* ─── Danger Zone (always last) ─────────────────────────── */}
           <AccordionItem
             value="danger"
             className="border border-destructive/30 rounded-xl bg-destructive/5 px-4 sm:px-5"
@@ -282,25 +301,6 @@ const Admin = () => {
               </div>
             </AccordionContent>
           </AccordionItem>
-
-          {/* ─── Super Admin ───────────────────────────────────────── */}
-          {isSuperAdmin && (
-            <AccordionItem
-              value="super-admin"
-              className="border rounded-xl bg-card px-4 sm:px-5"
-            >
-              <AccordionTrigger className="hover:no-underline py-4">
-                <SectionHeader
-                  icon={ShieldCheck}
-                  title="Super admin"
-                  description="Manage who has admin access to the platform."
-                />
-              </AccordionTrigger>
-              <AccordionContent className="pt-2 pb-5">
-                <AdminManager />
-              </AccordionContent>
-            </AccordionItem>
-          )}
         </Accordion>
       </div>
     </div>
