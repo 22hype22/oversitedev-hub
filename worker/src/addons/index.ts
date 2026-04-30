@@ -37,6 +37,23 @@ import { moderationHistoryAddon } from "./moderation-history.js";
 import { autoSlowmodeAddon } from "./auto-slowmode.js";
 import { tempBanAddon } from "./temp-ban.js";
 
+// ── Support: Base ──
+import { supportBaseAddon } from "./support-base.js";
+
+// ── Support: Addons ──
+import { staffPerformanceAddon } from "./staff-performance.js";
+import { ticketLogsAddon } from "./ticket-logs.js";
+import {
+  perCategoryRolesAddon,
+  ticketNotesAddon,
+  ticketMembersAddon,
+  closeAllTicketsAddon,
+  ticketMessageCustomizationAddon,
+  priorityTicketAddon,
+  autoCloseTicketsAddon,
+  anonymousReportingAddon,
+} from "./support-addons.js";
+
 export type SlashBuilder =
   | SlashCommandBuilder
   | SlashCommandOptionsOnlyBuilder
@@ -89,4 +106,19 @@ export const ADDONS: Record<string, Addon> = {
   [moderationHistoryAddon.id]: moderationHistoryAddon,
   [autoSlowmodeAddon.id]: autoSlowmodeAddon,
   [tempBanAddon.id]: tempBanAddon,
+
+  // Support base
+  [supportBaseAddon.id]: supportBaseAddon,
+
+  // Support addons
+  [staffPerformanceAddon.id]: staffPerformanceAddon,
+  [ticketLogsAddon.id]: ticketLogsAddon,
+  [perCategoryRolesAddon.id]: perCategoryRolesAddon,
+  [ticketNotesAddon.id]: ticketNotesAddon,
+  [ticketMembersAddon.id]: ticketMembersAddon,
+  [closeAllTicketsAddon.id]: closeAllTicketsAddon,
+  [ticketMessageCustomizationAddon.id]: ticketMessageCustomizationAddon,
+  [priorityTicketAddon.id]: priorityTicketAddon,
+  [autoCloseTicketsAddon.id]: autoCloseTicketsAddon,
+  [anonymousReportingAddon.id]: anonymousReportingAddon,
 };
