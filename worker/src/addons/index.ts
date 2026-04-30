@@ -16,7 +16,26 @@ import type {
   SlashCommandOptionsOnlyBuilder,
   SlashCommandSubcommandsOnlyBuilder,
 } from "discord.js";
-import { sayAddon } from "./addons/say.js";
+
+// ── Reference addon ──
+import { sayAddon } from "./say.js";
+
+// ── Protection: Base ──
+import { protectionBaseAddon } from "./protection-base.js";
+
+// ── Protection: Addons ──
+import { advancedLoggingAddon } from "./advanced-logging.js";
+import { nsfwInviteScannerAddon } from "./nsfw-invite-scanner.js";
+import { avatarNsfwDetectionAddon } from "./avatar-nsfw-detection.js";
+import { bioPhraseDetectionAddon } from "./bio-phrase-detection.js";
+import { accountAgeGatingAddon } from "./account-age-gating.js";
+import { autoEscalatingWarningsAddon } from "./auto-escalating-warnings.js";
+import { softbanMassbanAddon } from "./softban-massban.js";
+import { channelLockdownAddon } from "./channel-lockdown.js";
+import { staffNotesAddon } from "./staff-notes.js";
+import { moderationHistoryAddon } from "./moderation-history.js";
+import { autoSlowmodeAddon } from "./auto-slowmode.js";
+import { tempBanAddon } from "./temp-ban.js";
 
 export type SlashBuilder =
   | SlashCommandBuilder
@@ -51,5 +70,23 @@ export interface Addon {
 }
 
 export const ADDONS: Record<string, Addon> = {
+  // Reference
   [sayAddon.id]: sayAddon,
+
+  // Protection base
+  [protectionBaseAddon.id]: protectionBaseAddon,
+
+  // Protection addons
+  [advancedLoggingAddon.id]: advancedLoggingAddon,
+  [nsfwInviteScannerAddon.id]: nsfwInviteScannerAddon,
+  [avatarNsfwDetectionAddon.id]: avatarNsfwDetectionAddon,
+  [bioPhraseDetectionAddon.id]: bioPhraseDetectionAddon,
+  [accountAgeGatingAddon.id]: accountAgeGatingAddon,
+  [autoEscalatingWarningsAddon.id]: autoEscalatingWarningsAddon,
+  [softbanMassbanAddon.id]: softbanMassbanAddon,
+  [channelLockdownAddon.id]: channelLockdownAddon,
+  [staffNotesAddon.id]: staffNotesAddon,
+  [moderationHistoryAddon.id]: moderationHistoryAddon,
+  [autoSlowmodeAddon.id]: autoSlowmodeAddon,
+  [tempBanAddon.id]: tempBanAddon,
 };
