@@ -788,6 +788,59 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_token_pool: {
+        Row: {
+          assigned_at: string | null
+          assigned_bot_id: string | null
+          bot_username: string
+          client_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          status: string
+          token_encrypted: string
+          token_last_four: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_bot_id?: string | null
+          bot_username: string
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          status?: string
+          token_encrypted: string
+          token_last_four: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_bot_id?: string | null
+          bot_username?: string
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          status?: string
+          token_encrypted?: string
+          token_last_four?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_token_pool_assigned_bot_id_fkey"
+            columns: ["assigned_bot_id"]
+            isOneToOne: false
+            referencedRelation: "bot_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bot_usage_metrics: {
         Row: {
           active_servers: number
@@ -1818,6 +1871,15 @@ export type Database = {
           token_id: string
         }[]
       }
+      add_bot_token_to_pool: {
+        Args: {
+          _bot_username: string
+          _client_id: string
+          _notes?: string
+          _token: string
+        }
+        Returns: Json
+      }
       admin_set_bot_extra_slots: {
         Args: { _bot_id: string; _extra_slots: number }
         Returns: Json
@@ -1841,6 +1903,7 @@ export type Database = {
         Args: { _bot_id: string; _key: string }
         Returns: Json
       }
+      delete_bot_token_pool_entry: { Args: { _id: string }; Returns: Json }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -1951,6 +2014,7 @@ export type Database = {
         Args: { _bot_id: string; _key: string; _password?: string }
         Returns: Json
       }
+      reveal_bot_token_pool_entry: { Args: { _id: string }; Returns: Json }
       revoke_support_access_code: { Args: { _code_id: string }; Returns: Json }
       revoke_support_access_grant: {
         Args: { _grant_id: string }
@@ -2021,6 +2085,16 @@ export type Database = {
       }
       set_bot_secret: {
         Args: { _bot_id: string; _key: string; _value: string }
+        Returns: Json
+      }
+      update_bot_token_pool_entry: {
+        Args: {
+          _assigned_bot_id?: string
+          _bot_username?: string
+          _id: string
+          _notes?: string
+          _status?: string
+        }
         Returns: Json
       }
     }
