@@ -4,7 +4,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LogOut, ArrowLeft, Megaphone } from "lucide-react";
-import { BotTokenPool } from "@/components/admin/BotTokenPool";
 
 import { ProductManager } from "@/components/admin/ProductManager";
 import { MarketingKillSwitch, useMarketingShutdown } from "@/components/admin/MarketingKillSwitch";
@@ -146,7 +145,6 @@ const Admin = () => {
               <CodesManager />
               <BotSecretSlotManager />
               <WorkerTokensManager />
-	      <BotTokenPool />
               <UserVersionUpgrader />
               <BotOrdersLog />
               <PurchaseLog />
@@ -158,7 +156,7 @@ const Admin = () => {
           <div className="mt-10 pt-6 border-t border-border">
             <div className="mb-4">
               <h3 className="text-lg font-semibold tracking-tight text-destructive">Danger Zone</h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Destructive actions that affect the live storefront and customer data.
               </p>
             </div>
