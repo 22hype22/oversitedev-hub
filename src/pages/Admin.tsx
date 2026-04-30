@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LogOut, ArrowLeft, Megaphone } from "lucide-react";
+import { BotTokenPool } from "@/components/admin/BotTokenPool";
 
 import { ProductManager } from "@/components/admin/ProductManager";
 import { MarketingKillSwitch, useMarketingShutdown } from "@/components/admin/MarketingKillSwitch";
@@ -145,6 +146,7 @@ const Admin = () => {
               <CodesManager />
               <BotSecretSlotManager />
               <WorkerTokensManager />
+	      <BotTokenPool />
               <UserVersionUpgrader />
               <BotOrdersLog />
               <PurchaseLog />
