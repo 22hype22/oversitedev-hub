@@ -1,5 +1,5 @@
 /**
- * Addon registry.
+ * Addon registry — Oversite Worker
  *
  * Each addon registers slash commands and event listeners. The runtime calls
  * `register()` for every addon listed on the bot's order at startup.
@@ -53,6 +53,24 @@ import {
   autoCloseTicketsAddon,
   anonymousReportingAddon,
 } from "./support-addons.js";
+
+// ── Utilities: Base ──
+import { utilitiesBaseAddon } from "./utilities-base.js";
+
+// ── Utilities: Addons ──
+import { musicAddon, autoRadioAddon } from "./music.js";
+import {
+  robloxVerificationAddon,
+  starboardAddon,
+  recurringMessagesAddon,
+  giveawayAddon,
+  birthdayAddon,
+  serverStatsAddon,
+  streamNotificationsAddon,
+  levelingAddon,
+  economyAddon,
+  reminderAddon,
+} from "./utilities-addons.js";
 
 export type SlashBuilder =
   | SlashCommandBuilder
@@ -121,4 +139,21 @@ export const ADDONS: Record<string, Addon> = {
   [priorityTicketAddon.id]: priorityTicketAddon,
   [autoCloseTicketsAddon.id]: autoCloseTicketsAddon,
   [anonymousReportingAddon.id]: anonymousReportingAddon,
+
+  // Utilities base
+  [utilitiesBaseAddon.id]: utilitiesBaseAddon,
+
+  // Utilities addons
+  [musicAddon.id]: musicAddon,
+  [autoRadioAddon.id]: autoRadioAddon,
+  [robloxVerificationAddon.id]: robloxVerificationAddon,
+  [starboardAddon.id]: starboardAddon,
+  [recurringMessagesAddon.id]: recurringMessagesAddon,
+  [giveawayAddon.id]: giveawayAddon,
+  [birthdayAddon.id]: birthdayAddon,
+  [serverStatsAddon.id]: serverStatsAddon,
+  [streamNotificationsAddon.id]: streamNotificationsAddon,
+  [levelingAddon.id]: levelingAddon,
+  [economyAddon.id]: economyAddon,
+  [reminderAddon.id]: reminderAddon,
 };
