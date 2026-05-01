@@ -15,6 +15,10 @@ export type OwnedBot = {
   engine_version: "v1" | "v2";
   status: string;
   hasWebDashboard: boolean;
+  /** Free ($0) bot orders are personal/externally-hosted bots (e.g. running on
+   *  Railway). Their runtime status is not managed by our worker, so the
+   *  dashboard hides start/stop controls and the live health badge for them. */
+  externallyManaged: boolean;
   created_at: string;
   submitted_at: string | null;
   delivery_url: string | null;
@@ -51,6 +55,7 @@ function mapRow(row: any, viaSupport = false): OwnedBot {
     engine_version: row.engine_version === "v2" ? "v2" : "v1",
     status: row.status,
     hasWebDashboard: Array.isArray(row.addons) && row.addons.includes("dashboard"),
+    externallyManaged: Number(row.total_amount ?? 0) === 0,
     created_at: row.created_at,
     submitted_at: row.submitted_at ?? null,
     delivery_url: row.delivery_url ?? null,
