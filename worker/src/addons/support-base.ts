@@ -76,7 +76,7 @@ export const supportBaseAddon: Addon = {
       const msg = config.message
         .replace("{user}", member.toString())
         .replace("{server}", member.guild.name);
-      await channel.send(msg).catch(() => {});
+      await (channel as any).send(msg).catch(() => {});
     });
 
     client.on(Events.GuildMemberRemove, async (member) => {
@@ -87,7 +87,7 @@ export const supportBaseAddon: Addon = {
       const msg = config.goodbyeMessage
         .replace("{user}", member.user.tag)
         .replace("{server}", member.guild.name);
-      await channel.send(msg).catch(() => {});
+      await (channel as any).send(msg).catch(() => {});
     });
 
     // Ticket button/select/modal handling
@@ -119,7 +119,7 @@ export const supportBaseAddon: Addon = {
         const allowedRoles = guildConfig?.roles[category] ?? [];
 
         const permOverwrites: any[] = [
-          { id: guild.roles.everyone.id, deny: ["ViewChannel"] },
+          { id: guild.roles.everyone.id as string, deny: ["ViewChannel"] },
           { id: guild.members.me!.id, allow: ["ViewChannel", "SendMessages", "ManageChannels"] },
           { id: member.id, allow: ["ViewChannel", "SendMessages", "ReadMessageHistory"] },
         ];
@@ -207,7 +207,7 @@ export const supportBaseAddon: Addon = {
         );
 
         await interaction.update({ components: [row] });
-        await channel.send({ embeds: [new EmbedBuilder().setDescription(`🙋 ${member.toString()} has claimed this ticket.`).setColor(0x57f287)] });
+        await (channel as any).send({ embeds: [new EmbedBuilder().setDescription(`🙋 ${member.toString()} has claimed this ticket.`).setColor(0x57f287)] });
       }
 
       // Close button
@@ -269,7 +269,7 @@ export const supportBaseAddon: Addon = {
           type: ChannelType.GuildText,
           parent: appealCat?.id,
           permissionOverwrites: [
-            { id: guild.roles.everyone.id, deny: ["ViewChannel"] },
+            { id: guild.roles.everyone.id as string, deny: ["ViewChannel"] },
             { id: member.id, allow: ["ViewChannel", "SendMessages", "ReadMessageHistory"] },
             { id: guild.members.me!.id, allow: ["ViewChannel", "SendMessages", "ManageChannels"] },
           ],

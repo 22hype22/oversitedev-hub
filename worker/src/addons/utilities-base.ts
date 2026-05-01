@@ -158,7 +158,7 @@ export const utilitiesBaseAddon: Addon = {
         const old = await message.channel.messages.fetch(sticky.messageId);
         await old.delete();
       } catch { /* ignore */ }
-      const newMsg = await message.channel.send({ embeds: [sticky.embed] }).catch(() => null);
+      const newMsg = await message.(channel as any).send({ embeds: [sticky.embed] }).catch(() => null);
       if (newMsg) stickyMessages.set(message.channelId, { ...sticky, messageId: newMsg.id });
     });
 
@@ -201,7 +201,7 @@ export const utilitiesBaseAddon: Addon = {
         embeds.push(new EmbedBuilder().setColor(color).setImage(url));
       }
 
-      await channel.send({ embeds: embeds.slice(0, 10) });
+      await (channel as any).send({ embeds: embeds.slice(0, 10) });
       await interaction.reply({ content: `✅ Posted in <#${channel.id}>`, ephemeral: true });
     }
 
@@ -209,7 +209,7 @@ export const utilitiesBaseAddon: Addon = {
     if (interaction.commandName === "announce") {
       const message = interaction.options.getString("message", true);
       const channel = (interaction.options.getChannel("channel") ?? interaction.channel) as TextChannel;
-      await channel.send(message);
+      await (channel as any).send(message);
       await interaction.reply({ content: `✅ Announced in <#${channel.id}>`, ephemeral: true });
     }
 

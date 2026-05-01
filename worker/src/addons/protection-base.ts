@@ -71,7 +71,7 @@ async function getLogChannel(ctx: AddonContext) {
 async function logAction(ctx: AddonContext, embed: EmbedBuilder) {
   const ch = await getLogChannel(ctx);
   if (ch) {
-    await ch.send({ embeds: [embed] }).catch(() => {});
+    await (ch as any).send({ embeds: [embed] }).catch(() => {});
   }
 }
 
@@ -201,7 +201,7 @@ export const protectionBaseAddon: Addon = {
           if (channel.isTextBased() && channel.type === 0) {
             try {
               await (channel as TextChannel).permissionOverwrites.edit(
-                member.guild.roles.everyone,
+                member.{ id: guild.roles.everyone.id } as any,
                 { SendMessages: false },
                 { reason: "Raid detected — auto lockdown" }
               );
@@ -215,7 +215,7 @@ export const protectionBaseAddon: Addon = {
             .setDescription(`${RAID_THRESHOLD}+ members joined within ${RAID_WINDOW_MS / 1000} seconds. All channels locked.`)
             .setColor(0xff0000)
             .setTimestamp();
-          await logCh.send({ embeds: [embed] }).catch(() => {});
+          await (logCh as any).send({ embeds: [embed] }).catch(() => {});
         }
         await ctx.log("warn", "Raid detected — server locked", { guild: member.guild.id });
       }
@@ -231,7 +231,7 @@ export const protectionBaseAddon: Addon = {
           )
           .setColor(0x57f287)
           .setTimestamp();
-        await logCh.send({ embeds: [embed] }).catch(() => {});
+        await (logCh as any).send({ embeds: [embed] }).catch(() => {});
       }
     });
 
@@ -244,7 +244,7 @@ export const protectionBaseAddon: Addon = {
         .addFields({ name: "User", value: `${ban.user.tag} (\`${ban.user.id}\`)` })
         .setColor(0xed4245)
         .setTimestamp();
-      await logCh.send({ embeds: [embed] }).catch(() => {});
+      await (logCh as any).send({ embeds: [embed] }).catch(() => {});
     });
 
     client.on(Events.GuildMemberRemove, async (member) => {
@@ -255,7 +255,7 @@ export const protectionBaseAddon: Addon = {
         .addFields({ name: "User", value: `${member.user.tag} (\`${member.id}\`)` })
         .setColor(0xffa500)
         .setTimestamp();
-      await logCh.send({ embeds: [embed] }).catch(() => {});
+      await (logCh as any).send({ embeds: [embed] }).catch(() => {});
     });
 
     // ── Verify button handler ──
@@ -287,7 +287,7 @@ export const protectionBaseAddon: Addon = {
               )
               .setColor(0xed4245)
               .setTimestamp();
-            await verifyLogCh.send({ embeds: [embed] }).catch(() => {});
+            await (verifyLogCh as any).send({ embeds: [embed] }).catch(() => {});
           }
           await interaction.reply({
             content: `❌ Your account must be at least **${ACCOUNT_MIN_DAYS} days old** to verify. Your account is **${Math.floor(accountAgeDays)} days old**.`,
@@ -334,7 +334,7 @@ export const protectionBaseAddon: Addon = {
               )
               .setColor(0xffa500)
               .setTimestamp();
-            await verifyLogCh.send({ embeds: [embed] }).catch(() => {});
+            await (verifyLogCh as any).send({ embeds: [embed] }).catch(() => {});
           }
           await interaction.reply({ content: "❌ Incorrect code. Click **Verify** again to get a new code.", ephemeral: true });
           return;
@@ -355,7 +355,7 @@ export const protectionBaseAddon: Addon = {
             )
             .setColor(0x57f287)
             .setTimestamp();
-          await verifyLogCh.send({ embeds: [embed] }).catch(() => {});
+          await (verifyLogCh as any).send({ embeds: [embed] }).catch(() => {});
         }
 
         await interaction.reply({ content: "✅ You have been successfully verified! Welcome to the server.", ephemeral: true });
