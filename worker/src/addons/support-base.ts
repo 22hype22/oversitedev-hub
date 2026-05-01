@@ -161,7 +161,7 @@ export const supportBaseAddon: Addon = {
         const pingParts = [member.toString()];
         for (const roleName of allowedRoles) {
           const role = guild.roles.cache.find((r) => r.name === roleName);
-          if (role) pingParts.push(role.toString());
+          if (role) pingParts.push(`<@&${role.id}>`);
         }
 
         const embed = new EmbedBuilder()

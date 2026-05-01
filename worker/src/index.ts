@@ -202,7 +202,7 @@ async function processBuildJob(job: BuildJob) {
       _event_type: "command_finished",
       _title: "Your bot is ready!",
       _body: `${selections.bot_name} has been built and is ready to configure. Add your Discord bot token to get started.`,
-    }).then(() => {}).catch(() => {});
+    });
 
     console.log(`[build:${id}] Build complete for order ${bot_order_id}`);
 
@@ -223,7 +223,7 @@ async function processBuildJob(job: BuildJob) {
       _job_id: id,
       _bot_order_id: bot_order_id,
       _error_message: msg,
-    }).then(() => {}).catch(() => {});
+    });
   }
 }
 
