@@ -125,6 +125,42 @@ export function TokenPoolManager() {
     refresh();
   };
 
+  const openEdit = (entry: PoolEntry) => {
+    setEditing(entry);
+    setEditBotUsername(entry.bot_username);
+    setEditClientId(entry.client_id);
+    setEditNotes(entry.notes ?? "");
+    setEditNewToken("");
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    if (!editBotUsername.trim() || !editClientId.trim()) {
+      toast.error("Bot username and client ID are required");
+      return;
+    }
+    if (editNewToken && editNewToken.trim().length < 20) {
+      toast.error("New token looks too short");
+      return;
+    }
+    setSavingEdit(true);
+    const payload: Record<string, unknown> = { _id: editing.id };
+    if (editBotUsername.trim() !== editing.bot_username) payload._bot_username = editBotUsername.trim();
+    if (editClientId.trim() !== editing.client_id) payload._client_id = editClientId.trim();
+    if ((editNotes ?? "") !== (editing.notes ?? "")) payload._notes = editNotes;
+    if (editNewToken.trim()) payload._token = editNewToken.trim();
+
+    const { data, error } = await supabase.rpc("update_bot_token_pool_entry", payload as never);
+    setSavingEdit(false);
+    if (error || !(data as { ok: boolean })?.ok) {
+      toast.error(error?.message ?? (data as { error?: string })?.error ?? "Failed to update");
+      return;
+    }
+    toast.success(editNewToken.trim() ? "Entry updated and token rotated" : "Entry updated");
+    setEditing(null);
+    refresh();
+  };
+
   const reveal = async (id: string) => {
     setRevealing(id);
     const { data, error } = await supabase.rpc("reveal_bot_token_pool_entry", { _id: id });
