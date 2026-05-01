@@ -101,35 +101,20 @@ async function processCommand(cmd: Cmd) {
 // ============================================================
 
 async function claimNextBuildJob(): Promise<BuildJob | null> {
-  const { data, error } = await supabase
-    .from("bot_build_jobs")
-    .select("id, bot_order_id, status, selections")
-    .eq("status", "pending")
-    .lt("attempts", 3)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
+  const { data, error } = await supabase.rpc("runtime_claim_build_job", {
+    _token: WORKER_TOKEN_VALUE,
+    _worker_id: WORKER_ID,
+  });
   if (error) {
     console.error("build job claim error:", error.message);
     return null;
   }
-  if (!data) return null;
-
-  // Claim it
-  const { error: claimError } = await supabase
-    .from("bot_build_jobs")
-    .update({
-      status: "building",
-      worker_id: WORKER_ID,
-      claimed_at: new Date().toISOString(),
-      attempts: supabase.rpc("coalesce_increment", { row_id: data.id }) as any,
-    })
-    .eq("id", data.id)
-    .eq("status", "pending");
-
-  if (claimError) return null;
-  return data as BuildJob;
+  const result = data as { ok: boolean; job?: BuildJob | null; error?: string };
+  if (!result?.ok) {
+    if (result?.error) console.error("build job claim refused:", result.error);
+    return null;
+  }
+  return result.job ?? null;
 }
 
 async function processBuildJob(job: BuildJob) {
@@ -141,13 +126,11 @@ async function processBuildJob(job: BuildJob) {
     const { ADDONS } = await import("./addons/index.js");
     const missingAddons: string[] = [];
 
-    // Check base
     const baseAddonId = `${selections.base}-base`;
     if (!ADDONS[baseAddonId]) {
       console.warn(`[build:${id}] Base addon "${baseAddonId}" not found — proceeding anyway`);
     }
 
-    // Check addons
     for (const addonId of selections.addons ?? []) {
       if (!ADDONS[addonId]) {
         missingAddons.push(addonId);
@@ -165,42 +148,35 @@ async function processBuildJob(job: BuildJob) {
     if (!tokenResult?.ok) throw new Error(tokenResult?.error ?? "No tokens available in pool");
     console.log(`[build:${id}] Token claimed — bot: ${tokenResult.bot_username}, client: ${tokenResult.client_id}`);
 
-    // 3. Write config to bot_orders so the runtime can pick it up
-    const { error: orderError } = await supabase
-      .from("bot_orders")
-      .update({
-        bot_name: selections.bot_name,
-        base: selections.base,
-        addons: selections.addons ?? [],
-        icon_url: selections.icon_url ?? null,
-        banner_url: selections.banner_url ?? null,
-        bot_description: selections.bot_description ?? null,
-        status: "ready",
-      })
-      .eq("id", bot_order_id);
-
-    if (orderError) throw new Error(`Failed to update bot_orders: ${orderError.message}`);
+    // 3. Finalize: write order config + mark build ready (single RPC)
+    const buildLog = `Build complete. Base: ${selections.base}. Addons: ${(selections.addons ?? []).join(", ") || "none"}. Missing: ${missingAddons.join(", ") || "none"}.`;
+    const { data: finData, error: finError } = await supabase.rpc("runtime_finalize_build", {
+      _token: WORKER_TOKEN_VALUE,
+      _job_id: id,
+      _bot_order_id: bot_order_id,
+      _bot_name: selections.bot_name,
+      _base: selections.base,
+      _addons: selections.addons ?? [],
+      _icon_url: selections.icon_url ?? null,
+      _banner_url: selections.banner_url ?? null,
+      _bot_description: selections.bot_description ?? null,
+      _build_log: buildLog,
+    });
+    if (finError) throw new Error(`Failed to finalize build: ${finError.message}`);
+    const finResult = finData as { ok: boolean; error?: string };
+    if (!finResult?.ok) throw new Error(finResult?.error ?? "finalize_build refused");
 
     // 4. Seed bot_secret_slots so the dashboard knows what secrets to ask for
     await seedSecretSlots(bot_order_id, selections.base, selections.addons ?? []);
 
-    // 5. Mark build as ready
-    const { error: buildError } = await supabase
-      .from("bot_build_jobs")
-      .update({
-        status: "ready",
-        build_log: `Build complete. Base: ${selections.base}. Addons: ${(selections.addons ?? []).join(", ") || "none"}. Missing: ${missingAddons.join(", ") || "none"}.`,
-      })
-      .eq("id", id);
-
-    if (buildError) throw new Error(`Failed to update build job: ${buildError.message}`);
-
-    // 6. Enqueue a bot_notification for the customer
-    await supabase.from("bot_notifications").insert({
-      bot_id: bot_order_id,
-      event_type: "command_finished",
-      title: "Your bot is ready!",
-      body: `${selections.bot_name} has been built and is ready to configure. Add your Discord bot token to get started.`,
+    // 5. Notify the customer
+    await supabase.rpc("runtime_enqueue_notification", {
+      _token: WORKER_TOKEN_VALUE,
+      _bot_id: bot_order_id,
+      _event_type: "command_finished",
+      _title: "Your bot is ready!",
+      _body: `${selections.bot_name} has been built and is ready to configure. Add your Discord bot token to get started.`,
+      _context: null,
     }).catch(() => {});
 
     console.log(`[build:${id}] Build complete for order ${bot_order_id}`);
@@ -209,27 +185,20 @@ async function processBuildJob(job: BuildJob) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[build:${id}] Build failed:`, msg);
 
-    await supabase
-      .from("bot_build_jobs")
-      .update({
-        status: "failed",
-        build_log: `Build failed: ${msg}`,
-      })
-      .eq("id", id);
-
-    await supabase
-      .from("bot_orders")
-      .update({ status: "build_failed" })
-      .eq("id", bot_order_id);
+    await supabase.rpc("runtime_fail_build", {
+      _token: WORKER_TOKEN_VALUE,
+      _job_id: id,
+      _bot_order_id: bot_order_id,
+      _build_log: `Build failed: ${msg}`,
+    }).catch(() => {});
   }
 }
 
 // ── Seed secret slots so dashboard knows what secrets each addon needs ──
-async function seedSecretSlots(botOrderId: string, base: string, addons: string[]) {
+async function seedSecretSlots(botOrderId: string, _base: string, addons: string[]) {
   const slots: { bot_id: string; key: string; label: string; description: string; placeholder: string; required: boolean; sort_order: number }[] = [];
   let order = 0;
 
-  // Always required: Discord bot token
   slots.push({
     bot_id: botOrderId,
     key: "DISCORD_TOKEN",
@@ -240,7 +209,6 @@ async function seedSecretSlots(botOrderId: string, base: string, addons: string[
     sort_order: order++,
   });
 
-  // Music addon needs Spotify credentials
   if (addons.includes("music") || addons.includes("auto-radio")) {
     slots.push(
       {
@@ -264,7 +232,6 @@ async function seedSecretSlots(botOrderId: string, base: string, addons: string[
     );
   }
 
-  // Roblox verification needs group ID
   if (addons.includes("roblox-verification")) {
     slots.push({
       bot_id: botOrderId,
@@ -277,7 +244,6 @@ async function seedSecretSlots(botOrderId: string, base: string, addons: string[
     });
   }
 
-  // Avatar NSFW detection needs Anthropic API key
   if (addons.includes("avatar-nsfw-detection")) {
     slots.push({
       bot_id: botOrderId,
@@ -292,33 +258,14 @@ async function seedSecretSlots(botOrderId: string, base: string, addons: string[
 
   if (slots.length === 0) return;
 
-  // Upsert slots (don't duplicate if already exists)
-  const { error } = await supabase
-    .from("bot_secret_slots")
-    .upsert(slots, { onConflict: "bot_id,key", ignoreDuplicates: true });
+  const { error } = await supabase.rpc("runtime_seed_secret_slots", {
+    _token: WORKER_TOKEN_VALUE,
+    _slots: slots as any,
+  });
 
   if (error) {
     console.error(`[seed slots] Failed to seed secret slots: ${error.message}`);
   }
-}
-
-// ── Apply bot name/avatar/status on startup ──
-async function applyBotIdentity(botOrderId: string) {
-  try {
-    const { data } = await supabase
-      .from("bot_orders")
-      .select("bot_name, icon_url, bot_description")
-      .eq("id", botOrderId)
-      .maybeSingle();
-
-    if (!data) return;
-    const runtime = runtimes.get(botOrderId);
-    if (!runtime) return;
-
-    // The runtime's discord client handles identity via its own startup
-    // This is a hook point for future direct API calls if needed
-    console.log(`[${botOrderId}] Identity: ${data.bot_name}`);
-  } catch { /* ignore */ }
 }
 
 // ============================================================
@@ -332,18 +279,15 @@ async function pollLoop() {
     try {
       health.lastPollAt = Date.now();
 
-      // 1. Check for bot commands (start/stop/restart/update)
       const cmd = await claimNextCommand();
       if (cmd) {
         processCommand(cmd).catch(() => {});
       }
 
-      // 2. Check for pending build jobs
       const buildJob = await claimNextBuildJob();
       if (buildJob) {
         processBuildJob(buildJob).catch(() => {});
       }
-
     } catch (err) {
       console.error("poll loop error:", err);
     }
