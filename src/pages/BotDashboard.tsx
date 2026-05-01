@@ -75,6 +75,7 @@ import {
   ChevronDown,
   ChevronUp,
   Search,
+  ExternalLink,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
@@ -588,7 +589,17 @@ const BotSection = ({
       )}
       {!bot.isDemo && (
         <div className="basis-full mt-1">
-          <BotHealthBadge botId={bot.id} />
+          {bot.externallyManaged ? (
+            <Badge
+              variant="outline"
+              className="text-[10px] gap-1.5 bg-blue-500/10 text-blue-400 border-blue-500/30"
+            >
+              <Server className="h-3 w-3" />
+              Externally managed
+            </Badge>
+          ) : (
+            <BotHealthBadge botId={bot.id} />
+          )}
         </div>
       )}
     </>
@@ -720,7 +731,34 @@ const BotSection = ({
         <BotSecretsManager botId={bot.id} ownedAddons={ownedAddons} />
       )}
 
-      {!bot.isDemo && <BotControlsPanel botId={bot.id} />}
+      {!bot.isDemo && !bot.externallyManaged && <BotControlsPanel botId={bot.id} />}
+
+      {!bot.isDemo && bot.externallyManaged && (
+        <Card className="bg-card/40 border-border p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <Server className="h-4 w-4 text-blue-400" />
+            <h4 className="text-sm font-semibold">Externally managed</h4>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            This bot runs independently on Railway and isn't controlled by the
+            dashboard. Use the Railway console to start, stop, or view live logs.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+          >
+            <a
+              href="https://railway.app/dashboard"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="h-4 w-4 mr-1.5" />
+              Open Railway
+            </a>
+          </Button>
+        </Card>
+      )}
 
       {!bot.isDemo && <BotInviteLinkCard botId={bot.id} status={bot.status} />}
 

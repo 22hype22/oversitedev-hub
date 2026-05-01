@@ -15,6 +15,10 @@ export type OwnedBot = {
   engine_version: "v1" | "v2";
   status: string;
   hasWebDashboard: boolean;
+  /** Free ($0) bot orders are personal/externally-hosted bots (e.g. running on
+   *  Railway). Their runtime status is not managed by our worker, so the
+   *  dashboard hides start/stop controls and the live health badge for them. */
+  externallyManaged: boolean;
   created_at: string;
   submitted_at: string | null;
   delivery_url: string | null;
@@ -51,6 +55,7 @@ function mapRow(row: any, viaSupport = false): OwnedBot {
     engine_version: row.engine_version === "v2" ? "v2" : "v1",
     status: row.status,
     hasWebDashboard: Array.isArray(row.addons) && row.addons.includes("dashboard"),
+    externallyManaged: Number(row.total_amount ?? 0) === 0,
     created_at: row.created_at,
     submitted_at: row.submitted_at ?? null,
     delivery_url: row.delivery_url ?? null,
@@ -91,7 +96,7 @@ export function useOwnedBots() {
     // they were originally purchased on.
     const { data: own } = await (supabase as any)
       .from("bot_orders")
-      .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,paid_at")
+      .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,paid_at,total_amount")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true });
 
@@ -125,7 +130,7 @@ export function useOwnedBots() {
     if (ownerIds.length > 0) {
       const { data: supportRows } = await (supabase as any)
         .from("bot_orders")
-        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url")
+        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount")
         .in("user_id", ownerIds)
         .order("created_at", { ascending: true });
       supportMapped = (supportRows ?? [])
