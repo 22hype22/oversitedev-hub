@@ -319,6 +319,9 @@ export function TokenPoolManager() {
                     <Eye className="h-3.5 w-3.5" />
                   )}
                 </Button>
+                <Button size="sm" variant="ghost" onClick={() => openEdit(e)} title="Edit">
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
                 <Button size="sm" variant="ghost" onClick={() => remove(e.id)} title="Delete">
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
