@@ -31,7 +31,11 @@ export class BotRuntime {
       // 1. Load order config
       const config = await loadBotConfig(this.botId);
       if (!config) throw new Error("Bot order not found");
+      // Website-only addons (e.g. "dashboard") aren't loaded by the worker —
+      // they're features of the hosted dashboard, not the Discord bot.
+      const WEBSITE_ONLY = new Set(["dashboard"]);
       this.activeAddons = (config.addons ?? [])
+        .filter((id) => !WEBSITE_ONLY.has(id))
         .map((id) => ADDONS[id])
         .filter((a): a is Addon => Boolean(a));
 
