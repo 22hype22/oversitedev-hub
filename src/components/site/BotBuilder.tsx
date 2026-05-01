@@ -349,6 +349,43 @@ export const BotBuilder = () => {
 
   const currentAddons = useMemo(() => getAddonsForBases(bases), [bases]);
 
+  // React to admin "INCLUDED" toggles in real time:
+  //   - When an addon flips to INCLUDED → auto-select it (so the customer
+  //     gets the freebie without having to click).
+  //   - When an addon flips back to NOT INCLUDED → auto-deselect it, but
+  //     ONLY if the customer didn't manually pick it themselves.
+  useEffect(() => {
+    const ids = currentAddons.map((a) => a.id);
+    if (ids.length === 0) return;
+    const prev = prevIncludedRef.current;
+    const next: Record<string, boolean> = {};
+    let toAdd: string[] = [];
+    let toRemove: string[] = [];
+    for (const id of ids) {
+      const inc = addonIsIncluded(id);
+      next[id] = inc;
+      const wasInc = prev[id];
+      if (wasInc === undefined) continue; // first observation, skip
+      if (!wasInc && inc) toAdd.push(id);
+      else if (wasInc && !inc && !userSelectedAddons.has(id)) toRemove.push(id);
+    }
+    prevIncludedRef.current = next;
+    if (toAdd.length === 0 && toRemove.length === 0) return;
+    setAddons((curr) => {
+      let out = curr;
+      if (toAdd.length) {
+        const set = new Set(out);
+        for (const id of toAdd) set.add(id);
+        out = Array.from(set);
+      }
+      if (toRemove.length) {
+        const rm = new Set(toRemove);
+        out = out.filter((id) => !rm.has(id));
+      }
+      return out;
+    });
+  }, [currentAddons, addonIsIncluded, userSelectedAddons]);
+
   const activeIdentity: Identity = usesPackTabs ? packIdentities[effectiveActiveTab] : identity;
   const { name, description, icon, banner } = activeIdentity;
 
