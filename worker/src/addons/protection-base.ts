@@ -412,7 +412,7 @@ export const protectionBaseAddon: Addon = {
       await interaction.reply({ embeds: [embed] });
       await logAction(ctx, embed);
       try {
-        await target.send(`⚠️ You have been warned in **${guild.name}**.\n**Reason:** ${reason}`).catch(() => {});
+        await (target as any).send(`⚠️ You have been warned in **${guild.name}**.\n**Reason:** ${reason}`).catch(() => {});
       } catch { /* ignore */ }
     }
 
@@ -467,6 +467,7 @@ export const protectionBaseAddon: Addon = {
           .setStyle(ButtonStyle.Success)
       );
 
+      // @ts-ignore
       await interaction.channel!.send({ embeds: [embed], components: [row] });
       await interaction.reply({ content: "✅ Verification panel posted.", ephemeral: true });
     }
