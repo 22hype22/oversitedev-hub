@@ -102,7 +102,7 @@ serve(async (req) => {
         if (stripePrice.type === "recurring") hasRecurring = true;
         else hasOneTime = true;
         lineItems.push({ price: stripePrice.id, quantity: qty });
-      } else if (it.productId && it.amountCents && it.productName) {
+      } else if (it.amountCents && it.productName) {
         if (it.amountCents < 50) {
           return badRequest("Item amount too low");
         }
