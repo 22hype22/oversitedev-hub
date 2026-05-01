@@ -8,6 +8,7 @@ import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOwnedBots } from "@/hooks/useOwnedBots";
+import { useBotSalesMode } from "@/hooks/useBotSalesMode";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import {
   Shield,
@@ -269,6 +270,7 @@ const PACK_TABS: { id: string; label: string; icon: typeof Shield }[] = [
 export const BotBuilder = () => {
   const { user } = useAuth();
   const { hasDashboardAccess: dashboardAlreadyOwned } = useOwnedBots();
+  const { isLive: salesLive } = useBotSalesMode();
   // Multi-select bases. Rules:
   //  • All-in-One Pack ("scratch") is exclusive — selecting it clears others.
   //  • Otherwise the user can select up to 2 single bots (Protection / Support / Utilities).
@@ -759,7 +761,7 @@ export const BotBuilder = () => {
                         </span>
                       ) : b.oldPrice && (
                         <span className="px-1.5 py-0.5 rounded-full bg-primary/15 border border-primary/30 text-primary text-[10px] font-semibold uppercase tracking-wide">
-                          Preorder sale
+                          {salesLive ? "Sale" : "Preorder sale"}
                         </span>
                       )}
                     </div>
@@ -1331,7 +1333,7 @@ export const BotBuilder = () => {
                 onClick={submit}
                 disabled={submitting}
               >
-                Preorder my bot <ArrowRight />
+                {salesLive ? "Buy my bot" : "Preorder my bot"} <ArrowRight />
               </Button>
             )}
 
@@ -1534,7 +1536,7 @@ export const BotBuilder = () => {
                 onClick={submit}
                 disabled={submitting}
               >
-                Confirm preorder <ArrowRight />
+                {salesLive ? "Confirm purchase" : "Confirm preorder"} <ArrowRight />
               </Button>
             )}
 

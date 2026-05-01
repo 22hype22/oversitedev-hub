@@ -67,18 +67,21 @@ export type Database = {
       }
       app_settings: {
         Row: {
+          bot_sales_mode: string
           id: number
           marketing_suspended: boolean
           updated_at: string
           updated_by: string | null
         }
         Insert: {
+          bot_sales_mode?: string
           id?: number
           marketing_suspended?: boolean
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
+          bot_sales_mode?: string
           id?: number
           marketing_suspended?: boolean
           updated_at?: string
