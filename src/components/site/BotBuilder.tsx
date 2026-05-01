@@ -310,7 +310,9 @@ export const BotBuilder = () => {
   const [submitting, setSubmitting] = useState(false);
   const [paymentPlan, setPaymentPlan] = useState<"full" | "3" | "6" | "10">("full");
   const [engineVersion, setEngineVersion] = useState<"v1" | "v2">("v1");
-  const [monthlyHosting, setMonthlyHosting] = useState(false);
+  // Managed hosting is always included on every bot — pricing is tiered
+  // per bot the user already owns ($5 for bot 1, $5 for bot 2, 3rd is free).
+  const monthlyHosting = true;
   const [discountCodeInput, setDiscountCodeInput] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState<{
     code: string;
