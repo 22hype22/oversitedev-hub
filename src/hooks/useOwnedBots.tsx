@@ -28,9 +28,15 @@ export type OwnedBot = {
   ownerUserId?: string;
 };
 
-// Only bots that are paid and live show up in the dashboard. Drafts,
-// submitted-but-unpaid, cancelled, etc. are hidden until they go live.
-const ACCESS_STATUSES = new Set(["paid"]);
+// Bots that are paid and live show up in the dashboard. Drafts,
+// submitted-but-unpaid, cancelled, etc. are hidden. `ready` means the
+// worker finished building & deployed the bot — those should show too.
+const ACCESS_STATUSES = new Set(["paid", "ready"]);
+
+// Statuses that count as a real purchase (entitlement-bearing). Used to
+// decide whether the user has unlocked account-wide perks like the Web
+// Dashboard add-on, even if the underlying bot order was later cancelled.
+const ENTITLEMENT_STATUSES = new Set(["paid", "ready", "submitted", "cancelled"]);
 
 function mapRow(row: any, viaSupport = false): OwnedBot {
   return {
