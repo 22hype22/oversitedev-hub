@@ -424,7 +424,7 @@ export const BotOrdersLog = () => {
                         {formatMoney(r.total_amount, r.currency)}
                       </td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">
-                        {r.monthly_hosting ? "$20/mo" : "Self-hosted"}
+                        {r.monthly_hosting ? "$5/mo" : "Self-hosted"}
                       </td>
                       <td className="px-3 py-2">
                         <Badge variant="outline" className={meta.className}>

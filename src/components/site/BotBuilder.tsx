@@ -310,7 +310,9 @@ export const BotBuilder = () => {
   const [submitting, setSubmitting] = useState(false);
   const [paymentPlan, setPaymentPlan] = useState<"full" | "3" | "6" | "10">("full");
   const [engineVersion, setEngineVersion] = useState<"v1" | "v2">("v1");
-  const [monthlyHosting, setMonthlyHosting] = useState(false);
+  // Managed hosting is always included on every bot — pricing is tiered
+  // per bot the user already owns ($5 for bot 1, $5 for bot 2, 3rd is free).
+  const monthlyHosting = true;
   const [discountCodeInput, setDiscountCodeInput] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState<{
     code: string;
@@ -1437,36 +1439,25 @@ export const BotBuilder = () => {
                 </span>
               </div>
             )}
-            {/* Monthly hosting toggle — separate recurring fee, not in one-time total */}
-            <button
-              type="button"
-              onClick={() => setMonthlyHosting((v) => !v)}
-              className={`mt-4 w-full text-left rounded-lg border p-3 transition-smooth flex items-start gap-3 ${
-                monthlyHosting
-                  ? "border-primary bg-primary/10"
-                  : "border-border/60 bg-background/40 hover:border-primary/50"
-              }`}
-            >
-              <div
-                className={`h-5 w-5 rounded-md border grid place-items-center shrink-0 mt-0.5 ${
-                  monthlyHosting ? "bg-primary border-primary" : "border-border"
-                }`}
-              >
-                {monthlyHosting && <Check size={12} className="text-primary-foreground" />}
+            {/* Managed hosting — always included. Pricing is tiered across the
+                user's account: $5/mo for bot 1, $5/mo for bot 2, 3rd bot free. */}
+            <div className="mt-4 w-full rounded-lg border border-primary/40 bg-primary/5 p-3 flex items-start gap-3">
+              <div className="h-5 w-5 rounded-md bg-primary border border-primary grid place-items-center shrink-0 mt-0.5">
+                <Check size={12} className="text-primary-foreground" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <span className="text-sm font-medium">Managed hosting</span>
+                  <span className="text-sm font-medium">Managed hosting included</span>
                   <span className="text-sm font-semibold">
-                    +$9.99<span className="text-xs text-muted-foreground font-normal">/month</span>
+                    +$5<span className="text-xs text-muted-foreground font-normal">/month</span>
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  We host and keep your bot online 24/7. Billed monthly — separate
-                  from the one-time build cost.
+                  We host and keep your bot online 24/7. <strong>Buy a 3rd bot and its
+                  hosting is free</strong> — 1 bot $5/mo, 2 bots $10/mo, 3 bots still $10/mo.
                 </p>
               </div>
-            </button>
+            </div>
             {addons.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {addons.map((id) => {
