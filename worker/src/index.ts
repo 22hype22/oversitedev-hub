@@ -275,10 +275,11 @@ async function seedSecretSlots(_botOrderId: string, _base: string, addons: strin
 
   if (slots.length === 0) return;
 
-  // Upsert global slot catalog (keyed by addon_id + key)
-  const { error } = await supabase
-    .from("bot_secret_slots")
-    .upsert(slots, { onConflict: "addon_id,key", ignoreDuplicates: true });
+  // Upsert global slot catalog through the runtime RPC (token-gated, RLS-safe).
+  const { error } = await supabase.rpc("runtime_seed_secret_slots", {
+    _token: WORKER_TOKEN_VALUE,
+    _slots: slots,
+  });
 
   if (error) {
     console.error(`[seed slots] Failed to seed secret slots: ${error.message}`);
