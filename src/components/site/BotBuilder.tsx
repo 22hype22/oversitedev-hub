@@ -1658,6 +1658,16 @@ export const BotBuilder = () => {
           )}
         </div>
       )}
+      <CheckoutDialog
+        open={checkoutOpen}
+        onOpenChange={(o) => {
+          setCheckoutOpen(o);
+          // If the user closes the dialog without paying, just leave the
+          // bot_order in 'pending_payment'. They can retry by re-submitting.
+        }}
+        items={checkoutItems}
+        customerEmail={user?.email ?? undefined}
+      />
     </section>
   );
 };
