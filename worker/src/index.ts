@@ -164,10 +164,13 @@ async function processBuildJob(job: BuildJob) {
     console.log(`[build:${id}] Token claimed — bot: ${tokenResult.bot_username}, client: ${tokenResult.client_id}`);
 
     // 3. Seed bot_secret_slots so the dashboard knows what secrets to ask for
-    await seedSecretSlots(order_id, selections.base, selections.addons ?? []);
+    //    (runtime addons only — website-only addons don't need bot secrets)
+    await seedSecretSlots(order_id, selections.base, runtimeAddons);
 
     // 4. Finalize through the runtime RPC so bot_orders.status flips to ready.
-    const buildLog = `Build complete. Base: ${selections.base}. Addons: ${(selections.addons ?? []).join(", ") || "none"}. Missing: ${missingAddons.join(", ") || "none"}.`;
+    //    We persist the full addons list (including website-only ones like
+    //    "dashboard") so the dashboard's ownership detection still works.
+    const buildLog = `Build complete. Base: ${selections.base}. Runtime addons: ${runtimeAddons.join(", ") || "none"}. Website-only: ${skippedWebsiteAddons.join(", ") || "none"}. Unknown (ignored): ${missingAddons.join(", ") || "none"}.`;
     const { data: finalizeData, error: finalizeError } = await supabase.rpc("runtime_finalize_build", {
       _token: WORKER_TOKEN_VALUE,
       _job_id: id,
