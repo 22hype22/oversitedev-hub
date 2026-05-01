@@ -72,6 +72,7 @@ export function useOwnedBots() {
   const { user } = useAuth();
   const [bots, setBots] = useState<OwnedBot[]>([]);
   const [supportBots, setSupportBots] = useState<OwnedBot[]>([]);
+  const [ownsDashboardAddon, setOwnsDashboardAddon] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
