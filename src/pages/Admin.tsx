@@ -23,6 +23,7 @@ import {
 
 import { ProductManager } from "@/components/admin/ProductManager";
 import { MarketingKillSwitch, useMarketingShutdown } from "@/components/admin/MarketingKillSwitch";
+import { BotSalesModeSwitch } from "@/components/admin/BotSalesModeSwitch";
 import { ResetPurchases } from "@/components/admin/ResetPurchases";
 import { AdminManager } from "@/components/admin/AdminManager";
 import { CategoryManager } from "@/components/admin/CategoryManager";
