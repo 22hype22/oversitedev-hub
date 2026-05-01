@@ -90,12 +90,12 @@ export function BotServerSlotsCard({ botId }: Props) {
         <div className="rounded-md border bg-muted/30 p-3 text-sm">
           <p className="font-medium">Need more servers?</p>
           <p className="text-muted-foreground">
-            Each extra slot is <strong>$5/month</strong>. Cancel anytime — your bot will leave any
+            Each extra slot is <strong>$4.99/month</strong>. Cancel anytime — your bot will leave any
             servers over the limit on the next renewal.
           </p>
           <Button onClick={onBuy} className="mt-3 w-full" size="sm">
             <Plus className="mr-1 h-4 w-4" />
-            Buy 1 extra slot ($5/mo)
+            Buy 1 extra slot ($4.99/mo)
           </Button>
         </div>
       </CardContent>

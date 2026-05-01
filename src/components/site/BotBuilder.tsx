@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOwnedBots } from "@/hooks/useOwnedBots";
 import { useBotSalesMode } from "@/hooks/useBotSalesMode";
+import { useAddonOverrides, setAddonIncluded } from "@/hooks/useAddonOverrides";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import {
   Shield,
@@ -171,7 +172,7 @@ const BASES: Base[] = [
 const SHARED_ADDONS: Addon[] = [
   { id: "branding", name: "Custom Branding", desc: "Match your server's identity end-to-end.", icon: Palette, price: 25 },
   { id: "dashboard", name: "Web Dashboard", desc: "Hosted control panel for everything.", icon: Globe, price: 149.99, oldPrice: 300 },
-  { id: "multi-server", name: "Multi-Server License", desc: "Use your bot across multiple Discord servers.", icon: Globe2, price: 9.99 },
+  { id: "multi-server", name: "Multi-Server License", desc: "Unlimited Discord servers — no per-slot fees.", icon: Globe2, price: 19.99 },
 ];
 
 const ADDONS_BY_BASE: Record<string, Addon[]> = {
@@ -268,9 +269,10 @@ const PACK_TABS: { id: string; label: string; icon: typeof Shield }[] = [
 ];
 
 export const BotBuilder = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { hasDashboardAccess: dashboardAlreadyOwned } = useOwnedBots();
   const { isLive: salesLive } = useBotSalesMode();
+  const { isIncluded: addonIsIncluded } = useAddonOverrides();
   // Multi-select bases. Rules:
   //  • All-in-One Pack ("scratch") is exclusive — selecting it clears others.
   //  • Otherwise the user can select up to 2 single bots (Protection / Support / Utilities).
@@ -298,6 +300,7 @@ export const BotBuilder = () => {
   const [submitting, setSubmitting] = useState(false);
   const [paymentPlan, setPaymentPlan] = useState<"full" | "3" | "6" | "10">("full");
   const [engineVersion, setEngineVersion] = useState<"v1" | "v2">("v1");
+  const [monthlyHosting, setMonthlyHosting] = useState(false);
   const [discountCodeInput, setDiscountCodeInput] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState<{
     code: string;
@@ -435,17 +438,29 @@ export const BotBuilder = () => {
     // Pack is its own flat price. For singles: first bot full price,
     // each additional single bot is a discounted $50 add-on.
     const SECOND_BOT_PRICE = 50;
+    let baseCost = 0;
     if (bases.includes("scratch")) {
-      return BASES.find((b) => b.id === "scratch")?.price ?? 0;
+      baseCost = BASES.find((b) => b.id === "scratch")?.price ?? 0;
+    } else {
+      baseCost = bases.reduce((sum, id, idx) => {
+        const b = BASES.find((x) => x.id === id);
+        if (!b) return sum;
+        return sum + (idx === 0 ? b.price : SECOND_BOT_PRICE);
+      }, 0);
     }
-    const baseCost = bases.reduce((sum, id, idx) => {
-      const b = BASES.find((x) => x.id === id);
-      if (!b) return sum;
-      return sum + (idx === 0 ? b.price : SECOND_BOT_PRICE);
+    // Add-ons default to INCLUDED (free). Admins can flip individual ones to
+    // NOT INCLUDED — those then add their listed price to the total when
+    // the customer selects them.
+    const addonLookup = new Map<string, Addon>();
+    for (const list of Object.values(ADDONS_BY_BASE)) for (const a of list) addonLookup.set(a.id, a);
+    for (const a of SHARED_ADDONS) addonLookup.set(a.id, a);
+    const addonCost = addons.reduce((sum, id) => {
+      if (addonIsIncluded(id)) return sum;
+      const a = addonLookup.get(id);
+      return sum + (a?.price ?? 0);
     }, 0);
-    // Add-ons are now included free — they no longer add to the total.
-    return baseCost;
-  }, [bases, addons, currentAddons, dashboardAlreadyOwned]);
+    return baseCost + addonCost;
+  }, [bases, addons, addonIsIncluded]);
 
   const discountAmount = useMemo(() => {
     if (!appliedDiscount) return 0;
@@ -536,7 +551,7 @@ export const BotBuilder = () => {
         banner_url: primary.banner,
         base: baseField,
         addons,
-        monthly_hosting: false,
+        monthly_hosting: monthlyHosting,
         notes: notesField,
         total_amount: finalTotal,
         currency: "usd",
@@ -964,6 +979,10 @@ export const BotBuilder = () => {
           {/* Step 3 — Add-ons (depend on base) */}
           <div className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur p-6">
             {(() => {
+              // Select all should NOT auto-pick the manual-only extras
+              // (Custom Branding, Web Dashboard, Multi-Server License) —
+              // those have a per-bot/account cost and need explicit opt-in.
+              const SELECT_ALL_EXCLUDE = new Set(["branding", "dashboard", "multi-server"]);
               const allAvailableIds = (
                 isPack
                   ? [
@@ -976,7 +995,9 @@ export const BotBuilder = () => {
                       ...bases.flatMap((b) => ADDONS_BY_BASE[b] ?? []),
                       ...SHARED_ADDONS,
                     ]
-              ).map((a) => a.id);
+              )
+                .map((a) => a.id)
+                .filter((id) => !SELECT_ALL_EXCLUDE.has(id));
               const allSelected =
                 allAvailableIds.length > 0 &&
                 allAvailableIds.every((id) => addons.includes(id));
@@ -1012,6 +1033,23 @@ export const BotBuilder = () => {
               const renderAddonCard = (a: Addon) => {
                 const Icon = a.icon;
                 const active = addons.includes(a.id);
+                const included = addonIsIncluded(a.id);
+                const toggleIncluded = async (e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  const { error } = await setAddonIncluded(a.id, !included, user?.id);
+                  if (error) {
+                    sonnerToast.error("Couldn't update — admin only", {
+                      description: error.message,
+                    });
+                    return;
+                  }
+                  sonnerToast.success(
+                    !included
+                      ? `"${a.name}" marked as INCLUDED`
+                      : `"${a.name}" marked as NOT INCLUDED`,
+                  );
+                };
                 return (
                   <button
                     key={a.id}
@@ -1027,12 +1065,35 @@ export const BotBuilder = () => {
                       <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0">
                         <Icon size={14} className={active ? "text-primary" : "text-muted-foreground"} />
                       </div>
-                      <div
-                        className={`h-5 w-5 rounded-md border grid place-items-center transition-smooth ${
-                          active ? "bg-primary border-primary" : "border-border"
-                        }`}
-                      >
-                        {active && <Check size={12} className="text-primary-foreground" />}
+                      <div className="flex items-center gap-2">
+                        {isAdmin && (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={toggleIncluded}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                toggleIncluded(e as unknown as React.MouseEvent);
+                              }
+                            }}
+                            title={
+                              included
+                                ? "Admin: mark as NOT INCLUDED"
+                                : "Admin: mark as INCLUDED"
+                            }
+                            className="h-5 w-5 rounded-md border border-border/70 bg-background/70 grid place-items-center text-muted-foreground hover:text-foreground hover:border-primary/60 transition-smooth"
+                          >
+                            <Settings2 size={12} />
+                          </span>
+                        )}
+                        <div
+                          className={`h-5 w-5 rounded-md border grid place-items-center transition-smooth ${
+                            active ? "bg-primary border-primary" : "border-border"
+                          }`}
+                        >
+                          {active && <Check size={12} className="text-primary-foreground" />}
+                        </div>
                       </div>
                     </div>
                     <div className="mt-3 font-medium text-sm">{a.name}</div>
@@ -1040,11 +1101,17 @@ export const BotBuilder = () => {
                       {a.desc}
                     </p>
                     <div className="mt-2 text-xs text-foreground/80 flex items-center gap-2 flex-wrap">
-                      <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">
-                        INCLUDED
-                      </span>
+                      {included ? (
+                        <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">
+                          INCLUDED
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px] font-semibold">
+                          NOT INCLUDED
+                        </span>
+                      )}
                       {a.price > 0 && (
-                        <span className="line-through text-muted-foreground/70">
+                        <span className={included ? "line-through text-muted-foreground/70" : "text-foreground font-semibold"}>
                           ${a.price.toFixed(2)}
                         </span>
                       )}
@@ -1312,6 +1379,36 @@ export const BotBuilder = () => {
                 </span>
               </div>
             )}
+            {/* Monthly hosting toggle — separate recurring fee, not in one-time total */}
+            <button
+              type="button"
+              onClick={() => setMonthlyHosting((v) => !v)}
+              className={`mt-4 w-full text-left rounded-lg border p-3 transition-smooth flex items-start gap-3 ${
+                monthlyHosting
+                  ? "border-primary bg-primary/10"
+                  : "border-border/60 bg-background/40 hover:border-primary/50"
+              }`}
+            >
+              <div
+                className={`h-5 w-5 rounded-md border grid place-items-center shrink-0 mt-0.5 ${
+                  monthlyHosting ? "bg-primary border-primary" : "border-border"
+                }`}
+              >
+                {monthlyHosting && <Check size={12} className="text-primary-foreground" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-sm font-medium">Managed hosting</span>
+                  <span className="text-sm font-semibold">
+                    +$9.99<span className="text-xs text-muted-foreground font-normal">/month</span>
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  We host and keep your bot online 24/7. Billed monthly — separate
+                  from the one-time build cost.
+                </p>
+              </div>
+            </button>
             {addons.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {addons.map((id) => {

@@ -42,6 +42,7 @@ import { BotLogsPanel } from "@/components/dashboard/BotLogsPanel";
 import { BotControlsPanel } from "@/components/dashboard/BotControlsPanel";
 import { BotUsageMetricsPanel } from "@/components/dashboard/BotUsageMetricsPanel";
 import { BotServerSlotsCard } from "@/components/dashboard/BotServerSlotsCard";
+import { BotInviteLinkCard } from "@/components/dashboard/BotInviteLinkCard";
 import { SupportAccessManager } from "@/components/dashboard/SupportAccessManager";
 import { BotHealthBadge } from "@/components/dashboard/BotHealthBadge";
 import { useBotFreePeriods, type BotFreePeriod } from "@/hooks/useBotFreePeriods";
@@ -720,6 +721,8 @@ const BotSection = ({
       )}
 
       {!bot.isDemo && <BotControlsPanel botId={bot.id} />}
+
+      {!bot.isDemo && <BotInviteLinkCard botId={bot.id} status={bot.status} />}
 
       {!bot.isDemo && <BotServerSlotsCard botId={bot.id} />}
 
