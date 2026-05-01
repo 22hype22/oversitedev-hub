@@ -39,7 +39,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   "staff-notes": "Staff Notes on Users",
   "moderation-history": "Moderation History",
   "auto-slowmode": "Auto Slowmode on Spam",
-  "temp-bans": "Temporary Bans (Auto-Unban)",
+  "temp-ban": "Temporary Bans (Auto-Unban)",
 
   // Support — included base features
   messages: "Messages",
@@ -95,7 +95,7 @@ export const BOT_ADDON_PRICES: Record<string, number> = {
   "staff-notes": 1.99,
   "moderation-history": 1.99,
   "auto-slowmode": 1.99,
-  "temp-bans": 1.99,
+  "temp-ban": 1.99,
 
   // Support
   "staff-performance": 1.99,
@@ -141,7 +141,7 @@ const ADDON_IDS_BY_BASE: Record<string, string[]> = {
     "staff-notes",
     "moderation-history",
     "auto-slowmode",
-    "temp-bans",
+    "temp-ban",
   ],
   support: [
     "staff-performance",

@@ -101,7 +101,7 @@ const PROTECTION_ADDON_IDS = [
   "channel-lockdown",
   "staff-notes",
   "auto-slowmode",
-  "temp-bans",
+  "temp-ban",
   "messages",
 ];
 const SUPPORT_ADDON_IDS = [

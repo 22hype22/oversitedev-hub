@@ -540,7 +540,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
-  "temp-bans": {
+  "temp-ban": {
     title: "Temporary Bans (Auto-Unban)",
     summary: "Bans that automatically expire.",
     icon: Clock,

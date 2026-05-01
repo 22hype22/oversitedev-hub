@@ -1,0 +1,1 @@
+UPDATE public.bot_orders SET addons = array_replace(addons, 'temp-bans', 'temp-ban'), updated_at = now() WHERE 'temp-bans' = ANY(addons);

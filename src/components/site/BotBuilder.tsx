@@ -188,7 +188,7 @@ const ADDONS_BY_BASE: Record<string, Addon[]> = {
     { id: "staff-notes", name: "Staff Notes on Users", desc: "Private notes staff can attach to any member.", icon: ClipboardList, price: 1.99 },
     { id: "moderation-history", name: "Moderation History", desc: "Full mod-log history per user.", icon: BookOpen, price: 1.99 },
     { id: "auto-slowmode", name: "Auto Slowmode on Spam", desc: "Triggers slowmode when spam is detected.", icon: Timer, price: 1.99 },
-    { id: "temp-bans", name: "Temporary Bans (Auto-Unban)", desc: "Time-limited bans that lift themselves.", icon: AlarmClock, price: 1.99 },
+    { id: "temp-ban", name: "Temporary Bans (Auto-Unban)", desc: "Time-limited bans that lift themselves.", icon: AlarmClock, price: 1.99 },
   ],
   support: [
     { id: "staff-performance", name: "Staff Performance Tracking", desc: "Track tickets handled, response times, and more.", icon: BarChart2, price: 1.99 },
