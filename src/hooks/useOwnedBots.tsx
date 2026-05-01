@@ -79,6 +79,7 @@ export function useOwnedBots() {
     if (!user) {
       setBots([]);
       setSupportBots([]);
+      setOwnsDashboardAddon(false);
       setLoading(false);
       return;
     }
