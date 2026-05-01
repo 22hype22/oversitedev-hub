@@ -28,7 +28,7 @@ type Cmd = {
 
 type BuildJob = {
   id: string;
-  bot_order_id: string;
+  order_id: string;
   status: string;
   selections: {
     bot_name: string;
@@ -101,40 +101,24 @@ async function processCommand(cmd: Cmd) {
 // ============================================================
 
 async function claimNextBuildJob(): Promise<BuildJob | null> {
-  const { data, error } = await supabase
-    .from("bot_build_jobs")
-    .select("id, bot_order_id, status, selections")
-    .eq("status", "pending")
-    .lt("attempts", 3)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("runtime_claim_build_job", {
+    _token: WORKER_TOKEN_VALUE,
+    _worker_id: WORKER_ID,
+  });
 
   if (error) {
     console.error("build job claim error:", error.message);
     return null;
   }
-  if (!data) return null;
 
-  // Claim it
-  const { error: claimError } = await supabase
-    .from("bot_build_jobs")
-    .update({
-      status: "building",
-      worker_id: WORKER_ID,
-      claimed_at: new Date().toISOString(),
-      attempts: supabase.rpc("coalesce_increment", { row_id: data.id }) as any,
-    })
-    .eq("id", data.id)
-    .eq("status", "pending");
-
-  if (claimError) return null;
-  return data as BuildJob;
+  const result = data as { ok: boolean; job?: BuildJob; error?: string };
+  if (!result?.ok || !result.job) return null;
+  return result.job;
 }
 
 async function processBuildJob(job: BuildJob) {
-  const { id, bot_order_id, selections } = job;
-  console.log(`[build:${id}] Starting build for order ${bot_order_id}`);
+  const { id, order_id, selections } = job;
+  console.log(`[build:${id}] Starting build for order ${order_id}`);
 
   try {
     // 1. Validate that all requested addons exist
@@ -158,7 +142,7 @@ async function processBuildJob(job: BuildJob) {
     // 2. Claim a Discord bot token from the pool
     const { data: tokenData, error: tokenError } = await supabase.rpc(
       "claim_bot_token_from_pool",
-      { _bot_order_id: bot_order_id }
+      { _order_id: order_id }
     );
     if (tokenError) throw new Error(`Token claim failed: ${tokenError.message}`);
     const tokenResult = tokenData as { ok: boolean; error?: string; client_id?: string; bot_username?: string };
@@ -177,12 +161,12 @@ async function processBuildJob(job: BuildJob) {
         bot_description: selections.bot_description ?? null,
         status: "ready",
       })
-      .eq("id", bot_order_id);
+      .eq("id", order_id);
 
     if (orderError) throw new Error(`Failed to update bot_orders: ${orderError.message}`);
 
     // 4. Seed bot_secret_slots so the dashboard knows what secrets to ask for
-    await seedSecretSlots(bot_order_id, selections.base, selections.addons ?? []);
+    await seedSecretSlots(order_id, selections.base, selections.addons ?? []);
 
     // 5. Mark build as ready
     const { error: buildError } = await supabase
@@ -198,13 +182,13 @@ async function processBuildJob(job: BuildJob) {
     // 6. Enqueue a bot_notification for the customer
     await supabase.rpc("runtime_enqueue_notification", {
       _token: WORKER_TOKEN_VALUE,
-      _bot_id: bot_order_id,
+      _bot_id: order_id,
       _event_type: "command_finished",
       _title: "Your bot is ready!",
       _body: `${selections.bot_name} has been built and is ready to configure. Add your Discord bot token to get started.`,
     });
 
-    console.log(`[build:${id}] Build complete for order ${bot_order_id}`);
+    console.log(`[build:${id}] Build complete for order ${order_id}`);
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -221,7 +205,7 @@ async function processBuildJob(job: BuildJob) {
     await supabase.rpc("runtime_fail_build", {
       _token: WORKER_TOKEN_VALUE,
       _job_id: id,
-      _bot_order_id: bot_order_id,
+      _order_id: order_id,
       _error_message: msg,
     });
   }
