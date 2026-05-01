@@ -438,17 +438,29 @@ export const BotBuilder = () => {
     // Pack is its own flat price. For singles: first bot full price,
     // each additional single bot is a discounted $50 add-on.
     const SECOND_BOT_PRICE = 50;
+    let baseCost = 0;
     if (bases.includes("scratch")) {
-      return BASES.find((b) => b.id === "scratch")?.price ?? 0;
+      baseCost = BASES.find((b) => b.id === "scratch")?.price ?? 0;
+    } else {
+      baseCost = bases.reduce((sum, id, idx) => {
+        const b = BASES.find((x) => x.id === id);
+        if (!b) return sum;
+        return sum + (idx === 0 ? b.price : SECOND_BOT_PRICE);
+      }, 0);
     }
-    const baseCost = bases.reduce((sum, id, idx) => {
-      const b = BASES.find((x) => x.id === id);
-      if (!b) return sum;
-      return sum + (idx === 0 ? b.price : SECOND_BOT_PRICE);
+    // Add-ons default to INCLUDED (free). Admins can flip individual ones to
+    // NOT INCLUDED — those then add their listed price to the total when
+    // the customer selects them.
+    const addonLookup = new Map<string, Addon>();
+    for (const list of Object.values(ADDONS_BY_BASE)) for (const a of list) addonLookup.set(a.id, a);
+    for (const a of SHARED_ADDONS) addonLookup.set(a.id, a);
+    const addonCost = addons.reduce((sum, id) => {
+      if (addonIsIncluded(id)) return sum;
+      const a = addonLookup.get(id);
+      return sum + (a?.price ?? 0);
     }, 0);
-    // Add-ons are now included free — they no longer add to the total.
-    return baseCost;
-  }, [bases, addons, currentAddons, dashboardAlreadyOwned]);
+    return baseCost + addonCost;
+  }, [bases, addons, addonIsIncluded]);
 
   const discountAmount = useMemo(() => {
     if (!appliedDiscount) return 0;
