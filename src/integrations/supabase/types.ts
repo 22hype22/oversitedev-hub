@@ -2218,16 +2218,29 @@ export type Database = {
         Args: { _bot_id: string; _key: string; _value: string }
         Returns: Json
       }
-      update_bot_token_pool_entry: {
-        Args: {
-          _assigned_bot_id?: string
-          _bot_username?: string
-          _id: string
-          _notes?: string
-          _status?: string
-        }
-        Returns: Json
-      }
+      update_bot_token_pool_entry:
+        | {
+            Args: {
+              _assigned_bot_id?: string
+              _bot_username?: string
+              _id: string
+              _notes?: string
+              _status?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _assigned_bot_id?: string
+              _bot_username?: string
+              _client_id?: string
+              _id: string
+              _notes?: string
+              _status?: string
+              _token?: string
+            }
+            Returns: Json
+          }
     }
     Enums: {
       app_role: "admin" | "user"
