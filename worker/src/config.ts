@@ -1,4 +1,4 @@
-import { supabase } from "./supabase.js";
+import { supabase, WORKER_TOKEN_VALUE } from "./supabase.js";
 
 export interface BotConfig {
   id: string;
@@ -12,14 +12,18 @@ export interface BotConfig {
 }
 
 export async function loadBotConfig(botId: string): Promise<BotConfig | null> {
-  const { data, error } = await supabase
-    .from("bot_orders")
-    .select("id, user_id, bot_name, base, addons, monthly_hosting, status, notes")
-    .eq("id", botId)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("runtime_load_bot_config", {
+    _token: WORKER_TOKEN_VALUE,
+    _bot_id: botId,
+  });
   if (error) {
     console.error(`[${botId}] loadBotConfig failed:`, error.message);
     return null;
   }
-  return (data as BotConfig) ?? null;
+  const result = data as { ok: boolean; config?: BotConfig; error?: string };
+  if (!result?.ok) {
+    if (result?.error) console.error(`[${botId}] loadBotConfig refused:`, result.error);
+    return null;
+  }
+  return result.config ?? null;
 }
