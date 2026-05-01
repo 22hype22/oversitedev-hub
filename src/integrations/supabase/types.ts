@@ -1914,10 +1914,7 @@ export type Database = {
         Args: { _bot_id: string; _extra_slots: number }
         Returns: Json
       }
-      claim_bot_token_from_pool: {
-        Args: { _bot_order_id: string }
-        Returns: Json
-      }
+      claim_bot_token_from_pool: { Args: { _order_id: string }; Returns: Json }
       cleanup_old_bot_logs: { Args: never; Returns: number }
       cleanup_old_notifications: { Args: never; Returns: number }
       cleanup_old_usage_metrics: { Args: never; Returns: number }
