@@ -967,6 +967,10 @@ export const BotBuilder = () => {
           {/* Step 3 — Add-ons (depend on base) */}
           <div className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur p-6">
             {(() => {
+              // Select all should NOT auto-pick the manual-only extras
+              // (Custom Branding, Web Dashboard, Multi-Server License) —
+              // those have a per-bot/account cost and need explicit opt-in.
+              const SELECT_ALL_EXCLUDE = new Set(["branding", "dashboard", "multi-server"]);
               const allAvailableIds = (
                 isPack
                   ? [
@@ -979,7 +983,9 @@ export const BotBuilder = () => {
                       ...bases.flatMap((b) => ADDONS_BY_BASE[b] ?? []),
                       ...SHARED_ADDONS,
                     ]
-              ).map((a) => a.id);
+              )
+                .map((a) => a.id)
+                .filter((id) => !SELECT_ALL_EXCLUDE.has(id));
               const allSelected =
                 allAvailableIds.length > 0 &&
                 allAvailableIds.every((id) => addons.includes(id));
