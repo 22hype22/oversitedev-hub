@@ -8,6 +8,7 @@ import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOwnedBots } from "@/hooks/useOwnedBots";
+import { useBotSalesMode } from "@/hooks/useBotSalesMode";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import {
   Shield,
