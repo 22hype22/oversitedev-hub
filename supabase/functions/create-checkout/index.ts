@@ -130,6 +130,10 @@ serve(async (req) => {
       .map((i) => i.productId)
       .filter((p): p is string => !!p);
 
+    // Bot order checkouts stamp bot_order_id in metadata so the
+    // payments-webhook can flip bot_orders.status -> 'paid' on completion.
+    const botOrderId = items.find((i) => i.botOrderId)?.botOrderId ?? null;
+
     const session = await stripe.checkout.sessions.create({
       line_items: lineItems,
       mode: hasRecurring ? "subscription" : "payment",
@@ -141,6 +145,7 @@ serve(async (req) => {
       metadata: {
         product_ids: productIds.join(","),
         environment: env,
+        ...(botOrderId && { bot_order_id: botOrderId }),
       },
     });
 
