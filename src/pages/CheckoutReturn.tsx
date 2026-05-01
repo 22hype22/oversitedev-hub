@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Download, Loader2, UserPlus } from "lucide-react";
+import { CheckCircle2, Download, Loader2, UserPlus, Bot } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +22,7 @@ export default function CheckoutReturn() {
   const [loading, setLoading] = useState(true);
   const [files, setFiles] = useState<PurchasedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isBotOrder, setIsBotOrder] = useState(false);
   const { isMember } = useMembership();
 
   useEffect(() => {
@@ -40,6 +41,21 @@ export default function CheckoutReturn() {
         if (error) throw new Error(error.message);
         if (data?.error) throw new Error(data.error);
         setFiles(data?.files || []);
+
+        // Check if any bot orders were just paid
+        if (user) {
+          const { data: orders } = await (supabase as any)
+            .from("bot_orders")
+            .select("id, status")
+            .eq("user_id", user.id)
+            .in("status", ["paid", "ready", "building"])
+            .order("created_at", { ascending: false })
+            .limit(1);
+
+          if (orders && orders.length > 0) {
+            setIsBotOrder(true);
+          }
+        }
       } catch (e) {
         setError((e as Error).message);
       } finally {
@@ -47,7 +63,7 @@ export default function CheckoutReturn() {
       }
     };
     load();
-  }, [sessionId]);
+  }, [sessionId, user]);
 
   const downloadable = files.filter((f) => f.url);
 
@@ -62,7 +78,27 @@ export default function CheckoutReturn() {
             : "No session information found."}
         </p>
 
-        {sessionId && (
+        {/* Bot order confirmation */}
+        {isBotOrder && (
+          <div className="mb-6 rounded-lg border border-primary/30 bg-primary/5 p-5 text-left">
+            <div className="flex items-start gap-3">
+              <Bot className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold">Your bot is being built!</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  We're assembling your custom Discord bot now. You'll receive a notification
+                  when it's ready to configure. This usually takes less than a minute.
+                </p>
+                <Button asChild size="sm" variant="hero" className="mt-3">
+                  <Link to="/bot-dashboard">Go to Bot Dashboard</Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* File downloads (Roblox products) */}
+        {sessionId && !isBotOrder && (
           <div className="mb-6 text-left">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
               Your downloads
@@ -90,9 +126,7 @@ export default function CheckoutReturn() {
                       <div className="flex items-center gap-3 min-w-0">
                         <Download className="h-4 w-4 shrink-0 text-primary" />
                         <div className="min-w-0">
-                          <div className="font-medium truncate">
-                            {f.productName}
-                          </div>
+                          <div className="font-medium truncate">{f.productName}</div>
                           {f.fileName && (
                             <div className="text-xs text-muted-foreground truncate">
                               {f.fileName}
@@ -100,9 +134,7 @@ export default function CheckoutReturn() {
                           )}
                         </div>
                       </div>
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        Download
-                      </span>
+                      <span className="text-xs text-muted-foreground shrink-0">Download</span>
                     </a>
                   </li>
                 ))}
@@ -116,12 +148,9 @@ export default function CheckoutReturn() {
             <div className="flex items-start gap-3">
               <UserPlus className="h-5 w-5 text-primary shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium">
-                  Save these to your account
-                </p>
+                <p className="text-sm font-medium">Save these to your account</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Sign up with the same email you used at checkout to access
-                  your purchases anytime.
+                  Sign up with the same email you used at checkout to access your purchases anytime.
                 </p>
                 <Button asChild size="sm" variant="hero" className="mt-3">
                   <Link to="/auth">Create an account</Link>
@@ -131,15 +160,12 @@ export default function CheckoutReturn() {
           </div>
         )}
 
-        {!isMember && downloadable.length > 0 && (
-          <UpgradeNotice className="mb-6" />
-        )}
+        {!isMember && downloadable.length > 0 && <UpgradeNotice className="mb-6" />}
 
         {sessionId && (
-          <p className="text-xs text-muted-foreground mb-6 break-all">
-            Ref: {sessionId}
-          </p>
+          <p className="text-xs text-muted-foreground mb-6 break-all">Ref: {sessionId}</p>
         )}
+
         <div className="flex gap-3 justify-center">
           <Button asChild variant="outlineGlow">
             <Link to="/">Back home</Link>
