@@ -2025,14 +2025,29 @@ export type Database = {
         Returns: Json
       }
       revoke_worker_token: { Args: { _id: string }; Returns: Json }
-      runtime_append_bot_log: {
-        Args: {
-          _bot_id: string
-          _context?: Json
-          _level: string
-          _message: string
-        }
-        Returns: string
+      runtime_append_bot_log:
+        | {
+            Args: {
+              _bot_id: string
+              _context?: Json
+              _level: string
+              _message: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _bot_id: string
+              _context?: Json
+              _level: string
+              _message: string
+              _token: string
+            }
+            Returns: Json
+          }
+      runtime_claim_build_job: {
+        Args: { _token: string; _worker_id: string }
+        Returns: Json
       }
       runtime_claim_next_command: {
         Args: { _token: string; _worker_id?: string }
@@ -2047,46 +2062,130 @@ export type Database = {
         }
         Returns: Json
       }
-      runtime_get_bot_secret: {
-        Args: { _bot_id: string; _key: string }
-        Returns: string
-      }
-      runtime_record_bot_metrics: {
+      runtime_enqueue_notification: {
         Args: {
-          _active_servers?: number
+          _body: string
           _bot_id: string
-          _commands_delta?: number
-          _errors_delta?: number
-          _member_count?: number
-          _messages_delta?: number
+          _context?: Json
+          _event_type: string
+          _title: string
+          _token: string
         }
         Returns: Json
       }
+      runtime_fail_build: {
+        Args: {
+          _bot_order_id: string
+          _build_log: string
+          _job_id: string
+          _token: string
+        }
+        Returns: Json
+      }
+      runtime_finalize_build: {
+        Args: {
+          _addons: string[]
+          _banner_url: string
+          _base: string
+          _bot_description: string
+          _bot_name: string
+          _bot_order_id: string
+          _build_log: string
+          _icon_url: string
+          _job_id: string
+          _token: string
+        }
+        Returns: Json
+      }
+      runtime_get_bot_secret:
+        | { Args: { _bot_id: string; _key: string }; Returns: string }
+        | {
+            Args: { _bot_id: string; _key: string; _token: string }
+            Returns: Json
+          }
+      runtime_load_bot_config: {
+        Args: { _bot_id: string; _token: string }
+        Returns: Json
+      }
+      runtime_record_bot_metrics:
+        | {
+            Args: {
+              _active_servers?: number
+              _bot_id: string
+              _commands_delta?: number
+              _errors_delta?: number
+              _member_count?: number
+              _messages_delta?: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _active_servers?: number
+              _bot_id: string
+              _commands_delta?: number
+              _errors_delta?: number
+              _member_count?: number
+              _messages_delta?: number
+              _token: string
+            }
+            Returns: Json
+          }
       runtime_release_stale_commands: { Args: never; Returns: number }
-      runtime_remove_bot_guild: {
-        Args: { _bot_id: string; _guild_id: string }
+      runtime_remove_bot_guild:
+        | { Args: { _bot_id: string; _guild_id: string }; Returns: Json }
+        | {
+            Args: { _bot_id: string; _guild_id: string; _token: string }
+            Returns: Json
+          }
+      runtime_seed_secret_slots: {
+        Args: { _slots: Json; _token: string }
         Returns: Json
       }
-      runtime_set_bot_status: {
-        Args: {
-          _bot_id: string
-          _details?: Json
-          _last_error?: string
-          _status: string
-          _version?: string
-          _worker_id?: string
-        }
-        Returns: Json
-      }
-      runtime_upsert_bot_guild: {
-        Args: {
-          _bot_id: string
-          _guild_id: string
-          _guild_name?: string
-          _member_count?: number
-        }
-        Returns: Json
-      }
+      runtime_set_bot_status:
+        | {
+            Args: {
+              _bot_id: string
+              _details?: Json
+              _last_error?: string
+              _status: string
+              _version?: string
+              _worker_id?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _bot_id: string
+              _details?: Json
+              _last_error?: string
+              _status: string
+              _token: string
+              _version?: string
+              _worker_id?: string
+            }
+            Returns: Json
+          }
+      runtime_upsert_bot_guild:
+        | {
+            Args: {
+              _bot_id: string
+              _guild_id: string
+              _guild_name?: string
+              _member_count?: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _bot_id: string
+              _guild_id: string
+              _guild_name?: string
+              _member_count?: number
+              _token: string
+            }
+            Returns: Json
+          }
       set_bot_secret: {
         Args: { _bot_id: string; _key: string; _value: string }
         Returns: Json
