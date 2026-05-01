@@ -15,6 +15,9 @@ interface LineItemInput {
   purchaseType?: "initial" | "upgrade";
   parentPurchaseId?: string;
   upgradeToVersion?: string;
+  // For bot order checkouts — webhook flips bot_orders.status to 'paid'
+  // when the session completes.
+  botOrderId?: string;
 }
 
 const supabaseAdmin = createClient(
