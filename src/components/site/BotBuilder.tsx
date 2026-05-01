@@ -761,7 +761,7 @@ export const BotBuilder = () => {
                         </span>
                       ) : b.oldPrice && (
                         <span className="px-1.5 py-0.5 rounded-full bg-primary/15 border border-primary/30 text-primary text-[10px] font-semibold uppercase tracking-wide">
-                          Preorder sale
+                          {salesLive ? "Sale" : "Preorder sale"}
                         </span>
                       )}
                     </div>
