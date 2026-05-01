@@ -8,6 +8,7 @@ import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOwnedBots } from "@/hooks/useOwnedBots";
+import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import {
   Shield,
   LifeBuoy,
@@ -305,6 +306,8 @@ export const BotBuilder = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showSuccessText, setShowSuccessText] = useState(false);
   const [planeOrigin, setPlaneOrigin] = useState<{ x: number; y: number } | null>(null);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutItems, setCheckoutItems] = useState<CheckoutItem[]>([]);
 
   const iconInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
