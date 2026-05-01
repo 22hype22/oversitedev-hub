@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -288,6 +288,16 @@ export const BotBuilder = () => {
   const [activePackTab, setActivePackTab] = useState<string>("protection");
   const [tabDirection, setTabDirection] = useState<1 | -1>(1);
   const [addons, setAddons] = useState<string[]>([]);
+  // Track which addons the user has explicitly clicked (vs. auto-added by an
+  // admin flipping the addon to "INCLUDED"). When an admin flips an addon
+  // back to "NOT INCLUDED", we auto-deselect it ONLY if the user didn't
+  // manually pick it themselves.
+  const [userSelectedAddons, setUserSelectedAddons] = useState<Set<string>>(
+    () => new Set(),
+  );
+  // Snapshot of which addons were "included" on the previous render so we
+  // can detect transitions (included -> not, or not -> included) and react.
+  const prevIncludedRef = useRef<Record<string, boolean>>({});
   const [notes, setNotes] = useState("");
   const [showAllAddons, setShowAllAddons] = useState<Record<string, boolean>>({});
   const [showPayment, setShowPayment] = useState(false);
@@ -338,6 +348,43 @@ export const BotBuilder = () => {
     : visibleIdentityTabs[0]?.id ?? "protection";
 
   const currentAddons = useMemo(() => getAddonsForBases(bases), [bases]);
+
+  // React to admin "INCLUDED" toggles in real time:
+  //   - When an addon flips to INCLUDED → auto-select it (so the customer
+  //     gets the freebie without having to click).
+  //   - When an addon flips back to NOT INCLUDED → auto-deselect it, but
+  //     ONLY if the customer didn't manually pick it themselves.
+  useEffect(() => {
+    const ids = currentAddons.map((a) => a.id);
+    if (ids.length === 0) return;
+    const prev = prevIncludedRef.current;
+    const next: Record<string, boolean> = {};
+    let toAdd: string[] = [];
+    let toRemove: string[] = [];
+    for (const id of ids) {
+      const inc = addonIsIncluded(id);
+      next[id] = inc;
+      const wasInc = prev[id];
+      if (wasInc === undefined) continue; // first observation, skip
+      if (!wasInc && inc) toAdd.push(id);
+      else if (wasInc && !inc && !userSelectedAddons.has(id)) toRemove.push(id);
+    }
+    prevIncludedRef.current = next;
+    if (toAdd.length === 0 && toRemove.length === 0) return;
+    setAddons((curr) => {
+      let out = curr;
+      if (toAdd.length) {
+        const set = new Set(out);
+        for (const id of toAdd) set.add(id);
+        out = Array.from(set);
+      }
+      if (toRemove.length) {
+        const rm = new Set(toRemove);
+        out = out.filter((id) => !rm.has(id));
+      }
+      return out;
+    });
+  }, [currentAddons, addonIsIncluded, userSelectedAddons]);
 
   const activeIdentity: Identity = usesPackTabs ? packIdentities[effectiveActiveTab] : identity;
   const { name, description, icon, banner } = activeIdentity;
@@ -390,8 +437,19 @@ export const BotBuilder = () => {
     reader.readAsDataURL(file);
   };
 
-  const toggleAddon = (id: string) =>
-    setAddons((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
+  const toggleAddon = (id: string) => {
+    setAddons((prev) =>
+      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id],
+    );
+    // Record/erase the user's manual intent so admin "included" toggles
+    // don't override an explicit choice.
+    setUserSelectedAddons((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   // Toggle a base with the multi-select rules.
   const toggleBase = (id: string) => {
