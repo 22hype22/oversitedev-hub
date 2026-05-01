@@ -1021,6 +1021,23 @@ export const BotBuilder = () => {
               const renderAddonCard = (a: Addon) => {
                 const Icon = a.icon;
                 const active = addons.includes(a.id);
+                const included = addonIsIncluded(a.id);
+                const toggleIncluded = async (e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  const { error } = await setAddonIncluded(a.id, !included, user?.id);
+                  if (error) {
+                    sonnerToast.error("Couldn't update — admin only", {
+                      description: error.message,
+                    });
+                    return;
+                  }
+                  sonnerToast.success(
+                    !included
+                      ? `"${a.name}" marked as INCLUDED`
+                      : `"${a.name}" marked as NOT INCLUDED`,
+                  );
+                };
                 return (
                   <button
                     key={a.id}
@@ -1036,12 +1053,35 @@ export const BotBuilder = () => {
                       <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0">
                         <Icon size={14} className={active ? "text-primary" : "text-muted-foreground"} />
                       </div>
-                      <div
-                        className={`h-5 w-5 rounded-md border grid place-items-center transition-smooth ${
-                          active ? "bg-primary border-primary" : "border-border"
-                        }`}
-                      >
-                        {active && <Check size={12} className="text-primary-foreground" />}
+                      <div className="flex items-center gap-2">
+                        {isAdmin && (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={toggleIncluded}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                toggleIncluded(e as unknown as React.MouseEvent);
+                              }
+                            }}
+                            title={
+                              included
+                                ? "Admin: mark as NOT INCLUDED"
+                                : "Admin: mark as INCLUDED"
+                            }
+                            className="h-5 w-5 rounded-md border border-border/70 bg-background/70 grid place-items-center text-muted-foreground hover:text-foreground hover:border-primary/60 transition-smooth"
+                          >
+                            <Settings2 size={12} />
+                          </span>
+                        )}
+                        <div
+                          className={`h-5 w-5 rounded-md border grid place-items-center transition-smooth ${
+                            active ? "bg-primary border-primary" : "border-border"
+                          }`}
+                        >
+                          {active && <Check size={12} className="text-primary-foreground" />}
+                        </div>
                       </div>
                     </div>
                     <div className="mt-3 font-medium text-sm">{a.name}</div>
@@ -1049,11 +1089,17 @@ export const BotBuilder = () => {
                       {a.desc}
                     </p>
                     <div className="mt-2 text-xs text-foreground/80 flex items-center gap-2 flex-wrap">
-                      <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">
-                        INCLUDED
-                      </span>
+                      {included ? (
+                        <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">
+                          INCLUDED
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px] font-semibold">
+                          NOT INCLUDED
+                        </span>
+                      )}
                       {a.price > 0 && (
-                        <span className="line-through text-muted-foreground/70">
+                        <span className={included ? "line-through text-muted-foreground/70" : "text-foreground font-semibold"}>
                           ${a.price.toFixed(2)}
                         </span>
                       )}
