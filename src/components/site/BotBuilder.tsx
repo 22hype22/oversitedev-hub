@@ -1536,7 +1536,7 @@ export const BotBuilder = () => {
                 onClick={submit}
                 disabled={submitting}
               >
-                Confirm preorder <ArrowRight />
+                {salesLive ? "Confirm purchase" : "Confirm preorder"} <ArrowRight />
               </Button>
             )}
 
