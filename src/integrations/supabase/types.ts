@@ -513,11 +513,13 @@ export type Database = {
           installment_amount: number | null
           monthly_hosting: boolean
           notes: string | null
+          paid_at: string | null
           payment_plan: string
           plan_months: number | null
           purchase_id: string | null
           source_url: string | null
           status: string
+          stripe_session_id: string | null
           submitted_at: string | null
           subscription_id: string | null
           total_amount: number
@@ -541,11 +543,13 @@ export type Database = {
           installment_amount?: number | null
           monthly_hosting?: boolean
           notes?: string | null
+          paid_at?: string | null
           payment_plan?: string
           plan_months?: number | null
           purchase_id?: string | null
           source_url?: string | null
           status?: string
+          stripe_session_id?: string | null
           submitted_at?: string | null
           subscription_id?: string | null
           total_amount?: number
@@ -569,11 +573,13 @@ export type Database = {
           installment_amount?: number | null
           monthly_hosting?: boolean
           notes?: string | null
+          paid_at?: string | null
           payment_plan?: string
           plan_months?: number | null
           purchase_id?: string | null
           source_url?: string | null
           status?: string
+          stripe_session_id?: string | null
           submitted_at?: string | null
           subscription_id?: string | null
           total_amount?: number
