@@ -268,9 +268,10 @@ const PACK_TABS: { id: string; label: string; icon: typeof Shield }[] = [
 ];
 
 export const BotBuilder = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { hasDashboardAccess: dashboardAlreadyOwned } = useOwnedBots();
   const { isLive: salesLive } = useBotSalesMode();
+  const { isIncluded: addonIsIncluded } = useAddonOverrides();
   // Multi-select bases. Rules:
   //  • All-in-One Pack ("scratch") is exclusive — selecting it clears others.
   //  • Otherwise the user can select up to 2 single bots (Protection / Support / Utilities).
