@@ -41,20 +41,20 @@ import { Card } from "@/components/ui/card";
 
 const SUPER_ADMIN_EMAIL = "everant00@gmail.com";
 
-function SectionHeader({
-  icon: Icon,
-  title,
-  description,
-  tone = "primary",
-}: {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  tone?: "primary" | "destructive";
-}) {
+import { forwardRef } from "react";
+
+const SectionHeader = forwardRef<
+  HTMLDivElement,
+  {
+    icon: LucideIcon;
+    title: string;
+    description: string;
+    tone?: "primary" | "destructive";
+  }
+>(({ icon: Icon, title, description, tone = "primary" }, ref) => {
   const isDanger = tone === "destructive";
   return (
-    <div className="flex items-center gap-3">
+    <div ref={ref} className="flex items-center gap-3">
       <div
         className={
           isDanger
@@ -78,7 +78,8 @@ function SectionHeader({
       </div>
     </div>
   );
-}
+});
+SectionHeader.displayName = "SectionHeader";
 
 const Admin = () => {
   const { user, isAdmin, loading } = useAuth();
