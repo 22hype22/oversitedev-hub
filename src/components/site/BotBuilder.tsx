@@ -601,9 +601,35 @@ export const BotBuilder = () => {
     }
     setSubmitting(true);
 
-    // Save the order to the database so Railway/Claude can later pick it up.
-    const ok = await persistOrder();
-    if (!ok) {
+    // Save the order to the database (status='pending_payment'). Stripe webhook
+    // flips it to 'paid' on checkout.session.completed, which triggers the build.
+    const orderId = await persistOrder();
+    if (user && !orderId) {
+      setSubmitting(false);
+      return;
+    }
+
+    // For signed-in users with a real order: open Stripe checkout.
+    // The first installment amount (or full total) is what gets charged now.
+    if (user && orderId) {
+      const { primary } = buildSubmissionPayload();
+      const planMonths = paymentPlan === "full" ? null : parseInt(paymentPlan, 10);
+      const chargeNow = planMonths
+        ? Number((finalTotal / planMonths).toFixed(2))
+        : finalTotal;
+      const amountCents = Math.max(50, Math.round(chargeNow * 100));
+      setCheckoutItems([
+        {
+          productName: planMonths
+            ? `${primary.name.trim() || "Custom Bot"} — installment 1 of ${planMonths}`
+            : primary.name.trim() || "Custom Bot",
+          amountCents,
+          currency: "usd",
+          quantity: 1,
+          botOrderId: orderId,
+        },
+      ]);
+      setCheckoutOpen(true);
       setSubmitting(false);
       return;
     }
