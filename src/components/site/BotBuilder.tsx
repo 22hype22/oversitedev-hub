@@ -551,7 +551,7 @@ export const BotBuilder = () => {
         banner_url: primary.banner,
         base: baseField,
         addons,
-        monthly_hosting: false,
+        monthly_hosting: monthlyHosting,
         notes: notesField,
         total_amount: finalTotal,
         currency: "usd",
