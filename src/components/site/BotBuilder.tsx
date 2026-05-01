@@ -400,8 +400,19 @@ export const BotBuilder = () => {
     reader.readAsDataURL(file);
   };
 
-  const toggleAddon = (id: string) =>
-    setAddons((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
+  const toggleAddon = (id: string) => {
+    setAddons((prev) =>
+      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id],
+    );
+    // Record/erase the user's manual intent so admin "included" toggles
+    // don't override an explicit choice.
+    setUserSelectedAddons((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   // Toggle a base with the multi-select rules.
   const toggleBase = (id: string) => {
