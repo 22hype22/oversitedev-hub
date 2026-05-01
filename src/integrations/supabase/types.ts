@@ -122,6 +122,27 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_addon_overrides: {
+        Row: {
+          addon_id: string
+          included: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          addon_id: string
+          included?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          addon_id?: string
+          included?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       bot_build_jobs: {
         Row: {
           artifact_url: string | null
@@ -1931,6 +1952,7 @@ export type Database = {
         Returns: number
       }
       enqueue_free_period_expiring_alerts: { Args: never; Returns: number }
+      get_bot_client_id: { Args: { _bot_id: string }; Returns: string }
       get_bot_health: { Args: { _bot_id: string }; Returns: Json }
       get_bot_secrets_metadata: {
         Args: { _bot_id: string }
