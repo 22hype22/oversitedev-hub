@@ -16,7 +16,6 @@ import ProcessPage from "./pages/ProcessPage.tsx";
 import ProductsPage from "./pages/ProductsPage.tsx";
 import BotsPage from "./pages/BotsPage.tsx";
 import BotDashboard from "./pages/BotDashboard.tsx";
-import BotOrderPage from "./pages/BotOrderPage.tsx";
 import Auth from "./pages/Auth.tsx";
 import Admin from "./pages/Admin.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
@@ -59,7 +58,6 @@ const App = () => {
               <Route path="/admin" element={<Admin />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/bot-dashboard" element={<BotDashboard />} />
-              <Route path="/order-bot" element={<BotOrderPage />} />
               <Route path="/checkout/return" element={<CheckoutReturn />} />
               <Route path="/terms" element={<Terms />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
