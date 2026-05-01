@@ -149,37 +149,29 @@ async function processBuildJob(job: BuildJob) {
     if (!tokenResult?.ok) throw new Error(tokenResult?.error ?? "No tokens available in pool");
     console.log(`[build:${id}] Token claimed — bot: ${tokenResult.bot_username}, client: ${tokenResult.client_id}`);
 
-    // 3. Write config to bot_orders so the runtime can pick it up
-    const { error: orderError } = await supabase
-      .from("bot_orders")
-      .update({
-        bot_name: selections.bot_name,
-        base: selections.base,
-        addons: selections.addons ?? [],
-        icon_url: selections.icon_url ?? null,
-        banner_url: selections.banner_url ?? null,
-        bot_description: selections.bot_description ?? null,
-        status: "ready",
-      })
-      .eq("id", order_id);
-
-    if (orderError) throw new Error(`Failed to update bot_orders: ${orderError.message}`);
-
-    // 4. Seed bot_secret_slots so the dashboard knows what secrets to ask for
+    // 3. Seed bot_secret_slots so the dashboard knows what secrets to ask for
     await seedSecretSlots(order_id, selections.base, selections.addons ?? []);
 
-    // 5. Mark build as ready
-    const { error: buildError } = await supabase
-      .from("bot_build_jobs")
-      .update({
-        status: "ready",
-        build_log: `Build complete. Base: ${selections.base}. Addons: ${(selections.addons ?? []).join(", ") || "none"}. Missing: ${missingAddons.join(", ") || "none"}.`,
-      })
-      .eq("id", id);
+    // 4. Finalize through the runtime RPC so bot_orders.status flips to ready.
+    const buildLog = `Build complete. Base: ${selections.base}. Addons: ${(selections.addons ?? []).join(", ") || "none"}. Missing: ${missingAddons.join(", ") || "none"}.`;
+    const { data: finalizeData, error: finalizeError } = await supabase.rpc("runtime_finalize_build", {
+      _token: WORKER_TOKEN_VALUE,
+      _job_id: id,
+      _bot_order_id: order_id,
+      _bot_name: selections.bot_name,
+      _base: selections.base,
+      _addons: selections.addons ?? [],
+      _icon_url: selections.icon_url ?? null,
+      _banner_url: selections.banner_url ?? null,
+      _bot_description: selections.bot_description ?? null,
+      _build_log: buildLog,
+    });
 
-    if (buildError) throw new Error(`Failed to update build job: ${buildError.message}`);
+    if (finalizeError) throw new Error(`Failed to finalize build: ${finalizeError.message}`);
+    const finalizeResult = finalizeData as { ok?: boolean; error?: string } | null;
+    if (!finalizeResult?.ok) throw new Error(finalizeResult?.error ?? "Failed to finalize build");
 
-    // 6. Enqueue a bot_notification for the customer
+    // 5. Enqueue a bot_notification for the customer
     await supabase.rpc("runtime_enqueue_notification", {
       _token: WORKER_TOKEN_VALUE,
       _bot_id: order_id,
