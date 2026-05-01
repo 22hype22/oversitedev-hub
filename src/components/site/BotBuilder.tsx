@@ -8,6 +8,7 @@ import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOwnedBots } from "@/hooks/useOwnedBots";
+import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import {
   Shield,
   LifeBuoy,
@@ -305,6 +306,8 @@ export const BotBuilder = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showSuccessText, setShowSuccessText] = useState(false);
   const [planeOrigin, setPlaneOrigin] = useState<{ x: number; y: number } | null>(null);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutItems, setCheckoutItems] = useState<CheckoutItem[]>([]);
 
   const iconInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -515,40 +518,45 @@ export const BotBuilder = () => {
     };
   };
 
-  const persistOrder = async () => {
-    if (!user) return true; // anonymous: skip persistence, keep legacy flow
+  const persistOrder = async (): Promise<string | null> => {
+    if (!user) return null; // anonymous: skip persistence, keep legacy flow
     const { primary, notesField } = buildSubmissionPayload();
     const baseField = isPack ? "scratch" : bases.join("+");
     const planMonths = paymentPlan === "full" ? null : parseInt(paymentPlan, 10);
     const installmentAmount = planMonths ? Number((finalTotal / planMonths).toFixed(2)) : null;
-    const { error } = await (supabase as any).from("bot_orders").insert({
-      user_id: user.id,
-      bot_name: primary.name.trim(),
-      bot_description: primary.description.trim() || null,
-      icon_url: primary.icon,
-      banner_url: primary.banner,
-      base: baseField,
-      addons,
-      monthly_hosting: false,
-      notes: notesField,
-      total_amount: finalTotal,
-      currency: "usd",
-      status: "submitted",
-      submitted_at: new Date().toISOString(),
-      payment_plan: planMonths ? "installments" : "full",
-      plan_months: planMonths,
-      installment_amount: installmentAmount,
-      discount_code: appliedDiscount?.code ?? null,
-      discount_amount: discountAmount,
-      engine_version: engineVersion,
-    });
-    if (error) {
-      sonnerToast.error("Couldn't save your order", { description: error.message });
-      return false;
+    const { data: inserted, error } = await (supabase as any)
+      .from("bot_orders")
+      .insert({
+        user_id: user.id,
+        bot_name: primary.name.trim(),
+        bot_description: primary.description.trim() || null,
+        icon_url: primary.icon,
+        banner_url: primary.banner,
+        base: baseField,
+        addons,
+        monthly_hosting: false,
+        notes: notesField,
+        total_amount: finalTotal,
+        currency: "usd",
+        // Order awaits Stripe payment confirmation. Webhook flips to 'paid'
+        // on checkout.session.completed, which triggers the build job.
+        status: "pending_payment",
+        submitted_at: new Date().toISOString(),
+        payment_plan: planMonths ? "installments" : "full",
+        plan_months: planMonths,
+        installment_amount: installmentAmount,
+        discount_code: appliedDiscount?.code ?? null,
+        discount_amount: discountAmount,
+        engine_version: engineVersion,
+      })
+      .select("id")
+      .single();
+    if (error || !inserted) {
+      sonnerToast.error("Couldn't save your order", { description: error?.message });
+      return null;
     }
     // Best-effort: bump times_used on the code (non-blocking).
     if (appliedDiscount) {
-      (supabase as any).rpc; // noop reference to keep type narrowing happy
       const { data: row } = await (supabase as any)
         .from("discount_codes")
         .select("id, times_used")
@@ -561,7 +569,7 @@ export const BotBuilder = () => {
           .eq("id", row.id);
       }
     }
-    return true;
+    return inserted.id as string;
   };
 
   const submit = async () => {
@@ -593,9 +601,35 @@ export const BotBuilder = () => {
     }
     setSubmitting(true);
 
-    // Save the order to the database so Railway/Claude can later pick it up.
-    const ok = await persistOrder();
-    if (!ok) {
+    // Save the order to the database (status='pending_payment'). Stripe webhook
+    // flips it to 'paid' on checkout.session.completed, which triggers the build.
+    const orderId = await persistOrder();
+    if (user && !orderId) {
+      setSubmitting(false);
+      return;
+    }
+
+    // For signed-in users with a real order: open Stripe checkout.
+    // The first installment amount (or full total) is what gets charged now.
+    if (user && orderId) {
+      const { primary } = buildSubmissionPayload();
+      const planMonths = paymentPlan === "full" ? null : parseInt(paymentPlan, 10);
+      const chargeNow = planMonths
+        ? Number((finalTotal / planMonths).toFixed(2))
+        : finalTotal;
+      const amountCents = Math.max(50, Math.round(chargeNow * 100));
+      setCheckoutItems([
+        {
+          productName: planMonths
+            ? `${primary.name.trim() || "Custom Bot"} — installment 1 of ${planMonths}`
+            : primary.name.trim() || "Custom Bot",
+          amountCents,
+          currency: "usd",
+          quantity: 1,
+          botOrderId: orderId,
+        },
+      ]);
+      setCheckoutOpen(true);
       setSubmitting(false);
       return;
     }
@@ -1624,6 +1658,16 @@ export const BotBuilder = () => {
           )}
         </div>
       )}
+      <CheckoutDialog
+        open={checkoutOpen}
+        onOpenChange={(o) => {
+          setCheckoutOpen(o);
+          // If the user closes the dialog without paying, just leave the
+          // bot_order in 'pending_payment'. They can retry by re-submitting.
+        }}
+        items={checkoutItems}
+        customerEmail={user?.email ?? undefined}
+      />
     </section>
   );
 };

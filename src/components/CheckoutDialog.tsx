@@ -17,6 +17,8 @@ export interface CheckoutItem {
   purchaseType?: "initial" | "upgrade";
   parentPurchaseId?: string;
   upgradeToVersion?: string;
+  // For bot-order checkouts: webhook flips bot_orders.status to 'paid'.
+  botOrderId?: string;
 }
 
 interface CheckoutDialogProps {
