@@ -83,16 +83,29 @@ export function useOwnedBots() {
     }
     setLoading(true);
 
-    // 1) Own bots
+    // 1) Own bots — fetch ALL of the user's orders. We filter to live ones
+    // for `bots`, but we keep the full list around so account-wide perks
+    // (like the Web Dashboard add-on) survive cancellations of the order
+    // they were originally purchased on.
     const { data: own } = await (supabase as any)
       .from("bot_orders")
-      .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url")
+      .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,paid_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true });
 
-    const ownMapped: OwnedBot[] = (own ?? [])
+    const ownAll: any[] = own ?? [];
+    const ownMapped: OwnedBot[] = ownAll
       .filter((row: any) => ACCESS_STATUSES.has(row.status))
       .map((row: any) => mapRow(row, false));
+
+    // Account-wide entitlement: any order that was ever paid for and
+    // included the `dashboard` addon unlocks dashboard access forever.
+    const ownsDashboardAddon = ownAll.some(
+      (row: any) =>
+        Array.isArray(row.addons) &&
+        row.addons.includes("dashboard") &&
+        (row.paid_at != null || ACCESS_STATUSES.has(row.status)),
+    );
 
     // 2) Bots from active support-access grants
     const { data: grants } = await (supabase as any)
@@ -120,6 +133,7 @@ export function useOwnedBots() {
 
     setBots(ownMapped);
     setSupportBots(supportMapped);
+    setOwnsDashboardAddon(ownsDashboardAddon);
     setLoading(false);
   }, [user]);
 
@@ -128,10 +142,12 @@ export function useOwnedBots() {
   }, [reload]);
 
   // The Web Dashboard add-on is a one-time, account-wide unlock. Once any
-  // bot order includes it, the user can manage ALL of their bots from the
-  // dashboard — current and future ones — without paying again. The demo
-  // bot also grants visibility so new users can explore the dashboard.
-  const hasDashboardAccess = bots.some((b) => b.hasWebDashboard);
+  // PAID bot order includes it, the user can manage ALL of their bots from
+  // the dashboard — current and future ones — even if that original order
+  // is later cancelled. We also fall back to checking visible bots in case
+  // the entitlement query hasn't loaded yet.
+  const hasDashboardAccess =
+    ownsDashboardAddon || bots.some((b) => b.hasWebDashboard);
   // Support-session bots are always visible regardless of the admin's own
   // dashboard add-on status — that's the whole point of the support access.
   const dashboardBots = [
