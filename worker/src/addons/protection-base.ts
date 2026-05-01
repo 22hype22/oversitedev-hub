@@ -201,7 +201,7 @@ export const protectionBaseAddon: Addon = {
           if (channel.isTextBased() && channel.type === 0) {
             try {
               await (channel as TextChannel).permissionOverwrites.edit(
-                member.{ id: guild.roles.everyone.id } as any,
+                member.guild.roles.everyone,
                 { SendMessages: false },
                 { reason: "Raid detected — auto lockdown" }
               );

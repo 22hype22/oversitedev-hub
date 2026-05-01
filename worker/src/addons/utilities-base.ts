@@ -158,7 +158,7 @@ export const utilitiesBaseAddon: Addon = {
         const old = await message.channel.messages.fetch(sticky.messageId);
         await old.delete();
       } catch { /* ignore */ }
-      const newMsg = await message.(channel as any).send({ embeds: [sticky.embed] }).catch(() => null);
+      const newMsg = await (message.channel as any).send({ embeds: [sticky.embed] }).catch(() => null);
       if (newMsg) stickyMessages.set(message.channelId, { ...sticky, messageId: newMsg.id });
     });
 
