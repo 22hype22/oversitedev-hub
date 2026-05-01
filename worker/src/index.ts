@@ -212,18 +212,30 @@ async function processBuildJob(job: BuildJob) {
 }
 
 // ── Seed secret slots so dashboard knows what secrets each addon needs ──
-async function seedSecretSlots(botOrderId: string, base: string, addons: string[]) {
-  const slots: { bot_id: string; key: string; label: string; description: string; placeholder: string; required: boolean; sort_order: number }[] = [];
+// NOTE: `bot_secret_slots` is a GLOBAL catalog keyed by (addon_id, key) — it
+// describes what secrets each addon needs, not per-bot values. Per-bot values
+// live in `bot_secrets` (bot_id, user_id, key, value_encrypted).
+async function seedSecretSlots(_botOrderId: string, _base: string, addons: string[]) {
+  type Slot = {
+    addon_id: string;
+    key: string;
+    label: string;
+    description: string;
+    placeholder: string;
+    is_required: boolean;
+    sort_order: number;
+  };
+  const slots: Slot[] = [];
   let order = 0;
 
-  // Always required: Discord bot token
+  // Always required: Discord bot token (core slot, not tied to an addon)
   slots.push({
-    bot_id: botOrderId,
+    addon_id: "core",
     key: "DISCORD_TOKEN",
     label: "Discord Bot Token",
     description: "Your Discord bot token from the Developer Portal",
     placeholder: "MTxxxxxxx.Gxxxxx.xxxxxxxxxx",
-    required: true,
+    is_required: true,
     sort_order: order++,
   });
 
@@ -231,21 +243,21 @@ async function seedSecretSlots(botOrderId: string, base: string, addons: string[
   if (addons.includes("music") || addons.includes("auto-radio")) {
     slots.push(
       {
-        bot_id: botOrderId,
+        addon_id: "music",
         key: "SPOTIFY_CLIENT_ID",
         label: "Spotify Client ID",
         description: "From your Spotify Developer Dashboard",
         placeholder: "your-spotify-client-id",
-        required: false,
+        is_required: false,
         sort_order: order++,
       },
       {
-        bot_id: botOrderId,
+        addon_id: "music",
         key: "SPOTIFY_CLIENT_SECRET",
         label: "Spotify Client Secret",
         description: "From your Spotify Developer Dashboard",
         placeholder: "your-spotify-client-secret",
-        required: false,
+        is_required: false,
         sort_order: order++,
       },
     );
@@ -254,12 +266,12 @@ async function seedSecretSlots(botOrderId: string, base: string, addons: string[
   // Roblox verification needs group ID
   if (addons.includes("roblox-verification")) {
     slots.push({
-      bot_id: botOrderId,
+      addon_id: "roblox-verification",
       key: "ROBLOX_GROUP_ID",
       label: "Roblox Group ID",
       description: "The ID of your Roblox group",
       placeholder: "1234567",
-      required: false,
+      is_required: false,
       sort_order: order++,
     });
   }
@@ -267,22 +279,22 @@ async function seedSecretSlots(botOrderId: string, base: string, addons: string[
   // Avatar NSFW detection needs Anthropic API key
   if (addons.includes("avatar-nsfw-detection")) {
     slots.push({
-      bot_id: botOrderId,
+      addon_id: "avatar-nsfw-detection",
       key: "ANTHROPIC_API_KEY",
       label: "Anthropic API Key",
       description: "Required for avatar NSFW detection",
       placeholder: "sk-ant-xxxxx",
-      required: true,
+      is_required: true,
       sort_order: order++,
     });
   }
 
   if (slots.length === 0) return;
 
-  // Upsert slots (don't duplicate if already exists)
+  // Upsert global slot catalog (keyed by addon_id + key)
   const { error } = await supabase
     .from("bot_secret_slots")
-    .upsert(slots, { onConflict: "bot_id,key", ignoreDuplicates: true });
+    .upsert(slots, { onConflict: "addon_id,key", ignoreDuplicates: true });
 
   if (error) {
     console.error(`[seed slots] Failed to seed secret slots: ${error.message}`);
