@@ -344,7 +344,7 @@ export const utilitiesBaseAddon: Addon = {
         } catch { /* ignore */ }
       }
 
-      const msg = await interaction.channel!.send({ embeds: [embed] }).catch(() => null);
+      const msg = await (interaction.channel as any)!.send({ embeds: [embed] }).catch(() => null);
       if (msg) stickyMessages.set(interaction.channelId, { messageId: msg.id, embed });
       await interaction.reply({ content: "✅ Sticky message set.", ephemeral: true });
     }

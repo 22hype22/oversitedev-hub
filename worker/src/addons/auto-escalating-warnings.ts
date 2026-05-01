@@ -80,7 +80,7 @@ export const autoEscalatingWarningsAddon: Addon = {
             .addFields({ name: "User", value: `${target.toString()} (\`${target.id}\`)` })
             .setColor(0xed4245)
             .setTimestamp();
-          await interaction.channel?.send({ embeds: [muteEmbed] }).catch(() => {});
+          await (interaction.channel as any)?.send({ embeds: [muteEmbed] }).catch(() => {});
           await ctx.log("warn", `Auto-muted ${target.user.tag} for reaching 3 warnings`);
         } catch { /* ignore */ }
       }

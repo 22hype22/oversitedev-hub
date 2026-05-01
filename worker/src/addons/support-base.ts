@@ -180,7 +180,7 @@ export const supportBaseAddon: Addon = {
           new ButtonBuilder().setCustomId("ticket_delete").setLabel("Delete").setStyle(ButtonStyle.Secondary).setEmoji("🗑️"),
         );
 
-        await (ticketChannel as TextChannel).send({ content: pingParts.join(" "), embeds: [embed], components: [row] });
+        await (ticketChannel as any).send({ content: pingParts.join(" "), embeds: [embed], components: [row] });
         await interaction.reply({ content: `✅ Your ticket has been created: <#${ticketChannel.id}>`, ephemeral: true });
 
         setTimeout(async () => {
@@ -296,7 +296,7 @@ export const supportBaseAddon: Addon = {
           new ButtonBuilder().setCustomId("appeal_claim").setLabel("Claim").setStyle(ButtonStyle.Secondary).setEmoji("🙋"),
         );
 
-        await (appealChannel as TextChannel).send({ content: member.toString(), embeds: [embed], components: [row] });
+        await (appealChannel as any).send({ content: member.toString(), embeds: [embed], components: [row] });
         await interaction.reply({ content: `✅ Your appeal has been submitted: <#${appealChannel.id}>`, ephemeral: true });
       }
 

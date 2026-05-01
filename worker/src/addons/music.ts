@@ -150,7 +150,7 @@ export const musicAddon: Addon = {
         connection = joinVoiceChannel({
           channelId: voiceChannel.id,
           guildId: guild.id,
-          adapterCreator: guild.voiceAdapterCreator,
+          adapterCreator: guild.voiceAdapterCreator as any,
         });
       }
 
@@ -258,7 +258,7 @@ export const autoRadioAddon: Addon = {
         connection = joinVoiceChannel({
           channelId: voiceChannel.id,
           guildId: guild.id,
-          adapterCreator: guild.voiceAdapterCreator,
+          adapterCreator: guild.voiceAdapterCreator as any,
         });
       }
 
