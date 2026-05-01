@@ -1,4 +1,4 @@
-import { supabase, WORKER_ID } from "./supabase.js";
+import { supabase, WORKER_ID, WORKER_TOKEN_VALUE } from "./supabase.js";
 
 export type BotStatus =
   | "online"
@@ -15,6 +15,7 @@ export async function setStatus(
   opts: { lastError?: string; version?: string } = {},
 ) {
   const { error } = await supabase.rpc("runtime_set_bot_status", {
+    _token: WORKER_TOKEN_VALUE,
     _bot_id: botId,
     _status: status,
     _last_error: opts.lastError ?? null,
@@ -32,6 +33,7 @@ export async function appendLog(
   context?: Record<string, unknown>,
 ) {
   const { error } = await supabase.rpc("runtime_append_bot_log", {
+    _token: WORKER_TOKEN_VALUE,
     _bot_id: botId,
     _level: level,
     _message: message,
@@ -51,6 +53,7 @@ export async function recordMetrics(
   },
 ) {
   const { error } = await supabase.rpc("runtime_record_bot_metrics", {
+    _token: WORKER_TOKEN_VALUE,
     _bot_id: botId,
     _commands_delta: deltas.commands ?? 0,
     _messages_delta: deltas.messages ?? 0,
@@ -63,6 +66,7 @@ export async function recordMetrics(
 
 export async function getSecret(botId: string, key: string): Promise<string | null> {
   const { data, error } = await supabase.rpc("runtime_get_bot_secret", {
+    _token: WORKER_TOKEN_VALUE,
     _bot_id: botId,
     _key: key,
   });
@@ -80,6 +84,7 @@ export async function upsertGuild(
   memberCount?: number,
 ): Promise<{ allowed: boolean; limit?: number; current?: number }> {
   const { data, error } = await supabase.rpc("runtime_upsert_bot_guild", {
+    _token: WORKER_TOKEN_VALUE,
     _bot_id: botId,
     _guild_id: guildId,
     _guild_name: guildName ?? null,
@@ -87,7 +92,7 @@ export async function upsertGuild(
   });
   if (error) {
     console.error(`[${botId}] upsertGuild failed:`, error.message);
-    return { allowed: true }; // fail-open so we don't accidentally kick users on a glitch
+    return { allowed: true };
   }
   const r = data as { allowed?: boolean; limit?: number; current?: number };
   return { allowed: r?.allowed ?? true, limit: r?.limit, current: r?.current };
@@ -95,6 +100,7 @@ export async function upsertGuild(
 
 export async function removeGuild(botId: string, guildId: string) {
   const { error } = await supabase.rpc("runtime_remove_bot_guild", {
+    _token: WORKER_TOKEN_VALUE,
     _bot_id: botId,
     _guild_id: guildId,
   });
