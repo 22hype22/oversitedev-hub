@@ -54,6 +54,27 @@ async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
     .eq("environment", env);
 }
 
+async function handleCheckoutSessionCompleted(session: any, env: StripeEnv) {
+  const botOrderId = session.metadata?.bot_order_id;
+  if (!botOrderId) return; // not a bot-order checkout — nothing to do here
+  if (session.payment_status !== "paid") {
+    console.log("Bot order session completed but not paid yet:", session.id, session.payment_status);
+    return;
+  }
+  const { error } = await getSupabase()
+    .from("bot_orders")
+    .update({
+      status: "paid",
+      paid_at: new Date().toISOString(),
+      stripe_session_id: session.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", botOrderId)
+    .neq("status", "paid"); // idempotent — don't double-flip
+  if (error) console.error("Failed to mark bot_order paid:", botOrderId, error);
+  else console.log("Bot order marked paid:", botOrderId, "session:", session.id);
+}
+
 async function handleWebhook(req: Request, env: StripeEnv) {
   const event = await verifyWebhook(req, env);
   switch (event.type) {
@@ -63,6 +84,10 @@ async function handleWebhook(req: Request, env: StripeEnv) {
       break;
     case "customer.subscription.deleted":
       await handleSubscriptionDeleted(event.data.object, env);
+      break;
+    case "checkout.session.completed":
+    case "checkout.session.async_payment_succeeded":
+      await handleCheckoutSessionCompleted(event.data.object, env);
       break;
     default:
       console.log("Unhandled event:", event.type);
