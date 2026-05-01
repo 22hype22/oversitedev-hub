@@ -299,6 +299,7 @@ const Admin = () => {
             <AccordionContent className="pt-2 pb-5">
               <div className="grid gap-4 md:grid-cols-2">
                 <MarketingKillSwitch />
+                <BotSalesModeSwitch />
                 <ResetPurchases />
               </div>
             </AccordionContent>
