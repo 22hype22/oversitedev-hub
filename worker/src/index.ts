@@ -116,27 +116,41 @@ async function claimNextBuildJob(): Promise<BuildJob | null> {
   return result.job;
 }
 
+// Addons that are website-only features (e.g. hosted dashboard access) and
+// have no Discord runtime behavior. They live in `bot_orders.addons` for
+// purchase/ownership purposes, but the worker should never try to load them
+// as bot addons.
+const WEBSITE_ONLY_ADDONS = new Set<string>(["dashboard"]);
+
 async function processBuildJob(job: BuildJob) {
   const { id, order_id, selections } = job;
   console.log(`[build:${id}] Starting build for order ${order_id}`);
 
   try {
-    // 1. Validate that all requested addons exist
+    // 1. Split requested addons into runtime addons (loaded by the bot) vs
+    //    website-only addons (skipped silently). Validate the runtime ones
+    //    against the registry; unknown ones are just ignored — the bot will
+    //    still boot fine without them.
     const { ADDONS } = await import("./addons/index.js");
-    const missingAddons: string[] = [];
+    const requestedAddons = selections.addons ?? [];
+    const runtimeAddons = requestedAddons.filter(
+      (a) => !WEBSITE_ONLY_ADDONS.has(a),
+    );
+    const skippedWebsiteAddons = requestedAddons.filter((a) =>
+      WEBSITE_ONLY_ADDONS.has(a),
+    );
+    const missingAddons = runtimeAddons.filter((a) => !ADDONS[a]);
 
     // Check base
     const baseAddonId = `${selections.base}-base`;
     if (!ADDONS[baseAddonId]) {
-      console.warn(`[build:${id}] Base addon "${baseAddonId}" not found — proceeding anyway`);
+      console.log(`[build:${id}] Base addon "${baseAddonId}" not in registry — skipping`);
     }
-
-    // Check addons
-    for (const addonId of selections.addons ?? []) {
-      if (!ADDONS[addonId]) {
-        missingAddons.push(addonId);
-        console.warn(`[build:${id}] Addon "${addonId}" not found in registry`);
-      }
+    if (skippedWebsiteAddons.length > 0) {
+      console.log(`[build:${id}] Skipping website-only addons: ${skippedWebsiteAddons.join(", ")}`);
+    }
+    if (missingAddons.length > 0) {
+      console.log(`[build:${id}] Unknown addons (ignored): ${missingAddons.join(", ")}`);
     }
 
     // 2. Claim a Discord bot token from the pool
