@@ -12,7 +12,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Copy, Eye, Layers, Loader2, Trash2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Copy, Eye, Layers, Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
@@ -43,6 +51,14 @@ export function TokenPoolManager() {
   const [creating, setCreating] = useState(false);
   const [revealing, setRevealing] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<{ id: string; token: string } | null>(null);
+
+  // Edit dialog state
+  const [editing, setEditing] = useState<PoolEntry | null>(null);
+  const [editBotUsername, setEditBotUsername] = useState("");
+  const [editClientId, setEditClientId] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editNewToken, setEditNewToken] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const [botUsername, setBotUsername] = useState("");
   const [clientId, setClientId] = useState("");
@@ -106,6 +122,42 @@ export function TokenPoolManager() {
       return;
     }
     toast.success("Status updated");
+    refresh();
+  };
+
+  const openEdit = (entry: PoolEntry) => {
+    setEditing(entry);
+    setEditBotUsername(entry.bot_username);
+    setEditClientId(entry.client_id);
+    setEditNotes(entry.notes ?? "");
+    setEditNewToken("");
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    if (!editBotUsername.trim() || !editClientId.trim()) {
+      toast.error("Bot username and client ID are required");
+      return;
+    }
+    if (editNewToken && editNewToken.trim().length < 20) {
+      toast.error("New token looks too short");
+      return;
+    }
+    setSavingEdit(true);
+    const payload: Record<string, unknown> = { _id: editing.id };
+    if (editBotUsername.trim() !== editing.bot_username) payload._bot_username = editBotUsername.trim();
+    if (editClientId.trim() !== editing.client_id) payload._client_id = editClientId.trim();
+    if ((editNotes ?? "") !== (editing.notes ?? "")) payload._notes = editNotes;
+    if (editNewToken.trim()) payload._token = editNewToken.trim();
+
+    const { data, error } = await supabase.rpc("update_bot_token_pool_entry", payload as never);
+    setSavingEdit(false);
+    if (error || !(data as { ok: boolean })?.ok) {
+      toast.error(error?.message ?? (data as { error?: string })?.error ?? "Failed to update");
+      return;
+    }
+    toast.success(editNewToken.trim() ? "Entry updated and token rotated" : "Entry updated");
+    setEditing(null);
     refresh();
   };
 
@@ -267,6 +319,9 @@ export function TokenPoolManager() {
                     <Eye className="h-3.5 w-3.5" />
                   )}
                 </Button>
+                <Button size="sm" variant="ghost" onClick={() => openEdit(e)} title="Edit">
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
                 <Button size="sm" variant="ghost" onClick={() => remove(e.id)} title="Delete">
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
@@ -275,6 +330,59 @@ export function TokenPoolManager() {
           ))
         )}
       </div>
+
+      {/* Edit dialog */}
+      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit pool entry</DialogTitle>
+            <DialogDescription>
+              Update bot username, client ID, or notes. The current token cannot be viewed here — you can only
+              replace it with a new one.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Bot username</Label>
+              <Input value={editBotUsername} onChange={(e) => setEditBotUsername(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Client ID</Label>
+              <Input value={editClientId} onChange={(e) => setEditClientId(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Current token</Label>
+              <Input value={editing ? `…${editing.token_last_four}` : ""} disabled readOnly />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Hidden for security. Use the field below to replace it.
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs">Replace token (optional)</Label>
+              <Input
+                type="password"
+                value={editNewToken}
+                onChange={(e) => setEditNewToken(e.target.value)}
+                placeholder="Paste new Discord bot token"
+                autoComplete="off"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Notes</Label>
+              <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditing(null)} disabled={savingEdit}>
+              Cancel
+            </Button>
+            <Button onClick={saveEdit} disabled={savingEdit}>
+              {savingEdit && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
