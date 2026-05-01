@@ -1379,6 +1379,36 @@ export const BotBuilder = () => {
                 </span>
               </div>
             )}
+            {/* Monthly hosting toggle — separate recurring fee, not in one-time total */}
+            <button
+              type="button"
+              onClick={() => setMonthlyHosting((v) => !v)}
+              className={`mt-4 w-full text-left rounded-lg border p-3 transition-smooth flex items-start gap-3 ${
+                monthlyHosting
+                  ? "border-primary bg-primary/10"
+                  : "border-border/60 bg-background/40 hover:border-primary/50"
+              }`}
+            >
+              <div
+                className={`h-5 w-5 rounded-md border grid place-items-center shrink-0 mt-0.5 ${
+                  monthlyHosting ? "bg-primary border-primary" : "border-border"
+                }`}
+              >
+                {monthlyHosting && <Check size={12} className="text-primary-foreground" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-sm font-medium">Managed hosting</span>
+                  <span className="text-sm font-semibold">
+                    +$9.99<span className="text-xs text-muted-foreground font-normal">/month</span>
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  We host and keep your bot online 24/7. Billed monthly — separate
+                  from the one-time build cost.
+                </p>
+              </div>
+            </button>
             {addons.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {addons.map((id) => {
