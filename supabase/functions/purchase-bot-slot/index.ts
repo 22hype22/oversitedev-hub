@@ -3,7 +3,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, createStripeClient } from "../_shared/stripe.ts";
 
-const SLOT_PRICE_CENTS = 500; // $5/month per extra slot
+const SLOT_PRICE_CENTS = 499; // $4.99/month per extra slot
 
 const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_URL")!,
