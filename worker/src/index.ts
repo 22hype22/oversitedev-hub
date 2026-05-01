@@ -186,19 +186,11 @@ async function processBuildJob(job: BuildJob) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[build:${id}] Build failed:`, msg);
 
-    await supabase
-      .from("bot_build_jobs")
-      .update({
-        status: "failed",
-        build_log: `Build failed: ${msg}`,
-      })
-      .eq("id", id);
-
     await supabase.rpc("runtime_fail_build", {
       _token: WORKER_TOKEN_VALUE,
       _job_id: id,
-      _order_id: order_id,
-      _error_message: msg,
+      _bot_order_id: order_id,
+      _build_log: `Build failed: ${msg}`,
     });
   }
 }
