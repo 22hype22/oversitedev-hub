@@ -330,6 +330,59 @@ export function TokenPoolManager() {
           ))
         )}
       </div>
+
+      {/* Edit dialog */}
+      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit pool entry</DialogTitle>
+            <DialogDescription>
+              Update bot username, client ID, or notes. The current token cannot be viewed here — you can only
+              replace it with a new one.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Bot username</Label>
+              <Input value={editBotUsername} onChange={(e) => setEditBotUsername(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Client ID</Label>
+              <Input value={editClientId} onChange={(e) => setEditClientId(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Current token</Label>
+              <Input value={editing ? `…${editing.token_last_four}` : ""} disabled readOnly />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Hidden for security. Use the field below to replace it.
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs">Replace token (optional)</Label>
+              <Input
+                type="password"
+                value={editNewToken}
+                onChange={(e) => setEditNewToken(e.target.value)}
+                placeholder="Paste new Discord bot token"
+                autoComplete="off"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Notes</Label>
+              <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditing(null)} disabled={savingEdit}>
+              Cancel
+            </Button>
+            <Button onClick={saveEdit} disabled={savingEdit}>
+              {savingEdit && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
