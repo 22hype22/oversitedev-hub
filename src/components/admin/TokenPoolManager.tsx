@@ -52,6 +52,14 @@ export function TokenPoolManager() {
   const [revealing, setRevealing] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<{ id: string; token: string } | null>(null);
 
+  // Edit dialog state
+  const [editing, setEditing] = useState<PoolEntry | null>(null);
+  const [editBotUsername, setEditBotUsername] = useState("");
+  const [editClientId, setEditClientId] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editNewToken, setEditNewToken] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const [botUsername, setBotUsername] = useState("");
   const [clientId, setClientId] = useState("");
   const [token, setToken] = useState("");
