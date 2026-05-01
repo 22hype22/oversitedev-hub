@@ -288,6 +288,16 @@ export const BotBuilder = () => {
   const [activePackTab, setActivePackTab] = useState<string>("protection");
   const [tabDirection, setTabDirection] = useState<1 | -1>(1);
   const [addons, setAddons] = useState<string[]>([]);
+  // Track which addons the user has explicitly clicked (vs. auto-added by an
+  // admin flipping the addon to "INCLUDED"). When an admin flips an addon
+  // back to "NOT INCLUDED", we auto-deselect it ONLY if the user didn't
+  // manually pick it themselves.
+  const [userSelectedAddons, setUserSelectedAddons] = useState<Set<string>>(
+    () => new Set(),
+  );
+  // Snapshot of which addons were "included" on the previous render so we
+  // can detect transitions (included -> not, or not -> included) and react.
+  const prevIncludedRef = useRef<Record<string, boolean>>({});
   const [notes, setNotes] = useState("");
   const [showAllAddons, setShowAllAddons] = useState<Record<string, boolean>>({});
   const [showPayment, setShowPayment] = useState(false);
