@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Hero = () => {
   const STORAGE_KEY = "oversite:botsBuiltCount";
@@ -53,6 +54,30 @@ export const Hero = () => {
     let timer = schedule();
     return () => window.clearTimeout(timer);
   }, []);
+
+  const [membersServing, setMembersServing] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const { data, error } = await supabase.rpc("get_total_members_serving");
+      if (!cancelled && !error && typeof data === "number") {
+        setMembersServing(data);
+      }
+    };
+    load();
+    const interval = window.setInterval(load, 60000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  const formatMembers = (n: number) => {
+    if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K+`;
+    return `${n}+`;
+  };
+
 
   return (
     <section id="home" className="relative min-h-screen flex items-center pt-16 overflow-hidden bg-gradient-hero">
@@ -117,7 +142,7 @@ export const Hero = () => {
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl">
             {[
               { value: "23B+", label: "Visits Contributed To" },
-              { value: "12K+", label: "Total Members" },
+              { value: membersServing !== null ? formatMembers(membersServing) : "—", label: "Members Serving" },
               { value: botServers.toLocaleString(), label: "Bots Built" },
             ].map((s) => (
               <div
