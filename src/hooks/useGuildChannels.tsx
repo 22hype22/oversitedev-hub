@@ -103,7 +103,7 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
     setLoading(true);
     const { data } = await supabase
       .from("bot_channel_cache")
-      .select("channel_id, channel_name, channel_type, parent_id, parent_name, position, fetched_at")
+      .select("channel_id, channel_name, channel_type, parent_id, parent_name, position, parent_position, fetched_at")
       .eq("bot_id", botId)
       .eq("guild_id", guildId)
       .order("position", { ascending: true });
