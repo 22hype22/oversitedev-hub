@@ -188,14 +188,7 @@ export function GuildChannelPicker({
           </div>
           <Popover
             open={channelOpen}
-            onOpenChange={(open) => {
-              setChannelOpen(open);
-              // Auto-refresh from Discord when the picker is opened so the
-              // user always sees an up-to-date list without clicking Refresh.
-              if (open && guildId && !refreshing) {
-                refreshFromDiscord().catch(() => {});
-              }
-            }}
+            onOpenChange={setChannelOpen}
           >
             <PopoverTrigger asChild>
               <Button
