@@ -56,6 +56,7 @@ export const useAuth = () => {
       setUser(session?.user ?? null);
       setLoading(false);
       if (session?.user) {
+        lastCheckedUserId = session.user.id;
         checkAdmin(session.user.id);
       } else {
         setRoleLoading(false);
