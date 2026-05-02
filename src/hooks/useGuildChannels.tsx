@@ -181,9 +181,18 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
     readCache();
   }, [readCache]);
 
-  // (No focus listener — switching tabs should not refresh and reset
-  // the user's in-progress configuration. Realtime subscription below
-  // handles live updates from the worker.)
+  // Auto-sync from Discord when guild changes so the displayed channels match
+  // the live server order. Runs once per bot+guild per session to avoid
+  // hammering the worker.
+  const autoSyncedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!botId || !guildId) return;
+    const key = `${botId}:${guildId}`;
+    if (autoSyncedRef.current.has(key)) return;
+    autoSyncedRef.current.add(key);
+    // fire-and-forget; refreshFromDiscord polls the cache itself
+    void refreshFromDiscordRef.current?.();
+  }, [botId, guildId]);
 
   // Live updates: re-read whenever the worker writes channel rows for
   // this bot+guild (channel created/renamed/deleted on Discord).
