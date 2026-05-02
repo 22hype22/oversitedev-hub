@@ -72,8 +72,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl }: Props
   const isSayCommand = addonId === "messages";
   const isTicketPanel = addonId === "ticket-message-customization";
   const isAnonReport = addonId === "anonymous-reporting";
+  const isVerification = addonId === "verification-system";
   const config = getAddonConfig(addonId);
   const [open, setOpen] = useState(false);
+  const [appliedAt, setAppliedAt] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Generic, untyped form state — schema-driven.
   const [values, setValues] = useState<Record<string, string | number | boolean | string[]>>({});
