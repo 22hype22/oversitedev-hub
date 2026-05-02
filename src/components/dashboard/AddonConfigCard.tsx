@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,12 +20,46 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowRight, Save, Settings2, Megaphone } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  ArrowRight,
+  Save,
+  Settings2,
+  Megaphone,
+  Hash,
+  Volume2,
+  MessagesSquare,
+  ChevronsUpDown,
+  Check,
+  RefreshCw,
+} from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
 import { getAddonLabel } from "@/lib/botCatalog";
 import { SayCommandBuilder } from "./SayCommandBuilder";
 import { TicketPanelBuilder } from "./TicketPanelBuilder";
+import { useActiveGuild } from "@/hooks/useActiveGuild";
+import { useBotChannels } from "@/hooks/useGuildChannels";
+
+const CHANNEL_ICON: Record<string, typeof Hash> = {
+  text: Hash,
+  announcement: Megaphone,
+  forum: MessagesSquare,
+  voice: Volume2,
+};
 
 type Props = {
   addonId: string;
@@ -189,7 +223,18 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl }: Props
       );
     }
 
-    // text / channel / role / number
+    if (f.type === "channel") {
+      return (
+        <ChannelComboField
+          field={f}
+          value={String(value ?? "")}
+          onChange={(v) => setValue(f.key, v)}
+          botId={botId}
+        />
+      );
+    }
+
+    // text / role / number
     return (
       <div className="space-y-2">
         <Label htmlFor={f.key}>{f.label}</Label>
@@ -287,5 +332,165 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl }: Props
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/**
+ * Channel picker for schema-driven addon fields.
+ *
+ * Pulls the live channel list for the dashboard's *active guild* (set by
+ * the server selector at the top of the page) using the bot's cached
+ * channels. Subscribes to realtime updates so newly created/deleted
+ * channels appear without a page reload, and offers a manual refresh
+ * that asks the worker to re-fetch from Discord.
+ */
+function ChannelComboField({
+  field,
+  value,
+  onChange,
+  botId,
+}: {
+  field: AddonField;
+  value: string;
+  onChange: (v: string) => void;
+  botId?: string;
+}) {
+  const { guild } = useActiveGuild();
+  const guildId = guild?.guild_id;
+  const { channels, loading, refreshing, refreshFromDiscord } = useBotChannels(
+    botId,
+    guildId,
+  );
+  const [open, setOpen] = useState(false);
+
+  // Default to the standard text-channel set; voice/forum can opt-in later.
+  const filtered = useMemo(
+    () =>
+      channels.filter((c) =>
+        ["text", "announcement", "forum"].includes(c.channel_type),
+      ),
+    [channels],
+  );
+  const selected = useMemo(
+    () => filtered.find((c) => c.channel_id === value) ?? null,
+    [filtered, value],
+  );
+
+  const handleRefresh = async () => {
+    if (!guildId) {
+      toast.info("Select a server at the top first.");
+      return;
+    }
+    const result = await refreshFromDiscord();
+    if (result.ok) toast.success("Channel list refreshed.");
+    else if (result.error === "timeout")
+      toast.warning("Refresh queued — bot may be offline.");
+    else toast.error(`Refresh failed: ${result.error}`);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>{field.label}</Label>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={refreshing || !guildId}
+          className="h-7 px-2 text-xs gap-1.5"
+        >
+          <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+          {refreshing ? "Refreshing…" : "Refresh"}
+        </Button>
+      </div>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            disabled={!guildId}
+            className="w-full justify-between font-normal"
+          >
+            <span className="flex items-center gap-2 min-w-0">
+              {selected ? (
+                <>
+                  {(() => {
+                    const Icon = CHANNEL_ICON[selected.channel_type] ?? Hash;
+                    return (
+                      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    );
+                  })()}
+                  <span className="truncate">{selected.channel_name}</span>
+                </>
+              ) : (
+                <>
+                  <Hash className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="truncate text-muted-foreground">
+                    {!guildId
+                      ? "Select a server first"
+                      : loading
+                        ? "Loading channels…"
+                        : filtered.length === 0
+                          ? "No channels cached — click Refresh"
+                          : "Select a channel…"}
+                  </span>
+                </>
+              )}
+            </span>
+            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-[var(--radix-popover-trigger-width)] p-0"
+          align="start"
+        >
+          <Command>
+            <CommandInput placeholder="Search channels…" />
+            <CommandList>
+              <CommandEmpty>
+                {filtered.length === 0
+                  ? "No channels cached yet."
+                  : "No matching channels."}
+              </CommandEmpty>
+              <CommandGroup>
+                {filtered.map((c) => {
+                  const Icon = CHANNEL_ICON[c.channel_type] ?? Hash;
+                  return (
+                    <CommandItem
+                      key={c.channel_id}
+                      value={`${c.channel_name} ${c.channel_id}`}
+                      onSelect={() => {
+                        onChange(c.channel_id);
+                        setOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          value === c.channel_id ? "opacity-100" : "opacity-0",
+                        )}
+                      />
+                      <Icon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="flex-1 truncate">{c.channel_name}</span>
+                      {c.parent_name && (
+                        <span className="text-xs text-muted-foreground ml-2 truncate max-w-[120px]">
+                          {c.parent_name}
+                        </span>
+                      )}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {field.help && (
+        <p className="text-xs text-muted-foreground">{field.help}</p>
+      )}
+    </div>
   );
 }
