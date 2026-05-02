@@ -135,6 +135,28 @@ export async function upsertChannels(
   if (error) console.error(`[${botId}] upsertChannels failed:`, error.message);
 }
 
+export type RoleCacheEntry = {
+  role_id: string;
+  role_name: string;
+  color: number;
+  position: number;
+  managed: boolean;
+  is_everyone: boolean;
+};
+
+export async function upsertRoles(
+  botId: string,
+  guildId: string,
+  roles: RoleCacheEntry[],
+) {
+  const { error } = await supabase.rpc("runtime_upsert_bot_roles" as any, {
+    _token: WORKER_TOKEN_VALUE,
+    _bot_id: botId,
+    _guild_id: guildId,
+    _roles: roles as any,
+  });
+  if (error) console.error(`[${botId}] upsertRoles failed:`, error.message);
+
 /**
  * Replace the cached guild list for a bot — adds new guilds and removes
  * ones the bot has left. Called when the dashboard requests a refresh.
