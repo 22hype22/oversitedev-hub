@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronsUpDown, RefreshCw, Server, Hash, Volume2, Megaphone, MessagesSquare } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { RefreshCw, Server, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import {
@@ -30,13 +28,6 @@ interface GuildChannelPickerProps {
   guildOnly?: boolean;
 }
 
-const CHANNEL_ICON: Record<string, typeof Hash> = {
-  text: Hash,
-  announcement: Megaphone,
-  forum: MessagesSquare,
-  voice: Volume2,
-};
-
 export function GuildChannelPicker({
   botId,
   guildId,
@@ -52,33 +43,10 @@ export function GuildChannelPicker({
   const { channels, loading: loadingChannels, refreshing, lastFetchedAt, refreshFromDiscord } =
     useBotChannels(botId, guildId ?? undefined);
 
-  const [guildOpen, setGuildOpen] = useState(false);
-  const [channelOpen, setChannelOpen] = useState(false);
-  const [guildQuery, setGuildQuery] = useState("");
-  const [channelQuery, setChannelQuery] = useState("");
-  const selectGuild = (g: BotGuild) => {
-    onGuildChange(g);
-    if (g.guild_id !== guildId) onChannelChange(null);
-    setGuildQuery("");
-    setGuildOpen(false);
-  };
-  const selectChannel = (c: BotChannel) => {
-    onChannelChange(c);
-    setChannelQuery("");
-    setChannelOpen(false);
-  };
-
   const selectedGuild = useMemo(
     () => guilds.find((g) => g.guild_id === guildId) ?? null,
     [guilds, guildId],
   );
-  const filteredGuilds = useMemo(() => {
-    const q = guildQuery.trim().toLowerCase();
-    if (!q) return guilds;
-    return guilds.filter((g) =>
-      `${g.guild_name ?? ""} ${g.guild_id}`.toLowerCase().includes(q),
-    );
-  }, [guilds, guildQuery]);
   const filteredChannels = useMemo(
     () => channels.filter((c) => channelTypes.includes(c.channel_type)),
     [channels, channelTypes],
@@ -87,15 +55,7 @@ export function GuildChannelPicker({
     () => filteredChannels.find((c) => c.channel_id === channelId) ?? null,
     [filteredChannels, channelId],
   );
-  const channelGroups = useMemo(() => {
-    const q = channelQuery.trim().toLowerCase();
-    const visible = q
-      ? filteredChannels.filter((c) =>
-          `${c.channel_name} ${c.channel_id}`.toLowerCase().includes(q),
-        )
-      : filteredChannels;
-    return sortedChannelCategoryEntries(visible);
-  }, [filteredChannels, channelQuery]);
+  const channelGroups = useMemo(() => sortedChannelCategoryEntries(filteredChannels), [filteredChannels]);
 
   // Auto-clear channel selection if it disappears from the new guild's list.
   useEffect(() => {
