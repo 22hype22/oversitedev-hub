@@ -14,6 +14,7 @@ export interface BotChannel {
   parent_id: string | null;
   parent_name: string | null;
   position: number;
+  parent_position: number;
 }
 
 /** Lists guilds the bot is currently in (from bot_active_guilds). */
