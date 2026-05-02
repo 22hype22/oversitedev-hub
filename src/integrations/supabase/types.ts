@@ -2096,6 +2096,7 @@ export type Database = {
         Args: { _bot_id: string; _guild_id: string }
         Returns: Json
       }
+      request_list_guilds: { Args: { _bot_id: string }; Returns: Json }
       reveal_bot_secret: {
         Args: { _bot_id: string; _key: string; _password?: string }
         Returns: Json
@@ -2220,6 +2221,10 @@ export type Database = {
             Args: { _bot_id: string; _guild_id: string; _token: string }
             Returns: Json
           }
+      runtime_replace_bot_guilds: {
+        Args: { _bot_id: string; _guilds: Json; _token: string }
+        Returns: Json
+      }
       runtime_seed_secret_slots: {
         Args: { _slots: Json; _token: string }
         Returns: Json
