@@ -23,7 +23,7 @@ function getRuntime(botId: string): BotRuntime {
 type Cmd = {
   id: string;
   bot_id: string;
-  action: "start" | "stop" | "restart" | "update" | "list_channels" | "list_guilds";
+  action: "start" | "stop" | "restart" | "update" | "list_channels" | "list_guilds" | "list_roles";
   payload?: { guild_id?: string } | null;
 };
 
