@@ -74,7 +74,11 @@ export async function getSecret(botId: string, key: string): Promise<string | nu
     console.error(`[${botId}] getSecret(${key}) failed:`, error.message);
     return null;
   }
-  return (data as string) ?? null;
+  if (typeof data === "string") return data;
+
+  const result = data as { ok?: boolean; value?: string; error?: string } | null;
+  if (result?.ok && typeof result.value === "string") return result.value;
+  return null;
 }
 
 export async function upsertGuild(
