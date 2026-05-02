@@ -262,5 +262,10 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
     }
   }, [botId, guildId, lastFetchedAt, readCache]);
 
+  const refreshFromDiscordRef = useRef(refreshFromDiscord);
+  useEffect(() => {
+    refreshFromDiscordRef.current = refreshFromDiscord;
+  }, [refreshFromDiscord]);
+
   return { channels, loading, refreshing, lastFetchedAt, refreshFromDiscord, readCache };
 }
