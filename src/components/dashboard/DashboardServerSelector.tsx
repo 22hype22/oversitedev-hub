@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronsUpDown, RefreshCw, Server, Globe } from "lucide-react";
+import { RefreshCw, Server, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBotGuilds } from "@/hooks/useGuildChannels";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
