@@ -25,6 +25,11 @@ export function DashboardServerSelector({ botId }: Props) {
   const { guild, setGuild } = useActiveGuild();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const selectGuild = (g: (typeof guilds)[number]) => {
+    setGuild(g);
+    setQuery("");
+    setOpen(false);
+  };
   const selectedGuild = useMemo(
     () => guilds.find((g) => g.guild_id === guild?.guild_id) ?? guild,
     [guilds, guild],
@@ -119,11 +124,11 @@ export function DashboardServerSelector({ botId }: Props) {
                           "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground",
                           selectedGuild?.guild_id === g.guild_id && "bg-accent text-accent-foreground",
                         )}
-                        onClick={() => {
-                          setGuild(g);
-                          setQuery("");
-                          setOpen(false);
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          selectGuild(g);
                         }}
+                        onClick={() => selectGuild(g)}
                       >
                         <Check
                           className={cn(
