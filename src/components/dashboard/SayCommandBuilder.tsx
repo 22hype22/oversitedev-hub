@@ -9,8 +9,10 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, Plus, Trash2, GripVertical } from "lucide-react";
+import { ChevronDown, Plus, Trash2, GripVertical, Info } from "lucide-react";
 import { toast } from "sonner";
+import { GuildChannelPicker } from "./GuildChannelPicker";
+import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
 
 /**
  * Discohook-style /say command builder.
@@ -69,13 +71,16 @@ const newField = (): EmbedField => ({
 });
 
 export function SayCommandBuilder({
+  botId,
   botName,
   botAvatarUrl,
 }: {
+  botId?: string;
   botName: string;
   botAvatarUrl?: string | null;
 }) {
-  const [channel, setChannel] = useState("");
+  const [guild, setGuild] = useState<BotGuild | null>(null);
+  const [channel, setChannel] = useState<BotChannel | null>(null);
   const [content, setContent] = useState(
     "Welcome to the server! 👋 Read the rules and have fun.",
   );
@@ -136,18 +141,25 @@ export function SayCommandBuilder({
     <div className="grid grid-cols-1 lg:grid-cols-[1fr,1fr] gap-4">
       {/* Editor */}
       <div className="space-y-3">
-        <div className="space-y-2">
-          <Label htmlFor="say-channel">Channel</Label>
-          <Input
-            id="say-channel"
-            placeholder="#announcements"
-            value={channel}
-            onChange={(e) => setChannel(e.target.value)}
+        {botId ? (
+          <GuildChannelPicker
+            botId={botId}
+            guildId={guild?.guild_id ?? null}
+            channelId={channel?.channel_id ?? null}
+            onGuildChange={setGuild}
+            onChannelChange={setChannel}
+            guildLabel="Server to post in"
+            channelLabel="Channel"
           />
-          <p className="text-xs text-muted-foreground">
-            The channel /say will post into.
-          </p>
-        </div>
+        ) : (
+          <div className="space-y-2">
+            <Label>Channel</Label>
+            <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+              <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>Server &amp; channel picker will appear here once your bot is online.</span>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
