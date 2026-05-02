@@ -2028,6 +2028,7 @@ export type Database = {
           messages_count: number
         }[]
       }
+      get_total_members_serving: { Args: never; Returns: number }
       has_active_membership: {
         Args: { _env?: string; _user_id: string }
         Returns: boolean
