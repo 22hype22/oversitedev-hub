@@ -149,11 +149,6 @@ function ServerDropdown({ guilds, selectedGuild, loading, onSelect }: ServerDrop
               >
                 <Check className={cn("h-4 w-4 shrink-0", isSelected ? "opacity-100" : "opacity-0")} />
                 <span className="flex-1 truncate text-left">{g.guild_name ?? g.guild_id}</span>
-                {g.member_count != null && (
-                  <span className="text-xs text-muted-foreground tabular-nums">
-                    {g.member_count.toLocaleString()}
-                  </span>
-                )}
               </button>
             );
           })}
