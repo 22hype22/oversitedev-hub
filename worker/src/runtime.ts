@@ -142,7 +142,6 @@ export class BotRuntime {
       });
 
       // Reconcile existing guilds against the paid slot limit.
-      // Process oldest-joined first so newcomers are the ones evicted.
       const sorted = [...guilds.values()].sort(
         (a, b) => (a.joinedTimestamp ?? 0) - (b.joinedTimestamp ?? 0),
       );
@@ -161,8 +160,6 @@ export class BotRuntime {
 
       await setStatus(this.botId, "online");
 
-      // 3. Periodic heartbeat (keeps last_heartbeat_at fresh so the
-      //    detect_stale_bots cron doesn't flip us to offline).
       this.heartbeat = setInterval(async () => {
         const g = this.client?.guilds.cache;
         if (g) {
@@ -217,17 +214,12 @@ export class BotRuntime {
     await this.start();
   }
 
-  /**
-   * Fetch the current text-channel list for a guild and replace the cache.
-   * Caller must ensure this bot is running and is a member of the guild.
-   */
   async listChannels(guildId: string) {
     if (!this.client) {
       throw new Error("Bot not running — start it before listing channels");
     }
-    const guild = this.client.guilds.cache.get(guildId);
+    let guild = this.client.guilds.cache.get(guildId);
     if (!guild) {
-      // Try a fetch in case the cache is cold
       try {
         await this.client.guilds.fetch(guildId);
       } catch {
@@ -237,42 +229,31 @@ export class BotRuntime {
     const g = this.client.guilds.cache.get(guildId);
     if (!g) throw new Error(`Bot is not in guild ${guildId}`);
 
-    // Force a fresh fetch so newly-created channels show up.
     const channels = await g.channels.fetch();
     const TEXTUAL = new Set<number>([
       ChannelType.GuildText,
       ChannelType.GuildAnnouncement,
       ChannelType.GuildForum,
-      ChannelType.GuildVoice, // include for completeness; UI can filter
+      ChannelType.GuildVoice,
     ]);
 
     const entries = [...channels.values()]
       .filter((c): c is NonNullable<typeof c> => c !== null && TEXTUAL.has(c.type))
       .map((c) => {
-        const parent = "parent" in c ? c.parent : null;
+        const anyC = c as any;
+        const parent = anyC.parent ?? null;
         const channelType =
-          c.type === ChannelType.GuildText
-            ? "text"
-            : c.type === ChannelType.GuildAnnouncement
-            ? "announcement"
-            : c.type === ChannelType.GuildForum
-            ? "forum"
-            : c.type === ChannelType.GuildVoice
-            ? "voice"
-            : "text";
-        const ownPos = "rawPosition" in c
-          ? (c.rawPosition ?? 0)
-          : "position" in c
-          ? (c.position ?? 0)
-          : 0;
-        // -1 = uncategorized; the dashboard sorts those above any category.
-        const parentPos = parent
-          ? "rawPosition" in parent
-            ? (parent.rawPosition ?? 0)
-            : "position" in parent
-            ? (parent.position ?? 0)
-            : -1
+          c.type === ChannelType.GuildText ? "text"
+          : c.type === ChannelType.GuildAnnouncement ? "announcement"
+          : c.type === ChannelType.GuildForum ? "forum"
+          : c.type === ChannelType.GuildVoice ? "voice"
+          : "text";
+
+        const ownPos: number = anyC.rawPosition ?? anyC.position ?? 0;
+        const parentPos: number = parent
+          ? (parent.rawPosition ?? parent.position ?? -1)
           : -1;
+
         return {
           channel_id: c.id,
           channel_name: c.name ?? c.id,
@@ -288,9 +269,6 @@ export class BotRuntime {
     await appendLog(this.botId, "info", `Cached ${entries.length} channel(s) for guild ${g.name}`);
   }
 
-  /**
-   * Fetch the current role list for a guild and replace the cache.
-   */
   async listRoles(guildId: string) {
     if (!this.client) {
       throw new Error("Bot not running — start it before listing roles");
@@ -309,24 +287,18 @@ export class BotRuntime {
       role_id: r.id,
       role_name: r.name,
       color: r.color ?? 0,
-      position: r.rawPosition ?? r.position ?? 0,
+      position: (r as any).rawPosition ?? r.position ?? 0,
       managed: r.managed ?? false,
-      is_everyone: r.id === g!.id, // @everyone shares guild id
+      is_everyone: r.id === g!.id,
     }));
     await upsertRoles(this.botId, guildId, entries);
     await appendLog(this.botId, "info", `Cached ${entries.length} role(s) for guild ${g.name}`);
   }
 
-  /**
-   * Refresh the cached server list from Discord — adds servers the bot has
-   * joined and removes ones it's left since startup. Called on demand from
-   * the dashboard.
-   */
   async listGuilds() {
     if (!this.client) {
       throw new Error("Bot not running — start it before listing servers");
     }
-    // Force a fresh fetch so newly-joined servers show up.
     await this.client.guilds.fetch();
     const guilds = [...this.client.guilds.cache.values()].map((g) => ({
       guild_id: g.id,
