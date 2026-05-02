@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronsUpDown, RefreshCw, Server, Hash, Volume2, Megaphone, MessagesSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -61,11 +62,19 @@ export function GuildChannelPicker({
 
   const [guildOpen, setGuildOpen] = useState(false);
   const [channelOpen, setChannelOpen] = useState(false);
+  const [guildQuery, setGuildQuery] = useState("");
 
   const selectedGuild = useMemo(
     () => guilds.find((g) => g.guild_id === guildId) ?? null,
     [guilds, guildId],
   );
+  const filteredGuilds = useMemo(() => {
+    const q = guildQuery.trim().toLowerCase();
+    if (!q) return guilds;
+    return guilds.filter((g) =>
+      `${g.guild_name ?? ""} ${g.guild_id}`.toLowerCase().includes(q),
+    );
+  }, [guilds, guildQuery]);
   const filteredChannels = useMemo(
     () => channels.filter((c) => channelTypes.includes(c.channel_type)),
     [channels, channelTypes],
@@ -126,45 +135,56 @@ export function GuildChannelPicker({
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-            <Command>
-              <CommandInput placeholder="Search servers…" />
-              <CommandList>
-                <CommandEmpty>
+            <div className="border-b border-border p-2">
+              <Input
+                value={guildQuery}
+                onChange={(e) => setGuildQuery(e.target.value)}
+                placeholder="Search servers…"
+                className="h-9"
+              />
+            </div>
+            <div className="max-h-[300px] overflow-y-auto p-1">
+              {filteredGuilds.length === 0 ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">
                   {guilds.length === 0
                     ? "Bot isn't in any servers yet."
                     : "No matching servers."}
-                </CommandEmpty>
-                <CommandGroup>
-                  {guilds.map((g) => (
-                    <CommandItem
-                      key={g.guild_id}
-                      value={`${g.guild_name ?? ""} ${g.guild_id}`}
-                      onSelect={() => {
-                        onGuildChange(g);
-                        if (g.guild_id !== guildId) onChannelChange(null);
-                        setGuildOpen(false);
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          selectedGuild?.guild_id === g.guild_id ? "opacity-100" : "opacity-0",
-                        )}
-                      />
-                      <Server className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="flex-1 truncate">
-                        {g.guild_name ?? g.guild_id}
-                      </span>
-                      {g.member_count != null && (
-                        <span className="text-xs text-muted-foreground ml-2">
-                          {g.member_count.toLocaleString()} members
-                        </span>
+                </div>
+              ) : (
+                filteredGuilds.map((g) => (
+                  <button
+                    key={g.guild_id}
+                    type="button"
+                    className={cn(
+                      "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground",
+                      selectedGuild?.guild_id === g.guild_id && "bg-accent text-accent-foreground",
+                    )}
+                    onClick={() => {
+                      onGuildChange(g);
+                      if (g.guild_id !== guildId) onChannelChange(null);
+                      setGuildQuery("");
+                      setGuildOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4 shrink-0",
+                        selectedGuild?.guild_id === g.guild_id ? "opacity-100" : "opacity-0",
                       )}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
+                    />
+                    <Server className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span className="flex-1 truncate">
+                      {g.guild_name ?? g.guild_id}
+                    </span>
+                    {g.member_count != null && (
+                      <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                        {g.member_count.toLocaleString()} members
+                      </span>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
           </PopoverContent>
         </Popover>
       </div>
