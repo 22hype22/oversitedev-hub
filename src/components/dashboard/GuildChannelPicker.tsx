@@ -17,6 +17,7 @@ import {
   useBotChannels,
   sortedChannelCategoryEntries,
   type BotGuild,
+  type BotChannel,
 } from "@/hooks/useGuildChannels";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
