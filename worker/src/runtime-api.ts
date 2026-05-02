@@ -106,3 +106,26 @@ export async function removeGuild(botId: string, guildId: string) {
   });
   if (error) console.error(`[${botId}] removeGuild failed:`, error.message);
 }
+
+export type ChannelCacheEntry = {
+  channel_id: string;
+  channel_name: string;
+  channel_type: string;
+  parent_id: string | null;
+  parent_name: string | null;
+  position: number;
+};
+
+export async function upsertChannels(
+  botId: string,
+  guildId: string,
+  channels: ChannelCacheEntry[],
+) {
+  const { error } = await supabase.rpc("runtime_upsert_bot_channels", {
+    _token: WORKER_TOKEN_VALUE,
+    _bot_id: botId,
+    _guild_id: guildId,
+    _channels: channels as any,
+  });
+  if (error) console.error(`[${botId}] upsertChannels failed:`, error.message);
+}
