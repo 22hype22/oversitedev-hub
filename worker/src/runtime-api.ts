@@ -118,6 +118,7 @@ export type ChannelCacheEntry = {
   parent_id: string | null;
   parent_name: string | null;
   position: number;
+  parent_position: number;
 };
 
 export async function upsertChannels(
