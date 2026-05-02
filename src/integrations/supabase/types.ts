@@ -693,6 +693,48 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_role_cache: {
+        Row: {
+          bot_id: string
+          color: number
+          fetched_at: string
+          guild_id: string
+          id: string
+          is_everyone: boolean
+          managed: boolean
+          position: number
+          role_id: string
+          role_name: string
+          user_id: string
+        }
+        Insert: {
+          bot_id: string
+          color?: number
+          fetched_at?: string
+          guild_id: string
+          id?: string
+          is_everyone?: boolean
+          managed?: boolean
+          position?: number
+          role_id: string
+          role_name: string
+          user_id: string
+        }
+        Update: {
+          bot_id?: string
+          color?: number
+          fetched_at?: string
+          guild_id?: string
+          id?: string
+          is_everyone?: boolean
+          managed?: boolean
+          position?: number
+          role_id?: string
+          role_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bot_runtime_status: {
         Row: {
           bot_id: string
@@ -2101,6 +2143,10 @@ export type Database = {
         Returns: Json
       }
       request_list_guilds: { Args: { _bot_id: string }; Returns: Json }
+      request_list_roles: {
+        Args: { _bot_id: string; _guild_id: string }
+        Returns: Json
+      }
       reveal_bot_secret: {
         Args: { _bot_id: string; _key: string; _password?: string }
         Returns: Json
@@ -2286,6 +2332,15 @@ export type Database = {
             }
             Returns: Json
           }
+      runtime_upsert_bot_roles: {
+        Args: {
+          _bot_id: string
+          _guild_id: string
+          _roles: Json
+          _token: string
+        }
+        Returns: Json
+      }
       set_bot_secret: {
         Args: { _bot_id: string; _key: string; _value: string }
         Returns: Json

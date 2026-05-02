@@ -23,7 +23,7 @@ function getRuntime(botId: string): BotRuntime {
 type Cmd = {
   id: string;
   bot_id: string;
-  action: "start" | "stop" | "restart" | "update" | "list_channels" | "list_guilds";
+  action: "start" | "stop" | "restart" | "update" | "list_channels" | "list_guilds" | "list_roles";
   payload?: { guild_id?: string } | null;
 };
 
@@ -96,6 +96,12 @@ async function processCommand(cmd: Cmd) {
       }
       case "list_guilds": {
         await runtime.listGuilds();
+        break;
+      }
+      case "list_roles": {
+        const guildId = cmd.payload?.guild_id;
+        if (!guildId) throw new Error("list_roles requires payload.guild_id");
+        await runtime.listRoles(guildId);
         break;
       }
     }
