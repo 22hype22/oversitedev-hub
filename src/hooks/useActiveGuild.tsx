@@ -45,6 +45,12 @@ export function ActiveGuildProvider({
       return null;
     }
   });
+  const currentGuildIdRef = useRef(guild?.guild_id ?? null);
+  const lastGuildSetAtRef = useRef(0);
+
+  useEffect(() => {
+    currentGuildIdRef.current = guild?.guild_id ?? null;
+  }, [guild?.guild_id]);
 
   // Re-load if the storage key changes (different bot or user). We track the
   // last key we hydrated from so we don't clobber an in-flight `setGuild` with
@@ -56,14 +62,34 @@ export function ActiveGuildProvider({
     hydratedKeyRef.current = key;
     try {
       const raw = window.localStorage.getItem(key);
-      setGuildState(raw ? (JSON.parse(raw) as BotGuild) : null);
+      const nextGuild = raw ? (JSON.parse(raw) as BotGuild) : null;
+      currentGuildIdRef.current = nextGuild?.guild_id ?? null;
+      lastGuildSetAtRef.current = 0;
+      setGuildState(nextGuild);
     } catch {
+      currentGuildIdRef.current = null;
+      lastGuildSetAtRef.current = 0;
       setGuildState(null);
     }
   }, [key]);
 
   const setGuild = useCallback(
     (g: BotGuild | null) => {
+      const nextGuildId = g?.guild_id ?? null;
+      const currentGuildId = currentGuildIdRef.current;
+      const now = Date.now();
+
+      if (
+        nextGuildId &&
+        currentGuildId &&
+        nextGuildId !== currentGuildId &&
+        now - lastGuildSetAtRef.current < 800
+      ) {
+        return;
+      }
+
+      currentGuildIdRef.current = nextGuildId;
+      lastGuildSetAtRef.current = now;
       setGuildState(g);
       try {
         if (g) window.localStorage.setItem(key, JSON.stringify(g));
