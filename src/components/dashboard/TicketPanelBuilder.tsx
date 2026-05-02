@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Trash2, AlertTriangle, Info } from "lucide-react";
 import { GuildChannelPicker } from "./GuildChannelPicker";
 import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
+import { useActiveGuild } from "@/hooks/useActiveGuild";
 
 type Category = {
   id: string;
@@ -75,7 +76,12 @@ export function TicketPanelBuilder({ botId, botName, variant = "ticket" }: Props
   const copy = COPY[variant];
   const isReport = variant === "report";
 
-  const [guild, setGuild] = useState<BotGuild | null>(null);
+  const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
+  const [guild, setGuildLocal] = useState<BotGuild | null>(activeGuild);
+  const setGuild = (g: BotGuild | null) => {
+    setGuildLocal(g);
+    if (g) setActiveGuild(g);
+  };
   const [panelChannel, setPanelChannel] = useState<BotChannel | null>(null);
   const [panelTitle, setPanelTitle] = useState("");
   const [panelDescription, setPanelDescription] = useState("");
