@@ -159,8 +159,7 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
       .eq("bot_id", botId)
       .eq("guild_id", guildId)
       .order("parent_position", { ascending: true })
-      .order("position", { ascending: true })
-      .order("channel_name", { ascending: true });
+      .order("position", { ascending: true });
     const rows = (data ?? []) as (BotChannel & { fetched_at: string })[];
     setChannels(rows);
     setLastFetchedAt(rows[0]?.fetched_at ?? null);
