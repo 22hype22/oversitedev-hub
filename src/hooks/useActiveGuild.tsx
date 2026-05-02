@@ -46,8 +46,14 @@ export function ActiveGuildProvider({
     }
   });
 
-  // Re-load if the bot changes underneath us (e.g. user switches bots in-page).
+  // Re-load if the storage key changes (different bot or user). We track the
+  // last key we hydrated from so we don't clobber an in-flight `setGuild` with
+  // a stale localStorage read on the same key (which was the source of the
+  // "selection flips back to the previous server" bug).
+  const hydratedKeyRef = useRef(key);
   useEffect(() => {
+    if (hydratedKeyRef.current === key) return;
+    hydratedKeyRef.current = key;
     try {
       const raw = window.localStorage.getItem(key);
       setGuildState(raw ? (JSON.parse(raw) as BotGuild) : null);
