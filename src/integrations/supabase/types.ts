@@ -745,6 +745,7 @@ export type Database = {
           id: string
           key: string
           last_four: string
+          managed: boolean
           updated_at: string
           user_id: string
           value_encrypted: string
@@ -755,6 +756,7 @@ export type Database = {
           id?: string
           key: string
           last_four?: string
+          managed?: boolean
           updated_at?: string
           user_id: string
           value_encrypted: string
@@ -765,6 +767,7 @@ export type Database = {
           id?: string
           key?: string
           last_four?: string
+          managed?: boolean
           updated_at?: string
           user_id?: string
           value_encrypted?: string
@@ -1914,6 +1917,7 @@ export type Database = {
         Args: { _bot_id: string; _extra_slots: number }
         Returns: Json
       }
+      assign_pool_token_to_bot: { Args: { _bot_id: string }; Returns: Json }
       claim_bot_token_from_pool: { Args: { _order_id: string }; Returns: Json }
       cleanup_old_bot_logs: { Args: never; Returns: number }
       cleanup_old_notifications: { Args: never; Returns: number }
@@ -1956,6 +1960,7 @@ export type Database = {
         Returns: {
           addon_id: string
           description: string
+          is_managed: boolean
           is_required: boolean
           is_set: boolean
           key: string

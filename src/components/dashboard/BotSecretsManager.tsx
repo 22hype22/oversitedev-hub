@@ -34,6 +34,7 @@ import {
   Loader2,
   Copy,
   Check,
+  Sparkles,
 } from "lucide-react";
 
 type SlotMeta = {
@@ -47,6 +48,7 @@ type SlotMeta = {
   is_set: boolean;
   last_four: string;
   updated_at: string | null;
+  is_managed: boolean;
 };
 
 export function BotSecretsManager({
@@ -147,25 +149,48 @@ export function BotSecretsManager({
                     <code className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">
                       {slot.key}
                     </code>
-                    {slot.is_required && (
+                    {slot.is_required && !slot.is_managed && (
                       <Badge variant="outline" className="text-[10px] py-0 h-4">
                         required
                       </Badge>
                     )}
+                    {slot.is_managed && (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] py-0 h-4 gap-1 bg-primary/10 text-primary border-primary/30"
+                      >
+                        <Sparkles className="h-2.5 w-2.5" />
+                        Provided by Oversite
+                      </Badge>
+                    )}
                   </div>
-                  {slot.description && (
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                      {slot.description}
+                  {slot.is_managed ? (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Pre-configured for you. No action needed.
                     </p>
+                  ) : (
+                    slot.description && (
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        {slot.description}
+                      </p>
+                    )
                   )}
-                  {slot.is_set && (
+                  {slot.is_set && !slot.is_managed && (
                     <div className="text-[11px] text-muted-foreground mt-1 font-mono">
                       ••••••••{slot.last_four}
                     </div>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  {slot.is_set ? (
+                  {slot.is_managed ? (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] gap-1 bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                    >
+                      <ShieldCheck className="h-3 w-3" />
+                      Active
+                    </Badge>
+                  ) : slot.is_set ? (
                     <>
                       <Button
                         size="sm"
