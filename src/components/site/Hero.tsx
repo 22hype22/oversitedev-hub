@@ -5,7 +5,39 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export const Hero = () => {
-  const [botServers, setBotServers] = useState(20);
+  const STORAGE_KEY = "oversite:botsBuiltCount";
+  const START_VALUE = 20;
+  const AVG_INTERVAL_MS = 32500; // average of 20-45s
+
+  const [botServers, setBotServers] = useState<number>(() => {
+    if (typeof window === "undefined") return START_VALUE;
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { value: number; updatedAt: number };
+        if (typeof parsed?.value === "number" && typeof parsed?.updatedAt === "number") {
+          // Catch up for time elapsed while away (using average interval)
+          const elapsed = Date.now() - parsed.updatedAt;
+          const gained = elapsed > 0 ? Math.floor(elapsed / AVG_INTERVAL_MS) : 0;
+          return Math.max(START_VALUE, parsed.value + gained);
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return START_VALUE;
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ value: botServers, updatedAt: Date.now() }),
+      );
+    } catch {
+      // ignore
+    }
+  }, [botServers]);
 
   useEffect(() => {
     const tick = () => {
