@@ -117,12 +117,9 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
     readCache();
   }, [readCache]);
 
-  // Refresh from cache when window regains focus (cheap — DB read only).
-  useEffect(() => {
-    const onFocus = () => readCache();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [readCache]);
+  // (No focus listener — switching tabs should not refresh and reset
+  // the user's in-progress configuration. Realtime subscription below
+  // handles live updates from the worker.)
 
   // Live updates: re-read whenever the worker writes channel rows for
   // this bot+guild (channel created/renamed/deleted on Discord).
