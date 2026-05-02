@@ -268,12 +268,24 @@ export function GuildChannelPicker({
   );
 }
 
-function groupByCategory(channels: BotChannel[]): Record<string, BotChannel[]> {
-  const groups: Record<string, BotChannel[]> = {};
+function sortedCategoryEntries(channels: BotChannel[]): [string, BotChannel[]][] {
+  const groups = new Map<string, BotChannel[]>();
   for (const c of channels) {
     const key = c.parent_name ?? "Uncategorized";
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(c);
+    const list = groups.get(key);
+    if (list) list.push(c);
+    else groups.set(key, [c]);
   }
-  return groups;
+  // Sort channels within each category by their (composite) position.
+  for (const list of groups.values()) {
+    list.sort((a, b) => a.position - b.position);
+  }
+  // Sort the categories themselves: Uncategorized first, then by the
+  // smallest position in each group (which encodes the parent's position
+  // thanks to the composite key the worker writes).
+  return [...groups.entries()].sort(([aKey, aList], [bKey, bList]) => {
+    if (aKey === "Uncategorized" && bKey !== "Uncategorized") return -1;
+    if (bKey === "Uncategorized" && aKey !== "Uncategorized") return 1;
+    return (aList[0]?.position ?? 0) - (bList[0]?.position ?? 0);
+  });
 }
