@@ -495,7 +495,15 @@ const BotSection = ({
   // "messages" lives inside every category list so it shows under the bot's
   // main section, but we don't want a standalone group (e.g. "Utilities") to
   // appear just because of Messages — drop groups whose only item is Messages.
+  // Only show groups that match this bot's base (plus the shared "Extras" group).
+  // "scratch" (All-in-One) shows every category.
+  const allowedGroupKeys = new Set<string>(
+    bot.base === "scratch"
+      ? ["protection", "support", "utilities", "shared"]
+      : [bot.base, "shared"],
+  );
   const groupedAddons = ADDON_GROUPS
+    .filter((g) => allowedGroupKeys.has(g.key))
     .map((g) => ({ ...g, owned: g.ids.filter((id) => ownedAddons.has(id)) }))
     .filter((g) => g.owned.length > 0);
   const totalConfigurable = groupedAddons.reduce((n, g) => n + g.owned.length, 0);
