@@ -57,12 +57,29 @@ export function DashboardServerSelector({ botId }: Props) {
           </div>
 
           <div className="flex gap-2">
-            <ServerDropdown
-              guilds={guilds}
-              selectedGuild={selectedGuild}
-              loading={loading}
-              onSelect={(g) => setGuild(g)}
-            />
+            <label className="relative flex-1 block">
+              <Server className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <select
+                value={selectedGuild?.guild_id ?? ""}
+                onChange={(event) => {
+                  const next = guilds.find((g) => g.guild_id === event.target.value) ?? null;
+                  setGuild(next);
+                }}
+                disabled={loading || guilds.length === 0}
+                className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Active server"
+              >
+                <option value="">
+                  {loading ? "Loading servers…" : guilds.length === 0 ? "No servers cached — click refresh →" : "Select a server…"}
+                </option>
+                {guilds.map((g) => (
+                  <option key={g.guild_id} value={g.guild_id}>
+                    {g.guild_name ?? g.guild_id}
+                    {g.member_count != null ? ` · ${g.member_count.toLocaleString()} members` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
             <Button
               type="button"
               variant="outline"
