@@ -271,7 +271,28 @@ export class BotRuntime {
 
   async listRoles(guildId: string) {
     if (!this.client) {
-      throw new Error("Bot not running — start it before listing roles");
+      const token = await getSecret(this.botId, "DISCORD_TOKEN");
+      if (!token) throw new Error("DISCORD_TOKEN secret not set");
+
+      const rest = new REST({ version: "10" }).setToken(token);
+      const roles = (await rest.get(Routes.guildRoles(guildId))) as Array<{
+        id: string;
+        name: string;
+        color?: number;
+        position?: number;
+        managed?: boolean;
+      }>;
+      const entries = roles.map((r) => ({
+        role_id: r.id,
+        role_name: r.name,
+        color: r.color ?? 0,
+        position: r.position ?? 0,
+        managed: r.managed ?? false,
+        is_everyone: r.id === guildId,
+      }));
+      await upsertRoles(this.botId, guildId, entries);
+      await appendLog(this.botId, "info", `Cached ${entries.length} role(s) for guild ${guildId}`);
+      return;
     }
     let g = this.client.guilds.cache.get(guildId);
     if (!g) {
