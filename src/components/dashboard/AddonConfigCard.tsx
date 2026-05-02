@@ -47,6 +47,7 @@ import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildChannels";
 import { useBotRoles } from "@/hooks/useBotRoles";
 import { AtSign } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const CHANNEL_ICON: Record<string, typeof Hash> = {
   text: Hash,
@@ -72,8 +73,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl }: Props
   const isSayCommand = addonId === "messages";
   const isTicketPanel = addonId === "ticket-message-customization";
   const isAnonReport = addonId === "anonymous-reporting";
+  const isVerification = addonId === "verification-system";
   const config = getAddonConfig(addonId);
   const [open, setOpen] = useState(false);
+  const [appliedAt, setAppliedAt] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Generic, untyped form state — schema-driven.
   const [values, setValues] = useState<Record<string, string | number | boolean | string[]>>({});
@@ -94,6 +98,65 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl }: Props
     }
     setValues(initial);
   }, [config, addonId]);
+
+  // Load existing verification config from bot_config when dialog opens.
+  useEffect(() => {
+    if (!isVerification || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "verification")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        channel_id: cfg.channel_id ?? "",
+        role_id: cfg.role_id ?? "",
+        message: cfg.message ?? prev.message ?? "",
+        button_label: cfg.button_label ?? prev.button_label ?? "Verify",
+        min_account_age_days: String(cfg.min_account_age_days ?? "0"),
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isVerification, open, botId]);
+
+  const saveVerification = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "verification",
+      config: {
+        channel_id: String(values.channel_id ?? ""),
+        role_id: String(values.role_id ?? ""),
+        message: String(values.message ?? ""),
+        button_label: String(values.button_label ?? "Verify"),
+        min_account_age_days: Number(values.min_account_age_days ?? 0),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    toast.success("Verification settings saved");
+    setOpen(false);
+  };
+
 
   // Add-ons we don't have a schema for yet — show a stub box so we know
   // it's owned but configuration is still wired up.
@@ -320,19 +383,31 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl }: Props
             </div>
           )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                toast.success(`${config.title} settings saved`);
-                setOpen(false);
-              }}
-            >
-              <Save className="h-4 w-4 mr-1.5" />
-              Save changes
-            </Button>
+          <DialogFooter className="flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            {isVerification && appliedAt ? (
+              <span className="text-xs text-muted-foreground">
+                Last applied {new Date(appliedAt).toLocaleString()}
+              </span>
+            ) : <span />}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                disabled={saving}
+                onClick={() => {
+                  if (isVerification) {
+                    void saveVerification();
+                  } else {
+                    toast.success(`${config.title} settings saved`);
+                    setOpen(false);
+                  }
+                }}
+              >
+                <Save className="h-4 w-4 mr-1.5" />
+                {saving ? "Saving…" : "Save changes"}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
