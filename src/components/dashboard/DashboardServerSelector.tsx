@@ -81,7 +81,7 @@ export function DashboardServerSelector({ botId }: Props) {
                           {loading
                             ? "Loading servers…"
                             : guilds.length === 0
-                              ? "Bot not in any servers yet"
+                              ? "No servers cached — click refresh →"
                               : "Select a server…"}
                         </span>
                       )}
