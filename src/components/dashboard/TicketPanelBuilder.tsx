@@ -3,14 +3,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Plus, Trash2, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, AlertTriangle, Info } from "lucide-react";
+import { GuildChannelPicker } from "./GuildChannelPicker";
+import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
 
 type Category = {
   id: string;
@@ -24,21 +19,10 @@ const uid = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
 
-/**
- * Mock channel list — once the bot is linked we'll swap this with channels
- * fetched from the bot's connected guild.
- */
-const MOCK_CHANNELS = [
-  "#general",
-  "#tickets",
-  "#support",
-  "#reports",
-  "#staff-only",
-];
-
 type Variant = "ticket" | "report";
 
 type Props = {
+  botId?: string;
   botName: string;
   variant?: Variant;
 };
