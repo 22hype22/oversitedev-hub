@@ -142,7 +142,7 @@ export const Hero = () => {
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl">
             {[
               { value: "23B+", label: "Visits Contributed To" },
-              { value: "12K+", label: "Total Members" },
+              { value: membersServing !== null ? formatMembers(membersServing) : "—", label: "Members Serving" },
               { value: botServers.toLocaleString(), label: "Bots Built" },
             ].map((s) => (
               <div
