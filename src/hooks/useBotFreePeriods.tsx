@@ -12,11 +12,12 @@ export type BotFreePeriod = {
 /** Loads the signed-in user's active free periods, keyed by bot_id. */
 export function useBotFreePeriods() {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [periods, setPeriods] = useState<Record<string, BotFreePeriod>>({});
   const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setPeriods({});
       setLoading(false);
       return;
@@ -25,7 +26,7 @@ export function useBotFreePeriods() {
     const { data } = await (supabase as any)
       .from("bot_free_periods")
       .select("bot_id,free_until,reminder_sent_at,resumed_at")
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
 
     const map: Record<string, BotFreePeriod> = {};
     (data ?? []).forEach((row: BotFreePeriod) => {
@@ -33,7 +34,7 @@ export function useBotFreePeriods() {
     });
     setPeriods(map);
     setLoading(false);
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     reload();

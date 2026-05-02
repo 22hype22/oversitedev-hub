@@ -75,13 +75,14 @@ function mapRow(row: any, viaSupport = false): OwnedBot {
  */
 export function useOwnedBots() {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [bots, setBots] = useState<OwnedBot[]>([]);
   const [supportBots, setSupportBots] = useState<OwnedBot[]>([]);
   const [ownsDashboardAddon, setOwnsDashboardAddon] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setBots([]);
       setSupportBots([]);
       setOwnsDashboardAddon(false);
@@ -97,7 +98,7 @@ export function useOwnedBots() {
     const { data: own } = await (supabase as any)
       .from("bot_orders")
       .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,paid_at,total_amount")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .order("created_at", { ascending: true });
 
     const ownAll: any[] = own ?? [];
@@ -124,7 +125,7 @@ export function useOwnedBots() {
 
     const ownerIds: string[] = Array.from(
       new Set(((grants ?? []) as any[]).map((g) => g.owner_user_id).filter(Boolean)),
-    ).filter((id) => id !== user.id);
+    ).filter((id) => id !== userId);
 
     let supportMapped: OwnedBot[] = [];
     if (ownerIds.length > 0) {
@@ -142,7 +143,7 @@ export function useOwnedBots() {
     setSupportBots(supportMapped);
     setOwnsDashboardAddon(ownsDashboardAddon);
     setLoading(false);
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     reload();
