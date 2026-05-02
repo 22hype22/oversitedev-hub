@@ -187,7 +187,10 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
     "phishing-detection",
     "messages",
   ],
-  support: ["messages"],
+  // Support base ships with the ticket panel system + welcome/goodbye messages.
+  support: ["ticket-message-customization", "messages"],
+  // Utilities base ships with /say, /announce, /poll, /reactionrole, etc.
+  // The "messages" config card surfaces the say/announce builder.
   utilities: ["messages"],
 };
 
