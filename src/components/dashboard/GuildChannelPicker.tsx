@@ -3,14 +3,6 @@ import { Check, ChevronsUpDown, RefreshCw, Server, Hash, Volume2, Megaphone, Mes
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import {
@@ -63,6 +55,7 @@ export function GuildChannelPicker({
   const [guildOpen, setGuildOpen] = useState(false);
   const [channelOpen, setChannelOpen] = useState(false);
   const [guildQuery, setGuildQuery] = useState("");
+  const [channelQuery, setChannelQuery] = useState("");
 
   const selectedGuild = useMemo(
     () => guilds.find((g) => g.guild_id === guildId) ?? null,
@@ -83,6 +76,15 @@ export function GuildChannelPicker({
     () => filteredChannels.find((c) => c.channel_id === channelId) ?? null,
     [filteredChannels, channelId],
   );
+  const channelGroups = useMemo(() => {
+    const q = channelQuery.trim().toLowerCase();
+    const visible = q
+      ? filteredChannels.filter((c) =>
+          `${c.channel_name} ${c.channel_id}`.toLowerCase().includes(q),
+        )
+      : filteredChannels;
+    return sortedChannelCategoryEntries(visible);
+  }, [filteredChannels, channelQuery]);
 
   // Auto-clear channel selection if it disappears from the new guild's list.
   useEffect(() => {
@@ -247,43 +249,58 @@ export function GuildChannelPicker({
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search channels…" />
-                <CommandList>
-                  <CommandEmpty>
+              <div className="border-b border-border p-2">
+                <Input
+                  value={channelQuery}
+                  onChange={(e) => setChannelQuery(e.target.value)}
+                  placeholder="Search channels…"
+                  className="h-9"
+                />
+              </div>
+              <div className="max-h-[300px] overflow-y-auto p-1">
+                {channelGroups.length === 0 ? (
+                  <div className="py-6 text-center text-sm text-muted-foreground">
                     {filteredChannels.length === 0
                       ? "No channels cached for this server. Click Refresh from Discord."
                       : "No matching channels."}
-                  </CommandEmpty>
-                  {/* Group by parent category, sorted by Discord position */}
-                  {sortedChannelCategoryEntries(filteredChannels).map((group) => (
-                    <CommandGroup key={group.key} heading={group.label}>
+                  </div>
+                ) : (
+                  channelGroups.map((group) => (
+                    <div key={group.key} className="py-1">
+                      <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                        {group.label}
+                      </div>
                       {group.channels.map((c) => {
                         const Icon = CHANNEL_ICON[c.channel_type] ?? Hash;
                         return (
-                          <CommandItem
+                          <button
                             key={c.channel_id}
-                            value={`${c.channel_name} ${c.channel_id}`}
-                            onSelect={() => {
+                            type="button"
+                            className={cn(
+                              "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground",
+                              selectedChannel?.channel_id === c.channel_id && "bg-accent text-accent-foreground",
+                            )}
+                            onClick={() => {
                               onChannelChange(c);
+                              setChannelQuery("");
                               setChannelOpen(false);
                             }}
                           >
                             <Check
                               className={cn(
-                                "mr-2 h-4 w-4",
+                                "mr-2 h-4 w-4 shrink-0",
                                 selectedChannel?.channel_id === c.channel_id ? "opacity-100" : "opacity-0",
                               )}
                             />
-                            <Icon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                            <Icon className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                             <span className="flex-1 truncate">{c.channel_name}</span>
-                          </CommandItem>
+                          </button>
                         );
                       })}
-                    </CommandGroup>
-                  ))}
-                </CommandList>
-              </Command>
+                    </div>
+                  ))
+                )}
+              </div>
             </PopoverContent>
           </Popover>
           {lastFetchedAt && (
