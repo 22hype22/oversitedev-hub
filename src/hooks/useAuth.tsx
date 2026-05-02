@@ -29,13 +29,22 @@ export const useAuth = () => {
       setRoleLoading(false);
     };
 
+    let lastCheckedUserId: string | null = null;
+
     const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
       setSession(sess);
       setUser(sess?.user ?? null);
-      if (sess?.user) {
-        // defer to avoid deadlock with the auth callback
-        setTimeout(() => checkAdmin(sess.user.id), 0);
+      const newUserId = sess?.user?.id ?? null;
+      if (newUserId) {
+        // Only re-check admin role when the user actually changes.
+        // Without this guard, TOKEN_REFRESHED events (fired when the tab
+        // regains focus) flip loading back to true and unmount the page.
+        if (newUserId !== lastCheckedUserId) {
+          lastCheckedUserId = newUserId;
+          setTimeout(() => checkAdmin(newUserId), 0);
+        }
       } else {
+        lastCheckedUserId = null;
         setIsAdmin(false);
         setRoleLoading(false);
       }
