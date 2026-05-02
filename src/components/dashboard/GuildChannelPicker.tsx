@@ -12,7 +12,12 @@ import {
 } from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { useBotGuilds, useBotChannels, type BotGuild, type BotChannel } from "@/hooks/useGuildChannels";
+import {
+  useBotGuilds,
+  useBotChannels,
+  sortedChannelCategoryEntries,
+  type BotGuild,
+} from "@/hooks/useGuildChannels";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
@@ -237,9 +242,9 @@ export function GuildChannelPicker({
                       : "No matching channels."}
                   </CommandEmpty>
                   {/* Group by parent category, sorted by Discord position */}
-                  {sortedCategoryEntries(filteredChannels).map(([cat, list]) => (
-                    <CommandGroup key={cat} heading={cat}>
-                      {list.map((c) => {
+                  {sortedChannelCategoryEntries(filteredChannels).map((group) => (
+                    <CommandGroup key={group.key} heading={group.label}>
+                      {group.channels.map((c) => {
                         const Icon = CHANNEL_ICON[c.channel_type] ?? Hash;
                         return (
                           <CommandItem
@@ -276,33 +281,4 @@ export function GuildChannelPicker({
       )}
     </div>
   );
-}
-
-function sortedCategoryEntries(channels: BotChannel[]): [string, BotChannel[]][] {
-  const groups = new Map<string, BotChannel[]>();
-  for (const c of channels) {
-    const key = c.parent_name ?? "Uncategorized";
-    const list = groups.get(key);
-    if (list) list.push(c);
-    else groups.set(key, [c]);
-  }
-  // Within each category: text/announcement/forum first (by Discord position),
-  // then voice channels (Discord always renders these below).
-  for (const list of groups.values()) {
-    list.sort((a, b) => {
-      const aVoice = a.channel_type === "voice" ? 1 : 0;
-      const bVoice = b.channel_type === "voice" ? 1 : 0;
-      if (aVoice !== bVoice) return aVoice - bVoice;
-      return a.position - b.position;
-    });
-  }
-  // Sort the categories themselves by parent_position (which the worker
-  // copies straight from Discord). Uncategorized (parent_position = -1)
-  // naturally sorts to the top.
-  return [...groups.entries()].sort(([aKey, aList], [bKey, bList]) => {
-    const ap = aList[0]?.parent_position ?? -1;
-    const bp = bList[0]?.parent_position ?? -1;
-    if (ap !== bp) return ap - bp;
-    return aKey.localeCompare(bKey);
-  });
 }
