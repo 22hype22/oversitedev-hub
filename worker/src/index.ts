@@ -98,6 +98,12 @@ async function processCommand(cmd: Cmd) {
         await runtime.listGuilds();
         break;
       }
+      case "list_roles": {
+        const guildId = cmd.payload?.guild_id;
+        if (!guildId) throw new Error("list_roles requires payload.guild_id");
+        await runtime.listRoles(guildId);
+        break;
+      }
     }
     await completeCommand(cmd.id, true);
   } catch (err) {
