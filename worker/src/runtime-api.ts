@@ -156,6 +156,7 @@ export async function upsertRoles(
     _roles: roles as any,
   });
   if (error) console.error(`[${botId}] upsertRoles failed:`, error.message);
+}
 
 /**
  * Replace the cached guild list for a bot — adds new guilds and removes
