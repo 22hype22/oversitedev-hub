@@ -38,23 +38,15 @@ export function useBotGuilds(botId: string | undefined) {
     refresh();
   }, [refresh]);
 
-  // Refresh on window focus so newly-joined servers show up.
-  useEffect(() => {
-    const onFocus = () => refresh();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [refresh]);
-
   /**
    * Ask the worker to re-fetch the guild list from Discord. Polls the
-   * bot_active_guilds table until the row count or contents change, up
-   * to ~10s.
+   * bot_active_guilds table quickly (250ms intervals, ~6s max) until the
+   * row contents change.
    */
   const refreshFromDiscord = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
     if (!botId) return { ok: false, error: "no_bot" };
     setRefreshing(true);
     try {
-      // Snapshot the current set so we can detect a change.
       const before = JSON.stringify(
         [...guilds].map((g) => g.guild_id).sort(),
       );
@@ -65,9 +57,9 @@ export function useBotGuilds(botId: string | undefined) {
       const result = data as { ok: boolean; error?: string };
       if (!result?.ok) return { ok: false, error: result?.error ?? "request_failed" };
 
-      // Poll up to 10x (every 1s) for the cache to change.
-      for (let i = 0; i < 10; i++) {
-        await new Promise((r) => setTimeout(r, 1000));
+      // Poll up to 24x (every 250ms = ~6s) for the cache to change.
+      for (let i = 0; i < 24; i++) {
+        await new Promise((r) => setTimeout(r, 250));
         const { data: rows } = await supabase
           .from("bot_active_guilds")
           .select("guild_id, guild_name, member_count")
@@ -81,9 +73,8 @@ export function useBotGuilds(botId: string | undefined) {
           return { ok: true };
         }
       }
-      // No change detected — the bot may already be up to date. Re-read anyway.
       await refresh();
-      return { ok: true };
+      return { ok: false, error: "timeout" };
     } finally {
       setRefreshing(false);
     }
@@ -126,12 +117,9 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
     readCache();
   }, [readCache]);
 
-  // Refresh from cache when window regains focus (cheap — DB read only).
-  useEffect(() => {
-    const onFocus = () => readCache();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [readCache]);
+  // (No focus listener — switching tabs should not refresh and reset
+  // the user's in-progress configuration. Realtime subscription below
+  // handles live updates from the worker.)
 
   // Live updates: re-read whenever the worker writes channel rows for
   // this bot+guild (channel created/renamed/deleted on Discord).
@@ -176,10 +164,10 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
       const result = data as { ok: boolean; error?: string };
       if (!result?.ok) return { ok: false, error: result?.error ?? "request_failed" };
 
-      // Poll the cache up to 10 times (every 1s) waiting for fetched_at to bump.
+      // Poll the cache up to 32 times (every 250ms = ~8s) waiting for fetched_at to bump.
       const before = lastFetchedAt;
-      for (let i = 0; i < 10; i++) {
-        await new Promise((r) => setTimeout(r, 1000));
+      for (let i = 0; i < 32; i++) {
+        await new Promise((r) => setTimeout(r, 250));
         const { data: row } = await supabase
           .from("bot_channel_cache")
           .select("fetched_at")
