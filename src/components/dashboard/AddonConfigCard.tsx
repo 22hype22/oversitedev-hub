@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,12 +20,46 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowRight, Save, Settings2, Megaphone } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  ArrowRight,
+  Save,
+  Settings2,
+  Megaphone,
+  Hash,
+  Volume2,
+  MessagesSquare,
+  ChevronsUpDown,
+  Check,
+  RefreshCw,
+} from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
 import { getAddonLabel } from "@/lib/botCatalog";
 import { SayCommandBuilder } from "./SayCommandBuilder";
 import { TicketPanelBuilder } from "./TicketPanelBuilder";
+import { useActiveGuild } from "@/hooks/useActiveGuild";
+import { useBotChannels } from "@/hooks/useGuildChannels";
+
+const CHANNEL_ICON: Record<string, typeof Hash> = {
+  text: Hash,
+  announcement: Megaphone,
+  forum: MessagesSquare,
+  voice: Volume2,
+};
 
 type Props = {
   addonId: string;
