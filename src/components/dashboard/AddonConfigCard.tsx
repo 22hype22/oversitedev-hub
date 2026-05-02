@@ -153,7 +153,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl }: Props
       toast.error(`Save failed: ${error.message}`);
       return;
     }
-    toast.success("Verification settings saved");
+    const { error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "verification",
+    });
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else {
+      toast.success("Verification settings saved & applied");
+    }
     setOpen(false);
   };
 
