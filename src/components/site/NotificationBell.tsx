@@ -56,7 +56,7 @@ function NotifRow({ n, onClick }: { n: BotNotification; onClick: () => void }) {
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className={`text-sm truncate ${unread ? "font-semibold" : "font-medium text-muted-foreground"}`}>
+          <p className={`text-sm break-words ${unread ? "font-semibold" : "font-medium text-muted-foreground"}`}>
             {n.title}
           </p>
           {unread && <span className="h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />}
