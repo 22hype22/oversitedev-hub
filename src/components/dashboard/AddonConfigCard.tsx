@@ -26,14 +26,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
   ArrowRight,
   Save,
   Settings2,
@@ -80,6 +72,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl }: Props
   const isAnonReport = addonId === "anonymous-reporting";
   const config = getAddonConfig(addonId);
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   // Generic, untyped form state — schema-driven.
   const [values, setValues] = useState<Record<string, string | number | boolean | string[]>>({});
@@ -375,6 +368,15 @@ function ChannelComboField({
     () => channels.find((c) => c.channel_id === value) ?? null,
     [channels, value],
   );
+  const channelGroups = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const visible = q
+      ? filtered.filter((c) =>
+          `${c.channel_name} ${c.channel_id}`.toLowerCase().includes(q),
+        )
+      : filtered;
+    return sortedChannelCategoryEntries(visible);
+  }, [filtered, query]);
 
   const handleRefresh = async () => {
     if (!guildId) {
@@ -406,12 +408,7 @@ function ChannelComboField({
       </div>
       <Popover
         open={open}
-        onOpenChange={(nextOpen) => {
-          setOpen(nextOpen);
-          if (nextOpen && guildId && !refreshing) {
-            refreshFromDiscord().catch(() => {});
-          }
-        }}
+        onOpenChange={setOpen}
       >
         <PopoverTrigger asChild>
           <Button
