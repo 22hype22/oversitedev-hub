@@ -98,6 +98,65 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl }: Props
     setValues(initial);
   }, [config, addonId]);
 
+  // Load existing verification config from bot_config when dialog opens.
+  useEffect(() => {
+    if (!isVerification || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "verification")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        channel_id: cfg.channel_id ?? "",
+        role_id: cfg.role_id ?? "",
+        message: cfg.message ?? prev.message ?? "",
+        button_label: cfg.button_label ?? prev.button_label ?? "Verify",
+        min_account_age_days: String(cfg.min_account_age_days ?? "0"),
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isVerification, open, botId]);
+
+  const saveVerification = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "verification",
+      config: {
+        channel_id: String(values.channel_id ?? ""),
+        role_id: String(values.role_id ?? ""),
+        message: String(values.message ?? ""),
+        button_label: String(values.button_label ?? "Verify"),
+        min_account_age_days: Number(values.min_account_age_days ?? 0),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    toast.success("Verification settings saved");
+    setOpen(false);
+  };
+
+
   // Add-ons we don't have a schema for yet — show a stub box so we know
   // it's owned but configuration is still wired up.
   if (!config) {
