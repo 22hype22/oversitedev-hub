@@ -7,7 +7,7 @@ import {
   type Interaction,
 } from "discord.js";
 import { ChannelType } from "discord.js";
-import { setStatus, appendLog, recordMetrics, getSecret, upsertGuild, removeGuild, upsertChannels, replaceGuilds } from "./runtime-api.js";
+import { setStatus, appendLog, recordMetrics, getSecret, upsertGuild, removeGuild, upsertChannels, upsertRoles, replaceGuilds } from "./runtime-api.js";
 import { HEARTBEAT_INTERVAL_MS } from "./supabase.js";
 import { loadBotConfig } from "./config.js";
 import { ADDONS, type AddonContext, type Addon } from "./addons/index.js";
