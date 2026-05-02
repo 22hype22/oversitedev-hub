@@ -11,6 +11,59 @@ const runtimes = new Map<string, BotRuntime>();
 const health = { startedAt: Date.now(), runtimes, lastPollAt: Date.now() };
 startHealthServer(health);
 
+// Railway config
+const RAILWAY_API_TOKEN = process.env.RAILWAY_API_TOKEN ?? "";
+const RAILWAY_PROJECT_ID = process.env.RAILWAY_PROJECT_ID ?? "64aea150-f8c9-4c5a-8dea-de4763b31b1d";
+const RAILWAY_ENVIRONMENT_ID = process.env.RAILWAY_ENVIRONMENT_ID ?? "c5e3fda2-4957-4e4c-986a-7314927ecd0a";
+
+// GitHub repos for each bot type
+const BOT_REPOS: Record<string, string> = {
+  "protection": "22hype22/oversite-protection",
+  "support":    "22hype22/oversite-support",
+  "utilities":  "22hype22/oversite-utilities",
+};
+
+// Addon ID -> feature flag env var name
+const ADDON_FLAGS: Record<string, string> = {
+  // Protection addons
+  "advanced-logging":         "F_ADVANCED_LOGGING",
+  "nsfw-invite-scanner":      "F_NSFW_SCANNER",
+  "avatar-nsfw-detection":    "F_AVATAR_NSFW",
+  "bio-phrase-detection":     "F_BIO_PHRASES",
+  "account-age-gating":       "F_ACCOUNT_AGE_GATE",
+  "auto-escalating-warnings": "F_AUTO_ESCALATE",
+  "softban-massban":          "F_SOFTBAN_MASSBAN",
+  "channel-lockdown":         "F_CHANNEL_LOCKDOWN",
+  "staff-notes":              "F_STAFF_NOTES",
+  "moderation-history":       "F_MOD_HISTORY",
+  "auto-slowmode":            "F_AUTO_SLOWMODE",
+  "temp-ban":                 "F_TEMP_BAN",
+  // Support addons
+  "staff-performance":            "F_STAFF_PERFORMANCE",
+  "ticket-logs":                  "F_TICKET_LOGS",
+  "per-category-roles":           "F_PER_CATEGORY_ROLES",
+  "ticket-notes":                 "F_TICKET_NOTES",
+  "ticket-members":               "F_TICKET_MEMBERS",
+  "close-all-tickets":            "F_CLOSE_ALL",
+  "ticket-message-customization": "F_TICKET_MSG_CUSTOM",
+  "priority-ticket":              "F_PRIORITY_TICKETS",
+  "auto-close-tickets":           "F_AUTO_CLOSE",
+  "anonymous-reporting":          "F_ANON_REPORTING",
+  // Utilities addons
+  "music":                "F_MUSIC_ADDON",
+  "auto-radio":           "F_AUTO_RADIO",
+  "roblox-verification":  "F_ROBLOX",
+  "starboard":            "F_STARBOARD",
+  "recurring-messages":   "F_RECURRING",
+  "giveaway":             "F_GIVEAWAY",
+  "birthday":             "F_BIRTHDAY",
+  "server-stats":         "F_SERVER_STATS",
+  "stream-notifications": "F_STREAM_NOTIFS",
+  "leveling":             "F_LEVELING",
+  "economy":              "F_ECONOMY",
+  "remindme":             "F_REMINDME",
+};
+
 function getRuntime(botId: string): BotRuntime {
   let r = runtimes.get(botId);
   if (!r) {
@@ -23,8 +76,7 @@ function getRuntime(botId: string): BotRuntime {
 type Cmd = {
   id: string;
   bot_id: string;
-  action: "start" | "stop" | "restart" | "update" | "list_channels" | "list_guilds" | "list_roles";
-  payload?: { guild_id?: string } | null;
+  action: "start" | "stop" | "restart" | "update";
 };
 
 type BuildJob = {
@@ -76,34 +128,10 @@ async function processCommand(cmd: Cmd) {
   const runtime = getRuntime(cmd.bot_id);
   try {
     switch (cmd.action) {
-      case "start":
-        await runtime.start();
-        break;
-      case "stop":
-        await runtime.stop();
-        break;
-      case "restart":
-        await runtime.restart();
-        break;
-      case "update":
-        await runtime.restart();
-        break;
-      case "list_channels": {
-        const guildId = cmd.payload?.guild_id;
-        if (!guildId) throw new Error("list_channels requires payload.guild_id");
-        await runtime.listChannels(guildId);
-        break;
-      }
-      case "list_guilds": {
-        await runtime.listGuilds();
-        break;
-      }
-      case "list_roles": {
-        const guildId = cmd.payload?.guild_id;
-        if (!guildId) throw new Error("list_roles requires payload.guild_id");
-        await runtime.listRoles(guildId);
-        break;
-      }
+      case "start":    await runtime.start(); break;
+      case "stop":     await runtime.stop(); break;
+      case "restart":  await runtime.restart(); break;
+      case "update":   await runtime.restart(); break;
     }
     await completeCommand(cmd.id, true);
   } catch (err) {
@@ -111,6 +139,79 @@ async function processCommand(cmd: Cmd) {
     console.error(`[${cmd.bot_id}] ${cmd.action} failed:`, msg);
     await completeCommand(cmd.id, false, msg);
   }
+}
+
+// ============================================================
+// RAILWAY API HELPERS
+// ============================================================
+
+async function railwayGraphQL(query: string, variables: Record<string, unknown> = {}) {
+  const res = await fetch("https://backboard.railway.app/graphql/v2", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${RAILWAY_API_TOKEN}`,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (!res.ok) throw new Error(`Railway API error: ${res.status} ${res.statusText}`);
+  const data = await res.json() as { data?: unknown; errors?: { message: string }[] };
+  if (data.errors?.length) throw new Error(`Railway GraphQL error: ${data.errors.map(e => e.message).join(", ")}`);
+  return data.data;
+}
+
+async function createRailwayService(serviceName: string, repoFullName: string): Promise<string> {
+  const data = await railwayGraphQL(`
+    mutation ServiceCreate($input: ServiceCreateInput!) {
+      serviceCreate(input: $input) {
+        id
+        name
+      }
+    }
+  `, {
+    input: {
+      projectId: RAILWAY_PROJECT_ID,
+      name: serviceName,
+      source: {
+        repo: repoFullName,
+      },
+    },
+  }) as { serviceCreate: { id: string; name: string } };
+  return data.serviceCreate.id;
+}
+
+async function setRailwayEnvVars(serviceId: string, variables: Record<string, string>) {
+  const variablesInput = Object.entries(variables).map(([name, value]) => ({
+    name,
+    value,
+    serviceId,
+    environmentId: RAILWAY_ENVIRONMENT_ID,
+    projectId: RAILWAY_PROJECT_ID,
+  }));
+
+  await railwayGraphQL(`
+    mutation VariableCollectionUpsert($input: VariableCollectionUpsertInput!) {
+      variableCollectionUpsert(input: $input)
+    }
+  `, {
+    input: {
+      projectId: RAILWAY_PROJECT_ID,
+      environmentId: RAILWAY_ENVIRONMENT_ID,
+      serviceId,
+      variables: Object.fromEntries(Object.entries(variables)),
+    },
+  });
+}
+
+async function deployRailwayService(serviceId: string): Promise<void> {
+  await railwayGraphQL(`
+    mutation ServiceInstanceDeploy($serviceId: String!, $environmentId: String!) {
+      serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
+    }
+  `, {
+    serviceId,
+    environmentId: RAILWAY_ENVIRONMENT_ID,
+  });
 }
 
 // ============================================================
@@ -122,55 +223,21 @@ async function claimNextBuildJob(): Promise<BuildJob | null> {
     _token: WORKER_TOKEN_VALUE,
     _worker_id: WORKER_ID,
   });
-
   if (error) {
     console.error("build job claim error:", error.message);
     return null;
   }
-
   const result = data as { ok: boolean; job?: BuildJob; error?: string };
   if (!result?.ok || !result.job) return null;
   return result.job;
 }
-
-// Addons that are website-only features (e.g. hosted dashboard access) and
-// have no Discord runtime behavior. They live in `bot_orders.addons` for
-// purchase/ownership purposes, but the worker should never try to load them
-// as bot addons.
-const WEBSITE_ONLY_ADDONS = new Set<string>(["dashboard"]);
 
 async function processBuildJob(job: BuildJob) {
   const { id, order_id, selections } = job;
   console.log(`[build:${id}] Starting build for order ${order_id}`);
 
   try {
-    // 1. Split requested addons into runtime addons (loaded by the bot) vs
-    //    website-only addons (skipped silently). Validate the runtime ones
-    //    against the registry; unknown ones are just ignored — the bot will
-    //    still boot fine without them.
-    const { ADDONS } = await import("./addons/index.js");
-    const requestedAddons = selections.addons ?? [];
-    const runtimeAddons = requestedAddons.filter(
-      (a) => !WEBSITE_ONLY_ADDONS.has(a),
-    );
-    const skippedWebsiteAddons = requestedAddons.filter((a) =>
-      WEBSITE_ONLY_ADDONS.has(a),
-    );
-    const missingAddons = runtimeAddons.filter((a) => !ADDONS[a]);
-
-    // Check base
-    const baseAddonId = `${selections.base}-base`;
-    if (!ADDONS[baseAddonId]) {
-      console.log(`[build:${id}] Base addon "${baseAddonId}" not in registry — skipping`);
-    }
-    if (skippedWebsiteAddons.length > 0) {
-      console.log(`[build:${id}] Skipping website-only addons: ${skippedWebsiteAddons.join(", ")}`);
-    }
-    if (missingAddons.length > 0) {
-      console.log(`[build:${id}] Unknown addons (ignored): ${missingAddons.join(", ")}`);
-    }
-
-    // 2. Claim a Discord bot token from the pool
+    // 1. Claim a Discord bot token from the pool
     const { data: tokenData, error: tokenError } = await supabase.rpc(
       "claim_bot_token_from_pool",
       { _order_id: order_id }
@@ -178,43 +245,117 @@ async function processBuildJob(job: BuildJob) {
     if (tokenError) throw new Error(`Token claim failed: ${tokenError.message}`);
     const tokenResult = tokenData as { ok: boolean; error?: string; client_id?: string; bot_username?: string };
     if (!tokenResult?.ok) throw new Error(tokenResult?.error ?? "No tokens available in pool");
-    console.log(`[build:${id}] Token claimed — bot: ${tokenResult.bot_username}, client: ${tokenResult.client_id}`);
+    console.log(`[build:${id}] Token claimed — bot: ${tokenResult.bot_username}`);
 
-    // 3. Seed bot_secret_slots so the dashboard knows what secrets to ask for
-    //    (runtime addons only — website-only addons don't need bot secrets)
-    await seedSecretSlots(order_id, selections.base, runtimeAddons);
+    // 2. Determine which repo to use
+    // All-in-one uses protection as base (has all features via flags)
+    const baseRepo = BOT_REPOS[selections.base] ?? BOT_REPOS["protection"];
+    const safeName = selections.bot_name.toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 40);
+    const serviceName = `customer-${safeName}-${order_id.slice(0, 8)}`;
 
-    // 4. Finalize through the runtime RPC so bot_orders.status flips to ready.
-    //    We persist the full addons list (including website-only ones like
-    //    "dashboard") so the dashboard's ownership detection still works.
-    const buildLog = `Build complete. Base: ${selections.base}. Runtime addons: ${runtimeAddons.join(", ") || "none"}. Website-only: ${skippedWebsiteAddons.join(", ") || "none"}. Unknown (ignored): ${missingAddons.join(", ") || "none"}.`;
-    const { data: finalizeData, error: finalizeError } = await supabase.rpc("runtime_finalize_build", {
+    console.log(`[build:${id}] Creating Railway service: ${serviceName} from ${baseRepo}`);
+
+    // 3. Create Railway service from the appropriate GitHub repo
+    let railwayServiceId: string;
+    try {
+      railwayServiceId = await createRailwayService(serviceName, baseRepo);
+      console.log(`[build:${id}] Railway service created: ${railwayServiceId}`);
+    } catch (err) {
+      throw new Error(`Failed to create Railway service: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    // 4. Get the Discord token from bot_secrets
+    const { data: secretData } = await supabase.rpc("runtime_get_bot_secret", {
+      _token: WORKER_TOKEN_VALUE,
+      _bot_id: order_id,
+      _key: "DISCORD_TOKEN",
+    });
+    const discordToken = (secretData as { ok: boolean; value?: string })?.value ?? "";
+
+    // 5. Build environment variables
+    const envVars: Record<string, string> = {
+      DISCORD_TOKEN: discordToken,
+      BOT_NAME: selections.bot_name,
+      BOT_STATUS: `Powered by Oversite`,
+      DATABASE_URL: process.env.CUSTOMER_DATABASE_URL ?? process.env.DATABASE_URL ?? "",
+
+      // Base features all on
+      F_VERIFICATION: "true",
+      F_MODERATION: "true",
+      F_ANTI_SPAM: "true",
+      F_ANTI_RAID: "true",
+      F_BASIC_LOGGING: "true",
+      F_PHISHING: "true",
+      F_TICKETS: "true",
+      F_APPEALS: "true",
+      F_REPORTS: "true",
+      F_WELCOME: "true",
+      F_SAY: "true",
+      F_ANNOUNCE: "true",
+      F_REACTION_ROLES: "true",
+      F_AUTOROLE: "true",
+      F_POLL: "true",
+      F_USERINFO: "true",
+      F_SERVERINFO: "true",
+      F_AVATAR: "true",
+      F_8BALL: "true",
+      F_COINFLIP: "true",
+      F_BASIC_MUSIC: "true",
+      F_SUGGESTIONS: "true",
+      F_ADMIN_ABUSE: "true",
+    };
+
+    // All-in-one gets all base features from all bots
+    if (selections.base === "all-in-one") {
+      Object.assign(envVars, {
+        F_VERIFICATION: "true",
+        F_MODERATION: "true",
+        F_ANTI_SPAM: "true",
+        F_ANTI_RAID: "true",
+        F_BASIC_LOGGING: "true",
+        F_PHISHING: "true",
+        F_TICKETS: "true",
+        F_APPEALS: "true",
+        F_REPORTS: "true",
+        F_WELCOME: "true",
+      });
+    }
+
+    // Enable addon flags based on purchased addons
+    for (const addonId of selections.addons ?? []) {
+      const flagName = ADDON_FLAGS[addonId];
+      if (flagName) {
+        envVars[flagName] = "true";
+        console.log(`[build:${id}] Enabling addon: ${addonId} → ${flagName}=true`);
+      }
+    }
+
+    // 6. Set environment variables on Railway service
+    console.log(`[build:${id}] Setting ${Object.keys(envVars).length} env vars on Railway`);
+    await setRailwayEnvVars(railwayServiceId, envVars);
+
+    // 7. Deploy the service
+    console.log(`[build:${id}] Deploying Railway service`);
+    await deployRailwayService(railwayServiceId);
+
+    // 8. Update bot_orders with Railway service ID and mark ready
+    await supabase.rpc("runtime_finalize_build", {
       _token: WORKER_TOKEN_VALUE,
       _job_id: id,
-      _bot_order_id: order_id,
-      _bot_name: selections.bot_name,
-      _base: selections.base,
-      _addons: selections.addons ?? [],
-      _icon_url: selections.icon_url ?? null,
-      _banner_url: selections.banner_url ?? null,
-      _bot_description: selections.bot_description ?? null,
-      _build_log: buildLog,
+      _order_id: order_id,
+      _delivery_url: `https://railway.app/project/${RAILWAY_PROJECT_ID}/service/${railwayServiceId}`,
     });
 
-    if (finalizeError) throw new Error(`Failed to finalize build: ${finalizeError.message}`);
-    const finalizeResult = finalizeData as { ok?: boolean; error?: string } | null;
-    if (!finalizeResult?.ok) throw new Error(finalizeResult?.error ?? "Failed to finalize build");
-
-    // 5. Enqueue a bot_notification for the customer
+    // 9. Notify customer
     await supabase.rpc("runtime_enqueue_notification", {
       _token: WORKER_TOKEN_VALUE,
       _bot_id: order_id,
       _event_type: "command_finished",
       _title: "Your bot is ready!",
-      _body: `${selections.bot_name} has been built and is ready to configure. Add your Discord bot token to get started.`,
+      _body: `${selections.bot_name} has been deployed and is starting up. Add it to your server using the invite link in your dashboard!`,
     });
 
-    console.log(`[build:${id}] Build complete for order ${order_id}`);
+    console.log(`[build:${id}] Build complete for order ${order_id} — Railway service: ${railwayServiceId}`);
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -224,119 +365,9 @@ async function processBuildJob(job: BuildJob) {
       _token: WORKER_TOKEN_VALUE,
       _job_id: id,
       _bot_order_id: order_id,
-      _build_log: `Build failed: ${msg}`,
+      _error_message: msg,
     });
   }
-}
-
-// ── Seed secret slots so dashboard knows what secrets each addon needs ──
-// NOTE: `bot_secret_slots` is a GLOBAL catalog keyed by (addon_id, key) — it
-// describes what secrets each addon needs, not per-bot values. Per-bot values
-// live in `bot_secrets` (bot_id, user_id, key, value_encrypted).
-async function seedSecretSlots(_botOrderId: string, _base: string, addons: string[]) {
-  type Slot = {
-    addon_id: string;
-    key: string;
-    label: string;
-    description: string;
-    placeholder: string;
-    is_required: boolean;
-    sort_order: number;
-  };
-  const slots: Slot[] = [];
-  let order = 0;
-
-  // Always required: Discord bot token (core slot, not tied to an addon)
-  slots.push({
-    addon_id: "core",
-    key: "DISCORD_TOKEN",
-    label: "Discord Bot Token",
-    description: "Your Discord bot token from the Developer Portal",
-    placeholder: "MTxxxxxxx.Gxxxxx.xxxxxxxxxx",
-    is_required: true,
-    sort_order: order++,
-  });
-
-  // Music addon needs Spotify credentials
-  if (addons.includes("music") || addons.includes("auto-radio")) {
-    slots.push(
-      {
-        addon_id: "music",
-        key: "SPOTIFY_CLIENT_ID",
-        label: "Spotify Client ID",
-        description: "From your Spotify Developer Dashboard",
-        placeholder: "your-spotify-client-id",
-        is_required: false,
-        sort_order: order++,
-      },
-      {
-        addon_id: "music",
-        key: "SPOTIFY_CLIENT_SECRET",
-        label: "Spotify Client Secret",
-        description: "From your Spotify Developer Dashboard",
-        placeholder: "your-spotify-client-secret",
-        is_required: false,
-        sort_order: order++,
-      },
-    );
-  }
-
-  // Roblox verification needs group ID
-  if (addons.includes("roblox-verification")) {
-    slots.push({
-      addon_id: "roblox-verification",
-      key: "ROBLOX_GROUP_ID",
-      label: "Roblox Group ID",
-      description: "The ID of your Roblox group",
-      placeholder: "1234567",
-      is_required: false,
-      sort_order: order++,
-    });
-  }
-
-  // Avatar NSFW detection needs Anthropic API key
-  if (addons.includes("avatar-nsfw-detection")) {
-    slots.push({
-      addon_id: "avatar-nsfw-detection",
-      key: "ANTHROPIC_API_KEY",
-      label: "Anthropic API Key",
-      description: "Required for avatar NSFW detection",
-      placeholder: "sk-ant-xxxxx",
-      is_required: true,
-      sort_order: order++,
-    });
-  }
-
-  if (slots.length === 0) return;
-
-  // Upsert global slot catalog through the runtime RPC (token-gated, RLS-safe).
-  const { error } = await supabase.rpc("runtime_seed_secret_slots", {
-    _token: WORKER_TOKEN_VALUE,
-    _slots: slots,
-  });
-
-  if (error) {
-    console.error(`[seed slots] Failed to seed secret slots: ${error.message}`);
-  }
-}
-
-// ── Apply bot name/avatar/status on startup ──
-async function applyBotIdentity(botOrderId: string) {
-  try {
-    const { data } = await supabase
-      .from("bot_orders")
-      .select("bot_name, icon_url, bot_description")
-      .eq("id", botOrderId)
-      .maybeSingle();
-
-    if (!data) return;
-    const runtime = runtimes.get(botOrderId);
-    if (!runtime) return;
-
-    // The runtime's discord client handles identity via its own startup
-    // This is a hook point for future direct API calls if needed
-    console.log(`[${botOrderId}] Identity: ${data.bot_name}`);
-  } catch { /* ignore */ }
 }
 
 // ============================================================
