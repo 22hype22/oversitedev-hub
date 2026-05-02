@@ -52,9 +52,6 @@ export function sortedChannelCategoryEntries(channels: BotChannel[]): ChannelCat
 
   for (const group of groups.values()) {
     group.channels.sort((a, b) => {
-      const aVoice = a.channel_type === "voice" ? 1 : 0;
-      const bVoice = b.channel_type === "voice" ? 1 : 0;
-      if (aVoice !== bVoice) return aVoice - bVoice;
       if (a.position !== b.position) return a.position - b.position;
       return a.channel_name.localeCompare(b.channel_name);
     });
