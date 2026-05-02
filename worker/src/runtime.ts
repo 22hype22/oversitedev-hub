@@ -7,7 +7,7 @@ import {
   type Interaction,
 } from "discord.js";
 import { ChannelType } from "discord.js";
-import { setStatus, appendLog, recordMetrics, getSecret, upsertGuild, removeGuild, upsertChannels } from "./runtime-api.js";
+import { setStatus, appendLog, recordMetrics, getSecret, upsertGuild, removeGuild, upsertChannels, replaceGuilds } from "./runtime-api.js";
 import { HEARTBEAT_INTERVAL_MS } from "./supabase.js";
 import { loadBotConfig } from "./config.js";
 import { ADDONS, type AddonContext, type Addon } from "./addons/index.js";
@@ -272,6 +272,26 @@ export class BotRuntime {
 
     await upsertChannels(this.botId, guildId, entries);
     await appendLog(this.botId, "info", `Cached ${entries.length} channel(s) for guild ${g.name}`);
+  }
+
+  /**
+   * Refresh the cached server list from Discord — adds servers the bot has
+   * joined and removes ones it's left since startup. Called on demand from
+   * the dashboard.
+   */
+  async listGuilds() {
+    if (!this.client) {
+      throw new Error("Bot not running — start it before listing servers");
+    }
+    // Force a fresh fetch so newly-joined servers show up.
+    await this.client.guilds.fetch();
+    const guilds = [...this.client.guilds.cache.values()].map((g) => ({
+      guild_id: g.id,
+      guild_name: g.name,
+      member_count: g.memberCount,
+    }));
+    await replaceGuilds(this.botId, guilds);
+    await appendLog(this.botId, "info", `Refreshed guild list (${guilds.length} server(s))`);
   }
 
   isRunning() {

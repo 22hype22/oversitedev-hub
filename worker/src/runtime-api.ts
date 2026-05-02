@@ -129,3 +129,19 @@ export async function upsertChannels(
   });
   if (error) console.error(`[${botId}] upsertChannels failed:`, error.message);
 }
+
+/**
+ * Replace the cached guild list for a bot — adds new guilds and removes
+ * ones the bot has left. Called when the dashboard requests a refresh.
+ */
+export async function replaceGuilds(
+  botId: string,
+  guilds: { guild_id: string; guild_name?: string | null; member_count?: number | null }[],
+) {
+  const { error } = await supabase.rpc("runtime_replace_bot_guilds", {
+    _token: WORKER_TOKEN_VALUE,
+    _bot_id: botId,
+    _guilds: guilds as any,
+  });
+  if (error) console.error(`[${botId}] replaceGuilds failed:`, error.message);
+}
