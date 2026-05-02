@@ -52,9 +52,6 @@ export function sortedChannelCategoryEntries(channels: BotChannel[]): ChannelCat
 
   for (const group of groups.values()) {
     group.channels.sort((a, b) => {
-      const aVoice = a.channel_type === "voice" ? 1 : 0;
-      const bVoice = b.channel_type === "voice" ? 1 : 0;
-      if (aVoice !== bVoice) return aVoice - bVoice;
       if (a.position !== b.position) return a.position - b.position;
       return a.channel_name.localeCompare(b.channel_name);
     });
@@ -184,9 +181,18 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
     readCache();
   }, [readCache]);
 
-  // (No focus listener — switching tabs should not refresh and reset
-  // the user's in-progress configuration. Realtime subscription below
-  // handles live updates from the worker.)
+  // Auto-sync from Discord when guild changes so the displayed channels match
+  // the live server order. Runs once per bot+guild per session to avoid
+  // hammering the worker.
+  const autoSyncedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!botId || !guildId) return;
+    const key = `${botId}:${guildId}`;
+    if (autoSyncedRef.current.has(key)) return;
+    autoSyncedRef.current.add(key);
+    // fire-and-forget; refreshFromDiscord polls the cache itself
+    void refreshFromDiscordRef.current?.();
+  }, [botId, guildId]);
 
   // Live updates: re-read whenever the worker writes channel rows for
   // this bot+guild (channel created/renamed/deleted on Discord).
@@ -255,6 +261,11 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
       setRefreshing(false);
     }
   }, [botId, guildId, lastFetchedAt, readCache]);
+
+  const refreshFromDiscordRef = useRef(refreshFromDiscord);
+  useEffect(() => {
+    refreshFromDiscordRef.current = refreshFromDiscord;
+  }, [refreshFromDiscord]);
 
   return { channels, loading, refreshing, lastFetchedAt, refreshFromDiscord, readCache };
 }
