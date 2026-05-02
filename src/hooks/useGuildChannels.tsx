@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface BotGuild {
@@ -72,18 +72,26 @@ export function sortedChannelCategoryEntries(channels: BotChannel[]): ChannelCat
 /** Lists guilds the bot is currently in (from bot_active_guilds). */
 export function useBotGuilds(botId: string | undefined) {
   const [guilds, setGuilds] = useState<BotGuild[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const hasGuildsRef = useRef(false);
 
   const refresh = useCallback(async () => {
-    if (!botId) return;
-    setLoading(true);
+    if (!botId) {
+      setGuilds([]);
+      hasGuildsRef.current = false;
+      setLoading(false);
+      return;
+    }
+    setLoading((wasLoading) => (hasGuildsRef.current ? wasLoading : true));
     const { data } = await supabase
       .from("bot_active_guilds")
       .select("guild_id, guild_name, member_count")
       .eq("bot_id", botId)
       .order("guild_name", { ascending: true });
-    setGuilds((data ?? []) as BotGuild[]);
+    const rows = (data ?? []) as BotGuild[];
+    hasGuildsRef.current = rows.length > 0;
+    setGuilds(rows);
     setLoading(false);
   }, [botId]);
 
@@ -143,16 +151,20 @@ export function useBotGuilds(botId: string | undefined) {
  */
 export function useBotChannels(botId: string | undefined, guildId: string | undefined) {
   const [channels, setChannels] = useState<BotChannel[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastFetchedAt, setLastFetchedAt] = useState<string | null>(null);
+  const hasChannelsRef = useRef(false);
 
   const readCache = useCallback(async () => {
     if (!botId || !guildId) {
       setChannels([]);
+      hasChannelsRef.current = false;
+      setLastFetchedAt(null);
+      setLoading(false);
       return;
     }
-    setLoading(true);
+    setLoading((wasLoading) => (hasChannelsRef.current ? wasLoading : true));
     const { data } = await supabase
       .from("bot_channel_cache")
       .select("channel_id, channel_name, channel_type, parent_id, parent_name, position, parent_position, fetched_at")
@@ -161,6 +173,7 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
       .order("parent_position", { ascending: true })
       .order("position", { ascending: true });
     const rows = (data ?? []) as (BotChannel & { fetched_at: string })[];
+    hasChannelsRef.current = rows.length > 0;
     setChannels(rows);
     setLastFetchedAt(rows[0]?.fetched_at ?? null);
     setLoading(false);
