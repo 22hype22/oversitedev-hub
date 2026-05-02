@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -82,6 +82,11 @@ export function SayCommandBuilder({
 }) {
   const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
   const [guild, setGuildLocal] = useState<BotGuild | null>(activeGuild);
+  // Keep our local picker in sync if the dashboard-wide active server changes.
+  useEffect(() => {
+    if (activeGuild?.guild_id !== guild?.guild_id) setGuildLocal(activeGuild);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGuild?.guild_id]);
   const setGuild = (g: BotGuild | null) => {
     setGuildLocal(g);
     if (g) setActiveGuild(g); // sync the dashboard-wide selection.
