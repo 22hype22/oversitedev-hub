@@ -1,16 +1,8 @@
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { Check, ChevronsUpDown, RefreshCw, Server, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBotGuilds } from "@/hooks/useGuildChannels";
@@ -32,10 +24,18 @@ export function DashboardServerSelector({ botId }: Props) {
   const { guilds, loading, refresh, refreshing, refreshFromDiscord } = useBotGuilds(botId);
   const { guild, setGuild } = useActiveGuild();
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const selectedGuild = useMemo(
     () => guilds.find((g) => g.guild_id === guild?.guild_id) ?? guild,
     [guilds, guild],
   );
+  const filteredGuilds = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return guilds;
+    return guilds.filter((g) =>
+      `${g.guild_name ?? ""} ${g.guild_id}`.toLowerCase().includes(q),
+    );
+  }, [guilds, query]);
 
   const handleRefresh = async () => {
     // Always re-read the cache first (cheap), then ask the bot to re-check.
@@ -95,44 +95,55 @@ export function DashboardServerSelector({ botId }: Props) {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Search servers…" />
-                  <CommandList>
-                    <CommandEmpty>
+                <div className="border-b border-border p-2">
+                  <Input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search servers…"
+                    className="h-9"
+                  />
+                </div>
+                <div className="max-h-[300px] overflow-y-auto p-1">
+                  {filteredGuilds.length === 0 ? (
+                    <div className="py-6 text-center text-sm text-muted-foreground">
                       {guilds.length === 0
                         ? "Bot isn't in any servers yet."
                         : "No matching servers."}
-                    </CommandEmpty>
-                    <CommandGroup>
-                      {guilds.map((g) => (
-                        <CommandItem
-                          key={g.guild_id}
-                          value={`${g.guild_name ?? ""} ${g.guild_id}`}
-                          onSelect={() => {
-                            setGuild(g);
-                            setOpen(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              selectedGuild?.guild_id === g.guild_id ? "opacity-100" : "opacity-0",
-                            )}
-                          />
-                          <Server className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="flex-1 truncate">
-                            {g.guild_name ?? g.guild_id}
-                          </span>
-                          {g.member_count != null && (
-                            <span className="text-xs text-muted-foreground ml-2">
-                              {g.member_count.toLocaleString()}
-                            </span>
+                    </div>
+                  ) : (
+                    filteredGuilds.map((g) => (
+                      <button
+                        key={g.guild_id}
+                        type="button"
+                        className={cn(
+                          "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground",
+                          selectedGuild?.guild_id === g.guild_id && "bg-accent text-accent-foreground",
+                        )}
+                        onClick={() => {
+                          setGuild(g);
+                          setQuery("");
+                          setOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4 shrink-0",
+                            selectedGuild?.guild_id === g.guild_id ? "opacity-100" : "opacity-0",
                           )}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
+                        />
+                        <Server className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span className="flex-1 truncate">
+                          {g.guild_name ?? g.guild_id}
+                        </span>
+                        {g.member_count != null && (
+                          <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                            {g.member_count.toLocaleString()}
+                          </span>
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
               </PopoverContent>
             </Popover>
             <Button
