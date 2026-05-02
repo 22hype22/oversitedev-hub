@@ -3,14 +3,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Plus, Trash2, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, AlertTriangle, Info } from "lucide-react";
+import { GuildChannelPicker } from "./GuildChannelPicker";
+import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
 
 type Category = {
   id: string;
@@ -24,21 +19,10 @@ const uid = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
 
-/**
- * Mock channel list — once the bot is linked we'll swap this with channels
- * fetched from the bot's connected guild.
- */
-const MOCK_CHANNELS = [
-  "#general",
-  "#tickets",
-  "#support",
-  "#reports",
-  "#staff-only",
-];
-
 type Variant = "ticket" | "report";
 
 type Props = {
+  botId?: string;
   botName: string;
   variant?: Variant;
 };
@@ -87,11 +71,12 @@ const COPY: Record<Variant, {
   },
 };
 
-export function TicketPanelBuilder({ botName, variant = "ticket" }: Props) {
+export function TicketPanelBuilder({ botId, botName, variant = "ticket" }: Props) {
   const copy = COPY[variant];
   const isReport = variant === "report";
 
-  const [panelChannel, setPanelChannel] = useState<string>("");
+  const [guild, setGuild] = useState<BotGuild | null>(null);
+  const [panelChannel, setPanelChannel] = useState<BotChannel | null>(null);
   const [panelTitle, setPanelTitle] = useState("");
   const [panelDescription, setPanelDescription] = useState("");
   const [cooldownMinutes, setCooldownMinutes] = useState<number>(10);
@@ -127,28 +112,26 @@ export function TicketPanelBuilder({ botName, variant = "ticket" }: Props) {
         </p>
       </div>
 
-      {/* Panel channel */}
-      <div className="space-y-2">
-        <Label htmlFor="panel-channel">
-          {copy.channelLabel} <span className="text-destructive">*</span>
-        </Label>
-        <Select value={panelChannel} onValueChange={setPanelChannel}>
-          <SelectTrigger id="panel-channel">
-            <SelectValue placeholder="Select a channel…" />
-          </SelectTrigger>
-          <SelectContent>
-            {MOCK_CHANNELS.map((c) => (
-              <SelectItem key={c} value={c}>
-                {c}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="text-xs text-muted-foreground">
-          {copy.channelHelp} Once your bot is linked, this list will show every
-          channel from your server.
-        </p>
-      </div>
+      {/* Server + channel picker */}
+      {botId ? (
+        <GuildChannelPicker
+          botId={botId}
+          guildId={guild?.guild_id ?? null}
+          channelId={panelChannel?.channel_id ?? null}
+          onGuildChange={setGuild}
+          onChannelChange={setPanelChannel}
+          guildLabel="Server to post the panel in"
+          channelLabel={copy.channelLabel}
+        />
+      ) : (
+        <div className="space-y-2">
+          <Label>{copy.channelLabel}</Label>
+          <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>Server &amp; channel picker will appear here once your bot is online.</span>
+          </div>
+        </div>
+      )}
 
       {/* Panel title */}
       <div className="space-y-2">
