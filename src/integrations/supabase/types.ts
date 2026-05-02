@@ -2185,7 +2185,7 @@ export type Database = {
         | { Args: { _bot_id: string; _key: string }; Returns: string }
         | {
             Args: { _bot_id: string; _key: string; _token: string }
-            Returns: Json
+            Returns: string
           }
       runtime_load_bot_config: {
         Args: { _bot_id: string; _token: string }
