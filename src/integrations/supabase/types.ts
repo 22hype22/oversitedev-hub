@@ -208,6 +208,48 @@ export type Database = {
           },
         ]
       }
+      bot_channel_cache: {
+        Row: {
+          bot_id: string
+          channel_id: string
+          channel_name: string
+          channel_type: string
+          fetched_at: string
+          guild_id: string
+          id: string
+          parent_id: string | null
+          parent_name: string | null
+          position: number
+          user_id: string
+        }
+        Insert: {
+          bot_id: string
+          channel_id: string
+          channel_name: string
+          channel_type?: string
+          fetched_at?: string
+          guild_id: string
+          id?: string
+          parent_id?: string | null
+          parent_name?: string | null
+          position?: number
+          user_id: string
+        }
+        Update: {
+          bot_id?: string
+          channel_id?: string
+          channel_name?: string
+          channel_type?: string
+          fetched_at?: string
+          guild_id?: string
+          id?: string
+          parent_id?: string | null
+          parent_name?: string | null
+          position?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       bot_commands: {
         Row: {
           action: string
@@ -217,6 +259,7 @@ export type Database = {
           created_at: string
           error_message: string | null
           id: string
+          payload: Json | null
           requested_by: string
           status: string
           updated_at: string
@@ -231,6 +274,7 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           id?: string
+          payload?: Json | null
           requested_by: string
           status?: string
           updated_at?: string
@@ -245,6 +289,7 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           id?: string
+          payload?: Json | null
           requested_by?: string
           status?: string
           updated_at?: string
@@ -2047,6 +2092,10 @@ export type Database = {
         Returns: Json
       }
       redeem_support_access_code: { Args: { _code: string }; Returns: Json }
+      request_list_channels: {
+        Args: { _bot_id: string; _guild_id: string }
+        Returns: Json
+      }
       reveal_bot_secret: {
         Args: { _bot_id: string; _key: string; _password?: string }
         Returns: Json
@@ -2199,6 +2248,15 @@ export type Database = {
             }
             Returns: Json
           }
+      runtime_upsert_bot_channels: {
+        Args: {
+          _bot_id: string
+          _channels: Json
+          _guild_id: string
+          _token: string
+        }
+        Returns: Json
+      }
       runtime_upsert_bot_guild:
         | {
             Args: {
