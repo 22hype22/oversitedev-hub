@@ -84,9 +84,9 @@ export const Hero = () => {
 
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl">
             {[
-              { value: "23B+", label: "Dev's Contributed To" },
+              { value: "23B+", label: "Visits Contributed To" },
               { value: "12K+", label: "Total Members" },
-              { value: "4.9/5", label: "Average Review Rating" },
+              { value: `${botServers.toLocaleString()}+`, label: "Bot Servers Built" },
             ].map((s) => (
               <div
                 key={s.label}
