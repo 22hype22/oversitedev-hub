@@ -76,7 +76,10 @@ function getRuntime(botId: string): BotRuntime {
 type Cmd = {
   id: string;
   bot_id: string;
-  action: "start" | "stop" | "restart" | "update";
+  action: "start" | "stop" | "restart" | "update" | "list_channels" | "list_guilds" | "list_roles";
+  payload?: {
+    guild_id?: string;
+  } | null;
 };
 
 type BuildJob = {
@@ -132,6 +135,19 @@ async function processCommand(cmd: Cmd) {
       case "stop":     await runtime.stop(); break;
       case "restart":  await runtime.restart(); break;
       case "update":   await runtime.restart(); break;
+      case "list_guilds": await runtime.listGuilds(); break;
+      case "list_channels": {
+        const guildId = cmd.payload?.guild_id;
+        if (!guildId) throw new Error("Missing guild_id for list_channels");
+        await runtime.listChannels(guildId);
+        break;
+      }
+      case "list_roles": {
+        const guildId = cmd.payload?.guild_id;
+        if (!guildId) throw new Error("Missing guild_id for list_roles");
+        await runtime.listRoles(guildId);
+        break;
+      }
     }
     await completeCommand(cmd.id, true);
   } catch (err) {
