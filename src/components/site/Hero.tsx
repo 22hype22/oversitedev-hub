@@ -53,7 +53,29 @@ export const Hero = () => {
     };
     let timer = schedule();
     return () => window.clearTimeout(timer);
+  const [membersServing, setMembersServing] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const { data, error } = await supabase.rpc("get_total_members_serving");
+      if (!cancelled && !error && typeof data === "number") {
+        setMembersServing(data);
+      }
+    };
+    load();
+    const interval = window.setInterval(load, 60000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
   }, []);
+
+  const formatMembers = (n: number) => {
+    if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K+`;
+    return `${n}+`;
+  };
+
 
   return (
     <section id="home" className="relative min-h-screen flex items-center pt-16 overflow-hidden bg-gradient-hero">
