@@ -289,6 +289,35 @@ export class BotRuntime {
   }
 
   /**
+   * Fetch the current role list for a guild and replace the cache.
+   */
+  async listRoles(guildId: string) {
+    if (!this.client) {
+      throw new Error("Bot not running — start it before listing roles");
+    }
+    let g = this.client.guilds.cache.get(guildId);
+    if (!g) {
+      try { await this.client.guilds.fetch(guildId); } catch {
+        throw new Error(`Bot is not in guild ${guildId}`);
+      }
+      g = this.client.guilds.cache.get(guildId);
+    }
+    if (!g) throw new Error(`Bot is not in guild ${guildId}`);
+
+    const roles = await g.roles.fetch();
+    const entries = [...roles.values()].map((r) => ({
+      role_id: r.id,
+      role_name: r.name,
+      color: r.color ?? 0,
+      position: r.rawPosition ?? r.position ?? 0,
+      managed: r.managed ?? false,
+      is_everyone: r.id === g!.id, // @everyone shares guild id
+    }));
+    await upsertRoles(this.botId, guildId, entries);
+    await appendLog(this.botId, "info", `Cached ${entries.length} role(s) for guild ${g.name}`);
+  }
+
+  /**
    * Refresh the cached server list from Discord — adds servers the bot has
    * joined and removes ones it's left since startup. Called on demand from
    * the dashboard.
