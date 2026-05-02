@@ -5,7 +5,7 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export const Hero = () => {
-  const [botServers, setBotServers] = useState(247);
+  const [botServers, setBotServers] = useState(20);
 
   useEffect(() => {
     const tick = () => {
