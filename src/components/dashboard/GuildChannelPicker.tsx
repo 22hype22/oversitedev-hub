@@ -226,8 +226,8 @@ export function GuildChannelPicker({
                       ? "No channels cached for this server. Click Refresh from Discord."
                       : "No matching channels."}
                   </CommandEmpty>
-                  {/* Group by parent category */}
-                  {Object.entries(groupByCategory(filteredChannels)).map(([cat, list]) => (
+                  {/* Group by parent category, sorted by Discord position */}
+                  {sortedCategoryEntries(filteredChannels).map(([cat, list]) => (
                     <CommandGroup key={cat} heading={cat}>
                       {list.map((c) => {
                         const Icon = CHANNEL_ICON[c.channel_type] ?? Hash;
