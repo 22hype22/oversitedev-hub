@@ -17,6 +17,58 @@ export interface BotChannel {
   parent_position: number;
 }
 
+export type ChannelCategoryEntry = {
+  key: string;
+  label: string;
+  channels: BotChannel[];
+};
+
+export function sortedChannelCategoryEntries(channels: BotChannel[]): ChannelCategoryEntry[] {
+  const groups = new Map<string, ChannelCategoryEntry & { firstIndex: number; sortPosition: number }>();
+
+  channels.forEach((channel, index) => {
+    const label = channel.parent_name?.trim() || "Uncategorized";
+    const key = channel.parent_id ?? `uncategorized:${label}`;
+    const cachedParentPosition = Number.isFinite(channel.parent_position) ? channel.parent_position : -1;
+    const sortPosition = cachedParentPosition >= 0 ? cachedParentPosition : label === "Uncategorized" ? -1 : index;
+    const group = groups.get(key);
+
+    if (group) {
+      group.channels.push(channel);
+      if (cachedParentPosition >= 0 && group.sortPosition !== cachedParentPosition) {
+        group.sortPosition = cachedParentPosition;
+      }
+      return;
+    }
+
+    groups.set(key, {
+      key,
+      label,
+      channels: [channel],
+      firstIndex: index,
+      sortPosition,
+    });
+  });
+
+  for (const group of groups.values()) {
+    group.channels.sort((a, b) => {
+      const aVoice = a.channel_type === "voice" ? 1 : 0;
+      const bVoice = b.channel_type === "voice" ? 1 : 0;
+      if (aVoice !== bVoice) return aVoice - bVoice;
+      if (a.position !== b.position) return a.position - b.position;
+      return a.channel_name.localeCompare(b.channel_name);
+    });
+  }
+
+  return [...groups.values()]
+    .sort((a, b) => {
+      if (a.sortPosition !== b.sortPosition) return a.sortPosition - b.sortPosition;
+      if (a.firstIndex !== b.firstIndex) return a.firstIndex - b.firstIndex;
+      return a.label.localeCompare(b.label);
+    })
+    .map(({ key, label, channels }) => ({ key, label, channels }));
+}
+
 /** Lists guilds the bot is currently in (from bot_active_guilds). */
 export function useBotGuilds(botId: string | undefined) {
   const [guilds, setGuilds] = useState<BotGuild[]>([]);
