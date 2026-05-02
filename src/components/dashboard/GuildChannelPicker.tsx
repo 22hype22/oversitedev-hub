@@ -56,6 +56,17 @@ export function GuildChannelPicker({
   const [channelOpen, setChannelOpen] = useState(false);
   const [guildQuery, setGuildQuery] = useState("");
   const [channelQuery, setChannelQuery] = useState("");
+  const selectGuild = (g: BotGuild) => {
+    onGuildChange(g);
+    if (g.guild_id !== guildId) onChannelChange(null);
+    setGuildQuery("");
+    setGuildOpen(false);
+  };
+  const selectChannel = (c: BotChannel) => {
+    onChannelChange(c);
+    setChannelQuery("");
+    setChannelOpen(false);
+  };
 
   const selectedGuild = useMemo(
     () => guilds.find((g) => g.guild_id === guildId) ?? null,
@@ -161,12 +172,11 @@ export function GuildChannelPicker({
                       "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground",
                       selectedGuild?.guild_id === g.guild_id && "bg-accent text-accent-foreground",
                     )}
-                    onClick={() => {
-                      onGuildChange(g);
-                      if (g.guild_id !== guildId) onChannelChange(null);
-                      setGuildQuery("");
-                      setGuildOpen(false);
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      selectGuild(g);
                     }}
+                    onClick={() => selectGuild(g)}
                   >
                     <Check
                       className={cn(
@@ -280,11 +290,11 @@ export function GuildChannelPicker({
                               "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground",
                               selectedChannel?.channel_id === c.channel_id && "bg-accent text-accent-foreground",
                             )}
-                            onClick={() => {
-                              onChannelChange(c);
-                              setChannelQuery("");
-                              setChannelOpen(false);
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              selectChannel(c);
                             }}
+                            onClick={() => selectChannel(c)}
                           >
                             <Check
                               className={cn(
