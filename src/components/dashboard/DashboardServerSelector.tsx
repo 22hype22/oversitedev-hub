@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronsUpDown, RefreshCw, Server, Globe } from "lucide-react";
+import { ChevronsUpDown, RefreshCw, Server, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBotGuilds } from "@/hooks/useGuildChannels";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
@@ -95,18 +95,6 @@ interface ServerDropdownProps {
 }
 
 function ServerDropdown({ guilds, selectedGuild, loading, onSelect }: ServerDropdownProps) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
   const label = loading
     ? "Loading servers…"
     : guilds.length === 0
@@ -115,45 +103,39 @@ function ServerDropdown({ guilds, selectedGuild, loading, onSelect }: ServerDrop
         ? selectedGuild.guild_name ?? selectedGuild.guild_id
         : "Select a server…";
 
-  const disabled = loading || guilds.length === 0;
-
   return (
-    <div ref={containerRef} className="relative flex-1">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen((o) => !o)}
-        className="flex h-10 w-full items-center rounded-md border border-input bg-background py-2 pl-9 pr-9 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 relative"
+    <label className="relative flex-1">
+      <select
+        value={selectedGuild?.guild_id ?? ""}
+        onChange={(event) => {
+          const next = guilds.find((g) => g.guild_id === event.target.value) ?? null;
+          onSelect(next);
+        }}
+        disabled={loading || guilds.length === 0}
+        className="peer absolute inset-0 z-10 h-10 w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+        aria-label="Active server"
       >
+        <option value="">
+          {loading ? "Loading servers…" : guilds.length === 0 ? "No servers cached — click refresh →" : "Select a server…"}
+        </option>
+        {guilds.map((g) => (
+          <option key={g.guild_id} value={g.guild_id}>
+            {formatGuildOption(g)}
+          </option>
+        ))}
+      </select>
+      <div className="pointer-events-none flex h-10 w-full items-center rounded-md border border-input bg-background py-2 pl-9 pr-9 text-sm text-foreground ring-offset-background peer-focus:ring-2 peer-focus:ring-ring peer-focus:ring-offset-2 peer-disabled:opacity-50">
         <Server className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <span className="block truncate text-left flex-1">{label}</span>
+        <span className="block truncate">{label}</span>
         <ChevronsUpDown className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-      </button>
-      {open && !disabled && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-auto rounded-md border border-input bg-popover p-1 text-popover-foreground shadow-md">
-          {guilds.map((g) => {
-            const isSelected = g.guild_id === selectedGuild?.guild_id;
-            return (
-              <button
-                key={g.guild_id}
-                type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  onSelect(g);
-                  setOpen(false);
-                }}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground",
-                  isSelected && "bg-accent text-accent-foreground",
-                )}
-              >
-                <Check className={cn("h-4 w-4 shrink-0", isSelected ? "opacity-100" : "opacity-0")} />
-                <span className="flex-1 truncate text-left">{g.guild_name ?? g.guild_id}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+      </div>
+    </label>
   );
+}
+
+function formatGuildOption(guild: ReturnType<typeof useBotGuilds>["guilds"][number]) {
+  const name = guild.guild_name ?? guild.guild_id;
+  if (guild.member_count == null) return name;
+  const count = guild.member_count.toLocaleString();
+  return `${name}${"\u00A0".repeat(Math.max(4, 56 - name.length - count.length))}${count}`;
 }
