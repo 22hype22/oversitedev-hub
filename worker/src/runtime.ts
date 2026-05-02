@@ -260,13 +260,22 @@ export class BotRuntime {
             : c.type === ChannelType.GuildVoice
             ? "voice"
             : "text";
+        const ownPos = "position" in c ? (c.position ?? 0) : 0;
+        const parentPos = parent && "position" in parent ? (parent.position ?? 0) : -1;
+        // Compose a sortable position: parent category first (by its own
+        // position), then child by its position. Uncategorized channels
+        // (parentPos = -1) sort to the very top, matching Discord's UI.
+        // Voice channels in Discord always render below text/announcement
+        // within a category, so bump them by a large offset.
+        const typeBucket = channelType === "voice" ? 10000 : 0;
+        const composite = (parentPos + 1) * 1000000 + typeBucket + ownPos;
         return {
           channel_id: c.id,
           channel_name: c.name ?? c.id,
           channel_type: channelType,
           parent_id: parent?.id ?? null,
           parent_name: parent?.name ?? null,
-          position: "position" in c ? (c.position ?? 0) : 0,
+          position: composite,
         };
       });
 
