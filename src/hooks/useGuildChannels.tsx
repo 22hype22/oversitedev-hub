@@ -20,6 +20,7 @@ export interface BotChannel {
 export function useBotGuilds(botId: string | undefined) {
   const [guilds, setGuilds] = useState<BotGuild[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!botId) return;
@@ -44,7 +45,51 @@ export function useBotGuilds(botId: string | undefined) {
     return () => window.removeEventListener("focus", onFocus);
   }, [refresh]);
 
-  return { guilds, loading, refresh };
+  /**
+   * Ask the worker to re-fetch the guild list from Discord. Polls the
+   * bot_active_guilds table until the row count or contents change, up
+   * to ~10s.
+   */
+  const refreshFromDiscord = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
+    if (!botId) return { ok: false, error: "no_bot" };
+    setRefreshing(true);
+    try {
+      // Snapshot the current set so we can detect a change.
+      const before = JSON.stringify(
+        [...guilds].map((g) => g.guild_id).sort(),
+      );
+      const { data, error } = await supabase.rpc("request_list_guilds", {
+        _bot_id: botId,
+      });
+      if (error) return { ok: false, error: error.message };
+      const result = data as { ok: boolean; error?: string };
+      if (!result?.ok) return { ok: false, error: result?.error ?? "request_failed" };
+
+      // Poll up to 10x (every 1s) for the cache to change.
+      for (let i = 0; i < 10; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        const { data: rows } = await supabase
+          .from("bot_active_guilds")
+          .select("guild_id, guild_name, member_count")
+          .eq("bot_id", botId)
+          .order("guild_name", { ascending: true });
+        const next = JSON.stringify(
+          ((rows ?? []) as BotGuild[]).map((g) => g.guild_id).sort(),
+        );
+        if (next !== before) {
+          setGuilds((rows ?? []) as BotGuild[]);
+          return { ok: true };
+        }
+      }
+      // No change detected — the bot may already be up to date. Re-read anyway.
+      await refresh();
+      return { ok: true };
+    } finally {
+      setRefreshing(false);
+    }
+  }, [botId, guilds, refresh]);
+
+  return { guilds, loading, refresh, refreshing, refreshFromDiscord };
 }
 
 /**

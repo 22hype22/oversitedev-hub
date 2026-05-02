@@ -15,6 +15,7 @@ import { Check, ChevronsUpDown, RefreshCw, Server, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBotGuilds } from "@/hooks/useGuildChannels";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
+import { toast } from "sonner";
 
 interface Props {
   botId: string;
@@ -28,9 +29,24 @@ interface Props {
  * broadcast to every server the bot is in.
  */
 export function DashboardServerSelector({ botId }: Props) {
-  const { guilds, loading, refresh } = useBotGuilds(botId);
+  const { guilds, loading, refresh, refreshing, refreshFromDiscord } = useBotGuilds(botId);
   const { guild, setGuild } = useActiveGuild();
   const [open, setOpen] = useState(false);
+
+  const handleRefresh = async () => {
+    // Always re-read the cache first (cheap), then ask the bot to re-check.
+    refresh();
+    const result = await refreshFromDiscord();
+    if (result.ok) {
+      toast.success("Server list refreshed.");
+    } else {
+      toast.warning(
+        result.error === "not_owner"
+          ? "You don't have permission to refresh this bot."
+          : `Refresh queued — bot may be offline.`,
+      );
+    }
+  };
 
   return (
     <Card className="bg-card/40 border-border p-4">
@@ -65,7 +81,7 @@ export function DashboardServerSelector({ botId }: Props) {
                           {loading
                             ? "Loading servers…"
                             : guilds.length === 0
-                              ? "Bot not in any servers yet"
+                              ? "No servers cached — click refresh →"
                               : "Select a server…"}
                         </span>
                       )}
@@ -117,13 +133,13 @@ export function DashboardServerSelector({ botId }: Props) {
             </Popover>
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="icon"
-              onClick={refresh}
-              disabled={loading}
-              title="Refresh server list"
+              onClick={handleRefresh}
+              disabled={loading || refreshing}
+              title="Refresh server list from Discord"
             >
-              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+              <RefreshCw className={cn("h-4 w-4", (loading || refreshing) && "animate-spin")} />
             </Button>
           </div>
           {guild && (
