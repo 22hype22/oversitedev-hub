@@ -9,10 +9,10 @@ export const Hero = () => {
 
   useEffect(() => {
     const tick = () => {
-      setBotServers((n) => n + Math.floor(Math.random() * 3) + 1);
+      setBotServers((n) => n + 1);
     };
     const schedule = () => {
-      const delay = 1500 + Math.random() * 2500;
+      const delay = 20000 + Math.random() * 25000;
       return window.setTimeout(() => {
         tick();
         timer = schedule();
