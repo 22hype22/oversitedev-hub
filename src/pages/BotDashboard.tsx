@@ -844,6 +844,7 @@ const BotSection = ({
                         >
                           <AddonConfigCard
                             addonId={id}
+                            botId={bot.id}
                             botName={bot.bot_name}
                             botAvatarUrl={bot.icon_url}
                           />

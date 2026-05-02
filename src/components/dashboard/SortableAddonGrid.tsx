@@ -105,6 +105,7 @@ function SortableCard({
     >
       <AddonConfigCard
         addonId={id}
+        botId={botId}
         botName={botName}
         botAvatarUrl={botAvatarUrl}
       />
