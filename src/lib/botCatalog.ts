@@ -185,13 +185,10 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
     "anti-raid",
     "basic-logging",
     "phishing-detection",
-    "messages",
   ],
-  // Support base ships with the ticket panel system + welcome/goodbye messages.
-  support: ["ticket-message-customization", "messages"],
-  // Utilities base ships with /say, /announce, /poll, /reactionrole, etc.
-  // The "messages" config card surfaces the say/announce builder.
-  utilities: ["messages"],
+  // Support and Utilities bases should surface every configured section in the dashboard.
+  support: [...ADDON_IDS_BY_BASE.support, "messages"],
+  utilities: [...ADDON_IDS_BY_BASE.utilities, "messages"],
 };
 
 export function getIncludedAddonsForBase(baseId: string): string[] {
