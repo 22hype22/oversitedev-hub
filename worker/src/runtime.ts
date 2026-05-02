@@ -260,9 +260,19 @@ export class BotRuntime {
             : c.type === ChannelType.GuildVoice
             ? "voice"
             : "text";
-        const ownPos = "position" in c ? (c.position ?? 0) : 0;
+        const ownPos = "rawPosition" in c
+          ? (c.rawPosition ?? 0)
+          : "position" in c
+          ? (c.position ?? 0)
+          : 0;
         // -1 = uncategorized; the dashboard sorts those above any category.
-        const parentPos = parent && "position" in parent ? (parent.position ?? 0) : -1;
+        const parentPos = parent
+          ? "rawPosition" in parent
+            ? (parent.rawPosition ?? 0)
+            : "position" in parent
+            ? (parent.position ?? 0)
+            : -1
+          : -1;
         return {
           channel_id: c.id,
           channel_name: c.name ?? c.id,
