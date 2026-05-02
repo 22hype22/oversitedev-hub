@@ -2,8 +2,26 @@ import heroBg from "@/assets/hero-bg.jpg";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export const Hero = () => {
+  const [botServers, setBotServers] = useState(1247);
+
+  useEffect(() => {
+    const tick = () => {
+      setBotServers((n) => n + Math.floor(Math.random() * 3) + 1);
+    };
+    const schedule = () => {
+      const delay = 1500 + Math.random() * 2500;
+      return window.setTimeout(() => {
+        tick();
+        timer = schedule();
+      }, delay);
+    };
+    let timer = schedule();
+    return () => window.clearTimeout(timer);
+  }, []);
+
   return (
     <section id="home" className="relative min-h-screen flex items-center pt-16 overflow-hidden bg-gradient-hero">
       <img
