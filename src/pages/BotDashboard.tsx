@@ -45,6 +45,8 @@ import { BotServerSlotsCard } from "@/components/dashboard/BotServerSlotsCard";
 import { BotInviteLinkCard } from "@/components/dashboard/BotInviteLinkCard";
 import { SupportAccessManager } from "@/components/dashboard/SupportAccessManager";
 import { BotHealthBadge } from "@/components/dashboard/BotHealthBadge";
+import { DashboardServerSelector } from "@/components/dashboard/DashboardServerSelector";
+import { ActiveGuildProvider } from "@/hooks/useActiveGuild";
 import { useBotFreePeriods, type BotFreePeriod } from "@/hooks/useBotFreePeriods";
 import {
   LogOut,
@@ -625,7 +627,7 @@ const BotSection = ({
     </>
   ) : null;
 
-  return (
+  const sectionInner = (
     <section className="space-y-5">
       <BotIdentityEditor
         bot={bot}
@@ -794,6 +796,7 @@ const BotSection = ({
           </span>
         </summary>
         <div className="px-5 pb-5 pt-2 space-y-5 border-t border-border">
+      {!bot.isDemo && <DashboardServerSelector botId={bot.id} />}
       <div className="space-y-10">
 
         {totalConfigurable === 0 ? (
@@ -871,6 +874,13 @@ const BotSection = ({
         </div>
       </details>
     </section>
+  );
+
+  if (bot.isDemo) return sectionInner;
+  return (
+    <ActiveGuildProvider userId={userId} botId={bot.id}>
+      {sectionInner}
+    </ActiveGuildProvider>
   );
 };
 
