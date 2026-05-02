@@ -53,6 +53,8 @@ export const Hero = () => {
     };
     let timer = schedule();
     return () => window.clearTimeout(timer);
+  }, []);
+
   const [membersServing, setMembersServing] = useState<number | null>(null);
 
   useEffect(() => {
