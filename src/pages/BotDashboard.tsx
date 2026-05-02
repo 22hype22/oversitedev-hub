@@ -497,8 +497,7 @@ const BotSection = ({
   // appear just because of Messages — drop groups whose only item is Messages.
   const groupedAddons = ADDON_GROUPS
     .map((g) => ({ ...g, owned: g.ids.filter((id) => ownedAddons.has(id)) }))
-    .filter((g) => g.owned.length > 0)
-    .filter((g) => !(g.owned.length === 1 && g.owned[0] === "messages"));
+    .filter((g) => g.owned.length > 0);
   const totalConfigurable = groupedAddons.reduce((n, g) => n + g.owned.length, 0);
 
   // ── Search-driven section auto-expand ──────────────────────────────────────
