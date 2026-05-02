@@ -52,7 +52,7 @@ import { getAddonLabel } from "@/lib/botCatalog";
 import { SayCommandBuilder } from "./SayCommandBuilder";
 import { TicketPanelBuilder } from "./TicketPanelBuilder";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
-import { useBotChannels } from "@/hooks/useGuildChannels";
+import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildChannels";
 
 const CHANNEL_ICON: Record<string, typeof Hash> = {
   text: Hash,
@@ -372,8 +372,8 @@ function ChannelComboField({
     [channels],
   );
   const selected = useMemo(
-    () => filtered.find((c) => c.channel_id === value) ?? null,
-    [filtered, value],
+    () => channels.find((c) => c.channel_id === value) ?? null,
+    [channels, value],
   );
 
   const handleRefresh = async () => {
@@ -404,7 +404,15 @@ function ChannelComboField({
           {refreshing ? "Refreshing…" : "Refresh"}
         </Button>
       </div>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={open}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen);
+          if (nextOpen && guildId && !refreshing) {
+            refreshFromDiscord().catch(() => {});
+          }
+        }}
+      >
         <PopoverTrigger asChild>
           <Button
             type="button"
@@ -455,35 +463,32 @@ function ChannelComboField({
                   ? "No channels cached yet."
                   : "No matching channels."}
               </CommandEmpty>
-              <CommandGroup>
-                {filtered.map((c) => {
-                  const Icon = CHANNEL_ICON[c.channel_type] ?? Hash;
-                  return (
-                    <CommandItem
-                      key={c.channel_id}
-                      value={`${c.channel_name} ${c.channel_id}`}
-                      onSelect={() => {
-                        onChange(c.channel_id);
-                        setOpen(false);
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          value === c.channel_id ? "opacity-100" : "opacity-0",
-                        )}
-                      />
-                      <Icon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="flex-1 truncate">{c.channel_name}</span>
-                      {c.parent_name && (
-                        <span className="text-xs text-muted-foreground ml-2 truncate max-w-[120px]">
-                          {c.parent_name}
-                        </span>
-                      )}
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
+              {sortedChannelCategoryEntries(filtered).map((group) => (
+                <CommandGroup key={group.key} heading={group.label}>
+                  {group.channels.map((c) => {
+                    const Icon = CHANNEL_ICON[c.channel_type] ?? Hash;
+                    return (
+                      <CommandItem
+                        key={c.channel_id}
+                        value={`${c.channel_name} ${c.channel_id}`}
+                        onSelect={() => {
+                          onChange(c.channel_id);
+                          setOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            value === c.channel_id ? "opacity-100" : "opacity-0",
+                          )}
+                        />
+                        <Icon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="flex-1 truncate">{c.channel_name}</span>
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              ))}
             </CommandList>
           </Command>
         </PopoverContent>
