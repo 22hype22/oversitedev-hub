@@ -133,6 +133,33 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
     return () => window.removeEventListener("focus", onFocus);
   }, [readCache]);
 
+  // Live updates: re-read whenever the worker writes channel rows for
+  // this bot+guild (channel created/renamed/deleted on Discord).
+  useEffect(() => {
+    if (!botId || !guildId) return;
+    const channel = supabase
+      .channel(`bot_channel_cache:${botId}:${guildId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "bot_channel_cache",
+          filter: `bot_id=eq.${botId}`,
+        },
+        (payload) => {
+          const row =
+            (payload.new as { guild_id?: string } | null) ??
+            (payload.old as { guild_id?: string } | null);
+          if (row?.guild_id === guildId) readCache();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [botId, guildId, readCache]);
+
   /**
    * Queues a list_channels command to the worker. Polls the cache for ~10s
    * waiting for the worker to update it.
