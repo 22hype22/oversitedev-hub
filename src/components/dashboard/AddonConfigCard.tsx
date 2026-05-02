@@ -223,7 +223,18 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl }: Props
       );
     }
 
-    // text / channel / role / number
+    if (f.type === "channel") {
+      return (
+        <ChannelComboField
+          field={f}
+          value={String(value ?? "")}
+          onChange={(v) => setValue(f.key, v)}
+          botId={botId}
+        />
+      );
+    }
+
+    // text / role / number
     return (
       <div className="space-y-2">
         <Label htmlFor={f.key}>{f.label}</Label>
