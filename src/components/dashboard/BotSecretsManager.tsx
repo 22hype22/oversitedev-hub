@@ -34,6 +34,7 @@ import {
   Loader2,
   Copy,
   Check,
+  Sparkles,
 } from "lucide-react";
 
 type SlotMeta = {
@@ -47,6 +48,7 @@ type SlotMeta = {
   is_set: boolean;
   last_four: string;
   updated_at: string | null;
+  is_managed: boolean;
 };
 
 export function BotSecretsManager({
