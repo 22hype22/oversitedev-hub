@@ -445,3 +445,88 @@ function ChannelComboField({
     </div>
   );
 }
+
+/**
+ * Role picker for schema-driven addon fields. Mirrors the channel picker UX:
+ * native `<select>`, auto-syncs from Discord on guild change, manual refresh.
+ */
+function RoleComboField({
+  field,
+  value,
+  onChange,
+  botId,
+}: {
+  field: AddonField;
+  value: string;
+  onChange: (v: string) => void;
+  botId?: string;
+}) {
+  const { guild } = useActiveGuild();
+  const guildId = guild?.guild_id;
+  const { roles, loading, refreshing, refreshFromDiscord } = useBotRoles(botId, guildId);
+
+  // Hide @everyone and managed (bot/integration) roles by default — pickable
+  // assignable roles only.
+  const filtered = useMemo(
+    () => roles.filter((r) => !r.is_everyone && !r.managed),
+    [roles],
+  );
+
+  const handleRefresh = async () => {
+    if (!guildId) {
+      toast.info("Select a server at the top first.");
+      return;
+    }
+    const result = await refreshFromDiscord();
+    if (result.ok) toast.success("Role list refreshed.");
+    else if (result.error === "timeout")
+      toast.warning("Refresh queued — bot may be offline.");
+    else toast.error(`Refresh failed: ${result.error}`);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>{field.label}</Label>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={refreshing || !guildId}
+          className="h-7 px-2 text-xs gap-1.5"
+        >
+          <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+          {refreshing ? "Refreshing…" : "Refresh"}
+        </Button>
+      </div>
+      <label className="relative block">
+        <AtSign className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          disabled={!guildId}
+          className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <option value="">
+            {!guildId
+              ? "Select a server first"
+              : loading
+                ? "Loading roles…"
+                : filtered.length === 0
+                  ? "No roles cached — click Refresh"
+                  : "Select a role…"}
+          </option>
+          {filtered.map((r) => (
+            <option key={r.role_id} value={r.role_id}>
+              @{r.role_name}
+            </option>
+          ))}
+        </select>
+      </label>
+      {field.help && (
+        <p className="text-xs text-muted-foreground">{field.help}</p>
+      )}
+    </div>
+  );
+}
