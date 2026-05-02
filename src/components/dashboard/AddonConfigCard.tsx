@@ -47,6 +47,7 @@ import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildChannels";
 import { useBotRoles } from "@/hooks/useBotRoles";
 import { AtSign } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const CHANNEL_ICON: Record<string, typeof Hash> = {
   text: Hash,
