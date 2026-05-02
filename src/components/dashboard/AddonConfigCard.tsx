@@ -353,14 +353,6 @@ function ChannelComboField({
     botId,
     guildId,
   );
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const selectChannel = (channelId: string) => {
-    onChange(channelId);
-    setQuery("");
-    setOpen(false);
-  };
-
   // Default to the standard text-channel set; voice/forum can opt-in later.
   const filtered = useMemo(
     () =>
@@ -370,18 +362,13 @@ function ChannelComboField({
     [channels],
   );
   const selected = useMemo(
-    () => channels.find((c) => c.channel_id === value) ?? null,
-    [channels, value],
+    () => filtered.find((c) => c.channel_id === value) ?? null,
+    [filtered, value],
   );
-  const channelGroups = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const visible = q
-      ? filtered.filter((c) =>
-          `${c.channel_name} ${c.channel_id}`.toLowerCase().includes(q),
-        )
-      : filtered;
-    return sortedChannelCategoryEntries(visible);
-  }, [filtered, query]);
+  const channelGroups = useMemo(
+    () => sortedChannelCategoryEntries(filtered),
+    [filtered],
+  );
 
   const handleRefresh = async () => {
     if (!guildId) {
@@ -411,104 +398,34 @@ function ChannelComboField({
           {refreshing ? "Refreshing…" : "Refresh"}
         </Button>
       </div>
-      <Popover
-        open={open}
-        onOpenChange={setOpen}
-      >
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            disabled={!guildId}
-            className="w-full justify-between font-normal"
-          >
-            <span className="flex items-center gap-2 min-w-0">
-              {selected ? (
-                <>
-                  {(() => {
-                    const Icon = CHANNEL_ICON[selected.channel_type] ?? Hash;
-                    return (
-                      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    );
-                  })()}
-                  <span className="truncate">{selected.channel_name}</span>
-                </>
-              ) : (
-                <>
-                  <Hash className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="truncate text-muted-foreground">
-                    {!guildId
-                      ? "Select a server first"
-                      : loading
-                        ? "Loading channels…"
-                        : filtered.length === 0
-                          ? "No channels cached — click Refresh"
-                          : "Select a channel…"}
-                  </span>
-                </>
-              )}
-            </span>
-            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          className="w-[var(--radix-popover-trigger-width)] p-0"
-          align="start"
+      <label className="relative block">
+        <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <select
+          value={selected?.channel_id ?? ""}
+          onChange={(event) => onChange(event.target.value)}
+          disabled={!guildId || loading || filtered.length === 0}
+          className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <div className="border-b border-border p-2">
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search channels…"
-              className="h-9"
-            />
-          </div>
-          <div className="max-h-[300px] overflow-y-auto p-1">
-            {channelGroups.length === 0 ? (
-              <div className="py-6 text-center text-sm text-muted-foreground">
-                {filtered.length === 0 ? "No channels cached yet." : "No matching channels."}
-              </div>
-            ) : (
-              channelGroups.map((group) => (
-                <div key={group.key} className="py-1">
-                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                    {group.label}
-                  </div>
-                  {group.channels.map((c) => {
-                    const Icon = CHANNEL_ICON[c.channel_type] ?? Hash;
-                    return (
-                      <button
-                        key={c.channel_id}
-                        type="button"
-                        className={cn(
-                          "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground",
-                          value === c.channel_id && "bg-accent text-accent-foreground",
-                        )}
-                        onMouseDown={(event) => {
-                          event.preventDefault();
-                          selectChannel(c.channel_id);
-                        }}
-                        onClick={() => selectChannel(c.channel_id)}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4 shrink-0",
-                            value === c.channel_id ? "opacity-100" : "opacity-0",
-                          )}
-                        />
-                        <Icon className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        <span className="flex-1 truncate">{c.channel_name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ))
-            )}
-          </div>
-        </PopoverContent>
-      </Popover>
+          <option value="">
+            {!guildId
+              ? "Select a server first"
+              : loading
+                ? "Loading channels…"
+                : filtered.length === 0
+                  ? "No channels cached — click Refresh"
+                  : "Select a channel…"}
+          </option>
+          {channelGroups.map((group) => (
+            <optgroup key={group.key} label={group.label}>
+              {group.channels.map((c) => (
+                <option key={c.channel_id} value={c.channel_id}>
+                  {c.channel_name}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </label>
       {field.help && (
         <p className="text-xs text-muted-foreground">{field.help}</p>
       )}
