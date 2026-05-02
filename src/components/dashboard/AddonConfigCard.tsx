@@ -355,6 +355,11 @@ function ChannelComboField({
   );
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const selectChannel = (channelId: string) => {
+    onChange(channelId);
+    setQuery("");
+    setOpen(false);
+  };
 
   // Default to the standard text-channel set; voice/forum can opt-in later.
   const filtered = useMemo(
@@ -481,11 +486,11 @@ function ChannelComboField({
                           "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground",
                           value === c.channel_id && "bg-accent text-accent-foreground",
                         )}
-                        onClick={() => {
-                          onChange(c.channel_id);
-                          setQuery("");
-                          setOpen(false);
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          selectChannel(c.channel_id);
                         }}
+                        onClick={() => selectChannel(c.channel_id)}
                       >
                         <Check
                           className={cn(
