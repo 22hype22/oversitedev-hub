@@ -217,6 +217,63 @@ export class BotRuntime {
     await this.start();
   }
 
+  /**
+   * Fetch the current text-channel list for a guild and replace the cache.
+   * Caller must ensure this bot is running and is a member of the guild.
+   */
+  async listChannels(guildId: string) {
+    if (!this.client) {
+      throw new Error("Bot not running — start it before listing channels");
+    }
+    const guild = this.client.guilds.cache.get(guildId);
+    if (!guild) {
+      // Try a fetch in case the cache is cold
+      try {
+        await this.client.guilds.fetch(guildId);
+      } catch {
+        throw new Error(`Bot is not in guild ${guildId}`);
+      }
+    }
+    const g = this.client.guilds.cache.get(guildId);
+    if (!g) throw new Error(`Bot is not in guild ${guildId}`);
+
+    // Force a fresh fetch so newly-created channels show up.
+    const channels = await g.channels.fetch();
+    const TEXTUAL = new Set<number>([
+      ChannelType.GuildText,
+      ChannelType.GuildAnnouncement,
+      ChannelType.GuildForum,
+      ChannelType.GuildVoice, // include for completeness; UI can filter
+    ]);
+
+    const entries = [...channels.values()]
+      .filter((c): c is NonNullable<typeof c> => c !== null && TEXTUAL.has(c.type))
+      .map((c) => {
+        const parent = "parent" in c ? c.parent : null;
+        const channelType =
+          c.type === ChannelType.GuildText
+            ? "text"
+            : c.type === ChannelType.GuildAnnouncement
+            ? "announcement"
+            : c.type === ChannelType.GuildForum
+            ? "forum"
+            : c.type === ChannelType.GuildVoice
+            ? "voice"
+            : "text";
+        return {
+          channel_id: c.id,
+          channel_name: c.name ?? c.id,
+          channel_type: channelType,
+          parent_id: parent?.id ?? null,
+          parent_name: parent?.name ?? null,
+          position: "position" in c ? (c.position ?? 0) : 0,
+        };
+      });
+
+    await upsertChannels(this.botId, guildId, entries);
+    await appendLog(this.botId, "info", `Cached ${entries.length} channel(s) for guild ${g.name}`);
+  }
+
   isRunning() {
     return this.running;
   }
