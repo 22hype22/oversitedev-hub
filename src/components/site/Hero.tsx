@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 
 export const Hero = () => {
   const STORAGE_KEY = "oversite:botsBuiltCount";
-  const START_VALUE = 20;
+  const START_VALUE = 123;
   const AVG_INTERVAL_MS = 32500; // average of 20-45s
 
   const [botServers, setBotServers] = useState<number>(() => {
