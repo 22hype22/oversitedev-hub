@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -32,6 +32,10 @@ export function DashboardServerSelector({ botId }: Props) {
   const { guilds, loading, refresh, refreshing, refreshFromDiscord } = useBotGuilds(botId);
   const { guild, setGuild } = useActiveGuild();
   const [open, setOpen] = useState(false);
+  const selectedGuild = useMemo(
+    () => guilds.find((g) => g.guild_id === guild?.guild_id) ?? guild,
+    [guilds, guild],
+  );
 
   const handleRefresh = async () => {
     // Always re-read the cache first (cheap), then ask the bot to re-check.
@@ -76,7 +80,7 @@ export function DashboardServerSelector({ botId }: Props) {
                   <span className="flex items-center gap-2 min-w-0">
                     <Server className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <span className="truncate">
-                      {guild?.guild_name ?? guild?.guild_id ?? (
+                      {selectedGuild?.guild_name ?? selectedGuild?.guild_id ?? (
                         <span className="text-muted-foreground">
                           {loading
                             ? "Loading servers…"
@@ -112,7 +116,7 @@ export function DashboardServerSelector({ botId }: Props) {
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              guild?.guild_id === g.guild_id ? "opacity-100" : "opacity-0",
+                              selectedGuild?.guild_id === g.guild_id ? "opacity-100" : "opacity-0",
                             )}
                           />
                           <Server className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
@@ -142,10 +146,10 @@ export function DashboardServerSelector({ botId }: Props) {
               <RefreshCw className={cn("h-4 w-4", (loading || refreshing) && "animate-spin")} />
             </Button>
           </div>
-          {guild && (
+          {selectedGuild && (
             <p className="text-[11px] text-muted-foreground">
               Add-on configurations below will target{" "}
-              <span className="text-foreground font-medium">{guild.guild_name ?? guild.guild_id}</span>{" "}
+              <span className="text-foreground font-medium">{selectedGuild.guild_name ?? selectedGuild.guild_id}</span>{" "}
               by default. You can still override per add-on.
             </p>
           )}
