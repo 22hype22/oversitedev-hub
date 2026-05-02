@@ -86,3 +86,78 @@ export function DashboardServerSelector({ botId }: Props) {
     </Card>
   );
 }
+
+interface ServerDropdownProps {
+  guilds: ReturnType<typeof useBotGuilds>["guilds"];
+  selectedGuild: ReturnType<typeof useBotGuilds>["guilds"][number] | null | undefined;
+  loading: boolean;
+  onSelect: (g: ReturnType<typeof useBotGuilds>["guilds"][number] | null) => void;
+}
+
+function ServerDropdown({ guilds, selectedGuild, loading, onSelect }: ServerDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const label = loading
+    ? "Loading servers…"
+    : guilds.length === 0
+      ? "No servers cached — click refresh →"
+      : selectedGuild
+        ? selectedGuild.guild_name ?? selectedGuild.guild_id
+        : "Select a server…";
+
+  return (
+    <div ref={ref} className="relative flex-1">
+      <button
+        type="button"
+        disabled={loading || guilds.length === 0}
+        onClick={() => setOpen((v) => !v)}
+        className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-9 text-left text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <Server className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <span className="block truncate">{label}</span>
+        <ChevronsUpDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover p-1 shadow-md">
+          <div className="max-h-72 overflow-auto">
+            {guilds.map((g) => {
+              const isSelected = selectedGuild?.guild_id === g.guild_id;
+              return (
+                <button
+                  key={g.guild_id}
+                  type="button"
+                  onClick={() => {
+                    onSelect(g);
+                    setOpen(false);
+                  }}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent",
+                    isSelected && "bg-accent",
+                  )}
+                >
+                  <Check className={cn("h-4 w-4 shrink-0", isSelected ? "opacity-100" : "opacity-0")} />
+                  <span className="flex-1 truncate">{g.guild_name ?? g.guild_id}</span>
+                  {g.member_count != null && (
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {g.member_count.toLocaleString()}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
