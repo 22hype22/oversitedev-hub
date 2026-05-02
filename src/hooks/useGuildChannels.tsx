@@ -164,10 +164,10 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
       const result = data as { ok: boolean; error?: string };
       if (!result?.ok) return { ok: false, error: result?.error ?? "request_failed" };
 
-      // Poll the cache up to 10 times (every 1s) waiting for fetched_at to bump.
+      // Poll the cache up to 32 times (every 250ms = ~8s) waiting for fetched_at to bump.
       const before = lastFetchedAt;
-      for (let i = 0; i < 10; i++) {
-        await new Promise((r) => setTimeout(r, 1000));
+      for (let i = 0; i < 32; i++) {
+        await new Promise((r) => setTimeout(r, 250));
         const { data: row } = await supabase
           .from("bot_channel_cache")
           .select("fetched_at")
