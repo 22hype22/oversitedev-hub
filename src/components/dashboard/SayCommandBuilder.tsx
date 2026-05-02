@@ -13,6 +13,7 @@ import { ChevronDown, Plus, Trash2, GripVertical, Info } from "lucide-react";
 import { toast } from "sonner";
 import { GuildChannelPicker } from "./GuildChannelPicker";
 import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
+import { useActiveGuild } from "@/hooks/useActiveGuild";
 
 /**
  * Discohook-style /say command builder.
@@ -79,7 +80,12 @@ export function SayCommandBuilder({
   botName: string;
   botAvatarUrl?: string | null;
 }) {
-  const [guild, setGuild] = useState<BotGuild | null>(null);
+  const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
+  const [guild, setGuildLocal] = useState<BotGuild | null>(activeGuild);
+  const setGuild = (g: BotGuild | null) => {
+    setGuildLocal(g);
+    if (g) setActiveGuild(g); // sync the dashboard-wide selection.
+  };
   const [channel, setChannel] = useState<BotChannel | null>(null);
   const [content, setContent] = useState(
     "Welcome to the server! 👋 Read the rules and have fun.",
