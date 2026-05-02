@@ -403,7 +403,7 @@ function ChannelComboField({
         <select
           value={selected?.channel_id ?? ""}
           onChange={(event) => onChange(event.target.value)}
-          disabled={!guildId || loading || filtered.length === 0}
+          disabled={!guildId}
           className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <option value="">
