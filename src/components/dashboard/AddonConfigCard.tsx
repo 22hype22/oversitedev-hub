@@ -383,19 +383,31 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl }: Props
             </div>
           )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                toast.success(`${config.title} settings saved`);
-                setOpen(false);
-              }}
-            >
-              <Save className="h-4 w-4 mr-1.5" />
-              Save changes
-            </Button>
+          <DialogFooter className="flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            {isVerification && appliedAt ? (
+              <span className="text-xs text-muted-foreground">
+                Last applied {new Date(appliedAt).toLocaleString()}
+              </span>
+            ) : <span />}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                disabled={saving}
+                onClick={() => {
+                  if (isVerification) {
+                    void saveVerification();
+                  } else {
+                    toast.success(`${config.title} settings saved`);
+                    setOpen(false);
+                  }
+                }}
+              >
+                <Save className="h-4 w-4 mr-1.5" />
+                {saving ? "Saving…" : "Save changes"}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
