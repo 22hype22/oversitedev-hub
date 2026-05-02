@@ -2072,6 +2072,10 @@ export type Database = {
         Returns: boolean
       }
       detect_stale_bots: { Args: never; Returns: number }
+      enqueue_apply_config: {
+        Args: { _bot_id: string; _feature: string }
+        Returns: Json
+      }
       enqueue_bot_command: {
         Args: { _action: string; _bot_id: string }
         Returns: Json
