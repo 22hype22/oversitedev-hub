@@ -86,7 +86,7 @@ export const Hero = () => {
             {[
               { value: "23B+", label: "Visits Contributed To" },
               { value: "12K+", label: "Total Members" },
-              { value: `${botServers.toLocaleString()}+`, label: "Bot Servers Built" },
+              { value: botServers.toLocaleString(), label: "Bots Built" },
             ].map((s) => (
               <div
                 key={s.label}
