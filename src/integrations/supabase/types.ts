@@ -301,6 +301,44 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_config: {
+        Row: {
+          applied_at: string | null
+          bot_id: string
+          config: Json
+          created_at: string | null
+          feature: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          applied_at?: string | null
+          bot_id: string
+          config?: Json
+          created_at?: string | null
+          feature: string
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          applied_at?: string | null
+          bot_id?: string
+          config?: Json
+          created_at?: string | null
+          feature?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_config_bot_id_fkey"
+            columns: ["bot_id"]
+            isOneToOne: false
+            referencedRelation: "bot_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bot_credits: {
         Row: {
           balance_cents: number
