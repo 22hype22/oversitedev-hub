@@ -286,16 +286,23 @@ function sortedCategoryEntries(channels: BotChannel[]): [string, BotChannel[]][]
     if (list) list.push(c);
     else groups.set(key, [c]);
   }
-  // Sort channels within each category by their (composite) position.
+  // Within each category: text/announcement/forum first (by Discord position),
+  // then voice channels (Discord always renders these below).
   for (const list of groups.values()) {
-    list.sort((a, b) => a.position - b.position);
+    list.sort((a, b) => {
+      const aVoice = a.channel_type === "voice" ? 1 : 0;
+      const bVoice = b.channel_type === "voice" ? 1 : 0;
+      if (aVoice !== bVoice) return aVoice - bVoice;
+      return a.position - b.position;
+    });
   }
-  // Sort the categories themselves: Uncategorized first, then by the
-  // smallest position in each group (which encodes the parent's position
-  // thanks to the composite key the worker writes).
+  // Sort the categories themselves by parent_position (which the worker
+  // copies straight from Discord). Uncategorized (parent_position = -1)
+  // naturally sorts to the top.
   return [...groups.entries()].sort(([aKey, aList], [bKey, bList]) => {
-    if (aKey === "Uncategorized" && bKey !== "Uncategorized") return -1;
-    if (bKey === "Uncategorized" && aKey !== "Uncategorized") return 1;
-    return (aList[0]?.position ?? 0) - (bList[0]?.position ?? 0);
+    const ap = aList[0]?.parent_position ?? -1;
+    const bp = bList[0]?.parent_position ?? -1;
+    if (ap !== bp) return ap - bp;
+    return aKey.localeCompare(bKey);
   });
 }
