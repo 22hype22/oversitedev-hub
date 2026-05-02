@@ -61,8 +61,9 @@ export const Hero = () => {
     let cancelled = false;
     const load = async () => {
       const { data, error } = await supabase.rpc("get_total_members_serving");
-      if (!cancelled && !error && typeof data === "number") {
-        setMembersServing(data);
+      const count = typeof data === "number" ? data : typeof data === "string" ? Number(data) : null;
+      if (!cancelled && !error && count !== null && Number.isFinite(count)) {
+        setMembersServing(count);
       }
     };
     load();
