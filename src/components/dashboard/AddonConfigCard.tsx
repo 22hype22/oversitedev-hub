@@ -482,6 +482,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               <span className="text-xs text-muted-foreground">
                 Last applied {new Date(appliedAt).toLocaleString()}
               </span>
+            ) : isAdvancedLogging && appliedAt ? (
+              <span className="text-xs text-muted-foreground">
+                Last applied {new Date(appliedAt).toLocaleString()}
+              </span>
             ) : <span />}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setOpen(false)}>
@@ -492,6 +496,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                 onClick={() => {
                   if (isVerification) {
                     void saveVerification();
+                  } else if (isAdvancedLogging) {
+                    void saveAdvancedLogging();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
