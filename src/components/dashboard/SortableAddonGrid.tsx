@@ -81,13 +81,22 @@ function SortableCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id, disabled: dialogOpen });
+  } = useSortable({
+    id,
+    disabled: dialogOpen,
+    transition: {
+      duration: 180,
+      easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+    },
+  });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 50 : undefined,
     cursor: isDragging ? "grabbing" : undefined,
+    willChange: "transform",
   };
 
   // While a dialog is open, strip drag listeners entirely so nothing in the
