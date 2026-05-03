@@ -186,7 +186,7 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
   useEffect(() => {
     if (!botId || !guildId) return;
     const channel = supabase
-      .channel(`bot_channel_cache:${botId}:${guildId}`)
+      .channel(`bot_channel_cache:${botId}:${guildId}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {
