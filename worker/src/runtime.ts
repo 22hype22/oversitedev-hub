@@ -216,7 +216,49 @@ export class BotRuntime {
 
   async listChannels(guildId: string) {
     if (!this.client) {
-      throw new Error("Bot not running — start it before listing channels");
+      const token = await getSecret(this.botId, "DISCORD_TOKEN");
+      if (!token) throw new Error("DISCORD_TOKEN secret not set");
+
+      const rest = new REST({ version: "10" }).setToken(token);
+      const channels = (await rest.get(Routes.guildChannels(guildId))) as Array<{
+        id: string;
+        name?: string;
+        type: number;
+        parent_id?: string | null;
+        position?: number;
+      }>;
+      const channelById = new Map(channels.map((c) => [c.id, c]));
+      const TEXTUAL = new Set<number>([
+        ChannelType.GuildText,
+        ChannelType.GuildAnnouncement,
+        ChannelType.GuildForum,
+        ChannelType.GuildVoice,
+      ]);
+      const entries = channels
+        .filter((c) => TEXTUAL.has(c.type))
+        .map((c) => {
+          const parent = c.parent_id ? channelById.get(c.parent_id) : null;
+          const channelType =
+            c.type === ChannelType.GuildText ? "text"
+            : c.type === ChannelType.GuildAnnouncement ? "announcement"
+            : c.type === ChannelType.GuildForum ? "forum"
+            : c.type === ChannelType.GuildVoice ? "voice"
+            : "text";
+
+          return {
+            channel_id: c.id,
+            channel_name: c.name ?? c.id,
+            channel_type: channelType,
+            parent_id: c.parent_id ?? null,
+            parent_name: parent?.name ?? null,
+            position: c.position ?? 0,
+            parent_position: parent?.position ?? -1,
+          };
+        });
+
+      await upsertChannels(this.botId, guildId, entries);
+      await appendLog(this.botId, "info", `Cached ${entries.length} channel(s) for guild ${guildId}`);
+      return;
     }
     let guild = this.client.guilds.cache.get(guildId);
     if (!guild) {
