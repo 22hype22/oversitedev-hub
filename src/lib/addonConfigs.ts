@@ -110,6 +110,34 @@ const toggle = (
   help?: string,
 ): AddonField => ({ key, label, type: "toggle", defaultValue, help });
 
+/**
+ * Standard embed-styling fields appended to any block that posts a custom
+ * embed message. Lets users brand the author line, title, and footer.
+ */
+const embedFields = (prefix = ""): AddonField[] => [
+  {
+    key: `${prefix}embed_author`,
+    label: "Embed author",
+    type: "text",
+    placeholder: "e.g. Server Staff",
+    help: "Small line shown above the title. Leave blank to hide.",
+  },
+  {
+    key: `${prefix}embed_title`,
+    label: "Embed title",
+    type: "text",
+    placeholder: "e.g. Welcome!",
+    help: "Bold heading at the top of the embed.",
+  },
+  {
+    key: `${prefix}embed_footer`,
+    label: "Embed footer",
+    type: "text",
+    placeholder: "e.g. Powered by Oversite",
+    help: "Small line shown at the bottom of the embed.",
+  },
+];
+
 export const ADDON_CONFIGS: Record<string, AddonConfig> = {
   // ─── Protection: included base features ──────────────────────
   "verification-system": {
