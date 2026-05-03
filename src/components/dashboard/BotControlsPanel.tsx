@@ -22,7 +22,7 @@ type Action = "start" | "stop" | "restart" | "update";
 interface CommandRow {
   id: string;
   action: Action;
-  status: "pending" | "claimed" | "completed" | "failed" | "canceled";
+  status: "pending" | "claimed" | "done" | "completed" | "failed" | "canceled";
   error_message: string | null;
   created_at: string;
   completed_at: string | null;
@@ -70,6 +70,7 @@ const ACTIONS: Array<{
 const STATUS_LABEL: Record<CommandRow["status"], string> = {
   pending: "Queued",
   claimed: "Running",
+  done: "Done",
   completed: "Done",
   failed: "Failed",
   canceled: "Canceled",
@@ -78,6 +79,7 @@ const STATUS_LABEL: Record<CommandRow["status"], string> = {
 const STATUS_CLASS: Record<CommandRow["status"], string> = {
   pending: "bg-muted text-muted-foreground border-border",
   claimed: "bg-primary/10 text-primary border-primary/30",
+  done: "bg-green-500/10 text-green-500 border-green-500/30",
   completed: "bg-green-500/10 text-green-500 border-green-500/30",
   failed: "bg-destructive/10 text-destructive border-destructive/30",
   canceled: "bg-muted text-muted-foreground border-border",
