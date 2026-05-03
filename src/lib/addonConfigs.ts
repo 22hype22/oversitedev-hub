@@ -110,6 +110,34 @@ const toggle = (
   help?: string,
 ): AddonField => ({ key, label, type: "toggle", defaultValue, help });
 
+/**
+ * Standard embed-styling fields appended to any block that posts a custom
+ * embed message. Lets users brand the author line, title, and footer.
+ */
+const embedFields = (prefix = ""): AddonField[] => [
+  {
+    key: `${prefix}embed_author`,
+    label: "Embed author",
+    type: "text",
+    placeholder: "e.g. Server Staff",
+    help: "Small line shown above the title. Leave blank to hide.",
+  },
+  {
+    key: `${prefix}embed_title`,
+    label: "Embed title",
+    type: "text",
+    placeholder: "e.g. Welcome!",
+    help: "Bold heading at the top of the embed.",
+  },
+  {
+    key: `${prefix}embed_footer`,
+    label: "Embed footer",
+    type: "text",
+    placeholder: "e.g. Powered by Oversite",
+    help: "Small line shown at the bottom of the embed.",
+  },
+];
+
 export const ADDON_CONFIGS: Record<string, AddonConfig> = {
   // ─── Protection: included base features ──────────────────────
   "verification-system": {
@@ -126,6 +154,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         placeholder: "Click the button below to verify and unlock the server.",
         defaultValue: "Click the button below to verify and unlock the server.",
       },
+      ...embedFields(),
       {
         key: "button_label",
         label: "Button label",
@@ -369,6 +398,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         placeholder: "User {user} joined with a flagged avatar.",
         defaultValue: "User {user} joined with a flagged avatar.",
       },
+      ...embedFields(),
     ],
   },
 
@@ -458,6 +488,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         defaultValue: "🔓 Channel unlocked — thanks for your patience.",
       },
       toggle("lockServerOption", "Allow /lockdown server (locks all channels)"),
+      ...embedFields(),
     ],
   },
 
@@ -672,6 +703,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         defaultValue: "This ticket has been closed. Thanks for reaching out!",
       },
       { key: "embedColor", label: "Embed accent color (hex)", type: "text", placeholder: "#5865F2" },
+      ...embedFields(),
     ],
   },
 
@@ -711,6 +743,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         defaultValue: "This ticket will close soon due to inactivity. Reply to keep it open.",
       },
       toggle("saveTranscript", "Save a transcript on auto-close"),
+      ...embedFields(),
     ],
   },
 
@@ -883,6 +916,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
           { value: "18:00", label: "6:00 PM" },
         ],
       },
+      ...embedFields(),
     ],
   },
 
@@ -936,6 +970,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         type: "textarea",
         defaultValue: "🔴 {streamer} just went live! {url}",
       },
+      ...embedFields(),
     ],
   },
 

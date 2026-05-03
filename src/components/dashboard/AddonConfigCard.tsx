@@ -61,6 +61,8 @@ type Props = {
   botId?: string;
   botName: string;
   botAvatarUrl?: string | null;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 /**
@@ -69,13 +71,18 @@ type Props = {
  *
  * Mock UI only — values live in local state and "save" shows a toast.
  */
-export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl }: Props) {
+export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: openProp, onOpenChange }: Props) {
   const isSayCommand = addonId === "messages";
   const isTicketPanel = addonId === "ticket-message-customization";
   const isAnonReport = addonId === "anonymous-reporting";
   const isVerification = addonId === "verification-system";
   const config = getAddonConfig(addonId);
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = (v: boolean) => {
+    if (onOpenChange) onOpenChange(v);
+    else setInternalOpen(v);
+  };
   const [appliedAt, setAppliedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -119,6 +126,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl }: Props
         message: cfg.message ?? prev.message ?? "",
         button_label: cfg.button_label ?? prev.button_label ?? "Verify",
         min_account_age_days: String(cfg.min_account_age_days ?? "0"),
+        embed_author: cfg.embed_author ?? "",
+        embed_title: cfg.embed_title ?? "",
+        embed_footer: cfg.embed_footer ?? "",
       }));
       setAppliedAt((data as any).applied_at ?? null);
     })();
@@ -142,6 +152,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl }: Props
         message: String(values.message ?? ""),
         button_label: String(values.button_label ?? "Verify"),
         min_account_age_days: Number(values.min_account_age_days ?? 0),
+        embed_author: String(values.embed_author ?? ""),
+        embed_title: String(values.embed_title ?? ""),
+        embed_footer: String(values.embed_footer ?? ""),
       },
       updated_at: new Date().toISOString(),
     };
