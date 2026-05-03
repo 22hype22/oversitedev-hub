@@ -78,6 +78,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isVerification = addonId === "verification-system";
   const isAdvancedLogging = addonId === "advanced-logging";
   const config = getAddonConfig(addonId);
+  const { guild } = useActiveGuild();
+  const targetServerName = guild?.guild_name ?? guild?.guild_id ?? botName;
   const [internalOpen, setInternalOpen] = useState(false);
   const open = openProp ?? internalOpen;
   const setOpen = (v: boolean) => {
@@ -457,7 +459,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
             </DialogTitle>
             <DialogDescription>
               Configure <span className="text-foreground font-medium">{config.title}</span> for{" "}
-              <span className="text-foreground font-medium">{botName}</span>.
+              <span className="text-foreground font-medium">{targetServerName}</span>.
             </DialogDescription>
           </DialogHeader>
 
