@@ -6,9 +6,13 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Hero = () => {
-  const STORAGE_KEY = "oversite:botsBuiltCount";
-  const START_VALUE = 123;
-  const AVG_INTERVAL_MS = 32500; // average of 20-45s
+  const STORAGE_KEY = "oversite:botsBuiltCount:v2";
+  const START_VALUE = 40;
+  const AVG_INTERVAL_MS = 60 * 60 * 1000; // ~1 hour average
+  const AVG_INCREMENT = 2; // 1-3 per tick, avg 2
+
+  const randomDelay = () => 45 * 60 * 1000 + Math.random() * 30 * 60 * 1000; // 45-75 min
+  const randomIncrement = () => 1 + Math.floor(Math.random() * 3); // 1-3
 
   const [botServers, setBotServers] = useState<number>(() => {
     if (typeof window === "undefined") return START_VALUE;
@@ -17,10 +21,10 @@ export const Hero = () => {
       if (raw) {
         const parsed = JSON.parse(raw) as { value: number; updatedAt: number };
         if (typeof parsed?.value === "number" && typeof parsed?.updatedAt === "number") {
-          // Catch up for time elapsed while away (using average interval)
+          // Catch up for time elapsed while away (avg increment per avg interval)
           const elapsed = Date.now() - parsed.updatedAt;
-          const gained = elapsed > 0 ? Math.floor(elapsed / AVG_INTERVAL_MS) : 0;
-          return Math.max(START_VALUE, parsed.value + gained);
+          const ticks = elapsed > 0 ? Math.floor(elapsed / AVG_INTERVAL_MS) : 0;
+          return Math.max(START_VALUE, parsed.value + ticks * AVG_INCREMENT);
         }
       }
     } catch {
@@ -41,15 +45,11 @@ export const Hero = () => {
   }, [botServers]);
 
   useEffect(() => {
-    const tick = () => {
-      setBotServers((n) => n + 1);
-    };
     const schedule = () => {
-      const delay = 20000 + Math.random() * 25000;
       return window.setTimeout(() => {
-        tick();
+        setBotServers((n) => n + randomIncrement());
         timer = schedule();
-      }, delay);
+      }, randomDelay());
     };
     let timer = schedule();
     return () => window.clearTimeout(timer);
