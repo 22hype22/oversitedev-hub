@@ -749,6 +749,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         type: "number",
         defaultValue: 12,
       },
+      ...embedHeaderFields(),
       {
         key: "warnMessage",
         label: "Inactivity warning message",
@@ -756,7 +757,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         defaultValue: "This ticket will close soon due to inactivity. Reply to keep it open.",
       },
       toggle("saveTranscript", "Save a transcript on auto-close"),
-      ...embedFields(),
+      ...embedFooterFields(),
     ],
   },
 
