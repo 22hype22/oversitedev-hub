@@ -61,6 +61,8 @@ type Props = {
   botId?: string;
   botName: string;
   botAvatarUrl?: string | null;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 /**
@@ -69,13 +71,18 @@ type Props = {
  *
  * Mock UI only — values live in local state and "save" shows a toast.
  */
-export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl }: Props) {
+export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: openProp, onOpenChange }: Props) {
   const isSayCommand = addonId === "messages";
   const isTicketPanel = addonId === "ticket-message-customization";
   const isAnonReport = addonId === "anonymous-reporting";
   const isVerification = addonId === "verification-system";
   const config = getAddonConfig(addonId);
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = (v: boolean) => {
+    if (onOpenChange) onOpenChange(v);
+    else setInternalOpen(v);
+  };
   const [appliedAt, setAppliedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
