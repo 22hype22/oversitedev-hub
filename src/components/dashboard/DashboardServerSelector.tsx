@@ -22,9 +22,28 @@ export function DashboardServerSelector({ botId }: Props) {
   const { guilds, loading, refresh, refreshing, refreshFromDiscord } = useBotGuilds(botId);
   const { guild, setGuild } = useActiveGuild();
   const selectedGuild = useMemo(
-    () => guilds.find((g) => g.guild_id === guild?.guild_id) ?? guild,
+    () => guilds.find((g) => g.guild_id === guild?.guild_id) ?? null,
     [guilds, guild],
   );
+
+  // If the saved active guild isn't in the current bot's guild list (e.g. bot
+  // was removed from that server), keep the stored selection as a fallback so
+  // the caption still shows something — but prefer a guild that actually
+  // matches the dropdown options. Also keeps the stored object fresh (member
+  // counts, names) when it does match.
+  useEffect(() => {
+    if (loading || guilds.length === 0) return;
+    const match = guilds.find((g) => g.guild_id === guild?.guild_id);
+    if (!match) {
+      // Saved guild missing from list — auto-select first so the dropdown and
+      // caption agree instead of silently disagreeing.
+      setGuild(guilds[0]);
+    } else if (match !== guild) {
+      // Refresh stored copy with latest metadata.
+      setGuild(match);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guilds, loading]);
 
   const handleRefresh = async () => {
     // Always re-read the cache first (cheap), then ask the bot to re-check.
