@@ -488,6 +488,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         defaultValue: "🔓 Channel unlocked — thanks for your patience.",
       },
       toggle("lockServerOption", "Allow /lockdown server (locks all channels)"),
+      ...embedFields(),
     ],
   },
 
