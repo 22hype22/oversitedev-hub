@@ -916,6 +916,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
           { value: "18:00", label: "6:00 PM" },
         ],
       },
+      ...embedFields(),
     ],
   },
 
