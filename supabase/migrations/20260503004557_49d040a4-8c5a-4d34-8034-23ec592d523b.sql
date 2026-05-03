@@ -1,0 +1,2 @@
+ALTER TABLE public.bot_commands DROP CONSTRAINT bot_commands_action_check;
+ALTER TABLE public.bot_commands ADD CONSTRAINT bot_commands_action_check CHECK (action = ANY (ARRAY['start'::text, 'stop'::text, 'restart'::text, 'update'::text, 'list_channels'::text, 'list_guilds'::text, 'list_roles'::text, 'apply_config'::text]));
