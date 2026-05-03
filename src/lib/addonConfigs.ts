@@ -486,6 +486,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     icon: Lock,
     fields: [
       role("allowedRole", "Role allowed to lock channels"),
+      ...embedHeaderFields(),
       {
         key: "lockMessage",
         label: "Lock announcement",
@@ -499,7 +500,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         defaultValue: "🔓 Channel unlocked — thanks for your patience.",
       },
       toggle("lockServerOption", "Allow /lockdown server (locks all channels)"),
-      ...embedFields(),
+      ...embedFooterFields(),
     ],
   },
 
