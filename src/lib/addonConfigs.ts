@@ -111,10 +111,10 @@ const toggle = (
 ): AddonField => ({ key, label, type: "toggle", defaultValue, help });
 
 /**
- * Standard embed-styling fields appended to any block that posts a custom
- * embed message. Lets users brand the author line, title, and footer.
+ * Standard embed-styling fields. Author + Title are meant to render ABOVE
+ * the main message/content field; Footer renders below.
  */
-const embedFields = (prefix = ""): AddonField[] => [
+const embedHeaderFields = (prefix = ""): AddonField[] => [
   {
     key: `${prefix}embed_author`,
     label: "Embed author",
@@ -129,6 +129,9 @@ const embedFields = (prefix = ""): AddonField[] => [
     placeholder: "e.g. Welcome!",
     help: "Bold heading at the top of the embed.",
   },
+];
+
+const embedFooterFields = (prefix = ""): AddonField[] => [
   {
     key: `${prefix}embed_footer`,
     label: "Embed footer",
@@ -136,6 +139,12 @@ const embedFields = (prefix = ""): AddonField[] => [
     placeholder: "e.g. Powered by Oversite",
     help: "Small line shown at the bottom of the embed.",
   },
+];
+
+/** Backwards-compat: header + footer in one go (author/title first). */
+const embedFields = (prefix = ""): AddonField[] => [
+  ...embedHeaderFields(prefix),
+  ...embedFooterFields(prefix),
 ];
 
 export const ADDON_CONFIGS: Record<string, AddonConfig> = {
@@ -147,6 +156,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     fields: [
       channel("channel_id", "Verification channel", "Where the verify button is posted."),
       role("role_id", "Verified role", "Granted once a user verifies."),
+      ...embedHeaderFields(),
       {
         key: "message",
         label: "Verification message",
@@ -154,7 +164,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         placeholder: "Click the button below to verify and unlock the server.",
         defaultValue: "Click the button below to verify and unlock the server.",
       },
-      ...embedFields(),
+      ...embedFooterFields(),
       {
         key: "button_label",
         label: "Button label",
@@ -391,6 +401,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
           { value: "purge-ban", label: "Delete all messages and ban" },
         ],
       },
+      ...embedHeaderFields(),
       {
         key: "alertMessage",
         label: "Alert message",
@@ -398,7 +409,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         placeholder: "User {user} joined with a flagged avatar.",
         defaultValue: "User {user} joined with a flagged avatar.",
       },
-      ...embedFields(),
+      ...embedFooterFields(),
     ],
   },
 
@@ -475,6 +486,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     icon: Lock,
     fields: [
       role("allowedRole", "Role allowed to lock channels"),
+      ...embedHeaderFields(),
       {
         key: "lockMessage",
         label: "Lock announcement",
@@ -488,7 +500,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         defaultValue: "🔓 Channel unlocked — thanks for your patience.",
       },
       toggle("lockServerOption", "Allow /lockdown server (locks all channels)"),
-      ...embedFields(),
+      ...embedFooterFields(),
     ],
   },
 
@@ -678,6 +690,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Customize the panel, opening, and closing messages.",
     icon: MessageSquare,
     fields: [
+      ...embedHeaderFields(),
       {
         key: "panelTitle",
         label: "Panel title",
@@ -703,7 +716,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         defaultValue: "This ticket has been closed. Thanks for reaching out!",
       },
       { key: "embedColor", label: "Embed accent color (hex)", type: "text", placeholder: "#5865F2" },
-      ...embedFields(),
+      ...embedFooterFields(),
     ],
   },
 
@@ -736,6 +749,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         type: "number",
         defaultValue: 12,
       },
+      ...embedHeaderFields(),
       {
         key: "warnMessage",
         label: "Inactivity warning message",
@@ -743,7 +757,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         defaultValue: "This ticket will close soon due to inactivity. Reply to keep it open.",
       },
       toggle("saveTranscript", "Save a transcript on auto-close"),
-      ...embedFields(),
+      ...embedFooterFields(),
     ],
   },
 
@@ -898,6 +912,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     fields: [
       channel("channel", "Birthday channel"),
       role("birthdayRole", "Role to give on someone's birthday"),
+      ...embedHeaderFields(),
       {
         key: "message",
         label: "Birthday message",
@@ -916,7 +931,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
           { value: "18:00", label: "6:00 PM" },
         ],
       },
-      ...embedFields(),
+      ...embedFooterFields(),
     ],
   },
 
@@ -964,13 +979,14 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         type: "textarea",
         placeholder: "UCxxxxxxxxxxxxxxxxxxxxxx\nUCyyyyyyyyyyyyyyyyyyyyyy",
       },
+      ...embedHeaderFields(),
       {
         key: "message",
         label: "Notification message",
         type: "textarea",
         defaultValue: "🔴 {streamer} just went live! {url}",
       },
-      ...embedFields(),
+      ...embedFooterFields(),
     ],
   },
 
