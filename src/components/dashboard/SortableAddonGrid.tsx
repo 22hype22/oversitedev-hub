@@ -73,6 +73,7 @@ function SortableCard({
   botAvatarUrl?: string | null;
   highlighted?: boolean;
 }) {
+  const [dialogOpen, setDialogOpen] = useState(false);
   const {
     attributes,
     listeners,
@@ -80,7 +81,7 @@ function SortableCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id });
+  } = useSortable({ id, disabled: dialogOpen });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -88,6 +89,10 @@ function SortableCard({
     opacity: isDragging ? 0.5 : 1,
     cursor: isDragging ? "grabbing" : undefined,
   };
+
+  // While a dialog is open, strip drag listeners entirely so nothing in the
+  // grid can be reordered by accident.
+  const dragProps = dialogOpen ? {} : { ...attributes, ...listeners };
 
   return (
     <div
@@ -100,19 +105,19 @@ function SortableCard({
           : ""
       }`}
       style={style}
-      {...attributes}
-      {...listeners}
+      {...dragProps}
     >
       <AddonConfigCard
         addonId={id}
         botId={botId}
         botName={botName}
         botAvatarUrl={botAvatarUrl}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
       />
     </div>
   );
 }
-
 export function SortableAddonGrid({
   userId,
   botId,
