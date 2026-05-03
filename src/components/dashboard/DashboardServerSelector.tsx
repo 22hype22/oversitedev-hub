@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Server, Globe } from "lucide-react";
@@ -22,9 +22,26 @@ export function DashboardServerSelector({ botId }: Props) {
   const { guilds, loading, refresh, refreshing, refreshFromDiscord } = useBotGuilds(botId);
   const { guild, setGuild } = useActiveGuild();
   const selectedGuild = useMemo(
-    () => guilds.find((g) => g.guild_id === guild?.guild_id) ?? guild,
+    () => guilds.find((g) => g.guild_id === guild?.guild_id) ?? null,
     [guilds, guild],
   );
+
+  // If the saved active guild isn't in the current bot's guild list (e.g. bot
+  // was removed from that server), auto-select the first available so the
+  // dropdown and caption stay in sync.
+  useEffect(() => {
+    if (loading || guilds.length === 0) return;
+    const match = guilds.find((g) => g.guild_id === guild?.guild_id);
+    if (!match) {
+      setGuild(guilds[0]);
+    } else if (
+      match.guild_name !== guild?.guild_name ||
+      match.member_count !== guild?.member_count
+    ) {
+      setGuild(match);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guilds, loading]);
 
   const handleRefresh = async () => {
     // Always re-read the cache first (cheap), then ask the bot to re-check.
