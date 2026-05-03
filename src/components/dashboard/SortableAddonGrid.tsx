@@ -92,11 +92,12 @@ function SortableCard({
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: isDragging ? "none" : transition,
     opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 50 : undefined,
     cursor: isDragging ? "grabbing" : undefined,
-    willChange: "transform",
+    willChange: isDragging ? "transform" : undefined,
+    touchAction: "none",
   };
 
   // While a dialog is open, strip drag listeners entirely so nothing in the
@@ -108,7 +109,7 @@ function SortableCard({
       ref={setNodeRef}
       id={`addon-card-${botId}-${id}`}
       data-addon-id={id}
-      className={`scroll-mt-28 rounded-xl transition-all ${
+      className={`scroll-mt-28 rounded-xl transition-shadow ${
         highlighted
           ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg shadow-primary/20"
           : ""
