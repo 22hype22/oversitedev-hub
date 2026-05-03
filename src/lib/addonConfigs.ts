@@ -970,6 +970,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         type: "textarea",
         defaultValue: "🔴 {streamer} just went live! {url}",
       },
+      ...embedFields(),
     ],
   },
 
