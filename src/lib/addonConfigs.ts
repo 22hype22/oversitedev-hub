@@ -690,6 +690,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Customize the panel, opening, and closing messages.",
     icon: MessageSquare,
     fields: [
+      ...embedHeaderFields(),
       {
         key: "panelTitle",
         label: "Panel title",
@@ -715,7 +716,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         defaultValue: "This ticket has been closed. Thanks for reaching out!",
       },
       { key: "embedColor", label: "Embed accent color (hex)", type: "text", placeholder: "#5865F2" },
-      ...embedFields(),
+      ...embedFooterFields(),
     ],
   },
 
