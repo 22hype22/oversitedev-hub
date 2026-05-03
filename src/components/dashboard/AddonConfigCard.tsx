@@ -152,6 +152,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         message: String(values.message ?? ""),
         button_label: String(values.button_label ?? "Verify"),
         min_account_age_days: Number(values.min_account_age_days ?? 0),
+        embed_author: String(values.embed_author ?? ""),
+        embed_title: String(values.embed_title ?? ""),
+        embed_footer: String(values.embed_footer ?? ""),
       },
       updated_at: new Date().toISOString(),
     };
