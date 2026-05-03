@@ -76,6 +76,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isTicketPanel = addonId === "ticket-message-customization";
   const isAnonReport = addonId === "anonymous-reporting";
   const isVerification = addonId === "verification-system";
+  const isAdvancedLogging = addonId === "advanced-logging";
   const config = getAddonConfig(addonId);
   const [internalOpen, setInternalOpen] = useState(false);
   const open = openProp ?? internalOpen;
@@ -136,6 +137,75 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       cancelled = true;
     };
   }, [isVerification, open, botId]);
+
+  // Load existing advanced-logging config when dialog opens.
+  useEffect(() => {
+    if (!isAdvancedLogging || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "advanced-logging")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        channel: cfg.log_channel_id ?? "",
+        logMessages: cfg.log_message_edits_deletes ?? true,
+        logMembers: cfg.log_member_joins_leaves ?? true,
+        logVoice: cfg.log_voice_activity ?? false,
+        logModeration: cfg.log_moderation_actions ?? true,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdvancedLogging, open, botId]);
+
+  const saveAdvancedLogging = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "advanced-logging",
+      config: {
+        log_channel_id: String(values.channel ?? ""),
+        log_message_edits_deletes: !!values.logMessages,
+        log_member_joins_leaves: !!values.logMembers,
+        log_voice_activity: !!values.logVoice,
+        log_moderation_actions: !!values.logModeration,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "advanced-logging",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("Advanced Logging settings saved & applied");
+    }
+    setOpen(false);
+  };
 
   const saveVerification = async () => {
     if (!botId) {
@@ -412,6 +482,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               <span className="text-xs text-muted-foreground">
                 Last applied {new Date(appliedAt).toLocaleString()}
               </span>
+            ) : isAdvancedLogging && appliedAt ? (
+              <span className="text-xs text-muted-foreground">
+                Last applied {new Date(appliedAt).toLocaleString()}
+              </span>
             ) : <span />}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setOpen(false)}>
@@ -422,6 +496,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                 onClick={() => {
                   if (isVerification) {
                     void saveVerification();
+                  } else if (isAdvancedLogging) {
+                    void saveAdvancedLogging();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
