@@ -154,6 +154,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         placeholder: "Click the button below to verify and unlock the server.",
         defaultValue: "Click the button below to verify and unlock the server.",
       },
+      ...embedFields(),
       {
         key: "button_label",
         label: "Button label",
