@@ -156,6 +156,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     fields: [
       channel("channel_id", "Verification channel", "Where the verify button is posted."),
       role("role_id", "Verified role", "Granted once a user verifies."),
+      ...embedHeaderFields(),
       {
         key: "message",
         label: "Verification message",
@@ -163,7 +164,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         placeholder: "Click the button below to verify and unlock the server.",
         defaultValue: "Click the button below to verify and unlock the server.",
       },
-      ...embedFields(),
+      ...embedFooterFields(),
       {
         key: "button_label",
         label: "Button label",
