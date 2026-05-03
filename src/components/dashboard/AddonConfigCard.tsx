@@ -126,9 +126,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         message: cfg.message ?? prev.message ?? "",
         button_label: cfg.button_label ?? prev.button_label ?? "Verify",
         min_account_age_days: String(cfg.min_account_age_days ?? "0"),
-        embed_author: cfg.embed_author ?? "",
-        embed_title: cfg.embed_title ?? "",
-        embed_footer: cfg.embed_footer ?? "",
+        embed_author: cfg.author ?? cfg.embed_author ?? "",
+        embed_title: cfg.title ?? cfg.embed_title ?? "",
+        embed_footer: cfg.footer ?? cfg.embed_footer ?? "",
       }));
       setAppliedAt((data as any).applied_at ?? null);
     })();
@@ -152,9 +152,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         message: String(values.message ?? ""),
         button_label: String(values.button_label ?? "Verify"),
         min_account_age_days: Number(values.min_account_age_days ?? 0),
-        embed_author: String(values.embed_author ?? ""),
-        embed_title: String(values.embed_title ?? ""),
-        embed_footer: String(values.embed_footer ?? ""),
+        author: String(values.embed_author ?? ""),
+        title: String(values.embed_title ?? ""),
+        footer: String(values.embed_footer ?? ""),
       },
       updated_at: new Date().toISOString(),
     };
