@@ -76,6 +76,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isTicketPanel = addonId === "ticket-message-customization";
   const isAnonReport = addonId === "anonymous-reporting";
   const isVerification = addonId === "verification-system";
+  const isAdvancedLogging = addonId === "advanced-logging";
   const config = getAddonConfig(addonId);
   const [internalOpen, setInternalOpen] = useState(false);
   const open = openProp ?? internalOpen;
