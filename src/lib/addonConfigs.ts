@@ -979,13 +979,14 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         type: "textarea",
         placeholder: "UCxxxxxxxxxxxxxxxxxxxxxx\nUCyyyyyyyyyyyyyyyyyyyyyy",
       },
+      ...embedHeaderFields(),
       {
         key: "message",
         label: "Notification message",
         type: "textarea",
         defaultValue: "🔴 {streamer} just went live! {url}",
       },
-      ...embedFields(),
+      ...embedFooterFields(),
     ],
   },
 
