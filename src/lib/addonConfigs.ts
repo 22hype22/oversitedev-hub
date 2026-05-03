@@ -111,10 +111,10 @@ const toggle = (
 ): AddonField => ({ key, label, type: "toggle", defaultValue, help });
 
 /**
- * Standard embed-styling fields appended to any block that posts a custom
- * embed message. Lets users brand the author line, title, and footer.
+ * Standard embed-styling fields. Author + Title are meant to render ABOVE
+ * the main message/content field; Footer renders below.
  */
-const embedFields = (prefix = ""): AddonField[] => [
+const embedHeaderFields = (prefix = ""): AddonField[] => [
   {
     key: `${prefix}embed_author`,
     label: "Embed author",
@@ -129,6 +129,9 @@ const embedFields = (prefix = ""): AddonField[] => [
     placeholder: "e.g. Welcome!",
     help: "Bold heading at the top of the embed.",
   },
+];
+
+const embedFooterFields = (prefix = ""): AddonField[] => [
   {
     key: `${prefix}embed_footer`,
     label: "Embed footer",
@@ -136,6 +139,12 @@ const embedFields = (prefix = ""): AddonField[] => [
     placeholder: "e.g. Powered by Oversite",
     help: "Small line shown at the bottom of the embed.",
   },
+];
+
+/** Backwards-compat: header + footer in one go (author/title first). */
+const embedFields = (prefix = ""): AddonField[] => [
+  ...embedHeaderFields(prefix),
+  ...embedFooterFields(prefix),
 ];
 
 export const ADDON_CONFIGS: Record<string, AddonConfig> = {
