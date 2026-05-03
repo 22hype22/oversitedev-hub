@@ -912,6 +912,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     fields: [
       channel("channel", "Birthday channel"),
       role("birthdayRole", "Role to give on someone's birthday"),
+      ...embedHeaderFields(),
       {
         key: "message",
         label: "Birthday message",
@@ -930,7 +931,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
           { value: "18:00", label: "6:00 PM" },
         ],
       },
-      ...embedFields(),
+      ...embedFooterFields(),
     ],
   },
 
