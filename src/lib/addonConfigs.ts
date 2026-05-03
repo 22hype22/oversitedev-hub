@@ -401,6 +401,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
           { value: "purge-ban", label: "Delete all messages and ban" },
         ],
       },
+      ...embedHeaderFields(),
       {
         key: "alertMessage",
         label: "Alert message",
@@ -408,7 +409,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         placeholder: "User {user} joined with a flagged avatar.",
         defaultValue: "User {user} joined with a flagged avatar.",
       },
-      ...embedFields(),
+      ...embedFooterFields(),
     ],
   },
 
