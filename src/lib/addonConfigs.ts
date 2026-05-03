@@ -398,6 +398,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         placeholder: "User {user} joined with a flagged avatar.",
         defaultValue: "User {user} joined with a flagged avatar.",
       },
+      ...embedFields(),
     ],
   },
 
