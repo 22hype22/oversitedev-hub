@@ -155,6 +155,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     icon: ShieldCheck,
     fields: [
       channel("channel_id", "Verification channel", "Where the verify button is posted."),
+      channel("log_channel_id", "Verification logging channel", "Where verification attempts and results are logged."),
       role("role_id", "Verified role", "Granted once a user verifies."),
       ...embedHeaderFields(),
       {
