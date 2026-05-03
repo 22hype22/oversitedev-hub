@@ -126,6 +126,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         message: cfg.message ?? prev.message ?? "",
         button_label: cfg.button_label ?? prev.button_label ?? "Verify",
         min_account_age_days: String(cfg.min_account_age_days ?? "0"),
+        embed_author: cfg.embed_author ?? "",
+        embed_title: cfg.embed_title ?? "",
+        embed_footer: cfg.embed_footer ?? "",
       }));
       setAppliedAt((data as any).applied_at ?? null);
     })();
