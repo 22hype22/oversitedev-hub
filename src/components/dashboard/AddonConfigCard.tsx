@@ -438,7 +438,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
           <span className="text-xs text-muted-foreground">
             {config.fields.length} setting{config.fields.length === 1 ? "" : "s"}
           </span>
-          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-smooth" />
+          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover/card:text-primary group-hover/card:translate-x-1 transition-smooth" />
         </div>
       </Card>
 
