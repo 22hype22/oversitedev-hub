@@ -80,6 +80,45 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isVerification = addonId === "verification-system";
   const isAdvancedLogging = addonId === "advanced-logging";
   const config = getAddonConfig(addonId);
+
+  // Map dashboard addon id → bot_config.feature name for toggleable features.
+  const TOGGLE_FEATURE_MAP: Record<string, string> = {
+    "verification-system": "verification",
+    "advanced-logging": "advanced-logging",
+    "basic-logging": "basic-logging",
+    "anti-spam": "anti-spam",
+    "anti-raid": "anti-raid",
+    "phishing-detection": "phishing-link-detection",
+    "nsfw-invite-scanner": "nsfw-invite-scanner",
+  };
+
+  const persistEnabledFlag = async (next: boolean) => {
+    const feature = TOGGLE_FEATURE_MAP[addonId];
+    if (!feature || !botId) return;
+    try {
+      const { data: existing } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", feature)
+        .maybeSingle();
+      const merged = { ...((existing?.config as Record<string, any>) ?? {}), enabled: next };
+      await supabase
+        .from("bot_config")
+        .upsert(
+          { bot_id: botId, feature, config: merged, updated_at: new Date().toISOString() },
+          { onConflict: "bot_id,feature" },
+        );
+      await supabase.rpc("enqueue_apply_config" as any, { _bot_id: botId, _feature: feature });
+    } catch {
+      /* non-fatal */
+    }
+  };
+
+  const handleToggleEnabled = (next: boolean) => {
+    onToggleEnabled?.(next);
+    void persistEnabledFlag(next);
+  };
   const { guild } = useActiveGuild();
   const targetServerName = guild?.guild_name ?? guild?.guild_id ?? botName;
   const [internalOpen, setInternalOpen] = useState(false);
@@ -450,7 +489,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
             <div onClick={(e) => e.stopPropagation()} className="pt-1">
               <Switch
                 checked={enabled}
-                onCheckedChange={onToggleEnabled}
+                onCheckedChange={handleToggleEnabled}
                 aria-label={`${enabled ? "Disable" : "Enable"} ${config.title}`}
               />
             </div>
