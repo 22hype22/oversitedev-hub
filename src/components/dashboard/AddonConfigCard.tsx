@@ -73,7 +73,7 @@ type Props = {
  *
  * Mock UI only — values live in local state and "save" shows a toast.
  */
-export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: openProp, onOpenChange }: Props) {
+export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: openProp, onOpenChange, enabled = true, onToggleEnabled }: Props) {
   const isSayCommand = addonId === "messages";
   const isTicketPanel = addonId === "ticket-message-customization";
   const isAnonReport = addonId === "anonymous-reporting";
