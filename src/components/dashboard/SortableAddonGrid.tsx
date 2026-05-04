@@ -249,15 +249,24 @@ export function SortableAddonGrid({
     });
   };
 
+  const { isEnabled, setEnabled } = useBotAddonStates(botId);
+
+  // Stable display order: enabled first (preserving user order), disabled at bottom.
+  const displayOrder = useMemo(() => {
+    const enabled = order.filter((id) => isEnabled(id));
+    const disabled = order.filter((id) => !isEnabled(id));
+    return [...enabled, ...disabled];
+  }, [order, isEnabled]);
+
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragEnd={onDragEnd}
     >
-      <SortableContext items={order} strategy={rectSortingStrategy}>
+      <SortableContext items={displayOrder} strategy={rectSortingStrategy}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {order.map((id) => (
+          {displayOrder.map((id) => (
             <SortableCard
               key={`${botId}-${id}`}
               id={id}
@@ -265,6 +274,8 @@ export function SortableAddonGrid({
               botName={botName}
               botAvatarUrl={botAvatarUrl}
               highlighted={highlightedAddonId === id}
+              enabled={isEnabled(id)}
+              onToggleEnabled={(next) => void setEnabled(id, next)}
             />
           ))}
         </div>
