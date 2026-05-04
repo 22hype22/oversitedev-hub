@@ -345,6 +345,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     icon: ScrollText,
     fields: [
       channel("channel", "Log channel", "Where every logged event is posted."),
+      toggle("logMessagesSent", "Log messages sent"),
       toggle("logMessages", "Log message edits & deletes"),
       toggle("logMembers", "Log member joins, leaves, role changes"),
       toggle("logVoice", "Log voice channel activity", false),
