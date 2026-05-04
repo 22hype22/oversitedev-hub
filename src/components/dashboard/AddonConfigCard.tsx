@@ -423,10 +423,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     <>
       <Card
         onClick={() => setOpen(true)}
-        className="group cursor-pointer bg-card hover:bg-card/80 border-border hover:border-primary/50 hover:shadow-elegant transition-smooth p-6 flex flex-col h-[210px]"
+        className="group/card cursor-pointer bg-card hover:bg-card/80 border-border hover:border-primary/50 hover:shadow-elegant transition-smooth p-6 flex flex-col h-[210px]"
       >
         <div className="flex items-start gap-3 mb-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0 group-hover:bg-primary/15 transition-smooth">
+          <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0 group-hover/card:bg-primary/15 transition-smooth">
             <Icon className="h-5 w-5 text-primary" />
           </div>
           <h3 className="font-semibold text-base leading-tight pt-1.5">
