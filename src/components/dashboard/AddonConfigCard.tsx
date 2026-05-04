@@ -158,6 +158,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       setValues((prev) => ({
         ...prev,
         channel: cfg.log_channel_id ?? "",
+        logMessagesSent: cfg.log_messages_sent ?? false,
         logMessages: cfg.log_message_edits_deletes ?? true,
         logMembers: cfg.log_member_joins_leaves ?? true,
         logVoice: cfg.log_voice_activity ?? false,
