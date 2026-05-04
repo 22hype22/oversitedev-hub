@@ -18,6 +18,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/integrations/supabase/client";
 import { AddonConfigCard } from "./AddonConfigCard";
+import { useBotAddonStates } from "@/hooks/useBotAddonStates";
 
 /**
  * Per-user reorderable grid of addon config cards.
@@ -66,12 +67,16 @@ function SortableCard({
   botName,
   botAvatarUrl,
   highlighted,
+  enabled,
+  onToggleEnabled,
 }: {
   id: string;
   botId: string;
   botName: string;
   botAvatarUrl?: string | null;
   highlighted?: boolean;
+  enabled: boolean;
+  onToggleEnabled: (next: boolean) => void;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const {
@@ -100,8 +105,6 @@ function SortableCard({
     touchAction: "none",
   };
 
-  // While a dialog is open, strip drag listeners entirely so nothing in the
-  // grid can be reordered by accident.
   const dragProps = dialogOpen ? {} : { ...attributes, ...listeners };
 
   return (
@@ -124,6 +127,8 @@ function SortableCard({
         botAvatarUrl={botAvatarUrl}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+        enabled={enabled}
+        onToggleEnabled={onToggleEnabled}
       />
     </div>
   );
@@ -244,15 +249,24 @@ export function SortableAddonGrid({
     });
   };
 
+  const { isEnabled, setEnabled } = useBotAddonStates(botId);
+
+  // Stable display order: enabled first (preserving user order), disabled at bottom.
+  const displayOrder = useMemo(() => {
+    const enabled = order.filter((id) => isEnabled(id));
+    const disabled = order.filter((id) => !isEnabled(id));
+    return [...enabled, ...disabled];
+  }, [order, isEnabled]);
+
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragEnd={onDragEnd}
     >
-      <SortableContext items={order} strategy={rectSortingStrategy}>
+      <SortableContext items={displayOrder} strategy={rectSortingStrategy}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {order.map((id) => (
+          {displayOrder.map((id) => (
             <SortableCard
               key={`${botId}-${id}`}
               id={id}
@@ -260,6 +274,8 @@ export function SortableAddonGrid({
               botName={botName}
               botAvatarUrl={botAvatarUrl}
               highlighted={highlightedAddonId === id}
+              enabled={isEnabled(id)}
+              onToggleEnabled={(next) => void setEnabled(id, next)}
             />
           ))}
         </div>
