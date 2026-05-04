@@ -424,23 +424,46 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   return (
     <>
       <Card
-        onClick={() => setOpen(true)}
-        className="group/card cursor-pointer bg-card hover:bg-card/80 border-border hover:border-primary/50 hover:shadow-elegant transition-smooth p-6 flex flex-col h-[210px]"
+        onClick={() => enabled && setOpen(true)}
+        className={cn(
+          "group/card border-border transition-smooth p-6 flex flex-col h-[210px] relative",
+          enabled
+            ? "cursor-pointer bg-card hover:bg-card/80 hover:border-primary/50 hover:shadow-elegant"
+            : "bg-muted/30 opacity-60 grayscale cursor-default",
+        )}
       >
         <div className="flex items-start gap-3 mb-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0 group-hover/card:bg-primary/15 transition-smooth">
-            <Icon className="h-5 w-5 text-primary" />
+          <div className={cn(
+            "h-10 w-10 rounded-lg border grid place-items-center shrink-0 transition-smooth",
+            enabled
+              ? "bg-primary/10 border-primary/20 group-hover/card:bg-primary/15"
+              : "bg-muted border-border",
+          )}>
+            <Icon className={cn("h-5 w-5", enabled ? "text-primary" : "text-muted-foreground")} />
           </div>
-          <h3 className="font-semibold text-base leading-tight pt-1.5">
+          <h3 className="font-semibold text-base leading-tight pt-1.5 flex-1">
             {config.title}
           </h3>
+          {onToggleEnabled && (
+            <div onClick={(e) => e.stopPropagation()} className="pt-1">
+              <Switch
+                checked={enabled}
+                onCheckedChange={onToggleEnabled}
+                aria-label={`${enabled ? "Disable" : "Enable"} ${config.title}`}
+              />
+            </div>
+          )}
         </div>
         <p className="text-sm text-muted-foreground flex-1">{config.summary}</p>
         <div className="flex items-center justify-between mt-3">
           <span className="text-xs text-muted-foreground">
-            {config.fields.length} setting{config.fields.length === 1 ? "" : "s"}
+            {enabled
+              ? `${config.fields.length} setting${config.fields.length === 1 ? "" : "s"}`
+              : "Disabled"}
           </span>
-          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover/card:text-primary group-hover/card:translate-x-1 transition-smooth" />
+          {enabled && (
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover/card:text-primary group-hover/card:translate-x-1 transition-smooth" />
+          )}
         </div>
       </Card>
 
