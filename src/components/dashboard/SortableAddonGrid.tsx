@@ -18,6 +18,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/integrations/supabase/client";
 import { AddonConfigCard } from "./AddonConfigCard";
+import { useBotAddonStates } from "@/hooks/useBotAddonStates";
 
 /**
  * Per-user reorderable grid of addon config cards.
