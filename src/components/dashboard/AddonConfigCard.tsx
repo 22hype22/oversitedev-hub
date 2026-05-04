@@ -489,7 +489,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
             <div onClick={(e) => e.stopPropagation()} className="pt-1">
               <Switch
                 checked={enabled}
-                onCheckedChange={onToggleEnabled}
+                onCheckedChange={handleToggleEnabled}
                 aria-label={`${enabled ? "Disable" : "Enable"} ${config.title}`}
               />
             </div>
