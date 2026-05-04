@@ -143,6 +143,35 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_addon_state: {
+        Row: {
+          addon_id: string
+          bot_id: string
+          enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          addon_id: string
+          bot_id: string
+          enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          addon_id?: string
+          bot_id?: string
+          enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_addon_state_bot_id_fkey"
+            columns: ["bot_id"]
+            isOneToOne: false
+            referencedRelation: "bot_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bot_build_jobs: {
         Row: {
           artifact_url: string | null
