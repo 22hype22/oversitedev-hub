@@ -63,6 +63,8 @@ type Props = {
   botAvatarUrl?: string | null;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  enabled?: boolean;
+  onToggleEnabled?: (enabled: boolean) => void;
 };
 
 /**
