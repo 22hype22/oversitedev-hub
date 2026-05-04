@@ -67,12 +67,16 @@ function SortableCard({
   botName,
   botAvatarUrl,
   highlighted,
+  enabled,
+  onToggleEnabled,
 }: {
   id: string;
   botId: string;
   botName: string;
   botAvatarUrl?: string | null;
   highlighted?: boolean;
+  enabled: boolean;
+  onToggleEnabled: (next: boolean) => void;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const {
@@ -101,8 +105,6 @@ function SortableCard({
     touchAction: "none",
   };
 
-  // While a dialog is open, strip drag listeners entirely so nothing in the
-  // grid can be reordered by accident.
   const dragProps = dialogOpen ? {} : { ...attributes, ...listeners };
 
   return (
@@ -125,6 +127,8 @@ function SortableCard({
         botAvatarUrl={botAvatarUrl}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+        enabled={enabled}
+        onToggleEnabled={onToggleEnabled}
       />
     </div>
   );
