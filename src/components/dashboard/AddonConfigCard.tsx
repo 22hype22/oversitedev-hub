@@ -182,6 +182,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       feature: "advanced-logging",
       config: {
         log_channel_id: String(values.channel ?? ""),
+        log_messages_sent: !!values.logMessagesSent,
         log_message_edits_deletes: !!values.logMessages,
         log_member_joins_leaves: !!values.logMembers,
         log_voice_activity: !!values.logVoice,
