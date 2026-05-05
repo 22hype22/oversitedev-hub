@@ -627,7 +627,7 @@ export const SayCommandBuilder = forwardRef<
       </div>
     </div>
   );
-}
+});
 
 function Section({
   title,
