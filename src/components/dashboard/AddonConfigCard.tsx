@@ -84,6 +84,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isAntiRaid = addonId === "anti-raid";
   const isNsfwInviteScanner = addonId === "nsfw-invite-scanner";
   const config = getAddonConfig(addonId);
+  const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
 
   // Map dashboard addon id → bot_config.feature name for toggleable features.
   const TOGGLE_FEATURE_MAP: Record<string, string> = {
