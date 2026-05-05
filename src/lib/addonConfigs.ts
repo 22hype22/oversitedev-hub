@@ -59,6 +59,7 @@ import {
 export type AddonFieldType =
   | "channel"
   | "role"
+  | "multirole"
   | "text"
   | "textarea"
   | "number"
@@ -103,12 +104,22 @@ const role = (key: string, label: string, help?: string): AddonField => ({
   help,
 });
 
+const multirole = (key: string, label: string, help?: string): AddonField => ({
+  key,
+  label,
+  type: "multirole",
+  placeholder: "@role",
+  help,
+  defaultValue: [],
+});
+
 const toggle = (
   key: string,
   label: string,
   defaultValue = true,
   help?: string,
 ): AddonField => ({ key, label, type: "toggle", defaultValue, help });
+
 
 /**
  * Standard embed-styling fields. Author + Title are meant to render ABOVE
@@ -195,7 +206,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Core moderation commands and defaults.",
     icon: Shield,
     fields: [
-      role("modRole", "Moderator role", "Who can use these commands."),
+      multirole("modRole", "Moderator roles", "Roles allowed to use these commands."),
       channel("logChannel", "Mod-action log channel"),
       {
         key: "defaultMuteDuration",
