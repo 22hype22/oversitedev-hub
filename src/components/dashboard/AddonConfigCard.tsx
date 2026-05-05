@@ -321,7 +321,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       feature: "anti-spam",
       config: {
         spam_threshold: Number(values.messageThreshold ?? 6),
-        action: String(values.action ?? "mute"),
+        action: Array.isArray(values.action)
+          ? (values.action as string[]).filter(Boolean)
+          : values.action
+            ? [String(values.action)]
+            : ["mute"],
         mute_duration_minutes: muteMinutes,
         log_channel_id: values.logChannel ? String(values.logChannel) : null,
         ignore_staff: !!values.ignoreStaff,
