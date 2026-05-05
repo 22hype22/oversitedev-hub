@@ -54,6 +54,33 @@ async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
     .eq("environment", env);
 }
 
+async function sendWaitlistEmail(supabase: any, botOrderId: string) {
+  // Look up the order owner's email + bot name to personalize the message.
+  const { data: order } = await supabase
+    .from("bot_orders")
+    .select("user_id, bot_name")
+    .eq("id", botOrderId)
+    .maybeSingle();
+  if (!order?.user_id) return;
+  const { data: userRes } = await supabase.auth.admin.getUserById(order.user_id);
+  const recipient = userRes?.user?.email;
+  if (!recipient) {
+    console.warn("Cannot send waitlist email — no email for user", order.user_id);
+    return;
+  }
+  const { error } = await supabase.functions.invoke("send-transactional-email", {
+    body: {
+      templateName: "order-waitlisted",
+      recipientEmail: recipient,
+      idempotencyKey: `order-waitlisted-${botOrderId}`,
+      templateData: { botName: order.bot_name ?? null },
+    },
+  });
+  if (error) {
+    console.error("Failed to send waitlist email:", error);
+  }
+}
+
 async function handleCheckoutSessionCompleted(session: any, env: StripeEnv) {
   const botOrderId = session.metadata?.bot_order_id;
   if (!botOrderId) return; // not a bot-order checkout — nothing to do here
@@ -61,18 +88,46 @@ async function handleCheckoutSessionCompleted(session: any, env: StripeEnv) {
     console.log("Bot order session completed but not paid yet:", session.id, session.payment_status);
     return;
   }
-  const { error } = await getSupabase()
+
+  const supabase = getSupabase();
+
+  // Check if there is at least one available bot token in the pool. If not,
+  // mark this order as 'waitlisted' instead of 'paid' so the build trigger
+  // does NOT fire. The order will be auto-promoted to 'paid' by a DB trigger
+  // the moment a token becomes available again.
+  const { count: availableTokens, error: tokenCountErr } = await supabase
+    .from("bot_token_pool")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "available");
+
+  if (tokenCountErr) {
+    console.error("Failed to read token pool:", tokenCountErr);
+  }
+
+  const hasToken = !tokenCountErr && (availableTokens ?? 0) > 0;
+  const nextStatus = hasToken ? "paid" : "waitlisted";
+
+  const { error } = await supabase
     .from("bot_orders")
     .update({
-      status: "paid",
+      status: nextStatus,
       paid_at: new Date().toISOString(),
       stripe_session_id: session.id,
       updated_at: new Date().toISOString(),
     })
     .eq("id", botOrderId)
-    .neq("status", "paid"); // idempotent — don't double-flip
-  if (error) console.error("Failed to mark bot_order paid:", botOrderId, error);
-  else console.log("Bot order marked paid:", botOrderId, "session:", session.id);
+    .not("status", "in", "(paid,waitlisted)"); // idempotent — don't double-flip
+
+  if (error) {
+    console.error("Failed to mark bot_order:", botOrderId, error);
+    return;
+  }
+
+  console.log(`Bot order marked ${nextStatus}:`, botOrderId, "session:", session.id);
+
+  if (!hasToken) {
+    await sendWaitlistEmail(supabase, botOrderId);
+  }
 }
 
 async function handleWebhook(req: Request, env: StripeEnv) {
