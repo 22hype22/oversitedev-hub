@@ -2114,6 +2114,10 @@ export type Database = {
         Returns: number
       }
       enqueue_free_period_expiring_alerts: { Args: never; Returns: number }
+      enqueue_post_message: {
+        Args: { _bot_id: string; _payload: Json }
+        Returns: Json
+      }
       get_bot_client_id: { Args: { _bot_id: string }; Returns: string }
       get_bot_health: { Args: { _bot_id: string }; Returns: Json }
       get_bot_secrets_metadata: {

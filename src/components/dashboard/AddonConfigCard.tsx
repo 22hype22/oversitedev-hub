@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +41,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
 import { getAddonLabel } from "@/lib/botCatalog";
-import { SayCommandBuilder } from "./SayCommandBuilder";
+import { SayCommandBuilder, type SayCommandBuilderHandle } from "./SayCommandBuilder";
 import { TicketPanelBuilder } from "./TicketPanelBuilder";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildChannels";
@@ -84,6 +84,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isAntiRaid = addonId === "anti-raid";
   const isNsfwInviteScanner = addonId === "nsfw-invite-scanner";
   const config = getAddonConfig(addonId);
+  const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
 
   // Map dashboard addon id → bot_config.feature name for toggleable features.
   const TOGGLE_FEATURE_MAP: Record<string, string> = {
@@ -888,7 +889,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
 
           {isSayCommand ? (
             <div className="py-2">
-              <SayCommandBuilder botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
+              <SayCommandBuilder ref={sayBuilderRef} botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
             </div>
           ) : isTicketPanel ? (
             <TicketPanelBuilder botId={botId} botName={botName} variant="ticket" />
@@ -918,7 +919,17 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               </Button>
               <Button
                 disabled={saving}
-                onClick={() => {
+                onClick={async () => {
+                  if (isSayCommand) {
+                    setSaving(true);
+                    try {
+                      const ok = await sayBuilderRef.current?.send();
+                      if (ok) setOpen(false);
+                    } finally {
+                      setSaving(false);
+                    }
+                    return;
+                  }
                   if (isVerification) {
                     void saveVerification();
                   } else if (isAdvancedLogging) {
@@ -938,7 +949,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                 }}
               >
                 <Save className="h-4 w-4 mr-1.5" />
-                {saving ? "Saving…" : "Save changes"}
+                {saving ? "Saving…" : isSayCommand ? "Send message" : "Save changes"}
               </Button>
             </div>
           </DialogFooter>
