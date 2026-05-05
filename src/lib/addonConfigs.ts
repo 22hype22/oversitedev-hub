@@ -239,8 +239,9 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       {
         key: "action",
         label: "Action on spam",
-        type: "select",
-        defaultValue: "mute",
+        type: "multiselect",
+        defaultValue: ["mute"],
+        help: "Pick one or more — e.g. delete the messages AND mute the user.",
         options: [
           { value: "delete", label: "Delete messages" },
           { value: "mute", label: "Mute user" },
