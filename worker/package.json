@@ -15,10 +15,12 @@
     "discord.js": "^14.16.3",
     "dotenv": "^16.4.5",
     "libsodium-wrappers": "^0.7.15",
+    "ws": "^8.18.0",
     "yt-search": "^2.10.4"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "@types/ws": "^8.5.12",
     "@types/yt-search": "^2.10.2",
     "tsx": "^4.7.0",
     "typescript": "^5.4.0"
