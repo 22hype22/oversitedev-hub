@@ -183,7 +183,6 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
     "mod-actions",
     "anti-spam",
     "anti-raid",
-    "basic-logging",
     "phishing-detection",
     "messages",
   ],
