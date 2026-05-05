@@ -242,9 +242,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         .maybeSingle();
       if (cancelled || !data) return;
       const cfg = (data.config ?? {}) as Record<string, any>;
+      const rawRoles = cfg.moderator_role_ids ?? cfg.moderator_role_id;
+      const modRoles = Array.isArray(rawRoles)
+        ? rawRoles.map(String)
+        : rawRoles
+          ? [String(rawRoles)]
+          : [];
       setValues((prev) => ({
         ...prev,
-        modRole: cfg.moderator_role_id ?? "",
+        modRole: modRoles,
         logChannel: cfg.log_channel_id ?? "",
         defaultMuteDuration: String(cfg.default_mute_minutes ?? "60"),
         dmOnAction: cfg.dm_on_action ?? true,
