@@ -152,6 +152,91 @@ export const SayCommandBuilder = forwardRef<
     updateEmbed(embedId, { fields: e.fields.filter((f) => f.id !== fieldId) });
   };
 
+  const send = async (): Promise<boolean> => {
+    if (!botId) {
+      toast.error("Bot not ready yet.");
+      return false;
+    }
+    if (!channel?.channel_id) {
+      toast.error("Pick a channel to post in.");
+      return false;
+    }
+    if (!content.trim() && embeds.length === 0 && files.length === 0) {
+      toast.error("Add some content, an embed, or an image first.");
+      return false;
+    }
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = auth.user?.id ?? "anon";
+
+      // Upload images to bot-assets bucket and collect public URLs.
+      const imageUrls: string[] = [];
+      for (const f of files) {
+        const ext = f.name.split(".").pop()?.toLowerCase() || "png";
+        const path = `${userId}/${botId}/say-${Date.now()}-${crypto.randomUUID()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("bot-assets")
+          .upload(path, f, { upsert: false, contentType: f.type });
+        if (upErr) throw upErr;
+        const { data: pub } = supabase.storage.from("bot-assets").getPublicUrl(path);
+        imageUrls.push(pub.publicUrl);
+      }
+
+      const hexToInt = (hex: string): number | null => {
+        const m = /^#?([0-9a-fA-F]{6})$/.exec(hex || "");
+        return m ? parseInt(m[1], 16) : null;
+      };
+
+      const payload = {
+        channel_id: channel.channel_id,
+        content: content.trim() ? content : null,
+        embeds: embeds.map((e) => ({
+          title: e.title || null,
+          title_url: e.url || null,
+          description: e.description || null,
+          color: hexToInt(e.color),
+          author: e.authorName
+            ? { name: e.authorName, icon_url: e.authorIconUrl || null }
+            : null,
+          footer: e.footerText
+            ? { text: e.footerText, icon_url: e.footerIconUrl || null }
+            : null,
+          fields: e.fields.map((f) => ({
+            name: f.name,
+            value: f.value,
+            inline: !!f.inline,
+          })),
+          image_url: e.imageUrl || null,
+          thumbnail_url: e.thumbnailUrl || null,
+          timestamp: e.timestamp ? new Date().toISOString() : null,
+        })),
+        images: imageUrls,
+        trailing_messages: trailingMessages
+          .map((m) => m.text)
+          .filter((t) => t.trim().length > 0),
+      };
+
+      const { data, error } = await supabase.rpc("enqueue_post_message", {
+        _bot_id: botId,
+        _payload: payload as any,
+      });
+      if (error) throw error;
+      const result = data as { ok?: boolean; error?: string } | null;
+      if (!result?.ok) {
+        toast.error(result?.error || "Could not queue the message.");
+        return false;
+      }
+      toast.success("Message queued — your bot will post it shortly.");
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to send message.";
+      toast.error(msg);
+      return false;
+    }
+  };
+
+  useImperativeHandle(ref, () => ({ send }));
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr,1fr] gap-4">
       {/* Editor */}
