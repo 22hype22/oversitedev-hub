@@ -678,6 +678,73 @@ export const BotBuilder = () => {
     }
     setSubmitting(true);
 
+    // When sales are LIVE, every bot in the order needs an available token from
+    // the pool. If we don't have enough, persist the order as a waitlist entry
+    // and surface a professional notice — no Stripe charge happens.
+    if (user && salesLive) {
+      const botsNeeded = usesPackTabs ? visibleIdentityTabs.length : 1;
+      const { count: availableTokens, error: tokenErr } = await (supabase as any)
+        .from("bot_token_pool")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "available");
+
+      if (tokenErr) {
+        sonnerToast.error("Couldn't verify bot availability", {
+          description: "Please try again in a moment.",
+        });
+        setSubmitting(false);
+        return;
+      }
+
+      if ((availableTokens ?? 0) < botsNeeded) {
+        // Persist the order as a waitlist entry so we can fulfill it the moment
+        // tokens become available.
+        const { primary, notesField } = buildSubmissionPayload();
+        const baseField = isPack ? "scratch" : bases.join("+");
+        const planMonths = paymentPlan === "full" ? null : parseInt(paymentPlan, 10);
+        const installmentAmount = planMonths
+          ? Number((finalTotal / planMonths).toFixed(2))
+          : null;
+        const waitlistNotes = `[WAITLISTED — awaiting available bot token]\n\n${notesField ?? ""}`.trim();
+        const { error: insertErr } = await (supabase as any)
+          .from("bot_orders")
+          .insert({
+            user_id: user.id,
+            bot_name: primary.name.trim(),
+            bot_description: primary.description.trim() || null,
+            icon_url: primary.icon,
+            banner_url: primary.banner,
+            base: baseField,
+            addons,
+            monthly_hosting: monthlyHosting,
+            notes: waitlistNotes,
+            total_amount: finalTotal,
+            currency: "usd",
+            status: "waitlist",
+            submitted_at: new Date().toISOString(),
+            payment_plan: planMonths ? "installments" : "full",
+            plan_months: planMonths,
+            installment_amount: installmentAmount,
+            discount_code: appliedDiscount?.code ?? null,
+            discount_amount: discountAmount,
+            engine_version: engineVersion,
+          });
+        setSubmitting(false);
+        if (insertErr) {
+          sonnerToast.error("Couldn't add you to the waitlist", {
+            description: insertErr.message,
+          });
+          return;
+        }
+        sonnerToast.success("You've been added to the waitlist", {
+          description:
+            "All of our bot slots are currently allocated. Your order has been reserved and will be prepared and delivered the moment a slot becomes available. Thank you for choosing Oversite — we appreciate your patience and your business.",
+          duration: 12000,
+        });
+        return;
+      }
+    }
+
     // Save the order to the database (status='pending_payment'). Stripe webhook
     // flips it to 'paid' on checkout.session.completed, which triggers the build.
     const orderId = await persistOrder();
