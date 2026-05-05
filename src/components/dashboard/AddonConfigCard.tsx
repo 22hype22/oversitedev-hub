@@ -80,6 +80,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isVerification = addonId === "verification-system";
   const isAdvancedLogging = addonId === "advanced-logging";
   const isModeration = addonId === "mod-actions";
+  const isAntiSpam = addonId === "anti-spam";
   const config = getAddonConfig(addonId);
 
   // Map dashboard addon id → bot_config.feature name for toggleable features.
@@ -262,6 +263,95 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       cancelled = true;
     };
   }, [isModeration, open, botId]);
+
+  // Load existing anti-spam config when dialog opens.
+  useEffect(() => {
+    if (!isAntiSpam || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "anti-spam")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const minutes = Number(cfg.mute_duration_minutes ?? 10);
+      const muteDurationStr =
+        minutes === 5 ? "5m" : minutes === 60 ? "1h" : "10m";
+      const exempt = Array.isArray(cfg.exempt_role_ids)
+        ? cfg.exempt_role_ids.map(String)
+        : [];
+      const pingExempt = Array.isArray(cfg.exempt_ping_role_ids)
+        ? cfg.exempt_ping_role_ids.map(String)
+        : [];
+      setValues((prev) => ({
+        ...prev,
+        messageThreshold: Number(cfg.spam_threshold ?? 6),
+        action: String(cfg.action ?? "mute"),
+        muteDuration: muteDurationStr,
+        logChannel: cfg.log_channel_id ?? "",
+        ignoreStaff: cfg.ignore_staff ?? true,
+        exemptRoles: exempt,
+        pingExemptRoles: pingExempt,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAntiSpam, open, botId]);
+
+  const saveAntiSpam = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    setSaving(true);
+    const muteStr = String(values.muteDuration ?? "10m");
+    const muteMinutes =
+      muteStr === "5m" ? 5 : muteStr === "1h" ? 60 : 10;
+    const payload = {
+      bot_id: botId,
+      feature: "anti-spam",
+      config: {
+        spam_threshold: Number(values.messageThreshold ?? 6),
+        action: String(values.action ?? "mute"),
+        mute_duration_minutes: muteMinutes,
+        log_channel_id: values.logChannel ? String(values.logChannel) : null,
+        ignore_staff: !!values.ignoreStaff,
+        exempt_role_ids: Array.isArray(values.exemptRoles)
+          ? (values.exemptRoles as string[]).filter(Boolean)
+          : [],
+        exempt_ping_role_ids: Array.isArray(values.pingExemptRoles)
+          ? (values.pingExemptRoles as string[]).filter(Boolean)
+          : [],
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "anti-spam",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("Anti-Spam settings saved & applied");
+    }
+    setOpen(false);
+  };
 
   const saveModeration = async () => {
     if (!botId) {
@@ -683,6 +773,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveAdvancedLogging();
                   } else if (isModeration) {
                     void saveModeration();
+                  } else if (isAntiSpam) {
+                    void saveAntiSpam();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
