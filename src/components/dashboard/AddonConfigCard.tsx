@@ -438,6 +438,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     }
     setOpen(false);
   };
+
+  const saveModeration = async () => {
     if (!botId) {
       toast.error("Missing bot id.");
       return;
