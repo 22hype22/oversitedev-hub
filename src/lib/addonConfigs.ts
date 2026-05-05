@@ -202,7 +202,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
   },
 
   "mod-actions": {
-    title: "Warn / Mute / Ban / Kick",
+    title: "Moderate Commands",
     summary: "Core moderation commands and defaults.",
     icon: Shield,
     fields: [
