@@ -773,6 +773,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveAdvancedLogging();
                   } else if (isModeration) {
                     void saveModeration();
+                  } else if (isAntiSpam) {
+                    void saveAntiSpam();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
