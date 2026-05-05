@@ -96,19 +96,13 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     const feature = TOGGLE_FEATURE_MAP[addonId];
     if (!feature || !botId) return;
     try {
-      const { data: existing } = await supabase
-        .from("bot_config")
-        .select("config")
-        .eq("bot_id", botId)
-        .eq("feature", feature)
-        .maybeSingle();
-      const merged = { ...((existing?.config as Record<string, any>) ?? {}), enabled: next };
-      await supabase
-        .from("bot_config")
-        .upsert(
-          { bot_id: botId, feature, config: merged, updated_at: new Date().toISOString() },
-          { onConflict: "bot_id,feature" },
-        );
+      // Server-side JSONB merge: config = COALESCE(config,'{}') || {"enabled": next}
+      // This preserves all other config fields and only updates `enabled`.
+      await supabase.rpc("set_bot_config_enabled" as any, {
+        _bot_id: botId,
+        _feature: feature,
+        _enabled: next,
+      });
       await supabase.rpc("enqueue_apply_config" as any, { _bot_id: botId, _feature: feature });
     } catch {
       /* non-fatal */

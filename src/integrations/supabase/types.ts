@@ -2412,6 +2412,10 @@ export type Database = {
         }
         Returns: Json
       }
+      set_bot_config_enabled: {
+        Args: { _bot_id: string; _enabled: boolean; _feature: string }
+        Returns: undefined
+      }
       set_bot_secret: {
         Args: { _bot_id: string; _key: string; _value: string }
         Returns: Json
