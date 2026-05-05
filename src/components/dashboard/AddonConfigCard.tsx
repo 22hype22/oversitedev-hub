@@ -94,23 +94,31 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
 
   const persistEnabledFlag = async (next: boolean) => {
     const feature = TOGGLE_FEATURE_MAP[addonId];
-    if (!feature || !botId) return;
+    console.log("[toggle] persistEnabledFlag start", { addonId, feature, botId, next });
+    if (!feature || !botId) {
+      console.warn("[toggle] aborting — missing feature or botId", { feature, botId });
+      return;
+    }
     try {
       // 1) Server-side JSONB merge: config = COALESCE(config,'{}') || {"enabled": next}
+      console.log("[toggle] calling set_bot_config_enabled", { botId, feature, next });
       const { error: mergeError } = await supabase.rpc("set_bot_config_enabled" as any, {
         _bot_id: botId,
         _feature: feature,
         _enabled: next,
       });
+      console.log("[toggle] set_bot_config_enabled result", { mergeError });
       if (mergeError) {
         toast.error(`Failed to save toggle: ${mergeError.message}`);
         return;
       }
       // 2) ALWAYS enqueue apply_config so the bot picks up the change immediately.
+      console.log("[toggle] BEFORE enqueue_apply_config", { botId, feature });
       const { data: cmdData, error: cmdError } = await supabase.rpc(
         "enqueue_apply_config" as any,
         { _bot_id: botId, _feature: feature },
       );
+      console.log("[toggle] AFTER enqueue_apply_config", { cmdData, cmdError });
       const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
       if (cmdError) {
         toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
@@ -119,11 +127,13 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      console.error("[toggle] persistEnabledFlag threw", err);
       toast.error(`Toggle failed: ${msg}`);
     }
   };
 
   const handleToggleEnabled = (next: boolean) => {
+    console.log("[toggle] handleToggleEnabled fired", { addonId, next });
     onToggleEnabled?.(next);
     void persistEnabledFlag(next);
   };
