@@ -504,7 +504,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
             {config.title}
           </h3>
           {onToggleEnabled && (
-            <div onClick={(e) => e.stopPropagation()} className="pt-1">
+            <div
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              onPointerDownCapture={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              className="pt-1"
+            >
               <Switch
                 checked={enabled}
                 onCheckedChange={handleToggleEnabled}
