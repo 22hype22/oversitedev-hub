@@ -81,6 +81,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isAdvancedLogging = addonId === "advanced-logging";
   const isModeration = addonId === "mod-actions";
   const isAntiSpam = addonId === "anti-spam";
+  const isAntiRaid = addonId === "anti-raid";
   const config = getAddonConfig(addonId);
 
   // Map dashboard addon id → bot_config.feature name for toggleable features.
@@ -357,6 +358,83 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     } else {
       toast.success("Anti-Spam settings saved & applied");
+    }
+    setOpen(false);
+  };
+
+  // Load existing anti-raid config when dialog opens.
+  useEffect(() => {
+    if (!isAntiRaid || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "anti-raid")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        joinThreshold: Number(cfg.raid_threshold ?? 8),
+        actions: Array.isArray(cfg.actions)
+          ? cfg.actions.map(String)
+          : cfg.actions
+            ? [String(cfg.actions)]
+            : ["lock"],
+        alertChannel: cfg.alert_channel_id ?? "",
+        pingRole: cfg.alert_role_id ?? "",
+        autoUnlock: cfg.auto_unlock ?? true,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAntiRaid, open, botId]);
+
+  const saveAntiRaid = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "anti-raid",
+      config: {
+        raid_threshold: Number(values.joinThreshold ?? 8),
+        actions: Array.isArray(values.actions)
+          ? (values.actions as string[]).filter(Boolean)
+          : values.actions
+            ? [String(values.actions)]
+            : ["lock"],
+        alert_channel_id: values.alertChannel ? String(values.alertChannel) : null,
+        alert_role_id: values.pingRole ? String(values.pingRole) : null,
+        auto_unlock: !!values.autoUnlock,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "anti-raid",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("Anti-Raid settings saved & applied");
     }
     setOpen(false);
   };
@@ -783,6 +861,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveModeration();
                   } else if (isAntiSpam) {
                     void saveAntiSpam();
+                  } else if (isAntiRaid) {
+                    void saveAntiRaid();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
