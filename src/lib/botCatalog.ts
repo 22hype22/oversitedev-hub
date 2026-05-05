@@ -185,6 +185,7 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
     "anti-raid",
     "basic-logging",
     "phishing-detection",
+    "messages",
   ],
   // Support and Utilities bases should surface every configured section in the dashboard.
   support: [...ADDON_IDS_BY_BASE.support, "messages"],
