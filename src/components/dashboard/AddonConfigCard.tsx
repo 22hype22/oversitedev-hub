@@ -41,7 +41,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
 import { getAddonLabel } from "@/lib/botCatalog";
-import { SayCommandBuilder } from "./SayCommandBuilder";
+import { SayCommandBuilder, type SayCommandBuilderHandle } from "./SayCommandBuilder";
 import { TicketPanelBuilder } from "./TicketPanelBuilder";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildChannels";
