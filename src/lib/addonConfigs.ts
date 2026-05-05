@@ -206,7 +206,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Core moderation commands and defaults.",
     icon: Shield,
     fields: [
-      role("modRole", "Moderator role", "Who can use these commands."),
+      multirole("modRole", "Moderator roles", "Roles allowed to use these commands."),
       channel("logChannel", "Mod-action log channel"),
       {
         key: "defaultMuteDuration",
