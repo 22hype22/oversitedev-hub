@@ -289,7 +289,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       setValues((prev) => ({
         ...prev,
         messageThreshold: Number(cfg.spam_threshold ?? 6),
-        action: String(cfg.action ?? "mute"),
+        action: Array.isArray(cfg.action)
+          ? cfg.action.map(String)
+          : cfg.action
+            ? [String(cfg.action)]
+            : ["mute"],
         muteDuration: muteDurationStr,
         logChannel: cfg.log_channel_id ?? "",
         ignoreStaff: cfg.ignore_staff ?? true,
