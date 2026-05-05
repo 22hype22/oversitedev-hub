@@ -80,6 +80,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isVerification = addonId === "verification-system";
   const isAdvancedLogging = addonId === "advanced-logging";
   const isModeration = addonId === "mod-actions";
+  const isAntiSpam = addonId === "anti-spam";
   const config = getAddonConfig(addonId);
 
   // Map dashboard addon id → bot_config.feature name for toggleable features.
