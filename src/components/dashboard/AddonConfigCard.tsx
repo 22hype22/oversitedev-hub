@@ -919,7 +919,17 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               </Button>
               <Button
                 disabled={saving}
-                onClick={() => {
+                onClick={async () => {
+                  if (isSayCommand) {
+                    setSaving(true);
+                    try {
+                      const ok = await sayBuilderRef.current?.send();
+                      if (ok) setOpen(false);
+                    } finally {
+                      setSaving(false);
+                    }
+                    return;
+                  }
                   if (isVerification) {
                     void saveVerification();
                   } else if (isAdvancedLogging) {
@@ -939,7 +949,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                 }}
               >
                 <Save className="h-4 w-4 mr-1.5" />
-                {saving ? "Saving…" : "Save changes"}
+                {saving ? "Saving…" : isSayCommand ? "Send message" : "Save changes"}
               </Button>
             </div>
           </DialogFooter>
