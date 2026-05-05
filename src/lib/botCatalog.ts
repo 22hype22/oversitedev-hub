@@ -24,7 +24,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   "mod-actions": "Warn / Mute / Ban / Kick",
   "anti-spam": "Anti-Spam",
   "anti-raid": "Anti-Raid",
-  "basic-logging": "Basic Logging",
+  
   "phishing-detection": "Phishing Link Detection",
 
   // Protection
