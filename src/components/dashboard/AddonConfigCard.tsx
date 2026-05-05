@@ -861,6 +861,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveModeration();
                   } else if (isAntiSpam) {
                     void saveAntiSpam();
+                  } else if (isAntiRaid) {
+                    void saveAntiRaid();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
