@@ -51,7 +51,7 @@ export function useBotRoles(botId: string | undefined, guildId: string | undefin
   useEffect(() => {
     if (!botId || !guildId) return;
     const channel = supabase
-      .channel(`bot_role_cache:${botId}:${guildId}`)
+      .channel(`bot_role_cache:${botId}:${guildId}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bot_role_cache", filter: `bot_id=eq.${botId}` },
