@@ -273,7 +273,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       bot_id: botId,
       feature: "moderation",
       config: {
-        moderator_role_id: values.modRole ? String(values.modRole) : null,
+        moderator_role_ids: Array.isArray(values.modRole)
+          ? (values.modRole as string[]).filter(Boolean)
+          : [],
         log_channel_id: values.logChannel ? String(values.logChannel) : null,
         default_mute_minutes: Number(values.defaultMuteDuration ?? 60),
         dm_on_action: !!values.dmOnAction,
