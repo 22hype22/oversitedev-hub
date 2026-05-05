@@ -82,6 +82,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isModeration = addonId === "mod-actions";
   const isAntiSpam = addonId === "anti-spam";
   const isAntiRaid = addonId === "anti-raid";
+  const isNsfwInviteScanner = addonId === "nsfw-invite-scanner";
   const config = getAddonConfig(addonId);
 
   // Map dashboard addon id → bot_config.feature name for toggleable features.
@@ -568,7 +569,72 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     setOpen(false);
   };
 
+  // Load existing nsfw-invite-scanner config when dialog opens.
+  useEffect(() => {
+    if (!isNsfwInviteScanner || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "nsfw-invite-scanner")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        alertChannel: cfg.alert_channel_id ?? "",
+        action: cfg.action ?? "delete",
+        censorLogs: cfg.censor_in_logs ?? true,
+        scanDms: cfg.scan_dms ?? false,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isNsfwInviteScanner, open, botId]);
 
+  const saveNsfwInviteScanner = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "nsfw-invite-scanner",
+      config: {
+        alert_channel_id: values.alertChannel ? String(values.alertChannel) : null,
+        action: String(values.action ?? "delete"),
+        censor_in_logs: !!values.censorLogs,
+        scan_dms: !!values.scanDms,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "nsfw-invite-scanner",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("NSFW Invite Scanner settings saved & applied");
+    }
+    setOpen(false);
+  };
   // Add-ons we don't have a schema for yet — show a stub box so we know
   // it's owned but configuration is still wired up.
   if (!config) {
@@ -863,6 +929,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveAntiSpam();
                   } else if (isAntiRaid) {
                     void saveAntiRaid();
+                  } else if (isNsfwInviteScanner) {
+                    void saveNsfwInviteScanner();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
