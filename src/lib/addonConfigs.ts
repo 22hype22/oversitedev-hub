@@ -261,20 +261,12 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       },
       channel("logChannel", "Log channel"),
       toggle("ignoreStaff", "Ignore staff & mods", true),
-      {
-        key: "exemptRoles",
-        label: "Exempt roles from anti-spam",
-        type: "text",
-        placeholder: "@role, @role, @role",
-        help: "Comma-separated roles that bypass anti-spam.",
-      },
-      {
-        key: "pingExemptRoles",
-        label: "Exempt roles from mass-ping protection",
-        type: "text",
-        placeholder: "@role, @role, @role",
-        help: "Comma-separated roles allowed to ping multiple members/roles without being flagged.",
-      },
+      multirole("exemptRoles", "Exempt roles from anti-spam", "Roles that bypass anti-spam."),
+      multirole(
+        "pingExemptRoles",
+        "Exempt roles from mass-ping protection",
+        "Roles allowed to ping multiple members/roles without being flagged.",
+      ),
     ],
   },
 
