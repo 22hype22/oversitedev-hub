@@ -229,6 +229,75 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     };
   }, [isAdvancedLogging, open, botId]);
 
+  // Load existing moderation config when dialog opens.
+  useEffect(() => {
+    if (!isModeration || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "moderation")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        modRole: cfg.moderator_role_id ?? "",
+        logChannel: cfg.log_channel_id ?? "",
+        defaultMuteDuration: String(cfg.default_mute_minutes ?? "60"),
+        dmOnAction: cfg.dm_on_action ?? true,
+        requireReason: cfg.require_reason ?? true,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isModeration, open, botId]);
+
+  const saveModeration = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "moderation",
+      config: {
+        moderator_role_id: String(values.modRole ?? ""),
+        log_channel_id: String(values.logChannel ?? ""),
+        default_mute_minutes: Number(values.defaultMuteDuration ?? 60),
+        dm_on_action: !!values.dmOnAction,
+        require_reason: !!values.requireReason,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "moderation",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("Moderation settings saved & applied");
+    }
+    setOpen(false);
+  };
+
   const saveAdvancedLogging = async () => {
     if (!botId) {
       toast.error("Missing bot id.");
