@@ -96,16 +96,30 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     const feature = TOGGLE_FEATURE_MAP[addonId];
     if (!feature || !botId) return;
     try {
-      // Server-side JSONB merge: config = COALESCE(config,'{}') || {"enabled": next}
-      // This preserves all other config fields and only updates `enabled`.
-      await supabase.rpc("set_bot_config_enabled" as any, {
+      // 1) Server-side JSONB merge: config = COALESCE(config,'{}') || {"enabled": next}
+      const { error: mergeError } = await supabase.rpc("set_bot_config_enabled" as any, {
         _bot_id: botId,
         _feature: feature,
         _enabled: next,
       });
-      await supabase.rpc("enqueue_apply_config" as any, { _bot_id: botId, _feature: feature });
-    } catch {
-      /* non-fatal */
+      if (mergeError) {
+        toast.error(`Failed to save toggle: ${mergeError.message}`);
+        return;
+      }
+      // 2) ALWAYS enqueue apply_config so the bot picks up the change immediately.
+      const { data: cmdData, error: cmdError } = await supabase.rpc(
+        "enqueue_apply_config" as any,
+        { _bot_id: botId, _feature: feature },
+      );
+      const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+      if (cmdError) {
+        toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+      } else if (cmdResult && cmdResult.ok === false) {
+        toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Toggle failed: ${msg}`);
     }
   };
 
