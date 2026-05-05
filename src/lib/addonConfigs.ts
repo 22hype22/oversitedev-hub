@@ -309,19 +309,6 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
-  "basic-logging": {
-    title: "Basic Logging",
-    summary: "Logs bans, kicks, and member joins.",
-    icon: ClipboardList,
-    fields: [
-      channel("channel", "Log channel"),
-      toggle("logJoins", "Log member joins"),
-      toggle("logLeaves", "Log member leaves"),
-      toggle("logBans", "Log bans"),
-      toggle("logKicks", "Log kicks"),
-    ],
-  },
-
   "phishing-detection": {
     title: "Phishing Link Detection",
     summary: "Auto-delete known phishing & scam links.",
