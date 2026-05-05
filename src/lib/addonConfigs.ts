@@ -59,6 +59,7 @@ import {
 export type AddonFieldType =
   | "channel"
   | "role"
+  | "multirole"
   | "text"
   | "textarea"
   | "number"
@@ -103,12 +104,22 @@ const role = (key: string, label: string, help?: string): AddonField => ({
   help,
 });
 
+const multirole = (key: string, label: string, help?: string): AddonField => ({
+  key,
+  label,
+  type: "multirole",
+  placeholder: "@role",
+  help,
+  defaultValue: [],
+});
+
 const toggle = (
   key: string,
   label: string,
   defaultValue = true,
   help?: string,
 ): AddonField => ({ key, label, type: "toggle", defaultValue, help });
+
 
 /**
  * Standard embed-styling fields. Author + Title are meant to render ABOVE
