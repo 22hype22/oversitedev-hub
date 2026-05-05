@@ -929,6 +929,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveAntiSpam();
                   } else if (isAntiRaid) {
                     void saveAntiRaid();
+                  } else if (isNsfwInviteScanner) {
+                    void saveNsfwInviteScanner();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
