@@ -72,15 +72,18 @@ const newField = (): EmbedField => ({
   inline: false,
 });
 
-export function SayCommandBuilder({
-  botId,
-  botName,
-  botAvatarUrl,
-}: {
-  botId?: string;
-  botName: string;
-  botAvatarUrl?: string | null;
-}) {
+export type SayCommandBuilderHandle = {
+  send: () => Promise<boolean>;
+};
+
+export const SayCommandBuilder = forwardRef<
+  SayCommandBuilderHandle,
+  {
+    botId?: string;
+    botName: string;
+    botAvatarUrl?: string | null;
+  }
+>(function SayCommandBuilder({ botId, botName, botAvatarUrl }, ref) {
   const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
   const [guild, setGuildLocal] = useState<BotGuild | null>(activeGuild);
   // Keep our local picker in sync if the dashboard-wide active server changes.
