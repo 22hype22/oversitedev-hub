@@ -889,7 +889,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
 
           {isSayCommand ? (
             <div className="py-2">
-              <SayCommandBuilder botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
+              <SayCommandBuilder ref={sayBuilderRef} botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
             </div>
           ) : isTicketPanel ? (
             <TicketPanelBuilder botId={botId} botName={botName} variant="ticket" />
