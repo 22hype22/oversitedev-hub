@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
+import ws from "ws";
 import os from "node:os";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -26,6 +27,7 @@ if (!WORKER_TOKEN) {
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
+  realtime: { transport: ws as unknown as any },
 });
 
 export const WORKER_ID = process.env.WORKER_ID ?? `worker-${os.hostname()}`;
