@@ -86,7 +86,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const TOGGLE_FEATURE_MAP: Record<string, string> = {
     "verification-system": "verification",
     "advanced-logging": "advanced-logging",
-    "basic-logging": "basic-logging",
+    
     "anti-spam": "anti-spam",
     "anti-raid": "anti-raid",
     "phishing-detection": "phishing-link-detection",
