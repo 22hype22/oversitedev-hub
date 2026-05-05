@@ -529,6 +529,18 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       );
     }
 
+    if (f.type === "multirole") {
+      const selected = Array.isArray(value) ? (value as string[]) : [];
+      return (
+        <MultiRoleField
+          field={f}
+          value={selected}
+          onChange={(v) => setValue(f.key, v)}
+          botId={botId}
+        />
+      );
+    }
+
     // text / number
     return (
       <div className="space-y-2">
