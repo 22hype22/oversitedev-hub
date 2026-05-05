@@ -349,16 +349,16 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Scan invite links and censor logged NSFW content.",
     icon: ShieldAlert,
     fields: [
-      channel("channel", "Alert channel"),
+      channel("alertChannel", "Alert channel"),
       {
         key: "action",
         label: "On NSFW invite",
         type: "select",
         defaultValue: "delete",
         options: [
-          { value: "delete", label: "Delete all messages" },
-          { value: "purge-kick", label: "Delete all messages and kick" },
-          { value: "purge-ban", label: "Delete all messages and ban" },
+          { value: "delete", label: "Delete message" },
+          { value: "ban", label: "Ban user" },
+          { value: "delete_and_ban", label: "Delete message and ban" },
         ],
       },
       toggle("censorLogs", "Censor NSFW content in log channels"),
