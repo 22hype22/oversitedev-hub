@@ -94,7 +94,6 @@ const PROTECTION_ADDON_IDS = [
   "mod-actions",
   "anti-spam",
   "anti-raid",
-  "basic-logging",
   "phishing-detection",
   // Remaining paid add-ons
   "nsfw-invite-scanner",
