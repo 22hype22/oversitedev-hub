@@ -227,9 +227,11 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
                       onMouseDown={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        a.kind === "wrap"
-                          ? applyWrap(a.before, a.after)
-                          : applyLinePrefix(a.linePrefix);
+                        if (a.kind === "wrap") {
+                          applyWrap(a.before, a.after);
+                        } else {
+                          applyLinePrefix(a.linePrefix);
+                        }
                       }}
                     >
                       <a.Icon className="h-3.5 w-3.5" />
