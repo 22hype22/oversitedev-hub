@@ -511,7 +511,7 @@ export const SayCommandBuilder = forwardRef<
                 )
               }
               rows={4}
-              placeholder="Plain message shown below."
+              placeholder=""
               className="resize-y"
             />
           </div>
