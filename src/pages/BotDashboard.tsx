@@ -136,10 +136,9 @@ const UTILITIES_ADDON_IDS = [
   "messages",
   "rules",
 ];
-// Combined card replaces the old per-bot Custom Branding / Multi-Server / Web
-// Dashboard trio. The dashboard page is already gated to users who own the
-// Web Dashboard add-on, so we just always render this single combined box.
-const SHARED_ADDON_IDS = ["branding-multi-server"];
+// Shared/extras add-ons (none currently — Multi-Server License & Custom
+// Branding combined card was removed per product decision).
+const SHARED_ADDON_IDS: string[] = [];
 
 const canCancelStatus = (status: string) =>
   status === "draft" || status === "submitted";
@@ -491,7 +490,6 @@ const BotSection = ({
   const ownedAddons = new Set<string>([
     ...bot.addons,
     ...getIncludedAddonsForBase(bot.base),
-    "branding-multi-server",
   ]);
   // Group owned add-ons by category for the configuration boxes section.
   // "messages" lives inside every category list so it shows under the bot's
