@@ -100,8 +100,10 @@ export const SayCommandBuilder = forwardRef<
     botId?: string;
     botName: string;
     botAvatarUrl?: string | null;
+    /** "send" posts to a channel via the queue; "rules" saves to bot_config(feature='rules') for the /rules command. */
+    mode?: "send" | "rules";
   }
->(function SayCommandBuilder({ botId, botName, botAvatarUrl }, ref) {
+>(function SayCommandBuilder({ botId, botName, botAvatarUrl, mode = "send" }, ref) {
   const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
   const [guild, setGuildLocal] = useState<BotGuild | null>(activeGuild);
   // Keep our local picker in sync if the dashboard-wide active server changes.
