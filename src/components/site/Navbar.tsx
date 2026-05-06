@@ -238,6 +238,18 @@ export const Navbar = () => {
               </NavLink>
             </li>
             <li>
+              <NavLink
+                to="/website"
+                className={({ isActive }) =>
+                  `block py-2 ${
+                    isActive ? "text-foreground font-medium" : "text-muted-foreground"
+                  }`
+                }
+              >
+                Website
+              </NavLink>
+            </li>
+            <li>
               <Button variant="hero" className="w-full" asChild>
                 <Link to="/products">Start a project</Link>
               </Button>
