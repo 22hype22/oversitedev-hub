@@ -159,30 +159,41 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
             style={{ top: toolbar.top, left: toolbar.left }}
             onMouseDown={(e) => e.preventDefault()}
           >
-            {WRAP_ACTIONS.map(({ key, label, Icon, before, after }) => (
-              <button
-                key={key}
-                type="button"
-                title={label}
-                aria-label={label}
-                className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                onClick={() => applyWrap(before, after)}
-              >
-                <Icon className="h-3.5 w-3.5" />
-              </button>
-            ))}
-            {LINE_ACTIONS.map(({ key, label, Icon, linePrefix }) => (
-              <button
-                key={key}
-                type="button"
-                title={label}
-                aria-label={label}
-                className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                onClick={() => applyLinePrefix(linePrefix)}
-              >
-                <Icon className="h-3.5 w-3.5" />
-              </button>
-            ))}
+            {(() => {
+              const items = [
+                ...WRAP_ACTIONS.map((a) => ({ kind: "wrap" as const, ...a })),
+                ...LINE_ACTIONS.map((a) => ({ kind: "line" as const, ...a })),
+              ];
+              return items.map((a, idx) => {
+                const isActive = activeKeys.has(a.key);
+                return (
+                  <React.Fragment key={a.key}>
+                    {idx === 3 && (
+                      <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />
+                    )}
+                    <button
+                      type="button"
+                      title={a.label}
+                      aria-label={a.label}
+                      aria-pressed={isActive}
+                      className={cn(
+                        "inline-flex h-7 w-7 items-center justify-center rounded transition-colors",
+                        isActive
+                          ? "bg-primary/15 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                      onClick={() =>
+                        a.kind === "wrap"
+                          ? applyWrap(a.before, a.after)
+                          : applyLinePrefix(a.linePrefix)
+                      }
+                    >
+                      <a.Icon className="h-3.5 w-3.5" />
+                    </button>
+                  </React.Fragment>
+                );
+              });
+            })()}
           </div>
         )}
         <Textarea
