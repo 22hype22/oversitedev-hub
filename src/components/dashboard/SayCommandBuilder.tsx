@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DiscordMarkdownTextarea } from "@/components/ui/discord-markdown-textarea";
 import { Switch } from "@/components/ui/switch";
 import {
   ChevronDown,
@@ -440,10 +441,10 @@ export const SayCommandBuilder = forwardRef<
                 {content.length}/{contentLimit}
               </span>
             </div>
-            <Textarea
+            <DiscordMarkdownTextarea
               id="say-content"
               value={content}
-              onChange={(e) => setContent(e.target.value.slice(0, contentLimit))}
+              onValueChange={(v) => setContent(v.slice(0, contentLimit))}
               rows={5}
               placeholder="Message content (supports markdown)."
               className="resize-y"
@@ -488,12 +489,12 @@ export const SayCommandBuilder = forwardRef<
               {/* Body */}
               <Section title="Body" small defaultOpen>
                 <div className="space-y-2">
-                  <Textarea
+                  <DiscordMarkdownTextarea
                     placeholder="Title"
                     rows={1}
                     value={embed.title}
-                    onChange={(e) =>
-                      updateEmbed(embed.id, { title: e.target.value })
+                    onValueChange={(v) =>
+                      updateEmbed(embed.id, { title: v })
                     }
                   />
                   <Input
@@ -503,12 +504,12 @@ export const SayCommandBuilder = forwardRef<
                       updateEmbed(embed.id, { url: e.target.value })
                     }
                   />
-                  <Textarea
+                  <DiscordMarkdownTextarea
                     placeholder="Description (supports markdown)"
                     rows={4}
                     value={embed.description}
-                    onChange={(e) =>
-                      updateEmbed(embed.id, { description: e.target.value })
+                    onValueChange={(v) =>
+                      updateEmbed(embed.id, { description: v })
                     }
                   />
                   <div className="flex items-center gap-2">
@@ -629,14 +630,14 @@ export const SayCommandBuilder = forwardRef<
                 Remove
               </button>
             </div>
-            <Textarea
+            <DiscordMarkdownTextarea
               id={`say-trailing-${msg.id}`}
               value={msg.text}
-              onChange={(e) =>
+              onValueChange={(v) =>
                 setTrailingMessages((prev) =>
                   prev.map((m) =>
                     m.id === msg.id
-                      ? { ...m, text: e.target.value.slice(0, contentLimit) }
+                      ? { ...m, text: v.slice(0, contentLimit) }
                       : m,
                   ),
                 )
@@ -907,12 +908,12 @@ function FieldsEditor({
             >
               <div className="flex items-center gap-2">
                 <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-                <Textarea
+                <DiscordMarkdownTextarea
                   placeholder="Field name"
                   rows={1}
                   value={f.name}
-                  onChange={(e) =>
-                    onUpdate(embedId, f.id, { name: e.currentTarget.value })
+                  onValueChange={(v) =>
+                    onUpdate(embedId, f.id, { name: v })
                   }
                   className="min-h-8 py-1.5"
                 />
@@ -926,12 +927,12 @@ function FieldsEditor({
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
-              <Textarea
+              <DiscordMarkdownTextarea
                 placeholder="Field value"
                 rows={2}
                 value={f.value}
-                onChange={(e) =>
-                  onUpdate(embedId, f.id, { value: e.currentTarget.value })
+                onValueChange={(v) =>
+                  onUpdate(embedId, f.id, { value: v })
                 }
               />
               <div className="flex items-center justify-between">
