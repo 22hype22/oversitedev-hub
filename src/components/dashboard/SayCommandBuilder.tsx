@@ -646,6 +646,23 @@ export const SayCommandBuilder = forwardRef<
             </Button>
           </div>
         </div>
+        <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
+          <button
+            type="button"
+            onClick={saveDraft}
+            className="inline-flex items-center gap-1 hover:text-foreground transition-smooth"
+          >
+            <Download className="h-3 w-3" /> Save draft
+          </button>
+          <span className="opacity-40">·</span>
+          <button
+            type="button"
+            onClick={() => draftInputRef.current?.click()}
+            className="inline-flex items-center gap-1 hover:text-foreground transition-smooth"
+          >
+            <Upload className="h-3 w-3" /> Load draft
+          </button>
+        </div>
       </div>
 
       {/* Preview */}
