@@ -43,6 +43,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
 
   // Support — included base features
   messages: "Messages",
+  rules: "Rules",
 
   // Support
   "staff-performance": "Staff Performance Tracking",
