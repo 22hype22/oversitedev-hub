@@ -89,6 +89,7 @@ export const Navbar = () => {
               Bots
             </NavLink>
           </li>
+          <li aria-hidden="true" className="h-5 w-px bg-border/70 mx-2" />
           <li>
             <NavLink
               to="/website"
