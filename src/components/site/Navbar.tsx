@@ -89,21 +89,6 @@ export const Navbar = () => {
               Bots
             </NavLink>
           </li>
-          <li aria-hidden="true" className="h-5 w-px bg-border/70 mx-2" />
-          <li>
-            <NavLink
-              to="/website"
-              className={({ isActive }) =>
-                `text-sm transition-smooth ${
-                  isActive
-                    ? "text-foreground font-medium"
-                    : "text-muted-foreground hover:text-foreground"
-                }`
-              }
-            >
-              Website
-            </NavLink>
-          </li>
         </ul>
 
         <div className="hidden md:flex items-center gap-3">
@@ -236,18 +221,6 @@ export const Navbar = () => {
                 }
               >
                 Bots
-              </NavLink>
-            </li>
-            <li>
-              <NavLink
-                to="/website"
-                className={({ isActive }) =>
-                  `block py-2 ${
-                    isActive ? "text-foreground font-medium" : "text-muted-foreground"
-                  }`
-                }
-              >
-                Website
               </NavLink>
             </li>
             <li>

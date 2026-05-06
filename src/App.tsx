@@ -15,7 +15,6 @@ import Index from "./pages/Index.tsx";
 import ProcessPage from "./pages/ProcessPage.tsx";
 import ProductsPage from "./pages/ProductsPage.tsx";
 import BotsPage from "./pages/BotsPage.tsx";
-import WebsitePage from "./pages/WebsitePage.tsx";
 import BotDashboard from "./pages/BotDashboard.tsx";
 import Auth from "./pages/Auth.tsx";
 import Admin from "./pages/Admin.tsx";
@@ -55,7 +54,6 @@ const App = () => {
               <Route path="/process" element={<ProcessPage />} />
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/bots" element={<BotsPage />} />
-              <Route path="/website" element={<WebsitePage />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/dashboard" element={<Dashboard />} />
