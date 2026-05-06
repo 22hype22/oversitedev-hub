@@ -5,11 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { ChevronDown, Plus, Trash2, GripVertical, Info, Save, FolderOpen } from "lucide-react";
 import {
   Dialog,
@@ -794,39 +789,37 @@ function Section({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <div
-        className={`rounded-md border border-border ${small ? "bg-card/30" : "bg-card/50"}`}
-      >
-        <div className="flex items-center">
-          <CollapsibleTrigger asChild>
-            <button
-              type="button"
-              className={`flex-1 flex items-center gap-2 ${small ? "px-2.5 py-1.5 text-xs" : "px-3 py-2 text-sm"} font-medium hover:bg-muted/30 transition-smooth text-left rounded-md`}
-            >
-              <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform ${open ? "" : "-rotate-90"}`}
-              />
-              <span className="truncate">{title}</span>
-            </button>
-          </CollapsibleTrigger>
-          {onRemove && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 mr-1 shrink-0"
-              onClick={onRemove}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          )}
-        </div>
-        <CollapsibleContent>
-          <div className={small ? "px-2.5 pb-2.5" : "px-3 pb-3"}>{children}</div>
-        </CollapsibleContent>
+    <div
+      className={`rounded-md border border-border ${small ? "bg-card/30" : "bg-card/50"}`}
+    >
+      <div className="flex items-center">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((prev) => !prev)}
+          className={`flex-1 flex items-center gap-2 ${small ? "px-2.5 py-1.5 text-xs" : "px-3 py-2 text-sm"} font-medium hover:bg-muted/30 transition-smooth text-left rounded-md`}
+        >
+          <ChevronDown
+            className={`h-3.5 w-3.5 transition-transform ${open ? "" : "-rotate-90"}`}
+          />
+          <span className="truncate">{title}</span>
+        </button>
+        {onRemove && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 mr-1 shrink-0"
+            onClick={onRemove}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
       </div>
-    </Collapsible>
+      {open && (
+        <div className={small ? "px-2.5 pb-2.5" : "px-3 pb-3"}>{children}</div>
+      )}
+    </div>
   );
 }
 
