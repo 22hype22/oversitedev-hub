@@ -454,7 +454,7 @@ export const SayCommandBuilder = forwardRef<
                           rows={1}
                           value={f.name}
                           onInput={(e) =>
-                            updateField(embed.id, f.id, { name: e.target.value })
+                            updateField(embed.id, f.id, { name: e.currentTarget.value })
                           }
                           className="min-h-8 py-1.5"
                         />
@@ -473,7 +473,7 @@ export const SayCommandBuilder = forwardRef<
                         rows={2}
                         value={f.value}
                         onInput={(e) =>
-                          updateField(embed.id, f.id, { value: e.target.value })
+                          updateField(embed.id, f.id, { value: e.currentTarget.value })
                         }
                       />
                       <div className="flex items-center justify-between">
