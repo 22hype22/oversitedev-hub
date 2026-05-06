@@ -54,6 +54,7 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
 
     const [toolbar, setToolbar] = React.useState<{ top: number; left: number } | null>(null);
     const [activeKeys, setActiveKeys] = React.useState<Set<string>>(new Set());
+    const selectionRef = React.useRef<{ start: number; end: number } | null>(null);
 
     const computeActive = React.useCallback(
       (src: string, start: number, end: number) => {
@@ -104,10 +105,12 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
       if (!el) return;
       const { selectionStart, selectionEnd } = el;
       if (selectionStart === selectionEnd) {
+        selectionRef.current = null;
         setToolbar(null);
         setActiveKeys(new Set());
         return;
       }
+      selectionRef.current = { start: selectionStart, end: selectionEnd };
       setToolbar({ top: -40, left: el.clientWidth / 2 });
       setActiveKeys(computeActive(el.value, selectionStart, selectionEnd));
     }, [computeActive]);
@@ -125,57 +128,68 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
     const applyWrap = (before: string, after: string) => {
       const el = innerRef.current;
       if (!el) return;
-      const start = el.selectionStart;
-      const end = el.selectionEnd;
+      const savedSelection = selectionRef.current;
+      const start = el.selectionStart !== el.selectionEnd ? el.selectionStart : savedSelection?.start ?? el.selectionStart;
+      const end = el.selectionStart !== el.selectionEnd ? el.selectionEnd : savedSelection?.end ?? el.selectionEnd;
       if (start === end) return;
-      const selected = value.slice(start, end);
+      const src = el.value;
+      const selected = src.slice(start, end);
 
       // Toggle: if selection is already wrapped, unwrap it.
       const already =
         value.slice(Math.max(0, start - before.length), start) === before &&
-        value.slice(end, end + after.length) === after;
+        src.slice(Math.max(0, start - before.length), start) === before &&
+        src.slice(end, end + after.length) === after;
 
       let next: string;
       let newStart: number;
       let newEnd: number;
       if (already) {
-        next = value.slice(0, start - before.length) + selected + value.slice(end + after.length);
+        next = src.slice(0, start - before.length) + selected + src.slice(end + after.length);
         newStart = start - before.length;
         newEnd = end - before.length;
       } else {
-        next = value.slice(0, start) + before + selected + after + value.slice(end);
+        next = src.slice(0, start) + before + selected + after + src.slice(end);
         newStart = start + before.length;
         newEnd = end + before.length;
       }
+      selectionRef.current = { start: newStart, end: newEnd };
+      setActiveKeys(computeActive(next, newStart, newEnd));
       onValueChange(next);
       requestAnimationFrame(() => {
         el.focus();
         el.setSelectionRange(newStart, newEnd);
+        setActiveKeys(computeActive(next, newStart, newEnd));
       });
     };
 
     const applyLinePrefix = (prefix: string) => {
       const el = innerRef.current;
       if (!el) return;
-      const start = el.selectionStart;
-      const end = el.selectionEnd;
+      const savedSelection = selectionRef.current;
+      const start = el.selectionStart !== el.selectionEnd ? el.selectionStart : savedSelection?.start ?? el.selectionStart;
+      const end = el.selectionStart !== el.selectionEnd ? el.selectionEnd : savedSelection?.end ?? el.selectionEnd;
       // Expand to full lines
-      const lineStart = value.lastIndexOf("\n", start - 1) + 1;
-      const lineEndIdx = value.indexOf("\n", end);
-      const lineEnd = lineEndIdx === -1 ? value.length : lineEndIdx;
-      const block = value.slice(lineStart, lineEnd);
+      const src = el.value;
+      const lineStart = src.lastIndexOf("\n", start - 1) + 1;
+      const lineEndIdx = src.indexOf("\n", end);
+      const lineEnd = lineEndIdx === -1 ? src.length : lineEndIdx;
+      const block = src.slice(lineStart, lineEnd);
       const lines = block.split("\n");
       const allPrefixed = lines.every((l) => l.startsWith(prefix));
       const newLines = allPrefixed
         ? lines.map((l) => l.slice(prefix.length))
         : lines.map((l) => prefix + l);
       const newBlock = newLines.join("\n");
-      const next = value.slice(0, lineStart) + newBlock + value.slice(lineEnd);
+      const next = src.slice(0, lineStart) + newBlock + src.slice(lineEnd);
       onValueChange(next);
       const delta = newBlock.length - block.length;
+      selectionRef.current = { start: lineStart, end: end + delta };
+      setActiveKeys(computeActive(next, lineStart, end + delta));
       requestAnimationFrame(() => {
         el.focus();
         el.setSelectionRange(lineStart, end + delta);
+        setActiveKeys(computeActive(next, lineStart, end + delta));
       });
     };
 
@@ -210,11 +224,15 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
                           ? "bg-primary/15 text-primary"
                           : "text-muted-foreground hover:bg-muted hover:text-foreground",
                       )}
-                      onClick={() =>
-                        a.kind === "wrap"
-                          ? applyWrap(a.before, a.after)
-                          : applyLinePrefix(a.linePrefix)
-                      }
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (a.kind === "wrap") {
+                          applyWrap(a.before, a.after);
+                        } else {
+                          applyLinePrefix(a.linePrefix);
+                        }
+                      }}
                     >
                       <a.Icon className="h-3.5 w-3.5" />
                     </button>
