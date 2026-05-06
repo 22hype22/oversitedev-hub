@@ -65,20 +65,7 @@ const newEmbed = (): Embed => ({
   url: "",
   description: "This is your embed description. It supports **markdown** formatting like bold, italic, and [links](https://example.com).",
   color: "#5865F2",
-  fields: [
-    {
-      id: crypto.randomUUID(),
-      name: "Rule 1",
-      value: "Be respectful to everyone in the server.",
-      inline: true,
-    },
-    {
-      id: crypto.randomUUID(),
-      name: "Rule 2",
-      value: "No spamming or excessive self-promotion.",
-      inline: true,
-    },
-  ],
+  fields: [],
   imageUrl: "",
   thumbnailUrl: "",
   footerText: "",
@@ -207,30 +194,38 @@ export const SayCommandBuilder = forwardRef<
     setEmbeds((prev) => prev.filter((e) => e.id !== id));
 
   const addField = (embedId: string) =>
-    updateEmbed(embedId, {
-      fields: [
-        ...(embeds.find((e) => e.id === embedId)?.fields ?? []),
-        newField(),
-      ],
-    });
+    setEmbeds((prev) =>
+      prev.map((e) =>
+        e.id === embedId ? { ...e, fields: [...e.fields, newField()] } : e,
+      ),
+    );
 
   const updateField = (
     embedId: string,
     fieldId: string,
     patch: Partial<EmbedField>,
-  ) => {
-    const e = embeds.find((x) => x.id === embedId);
-    if (!e) return;
-    updateEmbed(embedId, {
-      fields: e.fields.map((f) => (f.id === fieldId ? { ...f, ...patch } : f)),
-    });
-  };
+  ) =>
+    setEmbeds((prev) =>
+      prev.map((e) =>
+        e.id === embedId
+          ? {
+              ...e,
+              fields: e.fields.map((f) =>
+                f.id === fieldId ? { ...f, ...patch } : f,
+              ),
+            }
+          : e,
+      ),
+    );
 
-  const removeField = (embedId: string, fieldId: string) => {
-    const e = embeds.find((x) => x.id === embedId);
-    if (!e) return;
-    updateEmbed(embedId, { fields: e.fields.filter((f) => f.id !== fieldId) });
-  };
+  const removeField = (embedId: string, fieldId: string) =>
+    setEmbeds((prev) =>
+      prev.map((e) =>
+        e.id === embedId
+          ? { ...e, fields: e.fields.filter((f) => f.id !== fieldId) }
+          : e,
+      ),
+    );
 
   const send = async (): Promise<boolean> => {
     if (!botId) {
