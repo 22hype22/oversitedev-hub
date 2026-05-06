@@ -10,7 +10,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, Plus, Trash2, GripVertical, Info } from "lucide-react";
+import { ChevronDown, Plus, Trash2, GripVertical, Info, Download, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { GuildChannelPicker } from "./GuildChannelPicker";
 import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
@@ -96,19 +96,8 @@ export const SayCommandBuilder = forwardRef<
     if (g) setActiveGuild(g); // sync the dashboard-wide selection.
   };
   const [channel, setChannel] = useState<BotChannel | null>(null);
-  const [content, setContent] = useState(
-    "Welcome to the server! 👋 Read the rules and have fun.",
-  );
-  const [embeds, setEmbeds] = useState<Embed[]>([
-    {
-      ...newEmbed(),
-      title: "Server Rules",
-      description:
-        "1. Be respectful to everyone.\n2. No spam or self-promo.\n3. Keep it SFW in public channels.",
-      color: "#5865F2",
-      footerText: botName,
-    },
-  ]);
+  const [content, setContent] = useState("");
+  const [embeds, setEmbeds] = useState<Embed[]>([newEmbed()]);
   // Extra messages shown below the embeds (each is a separate message)
   const [trailingMessages, setTrailingMessages] = useState<
     { id: string; text: string }[]
@@ -116,7 +105,42 @@ export const SayCommandBuilder = forwardRef<
   // Files actually attached by the user
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const draftInputRef = useRef<HTMLInputElement>(null);
   const MAX_FILE_BYTES = 25 * 1024 * 1024;
+
+  const saveDraft = () => {
+    const draft = {
+      version: 1,
+      content,
+      embeds,
+      trailingMessages,
+    };
+    const blob = new Blob([JSON.stringify(draft, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `say-draft-${stamp}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Draft saved.");
+  };
+
+  const loadDraft = async (file: File) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (typeof data.content === "string") setContent(data.content);
+      if (Array.isArray(data.embeds)) setEmbeds(data.embeds);
+      if (Array.isArray(data.trailingMessages))
+        setTrailingMessages(data.trailingMessages);
+      toast.success("Draft loaded.");
+    } catch {
+      toast.error("That file isn't a valid draft.");
+    }
+  };
 
   const contentLimit = 2000;
 
@@ -261,6 +285,35 @@ export const SayCommandBuilder = forwardRef<
           </div>
         )}
 
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-card/30 p-2">
+          <span className="text-xs font-semibold mr-1">Drafts</span>
+          <Button type="button" variant="outline" size="sm" onClick={saveDraft}>
+            <Download className="h-3.5 w-3.5 mr-1" /> Save draft
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => draftInputRef.current?.click()}
+          >
+            <Upload className="h-3.5 w-3.5 mr-1" /> Load draft
+          </Button>
+          <input
+            ref={draftInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) loadDraft(f);
+              if (draftInputRef.current) draftInputRef.current.value = "";
+            }}
+          />
+          <span className="text-[11px] text-muted-foreground ml-auto">
+            Downloads a JSON file you can re-upload later.
+          </span>
+        </div>
+
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
             <Label htmlFor="say-content" className="font-semibold">
@@ -275,7 +328,7 @@ export const SayCommandBuilder = forwardRef<
             value={content}
             onChange={(e) => setContent(e.target.value.slice(0, contentLimit))}
             rows={5}
-            placeholder="Message content (supports markdown)."
+            placeholder=""
             className="resize-y"
           />
         </div>
@@ -522,7 +575,7 @@ export const SayCommandBuilder = forwardRef<
                 )
               }
               rows={4}
-              placeholder="Plain message shown below."
+              placeholder=""
               className="resize-y"
             />
           </div>
