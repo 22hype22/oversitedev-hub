@@ -453,14 +453,8 @@ export const SayCommandBuilder = forwardRef<
                           placeholder="Field name"
                           rows={1}
                           value={f.name}
-                          onInput={(e) =>
-                            updateField(embed.id, f.id, { name: e.currentTarget.value })
-                          }
-                          onKeyUp={(e) =>
-                            updateField(embed.id, f.id, { name: e.currentTarget.value })
-                          }
-                          onBlur={(e) =>
-                            updateField(embed.id, f.id, { name: e.currentTarget.value })
+                          onChange={(e) =>
+                            updateField(embed.id, f.id, { name: e.target.value })
                           }
                           className="min-h-8 py-1.5"
                         />
