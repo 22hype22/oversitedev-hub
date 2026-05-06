@@ -105,7 +105,42 @@ export const SayCommandBuilder = forwardRef<
   // Files actually attached by the user
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const draftInputRef = useRef<HTMLInputElement>(null);
   const MAX_FILE_BYTES = 25 * 1024 * 1024;
+
+  const saveDraft = () => {
+    const draft = {
+      version: 1,
+      content,
+      embeds,
+      trailingMessages,
+    };
+    const blob = new Blob([JSON.stringify(draft, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `say-draft-${stamp}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Draft saved.");
+  };
+
+  const loadDraft = async (file: File) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (typeof data.content === "string") setContent(data.content);
+      if (Array.isArray(data.embeds)) setEmbeds(data.embeds);
+      if (Array.isArray(data.trailingMessages))
+        setTrailingMessages(data.trailingMessages);
+      toast.success("Draft loaded.");
+    } catch {
+      toast.error("That file isn't a valid draft.");
+    }
+  };
 
   const contentLimit = 2000;
 
