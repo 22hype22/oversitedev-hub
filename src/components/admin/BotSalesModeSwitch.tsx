@@ -80,7 +80,7 @@ export const BotSalesModeSwitch = () => {
             </div>
           </div>
           <Button
-            variant={isLive ? "destructive" : "hero"}
+            variant="destructive"
             size="sm"
             onClick={openDialog}
             className="shrink-0"
