@@ -436,8 +436,10 @@ export const SayCommandBuilder = forwardRef<
 
               {/* Fields */}
               <Section
+                key={`fields-${embed.id}-${embed.fields.length}`}
                 title={`Fields (${embed.fields.length})`}
                 small
+                defaultOpen={embed.fields.length > 0}
               >
                 <div className="space-y-2">
                   {embed.fields.map((f) => (
@@ -451,7 +453,7 @@ export const SayCommandBuilder = forwardRef<
                           placeholder="Field name"
                           rows={1}
                           value={f.name}
-                          onChange={(e) =>
+                          onInput={(e) =>
                             updateField(embed.id, f.id, { name: e.target.value })
                           }
                           className="min-h-8 py-1.5"
@@ -470,7 +472,7 @@ export const SayCommandBuilder = forwardRef<
                         placeholder="Field value"
                         rows={2}
                         value={f.value}
-                        onChange={(e) =>
+                        onInput={(e) =>
                           updateField(embed.id, f.id, { value: e.target.value })
                         }
                       />
