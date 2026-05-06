@@ -1,11 +1,25 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { ChevronDown, Plus, Trash2, GripVertical, Info, Save, FolderOpen } from "lucide-react";
+import {
+  ChevronDown,
+  Plus,
+  Trash2,
+  GripVertical,
+  Info,
+  Save,
+  FolderOpen,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -58,7 +72,8 @@ const newEmbed = (): Embed => ({
   authorUrl: "",
   title: "Welcome",
   url: "",
-  description: "This is your embed description. It supports **markdown** formatting like bold, italic, and [links](https://example.com).",
+  description:
+    "This is your embed description. It supports **markdown** formatting like bold, italic, and [links](https://example.com).",
   color: "#5865F2",
   fields: [],
   imageUrl: "",
@@ -99,7 +114,9 @@ export const SayCommandBuilder = forwardRef<
     if (g) setActiveGuild(g); // sync the dashboard-wide selection.
   };
   const [channel, setChannel] = useState<BotChannel | null>(null);
-  const [content, setContent] = useState("Hey everyone! Check out the info below 👇");
+  const [content, setContent] = useState(
+    "Hey everyone! Check out the info below 👇",
+  );
   const [embeds, setEmbeds] = useState<Embed[]>([newEmbed()]);
   // Extra messages shown below the embeds (each is a separate message)
   const [trailingMessages, setTrailingMessages] = useState<
@@ -114,7 +131,11 @@ export const SayCommandBuilder = forwardRef<
     id: string;
     name: string;
     updated_at: string;
-    payload: { content: string; embeds: Embed[]; trailingMessages: { id: string; text: string }[] };
+    payload: {
+      content: string;
+      embeds: Embed[];
+      trailingMessages: { id: string; text: string }[];
+    };
   };
   const [drafts, setDrafts] = useState<SavedDraft[]>([]);
   const [draftsOpen, setDraftsOpen] = useState(false);
@@ -165,13 +186,17 @@ export const SayCommandBuilder = forwardRef<
     const p = d.payload || ({} as any);
     if (typeof p.content === "string") setContent(p.content);
     if (Array.isArray(p.embeds)) setEmbeds(p.embeds);
-    if (Array.isArray(p.trailingMessages)) setTrailingMessages(p.trailingMessages);
+    if (Array.isArray(p.trailingMessages))
+      setTrailingMessages(p.trailingMessages);
     toast.success(`Loaded "${d.name}".`);
     setDraftsOpen(false);
   };
 
   const deleteDraft = async (id: string) => {
-    const { error } = await supabase.from("bot_say_drafts").delete().eq("id", id);
+    const { error } = await supabase
+      .from("bot_say_drafts")
+      .delete()
+      .eq("id", id);
     if (error) {
       toast.error(error.message);
       return;
@@ -179,11 +204,12 @@ export const SayCommandBuilder = forwardRef<
     setDrafts((prev) => prev.filter((d) => d.id !== id));
   };
 
-
   const contentLimit = 2000;
 
   const updateEmbed = (id: string, patch: Partial<Embed>) =>
-    setEmbeds((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+    setEmbeds((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, ...patch } : e)),
+    );
 
   const removeEmbed = (id: string) =>
     setEmbeds((prev) => prev.filter((e) => e.id !== id));
@@ -248,7 +274,9 @@ export const SayCommandBuilder = forwardRef<
           .from("bot-assets")
           .upload(path, f, { upsert: false, contentType: f.type });
         if (upErr) throw upErr;
-        const { data: pub } = supabase.storage.from("bot-assets").getPublicUrl(path);
+        const { data: pub } = supabase.storage
+          .from("bot-assets")
+          .getPublicUrl(path);
         imageUrls.push(pub.publicUrl);
       }
 
@@ -299,7 +327,8 @@ export const SayCommandBuilder = forwardRef<
       toast.success("Message queued — your bot will post it shortly.");
       return true;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to send message.";
+      const msg =
+        err instanceof Error ? err.message : "Failed to send message.";
       toast.error(msg);
       return false;
     }
@@ -326,7 +355,10 @@ export const SayCommandBuilder = forwardRef<
             <Label>Channel</Label>
             <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
               <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              <span>Server &amp; channel picker will appear here once your bot is online.</span>
+              <span>
+                Server &amp; channel picker will appear here once your bot is
+                online.
+              </span>
             </div>
           </div>
         )}
@@ -435,68 +467,13 @@ export const SayCommandBuilder = forwardRef<
               </Section>
 
               {/* Fields */}
-              <Section
-                title={`Fields (${embed.fields.length})`}
-                small
-                defaultOpen={embed.fields.length > 0}
-              >
-                <div className="space-y-2">
-                  {embed.fields.map((f) => (
-                    <div
-                      key={f.id}
-                      className="rounded-md border border-border p-2 space-y-2 bg-card/40"
-                    >
-                      <div className="flex items-center gap-2">
-                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-                        <Textarea
-                          placeholder="Field name"
-                          rows={1}
-                          value={f.name}
-                          onChange={(e) =>
-                            updateField(embed.id, f.id, { name: e.target.value })
-                          }
-                          className="min-h-8 py-1.5"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 shrink-0"
-                          onClick={() => removeField(embed.id, f.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                      <Textarea
-                        placeholder="Field value"
-                        rows={2}
-                        value={f.value}
-                        onChange={(e) =>
-                          updateField(embed.id, f.id, { value: e.target.value })
-                        }
-                      />
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs cursor-pointer">Inline</Label>
-                        <Switch
-                          checked={f.inline}
-                          onCheckedChange={(v) =>
-                            updateField(embed.id, f.id, { inline: v })
-                          }
-                        />
-                      </div>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => addField(embed.id)}
-                  >
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Add field
-                  </Button>
-                </div>
-              </Section>
+              <FieldsEditor
+                embedId={embed.id}
+                fields={embed.fields}
+                onAdd={addField}
+                onUpdate={updateField}
+                onRemove={removeField}
+              />
 
               {/* Images */}
               <Section title="Images" small>
@@ -565,7 +542,10 @@ export const SayCommandBuilder = forwardRef<
         {trailingMessages.map((msg, idx) => (
           <div className="space-y-2" key={msg.id}>
             <div className="flex items-baseline justify-between">
-              <Label htmlFor={`say-trailing-${msg.id}`} className="font-semibold">
+              <Label
+                htmlFor={`say-trailing-${msg.id}`}
+                className="font-semibold"
+              >
                 Message {idx + 2}
               </Label>
               <button
@@ -713,7 +693,9 @@ export const SayCommandBuilder = forwardRef<
                 </div>
                 <div className="max-h-72 overflow-y-auto rounded-md border border-border divide-y divide-border">
                   {draftsLoading ? (
-                    <div className="p-3 text-xs text-muted-foreground">Loading…</div>
+                    <div className="p-3 text-xs text-muted-foreground">
+                      Loading…
+                    </div>
                   ) : drafts.length === 0 ? (
                     <div className="p-3 text-xs text-muted-foreground">
                       No saved drafts yet.
@@ -824,6 +806,91 @@ function Section({
   );
 }
 
+function FieldsEditor({
+  embedId,
+  fields,
+  onAdd,
+  onUpdate,
+  onRemove,
+}: {
+  embedId: string;
+  fields: EmbedField[];
+  onAdd: (embedId: string) => void;
+  onUpdate: (
+    embedId: string,
+    fieldId: string,
+    patch: Partial<EmbedField>,
+  ) => void;
+  onRemove: (embedId: string, fieldId: string) => void;
+}) {
+  return (
+    <div className="rounded-md border border-border bg-card/30">
+      <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium">
+        <ChevronDown className="h-3.5 w-3.5" />
+        <span className="truncate">Fields ({fields.length})</span>
+      </div>
+      <div className="px-2.5 pb-2.5">
+        <div className="space-y-2">
+          {fields.map((f) => (
+            <div
+              key={f.id}
+              className="rounded-md border border-border p-2 space-y-2 bg-card/40"
+            >
+              <div className="flex items-center gap-2">
+                <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                <Textarea
+                  placeholder="Field name"
+                  rows={1}
+                  value={f.name}
+                  onChange={(e) =>
+                    onUpdate(embedId, f.id, { name: e.currentTarget.value })
+                  }
+                  className="min-h-8 py-1.5"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0"
+                  onClick={() => onRemove(embedId, f.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <Textarea
+                placeholder="Field value"
+                rows={2}
+                value={f.value}
+                onChange={(e) =>
+                  onUpdate(embedId, f.id, { value: e.currentTarget.value })
+                }
+              />
+              <div className="flex items-center justify-between">
+                <Label className="text-xs cursor-pointer">Inline</Label>
+                <Switch
+                  checked={f.inline}
+                  onCheckedChange={(v) =>
+                    onUpdate(embedId, f.id, { inline: v })
+                  }
+                />
+              </div>
+            </div>
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => onAdd(embedId)}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add field
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DiscordMessagePreview({
   botName,
   botAvatarUrl,
@@ -880,7 +947,11 @@ function SingleMessage({
     <div className="flex gap-3">
       <div className="h-10 w-10 rounded-full bg-[#5865F2] grid place-items-center shrink-0 overflow-hidden">
         {botAvatarUrl ? (
-          <img src={botAvatarUrl} alt="" className="h-full w-full object-cover" />
+          <img
+            src={botAvatarUrl}
+            alt=""
+            className="h-full w-full object-cover"
+          />
         ) : (
           <span className="text-white text-sm font-bold">
             {botName.slice(0, 1).toUpperCase()}
@@ -906,9 +977,15 @@ function SingleMessage({
           </div>
         )}
         {files && files.length > 0 && (
-          <div className={`mt-2 ${files.length > 1 ? "grid grid-cols-2 gap-2 max-w-md" : ""}`}>
+          <div
+            className={`mt-2 ${files.length > 1 ? "grid grid-cols-2 gap-2 max-w-md" : ""}`}
+          >
             {files.map((f, i) => (
-              <PreviewImage key={`${f.name}-${i}`} file={f} single={files.length === 1} />
+              <PreviewImage
+                key={`${f.name}-${i}`}
+                file={f}
+                single={files.length === 1}
+              />
             ))}
           </div>
         )}
@@ -932,13 +1009,7 @@ function PreviewImage({ file, single }: { file: File; single?: boolean }) {
   );
 }
 
-function FileThumb({
-  file,
-  onRemove,
-}: {
-  file: File;
-  onRemove: () => void;
-}) {
+function FileThumb({ file, onRemove }: { file: File; onRemove: () => void }) {
   const [url] = useState(() => URL.createObjectURL(file));
   return (
     <div className="relative group rounded-md overflow-hidden border border-border bg-card">
@@ -1005,7 +1076,9 @@ function EmbedPreview({ embed }: { embed: Embed }) {
                 {embed.title}
               </a>
             ) : (
-              <div className="text-white font-semibold whitespace-pre-wrap break-words">{embed.title}</div>
+              <div className="text-white font-semibold whitespace-pre-wrap break-words">
+                {embed.title}
+              </div>
             ))}
           {embed.description && (
             <p className="whitespace-pre-wrap break-words text-sm text-[#dbdee1]">
