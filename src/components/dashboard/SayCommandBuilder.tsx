@@ -117,7 +117,7 @@ export const SayCommandBuilder = forwardRef<
     if (g) setActiveGuild(g); // sync the dashboard-wide selection.
   };
   const [channel, setChannel] = useState<BotChannel | null>(null);
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState("Hey everyone! Check out the info below 👇");
   const [embeds, setEmbeds] = useState<Embed[]>([newEmbed()]);
   // Extra messages shown below the embeds (each is a separate message)
   const [trailingMessages, setTrailingMessages] = useState<
