@@ -224,11 +224,13 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
                           ? "bg-primary/15 text-primary"
                           : "text-muted-foreground hover:bg-muted hover:text-foreground",
                       )}
-                      onClick={() =>
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         a.kind === "wrap"
                           ? applyWrap(a.before, a.after)
-                          : applyLinePrefix(a.linePrefix)
-                      }
+                          : applyLinePrefix(a.linePrefix);
+                      }}
                     >
                       <a.Icon className="h-3.5 w-3.5" />
                     </button>
