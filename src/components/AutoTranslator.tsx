@@ -65,11 +65,10 @@ export function AutoTranslator() {
     passIdRef.current += 1;
     const cacheKey = (s: string) => `oversite-tr:${lang}:${s}`;
 
-    const setNodeValue = (node: Text, value: string) => {
-      if (node.nodeValue !== value) {
-        node.nodeValue = value;
-        mutatedRef.current.add(node);
-      }
+    const setNodeValue = (node: Text, value: string, markMutated = true) => {
+      if (node.nodeValue !== value) node.nodeValue = value;
+      if (markMutated) mutatedRef.current.add(node);
+      else mutatedRef.current.delete(node);
     };
 
     const collectTextNodes = (root: Node): CachedNode[] => {
@@ -102,7 +101,7 @@ export function AutoTranslator() {
     const restoreToEnglish = () => {
       const all = collectTextNodes(document.body);
       for (const { node, original } of all) {
-        setNodeValue(node, original);
+        if (mutatedRef.current.has(node)) setNodeValue(node, original, false);
       }
     };
 
