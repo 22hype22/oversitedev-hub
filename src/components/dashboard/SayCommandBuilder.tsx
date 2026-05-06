@@ -61,11 +61,24 @@ const newEmbed = (): Embed => ({
   authorName: "",
   authorIconUrl: "",
   authorUrl: "",
-  title: "",
+  title: "Welcome",
   url: "",
-  description: "",
+  description: "This is your embed description. It supports **markdown** formatting like bold, italic, and [links](https://example.com).",
   color: "#5865F2",
-  fields: [],
+  fields: [
+    {
+      id: crypto.randomUUID(),
+      name: "Rule 1",
+      value: "Be respectful to everyone in the server.",
+      inline: true,
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Rule 2",
+      value: "No spamming or excessive self-promotion.",
+      inline: true,
+    },
+  ],
   imageUrl: "",
   thumbnailUrl: "",
   footerText: "",
@@ -104,7 +117,7 @@ export const SayCommandBuilder = forwardRef<
     if (g) setActiveGuild(g); // sync the dashboard-wide selection.
   };
   const [channel, setChannel] = useState<BotChannel | null>(null);
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState("Hey everyone! Check out the info below 👇");
   const [embeds, setEmbeds] = useState<Embed[]>([newEmbed()]);
   // Extra messages shown below the embeds (each is a separate message)
   const [trailingMessages, setTrailingMessages] = useState<
