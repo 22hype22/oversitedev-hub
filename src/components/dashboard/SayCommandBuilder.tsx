@@ -436,7 +436,6 @@ export const SayCommandBuilder = forwardRef<
 
               {/* Fields */}
               <Section
-                key={`fields-${embed.id}-${embed.fields.length}`}
                 title={`Fields (${embed.fields.length})`}
                 small
                 defaultOpen={embed.fields.length > 0}
