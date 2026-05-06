@@ -769,6 +769,63 @@ function Section({
   );
 }
 
+function FieldsEditor({
+  embedId,
+  fields,
+  onAdd,
+  onUpdate,
+  onRemove,
+}: {
+  embedId: string;
+  fields: EmbedField[];
+  onAdd: (embedId: string) => void;
+  onUpdate: (embedId: string, fieldId: string, patch: Partial<EmbedField>) => void;
+  onRemove: (embedId: string, fieldId: string) => void;
+}) {
+  return (
+    <Section title={`Fields (${fields.length})`} small defaultOpen>
+      <div className="space-y-2">
+        {fields.map((f) => (
+          <div key={f.id} className="rounded-md border border-border p-2 space-y-2 bg-card/40">
+            <div className="flex items-center gap-2">
+              <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+              <Textarea
+                placeholder="Field name"
+                rows={1}
+                value={f.name}
+                onChange={(e) => onUpdate(embedId, f.id, { name: e.currentTarget.value })}
+                className="min-h-8 py-1.5"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0"
+                onClick={() => onRemove(embedId, f.id)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <Textarea
+              placeholder="Field value"
+              rows={2}
+              value={f.value}
+              onChange={(e) => onUpdate(embedId, f.id, { value: e.currentTarget.value })}
+            />
+            <div className="flex items-center justify-between">
+              <Label className="text-xs cursor-pointer">Inline</Label>
+              <Switch checked={f.inline} onCheckedChange={(v) => onUpdate(embedId, f.id, { inline: v })} />
+            </div>
+          </div>
+        ))}
+        <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => onAdd(embedId)}>
+          <Plus className="h-3.5 w-3.5 mr-1" /> Add field
+        </Button>
+      </div>
+    </Section>
+  );
+}
+
 function DiscordMessagePreview({
   botName,
   botAvatarUrl,
