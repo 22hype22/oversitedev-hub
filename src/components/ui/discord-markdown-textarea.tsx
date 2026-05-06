@@ -56,30 +56,47 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
     const [activeKeys, setActiveKeys] = React.useState<Set<string>>(new Set());
 
     const computeActive = React.useCallback(
-      (start: number, end: number) => {
+      (src: string, start: number, end: number) => {
         const active = new Set<string>();
-        const selected = value.slice(start, end);
+        const selected = src.slice(start, end);
         for (const a of WRAP_ACTIONS) {
-          const wrappedOutside =
-            value.slice(Math.max(0, start - a.before.length), start) === a.before &&
-            value.slice(end, end + a.after.length) === a.after;
+          const beforeOutside = src.slice(Math.max(0, start - a.before.length), start);
+          const afterOutside = src.slice(end, end + a.after.length);
+          const wrappedOutside = beforeOutside === a.before && afterOutside === a.after;
           const wrappedInside =
             selected.startsWith(a.before) &&
             selected.endsWith(a.after) &&
             selected.length >= a.before.length + a.after.length;
+
+          // Disambiguate single-char markers (italic `*`) from doubled
+          // markers (bold `**`) and similar (`~` vs `~~`).
+          if (a.before.length === 1) {
+            const ch = a.before;
+            const prevChar = src.charAt(start - 2);
+            const nextChar = src.charAt(end + 1);
+            const innerStartChar = selected.charAt(1);
+            const innerEndChar = selected.charAt(selected.length - 2);
+            if (wrappedOutside && (prevChar === ch || afterOutside === a.after && nextChar === ch)) {
+              continue;
+            }
+            if (wrappedInside && (innerStartChar === ch || innerEndChar === ch)) {
+              continue;
+            }
+          }
+
           if (wrappedOutside || wrappedInside) active.add(a.key);
         }
         // Line prefix actions: active if every selected line starts with prefix
-        const lineStart = value.lastIndexOf("\n", start - 1) + 1;
-        const lineEndIdx = value.indexOf("\n", end);
-        const lineEnd = lineEndIdx === -1 ? value.length : lineEndIdx;
-        const lines = value.slice(lineStart, lineEnd).split("\n");
+        const lineStart = src.lastIndexOf("\n", start - 1) + 1;
+        const lineEndIdx = src.indexOf("\n", end);
+        const lineEnd = lineEndIdx === -1 ? src.length : lineEndIdx;
+        const lines = src.slice(lineStart, lineEnd).split("\n");
         for (const a of LINE_ACTIONS) {
           if (lines.length && lines.every((l) => l.startsWith(a.linePrefix))) active.add(a.key);
         }
         return active;
       },
-      [value],
+      [],
     );
 
     const updateToolbar = React.useCallback(() => {
@@ -88,11 +105,22 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
       const { selectionStart, selectionEnd } = el;
       if (selectionStart === selectionEnd) {
         setToolbar(null);
+        setActiveKeys(new Set());
         return;
       }
       setToolbar({ top: -40, left: el.clientWidth / 2 });
-      setActiveKeys(computeActive(selectionStart, selectionEnd));
+      setActiveKeys(computeActive(el.value, selectionStart, selectionEnd));
     }, [computeActive]);
+
+    // Recompute active state whenever the value changes while a selection
+    // is open (e.g. after clicking a toolbar button).
+    React.useEffect(() => {
+      const el = innerRef.current;
+      if (!el) return;
+      if (el.selectionStart !== el.selectionEnd) {
+        setActiveKeys(computeActive(el.value, el.selectionStart, el.selectionEnd));
+      }
+    }, [value, computeActive]);
 
     const applyWrap = (before: string, after: string) => {
       const el = innerRef.current;
