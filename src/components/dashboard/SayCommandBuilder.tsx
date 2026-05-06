@@ -399,7 +399,15 @@ export const SayCommandBuilder = forwardRef<
     <div className="grid grid-cols-1 lg:grid-cols-[1fr,1fr] gap-4">
       {/* Editor */}
       <div className="space-y-3">
-        {botId ? (
+        {mode === "rules" ? (
+          <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>
+              Build your server rules below. They'll be posted in whichever
+              channel a member runs <code className="font-mono">/rules</code>.
+            </span>
+          </div>
+        ) : botId ? (
           <GuildChannelPicker
             botId={botId}
             guildId={guild?.guild_id ?? null}
