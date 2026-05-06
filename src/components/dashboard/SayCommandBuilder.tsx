@@ -677,21 +677,79 @@ export const SayCommandBuilder = forwardRef<
           </div>
         </div>
         <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
-          <button
-            type="button"
-            onClick={saveDraft}
-            className="inline-flex items-center gap-1 hover:text-foreground transition-smooth"
+          <Dialog
+            open={draftsOpen}
+            onOpenChange={(o) => {
+              setDraftsOpen(o);
+              if (o) refreshDrafts();
+            }}
           >
-            <Download className="h-3 w-3" /> Save draft
-          </button>
-          <span className="opacity-40">·</span>
-          <button
-            type="button"
-            onClick={() => draftInputRef.current?.click()}
-            className="inline-flex items-center gap-1 hover:text-foreground transition-smooth"
-          >
-            <Upload className="h-3 w-3" /> Load draft
-          </button>
+            <DialogTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 hover:text-foreground transition-smooth"
+              >
+                <FolderOpen className="h-3 w-3" /> Saved drafts
+              </button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Saved drafts</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Draft name (e.g. Server rules)"
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                  />
+                  <Button type="button" size="sm" onClick={saveDraft}>
+                    <Save className="h-3.5 w-3.5 mr-1" /> Save
+                  </Button>
+                </div>
+                <div className="max-h-72 overflow-y-auto rounded-md border border-border divide-y divide-border">
+                  {draftsLoading ? (
+                    <div className="p-3 text-xs text-muted-foreground">Loading…</div>
+                  ) : drafts.length === 0 ? (
+                    <div className="p-3 text-xs text-muted-foreground">
+                      No saved drafts yet.
+                    </div>
+                  ) : (
+                    drafts.map((d) => (
+                      <div
+                        key={d.id}
+                        className="flex items-center gap-2 p-2 hover:bg-muted/30 transition-smooth"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm truncate">{d.name}</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {new Date(d.updated_at).toLocaleString()}
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => loadDraft(d)}
+                        >
+                          Load
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => deleteDraft(d.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
