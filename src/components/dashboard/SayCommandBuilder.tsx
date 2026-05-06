@@ -438,6 +438,7 @@ export const SayCommandBuilder = forwardRef<
               <Section
                 title={`Fields (${embed.fields.length})`}
                 small
+                defaultOpen={embed.fields.length > 0}
               >
                 <div className="space-y-2">
                   {embed.fields.map((f) => (
