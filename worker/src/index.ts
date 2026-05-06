@@ -76,7 +76,7 @@ function getRuntime(botId: string): BotRuntime {
 type Cmd = {
   id: string;
   bot_id: string;
-  action: "start" | "stop" | "restart" | "update" | "list_channels" | "list_guilds" | "list_roles" | "post_message";
+  action: "start" | "stop" | "restart" | "update" | "list_channels" | "list_guilds" | "list_roles";
   payload?: {
     guild_id?: string;
   } | null;
@@ -114,18 +114,7 @@ async function claimNextCommand(): Promise<Cmd | null> {
     console.error("claim refused:", result?.error);
     return null;
   }
-  const cmd = result.command ?? null;
-  // The worker must NOT process post_message commands — those are handled
-  // exclusively by the deployed Discord bot. Release it back to pending so
-  // the bot can claim it.
-  if (cmd && cmd.action === "post_message") {
-    await supabase
-      .from("bot_commands")
-      .update({ status: "pending", claimed_at: null, worker_id: null })
-      .eq("id", cmd.id);
-    return null;
-  }
-  return cmd;
+  return result.command ?? null;
 }
 
 async function completeCommand(id: string, ok: boolean, errorMessage?: string) {
