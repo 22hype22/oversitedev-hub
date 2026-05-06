@@ -783,7 +783,12 @@ function FieldsEditor({
   onRemove: (embedId: string, fieldId: string) => void;
 }) {
   return (
-    <Section title={`Fields (${fields.length})`} small defaultOpen>
+    <div className="rounded-md border border-border bg-card/30">
+      <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium">
+        <ChevronDown className="h-3.5 w-3.5" />
+        <span className="truncate">Fields ({fields.length})</span>
+      </div>
+      <div className="px-2.5 pb-2.5">
       <div className="space-y-2">
         {fields.map((f) => (
           <div key={f.id} className="rounded-md border border-border p-2 space-y-2 bg-card/40">
@@ -822,7 +827,8 @@ function FieldsEditor({
           <Plus className="h-3.5 w-3.5 mr-1" /> Add field
         </Button>
       </div>
-    </Section>
+      </div>
+    </div>
   );
 }
 
