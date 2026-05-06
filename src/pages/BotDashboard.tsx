@@ -505,8 +505,10 @@ const BotSection = ({
   const groupedAddons = ADDON_GROUPS
     .filter((g) => allowedGroupKeys.has(g.key))
     .map((g) => ({ ...g, owned: g.ids.filter((id) => ownedAddons.has(id)) }))
-    .filter((g) => g.owned.length > 0);
-  const totalConfigurable = groupedAddons.reduce((n, g) => n + g.owned.length, 0);
+    // Keep the "shared" group even when empty so the Source code card still renders.
+    .filter((g) => g.owned.length > 0 || (g.key === "shared" && !bot.isDemo));
+  const totalConfigurable =
+    groupedAddons.reduce((n, g) => n + g.owned.length, 0) + (!bot.isDemo ? 1 : 0);
 
   // ── Search-driven section auto-expand ──────────────────────────────────────
   // When the user types in the dashboard search bar, expand whichever section
