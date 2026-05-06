@@ -162,21 +162,21 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
       const src = el.value;
       const selected = src.slice(start, end);
 
-      // Toggle: detect if this exact marker is already applied around the
-      // selection. Use run-length so `***x***` correctly toggles bold off
-      // while leaving italic intact.
-      const ch = before.charAt(0);
-      const r = runLen(src, start, end, ch);
-      const already = before.length === 2 ? r >= 2 : r % 2 === 1;
-      const stripLen = before.length;
+      const clickedAction = WRAP_ACTIONS.find((a) => a.before === before && a.after === after);
+      const activeLayer = getBoundaryLayer(src, start, end);
+      const removal = clickedAction ? activeLayer?.removals.get(clickedAction.key) : undefined;
 
       let next: string;
       let newStart: number;
       let newEnd: number;
-      if (already) {
-        next = src.slice(0, start - stripLen) + selected + src.slice(end + stripLen);
-        newStart = start - stripLen;
-        newEnd = end - stripLen;
+      if (removal) {
+        next =
+          src.slice(0, removal.leftStart) +
+          src.slice(removal.leftEnd, removal.rightStart) +
+          src.slice(removal.rightEnd);
+        const removedLeft = removal.leftEnd - removal.leftStart;
+        newStart = start - removedLeft;
+        newEnd = end - removedLeft;
       } else {
         next = src.slice(0, start) + before + selected + after + src.slice(end);
         newStart = start + before.length;
