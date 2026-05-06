@@ -320,19 +320,6 @@ export const SayCommandBuilder = forwardRef<
           </div>
         )}
 
-        <input
-          ref={draftInputRef}
-          type="file"
-          accept="application/json,.json"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) loadDraft(f);
-            if (draftInputRef.current) draftInputRef.current.value = "";
-          }}
-        />
-
-
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
             <Label htmlFor="say-content" className="font-semibold">
