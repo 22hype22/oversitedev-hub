@@ -282,11 +282,11 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
           onKeyUp={updateToolbar}
           onMouseUp={updateToolbar}
           onBlur={() => {
-            // Defer so toolbar clicks register first
-            setTimeout(() => {
-              const el = innerRef.current;
-              if (!el || el.selectionStart === el.selectionEnd) setToolbar(null);
-            }, 150);
+            // Toolbar uses onMouseDown preventDefault so clicks don't blur.
+            // Hide immediately to avoid two toolbars showing across textareas.
+            setToolbar(null);
+            setActiveKeys(new Set());
+            selectionRef.current = null;
           }}
           className={cn(className)}
           {...props}
