@@ -456,6 +456,12 @@ export const SayCommandBuilder = forwardRef<
                           onInput={(e) =>
                             updateField(embed.id, f.id, { name: e.currentTarget.value })
                           }
+                          onKeyUp={(e) =>
+                            updateField(embed.id, f.id, { name: e.currentTarget.value })
+                          }
+                          onBlur={(e) =>
+                            updateField(embed.id, f.id, { name: e.currentTarget.value })
+                          }
                           className="min-h-8 py-1.5"
                         />
                         <Button
@@ -473,6 +479,12 @@ export const SayCommandBuilder = forwardRef<
                         rows={2}
                         value={f.value}
                         onInput={(e) =>
+                          updateField(embed.id, f.id, { value: e.currentTarget.value })
+                        }
+                        onKeyUp={(e) =>
+                          updateField(embed.id, f.id, { value: e.currentTarget.value })
+                        }
+                        onBlur={(e) =>
                           updateField(embed.id, f.id, { value: e.currentTarget.value })
                         }
                       />
