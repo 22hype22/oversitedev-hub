@@ -10,7 +10,15 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, Plus, Trash2, GripVertical, Info, Download, Upload } from "lucide-react";
+import { ChevronDown, Plus, Trash2, GripVertical, Info, Save, FolderOpen } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { GuildChannelPicker } from "./GuildChannelPicker";
 import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
@@ -105,42 +113,77 @@ export const SayCommandBuilder = forwardRef<
   // Files actually attached by the user
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const draftInputRef = useRef<HTMLInputElement>(null);
   const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
-  const saveDraft = () => {
-    const draft = {
-      version: 1,
-      content,
-      embeds,
-      trailingMessages,
-    };
-    const blob = new Blob([JSON.stringify(draft, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    const stamp = new Date().toISOString().slice(0, 10);
-    a.href = url;
-    a.download = `say-draft-${stamp}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Draft saved.");
+  type SavedDraft = {
+    id: string;
+    name: string;
+    updated_at: string;
+    payload: { content: string; embeds: Embed[]; trailingMessages: { id: string; text: string }[] };
+  };
+  const [drafts, setDrafts] = useState<SavedDraft[]>([]);
+  const [draftsOpen, setDraftsOpen] = useState(false);
+  const [draftName, setDraftName] = useState("");
+  const [draftsLoading, setDraftsLoading] = useState(false);
+
+  const refreshDrafts = async () => {
+    if (!botId) return;
+    setDraftsLoading(true);
+    const { data } = await supabase
+      .from("bot_say_drafts")
+      .select("id, name, updated_at, payload")
+      .eq("bot_id", botId)
+      .order("updated_at", { ascending: false });
+    setDrafts((data as SavedDraft[]) ?? []);
+    setDraftsLoading(false);
   };
 
-  const loadDraft = async (file: File) => {
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      if (typeof data.content === "string") setContent(data.content);
-      if (Array.isArray(data.embeds)) setEmbeds(data.embeds);
-      if (Array.isArray(data.trailingMessages))
-        setTrailingMessages(data.trailingMessages);
-      toast.success("Draft loaded.");
-    } catch {
-      toast.error("That file isn't a valid draft.");
+  const saveDraft = async () => {
+    if (!botId) {
+      toast.error("Bot not ready yet.");
+      return;
     }
+    const name = draftName.trim() || `Draft ${new Date().toLocaleString()}`;
+    const { data: auth } = await supabase.auth.getUser();
+    const userId = auth.user?.id;
+    if (!userId) {
+      toast.error("Sign in to save drafts.");
+      return;
+    }
+    const payload = { content, embeds, trailingMessages };
+    const { error } = await supabase.from("bot_say_drafts").insert({
+      user_id: userId,
+      bot_id: botId,
+      name,
+      payload: payload as any,
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Draft saved.");
+    setDraftName("");
+    refreshDrafts();
   };
+
+  const loadDraft = (d: SavedDraft) => {
+    const p = d.payload || ({} as any);
+    if (typeof p.content === "string") setContent(p.content);
+    if (Array.isArray(p.embeds)) setEmbeds(p.embeds);
+    if (Array.isArray(p.trailingMessages)) setTrailingMessages(p.trailingMessages);
+    toast.success(`Loaded "${d.name}".`);
+    setDraftsOpen(false);
+  };
+
+  const deleteDraft = async (id: string) => {
+    const { error } = await supabase.from("bot_say_drafts").delete().eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setDrafts((prev) => prev.filter((d) => d.id !== id));
+  };
+
 
   const contentLimit = 2000;
 
@@ -284,19 +327,6 @@ export const SayCommandBuilder = forwardRef<
             </div>
           </div>
         )}
-
-        <input
-          ref={draftInputRef}
-          type="file"
-          accept="application/json,.json"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) loadDraft(f);
-            if (draftInputRef.current) draftInputRef.current.value = "";
-          }}
-        />
-
 
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
@@ -647,21 +677,79 @@ export const SayCommandBuilder = forwardRef<
           </div>
         </div>
         <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
-          <button
-            type="button"
-            onClick={saveDraft}
-            className="inline-flex items-center gap-1 hover:text-foreground transition-smooth"
+          <Dialog
+            open={draftsOpen}
+            onOpenChange={(o) => {
+              setDraftsOpen(o);
+              if (o) refreshDrafts();
+            }}
           >
-            <Download className="h-3 w-3" /> Save draft
-          </button>
-          <span className="opacity-40">·</span>
-          <button
-            type="button"
-            onClick={() => draftInputRef.current?.click()}
-            className="inline-flex items-center gap-1 hover:text-foreground transition-smooth"
-          >
-            <Upload className="h-3 w-3" /> Load draft
-          </button>
+            <DialogTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 hover:text-foreground transition-smooth"
+              >
+                <FolderOpen className="h-3 w-3" /> Saved drafts
+              </button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Saved drafts</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Draft name (e.g. Server rules)"
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                  />
+                  <Button type="button" size="sm" onClick={saveDraft}>
+                    <Save className="h-3.5 w-3.5 mr-1" /> Save
+                  </Button>
+                </div>
+                <div className="max-h-72 overflow-y-auto rounded-md border border-border divide-y divide-border">
+                  {draftsLoading ? (
+                    <div className="p-3 text-xs text-muted-foreground">Loading…</div>
+                  ) : drafts.length === 0 ? (
+                    <div className="p-3 text-xs text-muted-foreground">
+                      No saved drafts yet.
+                    </div>
+                  ) : (
+                    drafts.map((d) => (
+                      <div
+                        key={d.id}
+                        className="flex items-center gap-2 p-2 hover:bg-muted/30 transition-smooth"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm truncate">{d.name}</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {new Date(d.updated_at).toLocaleString()}
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => loadDraft(d)}
+                        >
+                          Load
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => deleteDraft(d.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
