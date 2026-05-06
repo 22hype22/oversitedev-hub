@@ -75,6 +75,7 @@ type Props = {
  */
 export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: openProp, onOpenChange, enabled = true, onToggleEnabled }: Props) {
   const isSayCommand = addonId === "messages";
+  const isRules = addonId === "rules";
   const isTicketPanel = addonId === "ticket-message-customization";
   const isAnonReport = addonId === "anonymous-reporting";
   const isVerification = addonId === "verification-system";
