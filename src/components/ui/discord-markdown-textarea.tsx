@@ -53,6 +53,34 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
     };
 
     const [toolbar, setToolbar] = React.useState<{ top: number; left: number } | null>(null);
+    const [activeKeys, setActiveKeys] = React.useState<Set<string>>(new Set());
+
+    const computeActive = React.useCallback(
+      (start: number, end: number) => {
+        const active = new Set<string>();
+        const selected = value.slice(start, end);
+        for (const a of WRAP_ACTIONS) {
+          const wrappedOutside =
+            value.slice(Math.max(0, start - a.before.length), start) === a.before &&
+            value.slice(end, end + a.after.length) === a.after;
+          const wrappedInside =
+            selected.startsWith(a.before) &&
+            selected.endsWith(a.after) &&
+            selected.length >= a.before.length + a.after.length;
+          if (wrappedOutside || wrappedInside) active.add(a.key);
+        }
+        // Line prefix actions: active if every selected line starts with prefix
+        const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+        const lineEndIdx = value.indexOf("\n", end);
+        const lineEnd = lineEndIdx === -1 ? value.length : lineEndIdx;
+        const lines = value.slice(lineStart, lineEnd).split("\n");
+        for (const a of LINE_ACTIONS) {
+          if (lines.length && lines.every((l) => l.startsWith(a.linePrefix))) active.add(a.key);
+        }
+        return active;
+      },
+      [value],
+    );
 
     const updateToolbar = React.useCallback(() => {
       const el = innerRef.current;
@@ -62,9 +90,9 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
         setToolbar(null);
         return;
       }
-      // Position above the textarea, centered horizontally.
       setToolbar({ top: -40, left: el.clientWidth / 2 });
-    }, []);
+      setActiveKeys(computeActive(selectionStart, selectionEnd));
+    }, [computeActive]);
 
     const applyWrap = (before: string, after: string) => {
       const el = innerRef.current;
