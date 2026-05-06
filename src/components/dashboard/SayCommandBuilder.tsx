@@ -430,24 +430,26 @@ export const SayCommandBuilder = forwardRef<
           </div>
         )}
 
-        <div className="space-y-2">
-          <div className="flex items-baseline justify-between">
-            <Label htmlFor="say-content" className="font-semibold">
-              Content
-            </Label>
-            <span className="text-xs text-muted-foreground italic">
-              {content.length}/{contentLimit}
-            </span>
+        {mode !== "rules" && (
+          <div className="space-y-2">
+            <div className="flex items-baseline justify-between">
+              <Label htmlFor="say-content" className="font-semibold">
+                Content
+              </Label>
+              <span className="text-xs text-muted-foreground italic">
+                {content.length}/{contentLimit}
+              </span>
+            </div>
+            <Textarea
+              id="say-content"
+              value={content}
+              onChange={(e) => setContent(e.target.value.slice(0, contentLimit))}
+              rows={5}
+              placeholder="Message content (supports markdown)."
+              className="resize-y"
+            />
           </div>
-          <Textarea
-            id="say-content"
-            value={content}
-            onChange={(e) => setContent(e.target.value.slice(0, contentLimit))}
-            rows={5}
-            placeholder="Message content (supports markdown)."
-            className="resize-y"
-          />
-        </div>
+        )}
 
         {embeds.map((embed, i) => (
           <Section
