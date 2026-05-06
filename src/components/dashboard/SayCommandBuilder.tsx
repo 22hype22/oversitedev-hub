@@ -100,8 +100,10 @@ export const SayCommandBuilder = forwardRef<
     botId?: string;
     botName: string;
     botAvatarUrl?: string | null;
+    /** "send" posts to a channel via the queue; "rules" saves to bot_config(feature='rules') for the /rules command. */
+    mode?: "send" | "rules";
   }
->(function SayCommandBuilder({ botId, botName, botAvatarUrl }, ref) {
+>(function SayCommandBuilder({ botId, botName, botAvatarUrl, mode = "send" }, ref) {
   const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
   const [guild, setGuildLocal] = useState<BotGuild | null>(activeGuild);
   // Keep our local picker in sync if the dashboard-wide active server changes.
@@ -248,7 +250,64 @@ export const SayCommandBuilder = forwardRef<
       ),
     );
 
+  // In rules mode, hydrate from saved bot_config row (if any) on mount.
+  useEffect(() => {
+    if (mode !== "rules" || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", "rules")
+        .maybeSingle();
+      if (cancelled || !data?.config) return;
+      const cfg = data.config as any;
+      if (typeof cfg.content === "string") setContent(cfg.content);
+      if (Array.isArray(cfg.embeds) && cfg.embeds.length > 0) setEmbeds(cfg.embeds);
+      if (Array.isArray(cfg.trailingMessages))
+        setTrailingMessages(cfg.trailingMessages);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, botId]);
+
+  const saveRules = async (): Promise<boolean> => {
+    if (!botId) {
+      toast.error("Bot not ready yet.");
+      return false;
+    }
+    if (!content.trim() && embeds.length === 0) {
+      toast.error("Add some content or an embed first.");
+      return false;
+    }
+    try {
+      const payload = {
+        bot_id: botId,
+        feature: "rules",
+        config: { content, embeds, trailingMessages } as any,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supabase
+        .from("bot_config")
+        .upsert(payload, { onConflict: "bot_id,feature" });
+      if (error) throw error;
+      await supabase.rpc("enqueue_apply_config" as any, {
+        _bot_id: botId,
+        _feature: "rules",
+      });
+      toast.success("Rules saved — /rules will use this in your server.");
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to save rules.";
+      toast.error(msg);
+      return false;
+    }
+  };
+
   const send = async (): Promise<boolean> => {
+    if (mode === "rules") return saveRules();
     if (!botId) {
       toast.error("Bot not ready yet.");
       return false;
@@ -340,7 +399,15 @@ export const SayCommandBuilder = forwardRef<
     <div className="grid grid-cols-1 lg:grid-cols-[1fr,1fr] gap-4">
       {/* Editor */}
       <div className="space-y-3">
-        {botId ? (
+        {mode === "rules" ? (
+          <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>
+              Build your server rules below. They'll be posted in whichever
+              channel a member runs <code className="font-mono">/rules</code>.
+            </span>
+          </div>
+        ) : botId ? (
           <GuildChannelPicker
             botId={botId}
             guildId={guild?.guild_id ?? null}

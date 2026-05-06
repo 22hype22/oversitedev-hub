@@ -75,6 +75,7 @@ type Props = {
  */
 export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: openProp, onOpenChange, enabled = true, onToggleEnabled }: Props) {
   const isSayCommand = addonId === "messages";
+  const isRules = addonId === "rules";
   const isTicketPanel = addonId === "ticket-message-customization";
   const isAnonReport = addonId === "anonymous-reporting";
   const isVerification = addonId === "verification-system";
@@ -869,7 +870,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           className={
-            isSayCommand
+            isSayCommand || isRules
               ? "max-w-5xl max-h-[90vh] overflow-y-auto"
               : isTicketPanel || isAnonReport
                 ? "max-w-2xl max-h-[90vh] overflow-y-auto"
@@ -890,6 +891,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
           {isSayCommand ? (
             <div className="py-2">
               <SayCommandBuilder ref={sayBuilderRef} botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
+            </div>
+          ) : isRules ? (
+            <div className="py-2">
+              <SayCommandBuilder ref={sayBuilderRef} mode="rules" botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
             </div>
           ) : isTicketPanel ? (
             <TicketPanelBuilder botId={botId} botName={botName} variant="ticket" />
@@ -920,7 +925,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               <Button
                 disabled={saving}
                 onClick={async () => {
-                  if (isSayCommand) {
+                  if (isSayCommand || isRules) {
                     setSaving(true);
                     try {
                       const ok = await sayBuilderRef.current?.send();
@@ -949,7 +954,13 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                 }}
               >
                 <Save className="h-4 w-4 mr-1.5" />
-                {saving ? "Saving…" : isSayCommand ? "Send message" : "Save changes"}
+                {saving
+                  ? "Saving…"
+                  : isRules
+                    ? "Save rules"
+                    : isSayCommand
+                      ? "Send message"
+                      : "Save changes"}
               </Button>
             </div>
           </DialogFooter>

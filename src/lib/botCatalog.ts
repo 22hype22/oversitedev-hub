@@ -43,6 +43,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
 
   // Support — included base features
   messages: "Messages",
+  rules: "Rules",
 
   // Support
   "staff-performance": "Staff Performance Tracking",
@@ -185,10 +186,11 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
     "anti-raid",
     "phishing-detection",
     "messages",
+    "rules",
   ],
   // Support and Utilities bases should surface every configured section in the dashboard.
-  support: [...ADDON_IDS_BY_BASE.support, "messages"],
-  utilities: [...ADDON_IDS_BY_BASE.utilities, "messages"],
+  support: [...ADDON_IDS_BY_BASE.support, "messages", "rules"],
+  utilities: [...ADDON_IDS_BY_BASE.utilities, "messages", "rules"],
 };
 
 export function getIncludedAddonsForBase(baseId: string): string[] {
