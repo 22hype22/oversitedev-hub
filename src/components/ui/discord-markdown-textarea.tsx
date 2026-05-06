@@ -66,23 +66,53 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
       return Math.min(b, a);
     };
 
-    const isWrapActive = React.useCallback(
-      (src: string, start: number, end: number, action: WrapAction) => {
-        const ch = action.before.charAt(0);
-        // Only single-char-repeated markers are supported (`*`, `~`, `|`, `` ` ``)
-        const r = runLen(src, start, end, ch);
-        if (action.before.length === 2) return r >= 2;
-        // single char marker (italic `*`): active for odd run lengths
-        return r % 2 === 1;
-      },
-      [],
-    );
+    const getBoundaryLayer = React.useCallback((src: string, left: number, right: number) => {
+      const keys = new Set<string>();
+      const removals = new Map<string, { leftStart: number; leftEnd: number; rightStart: number; rightEnd: number }>();
+      const starRun = runLen(src, left, right, "*");
+
+      if (starRun > 0) {
+        if (starRun >= 2) {
+          keys.add("bold");
+          removals.set("bold", { leftStart: left - 2, leftEnd: left, rightStart: right, rightEnd: right + 2 });
+        }
+        if (starRun % 2 === 1) {
+          keys.add("italic");
+          removals.set("italic", { leftStart: left - 1, leftEnd: left, rightStart: right, rightEnd: right + 1 });
+        }
+        return { keys, removals, leftLen: starRun, rightLen: starRun };
+      }
+
+      for (const action of WRAP_ACTIONS) {
+        if (action.key === "bold" || action.key === "italic") continue;
+        const leftStart = left - action.before.length;
+        const rightEnd = right + action.after.length;
+        if (
+          leftStart >= 0 &&
+          rightEnd <= src.length &&
+          src.slice(leftStart, left) === action.before &&
+          src.slice(right, rightEnd) === action.after
+        ) {
+          keys.add(action.key);
+          removals.set(action.key, { leftStart, leftEnd: left, rightStart: right, rightEnd });
+          return { keys, removals, leftLen: action.before.length, rightLen: action.after.length };
+        }
+      }
+
+      return null;
+    }, []);
 
     const computeActive = React.useCallback(
       (src: string, start: number, end: number) => {
         const active = new Set<string>();
-        for (const a of WRAP_ACTIONS) {
-          if (isWrapActive(src, start, end, a)) active.add(a.key);
+        let left = start;
+        let right = end;
+        for (let i = 0; i < WRAP_ACTIONS.length; i++) {
+          const layer = getBoundaryLayer(src, left, right);
+          if (!layer) break;
+          layer.keys.forEach((key) => active.add(key));
+          left -= layer.leftLen;
+          right += layer.rightLen;
         }
         // Line prefix actions: active if every selected line starts with prefix
         const lineStart = src.lastIndexOf("\n", start - 1) + 1;
@@ -94,7 +124,7 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
         }
         return active;
       },
-      [],
+      [getBoundaryLayer],
     );
 
     const updateToolbar = React.useCallback(() => {
@@ -132,21 +162,21 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
       const src = el.value;
       const selected = src.slice(start, end);
 
-      // Toggle: detect if this exact marker is already applied around the
-      // selection. Use run-length so `***x***` correctly toggles bold off
-      // while leaving italic intact.
-      const ch = before.charAt(0);
-      const r = runLen(src, start, end, ch);
-      const already = before.length === 2 ? r >= 2 : r % 2 === 1;
-      const stripLen = before.length;
+      const clickedAction = WRAP_ACTIONS.find((a) => a.before === before && a.after === after);
+      const activeLayer = getBoundaryLayer(src, start, end);
+      const removal = clickedAction ? activeLayer?.removals.get(clickedAction.key) : undefined;
 
       let next: string;
       let newStart: number;
       let newEnd: number;
-      if (already) {
-        next = src.slice(0, start - stripLen) + selected + src.slice(end + stripLen);
-        newStart = start - stripLen;
-        newEnd = end - stripLen;
+      if (removal) {
+        next =
+          src.slice(0, removal.leftStart) +
+          src.slice(removal.leftEnd, removal.rightStart) +
+          src.slice(removal.rightEnd);
+        const removedLeft = removal.leftEnd - removal.leftStart;
+        newStart = start - removedLeft;
+        newEnd = end - removedLeft;
       } else {
         next = src.slice(0, start) + before + selected + after + src.slice(end);
         newStart = start + before.length;
