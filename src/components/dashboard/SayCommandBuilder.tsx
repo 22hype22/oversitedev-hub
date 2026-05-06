@@ -285,34 +285,18 @@ export const SayCommandBuilder = forwardRef<
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-card/30 p-2">
-          <span className="text-xs font-semibold mr-1">Drafts</span>
-          <Button type="button" variant="outline" size="sm" onClick={saveDraft}>
-            <Download className="h-3.5 w-3.5 mr-1" /> Save draft
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => draftInputRef.current?.click()}
-          >
-            <Upload className="h-3.5 w-3.5 mr-1" /> Load draft
-          </Button>
-          <input
-            ref={draftInputRef}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) loadDraft(f);
-              if (draftInputRef.current) draftInputRef.current.value = "";
-            }}
-          />
-          <span className="text-[11px] text-muted-foreground ml-auto">
-            Downloads a JSON file you can re-upload later.
-          </span>
-        </div>
+        <input
+          ref={draftInputRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) loadDraft(f);
+            if (draftInputRef.current) draftInputRef.current.value = "";
+          }}
+        />
+
 
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
@@ -328,7 +312,7 @@ export const SayCommandBuilder = forwardRef<
             value={content}
             onChange={(e) => setContent(e.target.value.slice(0, contentLimit))}
             rows={5}
-            placeholder=""
+            placeholder="Message content (supports markdown)."
             className="resize-y"
           />
         </div>
@@ -575,7 +559,7 @@ export const SayCommandBuilder = forwardRef<
                 )
               }
               rows={4}
-              placeholder=""
+              placeholder="Plain message shown below."
               className="resize-y"
             />
           </div>
@@ -661,6 +645,23 @@ export const SayCommandBuilder = forwardRef<
               Clear
             </Button>
           </div>
+        </div>
+        <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
+          <button
+            type="button"
+            onClick={saveDraft}
+            className="inline-flex items-center gap-1 hover:text-foreground transition-smooth"
+          >
+            <Download className="h-3 w-3" /> Save draft
+          </button>
+          <span className="opacity-40">·</span>
+          <button
+            type="button"
+            onClick={() => draftInputRef.current?.click()}
+            className="inline-flex items-center gap-1 hover:text-foreground transition-smooth"
+          >
+            <Upload className="h-3 w-3" /> Load draft
+          </button>
         </div>
       </div>
 
