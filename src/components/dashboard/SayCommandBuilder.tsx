@@ -815,10 +815,10 @@ export const SayCommandBuilder = forwardRef<
           <DiscordMessagePreview
             botName={botName}
             botAvatarUrl={botAvatarUrl ?? undefined}
-            content={content}
-            trailingMessages={trailingMessages.map((m) => m.text)}
+            content={mode === "rules" ? "" : content}
+            trailingMessages={mode === "rules" ? [] : trailingMessages.map((m) => m.text)}
             embeds={embeds}
-            files={files}
+            files={mode === "rules" ? [] : files}
           />
         </div>
       </div>
