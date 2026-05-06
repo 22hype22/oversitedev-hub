@@ -76,7 +76,7 @@ function getRuntime(botId: string): BotRuntime {
 type Cmd = {
   id: string;
   bot_id: string;
-  action: "start" | "stop" | "restart" | "update" | "list_channels" | "list_guilds" | "list_roles";
+  action: "start" | "stop" | "restart" | "update" | "list_channels" | "list_guilds" | "list_roles" | "post_message";
   payload?: {
     guild_id?: string;
   } | null;
