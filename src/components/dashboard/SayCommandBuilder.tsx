@@ -264,7 +264,7 @@ export const SayCommandBuilder = forwardRef<
             value={content}
             onChange={(e) => setContent(e.target.value.slice(0, contentLimit))}
             rows={5}
-            placeholder="Message content (supports markdown)."
+            placeholder=""
             className="resize-y"
           />
         </div>
