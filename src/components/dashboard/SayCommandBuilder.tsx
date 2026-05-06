@@ -435,68 +435,13 @@ export const SayCommandBuilder = forwardRef<
               </Section>
 
               {/* Fields */}
-              <Section
-                title={`Fields (${embed.fields.length})`}
-                small
-                defaultOpen={embed.fields.length > 0}
-              >
-                <div className="space-y-2">
-                  {embed.fields.map((f) => (
-                    <div
-                      key={f.id}
-                      className="rounded-md border border-border p-2 space-y-2 bg-card/40"
-                    >
-                      <div className="flex items-center gap-2">
-                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-                        <Textarea
-                          placeholder="Field name"
-                          rows={1}
-                          value={f.name}
-                          onChange={(e) =>
-                            updateField(embed.id, f.id, { name: e.target.value })
-                          }
-                          className="min-h-8 py-1.5"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 shrink-0"
-                          onClick={() => removeField(embed.id, f.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                      <Textarea
-                        placeholder="Field value"
-                        rows={2}
-                        value={f.value}
-                        onChange={(e) =>
-                          updateField(embed.id, f.id, { value: e.target.value })
-                        }
-                      />
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs cursor-pointer">Inline</Label>
-                        <Switch
-                          checked={f.inline}
-                          onCheckedChange={(v) =>
-                            updateField(embed.id, f.id, { inline: v })
-                          }
-                        />
-                      </div>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => addField(embed.id)}
-                  >
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Add field
-                  </Button>
-                </div>
-              </Section>
+              <FieldsEditor
+                embedId={embed.id}
+                fields={embed.fields}
+                onAdd={addField}
+                onUpdate={updateField}
+                onRemove={removeField}
+              />
 
               {/* Images */}
               <Section title="Images" small>
