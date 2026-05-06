@@ -856,6 +856,36 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_say_drafts: {
+        Row: {
+          bot_id: string
+          created_at: string
+          id: string
+          name: string
+          payload: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bot_id: string
+          created_at?: string
+          id?: string
+          name: string
+          payload: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bot_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          payload?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bot_secret_slots: {
         Row: {
           addon_id: string
