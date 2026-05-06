@@ -56,36 +56,33 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
     const [activeKeys, setActiveKeys] = React.useState<Set<string>>(new Set());
     const selectionRef = React.useRef<{ start: number; end: number } | null>(null);
 
+    // For a given marker char, return the matched run length r at the
+    // selection boundaries (min of consecutive chars before start and after end).
+    const runLen = (src: string, start: number, end: number, ch: string) => {
+      let b = 0;
+      while (start - b - 1 >= 0 && src.charAt(start - b - 1) === ch) b++;
+      let a = 0;
+      while (end + a < src.length && src.charAt(end + a) === ch) a++;
+      return Math.min(b, a);
+    };
+
+    const isWrapActive = React.useCallback(
+      (src: string, start: number, end: number, action: WrapAction) => {
+        const ch = action.before.charAt(0);
+        // Only single-char-repeated markers are supported (`*`, `~`, `|`, `` ` ``)
+        const r = runLen(src, start, end, ch);
+        if (action.before.length === 2) return r >= 2;
+        // single char marker (italic `*`): active for odd run lengths
+        return r % 2 === 1;
+      },
+      [],
+    );
+
     const computeActive = React.useCallback(
       (src: string, start: number, end: number) => {
         const active = new Set<string>();
-        const selected = src.slice(start, end);
         for (const a of WRAP_ACTIONS) {
-          const beforeOutside = src.slice(Math.max(0, start - a.before.length), start);
-          const afterOutside = src.slice(end, end + a.after.length);
-          const wrappedOutside = beforeOutside === a.before && afterOutside === a.after;
-          const wrappedInside =
-            selected.startsWith(a.before) &&
-            selected.endsWith(a.after) &&
-            selected.length >= a.before.length + a.after.length;
-
-          // Disambiguate single-char markers (italic `*`) from doubled
-          // markers (bold `**`) and similar (`~` vs `~~`).
-          if (a.before.length === 1) {
-            const ch = a.before;
-            const prevChar = src.charAt(start - 2);
-            const nextChar = src.charAt(end + 1);
-            const innerStartChar = selected.charAt(1);
-            const innerEndChar = selected.charAt(selected.length - 2);
-            if (wrappedOutside && (prevChar === ch || afterOutside === a.after && nextChar === ch)) {
-              continue;
-            }
-            if (wrappedInside && (innerStartChar === ch || innerEndChar === ch)) {
-              continue;
-            }
-          }
-
-          if (wrappedOutside || wrappedInside) active.add(a.key);
+          if (isWrapActive(src, start, end, a)) active.add(a.key);
         }
         // Line prefix actions: active if every selected line starts with prefix
         const lineStart = src.lastIndexOf("\n", start - 1) + 1;
