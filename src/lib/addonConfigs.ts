@@ -594,6 +594,13 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     fields: [],
   },
 
+  rules: {
+    title: "Rules",
+    summary: "Write your server rules with the same builder as Messages. Posted when members run /rules.",
+    icon: ScrollText,
+    fields: [],
+  },
+
   "staff-performance": {
     title: "Staff Performance Tracking",
     summary: "Track tickets handled, response times, and activity per staff member.",
