@@ -96,19 +96,8 @@ export const SayCommandBuilder = forwardRef<
     if (g) setActiveGuild(g); // sync the dashboard-wide selection.
   };
   const [channel, setChannel] = useState<BotChannel | null>(null);
-  const [content, setContent] = useState(
-    "Welcome to the server! 👋 Read the rules and have fun.",
-  );
-  const [embeds, setEmbeds] = useState<Embed[]>([
-    {
-      ...newEmbed(),
-      title: "Server Rules",
-      description:
-        "1. Be respectful to everyone.\n2. No spam or self-promo.\n3. Keep it SFW in public channels.",
-      color: "#5865F2",
-      footerText: botName,
-    },
-  ]);
+  const [content, setContent] = useState("");
+  const [embeds, setEmbeds] = useState<Embed[]>([newEmbed()]);
   // Extra messages shown below the embeds (each is a separate message)
   const [trailingMessages, setTrailingMessages] = useState<
     { id: string; text: string }[]
