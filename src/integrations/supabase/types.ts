@@ -2103,6 +2103,30 @@ export type Database = {
       cleanup_old_bot_logs: { Args: never; Returns: number }
       cleanup_old_notifications: { Args: never; Returns: number }
       cleanup_old_usage_metrics: { Args: never; Returns: number }
+      complete_post_message: {
+        Args: { _error?: string; _id: string; _status: string }
+        Returns: {
+          action: string
+          bot_id: string
+          claimed_at: string | null
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          payload: Json | null
+          requested_by: string
+          status: string
+          updated_at: string
+          user_id: string
+          worker_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "bot_commands"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       consume_notification_rate: {
         Args: { _kind: string; _max?: number }
         Returns: Json
