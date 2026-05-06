@@ -472,14 +472,8 @@ export const SayCommandBuilder = forwardRef<
                         placeholder="Field value"
                         rows={2}
                         value={f.value}
-                        onInput={(e) =>
-                          updateField(embed.id, f.id, { value: e.currentTarget.value })
-                        }
-                        onKeyUp={(e) =>
-                          updateField(embed.id, f.id, { value: e.currentTarget.value })
-                        }
-                        onBlur={(e) =>
-                          updateField(embed.id, f.id, { value: e.currentTarget.value })
+                        onChange={(e) =>
+                          updateField(embed.id, f.id, { value: e.target.value })
                         }
                       />
                       <div className="flex items-center justify-between">
