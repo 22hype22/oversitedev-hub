@@ -250,7 +250,64 @@ export const SayCommandBuilder = forwardRef<
       ),
     );
 
+  // In rules mode, hydrate from saved bot_config row (if any) on mount.
+  useEffect(() => {
+    if (mode !== "rules" || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", "rules")
+        .maybeSingle();
+      if (cancelled || !data?.config) return;
+      const cfg = data.config as any;
+      if (typeof cfg.content === "string") setContent(cfg.content);
+      if (Array.isArray(cfg.embeds) && cfg.embeds.length > 0) setEmbeds(cfg.embeds);
+      if (Array.isArray(cfg.trailingMessages))
+        setTrailingMessages(cfg.trailingMessages);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, botId]);
+
+  const saveRules = async (): Promise<boolean> => {
+    if (!botId) {
+      toast.error("Bot not ready yet.");
+      return false;
+    }
+    if (!content.trim() && embeds.length === 0) {
+      toast.error("Add some content or an embed first.");
+      return false;
+    }
+    try {
+      const payload = {
+        bot_id: botId,
+        feature: "rules",
+        config: { content, embeds, trailingMessages } as any,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supabase
+        .from("bot_config")
+        .upsert(payload, { onConflict: "bot_id,feature" });
+      if (error) throw error;
+      await supabase.rpc("enqueue_apply_config" as any, {
+        _bot_id: botId,
+        _feature: "rules",
+      });
+      toast.success("Rules saved — /rules will use this in your server.");
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to save rules.";
+      toast.error(msg);
+      return false;
+    }
+  };
+
   const send = async (): Promise<boolean> => {
+    if (mode === "rules") return saveRules();
     if (!botId) {
       toast.error("Bot not ready yet.");
       return false;
