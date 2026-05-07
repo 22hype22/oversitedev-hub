@@ -56,31 +56,43 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
     const [activeKeys, setActiveKeys] = React.useState<Set<string>>(new Set());
     const selectionRef = React.useRef<{ start: number; end: number } | null>(null);
 
-    // For a given marker char, return the matched run length r at the
-    // selection boundaries (min of consecutive chars before start and after end).
-    const runLen = (src: string, start: number, end: number, ch: string) => {
+
+    // Returns matched marker run length when markers sit OUTSIDE [left,right]
+    // (e.g. selection is "abc" inside "**abc**").
+    const outerRun = (src: string, left: number, right: number, ch: string) => {
       let b = 0;
-      while (start - b - 1 >= 0 && src.charAt(start - b - 1) === ch) b++;
+      while (left - b - 1 >= 0 && src.charAt(left - b - 1) === ch) b++;
       let a = 0;
-      while (end + a < src.length && src.charAt(end + a) === ch) a++;
+      while (right + a < src.length && src.charAt(right + a) === ch) a++;
+      return Math.min(b, a);
+    };
+
+    // Returns matched marker run length when markers sit INSIDE [left,right]
+    // (e.g. selection is "**abc**" itself).
+    const innerRun = (src: string, left: number, right: number, ch: string) => {
+      let b = 0;
+      while (left + b < right && src.charAt(left + b) === ch) b++;
+      let a = 0;
+      while (right - a - 1 >= left + b && src.charAt(right - a - 1) === ch) a++;
       return Math.min(b, a);
     };
 
     const getBoundaryLayer = React.useCallback((src: string, left: number, right: number) => {
       const keys = new Set<string>();
       const removals = new Map<string, { leftStart: number; leftEnd: number; rightStart: number; rightEnd: number }>();
-      const starRun = runLen(src, left, right, "*");
 
-      if (starRun > 0) {
-        if (starRun >= 2) {
+      // Outer markers (selection is between the wrapper)
+      const starOuter = outerRun(src, left, right, "*");
+      if (starOuter > 0) {
+        if (starOuter >= 2) {
           keys.add("bold");
           removals.set("bold", { leftStart: left - 2, leftEnd: left, rightStart: right, rightEnd: right + 2 });
         }
-        if (starRun % 2 === 1) {
+        if (starOuter % 2 === 1) {
           keys.add("italic");
           removals.set("italic", { leftStart: left - 1, leftEnd: left, rightStart: right, rightEnd: right + 1 });
         }
-        return { keys, removals, leftLen: starRun, rightLen: starRun };
+        return { keys, removals, leftLen: starOuter, rightLen: starOuter, consumeInner: 0 };
       }
 
       for (const action of WRAP_ACTIONS) {
@@ -95,7 +107,36 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
         ) {
           keys.add(action.key);
           removals.set(action.key, { leftStart, leftEnd: left, rightStart: right, rightEnd });
-          return { keys, removals, leftLen: action.before.length, rightLen: action.after.length };
+          return { keys, removals, leftLen: action.before.length, rightLen: action.after.length, consumeInner: 0 };
+        }
+      }
+
+      // Inner markers (selection itself contains the wrapper, e.g. "**abc**")
+      const starInner = innerRun(src, left, right, "*");
+      if (starInner > 0) {
+        if (starInner >= 2) {
+          keys.add("bold");
+          removals.set("bold", { leftStart: left, leftEnd: left + 2, rightStart: right - 2, rightEnd: right });
+        }
+        if (starInner % 2 === 1) {
+          keys.add("italic");
+          removals.set("italic", { leftStart: left, leftEnd: left + 1, rightStart: right - 1, rightEnd: right });
+        }
+        return { keys, removals, leftLen: 0, rightLen: 0, consumeInner: starInner };
+      }
+
+      for (const action of WRAP_ACTIONS) {
+        if (action.key === "bold" || action.key === "italic") continue;
+        const bLen = action.before.length;
+        const aLen = action.after.length;
+        if (
+          right - left >= bLen + aLen &&
+          src.slice(left, left + bLen) === action.before &&
+          src.slice(right - aLen, right) === action.after
+        ) {
+          keys.add(action.key);
+          removals.set(action.key, { leftStart: left, leftEnd: left + bLen, rightStart: right - aLen, rightEnd: right });
+          return { keys, removals, leftLen: 0, rightLen: 0, consumeInner: bLen };
         }
       }
 
@@ -111,8 +152,13 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
           const layer = getBoundaryLayer(src, left, right);
           if (!layer) break;
           layer.keys.forEach((key) => active.add(key));
-          left -= layer.leftLen;
-          right += layer.rightLen;
+          if (layer.consumeInner > 0) {
+            left += layer.consumeInner;
+            right -= layer.consumeInner;
+          } else {
+            left -= layer.leftLen;
+            right += layer.rightLen;
+          }
         }
         // Line prefix actions: active if every selected line starts with prefix
         const lineStart = src.lastIndexOf("\n", start - 1) + 1;
@@ -127,6 +173,33 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
       [getBoundaryLayer],
     );
 
+    const measureSelectionTopLeft = (el: HTMLTextAreaElement, start: number, end: number) => {
+      const style = window.getComputedStyle(el);
+      const div = document.createElement("div");
+      const props = [
+        "boxSizing","width","height","overflowX","overflowY","borderTopWidth","borderRightWidth","borderBottomWidth","borderLeftWidth","paddingTop","paddingRight","paddingBottom","paddingLeft","fontStyle","fontVariant","fontWeight","fontStretch","fontSize","fontSizeAdjust","lineHeight","fontFamily","textAlign","textTransform","textIndent","textDecoration","letterSpacing","wordSpacing","tabSize","whiteSpace","wordWrap","wordBreak",
+      ];
+      props.forEach((p) => { (div.style as any)[p] = (style as any)[p]; });
+      div.style.position = "absolute";
+      div.style.visibility = "hidden";
+      div.style.whiteSpace = "pre-wrap";
+      div.style.wordWrap = "break-word";
+      div.style.top = "0";
+      div.style.left = "0";
+      const before = el.value.substring(0, start);
+      const sel = el.value.substring(start, end) || ".";
+      const beforeNode = document.createTextNode(before);
+      const span = document.createElement("span");
+      span.textContent = sel;
+      div.appendChild(beforeNode);
+      div.appendChild(span);
+      el.parentElement!.appendChild(div);
+      const top = span.offsetTop - el.scrollTop;
+      const left = span.offsetLeft - el.scrollLeft + span.offsetWidth / 2;
+      el.parentElement!.removeChild(div);
+      return { top, left };
+    };
+
     const updateToolbar = React.useCallback(() => {
       const el = innerRef.current;
       if (!el) return;
@@ -138,7 +211,8 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
         return;
       }
       selectionRef.current = { start: selectionStart, end: selectionEnd };
-      setToolbar({ top: -40, left: el.clientWidth / 2 });
+      const { top, left } = measureSelectionTopLeft(el, selectionStart, selectionEnd);
+      setToolbar({ top: top - 40, left });
       setActiveKeys(computeActive(el.value, selectionStart, selectionEnd));
     }, [computeActive]);
 
