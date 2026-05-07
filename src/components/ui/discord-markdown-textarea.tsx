@@ -161,8 +161,13 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
           const layer = getBoundaryLayer(src, left, right);
           if (!layer) break;
           layer.keys.forEach((key) => active.add(key));
-          left -= layer.leftLen;
-          right += layer.rightLen;
+          if (layer.consumeInner > 0) {
+            left += layer.consumeInner;
+            right -= layer.consumeInner;
+          } else {
+            left -= layer.leftLen;
+            right += layer.rightLen;
+          }
         }
         // Line prefix actions: active if every selected line starts with prefix
         const lineStart = src.lastIndexOf("\n", start - 1) + 1;
