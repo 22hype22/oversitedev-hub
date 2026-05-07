@@ -173,6 +173,33 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
       [getBoundaryLayer],
     );
 
+    const measureSelectionTopLeft = (el: HTMLTextAreaElement, start: number, end: number) => {
+      const style = window.getComputedStyle(el);
+      const div = document.createElement("div");
+      const props = [
+        "boxSizing","width","height","overflowX","overflowY","borderTopWidth","borderRightWidth","borderBottomWidth","borderLeftWidth","paddingTop","paddingRight","paddingBottom","paddingLeft","fontStyle","fontVariant","fontWeight","fontStretch","fontSize","fontSizeAdjust","lineHeight","fontFamily","textAlign","textTransform","textIndent","textDecoration","letterSpacing","wordSpacing","tabSize","whiteSpace","wordWrap","wordBreak",
+      ];
+      props.forEach((p) => { (div.style as any)[p] = (style as any)[p]; });
+      div.style.position = "absolute";
+      div.style.visibility = "hidden";
+      div.style.whiteSpace = "pre-wrap";
+      div.style.wordWrap = "break-word";
+      div.style.top = "0";
+      div.style.left = "0";
+      const before = el.value.substring(0, start);
+      const sel = el.value.substring(start, end) || ".";
+      const beforeNode = document.createTextNode(before);
+      const span = document.createElement("span");
+      span.textContent = sel;
+      div.appendChild(beforeNode);
+      div.appendChild(span);
+      el.parentElement!.appendChild(div);
+      const top = span.offsetTop - el.scrollTop;
+      const left = span.offsetLeft - el.scrollLeft + span.offsetWidth / 2;
+      el.parentElement!.removeChild(div);
+      return { top, left };
+    };
+
     const updateToolbar = React.useCallback(() => {
       const el = innerRef.current;
       if (!el) return;
@@ -184,7 +211,8 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
         return;
       }
       selectionRef.current = { start: selectionStart, end: selectionEnd };
-      setToolbar({ top: -40, left: el.clientWidth / 2 });
+      const { top, left } = measureSelectionTopLeft(el, selectionStart, selectionEnd);
+      setToolbar({ top: top - 40, left });
       setActiveKeys(computeActive(el.value, selectionStart, selectionEnd));
     }, [computeActive]);
 
