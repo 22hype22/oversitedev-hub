@@ -66,21 +66,42 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
       return Math.min(b, a);
     };
 
+    // Returns matched marker run length when markers sit OUTSIDE [left,right]
+    // (e.g. selection is "abc" inside "**abc**").
+    const outerRun = (src: string, left: number, right: number, ch: string) => {
+      let b = 0;
+      while (left - b - 1 >= 0 && src.charAt(left - b - 1) === ch) b++;
+      let a = 0;
+      while (right + a < src.length && src.charAt(right + a) === ch) a++;
+      return Math.min(b, a);
+    };
+
+    // Returns matched marker run length when markers sit INSIDE [left,right]
+    // (e.g. selection is "**abc**" itself).
+    const innerRun = (src: string, left: number, right: number, ch: string) => {
+      let b = 0;
+      while (left + b < right && src.charAt(left + b) === ch) b++;
+      let a = 0;
+      while (right - a - 1 >= left + b && src.charAt(right - a - 1) === ch) a++;
+      return Math.min(b, a);
+    };
+
     const getBoundaryLayer = React.useCallback((src: string, left: number, right: number) => {
       const keys = new Set<string>();
       const removals = new Map<string, { leftStart: number; leftEnd: number; rightStart: number; rightEnd: number }>();
-      const starRun = runLen(src, left, right, "*");
 
-      if (starRun > 0) {
-        if (starRun >= 2) {
+      // Outer markers (selection is between the wrapper)
+      const starOuter = outerRun(src, left, right, "*");
+      if (starOuter > 0) {
+        if (starOuter >= 2) {
           keys.add("bold");
           removals.set("bold", { leftStart: left - 2, leftEnd: left, rightStart: right, rightEnd: right + 2 });
         }
-        if (starRun % 2 === 1) {
+        if (starOuter % 2 === 1) {
           keys.add("italic");
           removals.set("italic", { leftStart: left - 1, leftEnd: left, rightStart: right, rightEnd: right + 1 });
         }
-        return { keys, removals, leftLen: starRun, rightLen: starRun };
+        return { keys, removals, leftLen: starOuter, rightLen: starOuter, consumeInner: 0 };
       }
 
       for (const action of WRAP_ACTIONS) {
@@ -95,7 +116,36 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
         ) {
           keys.add(action.key);
           removals.set(action.key, { leftStart, leftEnd: left, rightStart: right, rightEnd });
-          return { keys, removals, leftLen: action.before.length, rightLen: action.after.length };
+          return { keys, removals, leftLen: action.before.length, rightLen: action.after.length, consumeInner: 0 };
+        }
+      }
+
+      // Inner markers (selection itself contains the wrapper, e.g. "**abc**")
+      const starInner = innerRun(src, left, right, "*");
+      if (starInner > 0) {
+        if (starInner >= 2) {
+          keys.add("bold");
+          removals.set("bold", { leftStart: left, leftEnd: left + 2, rightStart: right - 2, rightEnd: right });
+        }
+        if (starInner % 2 === 1) {
+          keys.add("italic");
+          removals.set("italic", { leftStart: left, leftEnd: left + 1, rightStart: right - 1, rightEnd: right });
+        }
+        return { keys, removals, leftLen: 0, rightLen: 0, consumeInner: starInner };
+      }
+
+      for (const action of WRAP_ACTIONS) {
+        if (action.key === "bold" || action.key === "italic") continue;
+        const bLen = action.before.length;
+        const aLen = action.after.length;
+        if (
+          right - left >= bLen + aLen &&
+          src.slice(left, left + bLen) === action.before &&
+          src.slice(right - aLen, right) === action.after
+        ) {
+          keys.add(action.key);
+          removals.set(action.key, { leftStart: left, leftEnd: left + bLen, rightStart: right - aLen, rightEnd: right });
+          return { keys, removals, leftLen: 0, rightLen: 0, consumeInner: bLen };
         }
       }
 
