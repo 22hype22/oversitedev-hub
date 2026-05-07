@@ -56,15 +56,6 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
     const [activeKeys, setActiveKeys] = React.useState<Set<string>>(new Set());
     const selectionRef = React.useRef<{ start: number; end: number } | null>(null);
 
-    // For a given marker char, return the matched run length r at the
-    // selection boundaries (min of consecutive chars before start and after end).
-    const runLen = (src: string, start: number, end: number, ch: string) => {
-      let b = 0;
-      while (start - b - 1 >= 0 && src.charAt(start - b - 1) === ch) b++;
-      let a = 0;
-      while (end + a < src.length && src.charAt(end + a) === ch) a++;
-      return Math.min(b, a);
-    };
 
     // Returns matched marker run length when markers sit OUTSIDE [left,right]
     // (e.g. selection is "abc" inside "**abc**").
