@@ -299,6 +299,8 @@ export const BotBuilder = () => {
   // can detect transitions (included -> not, or not -> included) and react.
   const prevIncludedRef = useRef<Record<string, boolean>>({});
   const [notes, setNotes] = useState("");
+  const [discordUserId, setDiscordUserId] = useState("");
+  const [discordUsername, setDiscordUsername] = useState("");
   const [showAllAddons, setShowAllAddons] = useState<Record<string, boolean>>({});
   const [showPayment, setShowPayment] = useState(false);
   const [payFullName, setPayFullName] = useState("");
