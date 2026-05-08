@@ -240,8 +240,9 @@ const Admin = () => {
                 description="Redeem customer support codes to access their bots."
               />
             </AccordionTrigger>
-            <AccordionContent className="pt-2 pb-5">
+            <AccordionContent className="pt-2 pb-5 space-y-6">
               <SupportAccessRedeemer />
+              <NotificationSender />
             </AccordionContent>
           </AccordionItem>
 
