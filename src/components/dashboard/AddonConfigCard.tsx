@@ -84,6 +84,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isAntiSpam = addonId === "anti-spam";
   const isAntiRaid = addonId === "anti-raid";
   const isNsfwInviteScanner = addonId === "nsfw-invite-scanner";
+  const isAutoRole = addonId === "auto-role";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
 
@@ -438,6 +439,74 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     } else {
       toast.success("Anti-Raid settings saved & applied");
+    }
+    setOpen(false);
+  };
+
+  // Load existing auto-role config when dialog opens.
+  useEffect(() => {
+    if (!isAutoRole || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "auto-role")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const roles = Array.isArray(cfg.role_ids)
+        ? cfg.role_ids.map(String)
+        : [];
+      setValues((prev) => ({
+        ...prev,
+        roles,
+        skipBots: cfg.skip_bots ?? true,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAutoRole, open, botId]);
+
+  const saveAutoRole = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "auto-role",
+      config: {
+        role_ids: Array.isArray(values.roles)
+          ? (values.roles as string[]).filter(Boolean)
+          : [],
+        skip_bots: !!values.skipBots,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "auto-role",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("Auto Role settings saved & applied");
     }
     setOpen(false);
   };
@@ -947,6 +1016,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveAntiRaid();
                   } else if (isNsfwInviteScanner) {
                     void saveNsfwInviteScanner();
+                  } else if (isAutoRole) {
+                    void saveAutoRole();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
