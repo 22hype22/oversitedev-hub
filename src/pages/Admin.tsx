@@ -38,6 +38,7 @@ import { SupportAccessRedeemer } from "@/components/admin/SupportAccessRedeemer"
 import { WorkerTokensManager } from "@/components/admin/WorkerTokensManager";
 import { TokenPoolManager } from "@/components/admin/TokenPoolManager";
 import { AdminAuditLog } from "@/components/admin/AdminAuditLog";
+import { NotificationSender } from "@/components/admin/NotificationSender";
 import { Card } from "@/components/ui/card";
 
 const SUPER_ADMIN_EMAIL = "everant00@gmail.com";
