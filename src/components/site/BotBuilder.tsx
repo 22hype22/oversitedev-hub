@@ -1406,6 +1406,36 @@ export const BotBuilder = () => {
               rows={4}
             />
           </div>
+
+          {!salesLive && (
+            <div className="rounded-2xl border border-primary/30 bg-primary/5 backdrop-blur p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="h-7 w-7 rounded-full bg-primary/15 border border-primary/30 grid place-items-center text-xs font-bold text-primary">
+                  5
+                </div>
+                <h3 className="text-lg font-semibold">Your Discord</h3>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Preorder only — when we go live, our utilities bot will DM you to confirm before charging your card.
+                Enable Developer Mode in Discord, right-click your name, and click <em>Copy User ID</em>.
+              </p>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Input
+                  value={discordUserId}
+                  onChange={(e) => setDiscordUserId(e.target.value.replace(/\D/g, ""))}
+                  placeholder="Discord User ID (numbers)"
+                  inputMode="numeric"
+                  maxLength={20}
+                />
+                <Input
+                  value={discordUsername}
+                  onChange={(e) => setDiscordUsername(e.target.value)}
+                  placeholder="Discord username (e.g. yourname)"
+                  maxLength={48}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right: light/blue live preview */}
