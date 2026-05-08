@@ -130,6 +130,25 @@ async function handleCheckoutSessionCompleted(session: any, env: StripeEnv) {
   }
 }
 
+async function handleSetupIntentSucceeded(setupIntent: any, env: StripeEnv) {
+  const orderId = setupIntent.metadata?.bot_order_id;
+  if (!orderId) return;
+  const supabase = getSupabase();
+
+  await supabase
+    .from("bot_orders")
+    .update({
+      status: "preorder",
+      stripe_setup_intent_id: setupIntent.id,
+      stripe_customer_id: setupIntent.customer ?? null,
+      stripe_payment_method_id: setupIntent.payment_method ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", orderId);
+
+  console.log("Preorder card saved for order:", orderId, "PM:", setupIntent.payment_method);
+}
+
 async function handleWebhook(req: Request, env: StripeEnv) {
   const event = await verifyWebhook(req, env);
   switch (event.type) {
@@ -143,6 +162,9 @@ async function handleWebhook(req: Request, env: StripeEnv) {
     case "checkout.session.completed":
     case "checkout.session.async_payment_succeeded":
       await handleCheckoutSessionCompleted(event.data.object, env);
+      break;
+    case "setup_intent.succeeded":
+      await handleSetupIntentSucceeded(event.data.object, env);
       break;
     default:
       console.log("Unhandled event:", event.type);

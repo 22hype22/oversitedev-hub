@@ -6,10 +6,17 @@ import {
 } from "./supabase.js";
 import { BotRuntime } from "./runtime.js";
 import { startHealthServer } from "./health.js";
+import { startUtilitiesBot } from "./utilities-bot.js";
 
 const runtimes = new Map<string, BotRuntime>();
 const health = { startedAt: Date.now(), runtimes, lastPollAt: Date.now() };
 startHealthServer(health);
+
+// Boot the Oversite Utilities bot (preorder DM confirmation).
+// No-op if OVERSITE_UTILITIES_BOT_TOKEN is unset.
+startUtilitiesBot().catch((e) =>
+  console.error("Failed to start utilities bot:", (e as Error).message),
+);
 
 // Railway config
 const RAILWAY_API_TOKEN = process.env.RAILWAY_API_TOKEN ?? "";

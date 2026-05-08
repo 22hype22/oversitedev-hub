@@ -14,6 +14,7 @@ import {
 import { ShoppingCart, Hourglass, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useBotSalesMode, setBotSalesMode } from "@/hooks/useBotSalesMode";
+import { supabase } from "@/integrations/supabase/client";
 
 const SECURITY_CODE = "Oversite19!";
 
@@ -37,6 +38,22 @@ export const BotSalesModeSwitch = () => {
       return;
     }
     setBusy(true);
+
+    // BEFORE flipping to live: DM each preorder customer to confirm.
+    // (Skipped when going FROM live TO preorder.)
+    let dmCount = 0;
+    if (next === "live") {
+      const { data, error: sweepErr } = await (supabase as any).rpc(
+        "sweep_preorders_for_confirmation",
+      );
+      if (sweepErr) {
+        setBusy(false);
+        toast.error("Couldn't start preorder confirmations", { description: sweepErr.message });
+        return;
+      }
+      dmCount = (data as number) ?? 0;
+    }
+
     const { error } = await setBotSalesMode(next);
     setBusy(false);
     if (error) {
@@ -45,11 +62,15 @@ export const BotSalesModeSwitch = () => {
     }
     setDialogOpen(false);
     setCode("");
-    toast.success(
-      next === "live"
-        ? "Bots are now live for purchase"
-        : "Bots are back in preorder mode"
-    );
+    if (next === "live") {
+      toast.success(
+        dmCount > 0
+          ? `Going live — DM'd ${dmCount} preorder customer${dmCount === 1 ? "" : "s"} to confirm.`
+          : "Bots are now live for purchase.",
+      );
+    } else {
+      toast.success("Bots are back in preorder mode");
+    }
   };
 
   return (

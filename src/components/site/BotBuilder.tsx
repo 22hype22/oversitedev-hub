@@ -299,6 +299,8 @@ export const BotBuilder = () => {
   // can detect transitions (included -> not, or not -> included) and react.
   const prevIncludedRef = useRef<Record<string, boolean>>({});
   const [notes, setNotes] = useState("");
+  const [discordUserId, setDiscordUserId] = useState("");
+  const [discordUsername, setDiscordUsername] = useState("");
   const [showAllAddons, setShowAllAddons] = useState<Record<string, boolean>>({});
   const [showPayment, setShowPayment] = useState(false);
   const [payFullName, setPayFullName] = useState("");
@@ -625,6 +627,8 @@ export const BotBuilder = () => {
         discount_code: appliedDiscount?.code ?? null,
         discount_amount: discountAmount,
         engine_version: engineVersion,
+        discord_user_id: discordUserId.trim() || null,
+        discord_username: discordUsername.trim() || null,
       })
       .select("id")
       .single();
@@ -675,6 +679,21 @@ export const BotBuilder = () => {
           ?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 350);
       return;
+    }
+    // In preorder mode we DM the customer on Go Live to confirm — Discord ID required.
+    if (user && !salesLive) {
+      if (!/^\d{17,20}$/.test(discordUserId.trim())) {
+        sonnerToast.error("Discord User ID required", {
+          description: "Enable Developer Mode in Discord, right-click your name, and click 'Copy User ID'.",
+        });
+        return;
+      }
+      if (!discordUsername.trim()) {
+        sonnerToast.error("Discord username required", {
+          description: "We'll ask you to type it back to confirm your order when we go live.",
+        });
+        return;
+      }
     }
     setSubmitting(true);
 
@@ -754,10 +773,30 @@ export const BotBuilder = () => {
     }
 
     // For signed-in users with a real order: open Stripe checkout.
-    // The first installment amount (or full total) is what gets charged now.
     if (user && orderId) {
       const { primary } = buildSubmissionPayload();
       const planMonths = paymentPlan === "full" ? null : parseInt(paymentPlan, 10);
+
+      // PREORDER MODE: don't charge — save the card via SetupIntent. We'll
+      // charge off-session when the customer confirms via Discord DM.
+      if (!salesLive) {
+        const { data, error } = await (supabase as any).functions.invoke("create-setup-intent", {
+          body: { botOrderId: orderId, customerEmail: user.email },
+        });
+        if (error || !data?.clientSecret) {
+          sonnerToast.error("Couldn't start preorder", {
+            description: error?.message || "Please try again.",
+          });
+          setSubmitting(false);
+          return;
+        }
+        // Send them to a hosted page that completes the SetupIntent.
+        // Stripe redirects back to /checkout/return?setup_intent=...
+        window.location.href = `${window.location.origin}/checkout/setup?cs=${encodeURIComponent(data.clientSecret)}&order=${orderId}`;
+        return;
+      }
+
+      // LIVE MODE: charge the first installment / full amount now.
       const chargeNow = planMonths
         ? Number((finalTotal / planMonths).toFixed(2))
         : finalTotal;
@@ -1367,6 +1406,36 @@ export const BotBuilder = () => {
               rows={4}
             />
           </div>
+
+          {!salesLive && (
+            <div className="rounded-2xl border border-primary/30 bg-primary/5 backdrop-blur p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="h-7 w-7 rounded-full bg-primary/15 border border-primary/30 grid place-items-center text-xs font-bold text-primary">
+                  5
+                </div>
+                <h3 className="text-lg font-semibold">Your Discord</h3>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Preorder only — when we go live, our utilities bot will DM you to confirm before charging your card.
+                Enable Developer Mode in Discord, right-click your name, and click <em>Copy User ID</em>.
+              </p>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Input
+                  value={discordUserId}
+                  onChange={(e) => setDiscordUserId(e.target.value.replace(/\D/g, ""))}
+                  placeholder="Discord User ID (numbers)"
+                  inputMode="numeric"
+                  maxLength={20}
+                />
+                <Input
+                  value={discordUsername}
+                  onChange={(e) => setDiscordUsername(e.target.value)}
+                  placeholder="Discord username (e.g. yourname)"
+                  maxLength={48}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right: light/blue live preview */}

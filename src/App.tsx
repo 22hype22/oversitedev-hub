@@ -20,6 +20,7 @@ import Auth from "./pages/Auth.tsx";
 import Admin from "./pages/Admin.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import CheckoutReturn from "./pages/CheckoutReturn.tsx";
+import CheckoutSetup from "./pages/CheckoutSetup.tsx";
 import Terms from "./pages/Terms.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -59,6 +60,7 @@ const App = () => {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/bot-dashboard" element={<BotDashboard />} />
               <Route path="/checkout/return" element={<CheckoutReturn />} />
+              <Route path="/checkout/setup" element={<CheckoutSetup />} />
               <Route path="/terms" element={<Terms />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
