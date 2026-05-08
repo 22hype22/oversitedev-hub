@@ -627,6 +627,8 @@ export const BotBuilder = () => {
         discount_code: appliedDiscount?.code ?? null,
         discount_amount: discountAmount,
         engine_version: engineVersion,
+        discord_user_id: discordUserId.trim() || null,
+        discord_username: discordUsername.trim() || null,
       })
       .select("id")
       .single();
