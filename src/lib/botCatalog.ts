@@ -186,6 +186,7 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
     "anti-spam",
     "anti-raid",
     "phishing-detection",
+    "auto-role",
     "messages",
     "rules",
   ],
