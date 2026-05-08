@@ -24,6 +24,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   "mod-actions": "Warn / Mute / Ban / Kick",
   "anti-spam": "Anti-Spam",
   "anti-raid": "Anti-Raid",
+  "auto-role": "Auto Role on Join",
   
   "phishing-detection": "Phishing Link Detection",
 
@@ -185,6 +186,7 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
     "anti-spam",
     "anti-raid",
     "phishing-detection",
+    "auto-role",
     "messages",
     "rules",
   ],

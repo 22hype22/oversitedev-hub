@@ -329,6 +329,16 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "auto-role": {
+    title: "Auto Role on Join",
+    summary: "Automatically give roles to new members when they join.",
+    icon: UserPlus,
+    fields: [
+      multirole("roles", "Roles to assign on join", "Every new member will receive these roles automatically."),
+      toggle("skipBots", "Skip bots", true, "Don't auto-assign roles to bot accounts."),
+    ],
+  },
+
   // ─── Protection: paid add-ons ────────────────────────────────
   "advanced-logging": {
     title: "Advanced Logging",
