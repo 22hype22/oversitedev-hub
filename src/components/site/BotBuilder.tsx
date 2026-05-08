@@ -773,10 +773,30 @@ export const BotBuilder = () => {
     }
 
     // For signed-in users with a real order: open Stripe checkout.
-    // The first installment amount (or full total) is what gets charged now.
     if (user && orderId) {
       const { primary } = buildSubmissionPayload();
       const planMonths = paymentPlan === "full" ? null : parseInt(paymentPlan, 10);
+
+      // PREORDER MODE: don't charge — save the card via SetupIntent. We'll
+      // charge off-session when the customer confirms via Discord DM.
+      if (!salesLive) {
+        const { data, error } = await (supabase as any).functions.invoke("create-setup-intent", {
+          body: { botOrderId: orderId, customerEmail: user.email },
+        });
+        if (error || !data?.clientSecret) {
+          sonnerToast.error("Couldn't start preorder", {
+            description: error?.message || "Please try again.",
+          });
+          setSubmitting(false);
+          return;
+        }
+        // Send them to a hosted page that completes the SetupIntent.
+        // Stripe redirects back to /checkout/return?setup_intent=...
+        window.location.href = `${window.location.origin}/checkout/setup?cs=${encodeURIComponent(data.clientSecret)}&order=${orderId}`;
+        return;
+      }
+
+      // LIVE MODE: charge the first installment / full amount now.
       const chargeNow = planMonths
         ? Number((finalTotal / planMonths).toFixed(2))
         : finalTotal;
