@@ -20,6 +20,7 @@ import Auth from "./pages/Auth.tsx";
 import Admin from "./pages/Admin.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import CheckoutReturn from "./pages/CheckoutReturn.tsx";
+import CheckoutSetup from "./pages/CheckoutSetup.tsx";
 import Terms from "./pages/Terms.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
