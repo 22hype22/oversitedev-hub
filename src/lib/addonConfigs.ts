@@ -325,7 +325,15 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         type: "textarea",
         placeholder: "scam-site.com\nfake-nitro.gg",
       },
-      toggle("scanEdits", "Re-scan messages when edited"),
+  },
+
+  "auto-role": {
+    title: "Auto Role on Join",
+    summary: "Automatically give roles to new members when they join.",
+    icon: UserPlus,
+    fields: [
+      multirole("roles", "Roles to assign on join", "Every new member will receive these roles automatically."),
+      toggle("skipBots", "Skip bots", true, "Don't auto-assign roles to bot accounts."),
     ],
   },
 
