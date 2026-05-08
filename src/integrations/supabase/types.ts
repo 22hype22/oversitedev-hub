@@ -641,9 +641,18 @@ export type Database = {
           base: string
           bot_description: string | null
           bot_name: string
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          charged_at: string | null
+          confirmation_deadline_at: string | null
+          confirmation_dm_sent_at: string | null
+          confirmation_responded_at: string | null
+          confirmation_state: string
           created_at: string
           currency: string
           delivery_url: string | null
+          discord_user_id: string | null
+          discord_username: string | null
           discount_amount: number
           discount_code: string | null
           engine_version: string
@@ -658,7 +667,10 @@ export type Database = {
           purchase_id: string | null
           source_url: string | null
           status: string
+          stripe_customer_id: string | null
+          stripe_payment_method_id: string | null
           stripe_session_id: string | null
+          stripe_setup_intent_id: string | null
           submitted_at: string | null
           subscription_id: string | null
           total_amount: number
@@ -671,9 +683,18 @@ export type Database = {
           base: string
           bot_description?: string | null
           bot_name: string
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          charged_at?: string | null
+          confirmation_deadline_at?: string | null
+          confirmation_dm_sent_at?: string | null
+          confirmation_responded_at?: string | null
+          confirmation_state?: string
           created_at?: string
           currency?: string
           delivery_url?: string | null
+          discord_user_id?: string | null
+          discord_username?: string | null
           discount_amount?: number
           discount_code?: string | null
           engine_version?: string
@@ -688,7 +709,10 @@ export type Database = {
           purchase_id?: string | null
           source_url?: string | null
           status?: string
+          stripe_customer_id?: string | null
+          stripe_payment_method_id?: string | null
           stripe_session_id?: string | null
+          stripe_setup_intent_id?: string | null
           submitted_at?: string | null
           subscription_id?: string | null
           total_amount?: number
@@ -701,9 +725,18 @@ export type Database = {
           base?: string
           bot_description?: string | null
           bot_name?: string
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          charged_at?: string | null
+          confirmation_deadline_at?: string | null
+          confirmation_dm_sent_at?: string | null
+          confirmation_responded_at?: string | null
+          confirmation_state?: string
           created_at?: string
           currency?: string
           delivery_url?: string | null
+          discord_user_id?: string | null
+          discord_username?: string | null
           discount_amount?: number
           discount_code?: string | null
           engine_version?: string
@@ -718,7 +751,10 @@ export type Database = {
           purchase_id?: string | null
           source_url?: string | null
           status?: string
+          stripe_customer_id?: string | null
+          stripe_payment_method_id?: string | null
           stripe_session_id?: string | null
+          stripe_setup_intent_id?: string | null
           submitted_at?: string | null
           subscription_id?: string | null
           total_amount?: number
@@ -1963,6 +1999,36 @@ export type Database = {
         }
         Relationships: []
       }
+      utility_bot_dm_state: {
+        Row: {
+          attempts: number
+          bot_order_id: string
+          created_at: string
+          discord_user_id: string
+          expected_username: string | null
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          bot_order_id: string
+          created_at?: string
+          discord_user_id: string
+          expected_username?: string | null
+          state: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          bot_order_id?: string
+          created_at?: string
+          discord_user_id?: string
+          expected_username?: string | null
+          state?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       worker_tokens: {
         Row: {
           bot_id: string | null
@@ -2206,6 +2272,16 @@ export type Database = {
         Args: { _bot_id: string; _payload: Json }
         Returns: Json
       }
+      enqueue_utilities_dm: {
+        Args: {
+          _discord_user_id: string
+          _kind?: string
+          _message: string
+          _order_id: string
+        }
+        Returns: string
+      }
+      expire_pending_confirmations: { Args: never; Returns: number }
       get_bot_client_id: { Args: { _bot_id: string }; Returns: string }
       get_bot_health: { Args: { _bot_id: string }; Returns: Json }
       get_bot_secrets_metadata: {
@@ -2511,6 +2587,10 @@ export type Database = {
       set_bot_secret: {
         Args: { _bot_id: string; _key: string; _value: string }
         Returns: Json
+      }
+      start_order_confirmation: {
+        Args: { _order_id: string }
+        Returns: boolean
       }
       update_bot_token_pool_entry:
         | {
