@@ -680,6 +680,21 @@ export const BotBuilder = () => {
       }, 350);
       return;
     }
+    // In preorder mode we DM the customer on Go Live to confirm — Discord ID required.
+    if (user && !salesLive) {
+      if (!/^\d{17,20}$/.test(discordUserId.trim())) {
+        sonnerToast.error("Discord User ID required", {
+          description: "Enable Developer Mode in Discord, right-click your name, and click 'Copy User ID'.",
+        });
+        return;
+      }
+      if (!discordUsername.trim()) {
+        sonnerToast.error("Discord username required", {
+          description: "We'll ask you to type it back to confirm your order when we go live.",
+        });
+        return;
+      }
+    }
     setSubmitting(true);
 
     // When sales are LIVE, every bot in the order needs an available token from
