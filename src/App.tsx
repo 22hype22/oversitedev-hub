@@ -60,6 +60,7 @@ const App = () => {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/bot-dashboard" element={<BotDashboard />} />
               <Route path="/checkout/return" element={<CheckoutReturn />} />
+              <Route path="/checkout/setup" element={<CheckoutSetup />} />
               <Route path="/terms" element={<Terms />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
