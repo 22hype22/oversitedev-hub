@@ -14,6 +14,7 @@ import {
 import { ShoppingCart, Hourglass, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useBotSalesMode, setBotSalesMode } from "@/hooks/useBotSalesMode";
+import { supabase } from "@/integrations/supabase/client";
 
 const SECURITY_CODE = "Oversite19!";
 
