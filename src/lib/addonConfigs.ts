@@ -322,9 +322,6 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       {
         key: "extraDomains",
         label: "Extra blocked domains (one per line)",
-      {
-        key: "extraDomains",
-        label: "Extra blocked domains (one per line)",
         type: "textarea",
         placeholder: "scam-site.com\nfake-nitro.gg",
       },
