@@ -38,6 +38,7 @@ import { SupportAccessRedeemer } from "@/components/admin/SupportAccessRedeemer"
 import { WorkerTokensManager } from "@/components/admin/WorkerTokensManager";
 import { TokenPoolManager } from "@/components/admin/TokenPoolManager";
 import { AdminAuditLog } from "@/components/admin/AdminAuditLog";
+import { NotificationSender } from "@/components/admin/NotificationSender";
 import { Card } from "@/components/ui/card";
 
 const SUPER_ADMIN_EMAIL = "everant00@gmail.com";
@@ -239,8 +240,9 @@ const Admin = () => {
                 description="Redeem customer support codes to access their bots."
               />
             </AccordionTrigger>
-            <AccordionContent className="pt-2 pb-5">
+            <AccordionContent className="pt-2 pb-5 space-y-6">
               <SupportAccessRedeemer />
+              <NotificationSender />
             </AccordionContent>
           </AccordionItem>
 

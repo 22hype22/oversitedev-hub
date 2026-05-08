@@ -2100,6 +2100,16 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_send_notification: {
+        Args: {
+          _body: string
+          _broadcast?: boolean
+          _event_type?: string
+          _target_user_id: string
+          _title: string
+        }
+        Returns: number
+      }
       admin_set_bot_extra_slots: {
         Args: { _bot_id: string; _extra_slots: number }
         Returns: Json
