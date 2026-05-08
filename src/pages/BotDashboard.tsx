@@ -119,7 +119,6 @@ const SUPPORT_ADDON_IDS = [
   "priority-flagging",
   "auto-close-inactive",
   "messages",
-  "rules",
 ];
 const UTILITIES_ADDON_IDS = [
   "music-addon",
@@ -135,7 +134,6 @@ const UTILITIES_ADDON_IDS = [
   "economy-system",
   "remindme",
   "messages",
-  "rules",
 ];
 // Shared/extras add-ons (none currently — Multi-Server License & Custom
 // Branding combined card was removed per product decision).
