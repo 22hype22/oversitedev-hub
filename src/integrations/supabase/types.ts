@@ -2592,6 +2592,7 @@ export type Database = {
         Args: { _order_id: string }
         Returns: boolean
       }
+      sweep_preorders_for_confirmation: { Args: never; Returns: number }
       update_bot_token_pool_entry:
         | {
             Args: {
