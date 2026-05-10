@@ -1936,6 +1936,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_extra_server_slots: {
+        Row: {
+          created_at: string
+          extra_slots: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          extra_slots?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          extra_slots?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_notification_prefs: {
         Row: {
           created_at: string
@@ -1995,6 +2016,36 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_slot_purchases: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          id: string
+          quantity: number
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          id?: string
+          quantity: number
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          id?: string
+          quantity?: number
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
           user_id?: string
         }
         Relationships: []
@@ -2178,6 +2229,10 @@ export type Database = {
       }
       admin_set_bot_extra_slots: {
         Args: { _bot_id: string; _extra_slots: number }
+        Returns: Json
+      }
+      admin_set_user_extra_slots: {
+        Args: { _extra_slots: number; _user_id: string }
         Returns: Json
       }
       assign_pool_token_to_bot: { Args: { _bot_id: string }; Returns: Json }
@@ -2367,6 +2422,16 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      record_user_slot_purchase: {
+        Args: {
+          _amount_cents: number
+          _quantity: number
+          _stripe_payment_intent_id?: string
+          _stripe_session_id: string
+          _user_id: string
+        }
+        Returns: Json
       }
       redeem_bot_code: {
         Args: { _bot_id: string; _code: string }
