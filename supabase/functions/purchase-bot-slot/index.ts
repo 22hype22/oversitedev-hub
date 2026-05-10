@@ -3,7 +3,9 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, createStripeClient } from "../_shared/stripe.ts";
 
-const SLOT_PRICE_CENTS = 499; // $4.99/month per extra slot
+// One-time price per extra Discord-server slot. Slots are user-level
+// (shared across every bot the user owns) and never expire.
+const SLOT_PRICE_CENTS = 299; // $2.99 per slot, one-time
 
 const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -40,89 +42,38 @@ serve(async (req) => {
     if (!user) return bad("Not authenticated", 401);
 
     const body = await req.json().catch(() => ({}));
-    const botId = String(body.botId ?? "");
-    const additionalSlots = Math.max(1, Math.min(50, Number(body.additionalSlots ?? 1) | 0));
+    const quantity = Math.max(1, Math.min(50, Number(body.additionalSlots ?? 1) | 0));
     const returnUrl = String(body.returnUrl ?? "");
-    if (!botId) return bad("botId required");
     if (!/^https?:\/\//.test(returnUrl)) return bad("Invalid returnUrl");
-
-    // Verify ownership
-    const { data: bot } = await supabaseAdmin
-      .from("bot_orders")
-      .select("id, user_id, bot_name")
-      .eq("id", botId)
-      .maybeSingle();
-    if (!bot || bot.user_id !== user.id) return bad("Bot not found", 404);
-
-    // Existing slot row (to compute the new total quantity)
-    const { data: existing } = await supabaseAdmin
-      .from("bot_server_slots")
-      .select("extra_slots, status, stripe_subscription_id")
-      .eq("bot_id", botId)
-      .maybeSingle();
-
-    const currentActive =
-      existing && (existing.status === "active" || existing.status === "trialing")
-        ? existing.extra_slots
-        : 0;
-    const newTotal = currentActive + additionalSlots;
 
     const env = resolveStripeEnv();
     const stripe = createStripeClient(env);
 
-    // If they already have an active subscription, just bump quantity.
-    if (existing?.stripe_subscription_id && currentActive > 0) {
-      const sub = await stripe.subscriptions.retrieve(existing.stripe_subscription_id);
-      const item = sub.items.data[0];
-      if (!item) return bad("Subscription has no items", 500);
-      await stripe.subscriptions.update(existing.stripe_subscription_id, {
-        items: [{ id: item.id, quantity: newTotal }],
-        proration_behavior: "create_prorations",
-      });
-      // Webhook will sync, but write through immediately for snappy UI.
-      await supabaseAdmin
-        .from("bot_server_slots")
-        .update({ extra_slots: newTotal, status: "active", updated_at: new Date().toISOString() })
-        .eq("bot_id", botId);
-      return new Response(
-        JSON.stringify({ ok: true, mode: "updated_subscription", extra_slots: newTotal }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    // Otherwise create a Checkout subscription session.
     const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
+      mode: "payment",
       customer_email: user.email ?? undefined,
       line_items: [
         {
           price_data: {
             currency: "usd",
             product_data: {
-              name: `Extra server slot — ${bot.bot_name}`,
-              description: "Allows your bot to be in one additional Discord server.",
+              name: quantity === 1
+                ? "Extra Discord server slot"
+                : `${quantity} extra Discord server slots`,
+              description:
+                "One-time purchase. Slot is shared across every bot you own and never expires.",
             },
             unit_amount: SLOT_PRICE_CENTS,
-            recurring: { interval: "month" },
           },
-          quantity: newTotal,
+          quantity,
         },
       ],
-      success_url: `${returnUrl}?slot_purchase=success`,
-      cancel_url: `${returnUrl}?slot_purchase=cancelled`,
+      success_url: `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}slot_purchase=success`,
+      cancel_url: `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}slot_purchase=cancelled`,
       metadata: {
-        kind: "bot_server_slot",
-        bot_id: botId,
+        kind: "user_server_slot",
         user_id: user.id,
-        additional_slots: String(additionalSlots),
-        new_total: String(newTotal),
-      },
-      subscription_data: {
-        metadata: {
-          kind: "bot_server_slot",
-          bot_id: botId,
-          user_id: user.id,
-        },
+        quantity: String(quantity),
       },
     });
 

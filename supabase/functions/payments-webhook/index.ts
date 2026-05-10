@@ -81,7 +81,35 @@ async function sendWaitlistEmail(supabase: any, botOrderId: string) {
   }
 }
 
+async function handleUserSlotPurchase(session: any) {
+  const userId = session.metadata?.user_id;
+  const quantity = Number(session.metadata?.quantity ?? 0) | 0;
+  if (!userId || quantity < 1) {
+    console.error("user_server_slot session missing metadata", session.id);
+    return;
+  }
+  if (session.payment_status !== "paid") {
+    console.log("Slot purchase not paid yet:", session.id, session.payment_status);
+    return;
+  }
+  const supabase = getSupabase();
+  const { error } = await supabase.rpc("record_user_slot_purchase", {
+    _user_id: userId,
+    _quantity: quantity,
+    _amount_cents: session.amount_total ?? quantity * 299,
+    _stripe_session_id: session.id,
+    _stripe_payment_intent_id: session.payment_intent ?? null,
+  });
+  if (error) console.error("record_user_slot_purchase failed:", error);
+  else console.log(`Granted ${quantity} slot(s) to user ${userId}`);
+}
+
 async function handleCheckoutSessionCompleted(session: any, env: StripeEnv) {
+  // Branch by checkout kind. Slot purchases are one-time and not tied to a bot.
+  if (session.metadata?.kind === "user_server_slot") {
+    await handleUserSlotPurchase(session);
+    return;
+  }
   const botOrderId = session.metadata?.bot_order_id;
   if (!botOrderId) return; // not a bot-order checkout — nothing to do here
   if (session.payment_status !== "paid") {

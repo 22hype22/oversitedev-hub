@@ -6,8 +6,7 @@ export interface BotServerLimit {
   limit: number;
   extra_slots: number;
   current_count: number;
-  subscription_status: string;
-  current_period_end: string | null;
+  is_unlimited: boolean;
 }
 
 export interface BotActiveGuild {
@@ -65,11 +64,5 @@ export function useBotServerSlots(botId: string | undefined) {
     [botId, refresh],
   );
 
-  const syncFromStripe = useCallback(async () => {
-    if (!botId) return;
-    await supabase.functions.invoke("sync-bot-slot-subscription", { body: { botId } });
-    await refresh();
-  }, [botId, refresh]);
-
-  return { limit, guilds, loading, refresh, purchase, syncFromStripe };
+  return { limit, guilds, loading, refresh, purchase };
 }
