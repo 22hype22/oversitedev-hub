@@ -157,37 +157,6 @@ export function BotControlsPanel({ botId }: BotControlsPanelProps) {
         ))}
       </div>
 
-      {history.length > 0 && (
-        <div className="mt-5 pt-4 border-t border-border">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Recent commands
-          </p>
-          <ul className="space-y-1.5">
-            {history.map((cmd) => (
-              <li
-                key={cmd.id}
-                className="flex items-center justify-between text-xs gap-2"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-mono font-semibold capitalize">{cmd.action}</span>
-                  <span className="text-muted-foreground tabular-nums shrink-0">
-                    {formatDistanceToNow(new Date(cmd.created_at), { addSuffix: true })}
-                  </span>
-                  {cmd.error_message && (
-                    <span className="text-destructive truncate">· {cmd.error_message}</span>
-                  )}
-                </div>
-                <span
-                  className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold shrink-0 ${STATUS_CLASS[cmd.status]}`}
-                >
-                  {STATUS_LABEL[cmd.status]}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       <AlertDialog open={confirm !== null} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
