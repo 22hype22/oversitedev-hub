@@ -1,39 +1,54 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useBotServerSlots } from "@/hooks/useBotServerSlots";
-import { Server, Plus, RefreshCw } from "lucide-react";
+import { Server, Plus, RefreshCw, Infinity as InfinityIcon } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
   botId: string;
+  /** When true, the "Buy 1 extra slot" button pulses to grab attention. */
+  highlightBuy?: boolean;
 }
 
-export function BotServerSlotsCard({ botId }: Props) {
-  const { limit, guilds, loading, refresh, purchase, syncFromStripe } = useBotServerSlots(botId);
+export function BotServerSlotsCard({ botId, highlightBuy = false }: Props) {
+  const { limit, guilds, loading, refresh, purchase } = useBotServerSlots(botId);
+  const buyRef = useRef<HTMLButtonElement | null>(null);
 
-  // After returning from Checkout, sync the subscription state.
+  // After returning from the one-time slot checkout, refresh the count.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("slot_purchase") === "success") {
-      syncFromStripe().then(() => {
-        toast.success("Extra server slot activated!");
-        params.delete("slot_purchase");
-        const newUrl = window.location.pathname + (params.toString() ? `?${params}` : "");
-        window.history.replaceState({}, "", newUrl);
-      });
+      // Webhook may take a moment; poll briefly.
+      const start = Date.now();
+      const tick = async () => {
+        await refresh();
+        if (Date.now() - start < 8000) setTimeout(tick, 1500);
+      };
+      tick();
+      toast.success("Extra server slot added!");
+      params.delete("slot_purchase");
+      const newUrl = window.location.pathname + (params.toString() ? `?${params}` : "");
+      window.history.replaceState({}, "", newUrl);
     } else if (params.get("slot_purchase") === "cancelled") {
       toast.info("Purchase cancelled");
       params.delete("slot_purchase");
       const newUrl = window.location.pathname + (params.toString() ? `?${params}` : "");
       window.history.replaceState({}, "", newUrl);
     }
-  }, [syncFromStripe]);
+  }, [refresh]);
 
+  // Pulse + scroll the buy button into view when the parent asks us to.
+  useEffect(() => {
+    if (!highlightBuy || !buyRef.current) return;
+    buyRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightBuy]);
+
+  const isUnlimited = limit?.is_unlimited === true;
   const max = limit?.limit ?? 1;
   const current = limit?.current_count ?? 0;
-  const atLimit = current >= max;
+  const atLimit = !isUnlimited && current >= max;
 
   const onBuy = async () => {
     const res = await purchase(1);
@@ -56,18 +71,33 @@ export function BotServerSlotsCard({ botId }: Props) {
       <CardContent className="space-y-4">
         <div className="flex items-baseline justify-between">
           <div>
-            <div className="text-3xl font-bold">
-              {current} <span className="text-base font-normal text-muted-foreground">/ {max}</span>
-            </div>
+            {isUnlimited ? (
+              <div className="flex items-center gap-2 text-3xl font-bold">
+                {current}
+                <span className="text-base font-normal text-muted-foreground">/</span>
+                <InfinityIcon className="h-7 w-7 text-primary" />
+              </div>
+            ) : (
+              <div className="text-3xl font-bold">
+                {current}{" "}
+                <span className="text-base font-normal text-muted-foreground">/ {max}</span>
+              </div>
+            )}
             <p className="text-sm text-muted-foreground">
-              {limit?.extra_slots
-                ? `1 included + ${limit.extra_slots} extra slot${limit.extra_slots > 1 ? "s" : ""}`
+              {isUnlimited
+                ? "Admin account — unlimited servers"
+                : limit?.extra_slots
+                ? `1 included + ${limit.extra_slots} extra slot${limit.extra_slots > 1 ? "s" : ""} (shared across all your bots)`
                 : "1 server included on every plan"}
             </p>
           </div>
-          <Badge variant={atLimit ? "destructive" : "secondary"}>
-            {atLimit ? "At limit" : `${max - current} free`}
-          </Badge>
+          {isUnlimited ? (
+            <Badge variant="secondary">Unlimited</Badge>
+          ) : (
+            <Badge variant={atLimit ? "destructive" : "secondary"}>
+              {atLimit ? "At limit" : `${max - current} free`}
+            </Badge>
+          )}
         </div>
 
         {guilds.length > 0 ? (
@@ -87,17 +117,33 @@ export function BotServerSlotsCard({ botId }: Props) {
           </p>
         )}
 
-        <div className="rounded-md border bg-muted/30 p-3 text-sm">
-          <p className="font-medium">Need more servers?</p>
-          <p className="text-muted-foreground">
-            Each extra slot is <strong>$4.99/month</strong>. Cancel anytime — your bot will leave any
-            servers over the limit on the next renewal.
-          </p>
-          <Button onClick={onBuy} className="mt-3 w-full" size="sm">
-            <Plus className="mr-1 h-4 w-4" />
-            Buy 1 extra slot ($4.99/mo)
-          </Button>
-        </div>
+        {!isUnlimited && (
+          <div
+            className={`rounded-md border p-3 text-sm transition-all ${
+              highlightBuy || atLimit
+                ? "border-primary bg-primary/10 ring-2 ring-primary/40 animate-pulse"
+                : "bg-muted/30"
+            }`}
+          >
+            <p className="font-medium">
+              {atLimit ? "You've hit your server limit" : "Need more servers?"}
+            </p>
+            <p className="text-muted-foreground">
+              Each extra slot is <strong>$2.99 one-time</strong> and is shared across every bot
+              you own (Protection, Utilities, Support).
+            </p>
+            <Button
+              ref={buyRef}
+              onClick={onBuy}
+              className="mt-3 w-full"
+              size="sm"
+              variant={highlightBuy || atLimit ? "default" : "outline"}
+            >
+              <Plus className="mr-1 h-4 w-4" />
+              Buy 1 extra slot ($2.99)
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
