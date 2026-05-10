@@ -77,7 +77,7 @@ import {
   ChevronDown,
   ChevronUp,
   Search,
-  ExternalLink,
+  
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
