@@ -71,8 +71,8 @@ export function useBotServerSlots(botId: string | undefined) {
   // refresh immediately instead of waiting for the next poll.
   useEffect(() => {
     if (!botId) return;
-    const channel = supabase
-      .channel(`bot-active-guilds-${botId}`)
+    const channel = supabase.channel(`bot-active-guilds-${botId}-${Math.random().toString(36).slice(2)}`);
+    channel
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bot_active_guilds", filter: `bot_id=eq.${botId}` },
