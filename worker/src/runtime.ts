@@ -158,7 +158,13 @@ export class BotRuntime {
         }
       }
 
-      await setStatus(this.botId, "online");
+      await setStatus(this.botId, "online", {
+        guilds: [...client.guilds.cache.values()].map((guild) => ({
+          id: guild.id,
+          name: guild.name,
+          member_count: guild.memberCount,
+        })),
+      });
 
       this.heartbeat = setInterval(async () => {
         const g = this.client?.guilds.cache;
@@ -173,6 +179,14 @@ export class BotRuntime {
             member_count: guild.memberCount,
           }));
           await replaceGuilds(this.botId, guildList);
+          await setStatus(this.botId, "online", {
+            guilds: guildList.map((guild) => ({
+              id: guild.guild_id,
+              name: guild.guild_name,
+              member_count: guild.member_count,
+            })),
+          });
+          return;
         }
         await setStatus(this.botId, "online");
       }, HEARTBEAT_INTERVAL_MS);
