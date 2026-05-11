@@ -171,9 +171,13 @@ export function useBotGuilds(botId: string | undefined) {
         { event: "*", schema: "public", table: "bot_runtime_status", filter: `bot_id=eq.${botId}` },
         (payload) => {
           const rows = normalizeRuntimeGuilds((payload.new as { guilds?: unknown } | null)?.guilds);
-          hasGuildsRef.current = rows.length > 0;
-          setGuilds(rows);
-          setLoading(false);
+          // Only overwrite the displayed list if heartbeat has guilds —
+          // otherwise keep the bot_active_guilds fallback we loaded.
+          if (rows.length > 0) {
+            hasGuildsRef.current = true;
+            setGuilds(rows);
+            setLoading(false);
+          }
         },
       )
       .subscribe();
