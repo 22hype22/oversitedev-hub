@@ -165,6 +165,14 @@ export class BotRuntime {
         if (g) {
           const m = g.reduce((s, guild) => s + guild.memberCount, 0);
           await recordMetrics(this.botId, { activeServers: g.size, memberCount: m });
+          // Reconcile guild list every heartbeat so the dashboard reflects
+          // joins/leaves without waiting for a manual refresh.
+          const guildList = [...g.values()].map((guild) => ({
+            guild_id: guild.id,
+            guild_name: guild.name,
+            member_count: guild.memberCount,
+          }));
+          await replaceGuilds(this.botId, guildList);
         }
         await setStatus(this.botId, "online");
       }, HEARTBEAT_INTERVAL_MS);
