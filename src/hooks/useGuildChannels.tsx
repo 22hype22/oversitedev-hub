@@ -12,11 +12,19 @@ function normalizeRuntimeGuilds(value: unknown): BotGuild[] {
   return value
     .map((entry) => {
       if (!entry || typeof entry !== "object") return null;
-      const guild = entry as { id?: unknown; name?: unknown; member_count?: unknown };
-      if (typeof guild.id !== "string") return null;
+      const guild = entry as {
+        id?: unknown;
+        name?: unknown;
+        guild_id?: unknown;
+        guild_name?: unknown;
+        member_count?: unknown;
+      };
+      const id = typeof guild.id === "string" ? guild.id : typeof guild.guild_id === "string" ? guild.guild_id : null;
+      if (!id) return null;
+      const name = typeof guild.name === "string" ? guild.name : typeof guild.guild_name === "string" ? guild.guild_name : null;
       return {
-        guild_id: guild.id,
-        guild_name: typeof guild.name === "string" ? guild.name : null,
+        guild_id: id,
+        guild_name: name,
         member_count: typeof guild.member_count === "number" ? guild.member_count : null,
       } satisfies BotGuild;
     })
