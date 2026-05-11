@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Bell, CheckCheck, AlertTriangle, Power, Terminal, Clock } from "lucide-react";
+import { Bell, CheckCheck, AlertTriangle, Power, Terminal, Clock, CheckCircle2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,8 +11,11 @@ import { useBotNotifications, type BotNotification } from "@/hooks/useBotNotific
 
 function iconFor(type: string) {
   switch (type) {
+    case "bot_down":
     case "bot_offline":
       return Power;
+    case "bot_restored":
+      return CheckCircle2;
     case "error_spike":
       return AlertTriangle;
     case "command_finished":
@@ -21,6 +24,19 @@ function iconFor(type: string) {
       return Clock;
     default:
       return Bell;
+  }
+}
+
+function severityClasses(type: string) {
+  switch (type) {
+    case "bot_down":
+    case "bot_offline":
+    case "error_spike":
+      return "bg-destructive/10 text-destructive";
+    case "bot_restored":
+      return "bg-emerald-500/10 text-emerald-500";
+    default:
+      return "bg-primary/10 text-primary";
   }
 }
 
@@ -46,11 +62,7 @@ function NotifRow({ n, onClick }: { n: BotNotification; onClick: () => void }) {
       }`}
     >
       <span
-        className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-md flex-shrink-0 ${
-          n.event_type === "error_spike" || n.event_type === "bot_offline"
-            ? "bg-destructive/10 text-destructive"
-            : "bg-primary/10 text-primary"
-        }`}
+        className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-md flex-shrink-0 ${severityClasses(n.event_type)}`}
       >
         <Icon size={14} />
       </span>
