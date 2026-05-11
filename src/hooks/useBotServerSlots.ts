@@ -46,6 +46,44 @@ export function useBotServerSlots(botId: string | undefined) {
     refresh();
   }, [refresh]);
 
+  // Periodically ask the worker to reconcile its guild list against Discord,
+  // so guilds the bot was kicked from disappear without the user clicking refresh.
+  useEffect(() => {
+    if (!botId) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        await supabase.rpc("request_list_guilds", { _bot_id: botId });
+      } catch {
+        /* ignore — bot may be offline */
+      }
+      if (!cancelled) await refresh();
+    };
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [botId, refresh]);
+
+  // Live updates: when the worker writes to bot_active_guilds (join/leave),
+  // refresh immediately instead of waiting for the next poll.
+  useEffect(() => {
+    if (!botId) return;
+    const channel = supabase
+      .channel(`bot-active-guilds-${botId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bot_active_guilds", filter: `bot_id=eq.${botId}` },
+        () => { refresh(); },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [botId, refresh]);
+
   const purchase = useCallback(
     async (additionalSlots: number) => {
       if (!botId) return { ok: false, error: "No bot" };
