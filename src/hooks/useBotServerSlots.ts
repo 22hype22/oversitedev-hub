@@ -45,18 +45,27 @@ export function useBotServerSlots(botId: string | undefined) {
     if (!botId) return;
     setLoading(true);
     try {
-      const [{ data: limitData }, { data: statusData }] = await Promise.all([
+      const [{ data: limitData }, { data: statusData }, { data: activeData }] = await Promise.all([
         supabase.rpc("get_bot_server_limit", { _bot_id: botId }),
         (supabase.from("bot_runtime_status") as any)
           .select("guilds")
           .eq("bot_id", botId)
           .maybeSingle(),
+        supabase
+          .from("bot_active_guilds")
+          .select("id, guild_id, guild_name, member_count, joined_at, last_seen_at")
+          .eq("bot_id", botId)
+          .order("joined_at", { ascending: true }),
       ]);
       const runtimeGuilds = normalizeRuntimeGuilds((statusData as { guilds?: unknown } | null)?.guilds);
+      // Fall back to bot_active_guilds (legacy source) when the heartbeat
+      // hasn't populated runtime_status.guilds yet (e.g. bots added directly
+      // through Discord before this feature shipped).
+      const finalGuilds = runtimeGuilds.length > 0 ? runtimeGuilds : ((activeData ?? []) as BotActiveGuild[]);
       if (limitData) {
-        setLimit({ ...(limitData as unknown as BotServerLimit), current_count: runtimeGuilds.length });
+        setLimit({ ...(limitData as unknown as BotServerLimit), current_count: finalGuilds.length });
       }
-      setGuilds(runtimeGuilds);
+      setGuilds(finalGuilds);
     } finally {
       setLoading(false);
     }
@@ -86,8 +95,12 @@ export function useBotServerSlots(botId: string | undefined) {
         { event: "*", schema: "public", table: "bot_runtime_status", filter: `bot_id=eq.${botId}` },
         (payload) => {
           const nextGuilds = normalizeRuntimeGuilds((payload.new as { guilds?: unknown } | null)?.guilds);
-          setGuilds(nextGuilds);
-          setLimit((currentLimit) => currentLimit ? { ...currentLimit, current_count: nextGuilds.length } : currentLimit);
+          // Only overwrite if heartbeat actually has guilds; otherwise keep
+          // whatever fallback we already loaded.
+          if (nextGuilds.length > 0) {
+            setGuilds(nextGuilds);
+            setLimit((currentLimit) => currentLimit ? { ...currentLimit, current_count: nextGuilds.length } : currentLimit);
+          }
         },
       )
       .subscribe();
