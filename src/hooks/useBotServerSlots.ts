@@ -14,8 +14,26 @@ export interface BotActiveGuild {
   guild_id: string;
   guild_name: string | null;
   member_count: number | null;
-  joined_at: string;
-  last_seen_at: string;
+  joined_at?: string;
+  last_seen_at?: string;
+}
+
+function normalizeRuntimeGuilds(value: unknown): BotActiveGuild[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") return null;
+      const guild = entry as { id?: unknown; name?: unknown; member_count?: unknown };
+      if (typeof guild.id !== "string") return null;
+      return {
+        id: guild.id,
+        guild_id: guild.id,
+        guild_name: typeof guild.name === "string" ? guild.name : null,
+        member_count: typeof guild.member_count === "number" ? guild.member_count : null,
+      } satisfies BotActiveGuild;
+    })
+    .filter((guild): guild is BotActiveGuild => guild !== null)
+    .sort((a, b) => (a.guild_name ?? a.guild_id).localeCompare(b.guild_name ?? b.guild_id));
 }
 
 export function useBotServerSlots(botId: string | undefined) {
@@ -23,60 +41,54 @@ export function useBotServerSlots(botId: string | undefined) {
   const [guilds, setGuilds] = useState<BotActiveGuild[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const refresh = useCallback(async () => {
+  const readRuntimeStatus = useCallback(async () => {
     if (!botId) return;
     setLoading(true);
     try {
-      const [{ data: limitData }, { data: guildData }] = await Promise.all([
+      const [{ data: limitData }, { data: statusData }] = await Promise.all([
         supabase.rpc("get_bot_server_limit", { _bot_id: botId }),
-        supabase
-          .from("bot_active_guilds")
-          .select("id, guild_id, guild_name, member_count, joined_at, last_seen_at")
+        (supabase.from("bot_runtime_status") as any)
+          .select("guilds")
           .eq("bot_id", botId)
-          .order("joined_at", { ascending: true }),
+          .maybeSingle(),
       ]);
-      if (limitData) setLimit(limitData as unknown as BotServerLimit);
-      if (guildData) setGuilds(guildData as BotActiveGuild[]);
+      const runtimeGuilds = normalizeRuntimeGuilds((statusData as { guilds?: unknown } | null)?.guilds);
+      if (limitData) {
+        setLimit({ ...(limitData as unknown as BotServerLimit), current_count: runtimeGuilds.length });
+      }
+      setGuilds(runtimeGuilds);
     } finally {
       setLoading(false);
     }
   }, [botId]);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  const refresh = useCallback(async () => {
+    if (!botId) return;
+    try {
+      await supabase.rpc("request_list_guilds", { _bot_id: botId });
+    } catch {
+      /* ignore — heartbeat will still update runtime status */
+    }
+    await readRuntimeStatus();
+  }, [botId, readRuntimeStatus]);
 
-  // Periodically ask the worker to reconcile its guild list against Discord,
-  // so guilds the bot was kicked from disappear without the user clicking refresh.
+  useEffect(() => {
+    readRuntimeStatus();
+  }, [readRuntimeStatus]);
+
+  // Live updates: every worker heartbeat updates bot_runtime_status.guilds.
   useEffect(() => {
     if (!botId) return;
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        await supabase.rpc("request_list_guilds", { _bot_id: botId });
-      } catch {
-        /* ignore — bot may be offline */
-      }
-      if (!cancelled) await refresh();
-    };
-    tick();
-    const id = setInterval(tick, 30_000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [botId, refresh]);
-
-  // Live updates: when the worker writes to bot_active_guilds (join/leave),
-  // refresh immediately instead of waiting for the next poll.
-  useEffect(() => {
-    if (!botId) return;
-    const channel = supabase.channel(`bot-active-guilds-${botId}-${Math.random().toString(36).slice(2)}`);
+    const channel = supabase.channel(`bot-runtime-status-${botId}-${Math.random().toString(36).slice(2)}`);
     channel
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "bot_active_guilds", filter: `bot_id=eq.${botId}` },
-        () => { refresh(); },
+        { event: "*", schema: "public", table: "bot_runtime_status", filter: `bot_id=eq.${botId}` },
+        (payload) => {
+          const nextGuilds = normalizeRuntimeGuilds((payload.new as { guilds?: unknown } | null)?.guilds);
+          setGuilds(nextGuilds);
+          setLimit((currentLimit) => currentLimit ? { ...currentLimit, current_count: nextGuilds.length } : currentLimit);
+        },
       )
       .subscribe();
     return () => {
