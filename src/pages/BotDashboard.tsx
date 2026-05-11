@@ -514,6 +514,7 @@ const BotSection = ({
   // (Manage / Add-on config) contains a match for their query, and collapse
   // the one that doesn't. User clicks still override afterwards.
   const [manageOpen, setManageOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [addonsOpen, setAddonsOpen] = useState(false);
   const [highlightSlots, setHighlightSlots] = useState(false);
   const q = (searchQuery ?? "").trim().toLowerCase();
