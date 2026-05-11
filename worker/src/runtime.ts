@@ -360,7 +360,24 @@ export class BotRuntime {
 
   async listGuilds() {
     if (!this.client) {
-      throw new Error("Bot not running — start it before listing servers");
+      // Fallback: use REST so we can reconcile the guild list even when the
+      // bot isn't actively running in this worker process.
+      const token = await getSecret(this.botId, "DISCORD_TOKEN");
+      if (!token) throw new Error("DISCORD_TOKEN secret not set");
+      const rest = new REST({ version: "10" }).setToken(token);
+      const raw = (await rest.get(Routes.userGuilds())) as Array<{
+        id: string;
+        name?: string;
+        approximate_member_count?: number;
+      }>;
+      const guilds = raw.map((g) => ({
+        guild_id: g.id,
+        guild_name: g.name ?? null,
+        member_count: g.approximate_member_count ?? null,
+      }));
+      await replaceGuilds(this.botId, guilds);
+      await appendLog(this.botId, "info", `Refreshed guild list via REST (${guilds.length} server(s))`);
+      return;
     }
     await this.client.guilds.fetch();
     const guilds = [...this.client.guilds.cache.values()].map((g) => ({
