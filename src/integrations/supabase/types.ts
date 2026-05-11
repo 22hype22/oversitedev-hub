@@ -2406,6 +2406,7 @@ export type Database = {
         Args: { _ids?: string[] }
         Returns: number
       }
+      mark_stale_bots_offline: { Args: never; Returns: undefined }
       move_to_dlq: {
         Args: {
           dlq_name: string

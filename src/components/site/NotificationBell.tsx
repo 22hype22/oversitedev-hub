@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Bell, CheckCheck, AlertTriangle, Power, Terminal, Clock } from "lucide-react";
+import { Bell, CheckCheck, AlertTriangle, Power, Terminal, Clock, CheckCircle2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,8 +11,11 @@ import { useBotNotifications, type BotNotification } from "@/hooks/useBotNotific
 
 function iconFor(type: string) {
   switch (type) {
+    case "bot_down":
     case "bot_offline":
       return Power;
+    case "bot_restored":
+      return CheckCircle2;
     case "error_spike":
       return AlertTriangle;
     case "command_finished":
@@ -21,6 +24,19 @@ function iconFor(type: string) {
       return Clock;
     default:
       return Bell;
+  }
+}
+
+function severityClasses(type: string) {
+  switch (type) {
+    case "bot_down":
+    case "bot_offline":
+    case "error_spike":
+      return "bg-destructive/10 text-destructive";
+    case "bot_restored":
+      return "bg-emerald-500/10 text-emerald-500";
+    default:
+      return "bg-primary/10 text-primary";
   }
 }
 
@@ -46,11 +62,7 @@ function NotifRow({ n, onClick }: { n: BotNotification; onClick: () => void }) {
       }`}
     >
       <span
-        className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-md flex-shrink-0 ${
-          n.event_type === "error_spike" || n.event_type === "bot_offline"
-            ? "bg-destructive/10 text-destructive"
-            : "bg-primary/10 text-primary"
-        }`}
+        className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-md flex-shrink-0 ${severityClasses(n.event_type)}`}
       >
         <Icon size={14} />
       </span>
@@ -70,6 +82,9 @@ function NotifRow({ n, onClick }: { n: BotNotification; onClick: () => void }) {
 
 export function NotificationBell() {
   const { items, unread, markAllRead, markRead } = useBotNotifications();
+  const hasCriticalUnread = items.some(
+    (n) => !n.read_at && (n.event_type === "bot_down" || n.event_type === "bot_offline" || n.event_type === "error_spike"),
+  );
 
   return (
     <DropdownMenu>
@@ -80,7 +95,7 @@ export function NotificationBell() {
       >
         <Bell size={15} />
         {unread > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">
+          <span className={`absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${hasCriticalUnread ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground"}`}>
             {unread > 9 ? "9+" : unread}
           </span>
         )}
