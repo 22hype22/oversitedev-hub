@@ -7,6 +7,23 @@ export interface BotGuild {
   member_count: number | null;
 }
 
+function normalizeRuntimeGuilds(value: unknown): BotGuild[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") return null;
+      const guild = entry as { id?: unknown; name?: unknown; member_count?: unknown };
+      if (typeof guild.id !== "string") return null;
+      return {
+        guild_id: guild.id,
+        guild_name: typeof guild.name === "string" ? guild.name : null,
+        member_count: typeof guild.member_count === "number" ? guild.member_count : null,
+      } satisfies BotGuild;
+    })
+    .filter((guild): guild is BotGuild => guild !== null)
+    .sort((a, b) => (a.guild_name ?? a.guild_id).localeCompare(b.guild_name ?? b.guild_id));
+}
+
 export interface BotChannel {
   channel_id: string;
   channel_name: string;
@@ -66,7 +83,7 @@ export function sortedChannelCategoryEntries(channels: BotChannel[]): ChannelCat
     .map(({ key, label, channels }) => ({ key, label, channels }));
 }
 
-/** Lists guilds the bot is currently in (from bot_active_guilds). */
+/** Lists guilds the bot is currently in from the live runtime heartbeat. */
 export function useBotGuilds(botId: string | undefined) {
   const [guilds, setGuilds] = useState<BotGuild[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,12 +98,11 @@ export function useBotGuilds(botId: string | undefined) {
       return;
     }
     setLoading((wasLoading) => (hasGuildsRef.current ? wasLoading : true));
-    const { data } = await supabase
-      .from("bot_active_guilds")
-      .select("guild_id, guild_name, member_count")
+    const { data } = await (supabase.from("bot_runtime_status") as any)
+      .select("guilds")
       .eq("bot_id", botId)
-      .order("guild_name", { ascending: true });
-    const rows = (data ?? []) as BotGuild[];
+      .maybeSingle();
+    const rows = normalizeRuntimeGuilds((data as { guilds?: unknown } | null)?.guilds);
     hasGuildsRef.current = rows.length > 0;
     setGuilds(rows);
     setLoading(false);
@@ -98,8 +114,7 @@ export function useBotGuilds(botId: string | undefined) {
 
   /**
    * Ask the worker to re-fetch the guild list from Discord. Polls the
-   * bot_active_guilds table quickly (250ms intervals, ~6s max) until the
-   * row contents change.
+   * runtime heartbeat guild list quickly until the row contents change.
    */
   const refreshFromDiscord = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
     if (!botId) return { ok: false, error: "no_bot" };
@@ -118,16 +133,16 @@ export function useBotGuilds(botId: string | undefined) {
       // Poll up to 24x (every 250ms = ~6s) for the cache to change.
       for (let i = 0; i < 24; i++) {
         await new Promise((r) => setTimeout(r, 250));
-        const { data: rows } = await supabase
-          .from("bot_active_guilds")
-          .select("guild_id, guild_name, member_count")
+        const { data: row } = await (supabase.from("bot_runtime_status") as any)
+          .select("guilds")
           .eq("bot_id", botId)
-          .order("guild_name", { ascending: true });
+          .maybeSingle();
+        const rows = normalizeRuntimeGuilds((row as { guilds?: unknown } | null)?.guilds);
         const next = JSON.stringify(
-          ((rows ?? []) as BotGuild[]).map((g) => g.guild_id).sort(),
+          rows.map((g) => g.guild_id).sort(),
         );
         if (next !== before) {
-          setGuilds((rows ?? []) as BotGuild[]);
+          setGuilds(rows);
           return { ok: true };
         }
       }
@@ -137,6 +152,26 @@ export function useBotGuilds(botId: string | undefined) {
       setRefreshing(false);
     }
   }, [botId, guilds, refresh]);
+
+  useEffect(() => {
+    if (!botId) return;
+    const channel = supabase
+      .channel(`bot-runtime-guilds:${botId}:${Math.random().toString(36).slice(2)}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bot_runtime_status", filter: `bot_id=eq.${botId}` },
+        (payload) => {
+          const rows = normalizeRuntimeGuilds((payload.new as { guilds?: unknown } | null)?.guilds);
+          hasGuildsRef.current = rows.length > 0;
+          setGuilds(rows);
+          setLoading(false);
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [botId]);
 
   return { guilds, loading, refresh, refreshing, refreshFromDiscord };
 }
