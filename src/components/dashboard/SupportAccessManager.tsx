@@ -57,7 +57,16 @@ const EXPIRY_OPTIONS = [
   { hours: 24, label: "24 hours" },
   { hours: 24 * 7, label: "7 days" },
   { hours: 24 * 30, label: "30 days" },
+  { hours: 0, label: "Never" },
 ];
+
+const isNeverExpires = (iso: string | null | undefined) => {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  return !Number.isFinite(t) || t > Date.UTC(9000, 0, 1);
+};
+const formatExpiry = (iso: string | null | undefined) =>
+  isNeverExpires(iso) ? "Never" : iso ? new Date(iso).toLocaleString() : "soon";
 
 export function SupportAccessManager() {
   const { user } = useAuth();
@@ -155,7 +164,7 @@ export function SupportAccessManager() {
                 <div className="min-w-0">
                   <div className="font-medium">Support team has dashboard access</div>
                   <div className="text-xs text-muted-foreground">
-                    Expires {new Date(g.expires_at).toLocaleString()}
+                    Expires {formatExpiry(g.expires_at)}
                   </div>
                 </div>
                 <Button
@@ -206,7 +215,7 @@ export function SupportAccessManager() {
                     <code className="font-mono text-sm font-semibold">{c.code}</code>
                     <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      Expires {new Date(c.expires_at).toLocaleString()}
+                      Expires {formatExpiry(c.expires_at)}
                       {c.notes && <> · {c.notes}</>}
                     </div>
                   </div>
@@ -262,8 +271,10 @@ export function SupportAccessManager() {
             <DialogHeader>
               <DialogTitle>Your support access code</DialogTitle>
               <DialogDescription>
-                Share this code with our support team. It expires{" "}
-                {newCodeExpires ? new Date(newCodeExpires).toLocaleString() : "soon"}.
+                Share this code with our support team.{" "}
+                {isNeverExpires(newCodeExpires)
+                  ? "It never expires unless you revoke it."
+                  : `It expires ${newCodeExpires ? new Date(newCodeExpires).toLocaleString() : "soon"}.`}
               </DialogDescription>
             </DialogHeader>
             <div className="rounded-md border border-border bg-muted/40 px-4 py-4 text-center font-mono text-2xl font-bold tracking-wider">
