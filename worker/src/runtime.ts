@@ -398,6 +398,13 @@ export class BotRuntime {
         member_count: g.approximate_member_count ?? null,
       }));
       await replaceGuilds(this.botId, guilds);
+      await setStatus(this.botId, "online", {
+        guilds: guilds.map((g) => ({
+          id: g.guild_id,
+          name: g.guild_name,
+          member_count: g.member_count,
+        })),
+      });
       await appendLog(this.botId, "info", `Refreshed guild list via REST (${guilds.length} server(s))`);
       return;
     }
@@ -408,6 +415,13 @@ export class BotRuntime {
       member_count: g.memberCount,
     }));
     await replaceGuilds(this.botId, guilds);
+    await setStatus(this.botId, "online", {
+      guilds: guilds.map((g) => ({
+        id: g.guild_id,
+        name: g.guild_name,
+        member_count: g.member_count,
+      })),
+    });
     await appendLog(this.botId, "info", `Refreshed guild list (${guilds.length} server(s))`);
   }
 
