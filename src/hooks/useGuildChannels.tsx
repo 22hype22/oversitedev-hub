@@ -98,11 +98,20 @@ export function useBotGuilds(botId: string | undefined) {
       return;
     }
     setLoading((wasLoading) => (hasGuildsRef.current ? wasLoading : true));
-    const { data } = await (supabase.from("bot_runtime_status") as any)
-      .select("guilds")
-      .eq("bot_id", botId)
-      .maybeSingle();
-    const rows = normalizeRuntimeGuilds((data as { guilds?: unknown } | null)?.guilds);
+    const [{ data: statusRow }, { data: activeRows }] = await Promise.all([
+      (supabase.from("bot_runtime_status") as any)
+        .select("guilds")
+        .eq("bot_id", botId)
+        .maybeSingle(),
+      supabase
+        .from("bot_active_guilds")
+        .select("guild_id, guild_name, member_count")
+        .eq("bot_id", botId)
+        .order("guild_name", { ascending: true }),
+    ]);
+    const runtimeGuilds = normalizeRuntimeGuilds((statusRow as { guilds?: unknown } | null)?.guilds);
+    // Fall back to bot_active_guilds when heartbeat hasn't populated yet.
+    const rows = runtimeGuilds.length > 0 ? runtimeGuilds : ((activeRows ?? []) as BotGuild[]);
     hasGuildsRef.current = rows.length > 0;
     setGuilds(rows);
     setLoading(false);
