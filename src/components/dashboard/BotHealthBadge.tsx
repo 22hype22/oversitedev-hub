@@ -16,7 +16,7 @@ const STATUS_META: Record<
 };
 
 export const BotHealthBadge = ({ botId }: { botId: string }) => {
-  const { health, loading } = useBotHealth(botId);
+  const { health, loading, reload } = useBotHealth(botId);
 
   if (loading || !health) {
     return (
@@ -56,6 +56,15 @@ export const BotHealthBadge = ({ botId }: { botId: string }) => {
       {health.never_started && (
         <span className="text-[10px] text-muted-foreground">never started</span>
       )}
+      <button
+        type="button"
+        onClick={() => reload()}
+        title="Refresh status"
+        aria-label="Refresh status"
+        className="inline-flex items-center justify-center h-5 w-5 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+      >
+        <RefreshCw className="h-3 w-3" />
+      </button>
     </div>
   );
 };

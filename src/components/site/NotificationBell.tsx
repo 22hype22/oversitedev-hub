@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Bell, CheckCheck, AlertTriangle, Power, Terminal, Clock, CheckCircle2 } from "lucide-react";
+import { Bell, CheckCheck, AlertTriangle, Power, Terminal, Clock, CheckCircle2, RefreshCw } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -81,7 +81,7 @@ function NotifRow({ n, onClick }: { n: BotNotification; onClick: () => void }) {
 }
 
 export function NotificationBell() {
-  const { items, unread, markAllRead, markRead } = useBotNotifications();
+  const { items, unread, loading, refresh, markAllRead, markRead } = useBotNotifications();
   const hasCriticalUnread = items.some(
     (n) => !n.read_at && (n.event_type === "bot_down" || n.event_type === "bot_offline" || n.event_type === "error_spike"),
   );
@@ -103,20 +103,35 @@ export function NotificationBell() {
       <DropdownMenuContent align="end" className="w-[360px] p-0">
         <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
           <div className="text-sm font-medium">Notifications</div>
-          {unread > 0 && (
+          <div className="flex items-center gap-1">
             <Button
               size="sm"
               variant="ghost"
-              className="h-7 text-xs gap-1"
+              className="h-7 w-7 p-0"
+              title="Refresh"
               onClick={(e) => {
                 e.preventDefault();
-                markAllRead();
+                refresh();
               }}
+              disabled={loading}
             >
-              <CheckCheck size={12} />
-              Mark all read
+              <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
             </Button>
-          )}
+            {unread > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs gap-1"
+                onClick={(e) => {
+                  e.preventDefault();
+                  markAllRead();
+                }}
+              >
+                <CheckCheck size={12} />
+                Mark all read
+              </Button>
+            )}
+          </div>
         </div>
         <ScrollArea className="max-h-[420px]">
           {items.length === 0 ? (
