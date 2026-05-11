@@ -843,6 +843,7 @@ export type Database = {
           bot_id: string
           created_at: string
           details: Json | null
+          guilds: Json
           id: string
           last_error: string | null
           last_error_at: string | null
@@ -860,6 +861,7 @@ export type Database = {
           bot_id: string
           created_at?: string
           details?: Json | null
+          guilds?: Json
           id?: string
           last_error?: string | null
           last_error_at?: string | null
@@ -877,6 +879,7 @@ export type Database = {
           bot_id?: string
           created_at?: string
           details?: Json | null
+          guilds?: Json
           id?: string
           last_error?: string | null
           last_error_at?: string | null
@@ -2600,6 +2603,19 @@ export type Database = {
             Args: {
               _bot_id: string
               _details?: Json
+              _last_error?: string
+              _status: string
+              _token: string
+              _version?: string
+              _worker_id?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _bot_id: string
+              _details?: Json
+              _guilds?: Json
               _last_error?: string
               _status: string
               _token: string

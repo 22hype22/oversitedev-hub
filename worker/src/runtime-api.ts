@@ -12,7 +12,11 @@ export type BotStatus =
 export async function setStatus(
   botId: string,
   status: BotStatus,
-  opts: { lastError?: string; version?: string } = {},
+  opts: {
+    lastError?: string;
+    version?: string;
+    guilds?: { id: string; name: string | null; member_count: number | null }[];
+  } = {},
 ) {
   const { error } = await supabase.rpc("runtime_set_bot_status", {
     _token: WORKER_TOKEN_VALUE,
@@ -22,6 +26,7 @@ export async function setStatus(
     _worker_id: WORKER_ID,
     _version: opts.version ?? null,
     _details: null,
+    _guilds: opts.guilds ?? null,
   });
   if (error) console.error(`[${botId}] setStatus(${status}) failed:`, error.message);
 }
