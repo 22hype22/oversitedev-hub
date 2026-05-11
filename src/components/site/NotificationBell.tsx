@@ -81,7 +81,7 @@ function NotifRow({ n, onClick }: { n: BotNotification; onClick: () => void }) {
 }
 
 export function NotificationBell() {
-  const { items, unread, markAllRead, markRead } = useBotNotifications();
+  const { items, unread, loading, refresh, markAllRead, markRead } = useBotNotifications();
   const hasCriticalUnread = items.some(
     (n) => !n.read_at && (n.event_type === "bot_down" || n.event_type === "bot_offline" || n.event_type === "error_spike"),
   );
