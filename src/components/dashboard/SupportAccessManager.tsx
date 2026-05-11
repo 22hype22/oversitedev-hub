@@ -215,7 +215,7 @@ export function SupportAccessManager() {
                     <code className="font-mono text-sm font-semibold">{c.code}</code>
                     <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      Expires {new Date(c.expires_at).toLocaleString()}
+                      Expires {formatExpiry(c.expires_at)}
                       {c.notes && <> · {c.notes}</>}
                     </div>
                   </div>
