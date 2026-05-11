@@ -105,7 +105,7 @@ export function SupportAccessManager() {
   }, [reload]);
 
   const activeCodes = codes.filter(
-    (c) => !c.revoked_at && new Date(c.expires_at).getTime() > Date.now(),
+    (c) => !c.revoked_at && (isNeverExpires(c.expires_at) || new Date(c.expires_at).getTime() > Date.now()),
   );
 
   return (
