@@ -514,6 +514,7 @@ const BotSection = ({
   // (Manage / Add-on config) contains a match for their query, and collapse
   // the one that doesn't. User clicks still override afterwards.
   const [manageOpen, setManageOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [addonsOpen, setAddonsOpen] = useState(false);
   const [highlightSlots, setHighlightSlots] = useState(false);
   const q = (searchQuery ?? "").trim().toLowerCase();
@@ -695,9 +696,17 @@ const BotSection = ({
         <EngineVersionSwitcher bot={bot} onReload={onReload} />
       )}
 
-      {/* Compact build summary — collapsible details */}
-      <details className="group rounded-lg border border-border bg-card/40">
-        <summary className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer list-none">
+      {/* Compact build summary — collapsible (controlled, default closed) */}
+      <div className="rounded-lg border border-border bg-card/40">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setSummaryOpen((v) => !v);
+          }}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+          aria-expanded={summaryOpen}
+        >
           <div className="flex items-center gap-2 text-sm min-w-0">
             <Package className="h-4 w-4 text-primary shrink-0" />
             <span className="font-medium truncate">{baseLabel}</span>
@@ -705,28 +714,27 @@ const BotSection = ({
               · {bot.addons.length} add-on{bot.addons.length === 1 ? "" : "s"}
             </span>
           </div>
-          <span className="text-xs text-muted-foreground shrink-0 group-open:hidden">
-            Show details
+          <span className="text-xs text-muted-foreground shrink-0">
+            {summaryOpen ? "Hide" : "Show"}
           </span>
-          <span className="text-xs text-muted-foreground shrink-0 hidden group-open:inline">
-            Hide
-          </span>
-        </summary>
-        <div className="px-4 pb-4 pt-1 space-y-3 border-t border-border">
-          {baseTagline && (
-            <p className="text-sm text-muted-foreground">{baseTagline}</p>
-          )}
-          {bot.addons.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {bot.addons.map((id) => (
-                <Badge key={id} variant="secondary" className="text-xs font-normal">
-                  {getAddonLabel(id)}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </div>
-      </details>
+        </button>
+        {summaryOpen && (
+          <div className="px-4 pb-4 pt-1 space-y-3 border-t border-border">
+            {baseTagline && (
+              <p className="text-sm text-muted-foreground">{baseTagline}</p>
+            )}
+            {bot.addons.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {bot.addons.map((id) => (
+                  <Badge key={id} variant="secondary" className="text-xs font-normal">
+                    {getAddonLabel(id)}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {!bot.isDemo && (
         <BotSecretsManager botId={bot.id} ownedAddons={ownedAddons} />
