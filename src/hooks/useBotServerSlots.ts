@@ -95,8 +95,12 @@ export function useBotServerSlots(botId: string | undefined) {
         { event: "*", schema: "public", table: "bot_runtime_status", filter: `bot_id=eq.${botId}` },
         (payload) => {
           const nextGuilds = normalizeRuntimeGuilds((payload.new as { guilds?: unknown } | null)?.guilds);
-          setGuilds(nextGuilds);
-          setLimit((currentLimit) => currentLimit ? { ...currentLimit, current_count: nextGuilds.length } : currentLimit);
+          // Only overwrite if heartbeat actually has guilds; otherwise keep
+          // whatever fallback we already loaded.
+          if (nextGuilds.length > 0) {
+            setGuilds(nextGuilds);
+            setLimit((currentLimit) => currentLimit ? { ...currentLimit, current_count: nextGuilds.length } : currentLimit);
+          }
         },
       )
       .subscribe();
