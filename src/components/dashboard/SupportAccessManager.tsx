@@ -271,8 +271,10 @@ export function SupportAccessManager() {
             <DialogHeader>
               <DialogTitle>Your support access code</DialogTitle>
               <DialogDescription>
-                Share this code with our support team. It expires{" "}
-                {newCodeExpires ? new Date(newCodeExpires).toLocaleString() : "soon"}.
+                Share this code with our support team.{" "}
+                {isNeverExpires(newCodeExpires)
+                  ? "It never expires unless you revoke it."
+                  : `It expires ${newCodeExpires ? new Date(newCodeExpires).toLocaleString() : "soon"}.`}
               </DialogDescription>
             </DialogHeader>
             <div className="rounded-md border border-border bg-muted/40 px-4 py-4 text-center font-mono text-2xl font-bold tracking-wider">
