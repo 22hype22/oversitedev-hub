@@ -164,7 +164,7 @@ export function SupportAccessManager() {
                 <div className="min-w-0">
                   <div className="font-medium">Support team has dashboard access</div>
                   <div className="text-xs text-muted-foreground">
-                    Expires {new Date(g.expires_at).toLocaleString()}
+                    Expires {formatExpiry(g.expires_at)}
                   </div>
                 </div>
                 <Button
