@@ -57,7 +57,16 @@ const EXPIRY_OPTIONS = [
   { hours: 24, label: "24 hours" },
   { hours: 24 * 7, label: "7 days" },
   { hours: 24 * 30, label: "30 days" },
+  { hours: 0, label: "Never" },
 ];
+
+const isNeverExpires = (iso: string | null | undefined) => {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  return !Number.isFinite(t) || t > Date.UTC(9000, 0, 1);
+};
+const formatExpiry = (iso: string | null | undefined) =>
+  isNeverExpires(iso) ? "Never" : iso ? new Date(iso).toLocaleString() : "soon";
 
 export function SupportAccessManager() {
   const { user } = useAuth();
