@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS trg_prepare_bot_runtime_status_write ON public.bot_runtime_status;
