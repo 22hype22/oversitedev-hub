@@ -814,7 +814,16 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         .maybeSingle();
       if (cancelled || !data) return;
       const cfg = (data.config ?? {}) as Record<string, any>;
-      setValues((prev) => ({ ...prev, enabled: cfg.enabled ?? true }));
+      const viewerRoles = Array.isArray(cfg.viewer_role_ids)
+        ? cfg.viewer_role_ids.map(String)
+        : [];
+      setValues((prev) => ({
+        ...prev,
+        enabled: cfg.enabled ?? true,
+        viewerRole: viewerRoles,
+        includeExpired: cfg.include_expired ?? false,
+        retentionDays: Number(cfg.retention_days ?? 0),
+      }));
       setAppliedAt((data as any).applied_at ?? null);
     })();
     return () => { cancelled = true; };
