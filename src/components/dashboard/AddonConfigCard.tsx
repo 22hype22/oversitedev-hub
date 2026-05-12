@@ -835,7 +835,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     const payload = {
       bot_id: botId,
       feature: "mod-history",
-      config: { enabled: enabled },
+      config: {
+        enabled: enabled,
+        viewer_role_ids: Array.isArray(values.viewerRole)
+          ? (values.viewerRole as string[]).filter(Boolean)
+          : [],
+        include_expired: !!values.includeExpired,
+        retention_days: Number(values.retentionDays ?? 0),
+      },
       updated_at: new Date().toISOString(),
     };
     const { error } = await supabase
