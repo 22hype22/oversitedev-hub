@@ -498,6 +498,42 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "ban-tools": {
+    title: "/softban, /massban & Temp Bans",
+    summary: "Power ban tools — softban, massban, and time-limited bans in one place.",
+    icon: Hammer,
+    fields: [
+      // ── Softban / Massban ──
+      multirole("softbanRole", "Softban allowed roles", "Roles allowed to use /softban."),
+      multirole("massbanRole", "Massban allowed roles", "Roles allowed to use /massban."),
+      channel("logChannel", "Softban / Massban log channel"),
+      {
+        key: "softbanDeleteDays",
+        label: "Softban: delete messages from last N days",
+        type: "number",
+        defaultValue: 1,
+      },
+      toggle("requireReason", "Require a reason for softban / massban"),
+      // ── Temp Ban ──
+      role("tempbanAllowedRole", "Tempban allowed role", "Role allowed to use /tempban."),
+      {
+        key: "tempbanDefaultDuration",
+        label: "Tempban default duration",
+        type: "select",
+        defaultValue: "1d",
+        options: [
+          { value: "1h", label: "1 hour" },
+          { value: "1d", label: "1 day" },
+          { value: "7d", label: "7 days" },
+          { value: "30d", label: "30 days" },
+        ],
+      },
+      channel("tempbanLogChannel", "Tempban log channel"),
+      toggle("tempbanDmOnBan", "DM the user when they're tempbanned"),
+      toggle("tempbanDmOnUnban", "DM the user when they're auto-unbanned", false),
+    ],
+  },
+
   "channel-lockdown": {
     title: "Channel Lockdown Command",
     summary: "Lock channels instantly during raids.",
