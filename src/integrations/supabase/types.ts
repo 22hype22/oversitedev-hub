@@ -2239,6 +2239,10 @@ export type Database = {
         Returns: Json
       }
       assign_pool_token_to_bot: { Args: { _bot_id: string }; Returns: Json }
+      bot_runtime_status_can_write: {
+        Args: { _bot_id: string; _user_id: string }
+        Returns: boolean
+      }
       bot_runtime_status_matches_order: {
         Args: { _bot_id: string; _user_id: string }
         Returns: boolean
