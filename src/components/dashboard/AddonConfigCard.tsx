@@ -90,6 +90,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isAvatarNsfw = addonId === "avatar-nsfw-detection";
   const isBioPhrase = addonId === "bio-phrase-detection";
   const isPhishingDetection = addonId === "phishing-detection";
+  const isSoftbanMassban = addonId === "softban-massban";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
 
@@ -813,7 +814,16 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         .maybeSingle();
       if (cancelled || !data) return;
       const cfg = (data.config ?? {}) as Record<string, any>;
-      setValues((prev) => ({ ...prev, enabled: cfg.enabled ?? true }));
+      const viewerRoles = Array.isArray(cfg.viewer_role_ids)
+        ? cfg.viewer_role_ids.map(String)
+        : [];
+      setValues((prev) => ({
+        ...prev,
+        enabled: cfg.enabled ?? true,
+        viewerRole: viewerRoles,
+        includeExpired: cfg.include_expired ?? false,
+        retentionDays: Number(cfg.retention_days ?? 0),
+      }));
       setAppliedAt((data as any).applied_at ?? null);
     })();
     return () => { cancelled = true; };
@@ -825,7 +835,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     const payload = {
       bot_id: botId,
       feature: "mod-history",
-      config: { enabled: enabled },
+      config: {
+        enabled: enabled,
+        viewer_role_ids: Array.isArray(values.viewerRole)
+          ? (values.viewerRole as string[]).filter(Boolean)
+          : [],
+        include_expired: !!values.includeExpired,
+        retention_days: Number(values.retentionDays ?? 0),
+      },
       updated_at: new Date().toISOString(),
     };
     const { error } = await supabase
@@ -840,6 +857,72 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Moderation History settings saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- softban-massban ----------
+  useEffect(() => {
+    if (!isSoftbanMassban || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "softban-massban")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const softbanRoles = Array.isArray(cfg.softban_role_ids)
+        ? cfg.softban_role_ids.map(String)
+        : [];
+      const massbanRoles = Array.isArray(cfg.massban_role_ids)
+        ? cfg.massban_role_ids.map(String)
+        : [];
+      setValues((prev) => ({
+        ...prev,
+        softbanRole: softbanRoles,
+        massbanRole: massbanRoles,
+        logChannel: cfg.log_channel_id ?? "",
+        softbanDeleteDays: Number(cfg.softban_delete_days ?? 1),
+        requireReason: cfg.require_reason ?? true,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isSoftbanMassban, open, botId]);
+
+  const saveSoftbanMassban = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "softban-massban",
+      config: {
+        softban_role_ids: Array.isArray(values.softbanRole)
+          ? (values.softbanRole as string[]).filter(Boolean)
+          : [],
+        massban_role_ids: Array.isArray(values.massbanRole)
+          ? (values.massbanRole as string[]).filter(Boolean)
+          : [],
+        log_channel_id: values.logChannel ? String(values.logChannel) : null,
+        softban_delete_days: Number(values.softbanDeleteDays ?? 1),
+        require_reason: !!values.requireReason,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "softban-massban",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Softban / Massban settings saved & applied");
     setOpen(false);
   };
 
@@ -1326,6 +1409,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveBioPhrase();
                   } else if (isPhishingDetection) {
                     void savePhishingDetection();
+                  } else if (isSoftbanMassban) {
+                    void saveSoftbanMassban();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);

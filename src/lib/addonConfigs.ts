@@ -485,7 +485,8 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Power tools for cleaning up raids and spam.",
     icon: Hammer,
     fields: [
-      role("allowedRole", "Role allowed to use these commands"),
+      multirole("softbanRole", "Softban allowed roles", "Roles allowed to use /softban."),
+      multirole("massbanRole", "Massban allowed roles", "Roles allowed to use /massban."),
       channel("logChannel", "Log channel"),
       {
         key: "softbanDeleteDays",
@@ -542,7 +543,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Full punishment history for any user.",
     icon: History,
     fields: [
-      role("staffRole", "Role allowed to view history"),
+      multirole("viewerRole", "Viewer roles", "Roles allowed to view moderation history."),
       toggle("includeExpired", "Include expired punishments"),
       {
         key: "retentionDays",
