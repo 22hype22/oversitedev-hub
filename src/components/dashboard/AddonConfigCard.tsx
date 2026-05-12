@@ -1293,9 +1293,18 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       bot_id: botId,
       feature: "temp-ban",
       config: {
-        allowed_role_id: values.tempbanAllowedRole ? String(values.tempbanAllowedRole) : null,
-        default_duration: String(values.tempbanDefaultDuration ?? "1d"),
+        allowed_role_ids: Array.isArray(values.tempbanAllowedRole)
+          ? (values.tempbanAllowedRole as string[]).filter(Boolean)
+          : [],
         log_channel_id: values.tempbanLogChannel ? String(values.tempbanLogChannel) : null,
+        default_duration_minutes: (() => {
+          const dur = String(values.tempbanDefaultDuration ?? "1d");
+          if (dur === "1h") return 60;
+          if (dur === "1d") return 1440;
+          if (dur === "7d") return 10080;
+          if (dur === "30d") return 43200;
+          return 1440;
+        })(),
         dm_on_ban: !!values.tempbanDmOnBan,
         dm_on_unban: !!values.tempbanDmOnUnban,
       },
