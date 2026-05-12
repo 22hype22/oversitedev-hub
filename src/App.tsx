@@ -22,6 +22,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import CheckoutReturn from "./pages/CheckoutReturn.tsx";
 import CheckoutSetup from "./pages/CheckoutSetup.tsx";
 import Terms from "./pages/Terms.tsx";
+import MeetTheOwner from "./pages/MeetTheOwner.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -62,6 +63,7 @@ const App = () => {
               <Route path="/checkout/return" element={<CheckoutReturn />} />
               <Route path="/checkout/setup" element={<CheckoutSetup />} />
               <Route path="/terms" element={<Terms />} />
+              <Route path="/explore/owner" element={<MeetTheOwner />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
