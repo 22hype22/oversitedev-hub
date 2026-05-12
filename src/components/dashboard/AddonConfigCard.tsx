@@ -85,6 +85,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isAntiRaid = addonId === "anti-raid";
   const isNsfwInviteScanner = addonId === "nsfw-invite-scanner";
   const isAutoRole = addonId === "auto-role";
+  const isModHistory = addonId === "moderation-history";
+  const isAutoEscalate = addonId === "auto-escalating-warnings";
+  const isAvatarNsfw = addonId === "avatar-nsfw-detection";
+  const isBioPhrase = addonId === "bio-phrase-detection";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
 
@@ -97,6 +101,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     "anti-raid": "anti-raid",
     "phishing-detection": "phishing-link-detection",
     "nsfw-invite-scanner": "nsfw-invite-scanner",
+    "moderation-history": "mod-history",
+    "auto-escalating-warnings": "auto-escalate",
+    "avatar-nsfw-detection": "avatar-nsfw",
+    "bio-phrase-detection": "bio-phrase",
   };
 
   const persistEnabledFlag = async (next: boolean) => {
@@ -706,7 +714,212 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     }
     setOpen(false);
   };
-  // Add-ons we don't have a schema for yet — show a stub box so we know
+
+  // ---------- mod-history ----------
+  useEffect(() => {
+    if (!isModHistory || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "mod-history")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({ ...prev, enabled: cfg.enabled ?? true }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isModHistory, open, botId]);
+
+  const saveModHistory = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "mod-history",
+      config: { enabled: enabled },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "mod-history",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Moderation History settings saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- auto-escalate ----------
+  const MUTE_DURATION_TO_MIN: Record<string, number> = { "10m": 10, "1h": 60, "6h": 360, "1d": 1440 };
+  useEffect(() => {
+    if (!isAutoEscalate || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "auto-escalate")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const minutes = Number(cfg.mute_duration_minutes ?? 60);
+      const muteStr = minutes === 10 ? "10m" : minutes === 360 ? "6h" : minutes === 1440 ? "1d" : "1h";
+      setValues((prev) => ({
+        ...prev,
+        muteAt: Number(cfg.warn_threshold_mute ?? 3),
+        banAt: Number(cfg.warn_threshold_ban ?? 7),
+        muteDuration: muteStr,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isAutoEscalate, open, botId]);
+
+  const saveAutoEscalate = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const muteStr = String(values.muteDuration ?? "1h");
+    const payload = {
+      bot_id: botId,
+      feature: "auto-escalate",
+      config: {
+        enabled: enabled,
+        warn_threshold_mute: Number(values.muteAt ?? 3),
+        warn_threshold_ban: Number(values.banAt ?? 7),
+        mute_duration_minutes: MUTE_DURATION_TO_MIN[muteStr] ?? 60,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "auto-escalate",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Auto-Escalating Warnings saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- avatar-nsfw ----------
+  useEffect(() => {
+    if (!isAvatarNsfw || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "avatar-nsfw")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        action: cfg.action ?? "delete",
+        channel: cfg.log_channel_id ?? "",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isAvatarNsfw, open, botId]);
+
+  const saveAvatarNsfw = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "avatar-nsfw",
+      config: {
+        enabled: enabled,
+        action: String(values.action ?? "delete"),
+        log_channel_id: values.channel ? String(values.channel) : null,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "avatar-nsfw",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Avatar NSFW Detection saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- bio-phrase ----------
+  useEffect(() => {
+    if (!isBioPhrase || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "bio-phrase")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const phrasesArr = Array.isArray(cfg.phrases) ? cfg.phrases : [];
+      setValues((prev) => ({
+        ...prev,
+        channel: cfg.log_channel_id ?? "",
+        phrases: phrasesArr.join("\n"),
+        action: cfg.action ?? "delete",
+        strikeLimit: Number(cfg.strike_limit ?? 3),
+        muteDurationMinutes: Number(cfg.mute_duration_minutes ?? 60),
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isBioPhrase, open, botId]);
+
+  const saveBioPhrase = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const phrasesText = String(values.phrases ?? "");
+    const phrasesArr = phrasesText.split("\n").map((p) => p.trim()).filter(Boolean);
+    const payload = {
+      bot_id: botId,
+      feature: "bio-phrase",
+      config: {
+        enabled: enabled,
+        phrases: phrasesArr,
+        strike_limit: Number(values.strikeLimit ?? 3),
+        mute_duration_minutes: Number(values.muteDurationMinutes ?? 60),
+        action: String(values.action ?? "delete"),
+        log_channel_id: values.channel ? String(values.channel) : null,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "bio-phrase",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Bio Phrase Detection saved & applied");
+    setOpen(false);
+  };
+
   // it's owned but configuration is still wired up.
   if (!config) {
     return (
@@ -1018,6 +1231,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveNsfwInviteScanner();
                   } else if (isAutoRole) {
                     void saveAutoRole();
+                  } else if (isModHistory) {
+                    void saveModHistory();
+                  } else if (isAutoEscalate) {
+                    void saveAutoEscalate();
+                  } else if (isAvatarNsfw) {
+                    void saveAvatarNsfw();
+                  } else if (isBioPhrase) {
+                    void saveBioPhrase();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
