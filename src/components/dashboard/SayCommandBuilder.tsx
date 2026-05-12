@@ -660,19 +660,36 @@ export const SayCommandBuilder = forwardRef<
           </div>
         ))}
 
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            setTrailingMessages((prev) => [
-              ...prev,
-              { id: crypto.randomUUID(), text: "" },
-            ])
-          }
-        >
-          <Plus className="h-3.5 w-3.5 mr-1" /> Add Message
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setTrailingMessages((prev) => [
+                ...prev,
+                { id: crypto.randomUUID(), text: "" },
+              ])
+            }
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add Message
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setEmbeds([newEmbed()]);
+              setTrailingMessages([]);
+              if (mode !== "rules") {
+                setContent("");
+                setFiles([]);
+              }
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1" /> Clear all
+          </Button>
+        </div>
 
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
