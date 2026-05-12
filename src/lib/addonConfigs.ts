@@ -299,6 +299,11 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       channel("alertChannel", "Alert channel"),
       role("pingRole", "Role to ping on raid"),
       toggle("autoUnlock", "Auto-unlock after the raid stops"),
+      multirole(
+        "exemptRoles",
+        "Exempt roles",
+        "Roles selected here will NOT have their permissions locked during a raid.",
+      ),
     ],
   },
 
