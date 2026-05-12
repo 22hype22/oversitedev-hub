@@ -89,6 +89,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isAutoEscalate = addonId === "auto-escalating-warnings";
   const isAvatarNsfw = addonId === "avatar-nsfw-detection";
   const isBioPhrase = addonId === "bio-phrase-detection";
+  const isPhishingDetection = addonId === "phishing-detection";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
 
