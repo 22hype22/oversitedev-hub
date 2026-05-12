@@ -503,22 +503,19 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Lock channels instantly during raids.",
     icon: Lock,
     fields: [
-      role("allowedRole", "Role allowed to lock channels"),
-      ...embedHeaderFields(),
+      multirole("allowedRoles", "Allowed roles", "Roles allowed to use /lock and /unlock."),
       {
         key: "lockMessage",
-        label: "Lock announcement",
-        type: "textarea",
-        defaultValue: "🔒 This channel is now locked. We'll be back shortly.",
+        label: "Lock message (plain text)",
+        type: "text",
+        placeholder: "🔒 This channel is now locked.",
       },
       {
         key: "unlockMessage",
-        label: "Unlock announcement",
-        type: "textarea",
-        defaultValue: "🔓 Channel unlocked — thanks for your patience.",
+        label: "Unlock message (plain text)",
+        type: "text",
+        placeholder: "🔓 Channel unlocked.",
       },
-      toggle("lockServerOption", "Allow /lockdown server (locks all channels)"),
-      ...embedFooterFields(),
     ],
   },
 
@@ -527,14 +524,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Private notes only your staff can see.",
     icon: StickyNote,
     fields: [
-      role("staffRole", "Staff role (can view & add notes)"),
-      toggle("notifyOnNote", "Ping staff role when a new note is added", false),
-      {
-        key: "maxNotesPerUser",
-        label: "Max notes stored per user",
-        type: "number",
-        defaultValue: 50,
-      },
+      multirole("allowedRoles", "Allowed roles", "Roles allowed to view and add staff notes."),
     ],
   },
 

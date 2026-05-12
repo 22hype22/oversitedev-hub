@@ -91,6 +91,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isBioPhrase = addonId === "bio-phrase-detection";
   const isPhishingDetection = addonId === "phishing-detection";
   const isSoftbanMassban = addonId === "softban-massban";
+  const isStaffNotes = addonId === "staff-notes";
+  const isChannelLockdown = addonId === "channel-lockdown";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
 
@@ -167,6 +169,23 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
 
   // Generic, untyped form state — schema-driven.
   const [values, setValues] = useState<Record<string, string | number | boolean | string[]>>({});
+
+  // Channel lockdown embed state (separate because of nested object shape).
+  type LockEmbed = { enabled: boolean; title: string; description: string; color: string };
+  const defaultLockEmbed: LockEmbed = {
+    enabled: true,
+    title: "🔒 Channel Locked",
+    description: "This channel is now locked. We'll be back shortly.",
+    color: "0xED4245",
+  };
+  const defaultUnlockEmbed: LockEmbed = {
+    enabled: true,
+    title: "🔓 Channel Unlocked",
+    description: "Channel unlocked — thanks for your patience.",
+    color: "0x57F287",
+  };
+  const [lockEmbed, setLockEmbed] = useState<LockEmbed>(defaultLockEmbed);
+  const [unlockEmbed, setUnlockEmbed] = useState<LockEmbed>(defaultUnlockEmbed);
 
   useEffect(() => {
     if (!config) return;
@@ -1088,7 +1107,123 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     setOpen(false);
   };
 
+  // ---------- staff-notes ----------
+  useEffect(() => {
+    if (!isStaffNotes || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "staff-notes")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const allowed = Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [];
+      setValues((prev) => ({ ...prev, allowedRoles: allowed }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isStaffNotes, open, botId]);
+
+  const saveStaffNotes = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "staff-notes",
+      config: {
+        allowed_role_ids: Array.isArray(values.allowedRoles)
+          ? (values.allowedRoles as string[]).filter(Boolean)
+          : [],
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "staff-notes",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Staff Notes settings saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- channel-lockdown ----------
+  useEffect(() => {
+    if (!isChannelLockdown || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "channel-lockdown")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const allowed = Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [];
+      setValues((prev) => ({
+        ...prev,
+        allowedRoles: allowed,
+        lockMessage: String(cfg.lock_message ?? ""),
+        unlockMessage: String(cfg.unlock_message ?? ""),
+      }));
+      const le = (cfg.lock_embed ?? {}) as Partial<LockEmbed>;
+      const ue = (cfg.unlock_embed ?? {}) as Partial<LockEmbed>;
+      setLockEmbed({
+        enabled: le.enabled ?? defaultLockEmbed.enabled,
+        title: le.title ?? defaultLockEmbed.title,
+        description: le.description ?? defaultLockEmbed.description,
+        color: le.color ?? defaultLockEmbed.color,
+      });
+      setUnlockEmbed({
+        enabled: ue.enabled ?? defaultUnlockEmbed.enabled,
+        title: ue.title ?? defaultUnlockEmbed.title,
+        description: ue.description ?? defaultUnlockEmbed.description,
+        color: ue.color ?? defaultUnlockEmbed.color,
+      });
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isChannelLockdown, open, botId]);
+
+  const saveChannelLockdown = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "channel-lockdown",
+      config: {
+        allowed_role_ids: Array.isArray(values.allowedRoles)
+          ? (values.allowedRoles as string[]).filter(Boolean)
+          : [],
+        lock_message: String(values.lockMessage ?? ""),
+        unlock_message: String(values.unlockMessage ?? ""),
+        lock_embed: { ...lockEmbed },
+        unlock_embed: { ...unlockEmbed },
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "channel-lockdown",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Channel Lockdown settings saved & applied");
+    setOpen(false);
+  };
+
   // it's owned but configuration is still wired up.
+
   if (!config) {
     return (
       <Card className="bg-card/40 border-dashed border-border p-6 flex flex-col h-[210px]">
@@ -1322,9 +1457,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
           className={
             isSayCommand || isRules
               ? "max-w-5xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isAnonReport
-                ? "max-w-2xl max-h-[90vh] overflow-y-auto"
-                : "max-w-lg max-h-[85vh] overflow-y-auto"
+              : isChannelLockdown
+                ? "max-w-3xl max-h-[90vh] overflow-y-auto"
+                : isTicketPanel || isAnonReport
+                  ? "max-w-2xl max-h-[90vh] overflow-y-auto"
+                  : "max-w-lg max-h-[85vh] overflow-y-auto"
           }
         >
           <DialogHeader>
@@ -1350,6 +1487,26 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
             <TicketPanelBuilder botId={botId} botName={botName} variant="ticket" />
           ) : isAnonReport ? (
             <TicketPanelBuilder botId={botId} botName={botName} variant="report" />
+          ) : isChannelLockdown ? (
+            <div className="space-y-5 py-2">
+              {config.fields.map((f) => (
+                <div key={f.key}>{renderField(f)}</div>
+              ))}
+              <LockEmbedEditor
+                label="Lock embed"
+                value={lockEmbed}
+                onChange={setLockEmbed}
+                botName={botName}
+                botAvatarUrl={botAvatarUrl ?? undefined}
+              />
+              <LockEmbedEditor
+                label="Unlock embed"
+                value={unlockEmbed}
+                onChange={setUnlockEmbed}
+                botName={botName}
+                botAvatarUrl={botAvatarUrl ?? undefined}
+              />
+            </div>
           ) : (
             <div className="space-y-5 py-2">
               {config.fields.map((f) => (
@@ -1411,6 +1568,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void savePhishingDetection();
                   } else if (isSoftbanMassban) {
                     void saveSoftbanMassban();
+                  } else if (isStaffNotes) {
+                    void saveStaffNotes();
+                  } else if (isChannelLockdown) {
+                    void saveChannelLockdown();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
@@ -1743,6 +1904,117 @@ function MultiRoleField({
       )}
       {field.help && (
         <p className="text-xs text-muted-foreground">{field.help}</p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Inline editor + Discord-style preview for one of the channel-lockdown
+ * embeds (lock or unlock).
+ */
+function LockEmbedEditor({
+  label,
+  value,
+  onChange,
+  botName,
+  botAvatarUrl,
+}: {
+  label: string;
+  value: { enabled: boolean; title: string; description: string; color: string };
+  onChange: (v: { enabled: boolean; title: string; description: string; color: string }) => void;
+  botName: string;
+  botAvatarUrl?: string;
+}) {
+  // Convert "0xED4245" or "#ED4245" → "#ed4245" for <input type=color>.
+  const toHexInput = (c: string): string => {
+    const m = String(c ?? "").match(/[0-9a-f]{6}/i);
+    return m ? `#${m[0].toLowerCase()}` : "#5865f2";
+  };
+  // Convert "#ed4245" → "0xED4245" for storage.
+  const toStorage = (hex: string): string => `0x${hex.replace("#", "").toUpperCase()}`;
+  const hexInputValue = toHexInput(value.color);
+
+  return (
+    <div className="space-y-3 rounded-md border border-border p-4">
+      <div className="flex items-center justify-between">
+        <Label className="text-sm font-medium">{label}</Label>
+        <Switch
+          checked={value.enabled}
+          onCheckedChange={(v) => onChange({ ...value, enabled: v })}
+        />
+      </div>
+      {value.enabled && (
+        <>
+          <div className="space-y-2">
+            <Label className="text-xs">Title</Label>
+            <Input
+              value={value.title}
+              onChange={(e) => onChange({ ...value, title: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Description</Label>
+            <Textarea
+              rows={3}
+              value={value.description}
+              onChange={(e) => onChange({ ...value, description: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Color</Label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={hexInputValue}
+                onChange={(e) => onChange({ ...value, color: toStorage(e.target.value) })}
+                className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
+              />
+              <Input
+                value={value.color}
+                onChange={(e) => onChange({ ...value, color: e.target.value })}
+                placeholder="0xED4245"
+                className="font-mono text-sm"
+              />
+            </div>
+          </div>
+          {/* Preview */}
+          <div className="rounded-md bg-[#313338] p-4 text-[#dbdee1]">
+            <div className="flex gap-3">
+              <div className="h-10 w-10 rounded-full bg-[#5865F2] grid place-items-center shrink-0 overflow-hidden">
+                {botAvatarUrl ? (
+                  <img src={botAvatarUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-white text-sm font-bold">
+                    {botName.slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-white font-medium">{botName}</span>
+                  <span className="bg-[#5865F2] text-white text-[10px] px-1 py-px rounded font-semibold">
+                    APP
+                  </span>
+                  <span className="text-[11px] text-[#949ba4]">Today at 12:00 PM</span>
+                </div>
+                <div
+                  className="mt-1 max-w-md rounded border-l-4 bg-[#2b2d31] p-3"
+                  style={{ borderLeftColor: hexInputValue }}
+                >
+                  {value.title && (
+                    <div className="font-semibold text-white">{value.title}</div>
+                  )}
+                  {value.description && (
+                    <div className="mt-1 whitespace-pre-wrap text-sm text-[#dbdee1]">
+                      {value.description}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
