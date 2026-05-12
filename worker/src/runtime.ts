@@ -158,37 +158,14 @@ export class BotRuntime {
         }
       }
 
-      await setStatus(this.botId, "online", {
-        guilds: [...client.guilds.cache.values()].map((guild) => ({
-          id: guild.id,
-          name: guild.name,
-          member_count: guild.memberCount,
-        })),
-      });
+      // bot_runtime_status (status + guilds) is owned by the Python bot heartbeat.
 
       this.heartbeat = setInterval(async () => {
         const g = this.client?.guilds.cache;
         if (g) {
           const m = g.reduce((s, guild) => s + guild.memberCount, 0);
           await recordMetrics(this.botId, { activeServers: g.size, memberCount: m });
-          // Reconcile guild list every heartbeat so the dashboard reflects
-          // joins/leaves without waiting for a manual refresh.
-          const guildList = [...g.values()].map((guild) => ({
-            guild_id: guild.id,
-            guild_name: guild.name,
-            member_count: guild.memberCount,
-          }));
-          await replaceGuilds(this.botId, guildList);
-          await setStatus(this.botId, "online", {
-            guilds: guildList.map((guild) => ({
-              id: guild.guild_id,
-              name: guild.guild_name,
-              member_count: guild.member_count,
-            })),
-          });
-          return;
         }
-        await setStatus(this.botId, "online");
       }, HEARTBEAT_INTERVAL_MS);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
