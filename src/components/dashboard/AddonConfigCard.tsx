@@ -170,6 +170,23 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   // Generic, untyped form state — schema-driven.
   const [values, setValues] = useState<Record<string, string | number | boolean | string[]>>({});
 
+  // Channel lockdown embed state (separate because of nested object shape).
+  type LockEmbed = { enabled: boolean; title: string; description: string; color: string };
+  const defaultLockEmbed: LockEmbed = {
+    enabled: true,
+    title: "🔒 Channel Locked",
+    description: "This channel is now locked. We'll be back shortly.",
+    color: "0xED4245",
+  };
+  const defaultUnlockEmbed: LockEmbed = {
+    enabled: true,
+    title: "🔓 Channel Unlocked",
+    description: "Channel unlocked — thanks for your patience.",
+    color: "0x57F287",
+  };
+  const [lockEmbed, setLockEmbed] = useState<LockEmbed>(defaultLockEmbed);
+  const [unlockEmbed, setUnlockEmbed] = useState<LockEmbed>(defaultUnlockEmbed);
+
   useEffect(() => {
     if (!config) return;
     const initial: Record<string, string | number | boolean | string[]> = {};
