@@ -1223,6 +1223,98 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     setOpen(false);
   };
 
+  // ---------- ban-tools (merged softban-massban + temp-ban) ----------
+  useEffect(() => {
+    if (!isBanTools || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const [{ data: sm }, { data: tb }] = await Promise.all([
+        supabase
+          .from("bot_config")
+          .select("config, applied_at")
+          .eq("bot_id", botId)
+          .eq("feature", "softban-massban")
+          .maybeSingle(),
+        supabase
+          .from("bot_config")
+          .select("config, applied_at")
+          .eq("bot_id", botId)
+          .eq("feature", "temp-ban")
+          .maybeSingle(),
+      ]);
+      if (cancelled) return;
+      const smCfg = (sm?.config ?? {}) as Record<string, any>;
+      const tbCfg = (tb?.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        softbanRole: Array.isArray(smCfg.softban_role_ids) ? smCfg.softban_role_ids.map(String) : [],
+        massbanRole: Array.isArray(smCfg.massban_role_ids) ? smCfg.massban_role_ids.map(String) : [],
+        logChannel: smCfg.log_channel_id ?? "",
+        softbanDeleteDays: Number(smCfg.softban_delete_days ?? 1),
+        requireReason: smCfg.require_reason ?? true,
+        tempbanAllowedRole: tbCfg.allowed_role_id ?? "",
+        tempbanDefaultDuration: String(tbCfg.default_duration ?? "1d"),
+        tempbanLogChannel: tbCfg.log_channel_id ?? "",
+        tempbanDmOnBan: tbCfg.dm_on_ban ?? true,
+        tempbanDmOnUnban: tbCfg.dm_on_unban ?? false,
+      }));
+      setAppliedAt(((sm as any)?.applied_at ?? (tb as any)?.applied_at) ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isBanTools, open, botId]);
+
+  const saveBanTools = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const smPayload = {
+      bot_id: botId,
+      feature: "softban-massban",
+      config: {
+        softban_role_ids: Array.isArray(values.softbanRole)
+          ? (values.softbanRole as string[]).filter(Boolean)
+          : [],
+        massban_role_ids: Array.isArray(values.massbanRole)
+          ? (values.massbanRole as string[]).filter(Boolean)
+          : [],
+        log_channel_id: values.logChannel ? String(values.logChannel) : null,
+        softban_delete_days: Number(values.softbanDeleteDays ?? 1),
+        require_reason: !!values.requireReason,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const tbPayload = {
+      bot_id: botId,
+      feature: "temp-ban",
+      config: {
+        allowed_role_id: values.tempbanAllowedRole ? String(values.tempbanAllowedRole) : null,
+        default_duration: String(values.tempbanDefaultDuration ?? "1d"),
+        log_channel_id: values.tempbanLogChannel ? String(values.tempbanLogChannel) : null,
+        dm_on_ban: !!values.tempbanDmOnBan,
+        dm_on_unban: !!values.tempbanDmOnUnban,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const [smRes, tbRes] = await Promise.all([
+      supabase.from("bot_config").upsert(smPayload, { onConflict: "bot_id,feature" }),
+      supabase.from("bot_config").upsert(tbPayload, { onConflict: "bot_id,feature" }),
+    ]);
+    setSaving(false);
+    if (smRes.error) return toast.error(`Save failed (softban/massban): ${smRes.error.message}`);
+    if (tbRes.error) return toast.error(`Save failed (temp-ban): ${tbRes.error.message}`);
+    const [smCmd, tbCmd] = await Promise.all([
+      supabase.rpc("enqueue_apply_config" as any, { _bot_id: botId, _feature: "softban-massban" }),
+      supabase.rpc("enqueue_apply_config" as any, { _bot_id: botId, _feature: "temp-ban" }),
+    ]);
+    const failures: string[] = [];
+    if (smCmd.error) failures.push(`softban/massban: ${smCmd.error.message}`);
+    else if ((smCmd.data as any)?.ok === false) failures.push(`softban/massban: ${(smCmd.data as any)?.error ?? "unknown"}`);
+    if (tbCmd.error) failures.push(`temp-ban: ${tbCmd.error.message}`);
+    else if ((tbCmd.data as any)?.ok === false) failures.push(`temp-ban: ${(tbCmd.data as any)?.error ?? "unknown"}`);
+    if (failures.length) toast.warning(`Saved, but failed to notify bot: ${failures.join("; ")}`);
+    else toast.success("Ban Tools settings saved & applied");
+    setOpen(false);
+  };
+
   // it's owned but configuration is still wired up.
 
   if (!config) {
