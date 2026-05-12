@@ -1231,6 +1231,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveNsfwInviteScanner();
                   } else if (isAutoRole) {
                     void saveAutoRole();
+                  } else if (isModHistory) {
+                    void saveModHistory();
+                  } else if (isAutoEscalate) {
+                    void saveAutoEscalate();
+                  } else if (isAvatarNsfw) {
+                    void saveAvatarNsfw();
+                  } else if (isBioPhrase) {
+                    void saveBioPhrase();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
