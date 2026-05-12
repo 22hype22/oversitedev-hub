@@ -1,6 +1,6 @@
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
-import { MessageCircle, Globe } from "lucide-react";
+import { MessageCircle, Globe, ExternalLink } from "lucide-react";
 
 const SOCIALS = [
   {
@@ -12,6 +12,35 @@ const SOCIALS = [
     label: "Website",
     href: "https://www.oversite.shop",
     icon: Globe,
+  },
+];
+
+const WORKS = [
+  {
+    title: "Priority One",
+    category: "Build" as const,
+    description:
+      "A full-featured Discord moderation and management bot built for large-scale communities with advanced logging, auto-moderation, and customizable ticket systems.",
+    href: "https://www.oversite.shop",
+  },
+  {
+    title: "Oversite Marketplace",
+    category: "Script" as const,
+    description:
+      "Backend infrastructure and automation scripts powering the Oversite Marketplace — handling orders, deliveries, and digital product distribution.",
+    href: "https://www.oversite.shop",
+  },
+  {
+    title: "SkyHarvest",
+    category: "Model" as const,
+    description:
+      "A custom Roblox game framework with data models, economy systems, and player progression built from the ground up.",
+  },
+  {
+    title: "Colorado State Roleplay",
+    category: "Build" as const,
+    description:
+      "A Roblox roleplay community build featuring custom vehicles, map assets, and integrated Discord-to-Roblox systems.",
   },
 ];
 
@@ -81,6 +110,49 @@ const MeetTheOwner = () => {
                 {s.label}
               </a>
             ))}
+          </div>
+          {/* Development Portfolio */}
+          <div className="w-full mt-12">
+            <h2 className="text-xl font-semibold mb-4 text-foreground text-left">
+              Development Portfolio
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+              {WORKS.map((work) => (
+                <div
+                  key={work.title}
+                  className="rounded-xl border border-border bg-card/40 p-5 flex flex-col gap-2 hover:bg-card/60 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                        work.category === "Build"
+                          ? "bg-primary/10 text-primary"
+                          : work.category === "Script"
+                            ? "bg-emerald-500/10 text-emerald-500"
+                            : "bg-amber-500/10 text-amber-500"
+                      }`}
+                    >
+                      {work.category}
+                    </span>
+                    {work.href && (
+                      <a
+                        href={work.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-primary transition-colors"
+                        aria-label={`Open ${work.title}`}
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    )}
+                  </div>
+                  <h3 className="font-semibold text-foreground">{work.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {work.description}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </main>
