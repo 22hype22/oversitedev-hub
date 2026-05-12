@@ -1252,8 +1252,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         logChannel: smCfg.log_channel_id ?? "",
         softbanDeleteDays: Number(smCfg.softban_delete_days ?? 1),
         requireReason: smCfg.require_reason ?? true,
-        tempbanAllowedRole: tbCfg.allowed_role_id ?? "",
-        tempbanDefaultDuration: String(tbCfg.default_duration ?? "1d"),
+        tempbanAllowedRole: Array.isArray(tbCfg.allowed_role_ids) ? tbCfg.allowed_role_ids.map(String) : [],
+        tempbanDefaultDuration: (() => {
+          const mins = Number(tbCfg.default_duration_minutes ?? 1440);
+          if (mins === 60) return "1h";
+          if (mins === 1440) return "1d";
+          if (mins === 10080) return "7d";
+          if (mins === 43200) return "30d";
+          return "1d";
+        })(),
         tempbanLogChannel: tbCfg.log_channel_id ?? "",
         tempbanDmOnBan: tbCfg.dm_on_ban ?? true,
         tempbanDmOnUnban: tbCfg.dm_on_unban ?? false,
@@ -1286,9 +1293,18 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       bot_id: botId,
       feature: "temp-ban",
       config: {
-        allowed_role_id: values.tempbanAllowedRole ? String(values.tempbanAllowedRole) : null,
-        default_duration: String(values.tempbanDefaultDuration ?? "1d"),
+        allowed_role_ids: Array.isArray(values.tempbanAllowedRole)
+          ? (values.tempbanAllowedRole as string[]).filter(Boolean)
+          : [],
         log_channel_id: values.tempbanLogChannel ? String(values.tempbanLogChannel) : null,
+        default_duration_minutes: (() => {
+          const dur = String(values.tempbanDefaultDuration ?? "1d");
+          if (dur === "1h") return 60;
+          if (dur === "1d") return 1440;
+          if (dur === "7d") return 10080;
+          if (dur === "30d") return 43200;
+          return 1440;
+        })(),
         dm_on_ban: !!values.tempbanDmOnBan,
         dm_on_unban: !!values.tempbanDmOnUnban,
       },
