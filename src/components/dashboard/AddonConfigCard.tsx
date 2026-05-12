@@ -90,6 +90,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isAvatarNsfw = addonId === "avatar-nsfw-detection";
   const isBioPhrase = addonId === "bio-phrase-detection";
   const isPhishingDetection = addonId === "phishing-detection";
+  const isSoftbanMassban = addonId === "softban-massban";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
 
