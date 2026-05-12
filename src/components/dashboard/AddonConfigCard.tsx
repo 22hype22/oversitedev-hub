@@ -1908,3 +1908,114 @@ function MultiRoleField({
     </div>
   );
 }
+
+/**
+ * Inline editor + Discord-style preview for one of the channel-lockdown
+ * embeds (lock or unlock).
+ */
+function LockEmbedEditor({
+  label,
+  value,
+  onChange,
+  botName,
+  botAvatarUrl,
+}: {
+  label: string;
+  value: { enabled: boolean; title: string; description: string; color: string };
+  onChange: (v: { enabled: boolean; title: string; description: string; color: string }) => void;
+  botName: string;
+  botAvatarUrl?: string;
+}) {
+  // Convert "0xED4245" or "#ED4245" → "#ed4245" for <input type=color>.
+  const toHexInput = (c: string): string => {
+    const m = String(c ?? "").match(/[0-9a-f]{6}/i);
+    return m ? `#${m[0].toLowerCase()}` : "#5865f2";
+  };
+  // Convert "#ed4245" → "0xED4245" for storage.
+  const toStorage = (hex: string): string => `0x${hex.replace("#", "").toUpperCase()}`;
+  const hexInputValue = toHexInput(value.color);
+
+  return (
+    <div className="space-y-3 rounded-md border border-border p-4">
+      <div className="flex items-center justify-between">
+        <Label className="text-sm font-medium">{label}</Label>
+        <Switch
+          checked={value.enabled}
+          onCheckedChange={(v) => onChange({ ...value, enabled: v })}
+        />
+      </div>
+      {value.enabled && (
+        <>
+          <div className="space-y-2">
+            <Label className="text-xs">Title</Label>
+            <Input
+              value={value.title}
+              onChange={(e) => onChange({ ...value, title: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Description</Label>
+            <Textarea
+              rows={3}
+              value={value.description}
+              onChange={(e) => onChange({ ...value, description: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Color</Label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={hexInputValue}
+                onChange={(e) => onChange({ ...value, color: toStorage(e.target.value) })}
+                className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
+              />
+              <Input
+                value={value.color}
+                onChange={(e) => onChange({ ...value, color: e.target.value })}
+                placeholder="0xED4245"
+                className="font-mono text-sm"
+              />
+            </div>
+          </div>
+          {/* Preview */}
+          <div className="rounded-md bg-[#313338] p-4 text-[#dbdee1]">
+            <div className="flex gap-3">
+              <div className="h-10 w-10 rounded-full bg-[#5865F2] grid place-items-center shrink-0 overflow-hidden">
+                {botAvatarUrl ? (
+                  <img src={botAvatarUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-white text-sm font-bold">
+                    {botName.slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-white font-medium">{botName}</span>
+                  <span className="bg-[#5865F2] text-white text-[10px] px-1 py-px rounded font-semibold">
+                    APP
+                  </span>
+                  <span className="text-[11px] text-[#949ba4]">Today at 12:00 PM</span>
+                </div>
+                <div
+                  className="mt-1 max-w-md rounded border-l-4 bg-[#2b2d31] p-3"
+                  style={{ borderLeftColor: hexInputValue }}
+                >
+                  {value.title && (
+                    <div className="font-semibold text-white">{value.title}</div>
+                  )}
+                  {value.description && (
+                    <div className="mt-1 whitespace-pre-wrap text-sm text-[#dbdee1]">
+                      {value.description}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
