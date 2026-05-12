@@ -85,6 +85,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isAntiRaid = addonId === "anti-raid";
   const isNsfwInviteScanner = addonId === "nsfw-invite-scanner";
   const isAutoRole = addonId === "auto-role";
+  const isModHistory = addonId === "moderation-history";
+  const isAutoEscalate = addonId === "auto-escalating-warnings";
+  const isAvatarNsfw = addonId === "avatar-nsfw-detection";
+  const isBioPhrase = addonId === "bio-phrase-detection";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
 
@@ -97,6 +101,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     "anti-raid": "anti-raid",
     "phishing-detection": "phishing-link-detection",
     "nsfw-invite-scanner": "nsfw-invite-scanner",
+    "moderation-history": "mod-history",
+    "auto-escalating-warnings": "auto-escalate",
+    "avatar-nsfw-detection": "avatar-nsfw",
+    "bio-phrase-detection": "bio-phrase",
   };
 
   const persistEnabledFlag = async (next: boolean) => {
