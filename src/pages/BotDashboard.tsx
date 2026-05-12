@@ -159,9 +159,6 @@ const STATUS_META: Record<string, StatusMeta> = {
 const getStatusMeta = (s: string): StatusMeta =>
   STATUS_META[s] ?? { label: s, className: "bg-muted text-muted-foreground border-border" };
 
-const canCancelStatus = (status: string) =>
-  status === "draft" || status === "submitted";
-
 const RequestCustomFeatureCard = () => {
   return (
     <Card className="bg-card/40 border-border p-6 flex flex-col h-[210px] hover:border-primary/40 transition-smooth">
