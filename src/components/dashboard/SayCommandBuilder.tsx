@@ -1006,13 +1006,15 @@ function DiscordMessagePreview({
 }) {
   return (
     <div className="space-y-4">
-      <SingleMessage
-        botName={botName}
-        botAvatarUrl={botAvatarUrl}
-        content={content}
-        embeds={embeds}
-        files={files}
-      />
+      {(content.trim().length > 0 || embeds.length > 0 || (files && files.length > 0)) && (
+        <SingleMessage
+          botName={botName}
+          botAvatarUrl={botAvatarUrl}
+          content={content}
+          embeds={embeds}
+          files={files}
+        />
+      )}
       {trailingMessages
         ?.filter((t) => t.trim().length > 0)
         .map((t, i) => (
