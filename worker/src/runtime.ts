@@ -356,48 +356,9 @@ export class BotRuntime {
   }
 
   async listGuilds() {
-    if (!this.client) {
-      // Fallback: use REST so we can reconcile the guild list even when the
-      // bot isn't actively running in this worker process.
-      const token = await getSecret(this.botId, "DISCORD_TOKEN");
-      if (!token) throw new Error("DISCORD_TOKEN secret not set");
-      const rest = new REST({ version: "10" }).setToken(token);
-      const raw = (await rest.get(Routes.userGuilds())) as Array<{
-        id: string;
-        name?: string;
-        approximate_member_count?: number;
-      }>;
-      const guilds = raw.map((g) => ({
-        guild_id: g.id,
-        guild_name: g.name ?? null,
-        member_count: g.approximate_member_count ?? null,
-      }));
-      await replaceGuilds(this.botId, guilds);
-      await setStatus(this.botId, "online", {
-        guilds: guilds.map((g) => ({
-          id: g.guild_id,
-          name: g.guild_name,
-          member_count: g.member_count,
-        })),
-      });
-      await appendLog(this.botId, "info", `Refreshed guild list via REST (${guilds.length} server(s))`);
-      return;
-    }
-    await this.client.guilds.fetch();
-    const guilds = [...this.client.guilds.cache.values()].map((g) => ({
-      guild_id: g.id,
-      guild_name: g.name,
-      member_count: g.memberCount,
-    }));
-    await replaceGuilds(this.botId, guilds);
-    await setStatus(this.botId, "online", {
-      guilds: guilds.map((g) => ({
-        id: g.guild_id,
-        name: g.guild_name,
-        member_count: g.member_count,
-      })),
-    });
-    await appendLog(this.botId, "info", `Refreshed guild list (${guilds.length} server(s))`);
+    // bot_runtime_status (status + guild list) is owned by the Python bot
+    // heartbeat. The Lovable worker no longer reconciles this table.
+    await appendLog(this.botId, "info", "listGuilds is a no-op — guild list is owned by the Python bot heartbeat");
   }
 
   isRunning() {
