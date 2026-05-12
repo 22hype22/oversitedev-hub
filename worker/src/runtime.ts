@@ -170,7 +170,7 @@ export class BotRuntime {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       await appendLog(this.botId, "error", `Startup failed: ${msg}`);
-      await setStatus(this.botId, "crashed", { lastError: msg });
+      await appendLog(this.botId, "error", `Startup crashed: ${msg}`);
       this.running = false;
       this.cleanup();
       throw err;
