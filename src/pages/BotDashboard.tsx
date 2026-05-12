@@ -100,11 +100,10 @@ const PROTECTION_ADDON_IDS = [
   "nsfw-invite-scanner",
   "avatar-nsfw-detection",
   "bio-phrase-detection",
-  "softban-massban",
   "channel-lockdown",
   "staff-notes",
   "auto-slowmode",
-  "temp-ban",
+  "ban-tools",
   "messages",
   "rules",
 ];
@@ -490,6 +489,11 @@ const BotSection = ({
     ...bot.addons,
     ...getIncludedAddonsForBase(bot.base),
   ]);
+  // Merged "Ban Tools" pseudo-card represents both /softban-massban and
+  // /temp-ban. Show it whenever the user owns either underlying add-on.
+  if (ownedAddons.has("softban-massban") || ownedAddons.has("temp-ban")) {
+    ownedAddons.add("ban-tools");
+  }
   // Group owned add-ons by category for the configuration boxes section.
   // "messages" lives inside every category list so it shows under the bot's
   // main section, but we don't want a standalone group (e.g. "Utilities") to
