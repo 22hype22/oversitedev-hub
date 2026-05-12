@@ -1546,6 +1546,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void savePhishingDetection();
                   } else if (isSoftbanMassban) {
                     void saveSoftbanMassban();
+                  } else if (isStaffNotes) {
+                    void saveStaffNotes();
+                  } else if (isChannelLockdown) {
+                    void saveChannelLockdown();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
