@@ -671,6 +671,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       setValues((prev) => ({
         ...prev,
         alertChannel: cfg.alert_channel_id ?? "",
+        alertRole: cfg.alert_role_id ?? "",
         action: cfg.action ?? "delete",
         censorLogs: cfg.censor_in_logs ?? true,
         scanDms: cfg.scan_dms ?? false,
@@ -681,6 +682,36 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       cancelled = true;
     };
   }, [isNsfwInviteScanner, open, botId]);
+
+  // Load existing phishing-detection config when dialog opens.
+  useEffect(() => {
+    if (!isPhishingDetection || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "phishing-link-detection")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        action: cfg.action ?? "delete",
+        logChannel: cfg.log_channel_id ?? "",
+        alertRole: cfg.alert_role_id ?? "",
+        extraDomains: Array.isArray(cfg.extra_domains)
+          ? cfg.extra_domains.join("\n")
+          : String(cfg.extra_domains ?? ""),
+        scanEdits: cfg.scan_edits ?? false,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isPhishingDetection, open, botId]);
 
   const saveNsfwInviteScanner = async () => {
     if (!botId) {
