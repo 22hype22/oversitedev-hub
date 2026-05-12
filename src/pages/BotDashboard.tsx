@@ -100,7 +100,6 @@ const PROTECTION_ADDON_IDS = [
   "nsfw-invite-scanner",
   "avatar-nsfw-detection",
   "bio-phrase-detection",
-  "softban-massban",
   "channel-lockdown",
   "staff-notes",
   "auto-slowmode",
