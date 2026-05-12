@@ -48,18 +48,26 @@ const MeetTheOwner = () => {
             <h2 className="text-xl font-semibold mb-3 text-foreground">About</h2>
             <div className="text-muted-foreground leading-relaxed space-y-3 text-sm">
               <p>
-                Hi — I am the creator behind Oversite. What started as a passion for
-                Roblox development and Discord tooling turned into a full-service studio
-                building premium systems for creators and communities.
+                Hi, I'm the founder and Lead Developer behind Oversite, Oversite
+                Marketplace, Priority One, SkyHarvest, and Colorado State Roleplay.
+                What began as a way to earn money through Roblox development quickly
+                became something much greater — a genuine connection to a community
+                I care deeply about.
               </p>
               <p>
-                I personally oversee every product, bot, and integration we ship. My goal
-                is simple: deliver reliable, polished tools that actually solve problems —
-                not add to them.
+                What started as a single idea has grown into a platform serving
+                hundreds of thousands of users across thousands of servers. Every
+                project I've built has been driven by one goal: giving back to the
+                community that supported me from the start.
               </p>
               <p>
-                When I am not writing code or designing UIs, you will find me in the
-                Discord server talking with customers and shipping updates.
+                Oversite was originally created as a central home for all of my
+                projects. One by one the vision expanded — Priority One, Oversite
+                Marketplace, and more — each one building on the last. Today,
+                Oversite oversees 100+ staff members and a growing community of
+                {"{member count}"} members across all platforms. Together with my
+                team, we've built something far beyond what I ever imagined, and
+                we're just getting started.
               </p>
             </div>
           </div>
