@@ -2370,12 +2370,12 @@ export type Database = {
       get_bot_usage_daily: {
         Args: { _bot_id: string; _days?: number }
         Returns: {
-          commands: number
+          avg_active_servers: number
+          commands_count: number
           day: string
-          errors: number
-          messages: number
-          peak_members: number
-          peak_servers: number
+          errors_count: number
+          max_member_count: number
+          messages_count: number
         }[]
       }
       get_total_members_serving: { Args: never; Returns: number }
