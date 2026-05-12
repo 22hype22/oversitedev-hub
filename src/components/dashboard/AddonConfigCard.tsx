@@ -724,6 +724,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       feature: "nsfw-invite-scanner",
       config: {
         alert_channel_id: values.alertChannel ? String(values.alertChannel) : null,
+        alert_role_id: values.alertRole ? String(values.alertRole) : null,
         action: String(values.action ?? "delete"),
         censor_in_logs: !!values.censorLogs,
         scan_dms: !!values.scanDms,
@@ -749,6 +750,52 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     } else {
       toast.success("NSFW Invite Scanner settings saved & applied");
+    }
+    setOpen(false);
+  };
+
+  const savePhishingDetection = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    setSaving(true);
+    const extraDomainsText = String(values.extraDomains ?? "");
+    const extraDomainsArr = extraDomainsText
+      .split("\n")
+      .map((d) => d.trim())
+      .filter(Boolean);
+    const payload = {
+      bot_id: botId,
+      feature: "phishing-link-detection",
+      config: {
+        action: String(values.action ?? "delete"),
+        log_channel_id: values.logChannel ? String(values.logChannel) : null,
+        alert_role_id: values.alertRole ? String(values.alertRole) : null,
+        extra_domains: extraDomainsArr,
+        scan_edits: !!values.scanEdits,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "phishing-link-detection",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("Phishing Link Detection settings saved & applied");
     }
     setOpen(false);
   };
