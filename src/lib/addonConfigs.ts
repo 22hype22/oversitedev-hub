@@ -515,7 +515,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       },
       toggle("requireReason", "Require a reason for softban / massban"),
       // ── Temp Ban ──
-      role("tempbanAllowedRole", "Tempban allowed role", "Role allowed to use /tempban."),
+      multirole("tempbanAllowedRole", "Tempban allowed roles", "Roles allowed to use /tempban."),
       {
         key: "tempbanDefaultDuration",
         label: "Tempban default duration",
