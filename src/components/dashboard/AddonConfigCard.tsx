@@ -1324,6 +1324,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveAvatarNsfw();
                   } else if (isBioPhrase) {
                     void saveBioPhrase();
+                  } else if (isPhishingDetection) {
+                    void savePhishingDetection();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
