@@ -15,6 +15,35 @@ const SOCIALS = [
   },
 ];
 
+const WORKS = [
+  {
+    title: "Priority One",
+    category: "Build" as const,
+    description:
+      "A full-featured Discord moderation and management bot built for large-scale communities with advanced logging, auto-moderation, and customizable ticket systems.",
+    href: "https://www.oversite.shop",
+  },
+  {
+    title: "Oversite Marketplace",
+    category: "Script" as const,
+    description:
+      "Backend infrastructure and automation scripts powering the Oversite Marketplace — handling orders, deliveries, and digital product distribution.",
+    href: "https://www.oversite.shop",
+  },
+  {
+    title: "SkyHarvest",
+    category: "Model" as const,
+    description:
+      "A custom Roblox game framework with data models, economy systems, and player progression built from the ground up.",
+  },
+  {
+    title: "Colorado State Roleplay",
+    category: "Build" as const,
+    description:
+      "A Roblox roleplay community build featuring custom vehicles, map assets, and integrated Discord-to-Roblox systems.",
+  },
+];
+
 const MeetTheOwner = () => {
   return (
     <div className="min-h-screen flex flex-col bg-background">
