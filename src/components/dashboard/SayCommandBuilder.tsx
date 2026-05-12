@@ -828,7 +828,7 @@ export const SayCommandBuilder = forwardRef<
             botName={botName}
             botAvatarUrl={botAvatarUrl ?? undefined}
             content={mode === "rules" ? "" : content}
-            trailingMessages={mode === "rules" ? [] : trailingMessages.map((m) => m.text)}
+            trailingMessages={trailingMessages.map((m) => m.text)}
             embeds={embeds}
             files={mode === "rules" ? [] : files}
           />
