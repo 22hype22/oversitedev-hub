@@ -439,6 +439,13 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
           { value: "purge-ban", label: "Delete all messages and ban" },
         ],
       },
+      { key: "strikeLimit", label: "Strikes before mute", type: "number", defaultValue: 3 },
+      {
+        key: "muteDurationMinutes",
+        label: "Mute duration (minutes)",
+        type: "number",
+        defaultValue: 60,
+      },
     ],
   },
 
