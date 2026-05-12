@@ -1665,6 +1665,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveStaffNotes();
                   } else if (isChannelLockdown) {
                     void saveChannelLockdown();
+                  } else if (isBanTools) {
+                    void saveBanTools();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
