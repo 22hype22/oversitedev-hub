@@ -1,22 +1,17 @@
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
-import { MessageCircle, Globe, Mail } from "lucide-react";
+import { MessageCircle, Globe } from "lucide-react";
 
 const SOCIALS = [
   {
     label: "Discord",
-    href: "https://discord.gg/B23N33DfUU",
+    href: "https://discord.gg/oversite",
     icon: MessageCircle,
   },
   {
     label: "Website",
     href: "https://www.oversite.shop",
     icon: Globe,
-  },
-  {
-    label: "Email",
-    href: "mailto:support@oversite.shop",
-    icon: Mail,
   },
 ];
 
