@@ -287,15 +287,18 @@ export const SayCommandBuilder = forwardRef<
       toast.error("Bot not ready yet.");
       return false;
     }
-    if (embeds.length === 0) {
-      toast.error("Add an embed first.");
+    if (embeds.length === 0 && trailingMessages.every((m) => !m.text.trim())) {
+      toast.error("Add an embed or a message first.");
       return false;
     }
     try {
+      const messages = trailingMessages
+        .map((m) => m.text)
+        .filter((t) => t.trim().length > 0);
       const payload = {
         bot_id: botId,
         feature: "rules",
-        config: { embeds } as any,
+        config: { embeds, messages } as any,
         updated_at: new Date().toISOString(),
       };
       const { error } = await supabase
