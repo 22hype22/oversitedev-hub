@@ -324,6 +324,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         ],
       },
       channel("logChannel", "Log channel"),
+      role("alertRole", "Alert role", "Role pinged when a phishing link is detected."),
       {
         key: "extraDomains",
         label: "Extra blocked domains (one per line)",
