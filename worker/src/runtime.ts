@@ -7,7 +7,7 @@ import {
   type Interaction,
 } from "discord.js";
 import { ChannelType } from "discord.js";
-import { setStatus, appendLog, recordMetrics, getSecret, upsertGuild, removeGuild, upsertChannels, upsertRoles, replaceGuilds } from "./runtime-api.js";
+import { appendLog, recordMetrics, getSecret, upsertGuild, removeGuild, upsertChannels, upsertRoles } from "./runtime-api.js";
 import { HEARTBEAT_INTERVAL_MS } from "./supabase.js";
 import { loadBotConfig } from "./config.js";
 import { ADDONS, type AddonContext, type Addon } from "./addons/index.js";
@@ -26,7 +26,7 @@ export class BotRuntime {
   async start() {
     if (this.running) return;
     this.running = true;
-    await setStatus(this.botId, "starting");
+    // bot_runtime_status is owned by the Python bot heartbeat; do not write here.
 
     try {
       // 1. Load order config
@@ -158,42 +158,19 @@ export class BotRuntime {
         }
       }
 
-      await setStatus(this.botId, "online", {
-        guilds: [...client.guilds.cache.values()].map((guild) => ({
-          id: guild.id,
-          name: guild.name,
-          member_count: guild.memberCount,
-        })),
-      });
+      // bot_runtime_status (status + guilds) is owned by the Python bot heartbeat.
 
       this.heartbeat = setInterval(async () => {
         const g = this.client?.guilds.cache;
         if (g) {
           const m = g.reduce((s, guild) => s + guild.memberCount, 0);
           await recordMetrics(this.botId, { activeServers: g.size, memberCount: m });
-          // Reconcile guild list every heartbeat so the dashboard reflects
-          // joins/leaves without waiting for a manual refresh.
-          const guildList = [...g.values()].map((guild) => ({
-            guild_id: guild.id,
-            guild_name: guild.name,
-            member_count: guild.memberCount,
-          }));
-          await replaceGuilds(this.botId, guildList);
-          await setStatus(this.botId, "online", {
-            guilds: guildList.map((guild) => ({
-              id: guild.guild_id,
-              name: guild.guild_name,
-              member_count: guild.member_count,
-            })),
-          });
-          return;
         }
-        await setStatus(this.botId, "online");
       }, HEARTBEAT_INTERVAL_MS);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       await appendLog(this.botId, "error", `Startup failed: ${msg}`);
-      await setStatus(this.botId, "crashed", { lastError: msg });
+      await appendLog(this.botId, "error", `Startup crashed: ${msg}`);
       this.running = false;
       this.cleanup();
       throw err;
@@ -224,10 +201,8 @@ export class BotRuntime {
 
   async stop() {
     if (!this.running) return;
-    await setStatus(this.botId, "stopping");
     this.cleanup();
     await appendLog(this.botId, "info", "Bot stopped");
-    await setStatus(this.botId, "offline");
     this.running = false;
   }
 
@@ -381,48 +356,9 @@ export class BotRuntime {
   }
 
   async listGuilds() {
-    if (!this.client) {
-      // Fallback: use REST so we can reconcile the guild list even when the
-      // bot isn't actively running in this worker process.
-      const token = await getSecret(this.botId, "DISCORD_TOKEN");
-      if (!token) throw new Error("DISCORD_TOKEN secret not set");
-      const rest = new REST({ version: "10" }).setToken(token);
-      const raw = (await rest.get(Routes.userGuilds())) as Array<{
-        id: string;
-        name?: string;
-        approximate_member_count?: number;
-      }>;
-      const guilds = raw.map((g) => ({
-        guild_id: g.id,
-        guild_name: g.name ?? null,
-        member_count: g.approximate_member_count ?? null,
-      }));
-      await replaceGuilds(this.botId, guilds);
-      await setStatus(this.botId, "online", {
-        guilds: guilds.map((g) => ({
-          id: g.guild_id,
-          name: g.guild_name,
-          member_count: g.member_count,
-        })),
-      });
-      await appendLog(this.botId, "info", `Refreshed guild list via REST (${guilds.length} server(s))`);
-      return;
-    }
-    await this.client.guilds.fetch();
-    const guilds = [...this.client.guilds.cache.values()].map((g) => ({
-      guild_id: g.id,
-      guild_name: g.name,
-      member_count: g.memberCount,
-    }));
-    await replaceGuilds(this.botId, guilds);
-    await setStatus(this.botId, "online", {
-      guilds: guilds.map((g) => ({
-        id: g.guild_id,
-        name: g.guild_name,
-        member_count: g.member_count,
-      })),
-    });
-    await appendLog(this.botId, "info", `Refreshed guild list (${guilds.length} server(s))`);
+    // bot_runtime_status (status + guild list) is owned by the Python bot
+    // heartbeat. The Lovable worker no longer reconciles this table.
+    await appendLog(this.botId, "info", "listGuilds is a no-op — guild list is owned by the Python bot heartbeat");
   }
 
   isRunning() {
