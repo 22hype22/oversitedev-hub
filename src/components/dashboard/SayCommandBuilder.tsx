@@ -627,7 +627,7 @@ export const SayCommandBuilder = forwardRef<
                 htmlFor={`say-trailing-${msg.id}`}
                 className="font-semibold"
               >
-                Message {idx + 2}
+                Message {idx + (mode === "rules" ? 1 : 2)}
               </Label>
               <button
                 type="button"
