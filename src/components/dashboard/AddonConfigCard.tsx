@@ -1107,7 +1107,123 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     setOpen(false);
   };
 
+  // ---------- staff-notes ----------
+  useEffect(() => {
+    if (!isStaffNotes || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "staff-notes")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const allowed = Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [];
+      setValues((prev) => ({ ...prev, allowedRoles: allowed }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isStaffNotes, open, botId]);
+
+  const saveStaffNotes = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "staff-notes",
+      config: {
+        allowed_role_ids: Array.isArray(values.allowedRoles)
+          ? (values.allowedRoles as string[]).filter(Boolean)
+          : [],
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "staff-notes",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Staff Notes settings saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- channel-lockdown ----------
+  useEffect(() => {
+    if (!isChannelLockdown || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "channel-lockdown")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const allowed = Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [];
+      setValues((prev) => ({
+        ...prev,
+        allowedRoles: allowed,
+        lockMessage: String(cfg.lock_message ?? ""),
+        unlockMessage: String(cfg.unlock_message ?? ""),
+      }));
+      const le = (cfg.lock_embed ?? {}) as Partial<LockEmbed>;
+      const ue = (cfg.unlock_embed ?? {}) as Partial<LockEmbed>;
+      setLockEmbed({
+        enabled: le.enabled ?? defaultLockEmbed.enabled,
+        title: le.title ?? defaultLockEmbed.title,
+        description: le.description ?? defaultLockEmbed.description,
+        color: le.color ?? defaultLockEmbed.color,
+      });
+      setUnlockEmbed({
+        enabled: ue.enabled ?? defaultUnlockEmbed.enabled,
+        title: ue.title ?? defaultUnlockEmbed.title,
+        description: ue.description ?? defaultUnlockEmbed.description,
+        color: ue.color ?? defaultUnlockEmbed.color,
+      });
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isChannelLockdown, open, botId]);
+
+  const saveChannelLockdown = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "channel-lockdown",
+      config: {
+        allowed_role_ids: Array.isArray(values.allowedRoles)
+          ? (values.allowedRoles as string[]).filter(Boolean)
+          : [],
+        lock_message: String(values.lockMessage ?? ""),
+        unlock_message: String(values.unlockMessage ?? ""),
+        lock_embed: { ...lockEmbed },
+        unlock_embed: { ...unlockEmbed },
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "channel-lockdown",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Channel Lockdown settings saved & applied");
+    setOpen(false);
+  };
+
   // it's owned but configuration is still wired up.
+
   if (!config) {
     return (
       <Card className="bg-card/40 border-dashed border-border p-6 flex flex-col h-[210px]">
