@@ -1,6 +1,6 @@
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
-import { MessageCircle, Globe } from "lucide-react";
+import { MessageCircle, Globe, ExternalLink } from "lucide-react";
 
 const SOCIALS = [
   {
