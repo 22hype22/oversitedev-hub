@@ -274,8 +274,19 @@ export function SortableAddonGrid({
               botName={botName}
               botAvatarUrl={botAvatarUrl}
               highlighted={highlightedAddonId === id}
-              enabled={isEnabled(id)}
-              onToggleEnabled={(next) => void setEnabled(id, next)}
+              enabled={
+                id === "ban-tools"
+                  ? isEnabled("softban-massban") && isEnabled("temp-ban")
+                  : isEnabled(id)
+              }
+              onToggleEnabled={(next) => {
+                if (id === "ban-tools") {
+                  void setEnabled("softban-massban", next);
+                  void setEnabled("temp-ban", next);
+                } else {
+                  void setEnabled(id, next);
+                }
+              }}
             />
           ))}
         </div>
