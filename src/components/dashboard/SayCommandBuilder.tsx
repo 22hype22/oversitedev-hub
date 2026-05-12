@@ -266,8 +266,16 @@ export const SayCommandBuilder = forwardRef<
       const cfg = data.config as any;
       if (typeof cfg.content === "string") setContent(cfg.content);
       if (Array.isArray(cfg.embeds) && cfg.embeds.length > 0) setEmbeds(cfg.embeds);
-      if (Array.isArray(cfg.trailingMessages))
+      // Support both new (`messages: string[]`) and legacy (`trailingMessages: {id,text}[]`) shapes.
+      if (Array.isArray(cfg.messages)) {
+        setTrailingMessages(
+          (cfg.messages as string[])
+            .filter((t) => typeof t === "string")
+            .map((t) => ({ id: crypto.randomUUID(), text: t })),
+        );
+      } else if (Array.isArray(cfg.trailingMessages)) {
         setTrailingMessages(cfg.trailingMessages);
+      }
     })();
     return () => {
       cancelled = true;
