@@ -201,10 +201,8 @@ export class BotRuntime {
 
   async stop() {
     if (!this.running) return;
-    await setStatus(this.botId, "stopping");
     this.cleanup();
     await appendLog(this.botId, "info", "Bot stopped");
-    await setStatus(this.botId, "offline");
     this.running = false;
   }
 
