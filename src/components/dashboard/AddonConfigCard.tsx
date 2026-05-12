@@ -398,6 +398,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         alertChannel: cfg.alert_channel_id ?? "",
         pingRole: cfg.alert_role_id ?? "",
         autoUnlock: cfg.auto_unlock ?? true,
+        exemptRoles: Array.isArray(cfg.exempt_role_ids)
+          ? cfg.exempt_role_ids.map(String)
+          : [],
       }));
       setAppliedAt((data as any).applied_at ?? null);
     })();
