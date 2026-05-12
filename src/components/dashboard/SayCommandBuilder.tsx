@@ -266,8 +266,16 @@ export const SayCommandBuilder = forwardRef<
       const cfg = data.config as any;
       if (typeof cfg.content === "string") setContent(cfg.content);
       if (Array.isArray(cfg.embeds) && cfg.embeds.length > 0) setEmbeds(cfg.embeds);
-      if (Array.isArray(cfg.trailingMessages))
+      // Support both new (`messages: string[]`) and legacy (`trailingMessages: {id,text}[]`) shapes.
+      if (Array.isArray(cfg.messages)) {
+        setTrailingMessages(
+          (cfg.messages as string[])
+            .filter((t) => typeof t === "string")
+            .map((t) => ({ id: crypto.randomUUID(), text: t })),
+        );
+      } else if (Array.isArray(cfg.trailingMessages)) {
         setTrailingMessages(cfg.trailingMessages);
+      }
     })();
     return () => {
       cancelled = true;
@@ -279,15 +287,18 @@ export const SayCommandBuilder = forwardRef<
       toast.error("Bot not ready yet.");
       return false;
     }
-    if (embeds.length === 0) {
-      toast.error("Add an embed first.");
+    if (embeds.length === 0 && trailingMessages.every((m) => !m.text.trim())) {
+      toast.error("Add an embed or a message first.");
       return false;
     }
     try {
+      const messages = trailingMessages
+        .map((m) => m.text)
+        .filter((t) => t.trim().length > 0);
       const payload = {
         bot_id: botId,
         feature: "rules",
-        config: { embeds } as any,
+        config: { embeds, messages } as any,
         updated_at: new Date().toISOString(),
       };
       const { error } = await supabase
@@ -616,7 +627,7 @@ export const SayCommandBuilder = forwardRef<
                 htmlFor={`say-trailing-${msg.id}`}
                 className="font-semibold"
               >
-                Message {idx + 2}
+                Message {idx + (mode === "rules" ? 1 : 2)}
               </Label>
               <button
                 type="button"
@@ -649,19 +660,36 @@ export const SayCommandBuilder = forwardRef<
           </div>
         ))}
 
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            setTrailingMessages((prev) => [
-              ...prev,
-              { id: crypto.randomUUID(), text: "" },
-            ])
-          }
-        >
-          <Plus className="h-3.5 w-3.5 mr-1" /> Add Message
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setTrailingMessages((prev) => [
+                ...prev,
+                { id: crypto.randomUUID(), text: "" },
+              ])
+            }
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add Message
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setEmbeds([newEmbed()]);
+              setTrailingMessages([]);
+              if (mode !== "rules") {
+                setContent("");
+                setFiles([]);
+              }
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1" /> Clear all
+          </Button>
+        </div>
 
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
@@ -817,7 +845,7 @@ export const SayCommandBuilder = forwardRef<
             botName={botName}
             botAvatarUrl={botAvatarUrl ?? undefined}
             content={mode === "rules" ? "" : content}
-            trailingMessages={mode === "rules" ? [] : trailingMessages.map((m) => m.text)}
+            trailingMessages={trailingMessages.map((m) => m.text)}
             embeds={embeds}
             files={mode === "rules" ? [] : files}
           />
