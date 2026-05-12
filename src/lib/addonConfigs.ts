@@ -324,6 +324,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         ],
       },
       channel("logChannel", "Log channel"),
+      role("alertRole", "Alert role", "Role pinged when a phishing link is detected."),
       {
         key: "extraDomains",
         label: "Extra blocked domains (one per line)",
@@ -365,6 +366,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     icon: ShieldAlert,
     fields: [
       channel("alertChannel", "Alert channel"),
+      role("alertRole", "Alert role", "Role pinged when an NSFW invite is detected."),
       {
         key: "action",
         label: "On NSFW invite",

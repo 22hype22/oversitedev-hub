@@ -89,6 +89,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isAutoEscalate = addonId === "auto-escalating-warnings";
   const isAvatarNsfw = addonId === "avatar-nsfw-detection";
   const isBioPhrase = addonId === "bio-phrase-detection";
+  const isPhishingDetection = addonId === "phishing-detection";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
 
@@ -670,6 +671,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       setValues((prev) => ({
         ...prev,
         alertChannel: cfg.alert_channel_id ?? "",
+        alertRole: cfg.alert_role_id ?? "",
         action: cfg.action ?? "delete",
         censorLogs: cfg.censor_in_logs ?? true,
         scanDms: cfg.scan_dms ?? false,
@@ -680,6 +682,36 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       cancelled = true;
     };
   }, [isNsfwInviteScanner, open, botId]);
+
+  // Load existing phishing-detection config when dialog opens.
+  useEffect(() => {
+    if (!isPhishingDetection || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "phishing-link-detection")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        action: cfg.action ?? "delete",
+        logChannel: cfg.log_channel_id ?? "",
+        alertRole: cfg.alert_role_id ?? "",
+        extraDomains: Array.isArray(cfg.extra_domains)
+          ? cfg.extra_domains.join("\n")
+          : String(cfg.extra_domains ?? ""),
+        scanEdits: cfg.scan_edits ?? false,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isPhishingDetection, open, botId]);
 
   const saveNsfwInviteScanner = async () => {
     if (!botId) {
@@ -692,6 +724,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       feature: "nsfw-invite-scanner",
       config: {
         alert_channel_id: values.alertChannel ? String(values.alertChannel) : null,
+        alert_role_id: values.alertRole ? String(values.alertRole) : null,
         action: String(values.action ?? "delete"),
         censor_in_logs: !!values.censorLogs,
         scan_dms: !!values.scanDms,
@@ -717,6 +750,52 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     } else {
       toast.success("NSFW Invite Scanner settings saved & applied");
+    }
+    setOpen(false);
+  };
+
+  const savePhishingDetection = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    setSaving(true);
+    const extraDomainsText = String(values.extraDomains ?? "");
+    const extraDomainsArr = extraDomainsText
+      .split("\n")
+      .map((d) => d.trim())
+      .filter(Boolean);
+    const payload = {
+      bot_id: botId,
+      feature: "phishing-link-detection",
+      config: {
+        action: String(values.action ?? "delete"),
+        log_channel_id: values.logChannel ? String(values.logChannel) : null,
+        alert_role_id: values.alertRole ? String(values.alertRole) : null,
+        extra_domains: extraDomainsArr,
+        scan_edits: !!values.scanEdits,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "phishing-link-detection",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("Phishing Link Detection settings saved & applied");
     }
     setOpen(false);
   };
@@ -1245,6 +1324,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveAvatarNsfw();
                   } else if (isBioPhrase) {
                     void saveBioPhrase();
+                  } else if (isPhishingDetection) {
+                    void savePhishingDetection();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
