@@ -26,7 +26,7 @@ export class BotRuntime {
   async start() {
     if (this.running) return;
     this.running = true;
-    await setStatus(this.botId, "starting");
+    // bot_runtime_status is owned by the Python bot heartbeat; do not write here.
 
     try {
       // 1. Load order config
