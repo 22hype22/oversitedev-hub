@@ -1457,9 +1457,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
           className={
             isSayCommand || isRules
               ? "max-w-5xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isAnonReport
-                ? "max-w-2xl max-h-[90vh] overflow-y-auto"
-                : "max-w-lg max-h-[85vh] overflow-y-auto"
+              : isChannelLockdown
+                ? "max-w-3xl max-h-[90vh] overflow-y-auto"
+                : isTicketPanel || isAnonReport
+                  ? "max-w-2xl max-h-[90vh] overflow-y-auto"
+                  : "max-w-lg max-h-[85vh] overflow-y-auto"
           }
         >
           <DialogHeader>
@@ -1485,6 +1487,26 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
             <TicketPanelBuilder botId={botId} botName={botName} variant="ticket" />
           ) : isAnonReport ? (
             <TicketPanelBuilder botId={botId} botName={botName} variant="report" />
+          ) : isChannelLockdown ? (
+            <div className="space-y-5 py-2">
+              {config.fields.map((f) => (
+                <div key={f.key}>{renderField(f)}</div>
+              ))}
+              <LockEmbedEditor
+                label="Lock embed"
+                value={lockEmbed}
+                onChange={setLockEmbed}
+                botName={botName}
+                botAvatarUrl={botAvatarUrl ?? undefined}
+              />
+              <LockEmbedEditor
+                label="Unlock embed"
+                value={unlockEmbed}
+                onChange={setUnlockEmbed}
+                botName={botName}
+                botAvatarUrl={botAvatarUrl ?? undefined}
+              />
+            </div>
           ) : (
             <div className="space-y-5 py-2">
               {config.fields.map((f) => (
