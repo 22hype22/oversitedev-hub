@@ -68,7 +68,23 @@ export type OwnerProfilePageProps = {
   role: string;
   imageSrc: string;
   about: ReactNode;
+  accent?: "primary" | "gold";
 };
+
+const ACCENTS = {
+  primary: {
+    ringOuter: "ring-primary/25",
+    ringInner: "ring-primary/15",
+    border: "border-primary/40",
+    shadow: "shadow-primary/20",
+  },
+  gold: {
+    ringOuter: "ring-amber-400/30",
+    ringInner: "ring-amber-400/15",
+    border: "border-amber-400/50",
+    shadow: "shadow-amber-400/20",
+  },
+} as const;
 
 export const OwnerProfilePage = ({
   ownerKey,
@@ -77,7 +93,9 @@ export const OwnerProfilePage = ({
   role,
   imageSrc,
   about,
+  accent = "primary",
 }: OwnerProfilePageProps) => {
+  const a = ACCENTS[accent];
   const { user } = useAuth();
   const { toast } = useToast();
   const isOwner = user?.email === adminEmail;
@@ -128,9 +146,15 @@ export const OwnerProfilePage = ({
       <main className="flex-1 container mx-auto px-4 pt-28 pb-16 max-w-3xl">
         <div className="flex flex-col items-center text-center">
           <div className="relative w-32 h-32 md:w-40 md:h-40 mb-6">
-            <span className="absolute inset-0 rounded-full bg-primary/30 animate-ping" aria-hidden="true" />
-            <span className="absolute inset-0 rounded-full ring-4 ring-primary/40 animate-pulse" aria-hidden="true" />
-            <div className="relative w-full h-full rounded-full overflow-hidden border-4 border-primary/40 shadow-lg shadow-primary/20">
+            <span
+              className={`absolute -inset-1 rounded-full ring-2 ${a.ringOuter} animate-pulse [animation-duration:4s]`}
+              aria-hidden="true"
+            />
+            <span
+              className={`absolute inset-0 rounded-full ring-2 ${a.ringInner} animate-pulse [animation-duration:3s]`}
+              aria-hidden="true"
+            />
+            <div className={`relative w-full h-full rounded-full overflow-hidden border-4 ${a.border} shadow-lg ${a.shadow}`}>
               <img src={imageSrc} alt={`${name} portrait`} className="w-full h-full object-cover" />
             </div>
           </div>

@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 import { ChevronRight } from "lucide-react";
+import plugyxzIcon from "@/assets/plugyxz-icon.png";
 
 const MEMBERS = [
   {
@@ -10,13 +11,15 @@ const MEMBERS = [
     handle: "me",
     role: "Founder & Lead Developer",
     image: "/favicon.png",
+    ringClass: "border-primary/30",
   },
   {
     href: "/explore/plugyxz",
     name: "plugyxz",
     handle: "plugyxz",
-    role: "Lead Developer & Director",
-    image: "/favicon.png",
+    role: "Director & Lead Developer",
+    image: plugyxzIcon,
+    ringClass: "border-amber-400/50",
   },
 ];
 
@@ -37,7 +40,7 @@ const MeetTheTeam = () => {
               to={m.href}
               className="group rounded-xl border border-border bg-card/40 p-6 hover:bg-card/70 hover:border-primary/40 transition-colors flex items-center gap-4"
             >
-              <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-primary/20 shrink-0">
+              <div className={`w-16 h-16 rounded-full overflow-hidden border-2 ${m.ringClass} shrink-0 bg-background`}>
                 <img src={m.image} alt={m.name} className="w-full h-full object-cover" />
               </div>
               <div className="flex-1 min-w-0">
