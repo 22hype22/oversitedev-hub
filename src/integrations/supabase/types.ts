@@ -665,6 +665,7 @@ export type Database = {
           payment_plan: string
           plan_months: number | null
           purchase_id: string | null
+          railway_service_id: string | null
           source_url: string | null
           status: string
           stripe_customer_id: string | null
@@ -707,6 +708,7 @@ export type Database = {
           payment_plan?: string
           plan_months?: number | null
           purchase_id?: string | null
+          railway_service_id?: string | null
           source_url?: string | null
           status?: string
           stripe_customer_id?: string | null
@@ -749,6 +751,7 @@ export type Database = {
           payment_plan?: string
           plan_months?: number | null
           purchase_id?: string | null
+          railway_service_id?: string | null
           source_url?: string | null
           status?: string
           stripe_customer_id?: string | null
