@@ -58,7 +58,7 @@ const ACTIONS: Array<{
       "Stop the bot and immediately start it again. Useful after changing secrets or config.",
   },
   {
-    key: "update",
+    key: "redeploy",
     label: "Redeploy",
     Icon: Download,
     variant: "outline",
