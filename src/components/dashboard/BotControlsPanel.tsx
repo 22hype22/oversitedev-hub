@@ -21,7 +21,7 @@ type Action = "start" | "stop" | "restart" | "redeploy";
 
 interface CommandRow {
   id: string;
-  action: Action;
+  action: string;
   status: "pending" | "claimed" | "done" | "completed" | "failed" | "canceled";
   error_message: string | null;
   created_at: string;
