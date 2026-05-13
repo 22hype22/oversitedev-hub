@@ -569,9 +569,7 @@ const BotSection = ({
         )}
       </div>
 
-      {!bot.isDemo && (
-        <BotSecretsManager botId={bot.id} ownedAddons={ownedAddons} />
-      )}
+      {!bot.isDemo && <BotControlsPanel botId={bot.id} />}
 
       {!bot.isDemo && <BotControlsPanel botId={bot.id} />}
 
