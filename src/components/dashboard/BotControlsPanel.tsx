@@ -43,6 +43,13 @@ const ACTIONS: Array<{
     description: "Boot the bot worker. It will go online once it has connected.",
   },
   {
+    key: "stop",
+    label: "Stop",
+    Icon: Square,
+    variant: "destructive",
+    description: "Take the bot offline. It will stay off until you start it again.",
+  },
+  {
     key: "restart",
     label: "Restart",
     Icon: RotateCw,
@@ -52,18 +59,11 @@ const ACTIONS: Array<{
   },
   {
     key: "update",
-    label: "Update",
+    label: "Redeploy",
     Icon: Download,
     variant: "outline",
     description:
       "Pull the latest build for this bot, then restart. The bot will be offline briefly.",
-  },
-  {
-    key: "stop",
-    label: "Stop",
-    Icon: Square,
-    variant: "destructive",
-    description: "Take the bot offline. It will stay off until you start it again.",
   },
 ];
 
