@@ -32,6 +32,7 @@ type OrderRow = {
   notes: string | null;
   delivery_url: string | null;
   source_url: string | null;
+  railway_service_id: string | null;
 };
 
 const EDITABLE_STATUSES = ["submitted", "paid", "building", "ready", "live", "cancelled"] as const;
@@ -75,6 +76,28 @@ export const BotOrdersLog = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, { status: string; notes: string; delivery_url: string; source_url: string }>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [railwayDrafts, setRailwayDrafts] = useState<Record<string, string>>({});
+  const [savingRailwayId, setSavingRailwayId] = useState<string | null>(null);
+
+  const saveRailway = async (row: OrderRow) => {
+    const value = (railwayDrafts[row.id] ?? "").trim();
+    setSavingRailwayId(row.id);
+    const { error } = await supabase
+      .from("bot_orders")
+      .update({ railway_service_id: value || null })
+      .eq("id", row.id);
+    setSavingRailwayId(null);
+    if (error) {
+      toast.error("Couldn't save Railway service ID", { description: error.message });
+      return;
+    }
+    toast.success("Railway service ID saved");
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === row.id ? { ...r, railway_service_id: value || null } : r,
+      ),
+    );
+  };
 
   const setDraft = (id: string, patch: Partial<{ status: string; notes: string; delivery_url: string; source_url: string }>) => {
     setDrafts((prev) => ({
@@ -136,7 +159,7 @@ export const BotOrdersLog = () => {
       const { data: orders, error } = await supabase
         .from("bot_orders")
         .select(
-          "id, created_at, submitted_at, bot_name, base, addons, total_amount, currency, status, monthly_hosting, user_id, notes, delivery_url, source_url",
+          "id, created_at, submitted_at, bot_name, base, addons, total_amount, currency, status, monthly_hosting, user_id, notes, delivery_url, source_url, railway_service_id",
         )
         .order("submitted_at", { ascending: true, nullsFirst: false })
         .limit(500);
@@ -175,6 +198,7 @@ export const BotOrdersLog = () => {
         notes: (o as any).notes ?? null,
         delivery_url: (o as any).delivery_url ?? null,
         source_url: (o as any).source_url ?? null,
+        railway_service_id: (o as any).railway_service_id ?? null,
       }));
 
       setRows(mapped);
@@ -440,6 +464,33 @@ export const BotOrdersLog = () => {
                     {expanded && draft && (
                       <tr key={`${r.id}-edit`} className="bg-muted/20">
                         <td colSpan={10} className="px-4 py-4">
+                          <div className="mb-4 pb-4 border-b border-border">
+                            <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                              Railway service ID <span className="opacity-60">(used by Start / Stop / Restart / Redeploy)</span>
+                            </label>
+                            <div className="mt-1 flex gap-2">
+                              <Input
+                                placeholder="e.g. 1a2b3c4d-5e6f-7g8h-9i0j-..."
+                                value={
+                                  railwayDrafts[r.id] ??
+                                  (r.railway_service_id ?? "")
+                                }
+                                onChange={(e) =>
+                                  setRailwayDrafts((p) => ({ ...p, [r.id]: e.target.value }))
+                                }
+                                className="font-mono text-xs"
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => saveRailway(r)}
+                                disabled={savingRailwayId === r.id}
+                              >
+                                <Save className="h-4 w-4 mr-1.5" />
+                                {savingRailwayId === r.id ? "Saving…" : "Save"}
+                              </Button>
+                            </div>
+                          </div>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div>
                               <label className="text-[11px] uppercase tracking-wider text-muted-foreground">Status</label>
