@@ -571,8 +571,6 @@ const BotSection = ({
 
       {!bot.isDemo && <BotControlsPanel botId={bot.id} />}
 
-      {!bot.isDemo && <BotControlsPanel botId={bot.id} />}
-
       {!bot.isDemo && (
         <BotInviteLinkCard
           botId={bot.id}
