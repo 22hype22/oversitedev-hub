@@ -7,8 +7,8 @@ import plugyxzIcon from "@/assets/plugyxz-icon.png";
 const MEMBERS = [
   {
     href: "/explore/owner",
-    name: "Owner",
-    handle: "me",
+    name: "22HYPE22",
+    handle: "22HYPE22",
     role: "Founder & Lead Developer",
     image: "/favicon.png",
     borderClass: "border-primary/40",
@@ -16,8 +16,8 @@ const MEMBERS = [
   },
   {
     href: "/explore/plugyxz",
-    name: "plugyxz",
-    handle: "plugyxz",
+    name: "Plugyxz",
+    handle: "Plugyxz",
     role: "Director & Lead Developer",
     image: plugyxzIcon,
     borderClass: "border-amber-400/50",
