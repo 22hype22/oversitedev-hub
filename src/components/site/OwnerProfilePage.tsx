@@ -77,12 +77,14 @@ const ACCENTS = {
     ringInner: "ring-primary/15",
     border: "border-primary/40",
     shadow: "shadow-primary/20",
+    aboutRing: "ring-1 ring-primary/40 shadow-lg shadow-primary/10",
   },
   gold: {
     ringOuter: "ring-amber-400/30",
     ringInner: "ring-amber-400/15",
     border: "border-amber-400/50",
     shadow: "shadow-amber-400/20",
+    aboutRing: "ring-1 ring-amber-400/50 shadow-lg shadow-amber-400/10",
   },
 } as const;
 
