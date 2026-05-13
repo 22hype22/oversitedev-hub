@@ -76,6 +76,28 @@ export const BotOrdersLog = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, { status: string; notes: string; delivery_url: string; source_url: string }>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [railwayDrafts, setRailwayDrafts] = useState<Record<string, string>>({});
+  const [savingRailwayId, setSavingRailwayId] = useState<string | null>(null);
+
+  const saveRailway = async (row: OrderRow) => {
+    const value = (railwayDrafts[row.id] ?? "").trim();
+    setSavingRailwayId(row.id);
+    const { error } = await supabase
+      .from("bot_orders")
+      .update({ railway_service_id: value || null })
+      .eq("id", row.id);
+    setSavingRailwayId(null);
+    if (error) {
+      toast.error("Couldn't save Railway service ID", { description: error.message });
+      return;
+    }
+    toast.success("Railway service ID saved");
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === row.id ? { ...r, railway_service_id: value || null } : r,
+      ),
+    );
+  };
 
   const setDraft = (id: string, patch: Partial<{ status: string; notes: string; delivery_url: string; source_url: string }>) => {
     setDrafts((prev) => ({
