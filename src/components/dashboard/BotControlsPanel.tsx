@@ -17,11 +17,11 @@ import { Play, Square, RotateCw, Download, Power } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
-type Action = "start" | "stop" | "restart" | "update";
+type Action = "start" | "stop" | "restart" | "redeploy";
 
 interface CommandRow {
   id: string;
-  action: Action;
+  action: string;
   status: "pending" | "claimed" | "done" | "completed" | "failed" | "canceled";
   error_message: string | null;
   created_at: string;
@@ -58,7 +58,7 @@ const ACTIONS: Array<{
       "Stop the bot and immediately start it again. Useful after changing secrets or config.",
   },
   {
-    key: "update",
+    key: "redeploy",
     label: "Redeploy",
     Icon: Download,
     variant: "outline",
@@ -110,22 +110,25 @@ export function BotControlsPanel({ botId }: BotControlsPanelProps) {
 
   const send = async (action: Action) => {
     setPending(action);
-    const { data, error } = await supabase.rpc("enqueue_bot_command", {
-      _bot_id: botId,
-      _action: action,
+    const { data, error } = await supabase.functions.invoke("bot-railway-action", {
+      body: { botId, action },
     });
     setPending(null);
     setConfirm(null);
     if (error) {
-      toast.error(error.message);
+      const msg =
+        (data as { error?: string } | null)?.error ?? error.message ?? "Request failed";
+      toast.error(msg);
+      refresh();
       return;
     }
-    const result = data as { ok: boolean; error?: string } | null;
+    const result = data as { ok?: boolean; error?: string } | null;
     if (!result?.ok) {
-      toast.error(result?.error ?? "Failed to queue command.");
+      toast.error(result?.error ?? "Failed to perform action.");
+      refresh();
       return;
     }
-    toast.success(`${action.charAt(0).toUpperCase() + action.slice(1)} command queued.`);
+    toast.success(`${action.charAt(0).toUpperCase() + action.slice(1)} sent to Railway.`);
     refresh();
   };
 
