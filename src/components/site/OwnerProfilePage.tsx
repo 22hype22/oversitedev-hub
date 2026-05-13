@@ -160,7 +160,7 @@ export const OwnerProfilePage = ({
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">{name}</h1>
           <p className="text-lg text-muted-foreground font-medium mb-6">{role}</p>
 
-          <div className="w-full rounded-xl border border-border bg-card/40 p-6 md:p-8 text-left mb-8">
+          <div className={`w-full rounded-xl border border-border bg-card/40 p-6 md:p-8 text-left mb-8 ${a.aboutRing}`}>
             <h2 className="text-xl font-semibold mb-3 text-foreground">About</h2>
             <div className="text-muted-foreground leading-relaxed space-y-3 text-sm">
               {about}
