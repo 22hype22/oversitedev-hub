@@ -127,8 +127,12 @@ export const OwnerProfilePage = ({
       <Navbar />
       <main className="flex-1 container mx-auto px-4 pt-28 pb-16 max-w-3xl">
         <div className="flex flex-col items-center text-center">
-          <div className="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-primary/20 shadow-lg mb-6">
-            <img src={imageSrc} alt={`${name} portrait`} className="w-full h-full object-cover" />
+          <div className="relative w-32 h-32 md:w-40 md:h-40 mb-6">
+            <span className="absolute inset-0 rounded-full bg-primary/30 animate-ping" aria-hidden="true" />
+            <span className="absolute inset-0 rounded-full ring-4 ring-primary/40 animate-pulse" aria-hidden="true" />
+            <div className="relative w-full h-full rounded-full overflow-hidden border-4 border-primary/40 shadow-lg shadow-primary/20">
+              <img src={imageSrc} alt={`${name} portrait`} className="w-full h-full object-cover" />
+            </div>
           </div>
 
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">{name}</h1>
