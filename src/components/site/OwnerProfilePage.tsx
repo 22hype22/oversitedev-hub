@@ -147,11 +147,7 @@ export const OwnerProfilePage = ({
         <div className="flex flex-col items-center text-center">
           <div className="relative w-32 h-32 md:w-40 md:h-40 mb-6">
             <span
-              className={`absolute -inset-2 rounded-full ring-2 ${a.ringOuter} animate-pulse [animation-duration:1.6s]`}
-              aria-hidden="true"
-            />
-            <span
-              className={`absolute -inset-0.5 rounded-full ring-2 ${a.ringInner} animate-pulse [animation-duration:1.2s]`}
+              className={`absolute inset-0 rounded-full ring-2 ${a.ringOuter} animate-ping [animation-duration:1.4s]`}
               aria-hidden="true"
             />
             <div className={`relative w-full h-full rounded-full overflow-hidden border-4 ${a.border} shadow-lg ${a.shadow}`}>

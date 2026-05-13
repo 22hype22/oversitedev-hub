@@ -11,7 +11,8 @@ const MEMBERS = [
     handle: "me",
     role: "Founder & Lead Developer",
     image: "/favicon.png",
-    ringClass: "border-primary/30",
+    borderClass: "border-primary/40",
+    ringClass: "ring-primary/40",
   },
   {
     href: "/explore/plugyxz",
@@ -19,7 +20,8 @@ const MEMBERS = [
     handle: "plugyxz",
     role: "Director & Lead Developer",
     image: plugyxzIcon,
-    ringClass: "border-amber-400/50",
+    borderClass: "border-amber-400/50",
+    ringClass: "ring-amber-400/50",
   },
 ];
 
@@ -40,8 +42,14 @@ const MeetTheTeam = () => {
               to={m.href}
               className="group rounded-xl border border-border bg-card/40 p-6 hover:bg-card/70 hover:border-primary/40 transition-colors flex items-center gap-4"
             >
-              <div className={`w-16 h-16 rounded-full overflow-hidden border-2 ${m.ringClass} shrink-0 bg-background`}>
-                <img src={m.image} alt={m.name} className="w-full h-full object-cover" />
+              <div className="relative w-16 h-16 shrink-0">
+                <span
+                  className={`absolute inset-0 rounded-full ring-2 ${m.ringClass} animate-ping [animation-duration:1.4s]`}
+                  aria-hidden="true"
+                />
+                <div className={`relative w-full h-full rounded-full overflow-hidden border-2 ${m.borderClass} bg-background`}>
+                  <img src={m.image} alt={m.name} className="w-full h-full object-cover" />
+                </div>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-foreground">{m.name}</div>
