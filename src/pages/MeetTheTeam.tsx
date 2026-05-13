@@ -44,7 +44,7 @@ const MeetTheTeam = () => {
             >
               <div className="relative w-16 h-16 shrink-0">
                 <span
-                  className={`absolute -inset-0.5 rounded-full ring-2 ${m.ringClass} animate-pulse [animation-duration:1.4s]`}
+                  className={`absolute -inset-0.5 rounded-full ring-2 ${m.ringClass} animate-pulse [animation-duration:0.8s]`}
                   aria-hidden="true"
                 />
                 <div className={`relative w-full h-full rounded-full overflow-hidden border-2 ${m.borderClass} bg-background`}>
