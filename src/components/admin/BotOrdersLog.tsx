@@ -464,6 +464,33 @@ export const BotOrdersLog = () => {
                     {expanded && draft && (
                       <tr key={`${r.id}-edit`} className="bg-muted/20">
                         <td colSpan={10} className="px-4 py-4">
+                          <div className="mb-4 pb-4 border-b border-border">
+                            <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                              Railway service ID <span className="opacity-60">(used by Start / Stop / Restart / Redeploy)</span>
+                            </label>
+                            <div className="mt-1 flex gap-2">
+                              <Input
+                                placeholder="e.g. 1a2b3c4d-5e6f-7g8h-9i0j-..."
+                                value={
+                                  railwayDrafts[r.id] ??
+                                  (r.railway_service_id ?? "")
+                                }
+                                onChange={(e) =>
+                                  setRailwayDrafts((p) => ({ ...p, [r.id]: e.target.value }))
+                                }
+                                className="font-mono text-xs"
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => saveRailway(r)}
+                                disabled={savingRailwayId === r.id}
+                              >
+                                <Save className="h-4 w-4 mr-1.5" />
+                                {savingRailwayId === r.id ? "Saving…" : "Save"}
+                              </Button>
+                            </div>
+                          </div>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div>
                               <label className="text-[11px] uppercase tracking-wider text-muted-foreground">Status</label>
