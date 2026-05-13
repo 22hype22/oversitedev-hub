@@ -31,8 +31,6 @@ import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
 import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
 import { BotControlsPanel } from "@/components/dashboard/BotControlsPanel";
-
-import { BotControlsPanel } from "@/components/dashboard/BotControlsPanel";
 import { BotUsageMetricsPanel } from "@/components/dashboard/BotUsageMetricsPanel";
 import { BotServerSlotsCard } from "@/components/dashboard/BotServerSlotsCard";
 import { BotInviteLinkCard } from "@/components/dashboard/BotInviteLinkCard";
