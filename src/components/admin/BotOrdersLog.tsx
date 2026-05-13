@@ -32,6 +32,7 @@ type OrderRow = {
   notes: string | null;
   delivery_url: string | null;
   source_url: string | null;
+  railway_service_id: string | null;
 };
 
 const EDITABLE_STATUSES = ["submitted", "paid", "building", "ready", "live", "cancelled"] as const;
