@@ -198,6 +198,7 @@ export const BotOrdersLog = () => {
         notes: (o as any).notes ?? null,
         delivery_url: (o as any).delivery_url ?? null,
         source_url: (o as any).source_url ?? null,
+        railway_service_id: (o as any).railway_service_id ?? null,
       }));
 
       setRows(mapped);
