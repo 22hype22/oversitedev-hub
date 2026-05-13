@@ -17,7 +17,7 @@ import { Play, Square, RotateCw, Download, Power } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
-type Action = "start" | "stop" | "restart" | "update";
+type Action = "start" | "stop" | "restart" | "redeploy";
 
 interface CommandRow {
   id: string;
