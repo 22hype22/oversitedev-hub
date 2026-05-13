@@ -4,7 +4,7 @@ const MeetTheOwner = () => (
   <OwnerProfilePage
     ownerKey="owner"
     adminEmail="everant00@gmail.com"
-    name="Meet the Owner"
+    name="22HYPE22"
     role="Founder of Oversite"
     imageSrc="/favicon.png"
     about={

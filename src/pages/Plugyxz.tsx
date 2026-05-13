@@ -5,7 +5,7 @@ const Plugyxz = () => (
   <OwnerProfilePage
     ownerKey="plugyxz"
     adminEmail="monb11190@gmail.com"
-    name="plugyxz"
+    name="Plugyxz"
     role="Director & Lead Developer"
     imageSrc={plugyxzIcon}
     accent="gold"
