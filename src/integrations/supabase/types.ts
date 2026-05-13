@@ -1419,6 +1419,7 @@ export type Database = {
           description: string | null
           id: string
           media: Json
+          owner_key: string
           sort_order: number
           title: string
           updated_at: string
@@ -1429,6 +1430,7 @@ export type Database = {
           description?: string | null
           id?: string
           media?: Json
+          owner_key?: string
           sort_order?: number
           title: string
           updated_at?: string
@@ -1439,6 +1441,7 @@ export type Database = {
           description?: string | null
           id?: string
           media?: Json
+          owner_key?: string
           sort_order?: number
           title?: string
           updated_at?: string
@@ -2280,6 +2283,7 @@ export type Database = {
         Args: { _bot_id: string; _user_id: string }
         Returns: boolean
       }
+      can_manage_portfolio: { Args: { _owner_key: string }; Returns: boolean }
       claim_bot_token_from_pool: { Args: { _order_id: string }; Returns: Json }
       claim_post_message: {
         Args: { _worker_id?: string }
@@ -2427,6 +2431,7 @@ export type Database = {
         Args: { _admin_id: string; _owner_id: string }
         Returns: boolean
       }
+      is_portfolio_manager: { Args: never; Returns: boolean }
       is_super_admin:
         | { Args: never; Returns: boolean }
         | { Args: { _user_id: string }; Returns: boolean }
