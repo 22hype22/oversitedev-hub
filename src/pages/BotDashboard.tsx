@@ -30,8 +30,6 @@ import { FixesBar } from "@/components/dashboard/FixesBar";
 import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
 import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
-import { BotSecretsManager } from "@/components/dashboard/BotSecretsManager";
-
 import { BotControlsPanel } from "@/components/dashboard/BotControlsPanel";
 import { BotUsageMetricsPanel } from "@/components/dashboard/BotUsageMetricsPanel";
 import { BotServerSlotsCard } from "@/components/dashboard/BotServerSlotsCard";
@@ -571,9 +569,7 @@ const BotSection = ({
         )}
       </div>
 
-      {!bot.isDemo && (
-        <BotSecretsManager botId={bot.id} ownedAddons={ownedAddons} />
-      )}
+      {!bot.isDemo && <BotControlsPanel botId={bot.id} />}
 
       {!bot.isDemo && <BotControlsPanel botId={bot.id} />}
 
