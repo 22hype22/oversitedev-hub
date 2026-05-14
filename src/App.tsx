@@ -53,7 +53,8 @@ const App = () => {
           <PreferencesProvider>
             <ScrollToTop />
             <AutoTranslator />
-            <SignupPromoDialog />
+        <SignupPromoDialog />
+            <MarkdownFormattingToolbar />
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/process" element={<ProcessPage />} />
