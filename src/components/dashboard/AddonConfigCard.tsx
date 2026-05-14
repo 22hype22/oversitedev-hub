@@ -44,6 +44,7 @@ import { getAddonLabel } from "@/lib/botCatalog";
 import { SayCommandBuilder, type SayCommandBuilderHandle } from "./SayCommandBuilder";
 import { TicketPanelBuilder } from "./TicketPanelBuilder";
 import { DiscordEmbedPreview } from "./DiscordEmbedPreview";
+import { renderDiscordMarkdown } from "@/lib/discordMarkdown";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildChannels";
 import { useBotRoles } from "@/hooks/useBotRoles";
