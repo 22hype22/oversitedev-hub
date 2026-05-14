@@ -1509,8 +1509,69 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     );
   };
 
-  return (
-    <>
+  // ─── Live Discord embed preview (schema-driven) ──────────────
+  // Heuristic: pull title/description/author/footer/extras out of the
+  // schema-driven `values` record by key, so any addon with message-style
+  // fields (verification, ticket-message-customization, auto-close,
+  // close-all-tickets, etc.) automatically gets a live Discord preview.
+  const previewState = useMemo(() => {
+    if (!config) return null;
+    const get = (...keys: string[]): string => {
+      for (const k of keys) {
+        const v = values[k];
+        if (typeof v === "string" && v.trim().length > 0) return v;
+      }
+      return "";
+    };
+    const fieldKeys = new Set(config.fields.map((f) => f.key));
+    const hasMessageFields = [
+      "embed_title",
+      "embed_author",
+      "embed_footer",
+      "embed_description",
+      "panelTitle",
+      "panelDescription",
+      "message",
+      "openMessage",
+      "closeMessage",
+      "warnMessage",
+    ].some((k) => fieldKeys.has(k));
+    if (!hasMessageFields) return null;
+
+    const title = get("embed_title", "panelTitle", "title");
+    const description = get(
+      "embed_description",
+      "panelDescription",
+      "description",
+      "message",
+      "warnMessage",
+      "openMessage",
+    );
+    const author = get("embed_author", "author");
+    const footer = get("embed_footer", "footer");
+    const color = get("embedColor", "embed_color", "color");
+
+    const extras = ["openMessage", "closeMessage", "warnMessage"]
+      .filter((k) => fieldKeys.has(k))
+      .map((k) => ({ key: k, value: String(values[k] ?? "") }))
+      .filter(({ value }) => value.trim().length > 0 && value !== description)
+      .map(({ key, value }) => ({
+        label:
+          key === "openMessage"
+            ? "Ticket opening message"
+            : key === "closeMessage"
+              ? "Ticket closing message"
+              : "Inactivity warning",
+        content: value,
+      }));
+
+    return {
+      embed: { author, title, description, footer, color },
+      extras,
+    };
+  }, [config, values]);
+
+  
       <Card
         onClick={() => enabled && setOpen(true)}
         className={cn(
