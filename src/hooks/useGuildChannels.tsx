@@ -272,38 +272,29 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
     if (!botId || !guildId) return { ok: false, error: "no_guild" };
     setRefreshing(true);
     try {
-      const { data, error } = await supabase.rpc("request_list_channels", {
-        _bot_id: botId,
-        _guild_id: guildId,
+      // Call the bot-list-channels edge function, which fetches channels
+      // directly from Discord using the bot's DISCORD_TOKEN and refreshes
+      // bot_channel_cache. This bypasses the worker command queue so the
+      // refresh works for every bot type (protection / support / utilities)
+      // regardless of which orchestrator is online.
+      const { data, error } = await supabase.functions.invoke("bot-list-channels", {
+        body: { bot_id: botId, guild_id: guildId },
       });
-      if (error) return { ok: false, error: error.message };
-      const result = data as { ok: boolean; error?: string };
-      if (!result?.ok) return { ok: false, error: result?.error ?? "request_failed" };
-
-      // Poll the cache up to 32 times (every 250ms = ~8s) waiting for fetched_at to bump.
-      const before = lastFetchedAt;
-      for (let i = 0; i < 32; i++) {
-        await new Promise((r) => setTimeout(r, 250));
-        const { data: row } = await supabase
-          .from("bot_channel_cache")
-          .select("fetched_at")
-          .eq("bot_id", botId)
-          .eq("guild_id", guildId)
-          .order("fetched_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (row?.fetched_at && row.fetched_at !== before) {
-          await readCache();
-          return { ok: true };
-        }
+      if (error) {
+        await readCache();
+        return { ok: false, error: error.message };
       }
-      // Timed out — still re-read in case the worker did update.
+      const result = (data ?? {}) as { ok?: boolean; error?: string };
+      if (!result.ok) {
+        await readCache();
+        return { ok: false, error: result.error ?? "request_failed" };
+      }
       await readCache();
-      return { ok: false, error: "timeout" };
+      return { ok: true };
     } finally {
       setRefreshing(false);
     }
-  }, [botId, guildId, lastFetchedAt, readCache]);
+  }, [botId, guildId, readCache]);
 
   const refreshFromDiscordRef = useRef(refreshFromDiscord);
   useEffect(() => {
