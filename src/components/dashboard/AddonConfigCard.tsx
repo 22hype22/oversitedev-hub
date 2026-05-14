@@ -2185,11 +2185,13 @@ function LockEmbedEditor({
                   style={{ borderLeftColor: hexInputValue }}
                 >
                   {value.title && (
-                    <div className="font-semibold text-white">{value.title}</div>
+                    <div className="font-semibold text-white">
+                      {renderDiscordMarkdown(value.title)}
+                    </div>
                   )}
                   {value.description && (
-                    <div className="mt-1 whitespace-pre-wrap text-sm text-[#dbdee1]">
-                      {value.description}
+                    <div className="mt-1 text-sm text-[#dbdee1]">
+                      {renderDiscordMarkdown(value.description)}
                     </div>
                   )}
                 </div>
