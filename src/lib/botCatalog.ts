@@ -140,7 +140,6 @@ const ADDON_IDS_BY_BASE: Record<string, string[]> = {
     "auto-escalating-warnings",
     "softban-massban",
     "channel-lockdown",
-    "staff-notes",
     "moderation-history",
     "auto-slowmode",
     "temp-ban",
@@ -169,6 +168,7 @@ const ADDON_IDS_BY_BASE: Record<string, string[]> = {
     "leveling-system",
     "economy-system",
     "remindme",
+    "staff-notes",
   ],
 };
 
