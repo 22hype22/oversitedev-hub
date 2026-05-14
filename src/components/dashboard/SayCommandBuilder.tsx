@@ -33,7 +33,6 @@ import { toast } from "sonner";
 import { GuildChannelPicker } from "./GuildChannelPicker";
 import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
-import { renderDiscordMarkdown } from "@/lib/discordMarkdown";
 
 /**
  * Discohook-style /say command builder.
@@ -1068,7 +1067,7 @@ function SingleMessage({
           <span className="text-[11px] text-[#949ba4]">Today at 12:00 PM</span>
         </div>
         {content && (
-          <div className="mt-0.5">{renderDiscordMarkdown(content)}</div>
+          <p className="whitespace-pre-wrap break-words mt-0.5">{content}</p>
         )}
         {embeds.length > 0 && (
           <div className="space-y-2 mt-1">
@@ -1174,17 +1173,17 @@ function EmbedPreview({ embed }: { embed: Embed }) {
                 rel="noreferrer"
                 className="block text-[#00a8fc] hover:underline font-semibold whitespace-pre-wrap break-words"
               >
-                {renderDiscordMarkdown(embed.title)}
+                {embed.title}
               </a>
             ) : (
               <div className="text-white font-semibold whitespace-pre-wrap break-words">
-                {renderDiscordMarkdown(embed.title)}
+                {embed.title}
               </div>
             ))}
           {embed.description && (
-            <div className="text-sm text-[#dbdee1]">
-              {renderDiscordMarkdown(embed.description)}
-            </div>
+            <p className="whitespace-pre-wrap break-words text-sm text-[#dbdee1]">
+              {embed.description}
+            </p>
           )}
           {embed.fields.length > 0 && (
             <div className="grid grid-cols-3 gap-2 pt-1">
@@ -1196,10 +1195,10 @@ function EmbedPreview({ embed }: { embed: Embed }) {
                   }
                 >
                   <div className="text-xs font-semibold text-white whitespace-pre-wrap break-words">
-                    {f.name ? renderDiscordMarkdown(f.name) : "Field name"}
+                    {f.name || "Field name"}
                   </div>
-                  <div className="text-sm">
-                    {f.value ? renderDiscordMarkdown(f.value) : "Field value"}
+                  <div className="text-sm whitespace-pre-wrap break-words">
+                    {f.value || "Field value"}
                   </div>
                 </div>
               ))}

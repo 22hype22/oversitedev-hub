@@ -43,8 +43,6 @@ import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
 import { getAddonLabel } from "@/lib/botCatalog";
 import { SayCommandBuilder, type SayCommandBuilderHandle } from "./SayCommandBuilder";
 import { TicketPanelBuilder } from "./TicketPanelBuilder";
-import { DiscordEmbedPreview } from "./DiscordEmbedPreview";
-import { renderDiscordMarkdown } from "@/lib/discordMarkdown";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildChannels";
 import { useBotRoles } from "@/hooks/useBotRoles";
@@ -1510,68 +1508,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     );
   };
 
-  // ─── Live Discord embed preview (schema-driven) ──────────────
-  // Heuristic: pull title/description/author/footer/extras out of the
-  // schema-driven `values` record by key, so any addon with message-style
-  // fields (verification, ticket-message-customization, auto-close,
-  // close-all-tickets, etc.) automatically gets a live Discord preview.
-  const previewState = useMemo(() => {
-    if (!config) return null;
-    const get = (...keys: string[]): string => {
-      for (const k of keys) {
-        const v = values[k];
-        if (typeof v === "string" && v.trim().length > 0) return v;
-      }
-      return "";
-    };
-    const fieldKeys = new Set(config.fields.map((f) => f.key));
-    const hasMessageFields = [
-      "embed_title",
-      "embed_author",
-      "embed_footer",
-      "embed_description",
-      "panelTitle",
-      "panelDescription",
-      "message",
-      "openMessage",
-      "closeMessage",
-      "warnMessage",
-    ].some((k) => fieldKeys.has(k));
-    if (!hasMessageFields) return null;
-
-    const title = get("embed_title", "panelTitle", "title");
-    const description = get(
-      "embed_description",
-      "panelDescription",
-      "description",
-      "message",
-      "warnMessage",
-      "openMessage",
-    );
-    const author = get("embed_author", "author");
-    const footer = get("embed_footer", "footer");
-    const color = get("embedColor", "embed_color", "color");
-
-    const extras = ["openMessage", "closeMessage", "warnMessage"]
-      .filter((k) => fieldKeys.has(k))
-      .map((k) => ({ key: k, value: String(values[k] ?? "") }))
-      .filter(({ value }) => value.trim().length > 0 && value !== description)
-      .map(({ key, value }) => ({
-        label:
-          key === "openMessage"
-            ? "Ticket opening message"
-            : key === "closeMessage"
-              ? "Ticket closing message"
-              : "Inactivity warning",
-        content: value,
-      }));
-
-    return {
-      embed: { author, title, description, footer, color },
-      extras,
-    };
-  }, [config, values]);
-
   return (
     <>
       <Card
@@ -1685,14 +1621,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               {config.fields.map((f) => (
                 <div key={f.key}>{renderField(f)}</div>
               ))}
-              {previewState && (
-                <DiscordEmbedPreview
-                  botName={botName}
-                  botAvatarUrl={botAvatarUrl ?? undefined}
-                  embed={previewState.embed}
-                  extras={previewState.extras}
-                />
-              )}
             </div>
           )}
 
@@ -2186,13 +2114,11 @@ function LockEmbedEditor({
                   style={{ borderLeftColor: hexInputValue }}
                 >
                   {value.title && (
-                    <div className="font-semibold text-white">
-                      {renderDiscordMarkdown(value.title)}
-                    </div>
+                    <div className="font-semibold text-white">{value.title}</div>
                   )}
                   {value.description && (
-                    <div className="mt-1 text-sm text-[#dbdee1]">
-                      {renderDiscordMarkdown(value.description)}
+                    <div className="mt-1 whitespace-pre-wrap text-sm text-[#dbdee1]">
+                      {value.description}
                     </div>
                   )}
                 </div>
