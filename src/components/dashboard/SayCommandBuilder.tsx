@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import { GuildChannelPicker } from "./GuildChannelPicker";
 import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
+import { renderDiscordMarkdown } from "@/lib/discordMarkdown";
 
 /**
  * Discohook-style /say command builder.
