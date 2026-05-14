@@ -288,7 +288,7 @@ export const MarkdownFormattingToolbar: React.FC = () => {
     const p =
       el instanceof HTMLTextAreaElement
         ? measureTextareaSelection(el, start, end, getMirror())
-        : measureInputSelection(el);
+        : measureInputSelection(el, start, end, getMirror());
     setPos(p);
     setActiveKeys(computeActive(el.value, start, end));
   }, [hide]);
@@ -298,26 +298,15 @@ export const MarkdownFormattingToolbar: React.FC = () => {
     const onMouseUp = () => update();
     const onKeyUp = () => update();
     const onScroll = () => { if (fieldRef.current) update(); };
-    const onFocusOut = (e: FocusEvent) => {
-      // If focus moves to something other than the toolbar buttons, hide.
-      const next = e.relatedTarget as Element | null;
-      if (next && next.closest("[data-md-toolbar]")) return;
-      // Defer so applyWrap (running on mousedown) can still read state.
-      setTimeout(() => {
-        if (document.activeElement !== fieldRef.current) hide();
-      }, 0);
-    };
     document.addEventListener("selectionchange", onSelect);
     document.addEventListener("mouseup", onMouseUp);
     document.addEventListener("keyup", onKeyUp);
-    document.addEventListener("focusout", onFocusOut, true);
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onScroll);
     return () => {
       document.removeEventListener("selectionchange", onSelect);
       document.removeEventListener("mouseup", onMouseUp);
       document.removeEventListener("keyup", onKeyUp);
-      document.removeEventListener("focusout", onFocusOut, true);
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", onScroll);
       if (mirrorRef.current) {
