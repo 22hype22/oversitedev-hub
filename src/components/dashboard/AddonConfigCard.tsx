@@ -1684,6 +1684,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               {config.fields.map((f) => (
                 <div key={f.key}>{renderField(f)}</div>
               ))}
+              {previewState && (
+                <DiscordEmbedPreview
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl ?? undefined}
+                  embed={previewState.embed}
+                  extras={previewState.extras}
+                />
+              )}
             </div>
           )}
 
