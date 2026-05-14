@@ -168,6 +168,7 @@ const ADDON_IDS_BY_BASE: Record<string, string[]> = {
     "leveling-system",
     "economy-system",
     "remindme",
+    "staff-notes",
   ],
 };
 

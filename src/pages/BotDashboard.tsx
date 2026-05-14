@@ -91,7 +91,6 @@ const PROTECTION_ADDON_IDS = [
   "avatar-nsfw-detection",
   "bio-phrase-detection",
   "channel-lockdown",
-  "staff-notes",
   "auto-slowmode",
   "ban-tools",
   "messages",
@@ -122,6 +121,7 @@ const UTILITIES_ADDON_IDS = [
   "leveling-system",
   "economy-system",
   "remindme",
+  "staff-notes",
   "messages",
 ];
 // Shared/extras add-ons (none currently — Multi-Server License & Custom
