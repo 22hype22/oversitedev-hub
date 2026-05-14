@@ -1068,7 +1068,7 @@ function SingleMessage({
           <span className="text-[11px] text-[#949ba4]">Today at 12:00 PM</span>
         </div>
         {content && (
-          <p className="whitespace-pre-wrap break-words mt-0.5">{content}</p>
+          <div className="mt-0.5">{renderDiscordMarkdown(content)}</div>
         )}
         {embeds.length > 0 && (
           <div className="space-y-2 mt-1">
