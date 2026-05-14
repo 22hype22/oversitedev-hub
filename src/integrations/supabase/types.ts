@@ -641,6 +641,7 @@ export type Database = {
           base: string
           bot_description: string | null
           bot_name: string
+          build_started: string | null
           cancel_dm_sent: boolean
           cancellation_reason: string | null
           cancelled_at: string | null
@@ -649,6 +650,7 @@ export type Database = {
           confirmation_dm_sent_at: string | null
           confirmation_responded_at: string | null
           confirmation_state: string
+          confirmed_username: string | null
           created_at: string
           currency: string
           delivery_url: string | null
@@ -672,6 +674,7 @@ export type Database = {
           source_url: string | null
           status: string
           stripe_customer_id: string | null
+          stripe_payment_intent_id: string | null
           stripe_payment_method_id: string | null
           stripe_session_id: string | null
           stripe_setup_intent_id: string | null
@@ -687,6 +690,7 @@ export type Database = {
           base: string
           bot_description?: string | null
           bot_name: string
+          build_started?: string | null
           cancel_dm_sent?: boolean
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -695,6 +699,7 @@ export type Database = {
           confirmation_dm_sent_at?: string | null
           confirmation_responded_at?: string | null
           confirmation_state?: string
+          confirmed_username?: string | null
           created_at?: string
           currency?: string
           delivery_url?: string | null
@@ -718,6 +723,7 @@ export type Database = {
           source_url?: string | null
           status?: string
           stripe_customer_id?: string | null
+          stripe_payment_intent_id?: string | null
           stripe_payment_method_id?: string | null
           stripe_session_id?: string | null
           stripe_setup_intent_id?: string | null
@@ -733,6 +739,7 @@ export type Database = {
           base?: string
           bot_description?: string | null
           bot_name?: string
+          build_started?: string | null
           cancel_dm_sent?: boolean
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -741,6 +748,7 @@ export type Database = {
           confirmation_dm_sent_at?: string | null
           confirmation_responded_at?: string | null
           confirmation_state?: string
+          confirmed_username?: string | null
           created_at?: string
           currency?: string
           delivery_url?: string | null
@@ -764,6 +772,7 @@ export type Database = {
           source_url?: string | null
           status?: string
           stripe_customer_id?: string | null
+          stripe_payment_intent_id?: string | null
           stripe_payment_method_id?: string | null
           stripe_session_id?: string | null
           stripe_setup_intent_id?: string | null
