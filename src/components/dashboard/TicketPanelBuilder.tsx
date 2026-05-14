@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, AlertTriangle, Info } from "lucide-react";
 import { GuildChannelPicker } from "./GuildChannelPicker";
+import { DiscordEmbedPreview } from "./DiscordEmbedPreview";
 import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 
