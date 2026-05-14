@@ -1174,17 +1174,17 @@ function EmbedPreview({ embed }: { embed: Embed }) {
                 rel="noreferrer"
                 className="block text-[#00a8fc] hover:underline font-semibold whitespace-pre-wrap break-words"
               >
-                {embed.title}
+                {renderDiscordMarkdown(embed.title)}
               </a>
             ) : (
               <div className="text-white font-semibold whitespace-pre-wrap break-words">
-                {embed.title}
+                {renderDiscordMarkdown(embed.title)}
               </div>
             ))}
           {embed.description && (
-            <p className="whitespace-pre-wrap break-words text-sm text-[#dbdee1]">
-              {embed.description}
-            </p>
+            <div className="text-sm text-[#dbdee1]">
+              {renderDiscordMarkdown(embed.description)}
+            </div>
           )}
           {embed.fields.length > 0 && (
             <div className="grid grid-cols-3 gap-2 pt-1">
