@@ -99,16 +99,16 @@ export const MarkdownFormattingToolbar: React.FC = () => {
     const span = document.createElement("span");
     span.textContent = el.value.substring(start, end) || ".";
     mirror.appendChild(span);
-    const top = rect.top + window.scrollY + span.offsetTop - el.scrollTop;
-    const left = rect.left + window.scrollX + span.offsetLeft - el.scrollLeft + span.offsetWidth / 2;
+    const top = rect.top + span.offsetTop - el.scrollTop;
+    const left = rect.left + span.offsetLeft - el.scrollLeft + span.offsetWidth / 2;
     return { top: top - 40, left };
   };
 
   const measureFromInput = (el: HTMLInputElement) => {
     const rect = el.getBoundingClientRect();
     return {
-      top: rect.top + window.scrollY - 40,
-      left: rect.left + window.scrollX + rect.width / 2,
+      top: rect.top - 40,
+      left: rect.left + rect.width / 2,
     };
   };
 
