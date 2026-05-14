@@ -35,7 +35,7 @@ type OrderRow = {
   railway_service_id: string | null;
 };
 
-const EDITABLE_STATUSES = ["submitted", "paid", "building", "ready", "live", "cancelled"] as const;
+const EDITABLE_STATUSES = ["building", "ready", "cancelled"] as const;
 
 type StatusFilter = "all" | "preorder" | "paid" | "building" | "ready" | "live" | "cancelled";
 
