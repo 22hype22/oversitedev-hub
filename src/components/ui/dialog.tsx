@@ -12,6 +12,11 @@ const DialogPortal = DialogPrimitive.Portal;
 
 const DialogClose = DialogPrimitive.Close;
 
+const isMarkdownToolbarInteraction = (event: Event) => {
+  const target = event.target;
+  return target instanceof Element && Boolean(target.closest("[data-md-toolbar]"));
+};
+
 const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
