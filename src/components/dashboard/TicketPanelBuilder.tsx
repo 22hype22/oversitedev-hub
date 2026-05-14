@@ -281,6 +281,23 @@ export function TicketPanelBuilder({ botId, botName, variant = "ticket" }: Props
           ))}
         </div>
       </div>
+
+      {/* Live Discord-style preview that updates as the form is edited. */}
+      <DiscordEmbedPreview
+        botName={botName}
+        embed={{
+          title: panelTitle,
+          description: panelDescription,
+        }}
+        extras={categories
+          .filter((c) => c.openingMessage.trim().length > 0)
+          .map((c, idx) => ({
+            label: isReport
+              ? `Report acknowledgement — ${c.name || `Category ${idx + 1}`}`
+              : `Ticket opening message — ${c.name || `Category ${idx + 1}`}`,
+            content: c.openingMessage,
+          }))}
+      />
     </div>
   );
 }
