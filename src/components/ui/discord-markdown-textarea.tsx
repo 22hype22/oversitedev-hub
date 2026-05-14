@@ -297,7 +297,7 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
     };
 
     return (
-      <div className="relative">
+      <div className="relative" data-no-global-md>
         {toolbar && (
           <div
             className="absolute z-20 -translate-x-1/2 flex items-center gap-0.5 rounded-md border border-border bg-popover p-1 shadow-md"
