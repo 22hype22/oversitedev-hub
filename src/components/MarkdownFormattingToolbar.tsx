@@ -183,6 +183,20 @@ const computeActive = (src: string, start: number, end: number) => {
   return active;
 };
 
+const toCssPropertyName = (property: string) =>
+  property.replace(/[A-Z]/g, "-$&").toLowerCase();
+
+const copyStyleProperties = (
+  target: CSSStyleDeclaration,
+  source: CSSStyleDeclaration,
+  props: string[],
+) => {
+  props.forEach((property) => {
+    const cssProperty = toCssPropertyName(property);
+    target.setProperty(cssProperty, source.getPropertyValue(cssProperty));
+  });
+};
+
 // Measure caret position for a textarea by mirroring its styles into a hidden div.
 const measureTextareaSelection = (
   el: HTMLTextAreaElement,
@@ -198,7 +212,7 @@ const measureTextareaSelection = (
     "fontSize","fontSizeAdjust","lineHeight","fontFamily","textAlign","textTransform","textIndent","textDecoration",
     "letterSpacing","wordSpacing","tabSize","whiteSpace","wordWrap","wordBreak",
   ];
-  props.forEach((p) => { (mirror.style as any)[p] = (style as any)[p]; });
+  copyStyleProperties(mirror.style, style, props);
   mirror.style.position = "absolute";
   mirror.style.visibility = "hidden";
   mirror.style.top = "0";
@@ -229,7 +243,7 @@ const measureInputSelection = (
     "fontSize","fontSizeAdjust","lineHeight","fontFamily","textTransform","textIndent","textDecoration",
     "letterSpacing","wordSpacing",
   ];
-  props.forEach((p) => { (mirror.style as any)[p] = (style as any)[p]; });
+  copyStyleProperties(mirror.style, style, props);
   mirror.style.position = "absolute";
   mirror.style.visibility = "hidden";
   mirror.style.top = "0";
