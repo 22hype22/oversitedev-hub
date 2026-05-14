@@ -1196,10 +1196,10 @@ function EmbedPreview({ embed }: { embed: Embed }) {
                   }
                 >
                   <div className="text-xs font-semibold text-white whitespace-pre-wrap break-words">
-                    {f.name || "Field name"}
+                    {f.name ? renderDiscordMarkdown(f.name) : "Field name"}
                   </div>
-                  <div className="text-sm whitespace-pre-wrap break-words">
-                    {f.value || "Field value"}
+                  <div className="text-sm">
+                    {f.value ? renderDiscordMarkdown(f.value) : "Field value"}
                   </div>
                 </div>
               ))}
