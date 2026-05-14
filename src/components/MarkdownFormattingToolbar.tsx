@@ -215,9 +215,37 @@ const measureTextareaSelection = (
   return { top: top - 40, left };
 };
 
-const measureInputSelection = (el: HTMLInputElement) => {
+const measureInputSelection = (
+  el: HTMLInputElement,
+  start: number,
+  end: number,
+  mirror: HTMLDivElement,
+) => {
   const rect = el.getBoundingClientRect();
-  return { top: rect.top - 40, left: rect.left + rect.width / 2 };
+  const style = window.getComputedStyle(el);
+  const props = [
+    "boxSizing","height","borderTopWidth","borderRightWidth","borderBottomWidth","borderLeftWidth",
+    "paddingTop","paddingRight","paddingBottom","paddingLeft","fontStyle","fontVariant","fontWeight","fontStretch",
+    "fontSize","fontSizeAdjust","lineHeight","fontFamily","textTransform","textIndent","textDecoration",
+    "letterSpacing","wordSpacing",
+  ];
+  props.forEach((p) => { (mirror.style as any)[p] = (style as any)[p]; });
+  mirror.style.position = "absolute";
+  mirror.style.visibility = "hidden";
+  mirror.style.top = "0";
+  mirror.style.left = "-9999px";
+  mirror.style.whiteSpace = "pre";
+  mirror.style.width = "auto";
+  mirror.textContent = "";
+  mirror.appendChild(document.createTextNode(el.value.substring(0, start)));
+  const span = document.createElement("span");
+  span.textContent = el.value.substring(start, end) || ".";
+  mirror.appendChild(span);
+  const left = rect.left + Math.min(
+    rect.width,
+    span.offsetLeft + span.offsetWidth / 2 - el.scrollLeft,
+  );
+  return { top: rect.top - 40, left };
 };
 
 export const MarkdownFormattingToolbar: React.FC = () => {
