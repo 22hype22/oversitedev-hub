@@ -641,6 +641,7 @@ export type Database = {
           base: string
           bot_description: string | null
           bot_name: string
+          cancel_dm_sent: boolean
           cancellation_reason: string | null
           cancelled_at: string | null
           charged_at: string | null
@@ -655,6 +656,7 @@ export type Database = {
           discord_username: string | null
           discount_amount: number
           discount_code: string | null
+          dm_sent: boolean
           engine_version: string
           icon_url: string | null
           id: string
@@ -666,6 +668,7 @@ export type Database = {
           plan_months: number | null
           purchase_id: string | null
           railway_service_id: string | null
+          ready_dm_sent: boolean
           source_url: string | null
           status: string
           stripe_customer_id: string | null
@@ -684,6 +687,7 @@ export type Database = {
           base: string
           bot_description?: string | null
           bot_name: string
+          cancel_dm_sent?: boolean
           cancellation_reason?: string | null
           cancelled_at?: string | null
           charged_at?: string | null
@@ -698,6 +702,7 @@ export type Database = {
           discord_username?: string | null
           discount_amount?: number
           discount_code?: string | null
+          dm_sent?: boolean
           engine_version?: string
           icon_url?: string | null
           id?: string
@@ -709,6 +714,7 @@ export type Database = {
           plan_months?: number | null
           purchase_id?: string | null
           railway_service_id?: string | null
+          ready_dm_sent?: boolean
           source_url?: string | null
           status?: string
           stripe_customer_id?: string | null
@@ -727,6 +733,7 @@ export type Database = {
           base?: string
           bot_description?: string | null
           bot_name?: string
+          cancel_dm_sent?: boolean
           cancellation_reason?: string | null
           cancelled_at?: string | null
           charged_at?: string | null
@@ -741,6 +748,7 @@ export type Database = {
           discord_username?: string | null
           discount_amount?: number
           discount_code?: string | null
+          dm_sent?: boolean
           engine_version?: string
           icon_url?: string | null
           id?: string
@@ -752,6 +760,7 @@ export type Database = {
           plan_months?: number | null
           purchase_id?: string | null
           railway_service_id?: string | null
+          ready_dm_sent?: boolean
           source_url?: string | null
           status?: string
           stripe_customer_id?: string | null
