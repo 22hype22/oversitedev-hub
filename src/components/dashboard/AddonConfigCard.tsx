@@ -1571,7 +1571,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     };
   }, [config, values]);
 
-  
+  return (
+    <>
       <Card
         onClick={() => enabled && setOpen(true)}
         className={cn(
