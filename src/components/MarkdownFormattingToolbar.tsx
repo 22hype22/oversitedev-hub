@@ -378,7 +378,7 @@ export const MarkdownFormattingToolbar: React.FC = () => {
   return createPortal(
     <div
       data-md-toolbar
-      className="fixed z-[100] -translate-x-1/2 flex items-center gap-0.5 rounded-md border border-border bg-popover p-1 shadow-md"
+      className="fixed z-[9999] pointer-events-auto -translate-x-1/2 flex items-center gap-0.5 rounded-md border border-border bg-popover p-1 shadow-md"
       style={{ top: pos.top, left: pos.left }}
       onMouseDown={(e) => e.preventDefault()}
     >
