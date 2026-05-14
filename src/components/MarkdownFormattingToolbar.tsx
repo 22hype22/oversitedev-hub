@@ -183,6 +183,20 @@ const computeActive = (src: string, start: number, end: number) => {
   return active;
 };
 
+const toCssPropertyName = (property: string) =>
+  property.replace(/[A-Z]/g, "-$&").toLowerCase();
+
+const copyStyleProperties = (
+  target: CSSStyleDeclaration,
+  source: CSSStyleDeclaration,
+  props: string[],
+) => {
+  props.forEach((property) => {
+    const cssProperty = toCssPropertyName(property);
+    target.setProperty(cssProperty, source.getPropertyValue(cssProperty));
+  });
+};
+
 // Measure caret position for a textarea by mirroring its styles into a hidden div.
 const measureTextareaSelection = (
   el: HTMLTextAreaElement,
@@ -198,7 +212,7 @@ const measureTextareaSelection = (
     "fontSize","fontSizeAdjust","lineHeight","fontFamily","textAlign","textTransform","textIndent","textDecoration",
     "letterSpacing","wordSpacing","tabSize","whiteSpace","wordWrap","wordBreak",
   ];
-  props.forEach((p) => { (mirror.style as any)[p] = (style as any)[p]; });
+  copyStyleProperties(mirror.style, style, props);
   mirror.style.position = "absolute";
   mirror.style.visibility = "hidden";
   mirror.style.top = "0";
@@ -229,7 +243,7 @@ const measureInputSelection = (
     "fontSize","fontSizeAdjust","lineHeight","fontFamily","textTransform","textIndent","textDecoration",
     "letterSpacing","wordSpacing",
   ];
-  props.forEach((p) => { (mirror.style as any)[p] = (style as any)[p]; });
+  copyStyleProperties(mirror.style, style, props);
   mirror.style.position = "absolute";
   mirror.style.visibility = "hidden";
   mirror.style.top = "0";
@@ -254,6 +268,7 @@ export const MarkdownFormattingToolbar: React.FC = () => {
   const fieldRef = React.useRef<Field | null>(null);
   const selRef = React.useRef<{ start: number; end: number } | null>(null);
   const mirrorRef = React.useRef<HTMLDivElement | null>(null);
+  const isMouseOverToolbar = React.useRef(false);
 
   const getMirror = () => {
     if (!mirrorRef.current) {
@@ -265,6 +280,7 @@ export const MarkdownFormattingToolbar: React.FC = () => {
   };
 
   const hide = React.useCallback(() => {
+    if (isMouseOverToolbar.current) return;
     setPos(null);
     setActiveKeys(new Set());
     fieldRef.current = null;
@@ -297,16 +313,21 @@ export const MarkdownFormattingToolbar: React.FC = () => {
     const onSelect = () => update();
     const onMouseUp = () => update();
     const onKeyUp = () => update();
+    const onFocusOut = () => {
+      if (!isMouseOverToolbar.current) hide();
+    };
     const onScroll = () => { if (fieldRef.current) update(); };
     document.addEventListener("selectionchange", onSelect);
     document.addEventListener("mouseup", onMouseUp);
     document.addEventListener("keyup", onKeyUp);
+    document.addEventListener("focusout", onFocusOut);
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onScroll);
     return () => {
       document.removeEventListener("selectionchange", onSelect);
       document.removeEventListener("mouseup", onMouseUp);
       document.removeEventListener("keyup", onKeyUp);
+      document.removeEventListener("focusout", onFocusOut);
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", onScroll);
       if (mirrorRef.current) {
@@ -397,6 +418,8 @@ export const MarkdownFormattingToolbar: React.FC = () => {
       data-md-toolbar
       className="fixed z-[9999] pointer-events-auto -translate-x-1/2 flex items-center gap-0.5 rounded-md border border-border bg-popover p-1 shadow-md"
       style={{ top: pos.top, left: pos.left }}
+      onMouseEnter={() => { isMouseOverToolbar.current = true; }}
+      onMouseLeave={() => { isMouseOverToolbar.current = false; }}
       onMouseDown={(e) => e.preventDefault()}
     >
       {items.map((a, idx) => {
