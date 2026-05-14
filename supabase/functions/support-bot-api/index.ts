@@ -88,6 +88,30 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
+    // POST /record-metrics { bot_id, commands, messages, errors, active_servers, member_count }
+    if (req.method === "POST" && path.startsWith("/record-metrics")) {
+      const body = await req.json().catch(() => ({} as any));
+      const botId = String(body.bot_id || "");
+      if (!botId) return json(400, { error: "bot_id required" });
+
+      const token =
+        req.headers.get("x-worker-token") ||
+        req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
+        "";
+
+      const { error: rpcError } = await admin.rpc("runtime_record_bot_metrics", {
+        _token: token,
+        _bot_id: botId,
+        _commands_delta: Number(body.commands ?? 0),
+        _messages_delta: Number(body.messages ?? 0),
+        _errors_delta: Number(body.errors ?? 0),
+        _active_servers: body.active_servers != null ? Number(body.active_servers) : null,
+        _member_count: body.member_count != null ? Number(body.member_count) : null,
+      });
+      if (rpcError) return json(500, { error: rpcError.message });
+      return json(200, { ok: true });
+    }
+
     return json(404, { error: `Unknown route: ${path}` });
   } catch (e) {
     console.error("support-bot-api error", e);
