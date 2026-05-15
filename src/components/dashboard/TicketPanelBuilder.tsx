@@ -123,7 +123,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   const addCategory = () =>
     setCategories((prev) => [
       ...prev,
-      { id: uid(), name: "", roles: "", openingMessage: "" },
+      { id: uid(), name: "", roles: [], openingMessage: "" },
     ]);
 
   const removeCategory = (id: string) =>
