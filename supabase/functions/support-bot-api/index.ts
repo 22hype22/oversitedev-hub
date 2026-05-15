@@ -112,15 +112,55 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
-    // POST /claim-command { bot_id } -> claims oldest pending command for actions
-    // owned by the support bot (post_message, apply_config, list_roles,
-    // list_channels, list_guilds).
+    // POST /claim-command { bot_id } -> claims the next pending command owned
+    // by the external support bot. Role refresh commands are checked first so
+    // ticket category role selectors are not blocked behind older queued work.
     if (req.method === "POST" && path.startsWith("/claim-command")) {
       const body = await req.json().catch(() => ({} as any));
       const botId = String(body.bot_id || "");
       if (!botId) return json(400, { error: "bot_id required" });
 
-      console.log("[claim-command] received bot_id:", botId);
+      const claimCommand = async (actions: string[]) => {
+        const { data: pending, error: selErr } = await admin
+          .from("bot_commands")
+          .select("*")
+          .eq("bot_id", botId)
+          .eq("status", "pending")
+          .in("action", actions)
+          .order("created_at", { ascending: true })
+          .limit(1);
+        if (selErr) throw selErr;
+
+        const row = pending?.[0];
+        if (!row) return null;
+
+        const { data: claimed, error: updErr } = await admin
+          .from("bot_commands")
+          .update({
+            status: "claimed",
+            claimed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", row.id)
+          .eq("status", "pending")
+          .select()
+          .maybeSingle();
+        if (updErr) throw updErr;
+        return claimed ?? null;
+      };
+
+      const claimed =
+        (await claimCommand(["list_roles"])) ??
+        (await claimCommand(["post_message", "apply_config", "list_channels", "list_guilds"]));
+
+      return json(200, { command: claimed });
+    }
+
+    // POST /debug-claim-command { bot_id } (removed)
+    if (false) {
+      const body = await req.json().catch(() => ({} as any));
+      const botId = String(body.bot_id || "");
+      if (!botId) return json(400, { error: "bot_id required" });
 
       const { data: pending, error: selErr } = await admin
         .from("bot_commands")
