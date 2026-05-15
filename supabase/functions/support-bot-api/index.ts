@@ -156,64 +156,6 @@ Deno.serve(async (req) => {
       return json(200, { command: claimed });
     }
 
-    // POST /debug-claim-command { bot_id } (removed)
-    if (false) {
-      const body = await req.json().catch(() => ({} as any));
-      const botId = String(body.bot_id || "");
-      if (!botId) return json(400, { error: "bot_id required" });
-
-      const { data: pending, error: selErr } = await admin
-        .from("bot_commands")
-        .select("*")
-        .eq("bot_id", botId)
-        .eq("status", "pending")
-        .in("action", ["post_message", "apply_config", "list_roles", "list_channels", "list_guilds"])
-        .order("created_at", { ascending: true })
-        .limit(1);
-      if (selErr) {
-        console.log("[claim-command] select error:", selErr.message);
-        return json(500, { error: selErr.message });
-      }
-      console.log("[claim-command] pending rows found:", JSON.stringify(pending));
-
-      // Debug: also check what ANY rows exist for this bot_id
-      const { data: anyRows } = await admin
-        .from("bot_commands")
-        .select("id, action, status, created_at")
-        .eq("bot_id", botId)
-        .order("created_at", { ascending: false })
-        .limit(5);
-      console.log("[claim-command] last 5 rows for bot_id:", JSON.stringify(anyRows));
-
-      const row = pending?.[0];
-      if (!row) {
-        console.log("[claim-command] returning null command");
-        return json(200, { command: null });
-      }
-
-      const { data: claimed, error: updErr } = await admin
-        .from("bot_commands")
-        .update({
-          status: "claimed",
-          claimed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", row.id)
-        .eq("status", "pending")
-        .select()
-        .maybeSingle();
-      if (updErr) {
-        console.log("[claim-command] update error:", updErr.message);
-        return json(500, { error: updErr.message });
-      }
-      if (!claimed) {
-        console.log("[claim-command] update returned no row (race?)");
-        return json(200, { command: null });
-      }
-      console.log("[claim-command] claimed row id:", claimed.id);
-      return json(200, { command: claimed });
-    }
-
     // POST /complete-command { command_id, status, error_message? }
     if (req.method === "POST" && path.startsWith("/complete-command")) {
       const body = await req.json().catch(() => ({} as any));
