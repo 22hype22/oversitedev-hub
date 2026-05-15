@@ -35,6 +35,7 @@ import { BotUsageMetricsPanel } from "@/components/dashboard/BotUsageMetricsPane
 import { BotServerSlotsCard } from "@/components/dashboard/BotServerSlotsCard";
 import { BotInviteLinkCard } from "@/components/dashboard/BotInviteLinkCard";
 import { SupportAccessManager } from "@/components/dashboard/SupportAccessManager";
+import { RequestCustomFeatureDialog } from "@/components/dashboard/RequestCustomFeatureDialog";
 import { BotHealthBadge } from "@/components/dashboard/BotHealthBadge";
 import { DashboardServerSelector } from "@/components/dashboard/DashboardServerSelector";
 import { ActiveGuildProvider } from "@/hooks/useActiveGuild";
@@ -157,26 +158,28 @@ const getStatusMeta = (s: string): StatusMeta =>
   STATUS_META[s] ?? { label: s, className: "bg-muted text-muted-foreground border-border" };
 
 const RequestCustomFeatureCard = () => {
+  const [open, setOpen] = useState(false);
   return (
-    <Card className="bg-card/40 border-border p-6 flex flex-col h-[210px] hover:border-primary/40 transition-smooth">
-      <div className="flex items-start gap-3 mb-3">
-        <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/30 grid place-items-center shrink-0">
-          <MessageSquare className="h-5 w-5 text-primary" />
+    <>
+      <Card className="bg-card/40 border-border p-6 flex flex-col h-[210px] hover:border-primary/40 transition-smooth">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/30 grid place-items-center shrink-0">
+            <MessageSquare className="h-5 w-5 text-primary" />
+          </div>
+          <h3 className="font-semibold text-base leading-tight pt-1.5">Custom feature</h3>
         </div>
-        <h3 className="font-semibold text-base leading-tight pt-1.5">Custom feature</h3>
-      </div>
-      <p className="text-sm text-muted-foreground flex-1">
-        Need something unique? Request a custom feature built for your bot by our team.
-      </p>
-      <div className="mt-3">
-        <Button variant="outline" size="sm" className="w-full" asChild>
-          <a href="https://discord.gg/B23N33DfUU" target="_blank" rel="noopener noreferrer">
+        <p className="text-sm text-muted-foreground flex-1">
+          Need something unique? Request a custom feature built for your bot by our team.
+        </p>
+        <div className="mt-3">
+          <Button variant="outline" size="sm" className="w-full" onClick={() => setOpen(true)}>
             <MessageSquare className="h-4 w-4 mr-1.5" />
             Request custom feature
-          </a>
-        </Button>
-      </div>
-    </Card>
+          </Button>
+        </div>
+      </Card>
+      <RequestCustomFeatureDialog open={open} onOpenChange={setOpen} />
+    </>
   );
 };
 
