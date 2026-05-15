@@ -1195,6 +1195,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         staff_role_ids: Array.isArray(values.staffRoles)
           ? (values.staffRoles as string[]).filter(Boolean)
           : [],
+        viewer_role_ids: Array.isArray(values.viewerRoleIds)
+          ? (values.viewerRoleIds as string[]).filter(Boolean)
+          : [],
         report_channel_id: String(values.reportChannel ?? ""),
         report_frequency: String(values.reportFrequency ?? "weekly"),
         track_response_time: Boolean(values.trackResponseTime ?? true),
