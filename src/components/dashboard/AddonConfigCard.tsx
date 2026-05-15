@@ -94,6 +94,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isStaffNotes = addonId === "staff-notes";
   const isChannelLockdown = addonId === "channel-lockdown";
   const isBanTools = addonId === "ban-tools";
+  const isStaffPerformance = addonId === "staff-performance";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
@@ -1155,6 +1156,63 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     setOpen(false);
   };
 
+  // ---------- staff-performance ----------
+  useEffect(() => {
+    if (!isStaffPerformance || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "staff-performance")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const staffRoles = Array.isArray(cfg.staff_role_ids) ? cfg.staff_role_ids.map(String) : [];
+      setValues((prev) => ({
+        ...prev,
+        staffRoles,
+        reportChannel: String(cfg.report_channel_id ?? ""),
+        reportFrequency: String(cfg.report_frequency ?? "weekly"),
+        trackResponseTime: Boolean(cfg.track_response_time ?? true),
+        trackResolutionTime: Boolean(cfg.track_resolution_time ?? true),
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isStaffPerformance, open, botId]);
+
+  const saveStaffPerformance = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "staff-performance",
+      config: {
+        staff_role_ids: Array.isArray(values.staffRoles)
+          ? (values.staffRoles as string[]).filter(Boolean)
+          : [],
+        report_channel_id: String(values.reportChannel ?? ""),
+        report_frequency: String(values.reportFrequency ?? "weekly"),
+        track_response_time: Boolean(values.trackResponseTime ?? true),
+        track_resolution_time: Boolean(values.trackResolutionTime ?? true),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "staff-performance",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Staff Performance settings saved & applied");
+    setOpen(false);
+  };
+
   // ---------- channel-lockdown ----------
   useEffect(() => {
     if (!isChannelLockdown || !open || !botId) return;
@@ -1692,6 +1750,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveChannelLockdown();
                   } else if (isBanTools) {
                     void saveBanTools();
+                  } else if (isStaffPerformance) {
+                    void saveStaffPerformance();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
