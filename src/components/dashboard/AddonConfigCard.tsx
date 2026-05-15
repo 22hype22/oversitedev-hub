@@ -2012,6 +2012,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveTicketLogs();
                   } else if (isTicketMembers) {
                     void saveTicketMembers();
+                  } else if (isCloseAll) {
+                    void saveCloseAll();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
