@@ -355,15 +355,13 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-sm">Roles for this category</Label>
-                <CategoryRolePicker
-                  botId={botId}
-                  guildId={guild?.guild_id ?? null}
-                  value={cat.roles}
-                  onChange={(roles) => updateCategory(cat.id, { roles })}
-                />
-              </div>
+              <CategoryRolePicker
+                label="Roles for this category"
+                botId={botId}
+                guildId={guild?.guild_id ?? null}
+                value={cat.roles}
+                onChange={(roles) => updateCategory(cat.id, { roles })}
+              />
 
               <div className="space-y-2">
                 <Label htmlFor={`cat-open-${cat.id}`} className="text-sm">
