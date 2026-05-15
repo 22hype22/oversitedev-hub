@@ -65,6 +65,7 @@ import {
   Code2,
   RefreshCw,
   AlertTriangle,
+  Bug,
   Gift,
   ChevronDown,
   ChevronUp,
