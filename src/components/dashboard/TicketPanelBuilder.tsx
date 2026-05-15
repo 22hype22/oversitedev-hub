@@ -353,10 +353,9 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
                 />
               </div>
 
-              <CategoryRolePicker
+              <RoleMultiSelect
                 label="Roles for this category"
                 botId={botId}
-                guildId={guild?.guild_id ?? null}
                 value={cat.roles}
                 onChange={(roles) => updateCategory(cat.id, { roles })}
               />
