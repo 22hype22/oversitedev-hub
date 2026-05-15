@@ -19,16 +19,20 @@ export function RoleMultiSelect({
   value,
   onChange,
   botId,
+  guildId: guildIdProp,
 }: {
   label: string;
   help?: string;
   value: string[];
   onChange: (v: string[]) => void;
   botId?: string;
+  /** Override the active-guild context. Use when the parent form has its own
+   *  server picker (e.g. ticket panel builder). */
+  guildId?: string | null;
 }) {
   const { guild } = useActiveGuild();
-  const guildId = guild?.guild_id;
-  const { roles, loading, refreshing, refreshFromDiscord } = useBotRoles(botId, guildId);
+  const guildId = guildIdProp ?? guild?.guild_id;
+  const { roles, loading, refreshing, refreshFromDiscord } = useBotRoles(botId, guildId ?? undefined);
 
   const filtered = useMemo(
     () => roles.filter((r) => !r.is_everyone && !r.managed),
