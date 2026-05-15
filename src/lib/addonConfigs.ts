@@ -657,7 +657,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Track tickets handled, response times, and activity per staff member.",
     icon: BarChart3,
     fields: [
-      role("staffRole", "Staff role to track"),
+      multirole("staffRoles", "Staff roles to track", "Members with any of these roles will be tracked."),
       channel("reportChannel", "Weekly report channel"),
       {
         key: "reportFrequency",
