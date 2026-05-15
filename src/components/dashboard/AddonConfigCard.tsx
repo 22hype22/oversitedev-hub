@@ -96,6 +96,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isBanTools = addonId === "ban-tools";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
+  const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
 
   // Map dashboard addon id → bot_config.feature name for toggleable features.
   const TOGGLE_FEATURE_MAP: Record<string, string> = {
