@@ -208,6 +208,126 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
+    // POST /claim-command { bot_id } -> claims the next pending command owned
+    // by the external utilities bot. Role refresh commands are checked first so
+    // role selectors are not blocked behind older queued work.
+    if (req.method === "POST" && path.startsWith("/claim-command")) {
+      const body = await req.json().catch(() => ({} as any));
+      const botId = String(body.bot_id || "");
+      if (!botId) return json(400, { error: "bot_id required" });
+
+      const claimCommand = async (actions: string[]) => {
+        const { data: pending, error: selErr } = await admin
+          .from("bot_commands")
+          .select("*")
+          .eq("bot_id", botId)
+          .eq("status", "pending")
+          .in("action", actions)
+          .order("created_at", { ascending: true })
+          .limit(1);
+        if (selErr) throw selErr;
+
+        const row = pending?.[0];
+        if (!row) return null;
+
+        const { data: claimed, error: updErr } = await admin
+          .from("bot_commands")
+          .update({
+            status: "claimed",
+            claimed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", row.id)
+          .eq("status", "pending")
+          .select("*")
+          .maybeSingle();
+        if (updErr) throw updErr;
+        if (!claimed) return null;
+        return { ...row, ...claimed };
+      };
+
+      const claimed =
+        (await claimCommand(["list_roles"])) ??
+        (await claimCommand(["post_message", "apply_config", "list_channels", "list_guilds"]));
+
+      return json(200, { command: claimed });
+    }
+
+    // POST /complete-command { command_id, status, error_message? }
+    if (req.method === "POST" && path.startsWith("/complete-command")) {
+      const body = await req.json().catch(() => ({} as any));
+      const commandId = String(body.command_id || "");
+      const status = String(body.status || "");
+      if (!commandId) return json(400, { error: "command_id required" });
+      if (status !== "done" && status !== "failed") {
+        return json(400, { error: "status must be 'done' or 'failed'" });
+      }
+      const { error: updErr } = await admin
+        .from("bot_commands")
+        .update({
+          status,
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          error_message: body.error_message ?? null,
+        })
+        .eq("id", commandId);
+      if (updErr) return json(500, { error: updErr.message });
+      return json(200, { ok: true });
+    }
+
+    // POST /upsert-role-cache { bot_id, guild_id, roles[] }
+    // Replaces the cached role list for (bot_id, guild_id) so the dashboard's
+    // RoleMultiSelect can render fresh data after a list_roles refresh.
+    if (req.method === "POST" && path.startsWith("/upsert-role-cache")) {
+      const body = await req.json().catch(() => ({} as any));
+      const botId = String(body.bot_id || "");
+      const guildId = String(body.guild_id || "");
+      const roles = Array.isArray(body.roles) ? body.roles : null;
+      if (!botId) return json(400, { error: "bot_id required" });
+      if (!guildId) return json(400, { error: "guild_id required" });
+      if (!roles) return json(400, { error: "roles[] required" });
+
+      const { data: order, error: orderError } = await admin
+        .from("bot_orders")
+        .select("user_id")
+        .eq("id", botId)
+        .single();
+      if (orderError || !order) {
+        return json(404, { error: "Bot order not found" });
+      }
+
+      const fetchedAt = new Date().toISOString();
+      const rows = roles
+        .filter((r: any) => r && r.role_id)
+        .map((r: any) => ({
+          bot_id: botId,
+          user_id: order.user_id,
+          guild_id: guildId,
+          role_id: String(r.role_id),
+          role_name: String(r.role_name ?? ""),
+          color: Number(r.color ?? 0),
+          position: Number(r.position ?? 0),
+          managed: Boolean(r.managed ?? false),
+          is_everyone: Boolean(r.is_everyone ?? false),
+          fetched_at: r.fetched_at ?? fetchedAt,
+        }));
+
+      const { error: delError } = await admin
+        .from("bot_role_cache")
+        .delete()
+        .eq("bot_id", botId)
+        .eq("guild_id", guildId);
+      if (delError) return json(500, { error: delError.message });
+
+      if (rows.length > 0) {
+        const { error: insError } = await admin
+          .from("bot_role_cache")
+          .insert(rows);
+        if (insError) return json(500, { error: insError.message });
+      }
+      return json(200, { ok: true, count: rows.length });
+    }
+
     if (req.method !== "POST") {
       return json(405, { error: "Method not allowed" });
     }
