@@ -424,9 +424,11 @@ function CategoryRolePicker({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-end gap-1">
-        {filtered.length > 0 && (
-          <>
+      <div className="flex items-center justify-between">
+        <Label className="text-sm">{label}</Label>
+        <div className="flex items-center gap-1">
+          {filtered.length > 0 && (
+            <>
             <Button
               type="button"
               variant="ghost"
