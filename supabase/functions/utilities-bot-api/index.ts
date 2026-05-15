@@ -173,6 +173,41 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
+    // GET /bot-config?bot_id=...&feature=music-addon
+    if (req.method === "GET" && path.startsWith("/bot-config")) {
+      const botId = url.searchParams.get("bot_id") || "";
+      const feature = url.searchParams.get("feature") || "";
+      if (!botId) return json(400, { error: "bot_id required" });
+      if (!feature) return json(400, { error: "feature required" });
+
+      const { data, error } = await admin
+        .from("bot_config")
+        .select("*")
+        .eq("bot_id", botId)
+        .eq("feature", feature)
+        .maybeSingle();
+      if (error) return json(500, { error: error.message });
+      return json(200, { config: data ?? null });
+    }
+
+    // POST /mark-config-applied { bot_id, feature }
+    if (req.method === "POST" && path.startsWith("/mark-config-applied")) {
+      const body = await req.json().catch(() => ({} as any));
+      const botId = String(body.bot_id || "");
+      const feature = String(body.feature || "");
+      if (!botId) return json(400, { error: "bot_id required" });
+      if (!feature) return json(400, { error: "feature required" });
+
+      const now = new Date().toISOString();
+      const { error } = await admin
+        .from("bot_config")
+        .update({ applied_at: now, updated_at: now })
+        .eq("bot_id", botId)
+        .eq("feature", feature);
+      if (error) return json(500, { error: error.message });
+      return json(200, { ok: true });
+    }
+
     if (req.method !== "POST") {
       return json(405, { error: "Method not allowed" });
     }
