@@ -1652,6 +1652,16 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     }
                     return;
                   }
+                  if (isTicketPanel || isAnonReport) {
+                    setSaving(true);
+                    try {
+                      const ok = await ticketBuilderRef.current?.save();
+                      if (ok) setOpen(false);
+                    } finally {
+                      setSaving(false);
+                    }
+                    return;
+                  }
                   if (isVerification) {
                     void saveVerification();
                   } else if (isAdvancedLogging) {
