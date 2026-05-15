@@ -1372,6 +1372,64 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     setOpen(false);
   };
 
+  // ---------- priority-flagging ----------
+  useEffect(() => {
+    if (!isPriorityFlagging || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "priority-tickets")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const setterRoles = Array.isArray(cfg.setter_role_ids) ? cfg.setter_role_ids.map(String) : [];
+      const pingRoles = Array.isArray(cfg.ping_role_ids) ? cfg.ping_role_ids.map(String) : [];
+      setValues((prev) => ({
+        ...prev,
+        setterRoleIds: setterRoles,
+        pingRoleIds: pingRoles,
+        urgentChannel: String(cfg.alert_channel_id ?? ""),
+        colorCodeNames: cfg.color_code_names ?? false,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isPriorityFlagging, open, botId]);
+
+  const savePriorityFlagging = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "priority-tickets",
+      config: {
+        setter_role_ids: Array.isArray(values.setterRoleIds)
+          ? (values.setterRoleIds as string[]).filter(Boolean)
+          : [],
+        ping_role_ids: Array.isArray(values.pingRoleIds)
+          ? (values.pingRoleIds as string[]).filter(Boolean)
+          : [],
+        alert_channel_id: values.urgentChannel ? String(values.urgentChannel) : null,
+        color_code_names: !!values.colorCodeNames,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "priority-tickets",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Priority Ticket Flagging settings saved & applied");
+    setOpen(false);
+  };
+
   // ---------- staff-performance ----------
   useEffect(() => {
     if (!isStaffPerformance || !open || !botId) return;
