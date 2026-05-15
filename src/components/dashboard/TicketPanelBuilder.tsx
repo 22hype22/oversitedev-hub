@@ -386,11 +386,13 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
 });
 
 function CategoryRolePicker({
+  label,
   botId,
   guildId,
   value,
   onChange,
 }: {
+  label: string;
   botId?: string;
   guildId: string | null;
   value: string[];
