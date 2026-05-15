@@ -1896,6 +1896,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveBanTools();
                   } else if (isStaffPerformance) {
                     void saveStaffPerformance();
+                  } else if (isTicketNotes) {
+                    void saveTicketNotes();
                   } else if (isTicketLogs) {
                     void saveTicketLogs();
                   } else {
