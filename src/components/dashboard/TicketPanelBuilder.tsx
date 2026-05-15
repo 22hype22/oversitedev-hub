@@ -108,45 +108,8 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     { id: uid(), name: "", roles: "", openingMessage: "" },
   ]);
 
-  // Hydrate from existing bot_config row.
-  useEffect(() => {
-    if (!botId) return;
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from("bot_config")
-        .select("config")
-        .eq("bot_id", botId)
-        .eq("feature", feature)
-        .maybeSingle();
-      if (cancelled || !data?.config) return;
-      const cfg = data.config as Record<string, unknown>;
-      if (typeof cfg.panel_title === "string") setPanelTitle(cfg.panel_title);
-      if (typeof cfg.panel_description === "string")
-        setPanelDescription(cfg.panel_description);
-      if (typeof cfg.cooldown_minutes === "number")
-        setCooldownMinutes(cfg.cooldown_minutes);
-      if (Array.isArray(cfg.categories) && cfg.categories.length) {
-        setCategories(
-          (cfg.categories as Array<Record<string, unknown>>).map((c) => ({
-            id: uid(),
-            name: String(c.name ?? ""),
-            roles: String(c.roles ?? ""),
-            openingMessage: String(c.opening_message ?? ""),
-          })),
-        );
-      }
-      if (cfg.guild_id && cfg.channel_id) {
-        setPanelChannel({
-          channel_id: String(cfg.channel_id),
-          channel_name: String(cfg.channel_name ?? ""),
-        } as BotChannel);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [botId, feature]);
+  // Intentionally do NOT hydrate from bot_config — every time the dialog
+  // opens, the form starts blank so previously-sent text doesn't reappear.
 
   const updateCategory = (id: string, patch: Partial<Category>) =>
     setCategories((prev) =>
