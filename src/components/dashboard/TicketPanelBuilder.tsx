@@ -2,23 +2,26 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useState,
 } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, AlertTriangle, Info } from "lucide-react";
+import { Plus, Trash2, AlertTriangle, Info, RefreshCw, AtSign } from "lucide-react";
 import { GuildChannelPicker } from "./GuildChannelPicker";
 import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
+import { useBotRoles } from "@/hooks/useBotRoles";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 type Category = {
   id: string;
   name: string;
-  roles: string;
+  roles: string[];
   openingMessage: string;
 };
 
@@ -106,7 +109,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   const [cooldownMinutes, setCooldownMinutes] = useState<number>(10);
   const [embedColor, setEmbedColor] = useState("#5865F2");
   const [categories, setCategories] = useState<Category[]>([
-    { id: uid(), name: "", roles: "", openingMessage: "" },
+    { id: uid(), name: "", roles: [], openingMessage: "" },
   ]);
 
   // Intentionally do NOT hydrate from bot_config — every time the dialog
@@ -120,7 +123,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   const addCategory = () =>
     setCategories((prev) => [
       ...prev,
-      { id: uid(), name: "", roles: "", openingMessage: "" },
+      { id: uid(), name: "", roles: [], openingMessage: "" },
     ]);
 
   const removeCategory = (id: string) =>
@@ -145,7 +148,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       const cleanedCategories = categories
         .map((c) => ({
           name: c.name.trim(),
-          roles: c.roles.trim(),
+          roles: c.roles.filter((r) => r && r.length > 0),
           opening_message: c.openingMessage.trim(),
         }))
         .filter((c) => c.name.length > 0);
@@ -353,21 +356,13 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor={`cat-roles-${cat.id}`} className="text-sm">
-                  Roles for this category
-                </Label>
-                <Textarea
-                  id={`cat-roles-${cat.id}`}
-                  placeholder={copy.rolesPlaceholder}
+                <Label className="text-sm">Roles for this category</Label>
+                <CategoryRolePicker
+                  botId={botId}
+                  guildId={guild?.guild_id ?? null}
                   value={cat.roles}
-                  onChange={(e) =>
-                    updateCategory(cat.id, { roles: e.target.value })
-                  }
-                  rows={2}
+                  onChange={(roles) => updateCategory(cat.id, { roles })}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Comma-separate multiple roles. One line per group if needed.
-                </p>
               </div>
 
               <div className="space-y-2">
@@ -391,3 +386,115 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     </div>
   );
 });
+
+function CategoryRolePicker({
+  botId,
+  guildId,
+  value,
+  onChange,
+}: {
+  botId?: string;
+  guildId: string | null;
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const { roles, loading, refreshing, refreshFromDiscord } = useBotRoles(
+    botId,
+    guildId ?? undefined,
+  );
+  const filtered = useMemo(
+    () => roles.filter((r) => !r.is_everyone && !r.managed),
+    [roles],
+  );
+  const toggle = (roleId: string) => {
+    if (value.includes(roleId)) onChange(value.filter((v) => v !== roleId));
+    else onChange([...value, roleId]);
+  };
+  const handleRefresh = async () => {
+    if (!guildId) {
+      toast.info("Select a server at the top first.");
+      return;
+    }
+    const result = await refreshFromDiscord();
+    if (result.ok) toast.success("Role list refreshed.");
+    else if (result.error === "timeout")
+      toast.warning("Refresh queued — bot may be offline.");
+    else toast.error(`Refresh failed: ${result.error}`);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-end gap-1">
+        {filtered.length > 0 && (
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onChange(filtered.map((r) => r.role_id))}
+              className="h-7 px-2 text-xs"
+            >
+              All
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onChange([])}
+              className="h-7 px-2 text-xs"
+            >
+              None
+            </Button>
+          </>
+        )}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={refreshing || !guildId}
+          className="h-7 px-2 text-xs gap-1.5"
+        >
+          <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+          {refreshing ? "Refreshing…" : "Refresh"}
+        </Button>
+      </div>
+      <div className="max-h-56 overflow-y-auto rounded-md border border-input bg-background p-2 space-y-1">
+        {!guildId ? (
+          <p className="text-sm text-muted-foreground p-2">Select a server first</p>
+        ) : loading ? (
+          <p className="text-sm text-muted-foreground p-2">Loading roles…</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground p-2">
+            No roles cached — click Refresh
+          </p>
+        ) : (
+          filtered.map((r) => {
+            const checked = value.includes(r.role_id);
+            return (
+              <label
+                key={r.role_id}
+                className="flex items-center gap-2 cursor-pointer text-sm rounded px-2 py-1 hover:bg-muted/40"
+              >
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-primary"
+                  checked={checked}
+                  onChange={() => toggle(r.role_id)}
+                />
+                <AtSign className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>{r.role_name}</span>
+              </label>
+            );
+          })
+        )}
+      </div>
+      {value.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {value.length} role{value.length === 1 ? "" : "s"} selected
+        </p>
+      )}
+    </div>
+  );
+}
+
