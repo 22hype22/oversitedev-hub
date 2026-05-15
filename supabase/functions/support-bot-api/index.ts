@@ -196,6 +196,62 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
+    // POST /upsert-role-cache { bot_id, guild_id, roles[] }
+    // Replaces the cached role list for (bot_id, guild_id) so the dashboard's
+    // RoleMultiSelect can render fresh data after a list_roles refresh.
+    if (req.method === "POST" && path.startsWith("/upsert-role-cache")) {
+      const body = await req.json().catch(() => ({} as any));
+      const botId = String(body.bot_id || "");
+      const guildId = String(body.guild_id || "");
+      const roles = Array.isArray(body.roles) ? body.roles : null;
+      if (!botId) return json(400, { error: "bot_id required" });
+      if (!guildId) return json(400, { error: "guild_id required" });
+      if (!roles) return json(400, { error: "roles[] required" });
+
+      // Resolve user_id from the bot order (role cache rows are owned per-user).
+      const { data: order, error: orderError } = await admin
+        .from("bot_orders")
+        .select("user_id")
+        .eq("id", botId)
+        .single();
+      if (orderError || !order) {
+        return json(404, { error: "Bot order not found" });
+      }
+
+      const fetchedAt = new Date().toISOString();
+      const rows = roles
+        .filter((r: any) => r && r.role_id)
+        .map((r: any) => ({
+          bot_id: botId,
+          user_id: order.user_id,
+          guild_id: guildId,
+          role_id: String(r.role_id),
+          role_name: String(r.role_name ?? ""),
+          color: Number(r.color ?? 0),
+          position: Number(r.position ?? 0),
+          managed: Boolean(r.managed ?? false),
+          is_everyone: Boolean(r.is_everyone ?? false),
+          fetched_at: r.fetched_at ?? fetchedAt,
+        }));
+
+      // Wipe stale rows for this guild, then insert the fresh set so deleted
+      // Discord roles disappear from the cache instead of lingering.
+      const { error: delError } = await admin
+        .from("bot_role_cache")
+        .delete()
+        .eq("bot_id", botId)
+        .eq("guild_id", guildId);
+      if (delError) return json(500, { error: delError.message });
+
+      if (rows.length > 0) {
+        const { error: insError } = await admin
+          .from("bot_role_cache")
+          .insert(rows);
+        if (insError) return json(500, { error: insError.message });
+      }
+      return json(200, { ok: true, count: rows.length });
+    }
+
     // GET /bot-config?bot_id=...&feature=tickets
     if (req.method === "GET" && path.startsWith("/bot-config")) {
       const botId = url.searchParams.get("bot_id") || "";
