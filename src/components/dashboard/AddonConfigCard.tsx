@@ -97,6 +97,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isStaffPerformance = addonId === "staff-performance";
   const isTicketLogs = addonId === "ticket-logs";
   const isTicketNotes = addonId === "ticket-notes";
+  const isTicketMembers = addonId === "ticket-add-remove";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
