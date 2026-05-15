@@ -1842,6 +1842,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveBanTools();
                   } else if (isStaffPerformance) {
                     void saveStaffPerformance();
+                  } else if (isTicketLogs) {
+                    void saveTicketLogs();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
