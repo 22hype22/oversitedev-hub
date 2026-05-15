@@ -165,6 +165,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           channel_name: panelChannel?.channel_name ?? null,
           panel_title: panelTitle.trim(),
           panel_description: panelDescription.trim(),
+          color: embedColor,
           cooldown_minutes: isReport ? cooldownMinutes : null,
           categories: cleanedCategories,
         },
