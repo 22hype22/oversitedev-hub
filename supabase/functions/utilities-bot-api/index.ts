@@ -30,16 +30,45 @@ const DM_TYPES = {
 } as const;
 type DmType = keyof typeof DM_TYPES;
 
+function normalizeWorkerToken(value: string | null | undefined): string {
+  return (value ?? "")
+    .replace(/^Bearer\s+/i, "")
+    .trim()
+    .replace(/^['\"]|['\"]$/g, "");
+}
+
+function getWorkerToken(req: Request): { token: string; source: string } {
+  const candidates: Array<[string, string]> = [
+    ["x-worker-token", normalizeWorkerToken(req.headers.get("x-worker-token"))],
+    ["x_worker_token", normalizeWorkerToken(req.headers.get("x_worker_token"))],
+    ["worker-token", normalizeWorkerToken(req.headers.get("worker-token"))],
+    ["authorization", normalizeWorkerToken(req.headers.get("authorization"))],
+    ["x-authorization", normalizeWorkerToken(req.headers.get("x-authorization"))],
+  ];
+  const match = candidates.find(([, token]) => token.startsWith("wkr_"));
+  return match ? { source: match[0], token: match[1] } : { token: "", source: "none" };
+}
+
 async function authenticate(req: Request): Promise<boolean> {
-  const token =
-    req.headers.get("x-worker-token") ||
-    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
-    "";
-  if (!token) return false;
+  const { token, source } = getWorkerToken(req);
+  if (!token) {
+    console.warn("utilities-bot-api auth failed: no worker token carrier", {
+      hasXWorkerToken: req.headers.has("x-worker-token"),
+      hasXWorkerTokenUnderscore: req.headers.has("x_worker_token"),
+      hasAuthorization: req.headers.has("authorization"),
+    });
+    return false;
+  }
   const { data, error } = await admin.rpc("_worker_token_lookup", {
     _token: token,
   });
-  if (error || !data || (Array.isArray(data) && data.length === 0)) return false;
+  if (error || !data || (Array.isArray(data) && data.length === 0)) {
+    console.warn("utilities-bot-api auth failed: worker token lookup rejected", {
+      source,
+      error: error?.message,
+    });
+    return false;
+  }
   // touch last_used_at — fire and forget
   const tokenId = Array.isArray(data) ? data[0]?.token_id : (data as any).token_id;
   if (tokenId) {
@@ -129,10 +158,7 @@ Deno.serve(async (req) => {
       const botId = String(body.bot_id || "");
       if (!botId) return json(400, { error: "bot_id required" });
 
-      const token =
-        req.headers.get("x-worker-token") ||
-        req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
-        "";
+      const { token } = getWorkerToken(req);
 
       const { error: rpcError } = await admin.rpc("runtime_record_bot_metrics", {
         _token: token,
