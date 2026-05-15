@@ -65,7 +65,8 @@ export type AddonFieldType =
   | "number"
   | "toggle"
   | "select"
-  | "multiselect";
+  | "multiselect"
+  | "header";
 
 export type AddonField = {
   key: string;
@@ -119,6 +120,8 @@ const toggle = (
   defaultValue = true,
   help?: string,
 ): AddonField => ({ key, label, type: "toggle", defaultValue, help });
+
+const header = (label: string): AddonField => ({ key: `__header_${label}`, label, type: "header" });
 
 
 /**
@@ -671,8 +674,14 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
           { value: "monthly", label: "Monthly" },
         ],
       },
-      toggle("trackResponseTime", "Track first-response time"),
-      toggle("trackResolutionTime", "Track ticket resolution time"),
+      header("Tracked Metrics"),
+      toggle("trackClaimed", "Tickets Claimed", true),
+      toggle("trackClosed", "Tickets Closed", true),
+      toggle("trackMessages", "Messages Sent", false),
+      toggle("trackCommands", "Commands Used", false),
+      toggle("trackProactive", "Proactive Claims", false),
+      toggle("trackResponseTime", "Avg Response Time", true),
+      toggle("trackResolutionTime", "Avg Resolution Time", true),
     ],
   },
 

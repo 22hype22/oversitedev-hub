@@ -1177,6 +1177,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         viewerRoleIds,
         reportChannel: String(cfg.report_channel_id ?? ""),
         reportFrequency: String(cfg.report_frequency ?? "weekly"),
+        trackClaimed: Boolean(cfg.track_claimed ?? true),
+        trackClosed: Boolean(cfg.track_closed ?? true),
+        trackMessages: Boolean(cfg.track_messages ?? false),
+        trackCommands: Boolean(cfg.track_commands ?? false),
+        trackProactive: Boolean(cfg.track_proactive ?? false),
         trackResponseTime: Boolean(cfg.track_response_time ?? true),
         trackResolutionTime: Boolean(cfg.track_resolution_time ?? true),
       }));
@@ -1187,6 +1192,21 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
 
   const saveStaffPerformance = async () => {
     if (!botId) return toast.error("Missing bot id.");
+
+    const metrics = [
+      values.trackClaimed,
+      values.trackClosed,
+      values.trackMessages,
+      values.trackCommands,
+      values.trackProactive,
+      values.trackResponseTime,
+      values.trackResolutionTime,
+    ];
+    if (!metrics.some(Boolean)) {
+      toast.error("At least one tracked metric must be selected.");
+      return;
+    }
+
     setSaving(true);
     const payload = {
       bot_id: botId,
@@ -1200,6 +1220,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
           : [],
         report_channel_id: String(values.reportChannel ?? ""),
         report_frequency: String(values.reportFrequency ?? "weekly"),
+        track_claimed: Boolean(values.trackClaimed ?? true),
+        track_closed: Boolean(values.trackClosed ?? true),
+        track_messages: Boolean(values.trackMessages ?? false),
+        track_commands: Boolean(values.trackCommands ?? false),
+        track_proactive: Boolean(values.trackProactive ?? false),
         track_response_time: Boolean(values.trackResponseTime ?? true),
         track_resolution_time: Boolean(values.trackResolutionTime ?? true),
       },
@@ -1431,6 +1456,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
 
   const renderField = (f: AddonField) => {
     const value = values[f.key];
+
+    if (f.type === "header") {
+      return (
+        <div className="pt-2 pb-1">
+          <h4 className="text-sm font-semibold text-foreground">{f.label}</h4>
+          <div className="mt-1 h-px bg-border" />
+        </div>
+      );
+    }
 
     if (f.type === "toggle") {
       return (
