@@ -64,6 +64,41 @@ Deno.serve(async (req) => {
   const path = url.pathname.replace(/^.*\/utilities-bot-api/, "") || "/";
 
   try {
+    // POST /heartbeat { bot_id, status, guilds? }
+    if (req.method === "POST" && path.startsWith("/heartbeat")) {
+      const body = await req.json().catch(() => ({} as any));
+      const botId = String(body.bot_id || "");
+      const status = String(body.status || "");
+
+      if (!botId) return json(400, { error: "bot_id required" });
+      if (!status) return json(400, { error: "status required" });
+
+      const { data: order, error: orderError } = await admin
+        .from("bot_orders")
+        .select("user_id")
+        .eq("id", botId)
+        .single();
+      if (orderError || !order) {
+        return json(404, { error: "Bot order not found" });
+      }
+
+      const now = new Date().toISOString();
+      const upsertData: Record<string, unknown> = {
+        bot_id: botId,
+        user_id: order.user_id,
+        status,
+        last_heartbeat_at: now,
+        updated_at: now,
+      };
+      if (body.guilds !== undefined) upsertData.guilds = body.guilds;
+
+      const { error: upsertError } = await admin
+        .from("bot_runtime_status")
+        .upsert(upsertData, { onConflict: "bot_id" });
+      if (upsertError) return json(500, { error: upsertError.message });
+      return json(200, { ok: true });
+    }
+
     // GET /pending?type=in_build|ready|cancel&limit=25
     if (req.method === "GET" && path.startsWith("/pending")) {
       const type = url.searchParams.get("type") as DmType | null;
