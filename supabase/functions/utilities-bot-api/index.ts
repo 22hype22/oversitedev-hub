@@ -45,7 +45,8 @@ function getWorkerToken(req: Request): { token: string; source: string } {
     ["authorization", normalizeWorkerToken(req.headers.get("authorization"))],
     ["x-authorization", normalizeWorkerToken(req.headers.get("x-authorization"))],
   ];
-  return candidates.find(([, token]) => token.startsWith("wkr_")) ?? { token: "", source: "none" };
+  const match = candidates.find(([, token]) => token.startsWith("wkr_"));
+  return match ? { source: match[0], token: match[1] } : { token: "", source: "none" };
 }
 
 async function authenticate(req: Request): Promise<boolean> {
