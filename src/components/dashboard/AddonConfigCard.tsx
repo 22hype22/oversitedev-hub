@@ -2073,6 +2073,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveTicketMembers();
                   } else if (isCloseAll) {
                     void saveCloseAll();
+                  } else if (isPriorityFlagging) {
+                    void savePriorityFlagging();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
