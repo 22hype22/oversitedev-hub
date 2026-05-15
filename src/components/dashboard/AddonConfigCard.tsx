@@ -1156,6 +1156,59 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
   };
 
+  // ---------- ticket-notes ----------
+  useEffect(() => {
+    if (!isTicketNotes || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "ticket-notes")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const allowed = Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [];
+      setValues((prev) => ({
+        ...prev,
+        allowedRoleIds: allowed,
+        pingStaff: cfg.ping_staff ?? false,
+        includeInTranscript: cfg.include_in_transcript ?? false,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isTicketNotes, open, botId]);
+
+  const saveTicketNotes = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "ticket-notes",
+      config: {
+        allowed_role_ids: Array.isArray(values.allowedRoleIds)
+          ? (values.allowedRoleIds as string[]).filter(Boolean)
+          : [],
+        ping_staff: !!values.pingStaff,
+        include_in_transcript: !!values.includeInTranscript,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "ticket-notes",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Ticket Notes settings saved & applied");
+    setOpen(false);
+  };
+
   // ---------- ticket-logs ----------
   useEffect(() => {
     if (!isTicketLogs || !open || !botId) return;
