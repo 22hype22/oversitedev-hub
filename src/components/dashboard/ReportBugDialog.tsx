@@ -23,7 +23,7 @@ import { toast } from "sonner";
 import { Loader2, Paperclip, X } from "lucide-react";
 
 const SUPPORT_BOT_ID = "a6be529f-a7f3-4a58-84c5-bcac5dbc97df";
-const TARGET_CHANNEL_ID = "1503905197695569950";
+const TARGET_CHANNEL_ID = "1504955457448444066";
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp"];
 const BUG_RED = 0xef4444;
