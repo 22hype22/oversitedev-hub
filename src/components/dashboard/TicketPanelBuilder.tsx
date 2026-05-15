@@ -1,4 +1,9 @@
-import { useEffect, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useState,
+} from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,6 +12,8 @@ import { Plus, Trash2, AlertTriangle, Info } from "lucide-react";
 import { GuildChannelPicker } from "./GuildChannelPicker";
 import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 type Category = {
   id: string;
@@ -21,6 +28,10 @@ const uid = () =>
     : Math.random().toString(36).slice(2);
 
 type Variant = "ticket" | "report";
+
+export type TicketPanelBuilderHandle = {
+  save: () => Promise<boolean>;
+};
 
 type Props = {
   botId?: string;
@@ -72,9 +83,11 @@ const COPY: Record<Variant, {
   },
 };
 
-export function TicketPanelBuilder({ botId, botName, variant = "ticket" }: Props) {
+export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
+  function TicketPanelBuilder({ botId, botName, variant = "ticket" }, ref) {
   const copy = COPY[variant];
   const isReport = variant === "report";
+  const feature = isReport ? "reports" : "tickets";
 
   const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
   const [guild, setGuildLocal] = useState<BotGuild | null>(activeGuild);
@@ -95,6 +108,46 @@ export function TicketPanelBuilder({ botId, botName, variant = "ticket" }: Props
     { id: uid(), name: "", roles: "", openingMessage: "" },
   ]);
 
+  // Hydrate from existing bot_config row.
+  useEffect(() => {
+    if (!botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", feature)
+        .maybeSingle();
+      if (cancelled || !data?.config) return;
+      const cfg = data.config as Record<string, unknown>;
+      if (typeof cfg.panel_title === "string") setPanelTitle(cfg.panel_title);
+      if (typeof cfg.panel_description === "string")
+        setPanelDescription(cfg.panel_description);
+      if (typeof cfg.cooldown_minutes === "number")
+        setCooldownMinutes(cfg.cooldown_minutes);
+      if (Array.isArray(cfg.categories) && cfg.categories.length) {
+        setCategories(
+          (cfg.categories as Array<Record<string, unknown>>).map((c) => ({
+            id: uid(),
+            name: String(c.name ?? ""),
+            roles: String(c.roles ?? ""),
+            openingMessage: String(c.opening_message ?? ""),
+          })),
+        );
+      }
+      if (cfg.guild_id && cfg.channel_id) {
+        setPanelChannel({
+          channel_id: String(cfg.channel_id),
+          channel_name: String(cfg.channel_name ?? ""),
+        } as BotChannel);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [botId, feature]);
+
   const updateCategory = (id: string, patch: Partial<Category>) =>
     setCategories((prev) =>
       prev.map((c) => (c.id === id ? { ...c, ...patch } : c)),
@@ -110,6 +163,77 @@ export function TicketPanelBuilder({ botId, botName, variant = "ticket" }: Props
     setCategories((prev) =>
       prev.length === 1 ? prev : prev.filter((c) => c.id !== id),
     );
+
+  useImperativeHandle(ref, () => ({
+    save: async () => {
+      if (!botId) {
+        toast.error("Bot is not ready yet");
+        return false;
+      }
+      if (!panelTitle.trim()) {
+        toast.error("Panel title is required");
+        return false;
+      }
+      if (!panelDescription.trim()) {
+        toast.error("Panel description is required");
+        return false;
+      }
+      const cleanedCategories = categories
+        .map((c) => ({
+          name: c.name.trim(),
+          roles: c.roles.trim(),
+          opening_message: c.openingMessage.trim(),
+        }))
+        .filter((c) => c.name.length > 0);
+      if (cleanedCategories.length === 0) {
+        toast.error("Add at least one category");
+        return false;
+      }
+
+      const payload = {
+        bot_id: botId,
+        feature,
+        config: {
+          variant,
+          guild_id: guild?.guild_id ?? null,
+          guild_name: guild?.guild_name ?? null,
+          channel_id: panelChannel?.channel_id ?? null,
+          channel_name: panelChannel?.channel_name ?? null,
+          panel_title: panelTitle.trim(),
+          panel_description: panelDescription.trim(),
+          cooldown_minutes: isReport ? cooldownMinutes : null,
+          categories: cleanedCategories,
+        },
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from("bot_config")
+        .upsert(payload, { onConflict: "bot_id,feature" });
+      if (error) {
+        toast.error(`Save failed: ${error.message}`);
+        return false;
+      }
+
+      const { data: cmdData, error: cmdError } = await supabase.rpc(
+        "enqueue_apply_config" as any,
+        { _bot_id: botId, _feature: feature },
+      );
+      const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+      if (cmdError) {
+        toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+      } else if (cmdResult && cmdResult.ok === false) {
+        toast.warning(
+          `Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`,
+        );
+      } else {
+        toast.success(
+          isReport ? "Report panel saved & applied" : "Ticket panel saved & applied",
+        );
+      }
+      return true;
+    },
+  }));
 
   return (
     <div className="space-y-5 py-2">
@@ -282,4 +406,4 @@ export function TicketPanelBuilder({ botId, botName, variant = "ticket" }: Props
       </div>
     </div>
   );
-}
+});

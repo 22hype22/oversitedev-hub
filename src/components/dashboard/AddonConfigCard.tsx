@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils";
 import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
 import { getAddonLabel } from "@/lib/botCatalog";
 import { SayCommandBuilder, type SayCommandBuilderHandle } from "./SayCommandBuilder";
-import { TicketPanelBuilder } from "./TicketPanelBuilder";
+import { TicketPanelBuilder, type TicketPanelBuilderHandle } from "./TicketPanelBuilder";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildChannels";
 import { useBotRoles } from "@/hooks/useBotRoles";
@@ -96,6 +96,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isBanTools = addonId === "ban-tools";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
+  const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
 
   // Map dashboard addon id → bot_config.feature name for toggleable features.
   const TOGGLE_FEATURE_MAP: Record<string, string> = {
@@ -1593,9 +1594,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               <SayCommandBuilder ref={sayBuilderRef} mode="rules" botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
             </div>
           ) : isTicketPanel ? (
-            <TicketPanelBuilder botId={botId} botName={botName} variant="ticket" />
+            <TicketPanelBuilder ref={ticketBuilderRef} botId={botId} botName={botName} variant="ticket" />
           ) : isAnonReport ? (
-            <TicketPanelBuilder botId={botId} botName={botName} variant="report" />
+            <TicketPanelBuilder ref={ticketBuilderRef} botId={botId} botName={botName} variant="report" />
           ) : isChannelLockdown ? (
             <div className="space-y-5 py-2">
               {config.fields.map((f) => (
@@ -1645,6 +1646,16 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     setSaving(true);
                     try {
                       const ok = await sayBuilderRef.current?.send();
+                      if (ok) setOpen(false);
+                    } finally {
+                      setSaving(false);
+                    }
+                    return;
+                  }
+                  if (isTicketPanel || isAnonReport) {
+                    setSaving(true);
+                    try {
+                      const ok = await ticketBuilderRef.current?.save();
                       if (ok) setOpen(false);
                     } finally {
                       setSaving(false);
