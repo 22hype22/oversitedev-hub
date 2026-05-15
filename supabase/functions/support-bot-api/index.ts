@@ -160,8 +160,15 @@ Deno.serve(async (req) => {
         .eq("status", "pending")
         .select()
         .maybeSingle();
-      if (updErr) return json(500, { error: updErr.message });
-      if (!claimed) return json(200, { command: null });
+      if (updErr) {
+        console.log("[claim-command] update error:", updErr.message);
+        return json(500, { error: updErr.message });
+      }
+      if (!claimed) {
+        console.log("[claim-command] update returned no row (race?)");
+        return json(200, { command: null });
+      }
+      console.log("[claim-command] claimed row id:", claimed.id);
       return json(200, { command: claimed });
     }
 
