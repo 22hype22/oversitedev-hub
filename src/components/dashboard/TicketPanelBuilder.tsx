@@ -148,7 +148,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       const cleanedCategories = categories
         .map((c) => ({
           name: c.name.trim(),
-          roles: c.roles.trim(),
+          roles: c.roles.filter((r) => r && r.length > 0),
           opening_message: c.openingMessage.trim(),
         }))
         .filter((c) => c.name.length > 0);
