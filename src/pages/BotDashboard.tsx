@@ -185,6 +185,32 @@ const RequestCustomFeatureCard = () => {
   );
 };
 
+const ReportBugCard = () => {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Card className="bg-card/40 border-border p-6 flex flex-col h-[210px] hover:border-destructive/50 transition-smooth">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="h-10 w-10 rounded-lg bg-destructive/10 border border-destructive/30 grid place-items-center shrink-0">
+            <Bug className="h-5 w-5 text-destructive" />
+          </div>
+          <h3 className="font-semibold text-base leading-tight pt-1.5">Report a bug</h3>
+        </div>
+        <p className="text-sm text-muted-foreground flex-1">
+          Hit a snag? Send us the details and we'll get it fixed.
+        </p>
+        <div className="mt-3">
+          <Button variant="outline" size="sm" className="w-full" onClick={() => setOpen(true)}>
+            <Bug className="h-4 w-4 mr-1.5" />
+            Report a bug
+          </Button>
+        </div>
+      </Card>
+      <ReportBugDialog open={open} onOpenChange={setOpen} />
+    </>
+  );
+};
+
 const EngineVersionSwitcher = ({
   bot,
   onReload,
