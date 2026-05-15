@@ -109,7 +109,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   const [cooldownMinutes, setCooldownMinutes] = useState<number>(10);
   const [embedColor, setEmbedColor] = useState("#5865F2");
   const [categories, setCategories] = useState<Category[]>([
-    { id: uid(), name: "", roles: "", openingMessage: "" },
+    { id: uid(), name: "", roles: [], openingMessage: "" },
   ]);
 
   // Intentionally do NOT hydrate from bot_config — every time the dialog
