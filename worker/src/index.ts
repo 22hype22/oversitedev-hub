@@ -153,7 +153,16 @@ async function releaseCommandToPending(id: string, action: string) {
   }
 }
 
-const EXTERNAL_BOT_ACTIONS = new Set(["apply_config", "post_message"]);
+// Actions whose owning bot must match this worker's runtime. Anything not in
+// this set is released back to pending so external bots (e.g. the support bot,
+// which polls support-bot-api) can claim it themselves.
+const WORKER_OWNED_BOT_IDS = new Set(
+  (process.env.WORKER_OWNED_BOT_IDS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+);
+const EXTERNAL_BOT_ACTIONS = new Set(["apply_config", "post_message", "list_roles", "list_channels", "list_guilds"]);
 
 async function processCommand(cmd: Cmd) {
   if (EXTERNAL_BOT_ACTIONS.has(cmd.action)) {
