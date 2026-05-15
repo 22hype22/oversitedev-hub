@@ -77,7 +77,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isSayCommand = addonId === "messages";
   const isRules = addonId === "rules";
   const isTicketPanel = addonId === "ticket-message-customization";
-  const isAnonReport = addonId === "anonymous-reporting";
+  // removed: anonymous-reporting card discontinued
   const isVerification = addonId === "verification-system";
   const isAdvancedLogging = addonId === "advanced-logging";
   const isModeration = addonId === "mod-actions";
@@ -1569,7 +1569,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               ? "max-w-5xl max-h-[90vh] overflow-y-auto"
               : isChannelLockdown
                 ? "max-w-3xl max-h-[90vh] overflow-y-auto"
-                : isTicketPanel || isAnonReport
+                : isTicketPanel
                   ? "max-w-2xl max-h-[90vh] overflow-y-auto"
                   : "max-w-lg max-h-[85vh] overflow-y-auto"
           }
@@ -1595,8 +1595,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
             </div>
           ) : isTicketPanel ? (
             <TicketPanelBuilder ref={ticketBuilderRef} botId={botId} botName={botName} variant="ticket" />
-          ) : isAnonReport ? (
-            <TicketPanelBuilder ref={ticketBuilderRef} botId={botId} botName={botName} variant="report" />
           ) : isChannelLockdown ? (
             <div className="space-y-5 py-2">
               {config.fields.map((f) => (
@@ -1652,7 +1650,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     }
                     return;
                   }
-                  if (isTicketPanel || isAnonReport) {
+                  if (isTicketPanel) {
                     setSaving(true);
                     try {
                       const ok = await ticketBuilderRef.current?.save();
