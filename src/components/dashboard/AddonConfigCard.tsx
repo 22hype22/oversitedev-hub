@@ -100,6 +100,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isTicketMembers = addonId === "ticket-add-remove";
   const isCloseAll = addonId === "close-all-tickets";
   const isPriorityFlagging = addonId === "priority-flagging";
+  const isAutoCloseInactive = addonId === "auto-close-inactive";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
@@ -1430,6 +1431,64 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     setOpen(false);
   };
 
+  // ---------- auto-close-inactive ----------
+  useEffect(() => {
+    if (!isAutoCloseInactive || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "auto-close")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        close_after_hours: Number(cfg.close_after_hours ?? 48),
+        warn_before_hours: Number(cfg.warn_before_hours ?? 12),
+        embed_author: String(cfg.embed_author ?? ""),
+        embed_title: String(cfg.embed_title ?? ""),
+        warning_message: String(cfg.warning_message ?? prev.warning_message ?? "This ticket will close soon due to inactivity. Reply to keep it open."),
+        save_transcript: Boolean(cfg.save_transcript ?? false),
+        embed_footer: String(cfg.embed_footer ?? ""),
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isAutoCloseInactive, open, botId]);
+
+  const saveAutoCloseInactive = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "auto-close",
+      config: {
+        close_after_hours: Number(values.close_after_hours ?? 48),
+        warn_before_hours: Number(values.warn_before_hours ?? 12),
+        embed_author: String(values.embed_author ?? ""),
+        embed_title: String(values.embed_title ?? ""),
+        warning_message: String(values.warning_message ?? ""),
+        save_transcript: Boolean(values.save_transcript ?? false),
+        embed_footer: String(values.embed_footer ?? ""),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "auto-close",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Auto-Close Inactive Tickets settings saved & applied");
+    setOpen(false);
+  };
+
   // ---------- staff-performance ----------
   useEffect(() => {
     if (!isStaffPerformance || !open || !botId) return;
@@ -2075,6 +2134,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveCloseAll();
                   } else if (isPriorityFlagging) {
                     void savePriorityFlagging();
+                  } else if (isAutoCloseInactive) {
+                    void saveAutoCloseInactive();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
