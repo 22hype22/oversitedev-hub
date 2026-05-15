@@ -845,21 +845,21 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Play music in voice channels from YouTube, Spotify, and more.",
     icon: Music,
     fields: [
-      role("djRole", "DJ role (can skip / control playback)"),
-      toggle("everyoneCanQueue", "Let everyone add songs to the queue"),
+      multirole("dj_role_ids", "DJ roles (can skip / control playback)"),
+      toggle("everyone_can_queue", "Let everyone add songs to the queue"),
       {
-        key: "maxQueueLength",
+        key: "max_queue_length",
         label: "Max queue length",
         type: "number",
         defaultValue: 100,
       },
       {
-        key: "defaultVolume",
+        key: "default_volume",
         label: "Default volume (1-100)",
         type: "number",
         defaultValue: 50,
       },
-      toggle("autoLeaveEmpty", "Auto-leave when voice channel is empty"),
+      toggle("auto_leave", "Auto-leave when voice channel is empty"),
     ],
   },
 
