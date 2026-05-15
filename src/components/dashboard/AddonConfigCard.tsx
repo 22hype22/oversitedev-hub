@@ -2134,6 +2134,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveCloseAll();
                   } else if (isPriorityFlagging) {
                     void savePriorityFlagging();
+                  } else if (isAutoCloseInactive) {
+                    void saveAutoCloseInactive();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
