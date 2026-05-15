@@ -65,7 +65,8 @@ export type AddonFieldType =
   | "number"
   | "toggle"
   | "select"
-  | "multiselect";
+  | "multiselect"
+  | "header";
 
 export type AddonField = {
   key: string;
