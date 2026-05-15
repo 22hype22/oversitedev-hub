@@ -723,9 +723,9 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Pull other members or roles into a ticket.",
     icon: UserPlus,
     fields: [
-      role("staffRole", "Role allowed to add/remove members"),
-      toggle("logChanges", "Log every add/remove inside the ticket"),
-      toggle("allowUserAdd", "Let ticket opener add their own friends", false),
+      multirole("allowedRoleIds", "Roles allowed to add/remove members"),
+      toggle("logActions", "Log every add/remove inside the ticket"),
+      toggle("openerCanAdd", "Let ticket opener add their own friends", false),
     ],
   },
 

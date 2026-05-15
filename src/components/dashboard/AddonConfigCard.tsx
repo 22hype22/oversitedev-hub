@@ -97,6 +97,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isStaffPerformance = addonId === "staff-performance";
   const isTicketLogs = addonId === "ticket-logs";
   const isTicketNotes = addonId === "ticket-notes";
+  const isTicketMembers = addonId === "ticket-add-remove";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
@@ -1261,6 +1262,59 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     setOpen(false);
   };
 
+  // ---------- ticket-members ----------
+  useEffect(() => {
+    if (!isTicketMembers || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "ticket-members")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const allowed = Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [];
+      setValues((prev) => ({
+        ...prev,
+        allowedRoleIds: allowed,
+        logActions: cfg.log_actions ?? true,
+        openerCanAdd: cfg.opener_can_add ?? false,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isTicketMembers, open, botId]);
+
+  const saveTicketMembers = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "ticket-members",
+      config: {
+        allowed_role_ids: Array.isArray(values.allowedRoleIds)
+          ? (values.allowedRoleIds as string[]).filter(Boolean)
+          : [],
+        log_actions: !!values.logActions,
+        opener_can_add: !!values.openerCanAdd,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "ticket-members",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Add / Remove Members settings saved & applied");
+    setOpen(false);
+  };
+
   // ---------- staff-performance ----------
   useEffect(() => {
     if (!isStaffPerformance || !open || !botId) return;
@@ -1900,6 +1954,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveTicketNotes();
                   } else if (isTicketLogs) {
                     void saveTicketLogs();
+                  } else if (isTicketMembers) {
+                    void saveTicketMembers();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
