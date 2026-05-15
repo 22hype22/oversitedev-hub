@@ -712,8 +712,8 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Internal staff-only notes attached to tickets.",
     icon: StickyNote,
     fields: [
-      role("staffRole", "Role allowed to add notes"),
-      toggle("notifyOnNote", "Ping staff when a new note is added", false),
+      multirole("allowedRoleIds", "Roles allowed to add notes"),
+      toggle("pingStaff", "Ping staff when a new note is added", false),
       toggle("includeInTranscript", "Include notes in ticket transcripts", false),
     ],
   },
