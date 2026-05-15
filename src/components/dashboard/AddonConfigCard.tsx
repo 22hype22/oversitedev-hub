@@ -1954,6 +1954,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveTicketNotes();
                   } else if (isTicketLogs) {
                     void saveTicketLogs();
+                  } else if (isTicketMembers) {
+                    void saveTicketMembers();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
