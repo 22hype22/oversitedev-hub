@@ -2,20 +2,18 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
-  useMemo,
   useState,
 } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, AlertTriangle, Info, RefreshCw, AtSign } from "lucide-react";
+import { Plus, Trash2, AlertTriangle, Info } from "lucide-react";
 import { GuildChannelPicker } from "./GuildChannelPicker";
+import { RoleMultiSelect } from "./RoleMultiSelect";
 import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
-import { useBotRoles } from "@/hooks/useBotRoles";
 import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 type Category = {
