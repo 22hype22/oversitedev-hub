@@ -449,17 +449,18 @@ function CategoryRolePicker({
             </Button>
           </>
         )}
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={refreshing || !guildId}
-          className="h-7 px-2 text-xs gap-1.5"
-        >
-          <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
-          {refreshing ? "Refreshing…" : "Refresh"}
-        </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing || !guildId}
+            className="h-7 px-2 text-xs gap-1.5"
+          >
+            <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </Button>
+        </div>
       </div>
       <div className="max-h-56 overflow-y-auto rounded-md border border-input bg-background p-2 space-y-1">
         {!guildId ? (
