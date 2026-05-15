@@ -1316,6 +1316,61 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     setOpen(false);
   };
 
+  // ---------- close-all ----------
+  useEffect(() => {
+    if (!isCloseAll || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "close-all")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const allowed = Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [];
+      setValues((prev) => ({
+        ...prev,
+        allowedRoleIds: allowed,
+        requireConfirmation: cfg.require_confirmation ?? true,
+        saveTranscripts: cfg.save_transcripts ?? true,
+        closingMessage: cfg.closing_message ?? prev.closingMessage ?? "This ticket is being closed as part of a mass close. Reopen if needed.",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCloseAll, open, botId]);
+
+  const saveCloseAll = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "close-all",
+      config: {
+        allowed_role_ids: Array.isArray(values.allowedRoleIds)
+          ? (values.allowedRoleIds as string[]).filter(Boolean)
+          : [],
+        require_confirmation: !!values.requireConfirmation,
+        save_transcripts: !!values.saveTranscripts,
+        closing_message: String(values.closingMessage ?? ""),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "close-all",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Close All Tickets settings saved & applied");
+    setOpen(false);
+  };
+
   // ---------- staff-performance ----------
   useEffect(() => {
     if (!isStaffPerformance || !open || !botId) return;
