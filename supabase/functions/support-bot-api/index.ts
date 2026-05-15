@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
       const { data: claimed, error: updErr } = await admin
         .from("bot_commands")
         .update({
-          status: "in_progress",
+          status: "claimed",
           claimed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
