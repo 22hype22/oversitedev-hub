@@ -143,10 +143,13 @@ Deno.serve(async (req) => {
           })
           .eq("id", row.id)
           .eq("status", "pending")
-          .select()
+          .select("*")
           .maybeSingle();
         if (updErr) throw updErr;
-        return claimed ?? null;
+        if (!claimed) return null;
+        // Merge the originally-fetched row to guarantee payload (and any other
+        // columns) are present even if the update's RETURNING clause omits them.
+        return { ...row, ...claimed };
       };
 
       const claimed =
