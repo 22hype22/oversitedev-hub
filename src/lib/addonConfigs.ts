@@ -734,11 +734,11 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Mass-close every open ticket with one command.",
     icon: XCircle,
     fields: [
-      role("allowedRole", "Role allowed to use /closeall"),
+      multirole("allowedRoleIds", "Roles allowed to use /closeall"),
       toggle("requireConfirmation", "Require a confirmation prompt"),
       toggle("saveTranscripts", "Save transcripts before closing"),
       {
-        key: "closeMessage",
+        key: "closingMessage",
         label: "Closing message",
         type: "textarea",
         defaultValue: "This ticket is being closed as part of a mass close. Reopen if needed.",
