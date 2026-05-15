@@ -112,6 +112,97 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
+    // POST /claim-command { bot_id } -> claims oldest pending post_message/apply_config command
+    if (req.method === "POST" && path.startsWith("/claim-command")) {
+      const body = await req.json().catch(() => ({} as any));
+      const botId = String(body.bot_id || "");
+      if (!botId) return json(400, { error: "bot_id required" });
+
+      const { data: pending, error: selErr } = await admin
+        .from("bot_commands")
+        .select("*")
+        .eq("bot_id", botId)
+        .eq("status", "pending")
+        .in("action", ["post_message", "apply_config"])
+        .order("created_at", { ascending: true })
+        .limit(1);
+      if (selErr) return json(500, { error: selErr.message });
+      const row = pending?.[0];
+      if (!row) return json(200, { command: null });
+
+      const { data: claimed, error: updErr } = await admin
+        .from("bot_commands")
+        .update({
+          status: "in_progress",
+          claimed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", row.id)
+        .eq("status", "pending")
+        .select()
+        .maybeSingle();
+      if (updErr) return json(500, { error: updErr.message });
+      if (!claimed) return json(200, { command: null });
+      return json(200, { command: claimed });
+    }
+
+    // POST /complete-command { command_id, status, error_message? }
+    if (req.method === "POST" && path.startsWith("/complete-command")) {
+      const body = await req.json().catch(() => ({} as any));
+      const commandId = String(body.command_id || "");
+      const status = String(body.status || "");
+      if (!commandId) return json(400, { error: "command_id required" });
+      if (status !== "done" && status !== "failed") {
+        return json(400, { error: "status must be 'done' or 'failed'" });
+      }
+      const { error: updErr } = await admin
+        .from("bot_commands")
+        .update({
+          status,
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          error_message: body.error_message ?? null,
+        })
+        .eq("id", commandId);
+      if (updErr) return json(500, { error: updErr.message });
+      return json(200, { ok: true });
+    }
+
+    // GET /bot-config?bot_id=...&feature=tickets
+    if (req.method === "GET" && path.startsWith("/bot-config")) {
+      const botId = url.searchParams.get("bot_id") || "";
+      const feature = url.searchParams.get("feature") || "";
+      if (!botId) return json(400, { error: "bot_id required" });
+      if (!feature) return json(400, { error: "feature required" });
+
+      const { data, error } = await admin
+        .from("bot_config")
+        .select("*")
+        .eq("bot_id", botId)
+        .eq("feature", feature)
+        .maybeSingle();
+      if (error) return json(500, { error: error.message });
+      return json(200, { config: data ?? null });
+    }
+
+    // POST /mark-config-applied { bot_id, feature }
+    if (req.method === "POST" && path.startsWith("/mark-config-applied")) {
+      const body = await req.json().catch(() => ({} as any));
+      const botId = String(body.bot_id || "");
+      const feature = String(body.feature || "");
+      if (!botId) return json(400, { error: "bot_id required" });
+      if (!feature) return json(400, { error: "feature required" });
+
+      const now = new Date().toISOString();
+      const { error } = await admin
+        .from("bot_config")
+        .update({ applied_at: now, updated_at: now })
+        .eq("bot_id", botId)
+        .eq("feature", feature);
+      if (error) return json(500, { error: error.message });
+      return json(200, { ok: true });
+    }
+
     return json(404, { error: `Unknown route: ${path}` });
   } catch (e) {
     console.error("support-bot-api error", e);
