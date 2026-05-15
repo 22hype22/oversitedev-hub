@@ -279,6 +279,55 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         </div>
       )}
 
+      {/* Embed color */}
+      <div className="space-y-2">
+        <Label htmlFor="embed-color">Embed Color</Label>
+        <div className="flex items-center gap-3">
+          <input
+            id="embed-color"
+            type="color"
+            value={embedColor}
+            onChange={(e) => setEmbedColor(e.target.value)}
+            className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
+          />
+          <Input
+            value={embedColor}
+            onChange={(e) => setEmbedColor(e.target.value)}
+            className="font-mono text-sm w-32"
+          />
+        </div>
+        {/* Live preview */}
+        <div className="mt-2 rounded-md bg-[#313338] p-3">
+          <div className="flex gap-3">
+            <div className="h-10 w-10 rounded-full bg-[#5865F2] shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-semibold text-[#f2f3f5]">
+                  {botName || "Bot"}
+                </span>
+                <span className="text-[10px] bg-[#5865F2] text-white px-1 rounded">
+                  APP
+                </span>
+              </div>
+              <div className="text-xs text-[#b5bac1] mt-0.5">
+                Today at {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </div>
+              <div
+                className="mt-2 rounded-sm border-l-4 pl-3 pr-2 py-2 bg-[#2b2d31]"
+                style={{ borderLeftColor: embedColor }}
+              >
+                <div className="text-sm font-semibold text-[#f2f3f5]">
+                  {panelTitle || "Panel Title"}
+                </div>
+                <div className="text-xs text-[#dbdee1] mt-0.5">
+                  {panelDescription || "Panel description preview…"}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Categories — each with a paired roles + opening message */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
