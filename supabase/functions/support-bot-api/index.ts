@@ -118,6 +118,8 @@ Deno.serve(async (req) => {
       const botId = String(body.bot_id || "");
       if (!botId) return json(400, { error: "bot_id required" });
 
+      console.log("[claim-command] received bot_id:", botId);
+
       const { data: pending, error: selErr } = await admin
         .from("bot_commands")
         .select("*")
@@ -126,9 +128,26 @@ Deno.serve(async (req) => {
         .in("action", ["post_message", "apply_config"])
         .order("created_at", { ascending: true })
         .limit(1);
-      if (selErr) return json(500, { error: selErr.message });
+      if (selErr) {
+        console.log("[claim-command] select error:", selErr.message);
+        return json(500, { error: selErr.message });
+      }
+      console.log("[claim-command] pending rows found:", JSON.stringify(pending));
+
+      // Debug: also check what ANY rows exist for this bot_id
+      const { data: anyRows } = await admin
+        .from("bot_commands")
+        .select("id, action, status, created_at")
+        .eq("bot_id", botId)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      console.log("[claim-command] last 5 rows for bot_id:", JSON.stringify(anyRows));
+
       const row = pending?.[0];
-      if (!row) return json(200, { command: null });
+      if (!row) {
+        console.log("[claim-command] returning null command");
+        return json(200, { command: null });
+      }
 
       const { data: claimed, error: updErr } = await admin
         .from("bot_commands")
@@ -141,8 +160,15 @@ Deno.serve(async (req) => {
         .eq("status", "pending")
         .select()
         .maybeSingle();
-      if (updErr) return json(500, { error: updErr.message });
-      if (!claimed) return json(200, { command: null });
+      if (updErr) {
+        console.log("[claim-command] update error:", updErr.message);
+        return json(500, { error: updErr.message });
+      }
+      if (!claimed) {
+        console.log("[claim-command] update returned no row (race?)");
+        return json(200, { command: null });
+      }
+      console.log("[claim-command] claimed row id:", claimed.id);
       return json(200, { command: claimed });
     }
 
