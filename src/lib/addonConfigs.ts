@@ -658,6 +658,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     icon: BarChart3,
     fields: [
       multirole("staffRoles", "Staff roles to track", "Members with any of these roles will be tracked."),
+      multirole("viewerRoleIds", "Roles allowed to view stats", "Members with any of these roles can run /staffstats."),
       channel("reportChannel", "Weekly report channel"),
       {
         key: "reportFrequency",
