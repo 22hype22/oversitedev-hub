@@ -1170,9 +1170,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       if (cancelled || !data) return;
       const cfg = (data.config ?? {}) as Record<string, any>;
       const staffRoles = Array.isArray(cfg.staff_role_ids) ? cfg.staff_role_ids.map(String) : [];
+      const viewerRoleIds = Array.isArray(cfg.viewer_role_ids) ? cfg.viewer_role_ids.map(String) : [];
       setValues((prev) => ({
         ...prev,
         staffRoles,
+        viewerRoleIds,
         reportChannel: String(cfg.report_channel_id ?? ""),
         reportFrequency: String(cfg.report_frequency ?? "weekly"),
         trackResponseTime: Boolean(cfg.track_response_time ?? true),
@@ -1192,6 +1194,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       config: {
         staff_role_ids: Array.isArray(values.staffRoles)
           ? (values.staffRoles as string[]).filter(Boolean)
+          : [],
+        viewer_role_ids: Array.isArray(values.viewerRoleIds)
+          ? (values.viewerRoleIds as string[]).filter(Boolean)
           : [],
         report_channel_id: String(values.reportChannel ?? ""),
         report_frequency: String(values.reportFrequency ?? "weekly"),
