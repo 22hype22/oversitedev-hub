@@ -92,6 +92,29 @@ export function RoleMultiSelect({
           </Button>
         </div>
       </div>
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-muted/30 p-2">
+          {value.map((id) => {
+            const r = roles.find((x) => x.role_id === id);
+            return (
+              <span
+                key={id}
+                className="inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary px-2 py-0.5 text-xs"
+              >
+                @{r?.role_name ?? id}
+                <button
+                  type="button"
+                  onClick={() => toggle(id)}
+                  className="hover:text-destructive"
+                  aria-label={`Remove ${r?.role_name ?? id}`}
+                >
+                  ×
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
       <div className="max-h-56 overflow-y-auto rounded-md border border-input bg-background p-2 space-y-1">
         {!guildId ? (
           <p className="text-sm text-muted-foreground p-2">Select a server first</p>
@@ -107,7 +130,10 @@ export function RoleMultiSelect({
             return (
               <label
                 key={r.role_id}
-                className="flex items-center gap-2 cursor-pointer text-sm rounded px-2 py-1 hover:bg-muted/40"
+                className={cn(
+                  "flex items-center gap-2 cursor-pointer text-sm rounded px-2 py-1 hover:bg-muted/40",
+                  checked && "bg-primary/10",
+                )}
               >
                 <input
                   type="checkbox"
