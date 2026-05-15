@@ -121,6 +121,8 @@ const toggle = (
   help?: string,
 ): AddonField => ({ key, label, type: "toggle", defaultValue, help });
 
+const header = (label: string): AddonField => ({ key: `__header_${label}`, label, type: "header" });
+
 
 /**
  * Standard embed-styling fields. Author + Title are meant to render ABOVE
