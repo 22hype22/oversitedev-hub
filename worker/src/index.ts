@@ -153,10 +153,24 @@ async function releaseCommandToPending(id: string, action: string) {
   }
 }
 
-const EXTERNAL_BOT_ACTIONS = new Set(["apply_config", "post_message"]);
+// Actions that are always owned by an external bot (never this worker).
+const ALWAYS_EXTERNAL_ACTIONS = new Set(["apply_config", "post_message"]);
+// Actions that need a live Discord client. If this worker has no runtime
+// started for cmd.bot_id (e.g. the command targets the externally-hosted
+// support bot, which polls support-bot-api directly), release the command
+// back to pending so the owning bot can claim it instead of us timing out.
+const RUNTIME_REQUIRED_ACTIONS = new Set([
+  "list_roles",
+  "list_channels",
+  "list_guilds",
+]);
 
 async function processCommand(cmd: Cmd) {
-  if (EXTERNAL_BOT_ACTIONS.has(cmd.action)) {
+  if (ALWAYS_EXTERNAL_ACTIONS.has(cmd.action)) {
+    await releaseCommandToPending(cmd.id, cmd.action);
+    return;
+  }
+  if (RUNTIME_REQUIRED_ACTIONS.has(cmd.action) && !runtimes.has(cmd.bot_id)) {
     await releaseCommandToPending(cmd.id, cmd.action);
     return;
   }

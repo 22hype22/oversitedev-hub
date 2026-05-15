@@ -112,7 +112,9 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
-    // POST /claim-command { bot_id } -> claims oldest pending post_message/apply_config command
+    // POST /claim-command { bot_id } -> claims oldest pending command for actions
+    // owned by the support bot (post_message, apply_config, list_roles,
+    // list_channels, list_guilds).
     if (req.method === "POST" && path.startsWith("/claim-command")) {
       const body = await req.json().catch(() => ({} as any));
       const botId = String(body.bot_id || "");
@@ -125,7 +127,7 @@ Deno.serve(async (req) => {
         .select("*")
         .eq("bot_id", botId)
         .eq("status", "pending")
-        .in("action", ["post_message", "apply_config"])
+        .in("action", ["post_message", "apply_config", "list_roles", "list_channels", "list_guilds"])
         .order("created_at", { ascending: true })
         .limit(1);
       if (selErr) {
