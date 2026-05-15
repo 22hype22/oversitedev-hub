@@ -1594,9 +1594,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               <SayCommandBuilder ref={sayBuilderRef} mode="rules" botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
             </div>
           ) : isTicketPanel ? (
-            <TicketPanelBuilder botId={botId} botName={botName} variant="ticket" />
+            <TicketPanelBuilder ref={ticketBuilderRef} botId={botId} botName={botName} variant="ticket" />
           ) : isAnonReport ? (
-            <TicketPanelBuilder botId={botId} botName={botName} variant="report" />
+            <TicketPanelBuilder ref={ticketBuilderRef} botId={botId} botName={botName} variant="report" />
           ) : isChannelLockdown ? (
             <div className="space-y-5 py-2">
               {config.fields.map((f) => (
