@@ -1432,6 +1432,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const renderField = (f: AddonField) => {
     const value = values[f.key];
 
+    if (f.type === "header") {
+      return (
+        <div className="pt-2 pb-1">
+          <h4 className="text-sm font-semibold text-foreground">{f.label}</h4>
+          <div className="mt-1 h-px bg-border" />
+        </div>
+      );
+    }
+
     if (f.type === "toggle") {
       return (
         <div className="flex items-start justify-between gap-4 py-1">
