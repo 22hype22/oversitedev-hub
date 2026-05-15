@@ -104,6 +104,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   const [panelTitle, setPanelTitle] = useState("");
   const [panelDescription, setPanelDescription] = useState("");
   const [cooldownMinutes, setCooldownMinutes] = useState<number>(10);
+  const [embedColor, setEmbedColor] = useState("#5865F2");
   const [categories, setCategories] = useState<Category[]>([
     { id: uid(), name: "", roles: "", openingMessage: "" },
   ]);
