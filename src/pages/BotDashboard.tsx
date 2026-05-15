@@ -36,6 +36,7 @@ import { BotServerSlotsCard } from "@/components/dashboard/BotServerSlotsCard";
 import { BotInviteLinkCard } from "@/components/dashboard/BotInviteLinkCard";
 import { SupportAccessManager } from "@/components/dashboard/SupportAccessManager";
 import { RequestCustomFeatureDialog } from "@/components/dashboard/RequestCustomFeatureDialog";
+import { ReportBugDialog } from "@/components/dashboard/ReportBugDialog";
 import { BotHealthBadge } from "@/components/dashboard/BotHealthBadge";
 import { DashboardServerSelector } from "@/components/dashboard/DashboardServerSelector";
 import { ActiveGuildProvider } from "@/hooks/useActiveGuild";
