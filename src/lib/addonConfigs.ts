@@ -786,10 +786,10 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Mark tickets as low / normal / high / urgent.",
     icon: Flag,
     fields: [
-      role("staffRole", "Role allowed to set priority"),
-      role("urgentPingRole", "Role to ping on urgent tickets"),
+      multirole("setterRoleIds", "Roles allowed to set priority"),
+      multirole("pingRoleIds", "Roles to ping on urgent tickets"),
       channel("urgentChannel", "Urgent ticket alert channel"),
-      toggle("colorCodeChannel", "Color-code ticket channel names by priority"),
+      toggle("colorCodeNames", "Color-code ticket channel names by priority"),
     ],
   },
 
