@@ -133,7 +133,33 @@ async function completeCommand(id: string, ok: boolean, errorMessage?: string) {
   });
 }
 
+async function releaseCommandToPending(id: string, action: string) {
+  // These actions are owned by external bots (e.g. support-bot) which poll
+  // the support-bot-api edge function. If this worker accidentally claims one,
+  // release it back to pending so the owning bot can claim it.
+  const { error } = await supabase
+    .from("bot_commands")
+    .update({
+      status: "pending",
+      claimed_at: null,
+      worker_id: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+  if (error) {
+    console.error(`[release] failed to release ${action} ${id}:`, error.message);
+  } else {
+    console.log(`[release] released ${action} ${id} back to pending (owned by external bot)`);
+  }
+}
+
+const EXTERNAL_BOT_ACTIONS = new Set(["apply_config", "post_message"]);
+
 async function processCommand(cmd: Cmd) {
+  if (EXTERNAL_BOT_ACTIONS.has(cmd.action)) {
+    await releaseCommandToPending(cmd.id, cmd.action);
+    return;
+  }
   console.log(`[${cmd.bot_id}] processing ${cmd.action}`);
   const runtime = getRuntime(cmd.bot_id);
   try {
