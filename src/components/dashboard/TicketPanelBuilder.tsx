@@ -356,21 +356,13 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor={`cat-roles-${cat.id}`} className="text-sm">
-                  Roles for this category
-                </Label>
-                <Textarea
-                  id={`cat-roles-${cat.id}`}
-                  placeholder={copy.rolesPlaceholder}
+                <Label className="text-sm">Roles for this category</Label>
+                <CategoryRolePicker
+                  botId={botId}
+                  guildId={guild?.guild_id ?? null}
                   value={cat.roles}
-                  onChange={(e) =>
-                    updateCategory(cat.id, { roles: e.target.value })
-                  }
-                  rows={2}
+                  onChange={(roles) => updateCategory(cat.id, { roles })}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Comma-separate multiple roles. One line per group if needed.
-                </p>
               </div>
 
               <div className="space-y-2">
