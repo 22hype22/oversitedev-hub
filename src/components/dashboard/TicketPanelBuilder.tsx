@@ -355,15 +355,13 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-sm">Roles for this category</Label>
-                <CategoryRolePicker
-                  botId={botId}
-                  guildId={guild?.guild_id ?? null}
-                  value={cat.roles}
-                  onChange={(roles) => updateCategory(cat.id, { roles })}
-                />
-              </div>
+              <CategoryRolePicker
+                label="Roles for this category"
+                botId={botId}
+                guildId={guild?.guild_id ?? null}
+                value={cat.roles}
+                onChange={(roles) => updateCategory(cat.id, { roles })}
+              />
 
               <div className="space-y-2">
                 <Label htmlFor={`cat-open-${cat.id}`} className="text-sm">
@@ -388,11 +386,13 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
 });
 
 function CategoryRolePicker({
+  label,
   botId,
   guildId,
   value,
   onChange,
 }: {
+  label: string;
   botId?: string;
   guildId: string | null;
   value: string[];
@@ -424,9 +424,11 @@ function CategoryRolePicker({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-end gap-1">
-        {filtered.length > 0 && (
-          <>
+      <div className="flex items-center justify-between">
+        <Label className="text-sm">{label}</Label>
+        <div className="flex items-center gap-1">
+          {filtered.length > 0 && (
+            <>
             <Button
               type="button"
               variant="ghost"
@@ -447,17 +449,18 @@ function CategoryRolePicker({
             </Button>
           </>
         )}
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={refreshing || !guildId}
-          className="h-7 px-2 text-xs gap-1.5"
-        >
-          <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
-          {refreshing ? "Refreshing…" : "Refresh"}
-        </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing || !guildId}
+            className="h-7 px-2 text-xs gap-1.5"
+          >
+            <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </Button>
+        </div>
       </div>
       <div className="max-h-56 overflow-y-auto rounded-md border border-input bg-background p-2 space-y-1">
         {!guildId ? (
