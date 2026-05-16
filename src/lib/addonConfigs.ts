@@ -99,6 +99,15 @@ const channel = (key: string, label: string, help?: string): AddonField => ({
   help,
 });
 
+const voiceChannel = (key: string, label: string, help?: string): AddonField => ({
+  key,
+  label,
+  type: "channel",
+  placeholder: "Select a voice channel",
+  help,
+  channelTypes: ["voice"],
+});
+
 const role = (key: string, label: string, help?: string): AddonField => ({
   key,
   label,
