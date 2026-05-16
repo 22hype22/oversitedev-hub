@@ -76,6 +76,8 @@ export type AddonField = {
   help?: string;
   defaultValue?: string | number | boolean | string[];
   options?: { value: string; label: string }[];
+  /** For type: "channel" — restrict which channel_type values are selectable. */
+  channelTypes?: string[];
 };
 
 export type AddonConfig = {
