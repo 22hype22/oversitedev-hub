@@ -879,7 +879,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "24/7 music streaming by genre in a voice channel.",
     icon: Radio,
     fields: [
-      channel("voiceChannel", "Voice channel for radio"),
+      voiceChannel("voiceChannel", "Voice channel for radio"),
       {
         key: "genre",
         label: "Default genre",
