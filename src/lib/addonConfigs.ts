@@ -76,6 +76,8 @@ export type AddonField = {
   help?: string;
   defaultValue?: string | number | boolean | string[];
   options?: { value: string; label: string }[];
+  /** For type: "channel" — restrict which channel_type values are selectable. */
+  channelTypes?: string[];
 };
 
 export type AddonConfig = {
@@ -95,6 +97,15 @@ const channel = (key: string, label: string, help?: string): AddonField => ({
   type: "channel",
   placeholder: "#channel-name",
   help,
+});
+
+const voiceChannel = (key: string, label: string, help?: string): AddonField => ({
+  key,
+  label,
+  type: "channel",
+  placeholder: "Select a voice channel",
+  help,
+  channelTypes: ["voice"],
 });
 
 const role = (key: string, label: string, help?: string): AddonField => ({
@@ -868,7 +879,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "24/7 music streaming by genre in a voice channel.",
     icon: Radio,
     fields: [
-      channel("voiceChannel", "Voice channel for radio"),
+      voiceChannel("voiceChannel", "Voice channel for radio"),
       {
         key: "genre",
         label: "Default genre",

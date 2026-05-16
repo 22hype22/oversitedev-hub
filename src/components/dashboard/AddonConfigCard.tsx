@@ -2185,13 +2185,12 @@ function ChannelComboField({
     botId,
     guildId,
   );
-  // Default to the standard text-channel set; voice/forum can opt-in later.
+  // Default to the standard text-channel set; fields can opt into other
+  // channel types (e.g. voice) via field.channelTypes.
+  const allowedTypes = field.channelTypes ?? ["text", "announcement", "forum"];
   const filtered = useMemo(
-    () =>
-      channels.filter((c) =>
-        ["text", "announcement", "forum"].includes(c.channel_type),
-      ),
-    [channels],
+    () => channels.filter((c) => allowedTypes.includes(c.channel_type)),
+    [channels, allowedTypes],
   );
   const selected = useMemo(
     () => filtered.find((c) => c.channel_id === value) ?? null,
