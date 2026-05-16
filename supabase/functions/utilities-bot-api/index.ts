@@ -328,6 +328,60 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, count: rows.length });
     }
 
+    // POST /upsert-channel-cache { bot_id, guild_id, channels[] }
+    // Replaces the cached channel list for (bot_id, guild_id) so dashboard
+    // pickers can render fresh data after a list_channels refresh.
+    if (req.method === "POST" && path.startsWith("/upsert-channel-cache")) {
+      const body = await req.json().catch(() => ({} as any));
+      const botId = String(body.bot_id || "");
+      const guildId = String(body.guild_id || "");
+      const channels = Array.isArray(body.channels) ? body.channels : null;
+      if (!botId) return json(400, { error: "bot_id required" });
+      if (!guildId) return json(400, { error: "guild_id required" });
+      if (!channels) return json(400, { error: "channels[] required" });
+
+      const { data: order, error: orderError } = await admin
+        .from("bot_orders")
+        .select("user_id")
+        .eq("id", botId)
+        .single();
+      if (orderError || !order) {
+        return json(404, { error: "Bot order not found" });
+      }
+
+      const fetchedAt = new Date().toISOString();
+      const rows = channels
+        .filter((c: any) => c && c.channel_id)
+        .map((c: any) => ({
+          bot_id: botId,
+          user_id: order.user_id,
+          guild_id: guildId,
+          channel_id: String(c.channel_id),
+          channel_name: String(c.channel_name ?? c.channel_id),
+          channel_type: String(c.channel_type ?? "text"),
+          parent_id: c.parent_id ?? null,
+          parent_name: c.parent_name ?? null,
+          position: Number(c.position ?? 0),
+          parent_position: Number(c.parent_position ?? -1),
+          fetched_at: c.fetched_at ?? fetchedAt,
+        }));
+
+      const { error: delError } = await admin
+        .from("bot_channel_cache")
+        .delete()
+        .eq("bot_id", botId)
+        .eq("guild_id", guildId);
+      if (delError) return json(500, { error: delError.message });
+
+      if (rows.length > 0) {
+        const { error: insError } = await admin
+          .from("bot_channel_cache")
+          .insert(rows);
+        if (insError) return json(500, { error: insError.message });
+      }
+      return json(200, { ok: true, count: rows.length });
+    }
+
     if (req.method !== "POST") {
       return json(405, { error: "Method not allowed" });
     }
