@@ -1324,6 +1324,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
           channel_id: m?.channel_id ? String(m.channel_id) : "",
           interval_minutes: Number(m?.interval_minutes ?? 60),
           message: typeof m?.message === "string" ? m.message : "",
+          ping_role_ids: Array.isArray(m?.ping_role_ids) ? m.ping_role_ids.map(String) : [],
         })),
       );
       setRecurringDeletePrevious(!!cfg.delete_previous);
