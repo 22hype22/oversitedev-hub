@@ -242,17 +242,18 @@ function InviteDialog({ onClose, onInvited }: { onClose: () => void; onInvited: 
 
   const submit = async () => {
     setSubmitting(true);
-    const { data, error } = await (supabase as any).rpc("team_invite_member", {
-      _email: email.trim(),
-      _role: role,
+    const { data, error } = await supabase.functions.invoke("team-invite-send", {
+      body: { email: email.trim(), role, siteUrl: window.location.origin },
     });
     setSubmitting(false);
-    if (error || !data?.ok) {
-      toast.error(error?.message ?? data?.error ?? "Couldn't invite");
+    if (error || !(data as any)?.ok) {
+      toast.error(error?.message ?? (data as any)?.error ?? "Couldn't invite");
       return;
     }
-    const link = `${window.location.origin}/auth?team_invite=${data.invite_token}`;
+    const link = (data as any).accept_url
+      ?? `${window.location.origin}/auth?team_invite=${(data as any).invite_token}`;
     setInviteLink(link);
+    toast.success("Invite sent");
     onInvited();
   };
 

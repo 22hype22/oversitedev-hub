@@ -11,8 +11,10 @@ export interface TemplateEntry {
 
 import { template as orderWaitlisted } from './order-waitlisted.tsx'
 import { template as waitlistDeployed } from './waitlist-deployed.tsx'
+import { template as teamInvite } from './team-invite.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'order-waitlisted': orderWaitlisted,
   'waitlist-deployed': waitlistDeployed,
+  'team-invite': teamInvite,
 }

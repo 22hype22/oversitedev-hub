@@ -42,6 +42,10 @@ export const useAuth = () => {
         if (newUserId !== lastCheckedUserId) {
           lastCheckedUserId = newUserId;
           setTimeout(() => checkAdmin(newUserId), 0);
+          // Auto-accept any pending team invites for this user's email
+          setTimeout(() => {
+            (supabase as any).rpc("team_accept_invites_for_current_user").then(() => {});
+          }, 0);
         }
       } else {
         lastCheckedUserId = null;
@@ -58,6 +62,7 @@ export const useAuth = () => {
       if (session?.user) {
         lastCheckedUserId = session.user.id;
         checkAdmin(session.user.id);
+        (supabase as any).rpc("team_accept_invites_for_current_user").then(() => {});
       } else {
         setRoleLoading(false);
       }
