@@ -33,15 +33,12 @@ interface Props {
 }
 
 export function GiveawayLaunchCard({ botId }: Props) {
-  console.log("[GiveawayLaunchCard] RENDERED with botId:", botId);
   const [prize, setPrize] = useState("");
   const [duration, setDuration] = useState("1d");
   const [winners, setWinners] = useState(1);
   const [launching, setLaunching] = useState(false);
 
   const launch = async () => {
-    console.log("GiveawayLaunchCard Start Giveaway clicked", { botId, prize, duration, winners });
-
     const trimmedPrize = prize.trim();
     if (!trimmedPrize) {
       toast.error("Prize is required");
@@ -73,7 +70,7 @@ export function GiveawayLaunchCard({ botId }: Props) {
   };
 
   return (
-    <Card className="p-5 space-y-4 border-4 border-red-500" style={{ borderColor: "red", borderWidth: 4 }}>
+    <Card className="p-5 space-y-4">
       <div className="flex items-center gap-2">
         <Gift className="h-5 w-5 text-primary" />
         <h3 className="font-semibold">Launch Giveaway</h3>
@@ -115,22 +112,13 @@ export function GiveawayLaunchCard({ botId }: Props) {
         <div className="flex items-end gap-2">
           <Button
             type="button"
-            onClick={(e) => {
-              console.log("[GiveawayLaunchCard] Start Giveaway BUTTON onClick fired", e);
-              launch();
-            }}
+            onClick={() => launch()}
             disabled={launching}
             className="flex-1 gap-2"
           >
             <Rocket className="h-4 w-4" />
             {launching ? "Launching…" : "Start Giveaway"}
           </Button>
-          <span
-            dangerouslySetInnerHTML={{
-              __html:
-                '<button type="button" onclick="alert(\'clicked\')" class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground">Test</button>',
-            }}
-          />
         </div>
       </div>
     </Card>
