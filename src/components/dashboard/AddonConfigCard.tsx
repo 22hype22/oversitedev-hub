@@ -1307,6 +1307,16 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Server Stats Channels saved & applied");
+
+    // Also enqueue a setup_stats command so the utilities bot creates the
+    // channels automatically without the user running /setupstats.
+    const { error: setupErr } = await supabase.functions.invoke("enqueue-setup-stats", {
+      body: { botId },
+    });
+    if (setupErr) {
+      toast.warning(`Saved, but failed to queue channel setup: ${setupErr.message}`);
+    }
+
     setOpen(false);
   };
 
