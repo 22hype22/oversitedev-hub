@@ -35,7 +35,7 @@ import { BotControlsPanel } from "@/components/dashboard/BotControlsPanel";
 import { BotUsageMetricsPanel } from "@/components/dashboard/BotUsageMetricsPanel";
 import { BotServerSlotsCard } from "@/components/dashboard/BotServerSlotsCard";
 import { BotInviteLinkCard } from "@/components/dashboard/BotInviteLinkCard";
-import { SupportAccessManager } from "@/components/dashboard/SupportAccessManager";
+import { TeamManagementHub } from "@/components/dashboard/team/TeamManagementHub";
 import { RequestCustomFeatureDialog } from "@/components/dashboard/RequestCustomFeatureDialog";
 import { ReportBugDialog } from "@/components/dashboard/ReportBugDialog";
 import { BotHealthBadge } from "@/components/dashboard/BotHealthBadge";
@@ -970,7 +970,7 @@ const BotDashboard = () => {
 
         {dashboardBots.length > 0 && (
           <div className="mt-16">
-            <SupportAccessManager />
+            <TeamManagementHub />
           </div>
         )}
       </div>

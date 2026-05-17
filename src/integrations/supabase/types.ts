@@ -1226,6 +1226,69 @@ export type Database = {
         }
         Relationships: []
       }
+      dashboard_role_permissions: {
+        Row: {
+          owner_user_id: string
+          permissions: Json
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          owner_user_id: string
+          permissions?: Json
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          owner_user_id?: string
+          permissions?: Json
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dashboard_team: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          id: string
+          invite_token: string | null
+          invited_at: string
+          invited_by: string | null
+          member_email: string
+          member_user_id: string | null
+          owner_user_id: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          id?: string
+          invite_token?: string | null
+          invited_at?: string
+          invited_by?: string | null
+          member_email: string
+          member_user_id?: string | null
+          owner_user_id: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          id?: string
+          invite_token?: string | null
+          invited_at?: string
+          invited_by?: string | null
+          member_email?: string
+          member_user_id?: string | null
+          owner_user_id?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       discount_codes: {
         Row: {
           code: string
@@ -2405,6 +2468,7 @@ export type Database = {
         }
         Returns: string
       }
+      ensure_team_owner_row: { Args: never; Returns: undefined }
       expire_pending_confirmations: { Args: never; Returns: number }
       get_bot_client_id: { Args: { _bot_id: string }; Returns: string }
       get_bot_health: { Args: { _bot_id: string }; Returns: Json }
@@ -2744,6 +2808,26 @@ export type Database = {
         Returns: boolean
       }
       sweep_preorders_for_confirmation: { Args: never; Returns: number }
+      team_accept_invites_for_current_user: { Args: never; Returns: number }
+      team_default_permissions: { Args: { _role: string }; Returns: Json }
+      team_get_effective_role: {
+        Args: { _owner_user_id: string }
+        Returns: Json
+      }
+      team_invite_member: {
+        Args: { _email: string; _role: string }
+        Returns: Json
+      }
+      team_remove_member: { Args: { _member_id: string }; Returns: Json }
+      team_set_role_permissions: {
+        Args: { _permissions: Json; _role: string }
+        Returns: Json
+      }
+      team_transfer_ownership: { Args: { _member_id: string }; Returns: Json }
+      team_update_member_role: {
+        Args: { _member_id: string; _role: string }
+        Returns: Json
+      }
       update_bot_token_pool_entry:
         | {
             Args: {
