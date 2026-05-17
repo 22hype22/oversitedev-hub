@@ -205,9 +205,11 @@ export function TeamMembersTab() {
           <AlertDialogHeader>
             <AlertDialogTitle>Transfer ownership?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{transferTarget?.member_email}</strong> will become the Owner of this account
-              and gain full control, including billing. You will be demoted to Co-Owner.
-              This cannot be undone without their cooperation.
+              We'll email <strong>{transferTarget?.member_email}</strong> a
+              confirmation link. The transfer only happens once they click it
+              and sign in. They'll become Owner with full control (including
+              billing) and you'll be demoted to Co-Owner. The link expires in
+              7 days — you can cancel it before then.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -215,17 +217,19 @@ export function TeamMembersTab() {
             <AlertDialogAction
               onClick={async () => {
                 if (!transferTarget) return;
-                const { data, error } = await (supabase as any).rpc("team_transfer_ownership", { _member_id: transferTarget.id });
-                if (error || !data?.ok) {
-                  toast.error(error?.message ?? data?.error ?? "Failed");
+                const { data, error } = await supabase.functions.invoke("team-transfer-send", {
+                  body: { memberId: transferTarget.id, siteUrl: window.location.origin },
+                });
+                if (error || !(data as any)?.ok) {
+                  toast.error((error as any)?.message ?? (data as any)?.error ?? "Failed to send confirmation");
                   return;
                 }
-                toast.success("Ownership transferred");
+                toast.success(`Confirmation email sent to ${transferTarget.member_email}`);
                 setTransferTarget(null);
                 reload();
               }}
             >
-              Transfer ownership
+              Send confirmation email
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
