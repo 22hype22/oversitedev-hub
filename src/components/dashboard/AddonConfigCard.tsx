@@ -1212,7 +1212,58 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
   };
 
-  // ---------- auto-radio ----------
+  // ---------- remindme ----------
+  useEffect(() => {
+    if (!isRemindme || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "remindme")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        maxPerUser: typeof cfg.max_per_user === "number" ? cfg.max_per_user : (prev.maxPerUser ?? 25),
+        deliveryMethod: cfg.delivery_method === "channel" ? "channel" : "dm",
+        allowRecurring: !!cfg.allow_recurring,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isRemindme, open, botId]);
+
+  const saveRemindme = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const rawMethod = String(values.deliveryMethod ?? "dm");
+    const delivery_method: "dm" | "channel" = rawMethod === "channel" ? "channel" : "dm";
+    const max_per_user = Math.max(1, Number(values.maxPerUser ?? 25) || 25);
+    const payload = {
+      bot_id: botId,
+      feature: "remindme",
+      config: {
+        max_per_user,
+        delivery_method,
+        allow_recurring: !!values.allowRecurring,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "remindme",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("/remindme saved & applied");
+    setOpen(false);
+  };
   useEffect(() => {
     if (!isAutoRadio || !open || !botId) return;
     let cancelled = false;
