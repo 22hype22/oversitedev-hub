@@ -108,6 +108,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isStarboard = addonId === "starboard";
   const isGiveaway = addonId === "giveaway-system";
   const isRecurringMessages = addonId === "recurring-messages";
+  const isRemindme = addonId === "remindme";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
