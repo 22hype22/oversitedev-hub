@@ -36,6 +36,7 @@ import { BotUsageMetricsPanel } from "@/components/dashboard/BotUsageMetricsPane
 import { BotServerSlotsCard } from "@/components/dashboard/BotServerSlotsCard";
 import { BotInviteLinkCard } from "@/components/dashboard/BotInviteLinkCard";
 import { TeamManagementHub } from "@/components/dashboard/team/TeamManagementHub";
+import { NewOwnerBillingDialog } from "@/components/dashboard/team/NewOwnerBillingDialog";
 import { RequestCustomFeatureDialog } from "@/components/dashboard/RequestCustomFeatureDialog";
 import { ReportBugDialog } from "@/components/dashboard/ReportBugDialog";
 import { BotHealthBadge } from "@/components/dashboard/BotHealthBadge";
