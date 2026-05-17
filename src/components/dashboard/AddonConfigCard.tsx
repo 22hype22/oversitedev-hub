@@ -1344,7 +1344,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       config: {
         host_role_ids: giveawayHostRoles.filter(Boolean),
         default_channel_id: giveawayChannelId || null,
-        default_duration_minutes: giveawayDefaultDuration,
+        default_duration: giveawayDefaultDuration.trim() || "1d",
         entry_emoji: giveawayEntryEmoji || "🎉",
         default_winners: Math.max(1, giveawayDefaultWinners),
         embed_title: giveawayEmbedTitle,
