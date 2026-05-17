@@ -469,6 +469,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         exemptRoles: Array.isArray(cfg.exempt_role_ids)
           ? cfg.exempt_role_ids.map(String)
           : [],
+        stripExemptRoles: Array.isArray(cfg.strip_exempt_role_ids)
+          ? cfg.strip_exempt_role_ids.map(String)
+          : [],
       }));
       setAppliedAt((data as any).applied_at ?? null);
     })();
@@ -498,6 +501,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         auto_unlock: !!values.autoUnlock,
         exempt_role_ids: Array.isArray(values.exemptRoles)
           ? (values.exemptRoles as any[]).map(String).filter(Boolean)
+          : [],
+        strip_exempt_role_ids: Array.isArray(values.stripExemptRoles)
+          ? (values.stripExemptRoles as any[]).map(String).filter(Boolean)
           : [],
       },
       updated_at: new Date().toISOString(),
