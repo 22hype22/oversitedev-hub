@@ -1309,6 +1309,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     else toast.success("Server Stats Channels saved & applied");
     setOpen(false);
   };
+
+  useEffect(() => {
+    if (!isAutoRadio || !open || !botId) return;
     let cancelled = false;
     (async () => {
       const { data } = await supabase
