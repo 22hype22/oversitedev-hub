@@ -248,7 +248,7 @@ Deno.serve(async (req) => {
 
       const claimed =
         (await claimCommand(["list_roles", "list_channels"])) ??
-        (await claimCommand(["post_message", "apply_config", "list_guilds", "start_giveaway"]));
+        (await claimCommand(["post_message", "apply_config", "list_guilds", "start_giveaway", "setup_stats"]));
 
       return json(200, { command: claimed });
     }
