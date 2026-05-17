@@ -2522,10 +2522,22 @@ function RecurringMessagesForm({
               <Textarea
                 value={entry.message}
                 onChange={(e) => update(idx, { message: e.target.value })}
-                placeholder="What should the bot post?"
+                placeholder="What should the bot post? Use {roles} to ping the selected roles."
                 rows={3}
               />
+              <p className="text-xs text-muted-foreground">
+                Tip: type <code className="px-1 rounded bg-muted">{"{roles}"}</code> anywhere to insert the role pings.
+              </p>
             </div>
+
+            <RoleMultiSelect
+              label="Roles to ping"
+              help="These roles will replace {roles} in the message text when posted."
+              value={entry.ping_role_ids ?? []}
+              onChange={(next) => update(idx, { ping_role_ids: next })}
+              botId={botId}
+              guildId={guildId}
+            />
           </div>
         ))}
 
