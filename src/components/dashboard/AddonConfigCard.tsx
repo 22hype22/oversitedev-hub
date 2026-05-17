@@ -2355,89 +2355,64 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               intervals={RECURRING_INTERVALS}
             />
           ) : isGiveaway ? (
-            <div className="space-y-5 py-2">
-              {config.fields
-                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
-                .map((f) => (
-                  <div key={f.key}>{renderField(f)}</div>
-                ))}
-              <div className="border-t border-border pt-5 space-y-4">
-                <h4 className="text-sm font-semibold">Launch Giveaway</h4>
-                <div className="space-y-2">
-                  <Label htmlFor="giveaway-prize">Prize</Label>
-                  <Input
-                    id="giveaway-prize"
-                    placeholder="e.g. Nitro Classic"
-                    value={giveawayPrize}
-                    onChange={(e) => setGiveawayPrize(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="giveaway-duration">Duration</Label>
-                  <Select
-                    value={String(giveawayDuration)}
-                    onValueChange={(v) => setGiveawayDuration(Number(v))}
-                  >
-                    <SelectTrigger id="giveaway-duration">
-                      <SelectValue placeholder="Select duration…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {GIVEAWAY_DURATIONS.map((d) => (
-                        <SelectItem key={d.value} value={String(d.value)}>
-                          {d.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="giveaway-winners">Number of winners</Label>
-                  <Input
-                    id="giveaway-winners"
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={giveawayWinners}
-                    onChange={(e) => setGiveawayWinners(Math.max(1, Number(e.target.value)))}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  disabled={launchingGiveaway || !giveawayPrize.trim()}
-                  onClick={async () => {
-                    if (!botId) return toast.error("Missing bot id.");
-                    setLaunchingGiveaway(true);
-                    try {
-                      const { data, error } = await supabase.functions.invoke(
-                        "enqueue-giveaway-start",
-                        {
-                          body: {
-                            botId,
-                            prize: giveawayPrize.trim(),
-                            duration_minutes: giveawayDuration,
-                            winners: giveawayWinners,
-                          },
-                        },
-                      );
-                      if (error) {
-                        toast.error(error.message ?? "Failed to start giveaway");
-                      } else if ((data as any)?.ok) {
-                        toast.success("Giveaway started!");
-                        setGiveawayPrize("");
-                        setGiveawayDuration(60);
-                        setGiveawayWinners(1);
-                      } else {
-                        toast.error((data as any)?.error ?? "Failed to start giveaway");
-                      }
-                    } finally {
-                      setLaunchingGiveaway(false);
-                    }
-                  }}
-                >
-                  {launchingGiveaway ? "Starting…" : "Start Giveaway"}
-                </Button>
-              </div>
-            </div>
+            <GiveawayForm
+              botId={botId}
+              botName={botName}
+              botAvatarUrl={botAvatarUrl ?? undefined}
+              hostRoles={giveawayHostRoles}
+              onHostRolesChange={setGiveawayHostRoles}
+              channelId={giveawayChannelId}
+              onChannelIdChange={setGiveawayChannelId}
+              defaultDuration={giveawayDefaultDuration}
+              onDefaultDurationChange={setGiveawayDefaultDuration}
+              entryEmoji={giveawayEntryEmoji}
+              onEntryEmojiChange={setGiveawayEntryEmoji}
+              defaultWinners={giveawayDefaultWinners}
+              onDefaultWinnersChange={setGiveawayDefaultWinners}
+              embedTitle={giveawayEmbedTitle}
+              onEmbedTitleChange={setGiveawayEmbedTitle}
+              embedDescription={giveawayEmbedDescription}
+              onEmbedDescriptionChange={setGiveawayEmbedDescription}
+              embedColor={giveawayEmbedColor}
+              onEmbedColorChange={setGiveawayEmbedColor}
+              durations={GIVEAWAY_DURATIONS}
+              launchPrize={giveawayPrize}
+              onLaunchPrizeChange={setGiveawayPrize}
+              launchDuration={giveawayLaunchDuration}
+              onLaunchDurationChange={setGiveawayLaunchDuration}
+              launchWinners={giveawayLaunchWinners}
+              onLaunchWinnersChange={setGiveawayLaunchWinners}
+              launching={launchingGiveaway}
+              onLaunch={async () => {
+                if (!botId) return toast.error("Missing bot id.");
+                setLaunchingGiveaway(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke(
+                    "enqueue-giveaway-start",
+                    {
+                      body: {
+                        botId,
+                        prize: giveawayPrize.trim(),
+                        duration_minutes: giveawayLaunchDuration,
+                        winners: giveawayLaunchWinners,
+                      },
+                    },
+                  );
+                  if (error) {
+                    toast.error(error.message ?? "Failed to start giveaway");
+                  } else if ((data as any)?.ok) {
+                    toast.success("Giveaway started!");
+                    setGiveawayPrize("");
+                    setGiveawayLaunchDuration(60);
+                    setGiveawayLaunchWinners(1);
+                  } else {
+                    toast.error((data as any)?.error ?? "Failed to start giveaway");
+                  }
+                } finally {
+                  setLaunchingGiveaway(false);
+                }
+              }}
+            />
           ) : (
             <div className="space-y-5 py-2">
               {config.fields
