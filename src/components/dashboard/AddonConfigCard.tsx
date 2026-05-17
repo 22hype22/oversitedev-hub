@@ -36,6 +36,8 @@ import {
   ChevronsUpDown,
   Check,
   RefreshCw,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -48,6 +50,7 @@ import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildCh
 import { useBotRoles } from "@/hooks/useBotRoles";
 import { AtSign } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { RoleMultiSelect } from "./RoleMultiSelect";
 
 const CHANNEL_ICON: Record<string, typeof Hash> = {
   text: Hash,
@@ -103,6 +106,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isAutoCloseInactive = addonId === "auto-close-inactive";
   const isAutoRadio = addonId === "auto-radio";
   const isStarboard = addonId === "starboard";
+  const isRecurringMessages = addonId === "recurring-messages";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
@@ -197,6 +201,23 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   };
   const [lockEmbed, setLockEmbed] = useState<LockEmbed>(defaultLockEmbed);
   const [unlockEmbed, setUnlockEmbed] = useState<LockEmbed>(defaultUnlockEmbed);
+
+  // Recurring Messages state — custom UI (array of entries + toggle + roles).
+  type RecurringEntry = { channel_id: string; interval_minutes: number; message: string };
+  const RECURRING_INTERVALS: { value: number; label: string }[] = [
+    { value: 5, label: "5 minutes" },
+    { value: 15, label: "15 minutes" },
+    { value: 30, label: "30 minutes" },
+    { value: 60, label: "1 hour" },
+    { value: 120, label: "2 hours" },
+    { value: 360, label: "6 hours" },
+    { value: 720, label: "12 hours" },
+    { value: 1440, label: "1 day" },
+    { value: 10080, label: "1 week" },
+  ];
+  const [recurringMessages, setRecurringMessages] = useState<RecurringEntry[]>([]);
+  const [recurringDeletePrevious, setRecurringDeletePrevious] = useState(false);
+  const [recurringAllowedRoles, setRecurringAllowedRoles] = useState<string[]>([]);
 
   useEffect(() => {
     if (!config) return;
@@ -1279,6 +1300,73 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     setOpen(false);
   };
 
+  // ---------- recurring messages ----------
+  useEffect(() => {
+    if (!isRecurringMessages || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "recurring-messages")
+        .maybeSingle();
+      if (cancelled || !data) {
+        setRecurringMessages([]);
+        setRecurringDeletePrevious(false);
+        setRecurringAllowedRoles([]);
+        return;
+      }
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const list = Array.isArray(cfg.messages) ? cfg.messages : [];
+      setRecurringMessages(
+        list.map((m: any) => ({
+          channel_id: m?.channel_id ? String(m.channel_id) : "",
+          interval_minutes: Number(m?.interval_minutes ?? 60),
+          message: typeof m?.message === "string" ? m.message : "",
+        })),
+      );
+      setRecurringDeletePrevious(!!cfg.delete_previous);
+      setRecurringAllowedRoles(
+        Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [],
+      );
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isRecurringMessages, open, botId]);
+
+  const saveRecurringMessages = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "recurring-messages",
+      config: {
+        messages: recurringMessages
+          .filter((m) => m.channel_id && m.message.trim())
+          .map((m) => ({
+            channel_id: String(m.channel_id),
+            interval_minutes: Number(m.interval_minutes) || 60,
+            message: String(m.message),
+          })),
+        delete_previous: !!recurringDeletePrevious,
+        allowed_role_ids: recurringAllowedRoles.map(String),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "recurring-messages",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Recurring Messages saved & applied");
+    setOpen(false);
+  };
+
   useEffect(() => {
     if (!isTicketNotes || !open || !botId) return;
     let cancelled = false;
@@ -2163,6 +2251,17 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                 botAvatarUrl={botAvatarUrl ?? undefined}
               />
             </div>
+          ) : isRecurringMessages ? (
+            <RecurringMessagesForm
+              botId={botId}
+              entries={recurringMessages}
+              onEntriesChange={setRecurringMessages}
+              deletePrevious={recurringDeletePrevious}
+              onDeletePreviousChange={setRecurringDeletePrevious}
+              allowedRoleIds={recurringAllowedRoles}
+              onAllowedRoleIdsChange={setRecurringAllowedRoles}
+              intervals={RECURRING_INTERVALS}
+            />
           ) : (
             <div className="space-y-5 py-2">
               {config.fields
@@ -2260,6 +2359,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveAutoRadio();
                   } else if (isStarboard) {
                     void saveStarboard();
+                  } else if (isRecurringMessages) {
+                    void saveRecurringMessages();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
@@ -2282,6 +2383,178 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     </>
   );
 }
+
+type RecurringEntryInput = { channel_id: string; interval_minutes: number; message: string };
+
+function RecurringMessagesForm({
+  botId,
+  entries,
+  onEntriesChange,
+  deletePrevious,
+  onDeletePreviousChange,
+  allowedRoleIds,
+  onAllowedRoleIdsChange,
+  intervals,
+}: {
+  botId?: string;
+  entries: RecurringEntryInput[];
+  onEntriesChange: (next: RecurringEntryInput[]) => void;
+  deletePrevious: boolean;
+  onDeletePreviousChange: (next: boolean) => void;
+  allowedRoleIds: string[];
+  onAllowedRoleIdsChange: (next: string[]) => void;
+  intervals: { value: number; label: string }[];
+}) {
+  const { guild } = useActiveGuild();
+  const guildId = guild?.guild_id;
+  const { channels, loading, refreshing, refreshFromDiscord } = useBotChannels(botId, guildId);
+  const textChannels = useMemo(
+    () => channels.filter((c) => ["text", "announcement"].includes(c.channel_type)),
+    [channels],
+  );
+  const channelGroups = useMemo(() => sortedChannelCategoryEntries(textChannels), [textChannels]);
+
+  const update = (idx: number, patch: Partial<RecurringEntryInput>) => {
+    onEntriesChange(entries.map((e, i) => (i === idx ? { ...e, ...patch } : e)));
+  };
+  const remove = (idx: number) => onEntriesChange(entries.filter((_, i) => i !== idx));
+  const add = () =>
+    onEntriesChange([...entries, { channel_id: "", interval_minutes: 60, message: "" }]);
+
+  return (
+    <div className="space-y-5 py-2">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm">Scheduled messages</Label>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => refreshFromDiscord()}
+            disabled={refreshing || !guildId}
+            className="h-7 px-2 text-xs gap-1.5"
+          >
+            <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+            {refreshing ? "Refreshing…" : "Refresh channels"}
+          </Button>
+        </div>
+
+        {entries.length === 0 && (
+          <p className="text-xs text-muted-foreground rounded-md border border-dashed border-input px-3 py-4 text-center">
+            No scheduled messages yet. Click "Add message" to create one.
+          </p>
+        )}
+
+        {entries.map((entry, idx) => (
+          <div
+            key={idx}
+            className="rounded-md border border-input bg-muted/20 p-3 space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">
+                Message #{idx + 1}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => remove(idx)}
+                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                Remove
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Channel</Label>
+                <label className="relative block">
+                  <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <select
+                    value={entry.channel_id}
+                    onChange={(e) => update(idx, { channel_id: e.target.value })}
+                    disabled={!guildId || loading}
+                    className="h-9 w-full rounded-md border border-input bg-background py-1.5 pl-9 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="">
+                      {!guildId
+                        ? "Select a server first"
+                        : loading
+                          ? "Loading channels…"
+                          : textChannels.length === 0
+                            ? "No channels — click Refresh"
+                            : "Select a channel…"}
+                    </option>
+                    {channelGroups.map((group) => (
+                      <optgroup key={group.key} label={group.label}>
+                        {group.channels.map((c) => (
+                          <option key={c.channel_id} value={c.channel_id}>
+                            {c.channel_name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Interval</Label>
+                <select
+                  value={String(entry.interval_minutes)}
+                  onChange={(e) => update(idx, { interval_minutes: Number(e.target.value) })}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  {intervals.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Message</Label>
+              <Textarea
+                value={entry.message}
+                onChange={(e) => update(idx, { message: e.target.value })}
+                placeholder="What should the bot post?"
+                rows={3}
+              />
+            </div>
+          </div>
+        ))}
+
+        <Button type="button" variant="outline" size="sm" onClick={add} className="w-full">
+          <Plus className="h-4 w-4 mr-1.5" />
+          Add message
+        </Button>
+      </div>
+
+      <div className="flex items-center justify-between rounded-md border border-input bg-muted/20 px-3 py-2">
+        <div>
+          <Label className="text-sm">Delete previous post before posting again</Label>
+          <p className="text-xs text-muted-foreground">
+            Keeps the channel from filling up with repeats.
+          </p>
+        </div>
+        <Switch checked={deletePrevious} onCheckedChange={onDeletePreviousChange} />
+      </div>
+
+      <RoleMultiSelect
+        label="Roles allowed to use /repeating"
+        help="Members with any of these roles can run the /repeating command."
+        value={allowedRoleIds}
+        onChange={onAllowedRoleIdsChange}
+        botId={botId}
+        guildId={guildId}
+      />
+    </div>
+  );
+}
+
 
 /**
  * Channel picker for schema-driven addon fields.

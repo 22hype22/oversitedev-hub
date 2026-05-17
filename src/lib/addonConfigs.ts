@@ -964,14 +964,11 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Auto-post messages on a schedule.",
     icon: Repeat,
     fields: [
-      {
-        key: "messages",
-        label: "Scheduled messages (one per line)",
-        type: "textarea",
-        placeholder: "#general | 6h | Don't forget to read the rules!\n#announcements | 1d | Daily check-in",
-        help: "Format: #channel | interval | message",
-      },
-      toggle("deletePrevious", "Delete the previous post before sending the next"),
+      // Custom UI — rendered in AddonConfigCard. These entries exist only so
+      // the card preview shows a sensible "N settings" count.
+      { key: "messages", label: "Scheduled messages", type: "textarea" },
+      toggle("delete_previous", "Delete the previous post before sending the next"),
+      role("allowed_role_ids", "Roles allowed to use /repeating"),
     ],
   },
 
