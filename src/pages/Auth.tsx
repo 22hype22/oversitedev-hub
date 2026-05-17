@@ -24,21 +24,49 @@ const Auth = () => {
   const [busy, setBusy] = useState(false);
 
   const inviteToken = params.get("team_invite");
-  const postAuthPath = inviteToken ? "/bot-dashboard?team_invite=accepted" : "/";
+  const transferToken = params.get("team_transfer");
+  const postAuthPath = inviteToken
+    ? "/bot-dashboard?team_invite=accepted"
+    : transferToken
+      ? "/bot-dashboard?team_transfer=accepted"
+      : "/";
+
+  const runPostAuthActions = async () => {
+    if (inviteToken) {
+      await (supabase as any).rpc("team_accept_invites_for_current_user");
+    }
+    if (transferToken) {
+      const { data, error } = await (supabase as any).rpc(
+        "team_confirm_ownership_transfer",
+        { _token: transferToken },
+      );
+      if (error || !data?.ok) {
+        toast({
+          title: "Couldn't confirm transfer",
+          description: error?.message ?? data?.error ?? "Try again.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Ownership transferred",
+          description: "You are now the owner of this account.",
+        });
+      }
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        if (inviteToken) {
-          (supabase as any).rpc("team_accept_invites_for_current_user").then(() => {
-            navigate(postAuthPath, { replace: true });
-          });
+        if (inviteToken || transferToken) {
+          runPostAuthActions().then(() => navigate(postAuthPath, { replace: true }));
         } else {
           navigate("/", { replace: true });
         }
       }
     });
-  }, [navigate, inviteToken, postAuthPath]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate, inviteToken, transferToken, postAuthPath]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -53,9 +81,12 @@ const Auth = () => {
     setBusy(true);
     try {
       if (mode === "signup") {
-        const emailRedirectTo = inviteToken
-          ? `${window.location.origin}/auth?team_invite=${inviteToken}`
-          : `${window.location.origin}/`;
+        const redirectSuffix = inviteToken
+          ? `?team_invite=${inviteToken}`
+          : transferToken
+            ? `?team_transfer=${transferToken}`
+            : "";
+        const emailRedirectTo = `${window.location.origin}/auth${redirectSuffix}`;
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -75,9 +106,7 @@ const Auth = () => {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        if (inviteToken) {
-          await (supabase as any).rpc("team_accept_invites_for_current_user");
-        }
+        await runPostAuthActions();
         navigate(postAuthPath, { replace: true });
       }
     } catch (err: any) {
