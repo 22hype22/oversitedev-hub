@@ -977,7 +977,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Run timed giveaways with auto-picked winners.",
     icon: Gift,
     fields: [
-      role("hostRole", "Role allowed to host giveaways"),
+      multirole("hostRole", "Roles allowed to host giveaways"),
       channel("defaultChannel", "Default giveaway channel"),
       {
         key: "emoji",
