@@ -1320,7 +1320,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
           : [];
       setGiveawayHostRoles(hostRoles);
       setGiveawayChannelId(cfg.default_channel_id ? String(cfg.default_channel_id) : "");
-      setGiveawayDefaultDuration(Number(cfg.default_duration_minutes ?? 1440));
+      setGiveawayDefaultDuration(
+        typeof cfg.default_duration === "string" && cfg.default_duration
+          ? cfg.default_duration
+          : "1d",
+      );
       setGiveawayEntryEmoji(typeof cfg.entry_emoji === "string" && cfg.entry_emoji ? cfg.entry_emoji : "🎉");
       setGiveawayDefaultWinners(Math.max(1, Number(cfg.default_winners ?? 1)));
       if (typeof cfg.embed_title === "string") setGiveawayEmbedTitle(cfg.embed_title);
