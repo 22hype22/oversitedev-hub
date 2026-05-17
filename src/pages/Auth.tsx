@@ -23,11 +23,22 @@ const Auth = () => {
   const [discordUsername, setDiscordUsername] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const inviteToken = params.get("team_invite");
+  const postAuthPath = inviteToken ? "/bot-dashboard?team_invite=accepted" : "/";
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate("/", { replace: true });
+      if (session) {
+        if (inviteToken) {
+          (supabase as any).rpc("team_accept_invites_for_current_user").then(() => {
+            navigate(postAuthPath, { replace: true });
+          });
+        } else {
+          navigate("/", { replace: true });
+        }
+      }
     });
-  }, [navigate]);
+  }, [navigate, inviteToken, postAuthPath]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -42,11 +53,14 @@ const Auth = () => {
     setBusy(true);
     try {
       if (mode === "signup") {
+        const emailRedirectTo = inviteToken
+          ? `${window.location.origin}/auth?team_invite=${inviteToken}`
+          : `${window.location.origin}/`;
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`,
+            emailRedirectTo,
             data: {
               roblox_username: robloxUsername.trim(),
               discord_username: discordUsername.trim(),
@@ -61,7 +75,10 @@ const Auth = () => {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate("/", { replace: true });
+        if (inviteToken) {
+          await (supabase as any).rpc("team_accept_invites_for_current_user");
+        }
+        navigate(postAuthPath, { replace: true });
       }
     } catch (err: any) {
       toast({
