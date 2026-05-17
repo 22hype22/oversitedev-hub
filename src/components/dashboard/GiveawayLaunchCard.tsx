@@ -111,11 +111,17 @@ export function GiveawayLaunchCard({ botId }: Props) {
             onChange={(e) => setWinners(Math.max(1, Number(e.target.value) || 1))}
           />
         </div>
-        <div className="flex items-end">
-          <Button type="button" onClick={launch} disabled={launching} className="w-full gap-2">
+        <div className="flex items-end gap-2">
+          <Button type="button" onClick={launch} disabled={launching} className="flex-1 gap-2">
             <Rocket className="h-4 w-4" />
             {launching ? "Launching…" : "Start Giveaway"}
           </Button>
+          <span
+            dangerouslySetInnerHTML={{
+              __html:
+                '<button type="button" onclick="alert(\'clicked\')" class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground">Test</button>',
+            }}
+          />
         </div>
       </div>
     </Card>
