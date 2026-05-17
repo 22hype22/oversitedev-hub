@@ -1250,8 +1250,65 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     else toast.success("/remindme saved & applied");
     setOpen(false);
   };
+
+  // ---------- server-stats-channels ----------
   useEffect(() => {
-    if (!isAutoRadio || !open || !botId) return;
+    if (!isServerStats || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "server-stats")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        showTotalMembers: cfg.show_members ?? prev.showTotalMembers ?? true,
+        showOnlineMembers: cfg.show_online ?? prev.showOnlineMembers ?? true,
+        showBots: cfg.show_bots ?? prev.showBots ?? false,
+        showBoosts: cfg.show_boosts ?? prev.showBoosts ?? true,
+        format: cfg.channel_name_format ?? prev.format ?? "📊 Members: {count}",
+        updateMinutes:
+          typeof cfg.update_interval_minutes === "number"
+            ? cfg.update_interval_minutes
+            : (prev.updateMinutes ?? 10),
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isServerStats, open, botId]);
+
+  const saveServerStats = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "server-stats",
+      config: {
+        show_members: !!values.showTotalMembers,
+        show_online: !!values.showOnlineMembers,
+        show_bots: !!values.showBots,
+        show_boosts: !!values.showBoosts,
+        channel_name_format: String(values.format ?? "📊 Members: {count}"),
+        update_interval_minutes: Math.max(1, Number(values.updateMinutes ?? 10) || 10),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "server-stats",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Server Stats Channels saved & applied");
+    setOpen(false);
+  };
     let cancelled = false;
     (async () => {
       const { data } = await supabase
