@@ -1228,7 +1228,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       setValues((prev) => ({
         ...prev,
         maxPerUser: typeof cfg.max_per_user === "number" ? cfg.max_per_user : (prev.maxPerUser ?? 25),
-        deliveryMethod: cfg.delivery_method === "channel" ? "channel" : "dm",
+        deliveryMethod: ["dm", "channel", "both"].includes(cfg.delivery_method) ? cfg.delivery_method : "dm",
         allowRecurring: !!cfg.allow_recurring,
       }));
       setAppliedAt((data as any).applied_at ?? null);
@@ -1240,7 +1240,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     if (!botId) return toast.error("Missing bot id.");
     setSaving(true);
     const rawMethod = String(values.deliveryMethod ?? "dm");
-    const delivery_method: "dm" | "channel" = rawMethod === "channel" ? "channel" : "dm";
+    const delivery_method: "dm" | "channel" | "both" = ["dm", "channel", "both"].includes(rawMethod) ? (rawMethod as "dm" | "channel" | "both") : "dm";
     const max_per_user = Math.max(1, Number(values.maxPerUser ?? 25) || 25);
     const payload = {
       bot_id: botId,

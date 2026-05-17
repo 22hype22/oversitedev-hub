@@ -1146,8 +1146,9 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         type: "select",
         defaultValue: "dm",
         options: [
-          { value: "dm", label: "Direct message" },
-          { value: "channel", label: "Original channel" },
+          { value: "dm", label: "Direct Message" },
+          { value: "channel", label: "In Channel" },
+          { value: "both", label: "Both" },
         ],
       },
       toggle("allowRecurring", "Allow recurring reminders"),
