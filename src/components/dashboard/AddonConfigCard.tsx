@@ -203,7 +203,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const [unlockEmbed, setUnlockEmbed] = useState<LockEmbed>(defaultUnlockEmbed);
 
   // Recurring Messages state — custom UI (array of entries + toggle + roles).
-  type RecurringEntry = { channel_id: string; interval_minutes: number; message: string };
+  type RecurringEntry = { channel_id: string; interval_minutes: number; message: string; ping_role_ids: string[] };
   const RECURRING_INTERVALS: { value: number; label: string }[] = [
     { value: 5, label: "5 minutes" },
     { value: 15, label: "15 minutes" },
