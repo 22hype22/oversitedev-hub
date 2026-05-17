@@ -48,14 +48,26 @@ Deno.serve(async (req) => {
 
   try {
     const adminClient = createClient(SUPABASE_URL, SERVICE_KEY)
-    await adminClient.functions.invoke('send-transactional-email', {
-      body: {
-        templateName: 'team-transfer-confirm',
-        recipientEmail: result.member_email,
-        templateData: { ownerEmail, confirmUrl },
-        idempotencyKey: `team-transfer:${result.transfer_token}`,
-      },
-    })
+    await Promise.all([
+      adminClient.functions.invoke('send-transactional-email', {
+        body: {
+          templateName: 'team-transfer-confirm',
+          recipientEmail: result.member_email,
+          templateData: { ownerEmail, confirmUrl },
+          idempotencyKey: `team-transfer-confirm:${result.transfer_token}`,
+        },
+      }),
+      ownerEmail
+        ? adminClient.functions.invoke('send-transactional-email', {
+            body: {
+              templateName: 'team-transfer-notice',
+              recipientEmail: ownerEmail,
+              templateData: { memberEmail: result.member_email },
+              idempotencyKey: `team-transfer-notice:${result.transfer_token}`,
+            },
+          })
+        : Promise.resolve(),
+    ])
   } catch (e) {
     console.error('team-transfer email failed', e)
   }
