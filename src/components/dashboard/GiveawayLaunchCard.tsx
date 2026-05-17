@@ -112,22 +112,13 @@ export function GiveawayLaunchCard({ botId }: Props) {
         <div className="flex items-end gap-2">
           <Button
             type="button"
-            onClick={(e) => {
-              console.log("[GiveawayLaunchCard] Start Giveaway BUTTON onClick fired", e);
-              launch();
-            }}
+            onClick={() => launch()}
             disabled={launching}
             className="flex-1 gap-2"
           >
             <Rocket className="h-4 w-4" />
             {launching ? "Launching…" : "Start Giveaway"}
           </Button>
-          <span
-            dangerouslySetInnerHTML={{
-              __html:
-                '<button type="button" onclick="alert(\'clicked\')" class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground">Test</button>',
-            }}
-          />
         </div>
       </div>
     </Card>
