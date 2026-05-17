@@ -159,7 +159,6 @@ const ADDON_IDS_BY_BASE: Record<string, string[]> = {
     "starboard",
     "recurring-messages",
     "giveaway-system",
-    "birthday-announcements",
     "server-stats-channels",
     "live-notifications",
     "leveling-system",
