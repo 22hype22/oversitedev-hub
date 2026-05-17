@@ -199,6 +199,23 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const [lockEmbed, setLockEmbed] = useState<LockEmbed>(defaultLockEmbed);
   const [unlockEmbed, setUnlockEmbed] = useState<LockEmbed>(defaultUnlockEmbed);
 
+  // Recurring Messages state — custom UI (array of entries + toggle + roles).
+  type RecurringEntry = { channel_id: string; interval_minutes: number; message: string };
+  const RECURRING_INTERVALS: { value: number; label: string }[] = [
+    { value: 5, label: "5 minutes" },
+    { value: 15, label: "15 minutes" },
+    { value: 30, label: "30 minutes" },
+    { value: 60, label: "1 hour" },
+    { value: 120, label: "2 hours" },
+    { value: 360, label: "6 hours" },
+    { value: 720, label: "12 hours" },
+    { value: 1440, label: "1 day" },
+    { value: 10080, label: "1 week" },
+  ];
+  const [recurringMessages, setRecurringMessages] = useState<RecurringEntry[]>([]);
+  const [recurringDeletePrevious, setRecurringDeletePrevious] = useState(false);
+  const [recurringAllowedRoles, setRecurringAllowedRoles] = useState<string[]>([]);
+
   useEffect(() => {
     if (!config) return;
     const initial: Record<string, string | number | boolean | string[]> = {};
