@@ -118,7 +118,6 @@ const UTILITIES_ADDON_IDS = [
   "starboard",
   "recurring-messages",
   "giveaway-system",
-  "birthday-announcements",
   "server-stats-channels",
   "live-notifications",
   "leveling-system",
