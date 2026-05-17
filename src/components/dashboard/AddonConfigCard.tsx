@@ -1228,7 +1228,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       setValues((prev) => ({
         ...prev,
         maxPerUser: typeof cfg.max_per_user === "number" ? cfg.max_per_user : (prev.maxPerUser ?? 25),
-        deliveryMethod: cfg.delivery_method === "channel" ? "channel" : "dm",
+        deliveryMethod: ["dm", "channel", "both"].includes(cfg.delivery_method) ? cfg.delivery_method : "dm",
         allowRecurring: !!cfg.allow_recurring,
       }));
       setAppliedAt((data as any).applied_at ?? null);
