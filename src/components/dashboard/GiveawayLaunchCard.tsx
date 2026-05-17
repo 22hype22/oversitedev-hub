@@ -39,8 +39,6 @@ export function GiveawayLaunchCard({ botId }: Props) {
   const [launching, setLaunching] = useState(false);
 
   const launch = async () => {
-    console.log("GiveawayLaunchCard Start Giveaway clicked", { botId, prize, duration, winners });
-
     const trimmedPrize = prize.trim();
     if (!trimmedPrize) {
       toast.error("Prize is required");
