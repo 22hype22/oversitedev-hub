@@ -203,7 +203,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const [unlockEmbed, setUnlockEmbed] = useState<LockEmbed>(defaultUnlockEmbed);
 
   // Recurring Messages state — custom UI (array of entries + toggle + roles).
-  type RecurringEntry = { channel_id: string; interval_minutes: number; message: string };
+  type RecurringEntry = { channel_id: string; interval_minutes: number; message: string; ping_role_ids: string[] };
   const RECURRING_INTERVALS: { value: number; label: string }[] = [
     { value: 5, label: "5 minutes" },
     { value: 15, label: "15 minutes" },
@@ -1324,6 +1324,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
           channel_id: m?.channel_id ? String(m.channel_id) : "",
           interval_minutes: Number(m?.interval_minutes ?? 60),
           message: typeof m?.message === "string" ? m.message : "",
+          ping_role_ids: Array.isArray(m?.ping_role_ids) ? m.ping_role_ids.map(String) : [],
         })),
       );
       setRecurringDeletePrevious(!!cfg.delete_previous);
@@ -1348,6 +1349,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
             channel_id: String(m.channel_id),
             interval_minutes: Number(m.interval_minutes) || 60,
             message: String(m.message),
+            ping_role_ids: Array.isArray(m.ping_role_ids) ? m.ping_role_ids.map(String) : [],
           })),
         delete_previous: !!recurringDeletePrevious,
         allowed_role_ids: recurringAllowedRoles.map(String),
@@ -2384,7 +2386,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   );
 }
 
-type RecurringEntryInput = { channel_id: string; interval_minutes: number; message: string };
+type RecurringEntryInput = { channel_id: string; interval_minutes: number; message: string; ping_role_ids: string[] };
 
 function RecurringMessagesForm({
   botId,
@@ -2419,7 +2421,7 @@ function RecurringMessagesForm({
   };
   const remove = (idx: number) => onEntriesChange(entries.filter((_, i) => i !== idx));
   const add = () =>
-    onEntriesChange([...entries, { channel_id: "", interval_minutes: 60, message: "" }]);
+    onEntriesChange([...entries, { channel_id: "", interval_minutes: 60, message: "", ping_role_ids: [] }]);
 
   return (
     <div className="space-y-5 py-2">
@@ -2520,10 +2522,22 @@ function RecurringMessagesForm({
               <Textarea
                 value={entry.message}
                 onChange={(e) => update(idx, { message: e.target.value })}
-                placeholder="What should the bot post?"
+                placeholder="What should the bot post? Use {roles} to ping the selected roles."
                 rows={3}
               />
+              <p className="text-xs text-muted-foreground">
+                Tip: type <code className="px-1 rounded bg-muted">{"{roles}"}</code> anywhere to insert the role pings.
+              </p>
             </div>
+
+            <RoleMultiSelect
+              label="Roles to ping"
+              help="These roles will replace {roles} in the message text when posted."
+              value={entry.ping_role_ids ?? []}
+              onChange={(next) => update(idx, { ping_role_ids: next })}
+              botId={botId}
+              guildId={guildId}
+            />
           </div>
         ))}
 
