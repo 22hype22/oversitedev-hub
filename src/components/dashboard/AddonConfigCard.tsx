@@ -3225,10 +3225,10 @@ function GiveawayForm({
   // Live preview substitutions
   const previewSubs = (s: string) =>
     s
-      .replaceAll("{emoji}", entryEmoji || "🎉")
-      .replaceAll("{prize}", launchPrize.trim() || "Example Prize")
-      .replaceAll("{winners}", String(Math.max(1, defaultWinners)))
-      .replaceAll("{ends}", "in 1 day");
+      .split("{emoji}").join(entryEmoji || "🎉")
+      .split("{prize}").join(launchPrize.trim() || "Example Prize")
+      .split("{winners}").join(String(Math.max(1, defaultWinners)))
+      .split("{ends}").join("in 1 day");
 
   return (
     <div className="space-y-6 py-2">
