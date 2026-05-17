@@ -222,18 +222,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const [recurringAllowedRoles, setRecurringAllowedRoles] = useState<string[]>([]);
 
   // Giveaway System — custom form state
-  const GIVEAWAY_DURATIONS: { value: number; label: string }[] = [
-    { value: 60, label: "1 hour" },
-    { value: 360, label: "6 hours" },
-    { value: 720, label: "12 hours" },
-    { value: 1440, label: "1 day" },
-    { value: 2880, label: "2 days" },
-    { value: 4320, label: "3 days" },
-    { value: 10080, label: "7 days" },
-  ];
   const [giveawayHostRoles, setGiveawayHostRoles] = useState<string[]>([]);
   const [giveawayChannelId, setGiveawayChannelId] = useState("");
-  const [giveawayDefaultDuration, setGiveawayDefaultDuration] = useState(1440);
+  const [giveawayDefaultDuration, setGiveawayDefaultDuration] = useState("1d");
   const [giveawayEntryEmoji, setGiveawayEntryEmoji] = useState("🎉");
   const [giveawayDefaultWinners, setGiveawayDefaultWinners] = useState(1);
   const [giveawayEmbedTitle, setGiveawayEmbedTitle] = useState("🎉 Giveaway!");
@@ -241,12 +232,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     "React with {emoji} to enter!\n\n**Prize:** {prize}\n**Winners:** {winners}\n**Ends:** {ends}",
   );
   const [giveawayEmbedColor, setGiveawayEmbedColor] = useState("0x5865F2");
-
-  // Launch Giveaway (one-off) state
-  const [giveawayPrize, setGiveawayPrize] = useState("");
-  const [giveawayLaunchDuration, setGiveawayLaunchDuration] = useState(60);
-  const [giveawayLaunchWinners, setGiveawayLaunchWinners] = useState(1);
-  const [launchingGiveaway, setLaunchingGiveaway] = useState(false);
 
   useEffect(() => {
     if (!config) return;
@@ -1335,7 +1320,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
           : [];
       setGiveawayHostRoles(hostRoles);
       setGiveawayChannelId(cfg.default_channel_id ? String(cfg.default_channel_id) : "");
-      setGiveawayDefaultDuration(Number(cfg.default_duration_minutes ?? 1440));
+      setGiveawayDefaultDuration(
+        typeof cfg.default_duration === "string" && cfg.default_duration
+          ? cfg.default_duration
+          : "1d",
+      );
       setGiveawayEntryEmoji(typeof cfg.entry_emoji === "string" && cfg.entry_emoji ? cfg.entry_emoji : "🎉");
       setGiveawayDefaultWinners(Math.max(1, Number(cfg.default_winners ?? 1)));
       if (typeof cfg.embed_title === "string") setGiveawayEmbedTitle(cfg.embed_title);
@@ -1355,7 +1344,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       config: {
         host_role_ids: giveawayHostRoles.filter(Boolean),
         default_channel_id: giveawayChannelId || null,
-        default_duration_minutes: giveawayDefaultDuration,
+        default_duration: giveawayDefaultDuration.trim() || "1d",
         entry_emoji: giveawayEntryEmoji || "🎉",
         default_winners: Math.max(1, giveawayDefaultWinners),
         embed_title: giveawayEmbedTitle,
@@ -2345,7 +2334,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           className={
-            isSayCommand || isRules
+            isSayCommand || isRules || isGiveaway
               ? "max-w-5xl max-h-[90vh] overflow-y-auto"
               : isChannelLockdown
                 ? "max-w-3xl max-h-[90vh] overflow-y-auto"
@@ -2427,43 +2416,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               onEmbedDescriptionChange={setGiveawayEmbedDescription}
               embedColor={giveawayEmbedColor}
               onEmbedColorChange={setGiveawayEmbedColor}
-              durations={GIVEAWAY_DURATIONS}
-              launchPrize={giveawayPrize}
-              onLaunchPrizeChange={setGiveawayPrize}
-              launchDuration={giveawayLaunchDuration}
-              onLaunchDurationChange={setGiveawayLaunchDuration}
-              launchWinners={giveawayLaunchWinners}
-              onLaunchWinnersChange={setGiveawayLaunchWinners}
-              launching={launchingGiveaway}
-              onLaunch={async () => {
-                if (!botId) return toast.error("Missing bot id.");
-                setLaunchingGiveaway(true);
-                try {
-                  const { data, error } = await supabase.functions.invoke(
-                    "enqueue-giveaway-start",
-                    {
-                      body: {
-                        botId,
-                        prize: giveawayPrize.trim(),
-                        duration_minutes: giveawayLaunchDuration,
-                        winners: giveawayLaunchWinners,
-                      },
-                    },
-                  );
-                  if (error) {
-                    toast.error(error.message ?? "Failed to start giveaway");
-                  } else if ((data as any)?.ok) {
-                    toast.success("Giveaway started!");
-                    setGiveawayPrize("");
-                    setGiveawayLaunchDuration(60);
-                    setGiveawayLaunchWinners(1);
-                  } else {
-                    toast.error((data as any)?.error ?? "Failed to start giveaway");
-                  }
-                } finally {
-                  setLaunchingGiveaway(false);
-                }
-              }}
             />
           ) : (
             <div className="space-y-5 py-2">
@@ -3220,15 +3172,6 @@ function GiveawayForm({
   onEmbedDescriptionChange,
   embedColor,
   onEmbedColorChange,
-  durations,
-  launchPrize,
-  onLaunchPrizeChange,
-  launchDuration,
-  onLaunchDurationChange,
-  launchWinners,
-  onLaunchWinnersChange,
-  launching,
-  onLaunch,
 }: {
   botId?: string;
   botName: string;
@@ -3237,8 +3180,8 @@ function GiveawayForm({
   onHostRolesChange: (v: string[]) => void;
   channelId: string;
   onChannelIdChange: (v: string) => void;
-  defaultDuration: number;
-  onDefaultDurationChange: (v: number) => void;
+  defaultDuration: string;
+  onDefaultDurationChange: (v: string) => void;
   entryEmoji: string;
   onEntryEmojiChange: (v: string) => void;
   defaultWinners: number;
@@ -3249,15 +3192,6 @@ function GiveawayForm({
   onEmbedDescriptionChange: (v: string) => void;
   embedColor: string;
   onEmbedColorChange: (v: string) => void;
-  durations: { value: number; label: string }[];
-  launchPrize: string;
-  onLaunchPrizeChange: (v: string) => void;
-  launchDuration: number;
-  onLaunchDurationChange: (v: number) => void;
-  launchWinners: number;
-  onLaunchWinnersChange: (v: number) => void;
-  launching: boolean;
-  onLaunch: () => void;
 }) {
   const { guild } = useActiveGuild();
   const guildId = guild?.guild_id;
@@ -3268,7 +3202,6 @@ function GiveawayForm({
   );
   const channelGroups = useMemo(() => sortedChannelCategoryEntries(textChannels), [textChannels]);
 
-  // Color helpers — store as 0xRRGGBB, edit as #rrggbb.
   const toHexInput = (c: string): string => {
     const m = String(c ?? "").match(/[0-9a-f]{6}/i);
     return m ? `#${m[0].toLowerCase()}` : "#5865f2";
@@ -3276,150 +3209,152 @@ function GiveawayForm({
   const toStorage = (hex: string): string => `0x${hex.replace("#", "").toUpperCase()}`;
   const hexInputValue = toHexInput(embedColor);
 
-  // Live preview substitutions
   const previewSubs = (s: string) =>
     s
       .split("{emoji}").join(entryEmoji || "🎉")
-      .split("{prize}").join(launchPrize.trim() || "Example Prize")
+      .split("{prize}").join("Example Prize")
       .split("{winners}").join(String(Math.max(1, defaultWinners)))
-      .split("{ends}").join("in 1 day");
+      .split("{ends}").join(`in ${defaultDuration.trim() || "1d"}`);
 
   return (
-    <div className="space-y-6 py-2">
-      <RoleMultiSelect
-        label="Roles allowed to host"
-        help="Members with any of these roles can use /giveaway."
-        value={hostRoles}
-        onChange={onHostRolesChange}
-        botId={botId}
-        guildId={guildId}
-      />
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-2">
+      {/* Left: form fields */}
+      <div className="space-y-6">
+        <RoleMultiSelect
+          label="Roles allowed to host"
+          help="Members with any of these roles can use /giveaway."
+          value={hostRoles}
+          onChange={onHostRolesChange}
+          botId={botId}
+          guildId={guildId}
+        />
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label>Giveaway channel</Label>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => refreshFromDiscord()}
-            disabled={refreshing || !guildId}
-            className="h-7 px-2 text-xs gap-1.5"
-          >
-            <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
-            {refreshing ? "Refreshing…" : "Refresh"}
-          </Button>
-        </div>
-        <label className="relative block">
-          <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <select
-            value={channelId}
-            onChange={(e) => onChannelIdChange(e.target.value)}
-            disabled={!guildId || loading}
-            className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <option value="">
-              {!guildId
-                ? "Select a server first"
-                : loading
-                  ? "Loading channels…"
-                  : textChannels.length === 0
-                    ? "No channels — click Refresh"
-                    : "Select a channel…"}
-            </option>
-            {channelGroups.map((group) => (
-              <optgroup key={group.key} label={group.label}>
-                {group.channels.map((c) => (
-                  <option key={c.channel_id} value={c.channel_id}>
-                    {c.channel_name}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="space-y-2">
-          <Label>Default duration</Label>
-          <Select
-            value={String(defaultDuration)}
-            onValueChange={(v) => onDefaultDurationChange(Number(v))}
-          >
-            <SelectTrigger><SelectValue placeholder="Select duration…" /></SelectTrigger>
-            <SelectContent>
-              {durations.map((d) => (
-                <SelectItem key={d.value} value={String(d.value)}>{d.label}</SelectItem>
+          <div className="flex items-center justify-between">
+            <Label>Giveaway channel</Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => refreshFromDiscord()}
+              disabled={refreshing || !guildId}
+              className="h-7 px-2 text-xs gap-1.5"
+            >
+              <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+              {refreshing ? "Refreshing…" : "Refresh"}
+            </Button>
+          </div>
+          <label className="relative block">
+            <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <select
+              value={channelId}
+              onChange={(e) => onChannelIdChange(e.target.value)}
+              disabled={!guildId || loading}
+              className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">
+                {!guildId
+                  ? "Select a server first"
+                  : loading
+                    ? "Loading channels…"
+                    : textChannels.length === 0
+                      ? "No channels — click Refresh"
+                      : "Select a channel…"}
+              </option>
+              {channelGroups.map((group) => (
+                <optgroup key={group.key} label={group.label}>
+                  {group.channels.map((c) => (
+                    <option key={c.channel_id} value={c.channel_id}>
+                      {c.channel_name}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
-            </SelectContent>
-          </Select>
+            </select>
+          </label>
         </div>
-        <div className="space-y-2">
-          <Label>Entry emoji</Label>
-          <Input
-            value={entryEmoji}
-            onChange={(e) => onEntryEmojiChange(e.target.value)}
-            placeholder="🎉"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Default winners</Label>
-          <Input
-            type="number"
-            min={1}
-            max={100}
-            value={defaultWinners}
-            onChange={(e) => onDefaultWinnersChange(Math.max(1, Number(e.target.value)))}
-          />
-        </div>
-      </div>
 
-      {/* Embed composer with live preview */}
-      <div className="space-y-3 rounded-md border border-border p-4">
-        <Label className="text-sm font-medium">Giveaway embed</Label>
-        <div className="space-y-2">
-          <Label className="text-xs">Title</Label>
-          <Input
-            value={embedTitle}
-            onChange={(e) => onEmbedTitleChange(e.target.value)}
-            placeholder="🎉 Giveaway!"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label className="text-xs">Description</Label>
-          <Textarea
-            rows={4}
-            value={embedDescription}
-            onChange={(e) => onEmbedDescriptionChange(e.target.value)}
-            placeholder="Tip: use {emoji}, {prize}, {winners}, {ends}"
-          />
-          <p className="text-xs text-muted-foreground">
-            Placeholders: <code className="px-1 rounded bg-muted">{"{emoji}"}</code>,{" "}
-            <code className="px-1 rounded bg-muted">{"{prize}"}</code>,{" "}
-            <code className="px-1 rounded bg-muted">{"{winners}"}</code>,{" "}
-            <code className="px-1 rounded bg-muted">{"{ends}"}</code>
-          </p>
-        </div>
-        <div className="space-y-2">
-          <Label className="text-xs">Color</Label>
-          <div className="flex items-center gap-2">
-            <input
-              type="color"
-              value={hexInputValue}
-              onChange={(e) => onEmbedColorChange(toStorage(e.target.value))}
-              className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
-            />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="space-y-2">
+            <Label>Default duration</Label>
             <Input
-              value={embedColor}
-              onChange={(e) => onEmbedColorChange(e.target.value)}
-              placeholder="0x5865F2"
-              className="font-mono text-sm"
+              value={defaultDuration}
+              onChange={(e) => onDefaultDurationChange(e.target.value)}
+              placeholder="1d"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              e.g. 10m, 2h, 1d, 1w, 1mo, 1y
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label>Entry emoji</Label>
+            <Input
+              value={entryEmoji}
+              onChange={(e) => onEntryEmojiChange(e.target.value)}
+              placeholder="🎉"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Default winners</Label>
+            <Input
+              type="number"
+              min={1}
+              max={100}
+              value={defaultWinners}
+              onChange={(e) => onDefaultWinnersChange(Math.max(1, Number(e.target.value)))}
             />
           </div>
         </div>
-        {/* Live preview */}
-        <div className="rounded-md bg-[#313338] p-4 text-[#dbdee1]">
+
+        <div className="space-y-3 rounded-md border border-border p-4">
+          <Label className="text-sm font-medium">Giveaway embed</Label>
+          <div className="space-y-2">
+            <Label className="text-xs">Title</Label>
+            <Input
+              value={embedTitle}
+              onChange={(e) => onEmbedTitleChange(e.target.value)}
+              placeholder="🎉 Giveaway!"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Description</Label>
+            <Textarea
+              rows={5}
+              value={embedDescription}
+              onChange={(e) => onEmbedDescriptionChange(e.target.value)}
+              placeholder="Tip: use {emoji}, {prize}, {winners}, {ends}"
+            />
+            <p className="text-xs text-muted-foreground">
+              Placeholders: <code className="px-1 rounded bg-muted">{"{emoji}"}</code>,{" "}
+              <code className="px-1 rounded bg-muted">{"{prize}"}</code>,{" "}
+              <code className="px-1 rounded bg-muted">{"{winners}"}</code>,{" "}
+              <code className="px-1 rounded bg-muted">{"{ends}"}</code>
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Color</Label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={hexInputValue}
+                onChange={(e) => onEmbedColorChange(toStorage(e.target.value))}
+                className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
+              />
+              <Input
+                value={embedColor}
+                onChange={(e) => onEmbedColorChange(e.target.value)}
+                placeholder="0x5865F2"
+                className="font-mono text-sm"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right: live preview (sticky) */}
+      <div className="lg:sticky lg:top-2 self-start">
+        <Label className="text-sm font-medium">Preview</Label>
+        <div className="mt-2 rounded-md bg-[#313338] p-4 text-[#dbdee1]">
           <div className="flex gap-3">
             <div className="h-10 w-10 rounded-full bg-[#5865F2] grid place-items-center shrink-0 overflow-hidden">
               {botAvatarUrl ? (
@@ -3437,7 +3372,7 @@ function GiveawayForm({
                 <span className="text-[11px] text-[#949ba4]">Today at 12:00 PM</span>
               </div>
               <div
-                className="mt-1 max-w-md rounded border-l-4 bg-[#2b2d31] p-3"
+                className="mt-1 rounded border-l-4 bg-[#2b2d31] p-3"
                 style={{ borderLeftColor: hexInputValue }}
               >
                 {embedTitle && (
@@ -3452,61 +3387,6 @@ function GiveawayForm({
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Launch Giveaway */}
-      <div className="border-t border-border pt-5 space-y-4">
-        <div>
-          <h4 className="text-sm font-semibold">Launch Giveaway</h4>
-          <p className="text-xs text-muted-foreground">
-            Start a one-off giveaway now using the settings above (you can override duration and winners).
-          </p>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="giveaway-prize">Prize</Label>
-          <Input
-            id="giveaway-prize"
-            placeholder="e.g. Nitro Classic"
-            value={launchPrize}
-            onChange={(e) => onLaunchPrizeChange(e.target.value)}
-          />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="giveaway-duration">Duration</Label>
-            <Select
-              value={String(launchDuration)}
-              onValueChange={(v) => onLaunchDurationChange(Number(v))}
-            >
-              <SelectTrigger id="giveaway-duration">
-                <SelectValue placeholder="Select duration…" />
-              </SelectTrigger>
-              <SelectContent>
-                {durations.map((d) => (
-                  <SelectItem key={d.value} value={String(d.value)}>{d.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="giveaway-winners">Number of winners</Label>
-            <Input
-              id="giveaway-winners"
-              type="number"
-              min={1}
-              max={100}
-              value={launchWinners}
-              onChange={(e) => onLaunchWinnersChange(Math.max(1, Number(e.target.value)))}
-            />
-          </div>
-        </div>
-        <Button
-          type="button"
-          disabled={launching || !launchPrize.trim()}
-          onClick={onLaunch}
-        >
-          {launching ? "Starting…" : "Start Giveaway"}
-        </Button>
       </div>
     </div>
   );
