@@ -1193,6 +1193,54 @@ export type Database = {
         }
         Relationships: []
       }
+      dashboard_billing_info: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          billing_email: string | null
+          billing_name: string | null
+          city: string | null
+          company: string | null
+          country: string | null
+          created_at: string
+          needs_update: boolean
+          owner_user_id: string
+          postal_code: string | null
+          state: string | null
+          updated_at: string
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          billing_email?: string | null
+          billing_name?: string | null
+          city?: string | null
+          company?: string | null
+          country?: string | null
+          created_at?: string
+          needs_update?: boolean
+          owner_user_id: string
+          postal_code?: string | null
+          state?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          billing_email?: string | null
+          billing_name?: string | null
+          city?: string | null
+          company?: string | null
+          country?: string | null
+          created_at?: string
+          needs_update?: boolean
+          owner_user_id?: string
+          postal_code?: string | null
+          state?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       dashboard_fixes: {
         Row: {
           body: string | null
