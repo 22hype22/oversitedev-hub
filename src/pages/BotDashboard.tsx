@@ -709,15 +709,20 @@ const BotSection = ({
                     })}
                   </div>
                 ) : (
-                  <SortableAddonGrid
-                    userId={userId}
-                    botId={bot.id}
-                    botName={bot.bot_name}
-                    botAvatarUrl={bot.icon_url}
-                    groupKey={group.key}
-                    ids={group.owned}
-                    highlightedAddonId={highlightedAddonId}
-                  />
+                  <>
+                    <SortableAddonGrid
+                      userId={userId}
+                      botId={bot.id}
+                      botName={bot.bot_name}
+                      botAvatarUrl={bot.icon_url}
+                      groupKey={group.key}
+                      ids={group.owned}
+                      highlightedAddonId={highlightedAddonId}
+                    />
+                    {group.owned.includes("giveaway-system") && (
+                      <GiveawayLaunchCard botId={bot.id} />
+                    )}
+                  </>
                 )}
               </div>
             );
