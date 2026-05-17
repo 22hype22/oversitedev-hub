@@ -50,6 +50,7 @@ import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildCh
 import { useBotRoles } from "@/hooks/useBotRoles";
 import { AtSign } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { RoleMultiSelect } from "./RoleMultiSelect";
 
 const CHANNEL_ICON: Record<string, typeof Hash> = {
   text: Hash,
