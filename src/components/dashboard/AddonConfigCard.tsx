@@ -1275,7 +1275,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       bot_id: botId,
       feature: "giveaway",
       config: {
-        host_role_ids: values.hostRole ? [String(values.hostRole)] : [],
+        host_role_ids: Array.isArray(values.hostRole)
+          ? (values.hostRole as string[]).filter(Boolean)
+          : values.hostRole
+            ? [String(values.hostRole)]
+            : [],
         default_channel_id: values.defaultChannel ? String(values.defaultChannel) : null,
         entry_emoji: String(values.emoji ?? "🎉"),
         require_role_id: values.requireRole ? String(values.requireRole) : null,
