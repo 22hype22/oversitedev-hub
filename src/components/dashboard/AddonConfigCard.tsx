@@ -469,6 +469,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         exemptRoles: Array.isArray(cfg.exempt_role_ids)
           ? cfg.exempt_role_ids.map(String)
           : [],
+        stripExemptRoles: Array.isArray(cfg.strip_exempt_role_ids)
+          ? cfg.strip_exempt_role_ids.map(String)
+          : [],
       }));
       setAppliedAt((data as any).applied_at ?? null);
     })();
