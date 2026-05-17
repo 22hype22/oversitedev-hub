@@ -101,6 +101,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isCloseAll = addonId === "close-all-tickets";
   const isPriorityFlagging = addonId === "priority-flagging";
   const isAutoCloseInactive = addonId === "auto-close-inactive";
+  const isAutoRadio = addonId === "auto-radio";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
