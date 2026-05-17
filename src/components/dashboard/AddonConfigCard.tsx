@@ -2420,7 +2420,7 @@ function RecurringMessagesForm({
   };
   const remove = (idx: number) => onEntriesChange(entries.filter((_, i) => i !== idx));
   const add = () =>
-    onEntriesChange([...entries, { channel_id: "", interval_minutes: 60, message: "" }]);
+    onEntriesChange([...entries, { channel_id: "", interval_minutes: 60, message: "", ping_role_ids: [] }]);
 
   return (
     <div className="space-y-5 py-2">
