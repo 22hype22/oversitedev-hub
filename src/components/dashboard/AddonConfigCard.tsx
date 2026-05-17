@@ -2416,43 +2416,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               onEmbedDescriptionChange={setGiveawayEmbedDescription}
               embedColor={giveawayEmbedColor}
               onEmbedColorChange={setGiveawayEmbedColor}
-              durations={GIVEAWAY_DURATIONS}
-              launchPrize={giveawayPrize}
-              onLaunchPrizeChange={setGiveawayPrize}
-              launchDuration={giveawayLaunchDuration}
-              onLaunchDurationChange={setGiveawayLaunchDuration}
-              launchWinners={giveawayLaunchWinners}
-              onLaunchWinnersChange={setGiveawayLaunchWinners}
-              launching={launchingGiveaway}
-              onLaunch={async () => {
-                if (!botId) return toast.error("Missing bot id.");
-                setLaunchingGiveaway(true);
-                try {
-                  const { data, error } = await supabase.functions.invoke(
-                    "enqueue-giveaway-start",
-                    {
-                      body: {
-                        botId,
-                        prize: giveawayPrize.trim(),
-                        duration_minutes: giveawayLaunchDuration,
-                        winners: giveawayLaunchWinners,
-                      },
-                    },
-                  );
-                  if (error) {
-                    toast.error(error.message ?? "Failed to start giveaway");
-                  } else if ((data as any)?.ok) {
-                    toast.success("Giveaway started!");
-                    setGiveawayPrize("");
-                    setGiveawayLaunchDuration(60);
-                    setGiveawayLaunchWinners(1);
-                  } else {
-                    toast.error((data as any)?.error ?? "Failed to start giveaway");
-                  }
-                } finally {
-                  setLaunchingGiveaway(false);
-                }
-              }}
             />
           ) : (
             <div className="space-y-5 py-2">
