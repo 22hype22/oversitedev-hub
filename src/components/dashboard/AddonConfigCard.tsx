@@ -220,6 +220,21 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const [recurringDeletePrevious, setRecurringDeletePrevious] = useState(false);
   const [recurringAllowedRoles, setRecurringAllowedRoles] = useState<string[]>([]);
 
+  // Giveaway launch state
+  const GIVEAWAY_DURATIONS: { value: number; label: string }[] = [
+    { value: 60, label: "1 hour" },
+    { value: 360, label: "6 hours" },
+    { value: 720, label: "12 hours" },
+    { value: 1440, label: "1 day" },
+    { value: 2880, label: "2 days" },
+    { value: 4320, label: "3 days" },
+    { value: 10080, label: "7 days" },
+  ];
+  const [giveawayPrize, setGiveawayPrize] = useState("");
+  const [giveawayDuration, setGiveawayDuration] = useState(60);
+  const [giveawayWinners, setGiveawayWinners] = useState(1);
+  const [launchingGiveaway, setLaunchingGiveaway] = useState(false);
+
   useEffect(() => {
     if (!config) return;
     const initial: Record<string, string | number | boolean | string[]> = {};
