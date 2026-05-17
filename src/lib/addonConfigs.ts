@@ -47,7 +47,6 @@ import {
   Star,
   Repeat,
   Gift,
-  Cake,
   BarChart,
   Bell,
   TrendingUp,
