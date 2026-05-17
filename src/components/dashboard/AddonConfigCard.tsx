@@ -1277,6 +1277,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     setOpen(false);
   };
 
+  useEffect(() => {
+    if (!isTicketNotes || !open || !botId) return;
     let cancelled = false;
     (async () => {
       const { data } = await supabase
