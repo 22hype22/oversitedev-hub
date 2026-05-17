@@ -1297,8 +1297,73 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     setOpen(false);
   };
 
+  // ---------- recurring messages ----------
   useEffect(() => {
-    if (!isTicketNotes || !open || !botId) return;
+    if (!isRecurringMessages || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "recurring-messages")
+        .maybeSingle();
+      if (cancelled || !data) {
+        setRecurringMessages([]);
+        setRecurringDeletePrevious(false);
+        setRecurringAllowedRoles([]);
+        return;
+      }
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const list = Array.isArray(cfg.messages) ? cfg.messages : [];
+      setRecurringMessages(
+        list.map((m: any) => ({
+          channel_id: m?.channel_id ? String(m.channel_id) : "",
+          interval_minutes: Number(m?.interval_minutes ?? 60),
+          message: typeof m?.message === "string" ? m.message : "",
+        })),
+      );
+      setRecurringDeletePrevious(!!cfg.delete_previous);
+      setRecurringAllowedRoles(
+        Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [],
+      );
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isRecurringMessages, open, botId]);
+
+  const saveRecurringMessages = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "recurring-messages",
+      config: {
+        messages: recurringMessages
+          .filter((m) => m.channel_id && m.message.trim())
+          .map((m) => ({
+            channel_id: String(m.channel_id),
+            interval_minutes: Number(m.interval_minutes) || 60,
+            message: String(m.message),
+          })),
+        delete_previous: !!recurringDeletePrevious,
+        allowed_role_ids: recurringAllowedRoles.map(String),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "recurring-messages",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Recurring Messages saved & applied");
+    setOpen(false);
+  };
+
     let cancelled = false;
     (async () => {
       const { data } = await supabase
