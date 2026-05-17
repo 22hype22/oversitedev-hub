@@ -64,7 +64,6 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   starboard: "Starboard",
   "recurring-messages": "Recurring Messages",
   "giveaway-system": "Giveaway System",
-  "birthday-announcements": "Birthday Announcements",
   "server-stats-channels": "Server Stats Channels",
   "live-notifications": "Twitch / YouTube Notifications",
   "leveling-system": "Leveling System",
