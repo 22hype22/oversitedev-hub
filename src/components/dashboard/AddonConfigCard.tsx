@@ -2566,6 +2566,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveStarboard();
                   } else if (isRecurringMessages) {
                     void saveRecurringMessages();
+                  } else if (isRemindme) {
+                    void saveRemindme();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
