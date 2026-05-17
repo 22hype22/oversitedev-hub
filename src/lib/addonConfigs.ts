@@ -879,7 +879,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "24/7 music streaming by genre in a voice channel.",
     icon: Radio,
     fields: [
-      voiceChannel("voiceChannel", "Voice channel for radio"),
+      voiceChannel("voice_channel_id", "Voice channel for radio"),
       {
         key: "genre",
         label: "Default genre",
@@ -896,8 +896,8 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
           { value: "country", label: "Country" },
         ],
       },
-      toggle("autoStart", "Start automatically when bot comes online"),
-      toggle("allowGenreVote", "Let members vote to change the genre"),
+      toggle("auto_start", "Start automatically when bot comes online"),
+      toggle("allow_vote", "Let members vote to change the genre"),
     ],
   },
 

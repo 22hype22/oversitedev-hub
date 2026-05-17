@@ -101,6 +101,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isCloseAll = addonId === "close-all-tickets";
   const isPriorityFlagging = addonId === "priority-flagging";
   const isAutoCloseInactive = addonId === "auto-close-inactive";
+  const isAutoRadio = addonId === "auto-radio";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
@@ -1160,7 +1161,57 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
   };
 
-  // ---------- ticket-notes ----------
+  // ---------- auto-radio ----------
+  useEffect(() => {
+    if (!isAutoRadio || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "auto-radio")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        voice_channel_id: cfg.voice_channel_id ? String(cfg.voice_channel_id) : "",
+        genre: cfg.genre ?? "lofi",
+        auto_start: cfg.auto_start ?? false,
+        allow_vote: cfg.allow_vote ?? false,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isAutoRadio, open, botId]);
+
+  const saveAutoRadio = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "auto-radio",
+      config: {
+        voice_channel_id: values.voice_channel_id ? String(values.voice_channel_id) : null,
+        genre: String(values.genre ?? "lofi"),
+        auto_start: !!values.auto_start,
+        allow_vote: !!values.allow_vote,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "auto-radio",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Auto Radio saved & applied");
+    setOpen(false);
+  };
   useEffect(() => {
     if (!isTicketNotes || !open || !botId) return;
     let cancelled = false;
@@ -2136,6 +2187,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void savePriorityFlagging();
                   } else if (isAutoCloseInactive) {
                     void saveAutoCloseInactive();
+                  } else if (isAutoRadio) {
+                    void saveAutoRadio();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
