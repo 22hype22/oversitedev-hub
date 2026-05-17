@@ -103,6 +103,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isAutoCloseInactive = addonId === "auto-close-inactive";
   const isAutoRadio = addonId === "auto-radio";
   const isStarboard = addonId === "starboard";
+  const isRecurringMessages = addonId === "recurring-messages";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
