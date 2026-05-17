@@ -76,7 +76,6 @@ import {
   UserCog,
   Lock,
   Plus,
-  Cake,
   AlarmClock,
   Trash2,
   Tag,
@@ -208,7 +207,7 @@ const ADDONS_BY_BASE: Record<string, Addon[]> = {
     { id: "starboard", name: "Starboard", desc: "Highlight top reactions in a starboard channel.", icon: Star, price: 0.99 },
     { id: "recurring-messages", name: "Recurring Messages", desc: "Schedule messages on a repeating timer.", icon: Calendar, price: 0.99 },
     { id: "giveaway-system", name: "Giveaway System", desc: "Run giveaways with reactions and timers.", icon: Gift, price: 0.99 },
-    { id: "birthday-announcements", name: "Birthday Announcements", desc: "Auto-announce member birthdays.", icon: Cake, price: 0.99 },
+    
     { id: "server-stats-channels", name: "Server Stats Channels", desc: "Auto-updating channel names with member counts.", icon: Hash, price: 0.99 },
     { id: "live-notifications", name: "Twitch / YouTube Notifications", desc: "Ping when streamers go live or upload.", icon: Bell, price: 0.99 },
     { id: "leveling-system", name: "Leveling System", desc: "XP, level-ups, and role rewards.", icon: BarChart3, price: 2.99 },
