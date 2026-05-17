@@ -113,7 +113,15 @@ export function GiveawayLaunchCard({ botId }: Props) {
           />
         </div>
         <div className="flex items-end gap-2">
-          <Button type="button" onClick={launch} disabled={launching} className="flex-1 gap-2">
+          <Button
+            type="button"
+            onClick={(e) => {
+              console.log("[GiveawayLaunchCard] Start Giveaway BUTTON onClick fired", e);
+              launch();
+            }}
+            disabled={launching}
+            className="flex-1 gap-2"
+          >
             <Rocket className="h-4 w-4" />
             {launching ? "Launching…" : "Start Giveaway"}
           </Button>
