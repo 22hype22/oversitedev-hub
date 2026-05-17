@@ -109,6 +109,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isGiveaway = addonId === "giveaway-system";
   const isRecurringMessages = addonId === "recurring-messages";
   const isRemindme = addonId === "remindme";
+  const isServerStats = addonId === "server-stats-channels";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
