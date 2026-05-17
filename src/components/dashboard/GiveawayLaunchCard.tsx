@@ -33,7 +33,6 @@ interface Props {
 }
 
 export function GiveawayLaunchCard({ botId }: Props) {
-  console.log("[GiveawayLaunchCard] RENDERED with botId:", botId);
   const [prize, setPrize] = useState("");
   const [duration, setDuration] = useState("1d");
   const [winners, setWinners] = useState(1);
