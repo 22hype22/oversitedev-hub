@@ -1236,6 +1236,67 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     setOpen(false);
   };
 
+  // ---------- giveaway ----------
+  useEffect(() => {
+    if (!isGiveaway || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "giveaway")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const hostRoles = Array.isArray(cfg.host_role_ids)
+        ? cfg.host_role_ids.map(String)
+        : cfg.host_role_ids
+          ? [String(cfg.host_role_ids)]
+          : [];
+      setValues((prev) => ({
+        ...prev,
+        hostRole: hostRoles[0] ?? "",
+        defaultChannel: cfg.default_channel_id ? String(cfg.default_channel_id) : "",
+        emoji: cfg.entry_emoji ?? "🎉",
+        requireRole: cfg.require_role_id ? String(cfg.require_role_id) : "",
+        dmWinners: cfg.dm_winners ?? true,
+        defaultDuration: String(cfg.default_duration_minutes ?? "1440"),
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isGiveaway, open, botId]);
+
+  const saveGiveaway = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "giveaway",
+      config: {
+        host_role_ids: values.hostRole ? [String(values.hostRole)] : [],
+        default_channel_id: values.defaultChannel ? String(values.defaultChannel) : null,
+        entry_emoji: String(values.emoji ?? "🎉"),
+        require_role_id: values.requireRole ? String(values.requireRole) : null,
+        dm_winners: !!values.dmWinners,
+        default_duration_minutes: Number(values.defaultDuration ?? 1440),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "giveaway",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Giveaway settings saved & applied");
+    setOpen(false);
+  };
+
   // ---------- starboard ----------
   useEffect(() => {
     if (!isStarboard || !open || !botId) return;
