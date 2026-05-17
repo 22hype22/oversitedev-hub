@@ -976,33 +976,8 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     title: "Giveaway System",
     summary: "Run timed giveaways with auto-picked winners.",
     icon: Gift,
-    fields: [
-      multirole("hostRole", "Roles allowed to host giveaways"),
-      channel("defaultChannel", "Default giveaway channel"),
-      {
-        key: "emoji",
-        label: "Entry reaction emoji",
-        type: "text",
-        defaultValue: "🎉",
-      },
-      role("requireRole", "Required role to enter", "Leave blank to allow everyone."),
-      toggle("dmWinners", "DM winners when picked"),
-      {
-        key: "defaultDuration",
-        label: "Default giveaway duration",
-        type: "select",
-        defaultValue: "1440",
-        options: [
-          { value: "60", label: "1 hour" },
-          { value: "360", label: "6 hours" },
-          { value: "720", label: "12 hours" },
-          { value: "1440", label: "1 day" },
-          { value: "2880", label: "2 days" },
-          { value: "4320", label: "3 days" },
-          { value: "10080", label: "7 days" },
-        ],
-      },
-    ],
+    // Rendered with a custom form in AddonConfigCard (see isGiveaway branch).
+    fields: [],
   },
 
   "birthday-announcements": {

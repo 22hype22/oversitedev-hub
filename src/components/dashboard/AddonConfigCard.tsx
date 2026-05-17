@@ -220,7 +220,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const [recurringDeletePrevious, setRecurringDeletePrevious] = useState(false);
   const [recurringAllowedRoles, setRecurringAllowedRoles] = useState<string[]>([]);
 
-  // Giveaway launch state
+  // Giveaway System — custom form state
   const GIVEAWAY_DURATIONS: { value: number; label: string }[] = [
     { value: 60, label: "1 hour" },
     { value: 360, label: "6 hours" },
@@ -230,9 +230,21 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     { value: 4320, label: "3 days" },
     { value: 10080, label: "7 days" },
   ];
+  const [giveawayHostRoles, setGiveawayHostRoles] = useState<string[]>([]);
+  const [giveawayChannelId, setGiveawayChannelId] = useState("");
+  const [giveawayDefaultDuration, setGiveawayDefaultDuration] = useState(1440);
+  const [giveawayEntryEmoji, setGiveawayEntryEmoji] = useState("🎉");
+  const [giveawayDefaultWinners, setGiveawayDefaultWinners] = useState(1);
+  const [giveawayEmbedTitle, setGiveawayEmbedTitle] = useState("🎉 Giveaway!");
+  const [giveawayEmbedDescription, setGiveawayEmbedDescription] = useState(
+    "React with {emoji} to enter!\n\n**Prize:** {prize}\n**Winners:** {winners}\n**Ends:** {ends}",
+  );
+  const [giveawayEmbedColor, setGiveawayEmbedColor] = useState("0x5865F2");
+
+  // Launch Giveaway (one-off) state
   const [giveawayPrize, setGiveawayPrize] = useState("");
-  const [giveawayDuration, setGiveawayDuration] = useState(60);
-  const [giveawayWinners, setGiveawayWinners] = useState(1);
+  const [giveawayLaunchDuration, setGiveawayLaunchDuration] = useState(60);
+  const [giveawayLaunchWinners, setGiveawayLaunchWinners] = useState(1);
   const [launchingGiveaway, setLaunchingGiveaway] = useState(false);
 
   useEffect(() => {
@@ -1269,15 +1281,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         : cfg.host_role_ids
           ? [String(cfg.host_role_ids)]
           : [];
-      setValues((prev) => ({
-        ...prev,
-        hostRole: hostRoles,
-        defaultChannel: cfg.default_channel_id ? String(cfg.default_channel_id) : "",
-        emoji: cfg.entry_emoji ?? "🎉",
-        requireRole: cfg.require_role_id ? String(cfg.require_role_id) : "",
-        dmWinners: cfg.dm_winners ?? true,
-        defaultDuration: String(cfg.default_duration_minutes ?? "1440"),
-      }));
+      setGiveawayHostRoles(hostRoles);
+      setGiveawayChannelId(cfg.default_channel_id ? String(cfg.default_channel_id) : "");
+      setGiveawayDefaultDuration(Number(cfg.default_duration_minutes ?? 1440));
+      setGiveawayEntryEmoji(typeof cfg.entry_emoji === "string" && cfg.entry_emoji ? cfg.entry_emoji : "🎉");
+      setGiveawayDefaultWinners(Math.max(1, Number(cfg.default_winners ?? 1)));
+      if (typeof cfg.embed_title === "string") setGiveawayEmbedTitle(cfg.embed_title);
+      if (typeof cfg.embed_description === "string") setGiveawayEmbedDescription(cfg.embed_description);
+      if (typeof cfg.embed_color === "string" && cfg.embed_color) setGiveawayEmbedColor(cfg.embed_color);
       setAppliedAt((data as any).applied_at ?? null);
     })();
     return () => { cancelled = true; };
@@ -1290,16 +1301,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       bot_id: botId,
       feature: "giveaway",
       config: {
-        host_role_ids: Array.isArray(values.hostRole)
-          ? (values.hostRole as string[]).filter(Boolean)
-          : values.hostRole
-            ? [String(values.hostRole)]
-            : [],
-        default_channel_id: values.defaultChannel ? String(values.defaultChannel) : null,
-        entry_emoji: String(values.emoji ?? "🎉"),
-        require_role_id: values.requireRole ? String(values.requireRole) : null,
-        dm_winners: !!values.dmWinners,
-        default_duration_minutes: Number(values.defaultDuration ?? 1440),
+        host_role_ids: giveawayHostRoles.filter(Boolean),
+        default_channel_id: giveawayChannelId || null,
+        default_duration_minutes: giveawayDefaultDuration,
+        entry_emoji: giveawayEntryEmoji || "🎉",
+        default_winners: Math.max(1, giveawayDefaultWinners),
+        embed_title: giveawayEmbedTitle,
+        embed_description: giveawayEmbedDescription,
+        embed_color: giveawayEmbedColor,
       },
       updated_at: new Date().toISOString(),
     };
@@ -2346,89 +2355,64 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               intervals={RECURRING_INTERVALS}
             />
           ) : isGiveaway ? (
-            <div className="space-y-5 py-2">
-              {config.fields
-                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
-                .map((f) => (
-                  <div key={f.key}>{renderField(f)}</div>
-                ))}
-              <div className="border-t border-border pt-5 space-y-4">
-                <h4 className="text-sm font-semibold">Launch Giveaway</h4>
-                <div className="space-y-2">
-                  <Label htmlFor="giveaway-prize">Prize</Label>
-                  <Input
-                    id="giveaway-prize"
-                    placeholder="e.g. Nitro Classic"
-                    value={giveawayPrize}
-                    onChange={(e) => setGiveawayPrize(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="giveaway-duration">Duration</Label>
-                  <Select
-                    value={String(giveawayDuration)}
-                    onValueChange={(v) => setGiveawayDuration(Number(v))}
-                  >
-                    <SelectTrigger id="giveaway-duration">
-                      <SelectValue placeholder="Select duration…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {GIVEAWAY_DURATIONS.map((d) => (
-                        <SelectItem key={d.value} value={String(d.value)}>
-                          {d.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="giveaway-winners">Number of winners</Label>
-                  <Input
-                    id="giveaway-winners"
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={giveawayWinners}
-                    onChange={(e) => setGiveawayWinners(Math.max(1, Number(e.target.value)))}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  disabled={launchingGiveaway || !giveawayPrize.trim()}
-                  onClick={async () => {
-                    if (!botId) return toast.error("Missing bot id.");
-                    setLaunchingGiveaway(true);
-                    try {
-                      const { data, error } = await supabase.functions.invoke(
-                        "enqueue-giveaway-start",
-                        {
-                          body: {
-                            botId,
-                            prize: giveawayPrize.trim(),
-                            duration_minutes: giveawayDuration,
-                            winners: giveawayWinners,
-                          },
-                        },
-                      );
-                      if (error) {
-                        toast.error(error.message ?? "Failed to start giveaway");
-                      } else if ((data as any)?.ok) {
-                        toast.success("Giveaway started!");
-                        setGiveawayPrize("");
-                        setGiveawayDuration(60);
-                        setGiveawayWinners(1);
-                      } else {
-                        toast.error((data as any)?.error ?? "Failed to start giveaway");
-                      }
-                    } finally {
-                      setLaunchingGiveaway(false);
-                    }
-                  }}
-                >
-                  {launchingGiveaway ? "Starting…" : "Start Giveaway"}
-                </Button>
-              </div>
-            </div>
+            <GiveawayForm
+              botId={botId}
+              botName={botName}
+              botAvatarUrl={botAvatarUrl ?? undefined}
+              hostRoles={giveawayHostRoles}
+              onHostRolesChange={setGiveawayHostRoles}
+              channelId={giveawayChannelId}
+              onChannelIdChange={setGiveawayChannelId}
+              defaultDuration={giveawayDefaultDuration}
+              onDefaultDurationChange={setGiveawayDefaultDuration}
+              entryEmoji={giveawayEntryEmoji}
+              onEntryEmojiChange={setGiveawayEntryEmoji}
+              defaultWinners={giveawayDefaultWinners}
+              onDefaultWinnersChange={setGiveawayDefaultWinners}
+              embedTitle={giveawayEmbedTitle}
+              onEmbedTitleChange={setGiveawayEmbedTitle}
+              embedDescription={giveawayEmbedDescription}
+              onEmbedDescriptionChange={setGiveawayEmbedDescription}
+              embedColor={giveawayEmbedColor}
+              onEmbedColorChange={setGiveawayEmbedColor}
+              durations={GIVEAWAY_DURATIONS}
+              launchPrize={giveawayPrize}
+              onLaunchPrizeChange={setGiveawayPrize}
+              launchDuration={giveawayLaunchDuration}
+              onLaunchDurationChange={setGiveawayLaunchDuration}
+              launchWinners={giveawayLaunchWinners}
+              onLaunchWinnersChange={setGiveawayLaunchWinners}
+              launching={launchingGiveaway}
+              onLaunch={async () => {
+                if (!botId) return toast.error("Missing bot id.");
+                setLaunchingGiveaway(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke(
+                    "enqueue-giveaway-start",
+                    {
+                      body: {
+                        botId,
+                        prize: giveawayPrize.trim(),
+                        duration_minutes: giveawayLaunchDuration,
+                        winners: giveawayLaunchWinners,
+                      },
+                    },
+                  );
+                  if (error) {
+                    toast.error(error.message ?? "Failed to start giveaway");
+                  } else if ((data as any)?.ok) {
+                    toast.success("Giveaway started!");
+                    setGiveawayPrize("");
+                    setGiveawayLaunchDuration(60);
+                    setGiveawayLaunchWinners(1);
+                  } else {
+                    toast.error((data as any)?.error ?? "Failed to start giveaway");
+                  }
+                } finally {
+                  setLaunchingGiveaway(false);
+                }
+              }}
+            />
           ) : (
             <div className="space-y-5 py-2">
               {config.fields
@@ -3157,6 +3141,319 @@ function LockEmbedEditor({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ─── Giveaway System form ──────────────────────────────────────────────
+function GiveawayForm({
+  botId,
+  botName,
+  botAvatarUrl,
+  hostRoles,
+  onHostRolesChange,
+  channelId,
+  onChannelIdChange,
+  defaultDuration,
+  onDefaultDurationChange,
+  entryEmoji,
+  onEntryEmojiChange,
+  defaultWinners,
+  onDefaultWinnersChange,
+  embedTitle,
+  onEmbedTitleChange,
+  embedDescription,
+  onEmbedDescriptionChange,
+  embedColor,
+  onEmbedColorChange,
+  durations,
+  launchPrize,
+  onLaunchPrizeChange,
+  launchDuration,
+  onLaunchDurationChange,
+  launchWinners,
+  onLaunchWinnersChange,
+  launching,
+  onLaunch,
+}: {
+  botId?: string;
+  botName: string;
+  botAvatarUrl?: string;
+  hostRoles: string[];
+  onHostRolesChange: (v: string[]) => void;
+  channelId: string;
+  onChannelIdChange: (v: string) => void;
+  defaultDuration: number;
+  onDefaultDurationChange: (v: number) => void;
+  entryEmoji: string;
+  onEntryEmojiChange: (v: string) => void;
+  defaultWinners: number;
+  onDefaultWinnersChange: (v: number) => void;
+  embedTitle: string;
+  onEmbedTitleChange: (v: string) => void;
+  embedDescription: string;
+  onEmbedDescriptionChange: (v: string) => void;
+  embedColor: string;
+  onEmbedColorChange: (v: string) => void;
+  durations: { value: number; label: string }[];
+  launchPrize: string;
+  onLaunchPrizeChange: (v: string) => void;
+  launchDuration: number;
+  onLaunchDurationChange: (v: number) => void;
+  launchWinners: number;
+  onLaunchWinnersChange: (v: number) => void;
+  launching: boolean;
+  onLaunch: () => void;
+}) {
+  const { guild } = useActiveGuild();
+  const guildId = guild?.guild_id;
+  const { channels, loading, refreshing, refreshFromDiscord } = useBotChannels(botId, guildId);
+  const textChannels = useMemo(
+    () => channels.filter((c) => ["text", "announcement"].includes(c.channel_type)),
+    [channels],
+  );
+  const channelGroups = useMemo(() => sortedChannelCategoryEntries(textChannels), [textChannels]);
+
+  // Color helpers — store as 0xRRGGBB, edit as #rrggbb.
+  const toHexInput = (c: string): string => {
+    const m = String(c ?? "").match(/[0-9a-f]{6}/i);
+    return m ? `#${m[0].toLowerCase()}` : "#5865f2";
+  };
+  const toStorage = (hex: string): string => `0x${hex.replace("#", "").toUpperCase()}`;
+  const hexInputValue = toHexInput(embedColor);
+
+  // Live preview substitutions
+  const previewSubs = (s: string) =>
+    s
+      .replaceAll("{emoji}", entryEmoji || "🎉")
+      .replaceAll("{prize}", launchPrize.trim() || "Example Prize")
+      .replaceAll("{winners}", String(Math.max(1, defaultWinners)))
+      .replaceAll("{ends}", "in 1 day");
+
+  return (
+    <div className="space-y-6 py-2">
+      <RoleMultiSelect
+        label="Roles allowed to host"
+        help="Members with any of these roles can use /giveaway."
+        value={hostRoles}
+        onChange={onHostRolesChange}
+        botId={botId}
+        guildId={guildId}
+      />
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label>Giveaway channel</Label>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => refreshFromDiscord()}
+            disabled={refreshing || !guildId}
+            className="h-7 px-2 text-xs gap-1.5"
+          >
+            <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </Button>
+        </div>
+        <label className="relative block">
+          <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <select
+            value={channelId}
+            onChange={(e) => onChannelIdChange(e.target.value)}
+            disabled={!guildId || loading}
+            className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="">
+              {!guildId
+                ? "Select a server first"
+                : loading
+                  ? "Loading channels…"
+                  : textChannels.length === 0
+                    ? "No channels — click Refresh"
+                    : "Select a channel…"}
+            </option>
+            {channelGroups.map((group) => (
+              <optgroup key={group.key} label={group.label}>
+                {group.channels.map((c) => (
+                  <option key={c.channel_id} value={c.channel_id}>
+                    {c.channel_name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="space-y-2">
+          <Label>Default duration</Label>
+          <Select
+            value={String(defaultDuration)}
+            onValueChange={(v) => onDefaultDurationChange(Number(v))}
+          >
+            <SelectTrigger><SelectValue placeholder="Select duration…" /></SelectTrigger>
+            <SelectContent>
+              {durations.map((d) => (
+                <SelectItem key={d.value} value={String(d.value)}>{d.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Entry emoji</Label>
+          <Input
+            value={entryEmoji}
+            onChange={(e) => onEntryEmojiChange(e.target.value)}
+            placeholder="🎉"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Default winners</Label>
+          <Input
+            type="number"
+            min={1}
+            max={100}
+            value={defaultWinners}
+            onChange={(e) => onDefaultWinnersChange(Math.max(1, Number(e.target.value)))}
+          />
+        </div>
+      </div>
+
+      {/* Embed composer with live preview */}
+      <div className="space-y-3 rounded-md border border-border p-4">
+        <Label className="text-sm font-medium">Giveaway embed</Label>
+        <div className="space-y-2">
+          <Label className="text-xs">Title</Label>
+          <Input
+            value={embedTitle}
+            onChange={(e) => onEmbedTitleChange(e.target.value)}
+            placeholder="🎉 Giveaway!"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-xs">Description</Label>
+          <Textarea
+            rows={4}
+            value={embedDescription}
+            onChange={(e) => onEmbedDescriptionChange(e.target.value)}
+            placeholder="Tip: use {emoji}, {prize}, {winners}, {ends}"
+          />
+          <p className="text-xs text-muted-foreground">
+            Placeholders: <code className="px-1 rounded bg-muted">{"{emoji}"}</code>,{" "}
+            <code className="px-1 rounded bg-muted">{"{prize}"}</code>,{" "}
+            <code className="px-1 rounded bg-muted">{"{winners}"}</code>,{" "}
+            <code className="px-1 rounded bg-muted">{"{ends}"}</code>
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label className="text-xs">Color</Label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={hexInputValue}
+              onChange={(e) => onEmbedColorChange(toStorage(e.target.value))}
+              className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
+            />
+            <Input
+              value={embedColor}
+              onChange={(e) => onEmbedColorChange(e.target.value)}
+              placeholder="0x5865F2"
+              className="font-mono text-sm"
+            />
+          </div>
+        </div>
+        {/* Live preview */}
+        <div className="rounded-md bg-[#313338] p-4 text-[#dbdee1]">
+          <div className="flex gap-3">
+            <div className="h-10 w-10 rounded-full bg-[#5865F2] grid place-items-center shrink-0 overflow-hidden">
+              {botAvatarUrl ? (
+                <img src={botAvatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-white text-sm font-bold">
+                  {botName.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2">
+                <span className="text-white font-medium">{botName}</span>
+                <span className="bg-[#5865F2] text-white text-[10px] px-1 py-px rounded font-semibold">APP</span>
+                <span className="text-[11px] text-[#949ba4]">Today at 12:00 PM</span>
+              </div>
+              <div
+                className="mt-1 max-w-md rounded border-l-4 bg-[#2b2d31] p-3"
+                style={{ borderLeftColor: hexInputValue }}
+              >
+                {embedTitle && (
+                  <div className="font-semibold text-white">{previewSubs(embedTitle)}</div>
+                )}
+                {embedDescription && (
+                  <div className="mt-1 whitespace-pre-wrap text-sm text-[#dbdee1]">
+                    {previewSubs(embedDescription)}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Launch Giveaway */}
+      <div className="border-t border-border pt-5 space-y-4">
+        <div>
+          <h4 className="text-sm font-semibold">Launch Giveaway</h4>
+          <p className="text-xs text-muted-foreground">
+            Start a one-off giveaway now using the settings above (you can override duration and winners).
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="giveaway-prize">Prize</Label>
+          <Input
+            id="giveaway-prize"
+            placeholder="e.g. Nitro Classic"
+            value={launchPrize}
+            onChange={(e) => onLaunchPrizeChange(e.target.value)}
+          />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor="giveaway-duration">Duration</Label>
+            <Select
+              value={String(launchDuration)}
+              onValueChange={(v) => onLaunchDurationChange(Number(v))}
+            >
+              <SelectTrigger id="giveaway-duration">
+                <SelectValue placeholder="Select duration…" />
+              </SelectTrigger>
+              <SelectContent>
+                {durations.map((d) => (
+                  <SelectItem key={d.value} value={String(d.value)}>{d.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="giveaway-winners">Number of winners</Label>
+            <Input
+              id="giveaway-winners"
+              type="number"
+              min={1}
+              max={100}
+              value={launchWinners}
+              onChange={(e) => onLaunchWinnersChange(Math.max(1, Number(e.target.value)))}
+            />
+          </div>
+        </div>
+        <Button
+          type="button"
+          disabled={launching || !launchPrize.trim()}
+          onClick={onLaunch}
+        >
+          {launching ? "Starting…" : "Start Giveaway"}
+        </Button>
+      </div>
     </div>
   );
 }
