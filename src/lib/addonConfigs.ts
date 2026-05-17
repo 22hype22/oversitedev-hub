@@ -979,35 +979,6 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     fields: [],
   },
 
-  "birthday-announcements": {
-    title: "Birthday Announcements",
-    summary: "Wish members happy birthday in a channel.",
-    icon: Cake,
-    fields: [
-      channel("channel", "Birthday channel"),
-      role("birthdayRole", "Role to give on someone's birthday"),
-      ...embedHeaderFields(),
-      {
-        key: "message",
-        label: "Birthday message",
-        type: "textarea",
-        defaultValue: "🎂 Happy birthday {user}! Have an amazing day!",
-      },
-      {
-        key: "announceTime",
-        label: "Announce at (24h, server time)",
-        type: "select",
-        defaultValue: "09:00",
-        options: [
-          { value: "00:00", label: "Midnight" },
-          { value: "09:00", label: "9:00 AM" },
-          { value: "12:00", label: "Noon" },
-          { value: "18:00", label: "6:00 PM" },
-        ],
-      },
-      ...embedFooterFields(),
-    ],
-  },
 
   "server-stats-channels": {
     title: "Server Stats Channels",
