@@ -51,6 +51,7 @@ import { useBotRoles } from "@/hooks/useBotRoles";
 import { AtSign } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { RoleMultiSelect } from "./RoleMultiSelect";
+import { useTeamRole } from "@/hooks/useTeamRole";
 
 const CHANNEL_ICON: Record<string, typeof Hash> = {
   text: Hash,
@@ -77,6 +78,8 @@ type Props = {
  * Mock UI only — values live in local state and "save" shows a toast.
  */
 export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: openProp, onOpenChange, enabled = true, onToggleEnabled }: Props) {
+  const { permissions, role } = useTeamRole();
+  const canEdit = permissions.edit_bot_config;
   const isSayCommand = addonId === "messages";
   const isRules = addonId === "rules";
   const isTicketPanel = addonId === "ticket-message-customization";
@@ -2519,7 +2522,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                 Cancel
               </Button>
               <Button
-                disabled={saving}
+                disabled={saving || !canEdit}
+                title={!canEdit ? `Your role (${role ?? "viewer"}) doesn't allow editing bot config` : undefined}
                 onClick={async () => {
                   if (isSayCommand || isRules) {
                     setSaving(true);
@@ -2606,13 +2610,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                 }}
               >
                 <Save className="h-4 w-4 mr-1.5" />
-                {saving
-                  ? "Saving…"
-                  : isRules
-                    ? "Save rules"
-                    : isSayCommand
-                      ? "Send message"
-                      : "Save changes"}
+                {!canEdit
+                  ? "Read only"
+                  : saving
+                    ? "Saving…"
+                    : isRules
+                      ? "Save rules"
+                      : isSayCommand
+                        ? "Send message"
+                        : "Save changes"}
               </Button>
             </div>
           </DialogFooter>
