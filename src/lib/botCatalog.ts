@@ -60,7 +60,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   // Utilities
   "music-addon": "Music Add-On",
   "auto-radio": "Auto Radio by Genre",
-  "roblox-verification": "Roblox Verification",
+  
   starboard: "Starboard",
   "recurring-messages": "Recurring Messages",
   "giveaway-system": "Giveaway System",
@@ -113,7 +113,7 @@ export const BOT_ADDON_PRICES: Record<string, number> = {
   // Utilities
   "music-addon": 1.99,
   "auto-radio": 0.99,
-  "roblox-verification": 0.99,
+  
   starboard: 0.99,
   "recurring-messages": 0.99,
   "giveaway-system": 0.99,
@@ -157,7 +157,7 @@ const ADDON_IDS_BY_BASE: Record<string, string[]> = {
   utilities: [
     "music-addon",
     "auto-radio",
-    "roblox-verification",
+    
     "starboard",
     "recurring-messages",
     "giveaway-system",
