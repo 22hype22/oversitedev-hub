@@ -1259,6 +1259,9 @@ export type Database = {
           member_user_id: string | null
           owner_user_id: string
           role: string
+          transfer_requested_at: string | null
+          transfer_requested_by: string | null
+          transfer_token: string | null
           updated_at: string
         }
         Insert: {
@@ -1272,6 +1275,9 @@ export type Database = {
           member_user_id?: string | null
           owner_user_id: string
           role: string
+          transfer_requested_at?: string | null
+          transfer_requested_by?: string | null
+          transfer_token?: string | null
           updated_at?: string
         }
         Update: {
@@ -1285,6 +1291,9 @@ export type Database = {
           member_user_id?: string | null
           owner_user_id?: string
           role?: string
+          transfer_requested_at?: string | null
+          transfer_requested_by?: string | null
+          transfer_token?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -2809,6 +2818,14 @@ export type Database = {
       }
       sweep_preorders_for_confirmation: { Args: never; Returns: number }
       team_accept_invites_for_current_user: { Args: never; Returns: number }
+      team_cancel_ownership_transfer: {
+        Args: { _member_id: string }
+        Returns: Json
+      }
+      team_confirm_ownership_transfer: {
+        Args: { _token: string }
+        Returns: Json
+      }
       team_default_permissions: { Args: { _role: string }; Returns: Json }
       team_get_effective_role: {
         Args: { _owner_user_id: string }
@@ -2819,6 +2836,10 @@ export type Database = {
         Returns: Json
       }
       team_remove_member: { Args: { _member_id: string }; Returns: Json }
+      team_request_ownership_transfer: {
+        Args: { _member_id: string }
+        Returns: Json
+      }
       team_set_role_permissions: {
         Args: { _permissions: Json; _role: string }
         Returns: Json
