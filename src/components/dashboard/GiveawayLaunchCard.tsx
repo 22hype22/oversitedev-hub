@@ -33,6 +33,7 @@ interface Props {
 }
 
 export function GiveawayLaunchCard({ botId }: Props) {
+  console.log("[GiveawayLaunchCard] RENDERED with botId:", botId);
   const [prize, setPrize] = useState("");
   const [duration, setDuration] = useState("1d");
   const [winners, setWinners] = useState(1);
@@ -72,7 +73,7 @@ export function GiveawayLaunchCard({ botId }: Props) {
   };
 
   return (
-    <Card className="p-5 space-y-4">
+    <Card className="p-5 space-y-4 border-4 border-red-500" style={{ borderColor: "red", borderWidth: 4 }}>
       <div className="flex items-center gap-2">
         <Gift className="h-5 w-5 text-primary" />
         <h3 className="font-semibold">Launch Giveaway</h3>

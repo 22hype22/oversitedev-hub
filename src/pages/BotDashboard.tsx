@@ -500,6 +500,12 @@ const BotSection = ({
         actions={headerActions}
       />
 
+      {/* TEMP DEBUG: force-render GiveawayLaunchCard at top */}
+      <div className="border-4 border-yellow-400 p-2">
+        <p className="text-xs text-yellow-400 mb-2">DEBUG: forced GiveawayLaunchCard render</p>
+        <GiveawayLaunchCard botId={bot.id} />
+      </div>
+
       <details
         open={manageOpen}
         onToggle={(e) => setManageOpen((e.target as HTMLDetailsElement).open)}
