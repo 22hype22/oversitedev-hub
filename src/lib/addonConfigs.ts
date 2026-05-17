@@ -901,24 +901,6 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
-  "roblox-verification": {
-    title: "Roblox Verification",
-    summary: "Link Discord accounts to Roblox profiles.",
-    icon: Gamepad2,
-    fields: [
-      channel("verifyChannel", "Verification channel"),
-      role("verifiedRole", "Role given to verified users"),
-      {
-        key: "groupId",
-        label: "Roblox group ID (optional)",
-        type: "text",
-        placeholder: "123456",
-        help: "If set, only members of this group can verify.",
-      },
-      toggle("syncNickname", "Sync Discord nickname to Roblox username"),
-      toggle("syncGroupRoles", "Sync Discord roles to Roblox group ranks", false),
-    ],
-  },
 
   starboard: {
     title: "Starboard",

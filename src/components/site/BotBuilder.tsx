@@ -204,7 +204,7 @@ const ADDONS_BY_BASE: Record<string, Addon[]> = {
   utilities: [
     { id: "music-addon", name: "Music Add-On", desc: "Full music playback with queues and controls.", icon: Music, price: 1.99 },
     { id: "auto-radio", name: "Auto Radio by Genre", desc: "Non-stop radio by genre. Requires Music Add-On.", icon: Headphones, price: 0.99 },
-    { id: "roblox-verification", name: "Roblox Verification", desc: "Verify members against their Roblox account.", icon: UserCheck, price: 0.99 },
+    
     { id: "starboard", name: "Starboard", desc: "Highlight top reactions in a starboard channel.", icon: Star, price: 0.99 },
     { id: "recurring-messages", name: "Recurring Messages", desc: "Schedule messages on a repeating timer.", icon: Calendar, price: 0.99 },
     { id: "giveaway-system", name: "Giveaway System", desc: "Run giveaways with reactions and timers.", icon: Gift, price: 0.99 },

@@ -113,7 +113,7 @@ const SUPPORT_ADDON_IDS = [
 const UTILITIES_ADDON_IDS = [
   "music-addon",
   "auto-radio",
-  "roblox-verification",
+  
   "starboard",
   "recurring-messages",
   "giveaway-system",
