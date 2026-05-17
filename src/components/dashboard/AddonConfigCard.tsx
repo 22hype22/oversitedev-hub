@@ -1256,7 +1256,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
           : [];
       setValues((prev) => ({
         ...prev,
-        hostRole: hostRoles[0] ?? "",
+        hostRole: hostRoles,
         defaultChannel: cfg.default_channel_id ? String(cfg.default_channel_id) : "",
         emoji: cfg.entry_emoji ?? "🎉",
         requireRole: cfg.require_role_id ? String(cfg.require_role_id) : "",
