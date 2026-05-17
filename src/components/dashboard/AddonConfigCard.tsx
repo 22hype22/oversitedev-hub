@@ -1281,15 +1281,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         : cfg.host_role_ids
           ? [String(cfg.host_role_ids)]
           : [];
-      setValues((prev) => ({
-        ...prev,
-        hostRole: hostRoles,
-        defaultChannel: cfg.default_channel_id ? String(cfg.default_channel_id) : "",
-        emoji: cfg.entry_emoji ?? "🎉",
-        requireRole: cfg.require_role_id ? String(cfg.require_role_id) : "",
-        dmWinners: cfg.dm_winners ?? true,
-        defaultDuration: String(cfg.default_duration_minutes ?? "1440"),
-      }));
+      setGiveawayHostRoles(hostRoles);
+      setGiveawayChannelId(cfg.default_channel_id ? String(cfg.default_channel_id) : "");
+      setGiveawayDefaultDuration(Number(cfg.default_duration_minutes ?? 1440));
+      setGiveawayEntryEmoji(typeof cfg.entry_emoji === "string" && cfg.entry_emoji ? cfg.entry_emoji : "🎉");
+      setGiveawayDefaultWinners(Math.max(1, Number(cfg.default_winners ?? 1)));
+      if (typeof cfg.embed_title === "string") setGiveawayEmbedTitle(cfg.embed_title);
+      if (typeof cfg.embed_description === "string") setGiveawayEmbedDescription(cfg.embed_description);
+      if (typeof cfg.embed_color === "string" && cfg.embed_color) setGiveawayEmbedColor(cfg.embed_color);
       setAppliedAt((data as any).applied_at ?? null);
     })();
     return () => { cancelled = true; };
@@ -1302,16 +1301,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       bot_id: botId,
       feature: "giveaway",
       config: {
-        host_role_ids: Array.isArray(values.hostRole)
-          ? (values.hostRole as string[]).filter(Boolean)
-          : values.hostRole
-            ? [String(values.hostRole)]
-            : [],
-        default_channel_id: values.defaultChannel ? String(values.defaultChannel) : null,
-        entry_emoji: String(values.emoji ?? "🎉"),
-        require_role_id: values.requireRole ? String(values.requireRole) : null,
-        dm_winners: !!values.dmWinners,
-        default_duration_minutes: Number(values.defaultDuration ?? 1440),
+        host_role_ids: giveawayHostRoles.filter(Boolean),
+        default_channel_id: giveawayChannelId || null,
+        default_duration_minutes: giveawayDefaultDuration,
+        entry_emoji: giveawayEntryEmoji || "🎉",
+        default_winners: Math.max(1, giveawayDefaultWinners),
+        embed_title: giveawayEmbedTitle,
+        embed_description: giveawayEmbedDescription,
+        embed_color: giveawayEmbedColor,
       },
       updated_at: new Date().toISOString(),
     };
