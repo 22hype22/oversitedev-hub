@@ -2385,7 +2385,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   );
 }
 
-type RecurringEntryInput = { channel_id: string; interval_minutes: number; message: string };
+type RecurringEntryInput = { channel_id: string; interval_minutes: number; message: string; ping_role_ids: string[] };
 
 function RecurringMessagesForm({
   botId,
