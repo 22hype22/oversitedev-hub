@@ -220,7 +220,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const [recurringDeletePrevious, setRecurringDeletePrevious] = useState(false);
   const [recurringAllowedRoles, setRecurringAllowedRoles] = useState<string[]>([]);
 
-  // Giveaway launch state
+  // Giveaway System — custom form state
   const GIVEAWAY_DURATIONS: { value: number; label: string }[] = [
     { value: 60, label: "1 hour" },
     { value: 360, label: "6 hours" },
@@ -230,9 +230,21 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     { value: 4320, label: "3 days" },
     { value: 10080, label: "7 days" },
   ];
+  const [giveawayHostRoles, setGiveawayHostRoles] = useState<string[]>([]);
+  const [giveawayChannelId, setGiveawayChannelId] = useState("");
+  const [giveawayDefaultDuration, setGiveawayDefaultDuration] = useState(1440);
+  const [giveawayEntryEmoji, setGiveawayEntryEmoji] = useState("🎉");
+  const [giveawayDefaultWinners, setGiveawayDefaultWinners] = useState(1);
+  const [giveawayEmbedTitle, setGiveawayEmbedTitle] = useState("🎉 Giveaway!");
+  const [giveawayEmbedDescription, setGiveawayEmbedDescription] = useState(
+    "React with {emoji} to enter!\n\n**Prize:** {prize}\n**Winners:** {winners}\n**Ends:** {ends}",
+  );
+  const [giveawayEmbedColor, setGiveawayEmbedColor] = useState("0x5865F2");
+
+  // Launch Giveaway (one-off) state
   const [giveawayPrize, setGiveawayPrize] = useState("");
-  const [giveawayDuration, setGiveawayDuration] = useState(60);
-  const [giveawayWinners, setGiveawayWinners] = useState(1);
+  const [giveawayLaunchDuration, setGiveawayLaunchDuration] = useState(60);
+  const [giveawayLaunchWinners, setGiveawayLaunchWinners] = useState(1);
   const [launchingGiveaway, setLaunchingGiveaway] = useState(false);
 
   useEffect(() => {
