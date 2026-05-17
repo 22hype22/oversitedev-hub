@@ -116,7 +116,6 @@ export const BOT_ADDON_PRICES: Record<string, number> = {
   starboard: 0.99,
   "recurring-messages": 0.99,
   "giveaway-system": 0.99,
-  "birthday-announcements": 0.99,
   "server-stats-channels": 0.99,
   "live-notifications": 0.99,
   "leveling-system": 2.99,
