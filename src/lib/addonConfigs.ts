@@ -78,6 +78,8 @@ export type AddonField = {
   options?: { value: string; label: string }[];
   /** For type: "channel" — restrict which channel_type values are selectable. */
   channelTypes?: string[];
+  /** Optional: only render this field when the predicate returns true for current form values. */
+  visibleIf?: (values: Record<string, string | number | boolean | string[]>) => boolean;
 };
 
 export type AddonConfig = {
@@ -907,21 +909,46 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Highlight popular messages in a starboard channel.",
     icon: Star,
     fields: [
-      channel("starboardChannel", "Starboard channel"),
+      channel("starboard_channel_id", "Starboard channel", "Where messages are reposted."),
+      channel("showcase_channel_id", "Showcase channel", "Optional channel for highlighted spotlights."),
       {
-        key: "starsRequired",
+        key: "mode",
+        label: "Posting mode",
+        type: "select",
+        defaultValue: "threshold",
+        options: [
+          { value: "threshold", label: "Post when threshold reached" },
+          { value: "timed", label: "Post top starred after interval" },
+        ],
+      },
+      {
+        key: "threshold",
         label: "Stars required to post",
         type: "number",
         defaultValue: 5,
+        visibleIf: (v) => (v.mode ?? "threshold") === "threshold",
       },
       {
-        key: "emoji",
+        key: "timed_interval",
+        label: "Interval",
+        type: "select",
+        defaultValue: "weekly",
+        options: [
+          { value: "weekly", label: "Weekly" },
+          { value: "biweekly", label: "Biweekly" },
+          { value: "monthly", label: "Monthly" },
+        ],
+        visibleIf: (v) => v.mode === "timed",
+      },
+      {
+        key: "reaction_emoji",
         label: "Reaction emoji",
         type: "text",
         defaultValue: "⭐",
       },
-      toggle("allowSelfStar", "Allow users to star their own messages", false),
-      toggle("ignoreNsfw", "Ignore messages from NSFW channels"),
+      role("spotlight_ping_role_id", "Spotlight ping role", "Pinged when a spotlight post is published."),
+      toggle("allow_self_star", "Allow users to star their own messages", false),
+      toggle("ignore_nsfw", "Ignore messages from NSFW channels"),
     ],
   },
 

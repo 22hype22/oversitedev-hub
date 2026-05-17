@@ -102,6 +102,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isPriorityFlagging = addonId === "priority-flagging";
   const isAutoCloseInactive = addonId === "auto-close-inactive";
   const isAutoRadio = addonId === "auto-radio";
+  const isStarboard = addonId === "starboard";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
@@ -1212,6 +1213,70 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
     else toast.success("Auto Radio saved & applied");
     setOpen(false);
   };
+
+  // ---------- starboard ----------
+  useEffect(() => {
+    if (!isStarboard || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "starboard")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        starboard_channel_id: cfg.starboard_channel_id ? String(cfg.starboard_channel_id) : "",
+        showcase_channel_id: cfg.showcase_channel_id ? String(cfg.showcase_channel_id) : "",
+        threshold: Number(cfg.threshold ?? 5),
+        reaction_emoji: cfg.reaction_emoji ?? "⭐",
+        allow_self_star: cfg.allow_self_star ?? false,
+        ignore_nsfw: cfg.ignore_nsfw ?? true,
+        mode: cfg.mode === "timed" ? "timed" : "threshold",
+        timed_interval: cfg.timed_interval ?? "weekly",
+        spotlight_ping_role_id: cfg.spotlight_ping_role_id ? String(cfg.spotlight_ping_role_id) : "",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isStarboard, open, botId]);
+
+  const saveStarboard = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const mode = values.mode === "timed" ? "timed" : "threshold";
+    const payload = {
+      bot_id: botId,
+      feature: "starboard",
+      config: {
+        starboard_channel_id: values.starboard_channel_id ? String(values.starboard_channel_id) : null,
+        showcase_channel_id: values.showcase_channel_id ? String(values.showcase_channel_id) : null,
+        threshold: Number(values.threshold ?? 5),
+        reaction_emoji: String(values.reaction_emoji ?? "⭐"),
+        allow_self_star: !!values.allow_self_star,
+        ignore_nsfw: !!values.ignore_nsfw,
+        mode,
+        timed_interval: String(values.timed_interval ?? "weekly"),
+        spotlight_ping_role_id: values.spotlight_ping_role_id ? String(values.spotlight_ping_role_id) : null,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "starboard",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Starboard saved & applied");
+    setOpen(false);
+  };
+
   useEffect(() => {
     if (!isTicketNotes || !open || !botId) return;
     let cancelled = false;
@@ -2098,9 +2163,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
             </div>
           ) : (
             <div className="space-y-5 py-2">
-              {config.fields.map((f) => (
-                <div key={f.key}>{renderField(f)}</div>
-              ))}
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
             </div>
           )}
 
@@ -2189,6 +2256,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveAutoCloseInactive();
                   } else if (isAutoRadio) {
                     void saveAutoRadio();
+                  } else if (isStarboard) {
+                    void saveStarboard();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
