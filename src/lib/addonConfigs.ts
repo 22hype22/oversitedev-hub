@@ -946,6 +946,13 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         type: "text",
         defaultValue: "⭐",
       },
+      {
+        key: "spotlight_message",
+        label: "Spotlight message",
+        type: "textarea",
+        placeholder: "Check out this week's top message!",
+        help: "Short message the bot includes when posting to the spotlight channel.",
+      },
       role("spotlight_ping_role_id", "Spotlight ping role", "Pinged when a spotlight post is published."),
       toggle("allow_self_star", "Allow users to star their own messages", false),
       toggle("ignore_nsfw", "Ignore messages from NSFW channels"),
