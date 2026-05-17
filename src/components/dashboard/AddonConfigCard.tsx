@@ -1349,6 +1349,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
             channel_id: String(m.channel_id),
             interval_minutes: Number(m.interval_minutes) || 60,
             message: String(m.message),
+            ping_role_ids: Array.isArray(m.ping_role_ids) ? m.ping_role_ids.map(String) : [],
           })),
         delete_previous: !!recurringDeletePrevious,
         allowed_role_ids: recurringAllowedRoles.map(String),
