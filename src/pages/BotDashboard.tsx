@@ -974,6 +974,10 @@ const BotDashboard = () => {
             <TeamManagementHub />
           </div>
         )}
+
+        <NewOwnerBillingDialog
+          forceOpen={new URLSearchParams(window.location.search).get("team_transfer") === "accepted"}
+        />
       </div>
 
       <AlertDialog
