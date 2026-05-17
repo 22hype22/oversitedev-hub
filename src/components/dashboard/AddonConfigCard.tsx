@@ -2356,6 +2356,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveAutoRadio();
                   } else if (isStarboard) {
                     void saveStarboard();
+                  } else if (isRecurringMessages) {
+                    void saveRecurringMessages();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
