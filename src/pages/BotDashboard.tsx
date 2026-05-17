@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
 import { SortableAddonGrid } from "@/components/dashboard/SortableAddonGrid";
 import { AddonConfigCard } from "@/components/dashboard/AddonConfigCard";
+import { GiveawayLaunchCard } from "@/components/dashboard/GiveawayLaunchCard";
 import { FixesBar } from "@/components/dashboard/FixesBar";
 import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
 import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
@@ -698,6 +699,11 @@ const BotSection = ({
                             botName={bot.bot_name}
                             botAvatarUrl={bot.icon_url}
                           />
+                          {id === "giveaway-system" && (
+                            <div className="mt-3">
+                              <GiveawayLaunchCard botId={bot.id} />
+                            </div>
+                          )}
                         </div>
                       );
                     })}
