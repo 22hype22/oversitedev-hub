@@ -39,6 +39,8 @@ export function GiveawayLaunchCard({ botId }: Props) {
   const [launching, setLaunching] = useState(false);
 
   const launch = async () => {
+    console.log("GiveawayLaunchCard Start Giveaway clicked", { botId, prize, duration, winners });
+
     const trimmedPrize = prize.trim();
     if (!trimmedPrize) {
       toast.error("Prize is required");
@@ -110,7 +112,7 @@ export function GiveawayLaunchCard({ botId }: Props) {
           />
         </div>
         <div className="flex items-end">
-          <Button onClick={launch} disabled={launching} className="w-full gap-2">
+          <Button type="button" onClick={launch} disabled={launching} className="w-full gap-2">
             <Rocket className="h-4 w-4" />
             {launching ? "Launching…" : "Start Giveaway"}
           </Button>
