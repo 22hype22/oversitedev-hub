@@ -2421,6 +2421,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                     void saveAutoCloseInactive();
                   } else if (isAutoRadio) {
                     void saveAutoRadio();
+                  } else if (isGiveaway) {
+                    void saveGiveaway();
                   } else if (isStarboard) {
                     void saveStarboard();
                   } else if (isRecurringMessages) {
