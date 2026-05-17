@@ -2099,9 +2099,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
             </div>
           ) : (
             <div className="space-y-5 py-2">
-              {config.fields.map((f) => (
-                <div key={f.key}>{renderField(f)}</div>
-              ))}
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
             </div>
           )}
 
