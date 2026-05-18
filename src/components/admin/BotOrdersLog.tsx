@@ -427,7 +427,7 @@ export const BotOrdersLog = () => {
                 <th className="text-right font-medium px-3 py-2">Total</th>
                 <th className="text-left font-medium px-3 py-2">Hosting</th>
                 <th className="text-left font-medium px-3 py-2">Status</th>
-                <th className="text-right font-medium px-3 py-2">Edit</th>
+                <th className="text-right font-medium px-3 py-2">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
