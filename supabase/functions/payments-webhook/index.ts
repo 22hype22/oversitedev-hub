@@ -151,6 +151,18 @@ async function handleCheckoutSessionCompleted(session: any, env: StripeEnv) {
     return;
   }
 
+  // Propagate to sibling rows (multi-bot / pack orders).
+  const { error: childErr } = await supabase
+    .from("bot_orders")
+    .update({
+      status: nextStatus,
+      paid_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("parent_order_id", botOrderId)
+    .not("status", "in", "(paid,waitlisted,ready)");
+  if (childErr) console.error("Failed to propagate to children:", childErr);
+
   console.log(`Bot order marked ${nextStatus}:`, botOrderId, "session:", session.id);
 
   if (!hasToken) {
