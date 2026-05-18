@@ -658,5 +658,66 @@ export const BotOrdersLog = () => {
         </div>
       )}
     </Card>
+
+    <Dialog
+      open={!!deleteTarget}
+      onOpenChange={(o) => {
+        if (!o) {
+          setDeleteTarget(null);
+          setDeleteCode("");
+        }
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="text-destructive">
+            Remove bot from dashboard?
+          </DialogTitle>
+          <DialogDescription>
+            This will set{" "}
+            <span className="font-semibold text-foreground">
+              "{deleteTarget?.bot_name}"
+            </span>{" "}
+            (and any pack siblings) to <span className="font-mono">cancelled</span>,
+            removing it from the user's dashboard. Enter the confirmation code to
+            continue.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="bot-delete-code">Confirmation code</Label>
+          <Input
+            id="bot-delete-code"
+            type="password"
+            autoFocus
+            value={deleteCode}
+            onChange={(e) => setDeleteCode(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") confirmDelete();
+            }}
+            placeholder="Enter code"
+          />
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setDeleteTarget(null);
+              setDeleteCode("");
+            }}
+            disabled={!!deletingId}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={confirmDelete}
+            disabled={!!deletingId}
+          >
+            {deletingId ? "Removing…" : "Confirm Remove"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 };
