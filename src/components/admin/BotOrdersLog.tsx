@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Bot, RefreshCw, Download, ChevronDown, ChevronUp, Save } from "lucide-react";
+import { Bot, RefreshCw, Download, ChevronDown, ChevronUp, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
@@ -78,6 +78,26 @@ export const BotOrdersLog = () => {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [railwayDrafts, setRailwayDrafts] = useState<Record<string, string>>({});
   const [savingRailwayId, setSavingRailwayId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const deleteRow = async (row: OrderRow) => {
+    const ok = window.confirm(
+      `Delete order "${row.bot_name}"? This will also delete any sibling rows from the same pack. This cannot be undone.`,
+    );
+    if (!ok) return;
+    setDeletingId(row.id);
+    // Delete children first (in case CASCADE isn't configured), then the row itself.
+    await supabase.from("bot_orders").delete().eq("parent_order_id", row.id);
+    const { error } = await supabase.from("bot_orders").delete().eq("id", row.id);
+    setDeletingId(null);
+    if (error) {
+      toast.error("Couldn't delete order", { description: error.message });
+      return;
+    }
+    toast.success(`Deleted "${row.bot_name}"`);
+    setRows((prev) => prev.filter((r) => r.id !== row.id && r.id !== row.id));
+    if (expandedId === row.id) setExpandedId(null);
+  };
 
   const saveRailway = async (row: OrderRow) => {
     const value = (railwayDrafts[row.id] ?? "").trim();
@@ -407,7 +427,7 @@ export const BotOrdersLog = () => {
                 <th className="text-right font-medium px-3 py-2">Total</th>
                 <th className="text-left font-medium px-3 py-2">Hosting</th>
                 <th className="text-left font-medium px-3 py-2">Status</th>
-                <th className="text-right font-medium px-3 py-2">Edit</th>
+                <th className="text-right font-medium px-3 py-2">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -456,9 +476,21 @@ export const BotOrdersLog = () => {
                         </Badge>
                       </td>
                       <td className="px-3 py-2 text-right">
-                        <Button variant="ghost" size="sm" onClick={() => startEdit(r)}>
-                          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => startEdit(r)}>
+                            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteRow(r)}
+                            disabled={deletingId === r.id}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            title="Delete order"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                     {expanded && draft && (
