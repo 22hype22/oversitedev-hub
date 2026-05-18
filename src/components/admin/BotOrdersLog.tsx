@@ -78,6 +78,26 @@ export const BotOrdersLog = () => {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [railwayDrafts, setRailwayDrafts] = useState<Record<string, string>>({});
   const [savingRailwayId, setSavingRailwayId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const deleteRow = async (row: OrderRow) => {
+    const ok = window.confirm(
+      `Delete order "${row.bot_name}"? This will also delete any sibling rows from the same pack. This cannot be undone.`,
+    );
+    if (!ok) return;
+    setDeletingId(row.id);
+    // Delete children first (in case CASCADE isn't configured), then the row itself.
+    await supabase.from("bot_orders").delete().eq("parent_order_id", row.id);
+    const { error } = await supabase.from("bot_orders").delete().eq("id", row.id);
+    setDeletingId(null);
+    if (error) {
+      toast.error("Couldn't delete order", { description: error.message });
+      return;
+    }
+    toast.success(`Deleted "${row.bot_name}"`);
+    setRows((prev) => prev.filter((r) => r.id !== row.id && r.id !== row.id));
+    if (expandedId === row.id) setExpandedId(null);
+  };
 
   const saveRailway = async (row: OrderRow) => {
     const value = (railwayDrafts[row.id] ?? "").trim();
