@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Bot, RefreshCw, Download, ChevronDown, ChevronUp, Save } from "lucide-react";
+import { Bot, RefreshCw, Download, ChevronDown, ChevronUp, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
