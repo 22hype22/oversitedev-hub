@@ -88,18 +88,23 @@ export const BotOrdersLog = () => {
   const [railwayDrafts, setRailwayDrafts] = useState<Record<string, string>>({});
   const [savingRailwayId, setSavingRailwayId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<OrderRow | null>(null);
+  const [deleteCode, setDeleteCode] = useState("");
 
-  const deleteRow = async (row: OrderRow) => {
-    const code = window.prompt(
-      `To remove "${row.bot_name}" from the dashboard, enter the confirmation code:`,
-    );
-    if (code === null) return; // cancelled
-    if (code !== "OversiteDelete") {
+  const openDelete = (row: OrderRow) => {
+    setDeleteTarget(row);
+    setDeleteCode("");
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    if (deleteCode !== "OversiteDelete") {
       toast.error("Wrong confirmation code", {
         description: "The order was not changed.",
       });
       return;
     }
+    const row = deleteTarget;
     setDeletingId(row.id);
     // Cancel children first (pack siblings), then the row itself.
     await supabase
@@ -120,6 +125,8 @@ export const BotOrdersLog = () => {
       prev.map((r) => (r.id === row.id ? { ...r, status: "cancelled" } : r)),
     );
     if (expandedId === row.id) setExpandedId(null);
+    setDeleteTarget(null);
+    setDeleteCode("");
   };
 
   const saveRailway = async (row: OrderRow) => {
