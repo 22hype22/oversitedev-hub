@@ -620,6 +620,24 @@ export const BotBuilder = () => {
     const baseField = isPack ? "scratch" : bases.join("+");
     const planMonths = paymentPlan === "full" ? null : parseInt(paymentPlan, 10);
     const installmentAmount = planMonths ? Number((finalTotal / planMonths).toFixed(2)) : null;
+
+    // Last-chance fallback: if the form fields are empty but the user has
+    // already linked Discord via notification prefs, use that so the order
+    // is never persisted without a discord_user_id.
+    let finalDiscordId = discordUserId.trim();
+    let finalDiscordName = discordUsername.trim();
+    if (!finalDiscordId) {
+      const { data: prefs } = await (supabase as any)
+        .from("user_notification_prefs")
+        .select("discord_user_id, discord_username")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (prefs?.discord_user_id) {
+        finalDiscordId = String(prefs.discord_user_id);
+        finalDiscordName = finalDiscordName || (prefs.discord_username ?? "");
+      }
+    }
+
     const { data: inserted, error } = await (supabase as any)
       .from("bot_orders")
       .insert({
