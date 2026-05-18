@@ -186,6 +186,12 @@ async function handleSetupIntentSucceeded(setupIntent: any, env: StripeEnv) {
     })
     .eq("id", orderId);
 
+  // Propagate preorder status to sibling rows (pack/multi orders).
+  await supabase
+    .from("bot_orders")
+    .update({ status: "preorder", updated_at: new Date().toISOString() })
+    .eq("parent_order_id", orderId);
+
   console.log("Preorder card saved for order:", orderId, "PM:", setupIntent.payment_method);
 }
 
