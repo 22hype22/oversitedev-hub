@@ -81,21 +81,35 @@ export const BotOrdersLog = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const deleteRow = async (row: OrderRow) => {
-    const ok = window.confirm(
-      `Delete order "${row.bot_name}"? This will also delete any sibling rows from the same pack. This cannot be undone.`,
+    const code = window.prompt(
+      `To remove "${row.bot_name}" from the dashboard, enter the confirmation code:`,
     );
-    if (!ok) return;
-    setDeletingId(row.id);
-    // Delete children first (in case CASCADE isn't configured), then the row itself.
-    await supabase.from("bot_orders").delete().eq("parent_order_id", row.id);
-    const { error } = await supabase.from("bot_orders").delete().eq("id", row.id);
-    setDeletingId(null);
-    if (error) {
-      toast.error("Couldn't delete order", { description: error.message });
+    if (code === null) return; // cancelled
+    if (code !== "OversiteDelete") {
+      toast.error("Wrong confirmation code", {
+        description: "The order was not changed.",
+      });
       return;
     }
-    toast.success(`Deleted "${row.bot_name}"`);
-    setRows((prev) => prev.filter((r) => r.id !== row.id && r.id !== row.id));
+    setDeletingId(row.id);
+    // Cancel children first (pack siblings), then the row itself.
+    await supabase
+      .from("bot_orders")
+      .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+      .eq("parent_order_id", row.id);
+    const { error } = await supabase
+      .from("bot_orders")
+      .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+      .eq("id", row.id);
+    setDeletingId(null);
+    if (error) {
+      toast.error("Couldn't cancel order", { description: error.message });
+      return;
+    }
+    toast.success(`"${row.bot_name}" cancelled and removed from dashboard`);
+    setRows((prev) =>
+      prev.map((r) => (r.id === row.id ? { ...r, status: "cancelled" } : r)),
+    );
     if (expandedId === row.id) setExpandedId(null);
   };
 
