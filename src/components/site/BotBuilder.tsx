@@ -300,6 +300,24 @@ export const BotBuilder = () => {
   const [notes, setNotes] = useState("");
   const [discordUserId, setDiscordUserId] = useState("");
   const [discordUsername, setDiscordUsername] = useState("");
+
+  // Prefill Discord identity from the user's linked notification prefs so
+  // orders always carry a discord_user_id when the user has already linked.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("user_notification_prefs")
+        .select("discord_user_id, discord_username")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      setDiscordUserId((cur) => cur || (data.discord_user_id ?? ""));
+      setDiscordUsername((cur) => cur || (data.discord_username ?? ""));
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
   const [showAllAddons, setShowAllAddons] = useState<Record<string, boolean>>({});
   const [showPayment, setShowPayment] = useState(false);
   const [payFullName, setPayFullName] = useState("");
@@ -602,6 +620,24 @@ export const BotBuilder = () => {
     const baseField = isPack ? "scratch" : bases.join("+");
     const planMonths = paymentPlan === "full" ? null : parseInt(paymentPlan, 10);
     const installmentAmount = planMonths ? Number((finalTotal / planMonths).toFixed(2)) : null;
+
+    // Last-chance fallback: if the form fields are empty but the user has
+    // already linked Discord via notification prefs, use that so the order
+    // is never persisted without a discord_user_id.
+    let finalDiscordId = discordUserId.trim();
+    let finalDiscordName = discordUsername.trim();
+    if (!finalDiscordId) {
+      const { data: prefs } = await (supabase as any)
+        .from("user_notification_prefs")
+        .select("discord_user_id, discord_username")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (prefs?.discord_user_id) {
+        finalDiscordId = String(prefs.discord_user_id);
+        finalDiscordName = finalDiscordName || (prefs.discord_username ?? "");
+      }
+    }
+
     const { data: inserted, error } = await (supabase as any)
       .from("bot_orders")
       .insert({
@@ -626,8 +662,8 @@ export const BotBuilder = () => {
         discount_code: appliedDiscount?.code ?? null,
         discount_amount: discountAmount,
         engine_version: engineVersion,
-        discord_user_id: discordUserId.trim() || null,
-        discord_username: discordUsername.trim() || null,
+        discord_user_id: finalDiscordId || null,
+        discord_username: finalDiscordName || null,
       })
       .select("id")
       .single();
