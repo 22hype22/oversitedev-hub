@@ -360,6 +360,7 @@ export const BotOrdersLog = () => {
   }, [rows]);
 
   return (
+    <>
     <Card className="p-6">
       <div className="flex items-start gap-3 mb-5">
         <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0">
