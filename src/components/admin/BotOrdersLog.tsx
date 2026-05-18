@@ -13,6 +13,15 @@ import {
 import { Bot, RefreshCw, Download, ChevronDown, ChevronUp, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { BOT_BASE_LABELS } from "@/lib/botCatalog";
 
@@ -79,18 +88,23 @@ export const BotOrdersLog = () => {
   const [railwayDrafts, setRailwayDrafts] = useState<Record<string, string>>({});
   const [savingRailwayId, setSavingRailwayId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<OrderRow | null>(null);
+  const [deleteCode, setDeleteCode] = useState("");
 
-  const deleteRow = async (row: OrderRow) => {
-    const code = window.prompt(
-      `To remove "${row.bot_name}" from the dashboard, enter the confirmation code:`,
-    );
-    if (code === null) return; // cancelled
-    if (code !== "OversiteDelete") {
+  const openDelete = (row: OrderRow) => {
+    setDeleteTarget(row);
+    setDeleteCode("");
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    if (deleteCode !== "OversiteDelete") {
       toast.error("Wrong confirmation code", {
         description: "The order was not changed.",
       });
       return;
     }
+    const row = deleteTarget;
     setDeletingId(row.id);
     // Cancel children first (pack siblings), then the row itself.
     await supabase
@@ -111,6 +125,8 @@ export const BotOrdersLog = () => {
       prev.map((r) => (r.id === row.id ? { ...r, status: "cancelled" } : r)),
     );
     if (expandedId === row.id) setExpandedId(null);
+    setDeleteTarget(null);
+    setDeleteCode("");
   };
 
   const saveRailway = async (row: OrderRow) => {
@@ -344,6 +360,7 @@ export const BotOrdersLog = () => {
   }, [rows]);
 
   return (
+    <>
     <Card className="p-6">
       <div className="flex items-start gap-3 mb-5">
         <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0">
@@ -497,7 +514,7 @@ export const BotOrdersLog = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => deleteRow(r)}
+                            onClick={() => openDelete(r)}
                             disabled={deletingId === r.id}
                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
                             title="Delete order"
@@ -642,5 +659,66 @@ export const BotOrdersLog = () => {
         </div>
       )}
     </Card>
+
+    <Dialog
+      open={!!deleteTarget}
+      onOpenChange={(o) => {
+        if (!o) {
+          setDeleteTarget(null);
+          setDeleteCode("");
+        }
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="text-destructive">
+            Remove bot from dashboard?
+          </DialogTitle>
+          <DialogDescription>
+            This will set{" "}
+            <span className="font-semibold text-foreground">
+              "{deleteTarget?.bot_name}"
+            </span>{" "}
+            (and any pack siblings) to <span className="font-mono">cancelled</span>,
+            removing it from the user's dashboard. Enter the confirmation code to
+            continue.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="bot-delete-code">Confirmation code</Label>
+          <Input
+            id="bot-delete-code"
+            type="password"
+            autoFocus
+            value={deleteCode}
+            onChange={(e) => setDeleteCode(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") confirmDelete();
+            }}
+            placeholder="Enter code"
+          />
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setDeleteTarget(null);
+              setDeleteCode("");
+            }}
+            disabled={!!deletingId}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={confirmDelete}
+            disabled={!!deletingId}
+          >
+            {deletingId ? "Removing…" : "Confirm Remove"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 };
