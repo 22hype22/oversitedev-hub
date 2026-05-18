@@ -500,13 +500,7 @@ export const BotBuilder = () => {
         if (!next.includes(activePackTab)) setActivePackTab(next[0]);
         return next;
       }
-      // Add — cap at 2 single bots
-      if (prev.length >= 2) {
-        sonnerToast.info("Two-bot limit", {
-          description: "You can pick up to two bots — or grab the All-in-One Pack for all three.",
-        });
-        return prev;
-      }
+      // Add — no cap; users can pick as many bots as they want
       const next = [...prev, id];
       setActivePackTab(next[0]);
       return next;
