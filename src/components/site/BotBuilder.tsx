@@ -300,6 +300,24 @@ export const BotBuilder = () => {
   const [notes, setNotes] = useState("");
   const [discordUserId, setDiscordUserId] = useState("");
   const [discordUsername, setDiscordUsername] = useState("");
+
+  // Prefill Discord identity from the user's linked notification prefs so
+  // orders always carry a discord_user_id when the user has already linked.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("user_notification_prefs")
+        .select("discord_user_id, discord_username")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      setDiscordUserId((cur) => cur || (data.discord_user_id ?? ""));
+      setDiscordUsername((cur) => cur || (data.discord_username ?? ""));
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
   const [showAllAddons, setShowAllAddons] = useState<Record<string, boolean>>({});
   const [showPayment, setShowPayment] = useState(false);
   const [payFullName, setPayFullName] = useState("");
