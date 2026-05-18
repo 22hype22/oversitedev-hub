@@ -513,7 +513,7 @@ export const BotOrdersLog = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => deleteRow(r)}
+                            onClick={() => openDelete(r)}
                             disabled={deletingId === r.id}
                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
                             title="Delete order"
