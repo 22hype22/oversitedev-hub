@@ -666,6 +666,7 @@ export type Database = {
           monthly_hosting: boolean
           notes: string | null
           paid_at: string | null
+          parent_order_id: string | null
           payment_plan: string
           plan_months: number | null
           purchase_id: string | null
@@ -715,6 +716,7 @@ export type Database = {
           monthly_hosting?: boolean
           notes?: string | null
           paid_at?: string | null
+          parent_order_id?: string | null
           payment_plan?: string
           plan_months?: number | null
           purchase_id?: string | null
@@ -764,6 +766,7 @@ export type Database = {
           monthly_hosting?: boolean
           notes?: string | null
           paid_at?: string | null
+          parent_order_id?: string | null
           payment_plan?: string
           plan_months?: number | null
           purchase_id?: string | null
@@ -782,7 +785,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bot_orders_parent_order_id_fkey"
+            columns: ["parent_order_id"]
+            isOneToOne: false
+            referencedRelation: "bot_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bot_pending_discounts: {
         Row: {

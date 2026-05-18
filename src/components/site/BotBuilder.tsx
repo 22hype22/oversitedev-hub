@@ -665,6 +665,53 @@ export const BotBuilder = () => {
       sonnerToast.error("Couldn't save your order", { description: error?.message });
       return null;
     }
+
+    // For a pack OR multi-bot order, create one sibling row per additional
+    // bot identity, linked to the parent. Each child appears as its own
+    // entry in the dashboard. Payment lives on the parent row; siblings
+    // carry $0 and are status-propagated by the webhook.
+    if (usesPackTabs) {
+      const tabs = visibleIdentityTabs;
+      const extras = tabs.slice(1); // tabs[0] is the primary already inserted
+      if (extras.length > 0) {
+        const siblingRows = extras.map((t) => {
+          const ident = packIdentities[t.id] ?? { ...EMPTY_IDENTITY };
+          return {
+            user_id: user.id,
+            parent_order_id: inserted.id,
+            bot_name: (ident.name || `${t.label}`).trim(),
+            bot_description: ident.description?.trim() || null,
+            icon_url: ident.icon,
+            banner_url: ident.banner,
+            // Sibling row's base is the specific category, not "scratch"
+            base: t.id,
+            addons,
+            monthly_hosting: monthlyHosting,
+            notes: `Child of pack/multi order ${inserted.id}`,
+            total_amount: 0,
+            currency: "usd",
+            status: "pending_payment",
+            submitted_at: new Date().toISOString(),
+            payment_plan: planMonths ? "installments" : "full",
+            plan_months: planMonths,
+            installment_amount: null,
+            discount_code: null,
+            discount_amount: 0,
+            engine_version: engineVersion,
+            discord_user_id: finalDiscordId || null,
+            discord_username: finalDiscordName || null,
+          };
+        });
+        const { error: childErr } = await (supabase as any)
+          .from("bot_orders")
+          .insert(siblingRows);
+        if (childErr) {
+          // Don't fail the whole order — log so we can backfill if needed.
+          console.error("Failed to insert sibling bot rows:", childErr);
+        }
+      }
+    }
+
     // Best-effort: bump times_used on the code (non-blocking).
     if (appliedDiscount) {
       const { data: row } = await (supabase as any)
