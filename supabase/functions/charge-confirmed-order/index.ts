@@ -94,6 +94,16 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq("id", order.id);
+      // Propagate to sibling rows (pack / multi-bot orders).
+      await supabaseAdmin
+        .from("bot_orders")
+        .update({
+          status: "paid",
+          paid_at: new Date().toISOString(),
+          charged_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("parent_order_id", order.id);
       return new Response(JSON.stringify({ ok: true, paymentIntentId: intent.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
