@@ -87,9 +87,10 @@ const STATUS_CLASS: Record<CommandRow["status"], string> = {
 
 interface BotControlsPanelProps {
   botId: string;
+  onCommandSent?: () => void;
 }
 
-export function BotControlsPanel({ botId }: BotControlsPanelProps) {
+export function BotControlsPanel({ botId, onCommandSent }: BotControlsPanelProps) {
   const [history, setHistory] = useState<CommandRow[]>([]);
   const [pending, setPending] = useState<Action | null>(null);
   const [confirm, setConfirm] = useState<Action | null>(null);
@@ -231,6 +232,8 @@ export function BotControlsPanel({ botId }: BotControlsPanelProps) {
       refresh();
       return;
     }
+
+    onCommandSent?.();
 
     if (action === "stop" && stopCommandId) {
       toast.success("Shutting down… the bot will go offline shortly.");
