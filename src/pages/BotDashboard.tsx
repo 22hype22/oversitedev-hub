@@ -608,7 +608,7 @@ const BotSection = ({
         )}
       </div>
 
-      {!bot.isDemo && <BotControlsPanel botId={bot.id} />}
+      {!bot.isDemo && <BotControlsPanel botId={bot.id} onCommandSent={reloadHealth} />}
 
       {isOffline && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center text-xs text-amber-300 font-medium">
