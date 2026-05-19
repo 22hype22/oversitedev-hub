@@ -915,6 +915,8 @@ const BotDashboard = () => {
 
         <FixesBar />
 
+        <HostingPastDueBanner />
+
         <div className="mb-8 space-y-6">
           <RedeemFreeCodeBox
             bots={dashboardBots}
