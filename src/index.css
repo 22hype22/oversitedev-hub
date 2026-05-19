@@ -197,3 +197,43 @@ body.marketing-suspended header.fixed {
     top: 72px;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Read-only role scope
+   Applied around bot content when the current viewer is a team member
+   without the `edit_bot_config` permission (e.g. Viewer role). Disables
+   editing UI but leaves navigation (collapsibles, tabs, links, scrolling)
+   working so they can still browse the dashboard.
+   Buttons marked with [data-readonly-allow] (e.g. nav, expand/collapse,
+   copy-to-clipboard) remain interactive. Everything else is blocked.
+   ───────────────────────────────────────────────────────────────────────── */
+.readonly-scope :is(input, textarea, select) {
+  pointer-events: none !important;
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+}
+.readonly-scope :is(
+  [role="switch"],
+  [role="checkbox"],
+  [role="combobox"],
+  [role="radio"],
+  [role="slider"],
+  [role="menuitemcheckbox"],
+  [role="menuitemradio"],
+  [contenteditable="true"]
+) {
+  pointer-events: none !important;
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+}
+.readonly-scope button:not([data-readonly-allow]):not([data-state]):not([aria-haspopup="dialog"] *):not([role="tab"]) {
+  pointer-events: none !important;
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+}
+.readonly-scope [data-readonly-allow] {
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  cursor: pointer !important;
+}
+

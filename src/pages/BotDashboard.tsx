@@ -76,6 +76,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { HostingPastDueBanner } from "@/components/dashboard/HostingPastDueBanner";
+import { ReadOnlyBotScope } from "@/components/dashboard/ReadOnlyBotScope";
 import { useHostingSubscriptionSync } from "@/hooks/useHostingSubscriptionSync";
 
 /** Add-on ids grouped by category — used to render config boxes per group.
@@ -567,6 +568,7 @@ const BotSection = ({
       <div className="rounded-lg border border-border bg-card/40">
         <button
           type="button"
+          data-readonly-allow
           onClick={(e) => {
             e.stopPropagation();
             setSummaryOpen((v) => !v);
@@ -955,20 +957,25 @@ const BotDashboard = () => {
                     isDimmed ? "opacity-40" : "opacity-100"
                   } ${showBotRing ? "ring-2 ring-primary/40 rounded-2xl -m-2 p-2" : ""}`}
                 >
-                  <BotSection
-                    bot={bot}
-                    allBots={dashboardBots}
-                    userId={user.id}
-                    freePeriod={freePeriods[bot.id]}
-                    onCancel={setCancelTarget}
-                    onAddAddons={setAddonsTarget}
-                    searchQuery={search}
-                    highlightedAddonId={isMatch ? matchedAddonId : null}
-                    onReload={() => {
-                      reload();
-                      reloadFreePeriods();
-                    }}
-                  />
+                  <ReadOnlyBotScope
+                    ownerUserId={bot.ownerUserId}
+                    viaTeam={bot.viaTeam}
+                  >
+                    <BotSection
+                      bot={bot}
+                      allBots={dashboardBots}
+                      userId={user.id}
+                      freePeriod={freePeriods[bot.id]}
+                      onCancel={setCancelTarget}
+                      onAddAddons={setAddonsTarget}
+                      searchQuery={search}
+                      highlightedAddonId={isMatch ? matchedAddonId : null}
+                      onReload={() => {
+                        reload();
+                        reloadFreePeriods();
+                      }}
+                    />
+                  </ReadOnlyBotScope>
                 </div>
               );
             })}
