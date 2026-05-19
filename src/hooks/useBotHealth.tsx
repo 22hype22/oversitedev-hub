@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export type BotHealth = {
@@ -16,29 +16,60 @@ export type BotHealth = {
   updated_at?: string | null;
 };
 
+const VALID_EFFECTIVE_STATUSES = new Set([
+  "online",
+  "offline",
+  "starting",
+  "stopping",
+  "crashed",
+  "updating",
+  "suspended",
+]);
+
+const isValidBotHealth = (value: unknown): value is BotHealth => {
+  if (!value || typeof value !== "object") return false;
+  const health = value as Partial<BotHealth>;
+  return (
+    typeof health.bot_id === "string" &&
+    typeof health.status === "string" &&
+    typeof health.effective_status === "string" &&
+    VALID_EFFECTIVE_STATUSES.has(health.effective_status)
+  );
+};
+
 export const useBotHealth = (botId: string | null) => {
   const [health, setHealth] = useState<BotHealth | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastKnownGoodRef = useRef<BotHealth | null>(null);
 
   const load = useCallback(async () => {
     if (!botId) {
+      lastKnownGoodRef.current = null;
       setHealth(null);
       setLoading(false);
       return;
     }
-    const { data, error } = await (supabase as any).rpc("get_bot_health", {
+    const { data, error } = await supabase.rpc("get_bot_health", {
       _bot_id: botId,
     });
-    if (!error && data) setHealth(data as BotHealth);
+    if (!error && isValidBotHealth(data)) {
+      lastKnownGoodRef.current = data;
+      setHealth(data);
+    } else if (lastKnownGoodRef.current) {
+      setHealth(lastKnownGoodRef.current);
+    }
     setLoading(false);
   }, [botId]);
 
   useEffect(() => {
+    lastKnownGoodRef.current = null;
+    setHealth(null);
+    setLoading(Boolean(botId));
     load();
     // Refresh every 30s so "last seen" stays fresh and stale flips quickly
     const t = setInterval(load, 30_000);
     return () => clearInterval(t);
-  }, [load]);
+  }, [botId, load]);
 
   return { health, loading, reload: load };
 };
