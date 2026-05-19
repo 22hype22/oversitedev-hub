@@ -494,13 +494,20 @@ const BotSection = ({
     </>
   );
 
+  // Effective perms on this bot's owner account. For non-team viewers
+  // (owners, admins, support sessions) this resolves to full perms.
+  const { permissions: teamPerms } = useTeamRole(bot.viaTeam ? bot.ownerUserId : null);
+  const canEditBilling = !bot.viaTeam || teamPerms.edit_billing;
+
   const headerActions = !bot.isDemo ? (
     <>
-      <Button variant="outline" size="sm" onClick={() => onAddAddons(bot)}>
-        <Plus className="h-4 w-4 mr-1.5" />
-        Add add-ons
-      </Button>
-      {cancellable && (
+      {canEditBilling && (
+        <Button variant="outline" size="sm" onClick={() => onAddAddons(bot)}>
+          <Plus className="h-4 w-4 mr-1.5" />
+          Add add-ons
+        </Button>
+      )}
+      {cancellable && canEditBilling && (
         <Button
           variant="outline"
           size="sm"
