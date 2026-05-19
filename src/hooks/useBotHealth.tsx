@@ -37,10 +37,46 @@ const isValidBotHealth = (value: unknown): value is BotHealth => {
   );
 };
 
+const CACHE_PREFIX = "bot-health-cache:";
+const CACHE_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
+
+const readCache = (botId: string): BotHealth | null => {
+  try {
+    const raw = localStorage.getItem(CACHE_PREFIX + botId);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { savedAt: number; value: BotHealth };
+    if (!parsed || typeof parsed.savedAt !== "number") return null;
+    if (Date.now() - parsed.savedAt > CACHE_MAX_AGE_MS) return null;
+    if (!isValidBotHealth(parsed.value)) return null;
+    return parsed.value;
+  } catch {
+    return null;
+  }
+};
+
+const writeCache = (botId: string, value: BotHealth) => {
+  try {
+    localStorage.setItem(
+      CACHE_PREFIX + botId,
+      JSON.stringify({ savedAt: Date.now(), value }),
+    );
+  } catch {
+    /* ignore quota errors */
+  }
+};
+
 export const useBotHealth = (botId: string | null) => {
-  const [health, setHealth] = useState<BotHealth | null>(null);
-  const [loading, setLoading] = useState(true);
-  const lastKnownGoodRef = useRef<BotHealth | null>(null);
+  // Seed health from a recent cached value so that a refresh doesn't briefly
+  // flash a "locked / offline" state for team members before the first poll
+  // resolves. We only treat the bot as truly offline once we have a fresh,
+  // confirmed offline status from the server.
+  const [health, setHealth] = useState<BotHealth | null>(() =>
+    botId ? readCache(botId) : null,
+  );
+  const [loading, setLoading] = useState(Boolean(botId));
+  const lastKnownGoodRef = useRef<BotHealth | null>(
+    botId ? readCache(botId) : null,
+  );
 
   const load = useCallback(async () => {
     if (!botId) {
@@ -54,17 +90,27 @@ export const useBotHealth = (botId: string | null) => {
     });
     if (!error && isValidBotHealth(data)) {
       lastKnownGoodRef.current = data;
+      writeCache(botId, data);
       setHealth(data);
     } else if (lastKnownGoodRef.current) {
+      // Transient RPC error — keep the last known good status rather than
+      // downgrading to null (which the dashboard treats as "loading").
       setHealth(lastKnownGoodRef.current);
     }
     setLoading(false);
   }, [botId]);
 
   useEffect(() => {
-    lastKnownGoodRef.current = null;
-    setHealth(null);
-    setLoading(Boolean(botId));
+    if (!botId) {
+      lastKnownGoodRef.current = null;
+      setHealth(null);
+      setLoading(false);
+      return;
+    }
+    const cached = readCache(botId);
+    lastKnownGoodRef.current = cached;
+    setHealth(cached);
+    setLoading(true);
     load();
     // Refresh every 30s so "last seen" stays fresh and stale flips quickly
     const t = setInterval(load, 30_000);
