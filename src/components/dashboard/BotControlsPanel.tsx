@@ -121,42 +121,64 @@ export function BotControlsPanel({ botId, isOffline = false, onCommandSent }: Bo
     let errorMsg: string | null = null;
 
     try {
-      const { data, error } = await supabase.functions.invoke("bot-railway-action", {
-        body: { botId, action },
-      });
-      if (error) {
-        // supabase.functions.invoke returns data=null on non-2xx; the real
-        // error body lives on error.context (a Response). Pull it out so we
-        // surface "Bot not linked to Railway", "Forbidden", etc. instead of
-        // a generic "non-2xx status code".
-        let bodyMsg: string | null = null;
-        const ctx = (error as { context?: Response }).context;
-        if (ctx && typeof ctx.text === "function") {
-          try {
-            const raw = await ctx.text();
-            try {
-              const parsed = JSON.parse(raw) as { error?: string };
-              bodyMsg = parsed?.error ?? raw;
-            } catch {
-              bodyMsg = raw;
-            }
-          } catch {
-            /* ignore */
+      if (action === "stop") {
+        // Stop is handled identically for Protection / Support / Utilities by
+        // inserting a `shutdown` row into bot_commands. The worker picks it up
+        // and exits cleanly. The edge-function/Railway-scale path was flaky
+        // for Support and Utilities.
+        const { data: userData } = await supabase.auth.getUser();
+        const uid = userData.user?.id;
+        if (!uid) {
+          errorMsg = "Not signed in";
+        } else {
+          const { error } = await supabase.from("bot_commands").insert({
+            bot_id: botId,
+            user_id: uid,
+            requested_by: uid,
+            action: "shutdown",
+            status: "pending",
+          });
+          if (error) {
+            errorMsg = error.message;
+            console.error("[bot_commands.shutdown] insert failed", { botId, error });
+          } else {
+            ok = true;
           }
         }
-        errorMsg =
-          bodyMsg ??
-          (data as { error?: string } | null)?.error ??
-          error.message ??
-          "Request failed";
-        console.error("[bot-railway-action] invoke failed", { action, botId, errorMsg, error });
       } else {
-        const result = data as { ok?: boolean; error?: string } | null;
-        if (!result?.ok) {
-          errorMsg = result?.error ?? "Failed to perform action.";
-          console.error("[bot-railway-action] returned not-ok", { action, botId, result });
+        const { data, error } = await supabase.functions.invoke("bot-railway-action", {
+          body: { botId, action },
+        });
+        if (error) {
+          let bodyMsg: string | null = null;
+          const ctx = (error as { context?: Response }).context;
+          if (ctx && typeof ctx.text === "function") {
+            try {
+              const raw = await ctx.text();
+              try {
+                const parsed = JSON.parse(raw) as { error?: string };
+                bodyMsg = parsed?.error ?? raw;
+              } catch {
+                bodyMsg = raw;
+              }
+            } catch {
+              /* ignore */
+            }
+          }
+          errorMsg =
+            bodyMsg ??
+            (data as { error?: string } | null)?.error ??
+            error.message ??
+            "Request failed";
+          console.error("[bot-railway-action] invoke failed", { action, botId, errorMsg, error });
         } else {
-          ok = true;
+          const result = data as { ok?: boolean; error?: string } | null;
+          if (!result?.ok) {
+            errorMsg = result?.error ?? "Failed to perform action.";
+            console.error("[bot-railway-action] returned not-ok", { action, botId, result });
+          } else {
+            ok = true;
+          }
         }
       }
     } catch (e) {
