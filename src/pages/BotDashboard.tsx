@@ -78,6 +78,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { HostingPastDueBanner } from "@/components/dashboard/HostingPastDueBanner";
 import { ReadOnlyBotScope } from "@/components/dashboard/ReadOnlyBotScope";
+import { useTeamRole } from "@/hooks/useTeamRole";
 import { useHostingSubscriptionSync } from "@/hooks/useHostingSubscriptionSync";
 
 /** Add-on ids grouped by category — used to render config boxes per group.
@@ -494,13 +495,20 @@ const BotSection = ({
     </>
   );
 
+  // Effective perms on this bot's owner account. For non-team viewers
+  // (owners, admins, support sessions) this resolves to full perms.
+  const { permissions: teamPerms } = useTeamRole(bot.viaTeam ? bot.ownerUserId : null);
+  const canEditBilling = !bot.viaTeam || teamPerms.edit_billing;
+
   const headerActions = !bot.isDemo ? (
     <>
-      <Button variant="outline" size="sm" onClick={() => onAddAddons(bot)}>
-        <Plus className="h-4 w-4 mr-1.5" />
-        Add add-ons
-      </Button>
-      {cancellable && (
+      {canEditBilling && (
+        <Button variant="outline" size="sm" onClick={() => onAddAddons(bot)}>
+          <Plus className="h-4 w-4 mr-1.5" />
+          Add add-ons
+        </Button>
+      )}
+      {cancellable && canEditBilling && (
         <Button
           variant="outline"
           size="sm"
@@ -692,7 +700,7 @@ const BotSection = ({
             <p className="text-sm text-muted-foreground">
               No add-ons on this bot yet. Add one to unlock its configuration box.
             </p>
-            {!bot.isDemo && (
+            {!bot.isDemo && canEditBilling && (
               <Button
                 variant="outline"
                 size="sm"

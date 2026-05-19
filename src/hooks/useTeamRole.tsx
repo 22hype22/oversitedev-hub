@@ -35,6 +35,24 @@ export const ROLE_LABEL: Record<TeamRole, string> = {
   viewer: "Viewer",
 };
 
+/** Higher rank = more authority. Used to gate invite/assign-role choices. */
+export const ROLE_RANK: Record<TeamRole, number> = {
+  owner: 100,
+  co_owner: 80,
+  admin: 60,
+  moderator: 40,
+  viewer: 20,
+};
+
+/** Returns the list of roles the given role is allowed to invite/assign. */
+export function rolesAssignableBy(role: TeamRole | null): TeamRole[] {
+  if (!role) return [];
+  const ceiling = ROLE_RANK[role];
+  // Owner can assign anything except owner (transfer ownership is a separate flow).
+  const candidates: TeamRole[] = ["co_owner", "admin", "moderator", "viewer"];
+  return candidates.filter((r) => ROLE_RANK[r] <= ceiling);
+}
+
 /**
  * Returns the current user's effective role + permissions for the given owner account.
  * If ownerUserId is undefined, defaults to the current user (i.e. they're the owner).

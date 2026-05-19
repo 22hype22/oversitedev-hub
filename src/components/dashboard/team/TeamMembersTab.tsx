@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Loader2, UserPlus, Crown, Trash2, Copy, ArrowRightLeft } from "lucide-react";
-import { ROLE_LABEL, type TeamRole } from "@/hooks/useTeamRole";
+import { ROLE_LABEL, ROLE_RANK, rolesAssignableBy, type TeamRole } from "@/hooks/useTeamRole";
 
 type Member = {
   id: string;
@@ -32,18 +32,30 @@ type Member = {
   accepted_at: string | null;
 };
 
-const INVITABLE_ROLES: TeamRole[] = ["co_owner", "admin", "moderator", "viewer"];
-
 export function TeamMembersTab({
   ownerUserId,
   viewerIsOwner = true,
-}: { ownerUserId?: string | null; viewerIsOwner?: boolean } = {}) {
+  viewerRole = null,
+  canManageTeam = true,
+  canTransferOwnership = true,
+}: {
+  ownerUserId?: string | null;
+  viewerIsOwner?: boolean;
+  viewerRole?: TeamRole | null;
+  canManageTeam?: boolean;
+  canTransferOwnership?: boolean;
+} = {}) {
   const { user } = useAuth();
   const targetOwnerId = ownerUserId ?? user?.id ?? null;
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [transferTarget, setTransferTarget] = useState<Member | null>(null);
+
+  // Roles this viewer is allowed to assign / invite at.
+  const effectiveViewerRole: TeamRole = viewerIsOwner ? "owner" : (viewerRole ?? "viewer");
+  const assignableRoles = rolesAssignableBy(effectiveViewerRole);
+  const viewerRank = ROLE_RANK[effectiveViewerRole];
 
   const reload = useCallback(async () => {
     if (!targetOwnerId) return;
@@ -76,12 +88,16 @@ export function TeamMembersTab({
             Invite people to help manage your bots. Members sign in with the email you invite.
           </p>
         </div>
-        {viewerIsOwner && (
+        {canManageTeam && (
           <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
             <DialogTrigger asChild>
               <Button size="sm"><UserPlus className="h-4 w-4 mr-1.5" />Invite member</Button>
             </DialogTrigger>
-            <InviteDialog onClose={() => setInviteOpen(false)} onInvited={reload} />
+            <InviteDialog
+              onClose={() => setInviteOpen(false)}
+              onInvited={reload}
+              assignableRoles={assignableRoles}
+            />
           </Dialog>
         )}
       </div>
@@ -120,7 +136,7 @@ export function TeamMembersTab({
                       <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30">
                         {ROLE_LABEL.owner}
                       </Badge>
-                    ) : !viewerIsOwner ? (
+                    ) : !canManageTeam ? (
                       <Badge variant="outline">{ROLE_LABEL[m.role] ?? m.role}</Badge>
                     ) : (
                       <Select
@@ -139,9 +155,17 @@ export function TeamMembersTab({
                       >
                         <SelectTrigger className="h-8 w-[130px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {INVITABLE_ROLES.map((r) => (
+                          {assignableRoles.map((r) => (
                             <SelectItem key={r} value={r}>{ROLE_LABEL[r]}</SelectItem>
                           ))}
+                          {/* Show the member's current role even if it's above
+                              this viewer's assignable ceiling, but as a disabled
+                              option so they can see it but not pick it. */}
+                          {!assignableRoles.includes(m.role) && (
+                            <SelectItem key={m.role} value={m.role} disabled>
+                              {ROLE_LABEL[m.role]} (above your level)
+                            </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     )}
@@ -176,30 +200,34 @@ export function TeamMembersTab({
                       : `Invited ${new Date(m.invited_at).toLocaleDateString()}`}
                   </TableCell>
                   <TableCell className="text-right">
-                    {!isOwnerRow && viewerIsOwner && (
+                    {!isOwnerRow && (canManageTeam || canTransferOwnership) && (
                       <div className="flex items-center justify-end gap-1">
-                        <Button
-                          size="sm" variant="ghost" className="h-8"
-                          disabled={!m.accepted_at}
-                          onClick={() => setTransferTarget(m)}
-                          title={m.accepted_at ? "Transfer ownership to this member" : "Member must accept invite first"}
-                        >
-                          <ArrowRightLeft className="h-3.5 w-3.5 mr-1" />Transfer
-                        </Button>
-                        <Button
-                          size="sm" variant="ghost" className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={async () => {
-                            const { data, error } = await (supabase as any).rpc("team_remove_member", { _member_id: m.id });
-                            if (error || !data?.ok) {
-                              toast.error(error?.message ?? data?.error ?? "Failed");
-                              return;
-                            }
-                            toast.success("Member removed");
-                            reload();
-                          }}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {canTransferOwnership && (
+                          <Button
+                            size="sm" variant="ghost" className="h-8"
+                            disabled={!m.accepted_at}
+                            onClick={() => setTransferTarget(m)}
+                            title={m.accepted_at ? "Transfer ownership to this member" : "Member must accept invite first"}
+                          >
+                            <ArrowRightLeft className="h-3.5 w-3.5 mr-1" />Transfer
+                          </Button>
+                        )}
+                        {canManageTeam && ROLE_RANK[m.role] <= viewerRank && (
+                          <Button
+                            size="sm" variant="ghost" className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={async () => {
+                              const { data, error } = await (supabase as any).rpc("team_remove_member", { _member_id: m.id });
+                              if (error || !data?.ok) {
+                                toast.error(error?.message ?? data?.error ?? "Failed");
+                                return;
+                              }
+                              toast.success("Member removed");
+                              reload();
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     )}
                   </TableCell>
@@ -248,9 +276,19 @@ export function TeamMembersTab({
   );
 }
 
-function InviteDialog({ onClose, onInvited }: { onClose: () => void; onInvited: () => void }) {
+function InviteDialog({
+  onClose,
+  onInvited,
+  assignableRoles,
+}: {
+  onClose: () => void;
+  onInvited: () => void;
+  assignableRoles: TeamRole[];
+}) {
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<TeamRole>("viewer");
+  const [role, setRole] = useState<TeamRole>(
+    assignableRoles.includes("viewer") ? "viewer" : (assignableRoles[assignableRoles.length - 1] ?? "viewer"),
+  );
   const [submitting, setSubmitting] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
 
@@ -314,7 +352,7 @@ function InviteDialog({ onClose, onInvited }: { onClose: () => void; onInvited: 
             <Select value={role} onValueChange={(v) => setRole(v as TeamRole)}>
               <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {INVITABLE_ROLES.map((r) => (
+                {assignableRoles.map((r) => (
                   <SelectItem key={r} value={r}>{ROLE_LABEL[r]}</SelectItem>
                 ))}
               </SelectContent>
