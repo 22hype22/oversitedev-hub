@@ -13,6 +13,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+// All four actions go through `bot-railway-action`, which scales the bot's
+// Railway service (replicas 0/1) + redeploys as needed. This is base-agnostic
+// — it works for Protection, Support, and Utilities bots identically because
+// it operates on the order's `railway_service_id`, not on any per-bot worker
+// that has to claim a `bot_commands` row.
 import { Play, Square, RotateCw, Download, Power } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
