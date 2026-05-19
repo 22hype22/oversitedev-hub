@@ -276,9 +276,19 @@ export function TeamMembersTab({
   );
 }
 
-function InviteDialog({ onClose, onInvited }: { onClose: () => void; onInvited: () => void }) {
+function InviteDialog({
+  onClose,
+  onInvited,
+  assignableRoles,
+}: {
+  onClose: () => void;
+  onInvited: () => void;
+  assignableRoles: TeamRole[];
+}) {
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<TeamRole>("viewer");
+  const [role, setRole] = useState<TeamRole>(
+    assignableRoles.includes("viewer") ? "viewer" : (assignableRoles[assignableRoles.length - 1] ?? "viewer"),
+  );
   const [submitting, setSubmitting] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
 
