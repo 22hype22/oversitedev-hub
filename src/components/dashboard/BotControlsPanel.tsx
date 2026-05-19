@@ -110,42 +110,62 @@ export function BotControlsPanel({ botId }: BotControlsPanelProps) {
 
   const send = async (action: Action) => {
     setPending(action);
-    let data: any = null;
-    let error: any = null;
+    let ok = false;
+    let errorMsg: string | null = null;
 
-    if (action === "stop") {
-      const insertRes = await supabase.from("bot_commands").insert({
-        bot_id: botId,
-        action: "shutdown",
-        status: "pending",
-        payload: {},
-      });
-      error = insertRes.error;
-      data = insertRes.error ? null : { ok: true };
-    } else {
-      const invokeRes = await supabase.functions.invoke("bot-railway-action", {
-        body: { botId, action },
-      });
-      data = invokeRes.data;
-      error = invokeRes.error;
+    try {
+      if (action === "stop") {
+        const { data: userData } = await supabase.auth.getUser();
+        const uid = userData.user?.id;
+        if (!uid) throw new Error("Not authenticated");
+
+        const { data: bot, error: botErr } = await supabase
+          .from("bot_orders")
+          .select("user_id")
+          .eq("id", botId)
+          .maybeSingle();
+        if (botErr || !bot) throw new Error(botErr?.message ?? "Bot not found");
+
+        const { error: insErr } = await supabase.from("bot_commands").insert({
+          bot_id: botId,
+          user_id: bot.user_id,
+          requested_by: uid,
+          action: "shutdown",
+          status: "pending",
+          payload: {},
+        });
+        if (insErr) throw new Error(insErr.message);
+        ok = true;
+      } else {
+        const { data, error } = await supabase.functions.invoke("railway-control", {
+          body: { botId, action },
+        });
+        if (error) {
+          errorMsg =
+            (data as { error?: string } | null)?.error ?? error.message ?? "Request failed";
+        } else {
+          const result = data as { ok?: boolean; error?: string } | null;
+          if (!result?.ok) errorMsg = result?.error ?? "Failed to perform action.";
+          else ok = true;
+        }
+      }
+    } catch (e) {
+      errorMsg = e instanceof Error ? e.message : String(e);
     }
 
     setPending(null);
     setConfirm(null);
-    if (error) {
-      const msg =
-        (data as { error?: string } | null)?.error ?? error.message ?? "Request failed";
-      toast.error(msg);
+
+    if (!ok) {
+      toast.error(errorMsg ?? "Request failed");
       refresh();
       return;
     }
-    const result = data as { ok?: boolean; error?: string } | null;
-    if (!result?.ok) {
-      toast.error(result?.error ?? "Failed to perform action.");
-      refresh();
-      return;
-    }
-    toast.success(`${action.charAt(0).toUpperCase() + action.slice(1)} sent to Railway.`);
+    toast.success(
+      action === "stop"
+        ? "Stop command queued."
+        : `${action.charAt(0).toUpperCase() + action.slice(1)} sent to Railway.`,
+    );
     refresh();
   };
 
