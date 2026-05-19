@@ -233,14 +233,20 @@ export function BotControlsPanel({ botId }: BotControlsPanelProps) {
     }
 
     if (action === "stop" && stopCommandId) {
-      toast.success("Stop command queued. Waiting for bot to shut down…");
+      toast.success("Shutting down… the bot will go offline shortly.");
       refresh();
       pollStopCommand(stopCommandId);
       return;
     }
 
     setPending(null);
-    toast.success(`${action.charAt(0).toUpperCase() + action.slice(1)} sent to Railway.`);
+    const actionMsg: Record<Action, string> = {
+      start: "Booting up — your bot should be online in ~30 seconds.",
+      stop: "Shutting down…",
+      restart: "Restarting now — back online in ~30 seconds.",
+      redeploy: "Redeploy starting — pulling the latest build.",
+    };
+    toast.success(actionMsg[action]);
     refresh();
   };
 

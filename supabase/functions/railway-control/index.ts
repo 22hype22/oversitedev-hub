@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
 
     if (!bot.railway_service_id) {
       return new Response(
-        JSON.stringify({ error: "This bot is not linked to a Railway service yet." }),
+        JSON.stringify({ error: "This bot is not linked to a hosting service yet." }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
