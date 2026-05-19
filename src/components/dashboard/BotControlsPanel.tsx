@@ -110,9 +110,26 @@ export function BotControlsPanel({ botId }: BotControlsPanelProps) {
 
   const send = async (action: Action) => {
     setPending(action);
-    const { data, error } = await supabase.functions.invoke("bot-railway-action", {
-      body: { botId, action },
-    });
+    let data: any = null;
+    let error: any = null;
+
+    if (action === "stop") {
+      const insertRes = await supabase.from("bot_commands").insert({
+        bot_id: botId,
+        action: "shutdown",
+        status: "pending",
+        payload: {},
+      });
+      error = insertRes.error;
+      data = insertRes.error ? null : { ok: true };
+    } else {
+      const invokeRes = await supabase.functions.invoke("bot-railway-action", {
+        body: { botId, action },
+      });
+      data = invokeRes.data;
+      error = invokeRes.error;
+    }
+
     setPending(null);
     setConfirm(null);
     if (error) {
