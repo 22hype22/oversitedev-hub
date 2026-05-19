@@ -956,20 +956,25 @@ const BotDashboard = () => {
                     isDimmed ? "opacity-40" : "opacity-100"
                   } ${showBotRing ? "ring-2 ring-primary/40 rounded-2xl -m-2 p-2" : ""}`}
                 >
-                  <BotSection
-                    bot={bot}
-                    allBots={dashboardBots}
-                    userId={user.id}
-                    freePeriod={freePeriods[bot.id]}
-                    onCancel={setCancelTarget}
-                    onAddAddons={setAddonsTarget}
-                    searchQuery={search}
-                    highlightedAddonId={isMatch ? matchedAddonId : null}
-                    onReload={() => {
-                      reload();
-                      reloadFreePeriods();
-                    }}
-                  />
+                  <ReadOnlyBotScope
+                    ownerUserId={bot.ownerUserId}
+                    viaTeam={bot.viaTeam}
+                  >
+                    <BotSection
+                      bot={bot}
+                      allBots={dashboardBots}
+                      userId={user.id}
+                      freePeriod={freePeriods[bot.id]}
+                      onCancel={setCancelTarget}
+                      onAddAddons={setAddonsTarget}
+                      searchQuery={search}
+                      highlightedAddonId={isMatch ? matchedAddonId : null}
+                      onReload={() => {
+                        reload();
+                        reloadFreePeriods();
+                      }}
+                    />
+                  </ReadOnlyBotScope>
                 </div>
               );
             })}
