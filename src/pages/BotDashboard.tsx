@@ -343,7 +343,24 @@ const BotSection = ({
   highlightedAddonId?: string | null;
 }) => {
   const { health, reload: reloadHealth } = useBotHealth(bot.isDemo ? null : bot.id);
-  const isOffline = !bot.isDemo && health?.effective_status === "offline";
+  // Optimistic lockout: "stop" forces offline until health confirms offline;
+  // "start"/"restart"/"redeploy" keep the lockout on until health confirms online.
+  const [optimisticAction, setOptimisticAction] = useState<"stop" | "start" | null>(null);
+  useEffect(() => {
+    if (!optimisticAction || !health?.effective_status) return;
+    if (optimisticAction === "stop" && health.effective_status === "offline") {
+      setOptimisticAction(null);
+    } else if (optimisticAction === "start" && health.effective_status === "online") {
+      setOptimisticAction(null);
+    }
+  }, [optimisticAction, health?.effective_status]);
+  const isOffline =
+    !bot.isDemo &&
+    (optimisticAction !== null || health?.effective_status === "offline");
+  const handleCommandSent = (action: "start" | "stop" | "restart" | "redeploy") => {
+    setOptimisticAction(action === "stop" ? "stop" : "start");
+    reloadHealth();
+  };
   const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
   const baseTagline = BOT_BASE_TAGLINES[bot.base];
   const cancellable = !bot.isDemo && canCancelStatus(bot.status);
