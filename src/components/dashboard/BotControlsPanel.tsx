@@ -267,19 +267,23 @@ export function BotControlsPanel({ botId, isOffline = false, onCommandSent }: Bo
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {ACTIONS.map(({ key, label, Icon, variant }) => (
-          <Button
-            key={key}
-            variant={variant}
-            size="sm"
-            disabled={pending !== null}
-            onClick={() => setConfirm(key)}
-            className="justify-start"
-          >
-            <Icon className={`h-4 w-4 mr-1.5 ${pending === key ? "animate-pulse" : ""}`} />
-            {label}
-          </Button>
-        ))}
+        {ACTIONS.map(({ key, label, Icon, variant }) => {
+          const requiresOnline = key !== "start";
+          const disabledByStatus = requiresOnline ? isOffline : !isOffline;
+          return (
+            <Button
+              key={key}
+              variant={variant}
+              size="sm"
+              disabled={pending !== null || disabledByStatus}
+              onClick={() => setConfirm(key)}
+              className="justify-start"
+            >
+              <Icon className={`h-4 w-4 mr-1.5 ${pending === key ? "animate-pulse" : ""}`} />
+              {label}
+            </Button>
+          );
+        })}
       </div>
 
       <AlertDialog open={confirm !== null} onOpenChange={(o) => !o && setConfirm(null)}>
