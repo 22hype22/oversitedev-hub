@@ -120,6 +120,8 @@ export function TeamMembersTab({
                       <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30">
                         {ROLE_LABEL.owner}
                       </Badge>
+                    ) : !viewerIsOwner ? (
+                      <Badge variant="outline">{ROLE_LABEL[m.role] ?? m.role}</Badge>
                     ) : (
                       <Select
                         value={m.role}
