@@ -610,6 +610,14 @@ const BotSection = ({
 
       {!bot.isDemo && <BotControlsPanel botId={bot.id} />}
 
+      <div className="relative">
+        {isOffline && (
+          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center text-xs text-amber-300 font-medium">
+            Bot is offline — start the bot to make changes.
+          </div>
+        )}
+        <div className={isOffline ? "opacity-40 pointer-events-none select-none" : ""} aria-disabled={isOffline}>
+
       {!bot.isDemo && (
         <BotInviteLinkCard
           botId={bot.id}
@@ -630,7 +638,7 @@ const BotSection = ({
       </details>
 
       <details
-        open={addonsOpen}
+        open={addonsOpen && !isOffline}
         onToggle={(e) => setAddonsOpen((e.target as HTMLDetailsElement).open)}
         className="group rounded-xl border border-border bg-card/30 overflow-hidden"
       >
@@ -739,6 +747,8 @@ const BotSection = ({
       </div>
         </div>
       </details>
+        </div>
+      </div>
     </section>
   );
 
