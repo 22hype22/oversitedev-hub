@@ -342,7 +342,7 @@ const BotSection = ({
   searchQuery?: string;
   highlightedAddonId?: string | null;
 }) => {
-  const { health } = useBotHealth(bot.isDemo ? null : bot.id);
+  const { health, reload: reloadHealth } = useBotHealth(bot.isDemo ? null : bot.id);
   const isOffline = !bot.isDemo && health?.effective_status === "offline";
   const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
   const baseTagline = BOT_BASE_TAGLINES[bot.base];
