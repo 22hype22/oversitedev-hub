@@ -205,8 +205,9 @@ async function processCommand(cmd: Cmd) {
         break;
       }
       case "leave_all_guilds": {
+        const wasRunning = runtime.isRunning();
+        if (!wasRunning) await runtime.start();
         await runtime.leaveAllGuilds(cmd.payload?.reason);
-        // After leaving, also tear the runtime down so we stop polling.
         await runtime.stop().catch(() => {});
         runtimes.delete(cmd.bot_id);
         break;
