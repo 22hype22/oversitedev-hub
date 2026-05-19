@@ -2629,6 +2629,14 @@ export type Database = {
         Args: { _admin_id: string; _owner_id: string }
         Returns: boolean
       }
+      has_team_access: {
+        Args: { _owner_id: string; _viewer_id: string }
+        Returns: boolean
+      }
+      has_team_perm: {
+        Args: { _owner_id: string; _perm: string; _viewer_id: string }
+        Returns: boolean
+      }
       is_portfolio_manager: { Args: never; Returns: boolean }
       is_super_admin:
         | { Args: never; Returns: boolean }

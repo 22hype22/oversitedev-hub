@@ -28,7 +28,10 @@ export type OwnedBot = {
   /** True when the current viewer is an admin acting via a support access grant
    *  rather than the owner. The dashboard renders a banner & badge in this case. */
   viaSupport?: boolean;
-  /** When viaSupport is true, the user_id of the actual bot owner. */
+  /** True when the current viewer is an invited team member on the owner's
+   *  account rather than the owner themselves. */
+  viaTeam?: boolean;
+  /** When viaSupport/viaTeam is true, the user_id of the actual bot owner. */
   ownerUserId?: string;
 };
 
@@ -42,7 +45,7 @@ const ACCESS_STATUSES = new Set(["paid", "ready"]);
 // Dashboard add-on, even if the underlying bot order was later cancelled.
 const ENTITLEMENT_STATUSES = new Set(["paid", "ready", "submitted", "cancelled"]);
 
-function mapRow(row: any, viaSupport = false): OwnedBot {
+function mapRow(row: any, opts: { viaSupport?: boolean; viaTeam?: boolean } = {}): OwnedBot {
   return {
     id: row.id,
     bot_name: row.bot_name,
@@ -60,7 +63,8 @@ function mapRow(row: any, viaSupport = false): OwnedBot {
     submitted_at: row.submitted_at ?? null,
     delivery_url: row.delivery_url ?? null,
     source_url: row.source_url ?? null,
-    viaSupport,
+    viaSupport: !!opts.viaSupport,
+    viaTeam: !!opts.viaTeam,
     ownerUserId: row.user_id,
   };
 }
@@ -71,13 +75,15 @@ function mapRow(row: any, viaSupport = false): OwnedBot {
  * ("dashboard") and is therefore manageable from the Bot Dashboard.
  *
  * Admins with active support-access grants ALSO see the granting users' bots,
- * tagged with `viaSupport: true`.
+ * tagged with `viaSupport: true`. Invited team members see the owner's bots
+ * tagged with `viaTeam: true`.
  */
 export function useOwnedBots() {
   const { user } = useAuth();
   const userId = user?.id ?? null;
   const [bots, setBots] = useState<OwnedBot[]>([]);
   const [supportBots, setSupportBots] = useState<OwnedBot[]>([]);
+  const [teamBots, setTeamBots] = useState<OwnedBot[]>([]);
   const [ownsDashboardAddon, setOwnsDashboardAddon] = useState(false);
   const [loading, setLoading] = useState(true);
   const hasLoadedRef = useRef(false);
@@ -106,7 +112,7 @@ export function useOwnedBots() {
     const ownAll: any[] = own ?? [];
     const ownMapped: OwnedBot[] = ownAll
       .filter((row: any) => ACCESS_STATUSES.has(row.status))
-      .map((row: any) => mapRow(row, false));
+      .map((row: any) => mapRow(row));
 
     // Account-wide entitlement: any order that was ever paid for and
     // included the `dashboard` addon unlocks dashboard access forever.
@@ -125,24 +131,56 @@ export function useOwnedBots() {
       .is("revoked_at", null)
       .gt("expires_at", new Date().toISOString());
 
-    const ownerIds: string[] = Array.from(
+    const supportOwnerIds: string[] = Array.from(
       new Set(((grants ?? []) as any[]).map((g) => g.owner_user_id).filter(Boolean)),
     ).filter((id) => id !== userId);
 
     let supportMapped: OwnedBot[] = [];
-    if (ownerIds.length > 0) {
+    if (supportOwnerIds.length > 0) {
       const { data: supportRows } = await (supabase as any)
         .from("bot_orders")
         .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount")
-        .in("user_id", ownerIds)
+        .in("user_id", supportOwnerIds)
         .order("created_at", { ascending: true });
       supportMapped = (supportRows ?? [])
         .filter((row: any) => ACCESS_STATUSES.has(row.status))
-        .map((row: any) => mapRow(row, true));
+        .map((row: any) => mapRow(row, { viaSupport: true }));
+    }
+
+    // 3) Bots from accounts where this user is an active team member
+    //    (i.e. they accepted an invite). Owners of those accounts have
+    //    granted us seats on their bots — we should show those here so
+    //    invited admins/moderators/viewers can manage them.
+    const { data: memberships } = await (supabase as any)
+      .from("dashboard_team")
+      .select("owner_user_id,role,accepted_at")
+      .eq("member_user_id", user.id)
+      .not("accepted_at", "is", null);
+
+    const teamOwnerIds: string[] = Array.from(
+      new Set(
+        ((memberships ?? []) as any[])
+          .filter((m) => m.role !== "owner") // skip self-owner row
+          .map((m) => m.owner_user_id)
+          .filter(Boolean),
+      ),
+    ).filter((id) => id !== userId);
+
+    let teamMapped: OwnedBot[] = [];
+    if (teamOwnerIds.length > 0) {
+      const { data: teamRows } = await (supabase as any)
+        .from("bot_orders")
+        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount")
+        .in("user_id", teamOwnerIds)
+        .order("created_at", { ascending: true });
+      teamMapped = (teamRows ?? [])
+        .filter((row: any) => ACCESS_STATUSES.has(row.status))
+        .map((row: any) => mapRow(row, { viaTeam: true }));
     }
 
     setBots(ownMapped);
     setSupportBots(supportMapped);
+    setTeamBots(teamMapped);
     setOwnsDashboardAddon(ownsDashboardAddon);
     hasLoadedRef.current = true;
     setLoading(false);
@@ -159,19 +197,23 @@ export function useOwnedBots() {
   // the entitlement query hasn't loaded yet.
   const hasDashboardAccess =
     ownsDashboardAddon || bots.some((b) => b.hasWebDashboard);
-  // Support-session bots are always visible regardless of the admin's own
-  // dashboard add-on status — that's the whole point of the support access.
+  // Support- and team-session bots are always visible regardless of the
+  // viewer's own dashboard add-on status — they're seeing the OWNER's bots,
+  // not their own, and the owner's entitlement is what unlocks them.
   const dashboardBots = [
     ...(hasDashboardAccess ? bots : []),
     ...supportBots,
+    ...teamBots,
   ];
 
   return {
     bots,
     dashboardBots,
     supportBots,
+    teamBots,
     hasDashboardAccess,
     loading,
     reload,
   };
 }
+
