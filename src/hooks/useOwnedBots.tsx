@@ -28,7 +28,10 @@ export type OwnedBot = {
   /** True when the current viewer is an admin acting via a support access grant
    *  rather than the owner. The dashboard renders a banner & badge in this case. */
   viaSupport?: boolean;
-  /** When viaSupport is true, the user_id of the actual bot owner. */
+  /** True when the current viewer is an invited team member on the owner's
+   *  account rather than the owner themselves. */
+  viaTeam?: boolean;
+  /** When viaSupport/viaTeam is true, the user_id of the actual bot owner. */
   ownerUserId?: string;
 };
 
@@ -42,7 +45,7 @@ const ACCESS_STATUSES = new Set(["paid", "ready"]);
 // Dashboard add-on, even if the underlying bot order was later cancelled.
 const ENTITLEMENT_STATUSES = new Set(["paid", "ready", "submitted", "cancelled"]);
 
-function mapRow(row: any, viaSupport = false): OwnedBot {
+function mapRow(row: any, opts: { viaSupport?: boolean; viaTeam?: boolean } = {}): OwnedBot {
   return {
     id: row.id,
     bot_name: row.bot_name,
@@ -60,7 +63,8 @@ function mapRow(row: any, viaSupport = false): OwnedBot {
     submitted_at: row.submitted_at ?? null,
     delivery_url: row.delivery_url ?? null,
     source_url: row.source_url ?? null,
-    viaSupport,
+    viaSupport: !!opts.viaSupport,
+    viaTeam: !!opts.viaTeam,
     ownerUserId: row.user_id,
   };
 }
@@ -71,13 +75,15 @@ function mapRow(row: any, viaSupport = false): OwnedBot {
  * ("dashboard") and is therefore manageable from the Bot Dashboard.
  *
  * Admins with active support-access grants ALSO see the granting users' bots,
- * tagged with `viaSupport: true`.
+ * tagged with `viaSupport: true`. Invited team members see the owner's bots
+ * tagged with `viaTeam: true`.
  */
 export function useOwnedBots() {
   const { user } = useAuth();
   const userId = user?.id ?? null;
   const [bots, setBots] = useState<OwnedBot[]>([]);
   const [supportBots, setSupportBots] = useState<OwnedBot[]>([]);
+  const [teamBots, setTeamBots] = useState<OwnedBot[]>([]);
   const [ownsDashboardAddon, setOwnsDashboardAddon] = useState(false);
   const [loading, setLoading] = useState(true);
   const hasLoadedRef = useRef(false);
