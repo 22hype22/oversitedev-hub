@@ -196,7 +196,7 @@ export function useOwnedBots() {
   useEffect(() => {
     if (!userId) return;
     const channel = (supabase as any)
-      .channel(`owned-bots-access-${userId}`)
+      .channel(`owned-bots-access-${userId}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "dashboard_team", filter: `member_user_id=eq.${userId}` },
