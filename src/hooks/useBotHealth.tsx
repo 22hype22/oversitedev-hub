@@ -69,7 +69,7 @@ export const useBotHealth = (botId: string | null) => {
     // Refresh every 30s so "last seen" stays fresh and stale flips quickly
     const t = setInterval(load, 30_000);
     return () => clearInterval(t);
-  }, [load]);
+  }, [botId, load]);
 
   return { health, loading, reload: load };
 };
