@@ -76,6 +76,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { HostingPastDueBanner } from "@/components/dashboard/HostingPastDueBanner";
+import { ReadOnlyBotScope } from "@/components/dashboard/ReadOnlyBotScope";
 import { useHostingSubscriptionSync } from "@/hooks/useHostingSubscriptionSync";
 
 /** Add-on ids grouped by category — used to render config boxes per group.
