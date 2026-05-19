@@ -176,7 +176,7 @@ export function TeamMembersTab({
                       : `Invited ${new Date(m.invited_at).toLocaleDateString()}`}
                   </TableCell>
                   <TableCell className="text-right">
-                    {!isOwnerRow && (
+                    {!isOwnerRow && viewerIsOwner && (
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           size="sm" variant="ghost" className="h-8"
