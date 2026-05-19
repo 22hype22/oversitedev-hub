@@ -40,7 +40,7 @@ export function TeamManagementHub({ ownerUserId }: { ownerUserId?: string | null
             <TabsTrigger value="roles"><ShieldCheck className="h-3.5 w-3.5 mr-1.5" />Roles</TabsTrigger>
             <TabsTrigger value="support"><LifeBuoy className="h-3.5 w-3.5 mr-1.5" />Support access</TabsTrigger>
           </TabsList>
-          <TabsContent value="members"><TeamMembersTab /></TabsContent>
+          <TabsContent value="members"><TeamMembersTab ownerUserId={effectiveOwnerId} viewerIsOwner={viewerIsOwner} /></TabsContent>
           <TabsContent value="roles"><RolesTab /></TabsContent>
           <TabsContent value="support"><SupportAccessManager /></TabsContent>
         </Tabs>
