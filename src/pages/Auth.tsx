@@ -51,6 +51,26 @@ const Auth = () => {
           title: "Ownership transferred",
           description: "You are now the owner of this account.",
         });
+        // Notify the new owner by email that the transfer is complete.
+        try {
+          const { data: userResp } = await supabase.auth.getUser();
+          const newOwnerEmail = userResp?.user?.email;
+          const previousOwnerEmail = (data as any)?.previous_owner_email ?? null;
+          const transferId = (data as any)?.transfer_id ?? transferToken;
+          const dashboardUrl = `${window.location.origin}/bot-dashboard`;
+          if (newOwnerEmail) {
+            await supabase.functions.invoke("send-transactional-email", {
+              body: {
+                templateName: "team-transfer-complete",
+                recipientEmail: newOwnerEmail,
+                templateData: { previousOwnerEmail, dashboardUrl },
+                idempotencyKey: `team-transfer-complete:${transferId}`,
+              },
+            });
+          }
+        } catch (e) {
+          console.error("team-transfer-complete email failed", e);
+        }
       }
     }
   };

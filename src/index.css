@@ -211,6 +211,12 @@ body.marketing-suspended header.fixed {
   pointer-events: none !important;
   opacity: 0.55 !important;
   cursor: not-allowed !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+.readonly-scope :is(input, textarea, select):not([type="hidden"]) {
+  /* Belt-and-braces: also block via the native disabled-like state. */
+  caret-color: transparent !important;
 }
 .readonly-scope :is(
   [role="switch"],
@@ -226,7 +232,20 @@ body.marketing-suspended header.fixed {
   opacity: 0.55 !important;
   cursor: not-allowed !important;
 }
-.readonly-scope button:not([data-readonly-allow]):not([data-state]):not([aria-haspopup="dialog"] *):not([role="tab"]) {
+/*
+ * Disable every button except ones we explicitly allow (navigation,
+ * collapsibles, tabs, copy-to-clipboard, dialog *close* triggers). We used
+ * to exclude `[data-state]` here but Radix sets `data-state` on every
+ * interactive primitive (Switch, Select, DropdownMenu, etc.), which let
+ * editing controls slip through. Now we only allow tabs and elements
+ * explicitly opted in with `data-readonly-allow`.
+ */
+.readonly-scope button:not([data-readonly-allow]):not([role="tab"]) {
+  pointer-events: none !important;
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+}
+.readonly-scope a[role="button"]:not([data-readonly-allow]) {
   pointer-events: none !important;
   opacity: 0.55 !important;
   cursor: not-allowed !important;

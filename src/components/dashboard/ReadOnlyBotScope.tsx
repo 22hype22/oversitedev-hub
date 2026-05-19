@@ -46,9 +46,13 @@ export function ReadOnlyBotScope({ ownerUserId, viaTeam, children }: Props) {
           </p>
         </div>
       </div>
-      <div className="readonly-scope" aria-readonly="true">
+      <fieldset
+        disabled
+        className="readonly-scope border-0 p-0 m-0 min-w-0 contents"
+        aria-readonly="true"
+      >
         {children}
-      </div>
+      </fieldset>
     </div>
   );
 }

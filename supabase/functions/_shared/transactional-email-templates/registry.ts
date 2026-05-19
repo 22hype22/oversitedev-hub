@@ -14,6 +14,7 @@ import { template as waitlistDeployed } from './waitlist-deployed.tsx'
 import { template as teamInvite } from './team-invite.tsx'
 import { template as teamTransferConfirm } from './team-transfer-confirm.tsx'
 import { template as teamTransferNotice } from './team-transfer-notice.tsx'
+import { template as teamTransferComplete } from './team-transfer-complete.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'order-waitlisted': orderWaitlisted,
@@ -21,4 +22,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'team-invite': teamInvite,
   'team-transfer-confirm': teamTransferConfirm,
   'team-transfer-notice': teamTransferNotice,
+  'team-transfer-complete': teamTransferComplete,
 }
