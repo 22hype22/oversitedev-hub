@@ -136,7 +136,7 @@ export function TeamMembersTab({
                       <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30">
                         {ROLE_LABEL.owner}
                       </Badge>
-                    ) : !viewerIsOwner ? (
+                    ) : !canManageTeam ? (
                       <Badge variant="outline">{ROLE_LABEL[m.role] ?? m.role}</Badge>
                     ) : (
                       <Select
@@ -155,9 +155,17 @@ export function TeamMembersTab({
                       >
                         <SelectTrigger className="h-8 w-[130px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {INVITABLE_ROLES.map((r) => (
+                          {assignableRoles.map((r) => (
                             <SelectItem key={r} value={r}>{ROLE_LABEL[r]}</SelectItem>
                           ))}
+                          {/* Show the member's current role even if it's above
+                              this viewer's assignable ceiling, but as a disabled
+                              option so they can see it but not pick it. */}
+                          {!assignableRoles.includes(m.role) && (
+                            <SelectItem key={m.role} value={m.role} disabled>
+                              {ROLE_LABEL[m.role]} (above your level)
+                            </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     )}
@@ -192,30 +200,34 @@ export function TeamMembersTab({
                       : `Invited ${new Date(m.invited_at).toLocaleDateString()}`}
                   </TableCell>
                   <TableCell className="text-right">
-                    {!isOwnerRow && viewerIsOwner && (
+                    {!isOwnerRow && (canManageTeam || canTransferOwnership) && (
                       <div className="flex items-center justify-end gap-1">
-                        <Button
-                          size="sm" variant="ghost" className="h-8"
-                          disabled={!m.accepted_at}
-                          onClick={() => setTransferTarget(m)}
-                          title={m.accepted_at ? "Transfer ownership to this member" : "Member must accept invite first"}
-                        >
-                          <ArrowRightLeft className="h-3.5 w-3.5 mr-1" />Transfer
-                        </Button>
-                        <Button
-                          size="sm" variant="ghost" className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={async () => {
-                            const { data, error } = await (supabase as any).rpc("team_remove_member", { _member_id: m.id });
-                            if (error || !data?.ok) {
-                              toast.error(error?.message ?? data?.error ?? "Failed");
-                              return;
-                            }
-                            toast.success("Member removed");
-                            reload();
-                          }}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {canTransferOwnership && (
+                          <Button
+                            size="sm" variant="ghost" className="h-8"
+                            disabled={!m.accepted_at}
+                            onClick={() => setTransferTarget(m)}
+                            title={m.accepted_at ? "Transfer ownership to this member" : "Member must accept invite first"}
+                          >
+                            <ArrowRightLeft className="h-3.5 w-3.5 mr-1" />Transfer
+                          </Button>
+                        )}
+                        {canManageTeam && ROLE_RANK[m.role] <= viewerRank && (
+                          <Button
+                            size="sm" variant="ghost" className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={async () => {
+                              const { data, error } = await (supabase as any).rpc("team_remove_member", { _member_id: m.id });
+                              if (error || !data?.ok) {
+                                toast.error(error?.message ?? data?.error ?? "Failed");
+                                return;
+                              }
+                              toast.success("Member removed");
+                              reload();
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     )}
                   </TableCell>
