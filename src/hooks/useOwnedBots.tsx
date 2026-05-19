@@ -190,6 +190,29 @@ export function useOwnedBots() {
     reload();
   }, [reload]);
 
+  // Realtime: if an owner removes this user from their team, or an owner
+  // revokes a support grant this user holds, refresh immediately so the
+  // affected bots disappear from the dashboard without a manual refresh.
+  useEffect(() => {
+    if (!userId) return;
+    const channel = (supabase as any)
+      .channel(`owned-bots-access-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "dashboard_team", filter: `member_user_id=eq.${userId}` },
+        () => reload(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "support_access_grants", filter: `admin_user_id=eq.${userId}` },
+        () => reload(),
+      )
+      .subscribe();
+    return () => {
+      (supabase as any).removeChannel(channel);
+    };
+  }, [userId, reload]);
+
   // The Web Dashboard add-on is a one-time, account-wide unlock. Once any
   // PAID bot order includes it, the user can manage ALL of their bots from
   // the dashboard — current and future ones — even if that original order
