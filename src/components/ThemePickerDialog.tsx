@@ -18,7 +18,8 @@ export const ThemePickerDialog = ({ enabled }: { enabled: boolean }) => {
   useEffect(() => {
     if (!enabled) return;
     if (typeof window === "undefined") return;
-    if (!localStorage.getItem(CHOSEN_KEY)) setOpen(true);
+    const chosen = localStorage.getItem(CHOSEN_KEY) || localStorage.getItem(THEME_KEY);
+    if (!chosen) setOpen(true);
   }, [enabled]);
 
   if (!open) return null;
