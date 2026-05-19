@@ -361,6 +361,35 @@ export class BotRuntime {
     await appendLog(this.botId, "info", "listGuilds is a no-op — guild list is owned by the Python bot heartbeat");
   }
 
+  /**
+   * Force the bot to leave every guild it's currently in. Used by the
+   * hosting grace-period enforcer after a customer's monthly payment fails
+   * and the 10-day grace window expires.
+   */
+  async leaveAllGuilds(reason?: string) {
+    if (!this.client) throw new Error("Cannot leave guilds — Discord client not initialized");
+    // Make sure cache is hydrated; fetch is safe to call when already cached.
+    try { await this.client.guilds.fetch(); } catch { /* best effort */ }
+    const guilds = [...this.client.guilds.cache.values()];
+    await appendLog(
+      this.botId,
+      "info",
+      `leave_all_guilds: leaving ${guilds.length} guild(s)${reason ? ` (reason: ${reason})` : ""}`,
+    );
+    let left = 0;
+    for (const g of guilds) {
+      try {
+        await g.leave();
+        left += 1;
+      } catch (err) {
+        await appendLog(this.botId, "warn", `Failed to leave guild ${g.id} (${g.name})`, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+    await appendLog(this.botId, "info", `leave_all_guilds: left ${left}/${guilds.length}`);
+  }
+
   isRunning() {
     return this.running;
   }
