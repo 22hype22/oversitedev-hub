@@ -50,6 +50,7 @@ const App = () => {
         <PaymentTestModeBanner />
         <SuspensionBanner />
         {showSplash && <SplashScreen onDone={handleSplashDone} />}
+        <ThemePickerDialog enabled={!showSplash} />
         <BrowserRouter>
           <PreferencesProvider>
             <ScrollToTop />
