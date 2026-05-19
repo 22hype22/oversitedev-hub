@@ -1027,6 +1027,35 @@ export const BotBuilder = () => {
                 );
               });
               })()}
+              {/* ERLC Specialized — Coming Soon */}
+              <div className="group text-left rounded-xl border border-border/40 bg-background/30 p-4 opacity-70">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Gamepad2 size={18} className="text-muted-foreground" />
+                    <span className="font-semibold text-foreground/80">ERLC Specialized</span>
+                  </div>
+                  <span className="px-1.5 py-0.5 rounded-full bg-muted border border-border/60 text-muted-foreground text-[10px] font-semibold uppercase tracking-wide">
+                    Coming Soon
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                  Purpose-built for ERLC servers — custom tools tuned for Emergency Response: Liberty County gameplay.
+                </p>
+                <ul className="mt-3 space-y-1">
+                  <li className="flex items-start gap-1.5 text-[11px] text-foreground/50 leading-snug">
+                    <Check size={11} className="mt-0.5 shrink-0 text-muted-foreground" />
+                    <span>ERLC-optimized moderation</span>
+                  </li>
+                  <li className="flex items-start gap-1.5 text-[11px] text-foreground/50 leading-snug">
+                    <Check size={11} className="mt-0.5 shrink-0 text-muted-foreground" />
+                    <span>Department role management</span>
+                  </li>
+                  <li className="flex items-start gap-1.5 text-[11px] text-foreground/50 leading-snug">
+                    <Check size={11} className="mt-0.5 shrink-0 text-muted-foreground" />
+                    <span>Session tools &amp; server binds</span>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
 
