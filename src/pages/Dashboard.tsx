@@ -69,6 +69,7 @@ import { compareVersions } from "@/lib/utils";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useMarketingSuspended } from "@/hooks/useMarketingSuspended";
 import { HostingPastDueBanner } from "@/components/dashboard/HostingPastDueBanner";
+import { useHostingSubscriptionSync } from "@/hooks/useHostingSubscriptionSync";
 
 type Purchase = {
   id: string;
@@ -108,6 +109,7 @@ export default function Dashboard() {
   const { theme, setTheme } = useTheme();
   const { prefs, setPrefs, formatPrice, formatDate } = usePreferences();
   const { suspended } = useMarketingSuspended();
+  useHostingSubscriptionSync();
 
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [purchasesLoading, setPurchasesLoading] = useState(true);

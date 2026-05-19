@@ -83,9 +83,18 @@ function getRuntime(botId: string): BotRuntime {
 type Cmd = {
   id: string;
   bot_id: string;
-  action: "start" | "stop" | "restart" | "update" | "list_channels" | "list_guilds" | "list_roles";
+  action:
+    | "start"
+    | "stop"
+    | "restart"
+    | "update"
+    | "list_channels"
+    | "list_guilds"
+    | "list_roles"
+    | "leave_all_guilds";
   payload?: {
     guild_id?: string;
+    reason?: string;
   } | null;
 };
 
@@ -193,6 +202,14 @@ async function processCommand(cmd: Cmd) {
         const guildId = cmd.payload?.guild_id;
         if (!guildId) throw new Error("Missing guild_id for list_roles");
         await runtime.listRoles(guildId);
+        break;
+      }
+      case "leave_all_guilds": {
+        const wasRunning = runtime.isRunning();
+        if (!wasRunning) await runtime.start();
+        await runtime.leaveAllGuilds(cmd.payload?.reason);
+        await runtime.stop().catch(() => {});
+        runtimes.delete(cmd.bot_id);
         break;
       }
     }

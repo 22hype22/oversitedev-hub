@@ -76,6 +76,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { HostingPastDueBanner } from "@/components/dashboard/HostingPastDueBanner";
+import { useHostingSubscriptionSync } from "@/hooks/useHostingSubscriptionSync";
 
 /** Add-on ids grouped by category — used to render config boxes per group.
  *  Order here is the exact left→right, top→bottom order shown in the dashboard.
@@ -748,6 +749,7 @@ const BotSection = ({
 const BotDashboard = () => {
   const { user, isAdmin, loading } = useAuth();
   const { dashboardBots, loading: botsLoading, reload } = useOwnedBots();
+  useHostingSubscriptionSync();
   const { periods: freePeriods, reload: reloadFreePeriods } = useBotFreePeriods();
   const navigate = useNavigate();
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
