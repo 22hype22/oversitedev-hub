@@ -34,27 +34,33 @@ type Member = {
 
 const INVITABLE_ROLES: TeamRole[] = ["co_owner", "admin", "moderator", "viewer"];
 
-export function TeamMembersTab() {
+export function TeamMembersTab({
+  ownerUserId,
+  viewerIsOwner = true,
+}: { ownerUserId?: string | null; viewerIsOwner?: boolean } = {}) {
   const { user } = useAuth();
+  const targetOwnerId = ownerUserId ?? user?.id ?? null;
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [transferTarget, setTransferTarget] = useState<Member | null>(null);
 
   const reload = useCallback(async () => {
-    if (!user) return;
+    if (!targetOwnerId) return;
     setLoading(true);
-    // Ensure owner row exists for the current user
-    await (supabase as any).rpc("ensure_team_owner_row");
+    // Only the owner themselves needs the safety-net owner row ensured.
+    if (viewerIsOwner) {
+      await (supabase as any).rpc("ensure_team_owner_row");
+    }
     const { data } = await (supabase as any)
       .from("dashboard_team")
       .select("*")
-      .eq("owner_user_id", user.id)
+      .eq("owner_user_id", targetOwnerId)
       .order("role", { ascending: true })
       .order("invited_at", { ascending: true });
     setMembers((data ?? []) as Member[]);
     setLoading(false);
-  }, [user]);
+  }, [targetOwnerId, viewerIsOwner]);
 
   useEffect(() => { void reload(); }, [reload]);
 
@@ -70,12 +76,14 @@ export function TeamMembersTab() {
             Invite people to help manage your bots. Members sign in with the email you invite.
           </p>
         </div>
-        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm"><UserPlus className="h-4 w-4 mr-1.5" />Invite member</Button>
-          </DialogTrigger>
-          <InviteDialog onClose={() => setInviteOpen(false)} onInvited={reload} />
-        </Dialog>
+        {viewerIsOwner && (
+          <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm"><UserPlus className="h-4 w-4 mr-1.5" />Invite member</Button>
+            </DialogTrigger>
+            <InviteDialog onClose={() => setInviteOpen(false)} onInvited={reload} />
+          </Dialog>
+        )}
       </div>
 
       <div className="rounded-md border border-border overflow-hidden">
@@ -112,6 +120,8 @@ export function TeamMembersTab() {
                       <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30">
                         {ROLE_LABEL.owner}
                       </Badge>
+                    ) : !viewerIsOwner ? (
+                      <Badge variant="outline">{ROLE_LABEL[m.role] ?? m.role}</Badge>
                     ) : (
                       <Select
                         value={m.role}
@@ -166,7 +176,7 @@ export function TeamMembersTab() {
                       : `Invited ${new Date(m.invited_at).toLocaleDateString()}`}
                   </TableCell>
                   <TableCell className="text-right">
-                    {!isOwnerRow && (
+                    {!isOwnerRow && viewerIsOwner && (
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           size="sm" variant="ghost" className="h-8"

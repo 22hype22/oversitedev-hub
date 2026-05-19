@@ -8,8 +8,10 @@ import { TeamMembersTab } from "./TeamMembersTab";
 import { RolesTab } from "./RolesTab";
 import { SupportAccessManager } from "@/components/dashboard/SupportAccessManager";
 
-export function TeamManagementHub() {
+export function TeamManagementHub({ ownerUserId }: { ownerUserId?: string | null } = {}) {
   const { user } = useAuth();
+  const effectiveOwnerId = ownerUserId ?? user?.id ?? null;
+  const viewerIsOwner = !!user && effectiveOwnerId === user.id;
 
   // Auto-accept any pending invites for this user (by email match).
   useEffect(() => {
@@ -38,7 +40,7 @@ export function TeamManagementHub() {
             <TabsTrigger value="roles"><ShieldCheck className="h-3.5 w-3.5 mr-1.5" />Roles</TabsTrigger>
             <TabsTrigger value="support"><LifeBuoy className="h-3.5 w-3.5 mr-1.5" />Support access</TabsTrigger>
           </TabsList>
-          <TabsContent value="members"><TeamMembersTab /></TabsContent>
+          <TabsContent value="members"><TeamMembersTab ownerUserId={effectiveOwnerId} viewerIsOwner={viewerIsOwner} /></TabsContent>
           <TabsContent value="roles"><RolesTab /></TabsContent>
           <TabsContent value="support"><SupportAccessManager /></TabsContent>
         </Tabs>

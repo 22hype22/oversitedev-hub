@@ -1024,7 +1024,9 @@ const BotDashboard = () => {
 
         {dashboardBots.length > 0 && (
           <div className="mt-16">
-            <TeamManagementHub />
+            <TeamManagementHub
+              ownerUserId={dashboardBots.find((b) => b.ownerUserId)?.ownerUserId ?? user.id}
+            />
           </div>
         )}
 
