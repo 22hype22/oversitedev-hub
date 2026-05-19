@@ -49,7 +49,7 @@ export const useBotHealth = (botId: string | null) => {
       setLoading(false);
       return;
     }
-    const { data, error } = await (supabase as any).rpc("get_bot_health", {
+    const { data, error } = await supabase.rpc("get_bot_health", {
       _bot_id: botId,
     });
     if (!error && isValidBotHealth(data)) {
