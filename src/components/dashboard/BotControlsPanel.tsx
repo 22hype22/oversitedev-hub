@@ -87,10 +87,11 @@ const STATUS_CLASS: Record<CommandRow["status"], string> = {
 
 interface BotControlsPanelProps {
   botId: string;
+  isOffline?: boolean;
   onCommandSent?: (action: Action) => void;
 }
 
-export function BotControlsPanel({ botId, onCommandSent }: BotControlsPanelProps) {
+export function BotControlsPanel({ botId, isOffline = false, onCommandSent }: BotControlsPanelProps) {
   const [history, setHistory] = useState<CommandRow[]>([]);
   const [pending, setPending] = useState<Action | null>(null);
   const [confirm, setConfirm] = useState<Action | null>(null);
