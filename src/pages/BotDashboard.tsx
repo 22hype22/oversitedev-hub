@@ -568,6 +568,7 @@ const BotSection = ({
       <div className="rounded-lg border border-border bg-card/40">
         <button
           type="button"
+          data-readonly-allow
           onClick={(e) => {
             e.stopPropagation();
             setSummaryOpen((v) => !v);
