@@ -88,12 +88,16 @@ export function TeamMembersTab({
             Invite people to help manage your bots. Members sign in with the email you invite.
           </p>
         </div>
-        {viewerIsOwner && (
+        {canManageTeam && (
           <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
             <DialogTrigger asChild>
               <Button size="sm"><UserPlus className="h-4 w-4 mr-1.5" />Invite member</Button>
             </DialogTrigger>
-            <InviteDialog onClose={() => setInviteOpen(false)} onInvited={reload} />
+            <InviteDialog
+              onClose={() => setInviteOpen(false)}
+              onInvited={reload}
+              assignableRoles={assignableRoles}
+            />
           </Dialog>
         )}
       </div>
