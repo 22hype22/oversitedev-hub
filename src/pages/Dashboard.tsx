@@ -68,6 +68,7 @@ import { UpgradeNotice } from "@/components/UpgradeNotice";
 import { compareVersions } from "@/lib/utils";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useMarketingSuspended } from "@/hooks/useMarketingSuspended";
+import { HostingPastDueBanner } from "@/components/dashboard/HostingPastDueBanner";
 
 type Purchase = {
   id: string;

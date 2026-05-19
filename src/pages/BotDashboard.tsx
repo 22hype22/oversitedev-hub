@@ -75,6 +75,7 @@ import {
   
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { HostingPastDueBanner } from "@/components/dashboard/HostingPastDueBanner";
 
 /** Add-on ids grouped by category — used to render config boxes per group.
  *  Order here is the exact left→right, top→bottom order shown in the dashboard.
