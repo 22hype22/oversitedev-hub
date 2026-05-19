@@ -83,6 +83,7 @@ import {
   Save,
   Settings2,
   MessageSquare,
+  Gamepad2,
 } from "lucide-react";
 
 type Base = {
