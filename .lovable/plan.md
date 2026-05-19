@@ -1,73 +1,52 @@
-# Team Management hub
+# Monthly hosting billing + 10-day grace period
 
-Replace `SupportAccessManager` mount in `BotDashboard.tsx` with a new `TeamManagementHub` containing 3 tabs: **Team Members**, **Roles**, **Support Access**.
+The dashboard currently has no recurring hosting charge — `monthly_hosting` is just a boolean on `bot_orders`. To deliver the grace-period behavior you described, we need the billing loop, the past-due detection, and the dashboard surfacing.
 
-## Database (migration)
+## What gets built
 
-### `dashboard_team`
-- `id uuid pk`
-- `owner_user_id uuid` (account owner)
-- `member_email text` (lowercased)
-- `member_user_id uuid null` (filled when invite accepted / matched)
-- `role text` — one of `owner | co_owner | admin | moderator | viewer`
-- `invite_token text unique null` (random token for invite link)
-- `invited_at timestamptz default now()`
-- `accepted_at timestamptz null`
-- `invited_by uuid null`
-- `created_at`, `updated_at`
-- Unique on `(owner_user_id, lower(member_email))`
+### 1. Monthly hosting subscription ($5 / $10 tier)
+- New Stripe product `bot_hosting` with two prices: `bot_hosting_solo` ($5/mo) and `bot_hosting_multi` ($10/mo flat for 2+ bots).
+- New `hosting_subscriptions` table keyed by `user_id`, tracking `stripe_subscription_id`, `status`, `current_period_end`, `price_id`, `environment`.
+- On the user's first paid bot, prompt them to start the hosting subscription (Stripe Checkout). When they own a 2nd bot, swap the price to the `multi` tier; when they drop back to 1, swap back to `solo`. (Edge function: `sync-hosting-subscription`.)
 
-RLS:
-- Owner: full CRUD where `owner_user_id = auth.uid()` (except cannot delete/edit a row where `role='owner'`).
-- Member: SELECT where `lower(member_email) = lower(auth.jwt()->>'email')`.
+### 2. Past-due detection (10-day grace)
+- `payments-webhook` handles `invoice.payment_failed` and `customer.subscription.updated`:
+  - Sets `hosting_subscriptions.status = 'past_due'` and stamps `past_due_since = now()`.
+  - Computes `grace_period_ends_at = past_due_since + 10 days` and writes it on the row.
+- `invoice.payment_succeeded` clears `past_due_since` / `grace_period_ends_at` and flips status back to `active`.
 
-Trigger: ensure exactly one `owner` row per `owner_user_id`. Auto-insert an `owner` row when a user first opens the hub (RPC `ensure_team_owner_row()`).
+### 3. Auto-cancel cron
+- New edge function `enforce-hosting-grace` runs daily via `pg_cron`.
+- For every subscription where `status='past_due'` and `grace_period_ends_at < now()`:
+  - Sets every `paid`/`ready` bot owned by that user to `status='cancelled'`, stamps `cancelled_at`, `cancellation_reason='hosting_payment_failed'`.
+  - Enqueues a `leave_guild` command in `bot_commands` for each bot so the worker pulls the bot out of all its servers.
+  - Sends a `bot_notifications` row and a DM via existing notification pipeline.
 
-Trigger on signup / on first SELECT: if `member_user_id IS NULL` and an auth user with matching email exists, fill it and set `accepted_at`. Implemented via SECURITY DEFINER function `accept_pending_team_invites()` called from the hook.
+### 4. Dashboard surfacing
+- Extend `useOwnedBots` `ACCESS_STATUSES` to include bots whose owner's hosting sub is `past_due` (they stay visible during the 10 days). Add `hostingStatus` + `graceDaysRemaining` to the hook's return.
+- New `<HostingPastDueBanner />` shown on `Dashboard` and `BotDashboard` when `hostingStatus === 'past_due'`:
+  - Professional copy along the lines of:
+    > **Payment overdue.** We weren't able to charge your card for this month's bot hosting. You have **{N} day(s)** to update your payment method before your bot(s) are automatically cancelled and removed from your servers. If you believe this is a mistake, please open a ticket in our Discord server.
+  - Primary button: **Update payment method** (opens Stripe Billing Portal via existing/new `create-portal-session` function).
+  - Secondary link: **Open a support ticket** → Discord invite.
+- Daily countdown is just `Math.ceil((grace_period_ends_at - now) / 1day)`, recomputed on each render.
 
-### `dashboard_role_permissions`
-- `owner_user_id uuid`
-- `role text`
-- `permissions jsonb` — `{ view_dashboard, edit_bot_config, manage_secrets, view_logs, edit_billing, manage_team, transfer_ownership }`
-- PK `(owner_user_id, role)`
+## Files
 
-Defaults (used when no row exists):
-| role | view | edit_config | secrets | logs | billing | team | transfer |
-|------|------|-------------|---------|------|---------|------|----------|
-| owner | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| co_owner | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |   |
-| admin | ✓ | ✓ | ✓ | ✓ |   |   |   |
-| moderator | ✓ | ✓ |   | ✓ |   |   |   |
-| viewer | ✓ |   |   |   |   |   |   |
+**New**
+- `supabase/migrations/<ts>_hosting_subscriptions.sql` — table + RLS + `pg_cron` job
+- `supabase/functions/sync-hosting-subscription/index.ts`
+- `supabase/functions/enforce-hosting-grace/index.ts`
+- `supabase/functions/create-portal-session/index.ts` (if not already present)
+- `src/hooks/useHostingSubscription.tsx`
+- `src/components/dashboard/HostingPastDueBanner.tsx`
 
-RLS: owner manages their rows; everyone authenticated can read their owner's row (via membership).
+**Edited**
+- `supabase/functions/payments-webhook/index.ts` — handle `invoice.payment_failed`, `invoice.payment_succeeded`, `customer.subscription.updated`/`deleted` for the hosting price IDs
+- `src/hooks/useOwnedBots.tsx` — include past-due bots, expose `hostingStatus`
+- `src/pages/Dashboard.tsx`, `src/pages/BotDashboard.tsx` — mount banner
+- `src/components/site/BotBuilder.tsx` — kick off hosting subscription on first paid bot
 
-### RPCs (SECURITY DEFINER)
-- `team_invite_member(email, role)` — owner-only; inserts row with `invite_token`.
-- `team_remove_member(member_id)` — owner-only; cannot remove `owner` row.
-- `team_update_member_role(member_id, role)` — owner-only.
-- `team_transfer_ownership(member_id)` — owner-only; swaps roles atomically.
-- `team_accept_invites_for_current_user()` — called on hub load; matches by email.
-- `team_get_effective_role(owner_user_id)` — returns role + permissions for current user.
+## Open question
 
-## Frontend
-
-### New files
-- `src/components/dashboard/team/TeamManagementHub.tsx` — Card with Tabs.
-- `src/components/dashboard/team/TeamMembersTab.tsx` — table + invite dialog + per-row role select + transfer button.
-- `src/components/dashboard/team/RolesTab.tsx` — permission matrix; owner can toggle checkboxes.
-- `src/components/dashboard/team/SupportAccessTab.tsx` — thin wrapper rendering existing `SupportAccessManager` body.
-- `src/hooks/useTeamRole.tsx` — returns `{ role, permissions, isOwner }` for current user against current owner (defaults to own account).
-- `src/components/dashboard/team/RoleGate.tsx` — `<RoleGate permission="edit_bot_config" fallback={...}>`.
-
-### Edits
-- `src/pages/BotDashboard.tsx` — swap `<SupportAccessManager />` for `<TeamManagementHub />`.
-- `src/components/dashboard/AddonConfigCard.tsx` — disable Save when `!permissions.edit_bot_config`; show "Viewer — read only" hint.
-
-### Email
-Invite email via Lovable transactional email is out of scope for this pass — the invite row is created with a token and a copyable link the owner can send manually. (Note for follow-up.)
-
-## Out of scope this turn
-- Cross-owner dashboard viewing (member logs in and sees owner's bots) — schema supports it but UI switcher is a separate task.
-- Sending invite emails automatically.
-- Gating every page beyond the addon Save button (billing buttons can be wired in a follow-up).
+The Discord invite URL for "open a ticket" — confirm the link before I hard-code it (or I'll read it from `app_settings`).
