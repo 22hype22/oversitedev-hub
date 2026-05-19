@@ -218,8 +218,13 @@ export function useOwnedBots() {
   // the dashboard — current and future ones — even if that original order
   // is later cancelled. We also fall back to checking visible bots in case
   // the entitlement query hasn't loaded yet.
+  // Team members and support-grant viewers should also have dashboard access
+  // — they're managing the owner's bots on the owner's entitlement.
   const hasDashboardAccess =
-    ownsDashboardAddon || bots.some((b) => b.hasWebDashboard);
+    ownsDashboardAddon ||
+    bots.some((b) => b.hasWebDashboard) ||
+    teamBots.length > 0 ||
+    supportBots.length > 0;
   // Support- and team-session bots are always visible regardless of the
   // viewer's own dashboard add-on status — they're seeing the OWNER's bots,
   // not their own, and the owner's entitlement is what unlocks them.
