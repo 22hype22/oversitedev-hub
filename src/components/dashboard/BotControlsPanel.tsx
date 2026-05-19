@@ -87,7 +87,7 @@ const STATUS_CLASS: Record<CommandRow["status"], string> = {
 
 interface BotControlsPanelProps {
   botId: string;
-  onCommandSent?: () => void;
+  onCommandSent?: (action: Action) => void;
 }
 
 export function BotControlsPanel({ botId, onCommandSent }: BotControlsPanelProps) {
