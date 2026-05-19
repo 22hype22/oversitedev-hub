@@ -115,115 +115,48 @@ export function BotControlsPanel({ botId, isOffline = false, onCommandSent }: Bo
     refresh();
   }, [refresh]);
 
-  const pollStopCommand = useCallback(
-    async (commandId: string) => {
-      const startedAt = Date.now();
-      const interval = window.setInterval(async () => {
-        const { data, error } = await supabase
-          .from("bot_commands")
-          .select("status, error_message")
-          .eq("id", commandId)
-          .maybeSingle();
-
-        if (error) return;
-
-        const status = (data?.status ?? "pending") as CommandRow["status"];
-
-        if (status === "done" || status === "completed") {
-          window.clearInterval(interval);
-          setPending(null);
-          toast.success("Bot is now offline.");
-          refresh();
-          return;
-        }
-
-        if (status === "failed" || status === "canceled") {
-          window.clearInterval(interval);
-          setPending(null);
-          toast.error(data?.error_message ?? "Stop command failed.");
-          refresh();
-          return;
-        }
-
-        if (status === "pending" && Date.now() - startedAt > 15_000) {
-          window.clearInterval(interval);
-          setPending(null);
-          toast.error("Stop command timed out — bot did not respond within 15s.");
-          refresh();
-        }
-      }, 2_000);
-    },
-    [refresh],
-  );
-
   const send = async (action: Action) => {
     setPending(action);
     let ok = false;
     let errorMsg: string | null = null;
-    let stopCommandId: string | null = null;
 
     try {
-      if (action === "stop") {
-        const { data: userData } = await supabase.auth.getUser();
-        const uid = userData.user?.id;
-        if (!uid) throw new Error("Not authenticated");
-
-        const { data: bot, error: botErr } = await supabase
-          .from("bot_orders")
-          .select("user_id")
-          .eq("id", botId)
-          .maybeSingle();
-        if (botErr || !bot) throw new Error(botErr?.message ?? "Bot not found");
-
-        const { data: inserted, error: insErr } = await supabase
-          .from("bot_commands")
-          .insert({
-            bot_id: botId,
-            user_id: bot.user_id,
-            requested_by: uid,
-            action: "shutdown",
-            status: "pending",
-            payload: {},
-          })
-          .select("id")
-          .single();
-        if (insErr) throw new Error(insErr.message);
-        stopCommandId = inserted?.id ?? null;
-        ok = true;
-      } else {
-        const { data, error } = await supabase.functions.invoke("railway-control", {
-          body: { botId, action },
-        });
-        if (error) {
-          // supabase.functions.invoke returns data=null on non-2xx; the real
-          // error body lives on error.context (a Response). Pull it out so we
-          // surface "Bot not linked to Railway", "Forbidden", etc. instead of
-          // a generic "non-2xx status code".
-          let bodyMsg: string | null = null;
-          const ctx = (error as { context?: Response }).context;
-          if (ctx && typeof ctx.text === "function") {
+      const { data, error } = await supabase.functions.invoke("bot-railway-action", {
+        body: { botId, action },
+      });
+      if (error) {
+        // supabase.functions.invoke returns data=null on non-2xx; the real
+        // error body lives on error.context (a Response). Pull it out so we
+        // surface "Bot not linked to Railway", "Forbidden", etc. instead of
+        // a generic "non-2xx status code".
+        let bodyMsg: string | null = null;
+        const ctx = (error as { context?: Response }).context;
+        if (ctx && typeof ctx.text === "function") {
+          try {
+            const raw = await ctx.text();
             try {
-              const raw = await ctx.text();
-              try {
-                const parsed = JSON.parse(raw) as { error?: string };
-                bodyMsg = parsed?.error ?? raw;
-              } catch {
-                bodyMsg = raw;
-              }
+              const parsed = JSON.parse(raw) as { error?: string };
+              bodyMsg = parsed?.error ?? raw;
             } catch {
-              /* ignore */
+              bodyMsg = raw;
             }
+          } catch {
+            /* ignore */
           }
-          errorMsg = bodyMsg ?? (data as { error?: string } | null)?.error ?? error.message ?? "Request failed";
-          console.error("[railway-control] invoke failed", { action, botId, errorMsg, error });
+        }
+        errorMsg =
+          bodyMsg ??
+          (data as { error?: string } | null)?.error ??
+          error.message ??
+          "Request failed";
+        console.error("[bot-railway-action] invoke failed", { action, botId, errorMsg, error });
+      } else {
+        const result = data as { ok?: boolean; error?: string } | null;
+        if (!result?.ok) {
+          errorMsg = result?.error ?? "Failed to perform action.";
+          console.error("[bot-railway-action] returned not-ok", { action, botId, result });
         } else {
-          const result = data as { ok?: boolean; error?: string } | null;
-          if (!result?.ok) {
-            errorMsg = result?.error ?? "Failed to perform action.";
-            console.error("[railway-control] returned not-ok", { action, botId, result });
-          } else {
-            ok = true;
-          }
+          ok = true;
         }
       }
     } catch (e) {
@@ -231,9 +164,9 @@ export function BotControlsPanel({ botId, isOffline = false, onCommandSent }: Bo
     }
 
     setConfirm(null);
+    setPending(null);
 
     if (!ok) {
-      setPending(null);
       toast.error(errorMsg ?? "Request failed");
       refresh();
       return;
@@ -241,17 +174,9 @@ export function BotControlsPanel({ botId, isOffline = false, onCommandSent }: Bo
 
     onCommandSent?.(action);
 
-    if (action === "stop" && stopCommandId) {
-      toast.success("Shutting down… the bot will go offline shortly.");
-      refresh();
-      pollStopCommand(stopCommandId);
-      return;
-    }
-
-    setPending(null);
     const actionMsg: Record<Action, string> = {
       start: "Booting up — your bot should be online in ~30 seconds.",
-      stop: "Shutting down…",
+      stop: "Shutting down — the bot will go offline shortly.",
       restart: "Restarting now — back online in ~30 seconds.",
       redeploy: "Redeploy starting — pulling the latest build.",
     };
