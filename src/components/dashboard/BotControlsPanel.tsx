@@ -233,6 +233,8 @@ export function BotControlsPanel({ botId, onCommandSent }: BotControlsPanelProps
       return;
     }
 
+    onCommandSent?.();
+
     if (action === "stop" && stopCommandId) {
       toast.success("Shutting down… the bot will go offline shortly.");
       refresh();
