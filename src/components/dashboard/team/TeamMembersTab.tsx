@@ -352,7 +352,7 @@ function InviteDialog({
             <Select value={role} onValueChange={(v) => setRole(v as TeamRole)}>
               <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {INVITABLE_ROLES.map((r) => (
+                {assignableRoles.map((r) => (
                   <SelectItem key={r} value={r}>{ROLE_LABEL[r]}</SelectItem>
                 ))}
               </SelectContent>
