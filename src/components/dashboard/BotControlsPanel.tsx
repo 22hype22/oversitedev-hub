@@ -275,7 +275,7 @@ export function BotControlsPanel({ botId, isOffline = false, onCommandSent }: Bo
               key={key}
               variant={variant}
               size="sm"
-              disabled={pending !== null || disabledByStatus}
+              disabled={pending === key || disabledByStatus}
               onClick={() => setConfirm(key)}
               className="justify-start"
             >
