@@ -108,10 +108,52 @@ export function BotControlsPanel({ botId }: BotControlsPanelProps) {
     refresh();
   }, [refresh]);
 
+  const pollStopCommand = useCallback(
+    async (commandId: string) => {
+      const startedAt = Date.now();
+      const interval = window.setInterval(async () => {
+        const { data, error } = await supabase
+          .from("bot_commands")
+          .select("status, error_message")
+          .eq("id", commandId)
+          .maybeSingle();
+
+        if (error) return;
+
+        const status = (data?.status ?? "pending") as CommandRow["status"];
+
+        if (status === "done" || status === "completed") {
+          window.clearInterval(interval);
+          setPending(null);
+          toast.success("Bot is now offline.");
+          refresh();
+          return;
+        }
+
+        if (status === "failed" || status === "canceled") {
+          window.clearInterval(interval);
+          setPending(null);
+          toast.error(data?.error_message ?? "Stop command failed.");
+          refresh();
+          return;
+        }
+
+        if (status === "pending" && Date.now() - startedAt > 15_000) {
+          window.clearInterval(interval);
+          setPending(null);
+          toast.error("Stop command timed out — bot did not respond within 15s.");
+          refresh();
+        }
+      }, 2_000);
+    },
+    [refresh],
+  );
+
   const send = async (action: Action) => {
     setPending(action);
     let ok = false;
     let errorMsg: string | null = null;
+    let stopCommandId: string | null = null;
 
     try {
       if (action === "stop") {
@@ -126,15 +168,20 @@ export function BotControlsPanel({ botId }: BotControlsPanelProps) {
           .maybeSingle();
         if (botErr || !bot) throw new Error(botErr?.message ?? "Bot not found");
 
-        const { error: insErr } = await supabase.from("bot_commands").insert({
-          bot_id: botId,
-          user_id: bot.user_id,
-          requested_by: uid,
-          action: "shutdown",
-          status: "pending",
-          payload: {},
-        });
+        const { data: inserted, error: insErr } = await supabase
+          .from("bot_commands")
+          .insert({
+            bot_id: botId,
+            user_id: bot.user_id,
+            requested_by: uid,
+            action: "shutdown",
+            status: "pending",
+            payload: {},
+          })
+          .select("id")
+          .single();
         if (insErr) throw new Error(insErr.message);
+        stopCommandId = inserted?.id ?? null;
         ok = true;
       } else {
         const { data, error } = await supabase.functions.invoke("railway-control", {
@@ -153,19 +200,24 @@ export function BotControlsPanel({ botId }: BotControlsPanelProps) {
       errorMsg = e instanceof Error ? e.message : String(e);
     }
 
-    setPending(null);
     setConfirm(null);
 
     if (!ok) {
+      setPending(null);
       toast.error(errorMsg ?? "Request failed");
       refresh();
       return;
     }
-    toast.success(
-      action === "stop"
-        ? "Stop command queued."
-        : `${action.charAt(0).toUpperCase() + action.slice(1)} sent to Railway.`,
-    );
+
+    if (action === "stop" && stopCommandId) {
+      toast.success("Stop command queued. Waiting for bot to shut down…");
+      refresh();
+      pollStopCommand(stopCommandId);
+      return;
+    }
+
+    setPending(null);
+    toast.success(`${action.charAt(0).toUpperCase() + action.slice(1)} sent to Railway.`);
     refresh();
   };
 
