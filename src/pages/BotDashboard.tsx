@@ -700,7 +700,7 @@ const BotSection = ({
             <p className="text-sm text-muted-foreground">
               No add-ons on this bot yet. Add one to unlock its configuration box.
             </p>
-            {!bot.isDemo && (
+            {!bot.isDemo && canEditBilling && (
               <Button
                 variant="outline"
                 size="sm"
