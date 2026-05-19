@@ -343,7 +343,7 @@ const BotSection = ({
   searchQuery?: string;
   highlightedAddonId?: string | null;
 }) => {
-  const { health, reload: reloadHealth } = useBotHealth(bot.isDemo ? null : bot.id);
+  const { health, loading: healthLoading, reload: reloadHealth } = useBotHealth(bot.isDemo ? null : bot.id);
   // Optimistic lockout: "stop" forces offline until health confirms offline;
   // "start"/"restart"/"redeploy" keep the lockout on until health confirms online.
   const [optimisticAction, setOptimisticAction] = useState<"stop" | "start" | null>(null);
@@ -355,9 +355,28 @@ const BotSection = ({
       setOptimisticAction(null);
     }
   }, [optimisticAction, health?.effective_status]);
+  // Debug: log health resolution per bot/viewer to diagnose team-member lockout issues.
+  useEffect(() => {
+    if (bot.isDemo) return;
+    // eslint-disable-next-line no-console
+    console.log("[BotHealth]", {
+      botId: bot.id,
+      viaTeam: bot.viaTeam,
+      viaSupport: bot.viaSupport,
+      ownerUserId: bot.ownerUserId,
+      loading: healthLoading,
+      health,
+      effective_status: health?.effective_status ?? null,
+    });
+  }, [bot.id, bot.isDemo, bot.viaTeam, bot.viaSupport, bot.ownerUserId, healthLoading, health]);
+  // Offline lockout is based ONLY on actual runtime status. Loading or null
+  // health (e.g., RPC error, first paint) must NOT trigger the lockout —
+  // we only lock when we have confirmed effective_status === "offline".
   const isOffline =
     !bot.isDemo &&
-    (optimisticAction !== null || health?.effective_status === "offline");
+    (optimisticAction !== null ||
+      (!healthLoading && health?.effective_status === "offline"));
+
   const handleCommandSent = (action: "start" | "stop" | "restart" | "redeploy") => {
     setOptimisticAction(action === "stop" ? "stop" : "start");
     reloadHealth();
