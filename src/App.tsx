@@ -5,6 +5,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SplashScreen } from "@/components/SplashScreen";
+import { ThemePickerDialog } from "@/components/ThemePickerDialog";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { SuspensionBanner } from "@/components/SuspensionBanner";
 import { SignupPromoDialog } from "@/components/SignupPromoDialog";
@@ -49,6 +50,7 @@ const App = () => {
         <PaymentTestModeBanner />
         <SuspensionBanner />
         {showSplash && <SplashScreen onDone={handleSplashDone} />}
+        <ThemePickerDialog enabled={!showSplash} />
         <BrowserRouter>
           <PreferencesProvider>
             <ScrollToTop />
