@@ -342,6 +342,8 @@ const BotSection = ({
   searchQuery?: string;
   highlightedAddonId?: string | null;
 }) => {
+  const { health } = useBotHealth(bot.isDemo ? null : bot.id);
+  const isOffline = !bot.isDemo && health?.effective_status === "offline";
   const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
   const baseTagline = BOT_BASE_TAGLINES[bot.base];
   const cancellable = !bot.isDemo && canCancelStatus(bot.status);
@@ -608,27 +610,41 @@ const BotSection = ({
 
       {!bot.isDemo && <BotControlsPanel botId={bot.id} />}
 
-      {!bot.isDemo && (
-        <BotInviteLinkCard
-          botId={bot.id}
-          status={bot.status}
-          onRequestBuySlot={() => {
-            setHighlightSlots(true);
-            setTimeout(() => setHighlightSlots(false), 4000);
-          }}
-        />
+      {isOffline && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center text-xs text-amber-300 font-medium">
+          Bot is offline — start the bot to make changes.
+        </div>
       )}
 
-      {!bot.isDemo && <BotServerSlotsCard botId={bot.id} highlightBuy={highlightSlots} />}
+      <div
+        className={isOffline ? "space-y-5 opacity-40 pointer-events-none select-none" : "space-y-5"}
+        aria-disabled={isOffline}
+      >
+        {!bot.isDemo && (
+          <BotInviteLinkCard
+            botId={bot.id}
+            status={bot.status}
+            onRequestBuySlot={() => {
+              setHighlightSlots(true);
+              setTimeout(() => setHighlightSlots(false), 4000);
+            }}
+          />
+        )}
 
-      {!bot.isDemo && <BotUsageMetricsPanel botId={bot.id} />}
+        {!bot.isDemo && <BotServerSlotsCard botId={bot.id} highlightBuy={highlightSlots} />}
 
-      
+        {!bot.isDemo && <BotUsageMetricsPanel botId={bot.id} />}
+      </div>
+
         </div>
       </details>
 
+      <div
+        className={isOffline ? "opacity-40 pointer-events-none select-none" : ""}
+        aria-disabled={isOffline}
+      >
       <details
-        open={addonsOpen}
+        open={addonsOpen && !isOffline}
         onToggle={(e) => setAddonsOpen((e.target as HTMLDetailsElement).open)}
         className="group rounded-xl border border-border bg-card/30 overflow-hidden"
       >
@@ -737,6 +753,7 @@ const BotSection = ({
       </div>
         </div>
       </details>
+      </div>
     </section>
   );
 
