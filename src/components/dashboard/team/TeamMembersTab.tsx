@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Loader2, UserPlus, Crown, Trash2, Copy, ArrowRightLeft } from "lucide-react";
-import { ROLE_LABEL, type TeamRole } from "@/hooks/useTeamRole";
+import { ROLE_LABEL, ROLE_RANK, rolesAssignableBy, type TeamRole } from "@/hooks/useTeamRole";
 
 type Member = {
   id: string;
@@ -32,18 +32,30 @@ type Member = {
   accepted_at: string | null;
 };
 
-const INVITABLE_ROLES: TeamRole[] = ["co_owner", "admin", "moderator", "viewer"];
-
 export function TeamMembersTab({
   ownerUserId,
   viewerIsOwner = true,
-}: { ownerUserId?: string | null; viewerIsOwner?: boolean } = {}) {
+  viewerRole = null,
+  canManageTeam = true,
+  canTransferOwnership = true,
+}: {
+  ownerUserId?: string | null;
+  viewerIsOwner?: boolean;
+  viewerRole?: TeamRole | null;
+  canManageTeam?: boolean;
+  canTransferOwnership?: boolean;
+} = {}) {
   const { user } = useAuth();
   const targetOwnerId = ownerUserId ?? user?.id ?? null;
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [transferTarget, setTransferTarget] = useState<Member | null>(null);
+
+  // Roles this viewer is allowed to assign / invite at.
+  const effectiveViewerRole: TeamRole = viewerIsOwner ? "owner" : (viewerRole ?? "viewer");
+  const assignableRoles = rolesAssignableBy(effectiveViewerRole);
+  const viewerRank = ROLE_RANK[effectiveViewerRole];
 
   const reload = useCallback(async () => {
     if (!targetOwnerId) return;
