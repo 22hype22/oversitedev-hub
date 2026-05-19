@@ -164,22 +164,50 @@ serve(async (req) => {
       );
     }
 
-    if (pm) {
-      // Make sure the PM is attached + set as the customer's invoice default.
+    let effectivePm: string | null = pm;
+    if (effectivePm) {
       try {
-        await stripe.paymentMethods.attach(pm, { customer });
+        await stripe.paymentMethods.attach(effectivePm, { customer });
       } catch (_) {
         // Already attached — ignore.
       }
       await stripe.customers.update(customer, {
-        invoice_settings: { default_payment_method: pm },
+        invoice_settings: { default_payment_method: effectivePm },
       });
+    } else {
+      // Fall back to whatever PM the customer already has on file.
+      const cust = await stripe.customers.retrieve(customer) as any;
+      effectivePm = cust?.invoice_settings?.default_payment_method
+        ?? cust?.default_source
+        ?? null;
+      if (!effectivePm) {
+        const pms = await stripe.paymentMethods.list({ customer, type: "card", limit: 1 });
+        effectivePm = pms.data[0]?.id ?? null;
+        if (effectivePm) {
+          await stripe.customers.update(customer, {
+            invoice_settings: { default_payment_method: effectivePm },
+          });
+        }
+      }
+    }
+
+    if (!effectivePm) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          paidBots,
+          tier: targetLookup,
+          action: "needs_payment_method",
+          reason: "Customer has no default payment method on file",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const created = await stripe.subscriptions.create({
       customer,
       items: [{ price: targetPriceId }],
-      default_payment_method: pm ?? undefined,
+      default_payment_method: effectivePm,
       metadata: { kind: "bot_hosting", userId: user.id },
       payment_behavior: "allow_incomplete",
     });
