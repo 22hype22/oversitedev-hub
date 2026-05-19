@@ -68,6 +68,7 @@ import { UpgradeNotice } from "@/components/UpgradeNotice";
 import { compareVersions } from "@/lib/utils";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useMarketingSuspended } from "@/hooks/useMarketingSuspended";
+import { HostingPastDueBanner } from "@/components/dashboard/HostingPastDueBanner";
 
 type Purchase = {
   id: string;
@@ -561,6 +562,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="container mx-auto pt-24 pb-16 px-4 max-w-5xl">
+        <HostingPastDueBanner />
         <div className="flex items-center gap-3 mb-8">
           <div className="h-11 w-11 rounded-md bg-primary/10 text-primary inline-flex items-center justify-center">
             <LayoutDashboard size={22} />

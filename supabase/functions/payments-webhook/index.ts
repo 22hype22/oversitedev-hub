@@ -195,15 +195,131 @@ async function handleSetupIntentSucceeded(setupIntent: any, env: StripeEnv) {
   console.log("Preorder card saved for order:", orderId, "PM:", setupIntent.payment_method);
 }
 
+// Hosting-subscription handlers — drive the past-due / 10-day grace flow.
+// A subscription is identified as "hosting" by metadata.kind = "bot_hosting"
+// set when the sync-hosting-subscription function creates/updates it.
+async function upsertHostingSubscription(subscription: any, env: StripeEnv) {
+  const userId = subscription.metadata?.userId;
+  if (!userId) return;
+  const item = subscription.items?.data?.[0];
+  const priceId =
+    item?.price?.lookup_key ||
+    item?.price?.metadata?.lovable_external_id ||
+    item?.price?.id;
+  const periodEnd = item?.current_period_end ?? subscription.current_period_end;
+  const status = subscription.status; // active | past_due | canceled | unpaid | trialing | ...
+
+  const supabase = getSupabase();
+  const { data: existing } = await supabase
+    .from("hosting_subscriptions")
+    .select("id,past_due_since,grace_period_ends_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  // Grace timer: stamp `past_due_since` the first time status flips to
+  // past_due/unpaid; clear it as soon as the sub is active/trialing again.
+  let pastDueSince: string | null = existing?.past_due_since ?? null;
+  let graceEnds: string | null = existing?.grace_period_ends_at ?? null;
+  if (status === "past_due" || status === "unpaid") {
+    if (!pastDueSince) {
+      pastDueSince = new Date().toISOString();
+      graceEnds = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
+    }
+  } else if (status === "active" || status === "trialing") {
+    pastDueSince = null;
+    graceEnds = null;
+  }
+
+  // Map Stripe's `past_due` / `unpaid` to our `past_due` for the UI.
+  const localStatus = status === "unpaid" ? "past_due" : status;
+
+  await supabase.from("hosting_subscriptions").upsert(
+    {
+      user_id: userId,
+      stripe_subscription_id: subscription.id,
+      stripe_customer_id: subscription.customer,
+      price_id: priceId,
+      status: localStatus,
+      current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+      past_due_since: pastDueSince,
+      grace_period_ends_at: graceEnds,
+      environment: env,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  );
+}
+
+async function handleInvoicePaymentFailed(invoice: any, env: StripeEnv) {
+  const subscriptionId = invoice.subscription;
+  if (!subscriptionId) return;
+  const supabase = getSupabase();
+  // Locate the user via the hosting_subscriptions row (we only act on hosting subs).
+  const { data: sub } = await supabase
+    .from("hosting_subscriptions")
+    .select("id,user_id,past_due_since")
+    .eq("stripe_subscription_id", subscriptionId)
+    .maybeSingle();
+  if (!sub) return;
+  const nowIso = new Date().toISOString();
+  const graceEnds =
+    sub.past_due_since ??
+    new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
+  await supabase
+    .from("hosting_subscriptions")
+    .update({
+      status: "past_due",
+      past_due_since: sub.past_due_since ?? nowIso,
+      grace_period_ends_at: sub.past_due_since
+        ? undefined
+        : graceEnds,
+      updated_at: nowIso,
+    })
+    .eq("id", sub.id);
+}
+
+async function handleInvoicePaymentSucceeded(invoice: any, env: StripeEnv) {
+  const subscriptionId = invoice.subscription;
+  if (!subscriptionId) return;
+  const supabase = getSupabase();
+  await supabase
+    .from("hosting_subscriptions")
+    .update({
+      status: "active",
+      past_due_since: null,
+      grace_period_ends_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("stripe_subscription_id", subscriptionId);
+}
+
+function isHostingSubscription(subscription: any): boolean {
+  return subscription?.metadata?.kind === "bot_hosting";
+}
+
 async function handleWebhook(req: Request, env: StripeEnv) {
   const event = await verifyWebhook(req, env);
   switch (event.type) {
     case "customer.subscription.created":
     case "customer.subscription.updated":
-      await upsertSubscription(event.data.object, env);
+      if (isHostingSubscription(event.data.object)) {
+        await upsertHostingSubscription(event.data.object, env);
+      } else {
+        await upsertSubscription(event.data.object, env);
+      }
       break;
     case "customer.subscription.deleted":
-      await handleSubscriptionDeleted(event.data.object, env);
+      if (isHostingSubscription(event.data.object)) {
+        await upsertHostingSubscription(event.data.object, env);
+      } else {
+        await handleSubscriptionDeleted(event.data.object, env);
+      }
+      break;
+    case "invoice.payment_failed":
+      await handleInvoicePaymentFailed(event.data.object, env);
+      break;
+    case "invoice.payment_succeeded":
+      await handleInvoicePaymentSucceeded(event.data.object, env);
       break;
     case "checkout.session.completed":
     case "checkout.session.async_payment_succeeded":
