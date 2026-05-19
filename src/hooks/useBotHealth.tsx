@@ -62,6 +62,9 @@ export const useBotHealth = (botId: string | null) => {
   }, [botId]);
 
   useEffect(() => {
+    lastKnownGoodRef.current = null;
+    setHealth(null);
+    setLoading(Boolean(botId));
     load();
     // Refresh every 30s so "last seen" stays fresh and stale flips quickly
     const t = setInterval(load, 30_000);
