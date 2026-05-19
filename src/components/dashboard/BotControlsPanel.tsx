@@ -87,7 +87,7 @@ const STATUS_CLASS: Record<CommandRow["status"], string> = {
 
 interface BotControlsPanelProps {
   botId: string;
-  onCommandSent?: () => void;
+  onCommandSent?: (action: Action) => void;
 }
 
 export function BotControlsPanel({ botId, onCommandSent }: BotControlsPanelProps) {
@@ -233,7 +233,7 @@ export function BotControlsPanel({ botId, onCommandSent }: BotControlsPanelProps
       return;
     }
 
-    onCommandSent?.();
+    onCommandSent?.(action);
 
     if (action === "stop" && stopCommandId) {
       toast.success("Shutting down… the bot will go offline shortly.");
