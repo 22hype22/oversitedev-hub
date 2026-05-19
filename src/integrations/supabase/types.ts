@@ -2929,6 +2929,7 @@ export type Database = {
         Returns: boolean
       }
       sweep_preorders_for_confirmation: { Args: never; Returns: number }
+      team_accept_invite_by_token: { Args: { _token: string }; Returns: Json }
       team_accept_invites_for_current_user: { Args: never; Returns: number }
       team_cancel_ownership_transfer: {
         Args: { _member_id: string }

@@ -33,7 +33,19 @@ const Auth = () => {
 
   const runPostAuthActions = async () => {
     if (inviteToken) {
-      await (supabase as any).rpc("team_accept_invites_for_current_user");
+      // Accept by token (works even if the invitee signs in with a different
+      // email than the invite was sent to). Fall back to email-based acceptance
+      // for any other pending invites tied to this user's email.
+      try {
+        await (supabase as any).rpc("team_accept_invite_by_token", { _token: inviteToken });
+      } catch (e) {
+        console.error("team_accept_invite_by_token failed", e);
+      }
+      try {
+        await (supabase as any).rpc("team_accept_invites_for_current_user");
+      } catch (e) {
+        console.error("team_accept_invites_for_current_user failed", e);
+      }
     }
     if (transferToken) {
       const { data, error } = await (supabase as any).rpc(
@@ -51,7 +63,6 @@ const Auth = () => {
           title: "Ownership transferred",
           description: "You are now the owner of this account.",
         });
-        // Notify the new owner by email that the transfer is complete.
         try {
           const { data: userResp } = await supabase.auth.getUser();
           const newOwnerEmail = userResp?.user?.email;
@@ -76,15 +87,27 @@ const Auth = () => {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        if (inviteToken || transferToken) {
-          runPostAuthActions().then(() => navigate(postAuthPath, { replace: true }));
-        } else {
-          navigate("/", { replace: true });
+    let cancelled = false;
+    const go = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled || !session) return;
+      if (inviteToken || transferToken) {
+        // Always navigate, even if post-auth actions fail — otherwise the page
+        // can hang forever on a silent RPC error.
+        try {
+          await runPostAuthActions();
+        } catch (e) {
+          console.error("post-auth actions failed", e);
         }
+        if (!cancelled) navigate(postAuthPath, { replace: true });
+      } else {
+        navigate("/", { replace: true });
       }
-    });
+    };
+    void go();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, inviteToken, transferToken, postAuthPath]);
 
