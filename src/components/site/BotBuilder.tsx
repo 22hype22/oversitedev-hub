@@ -1044,7 +1044,11 @@ export const BotBuilder = () => {
                 <ul className="mt-3 space-y-1">
                   <li className="flex items-start gap-1.5 text-[11px] text-foreground/50 leading-snug">
                     <Check size={11} className="mt-0.5 shrink-0 text-muted-foreground" />
-                    <span>ERLC-optimized moderation</span>
+                    <span>In-game Moderation</span>
+                  </li>
+                  <li className="flex items-start gap-1.5 text-[11px] text-foreground/50 leading-snug">
+                    <Check size={11} className="mt-0.5 shrink-0 text-muted-foreground" />
+                    <span>Message to game Linking</span>
                   </li>
                   <li className="flex items-start gap-1.5 text-[11px] text-foreground/50 leading-snug">
                     <Check size={11} className="mt-0.5 shrink-0 text-muted-foreground" />
@@ -1055,6 +1059,13 @@ export const BotBuilder = () => {
                     <span>Session tools &amp; server binds</span>
                   </li>
                 </ul>
+                <div className="mt-3 flex items-center gap-2 flex-wrap text-xs text-foreground/60">
+                  <span>one-time</span>
+                  <span className="font-semibold">$99</span>
+                  <span className="px-1.5 py-0.5 rounded-full bg-muted border border-border/60 text-muted-foreground text-[10px] font-semibold uppercase tracking-wide">
+                    $50 with another bot
+                  </span>
+                </div>
               </div>
             </div>
           </div>
