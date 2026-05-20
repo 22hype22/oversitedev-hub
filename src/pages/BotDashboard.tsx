@@ -30,6 +30,7 @@ import { AddonConfigCard } from "@/components/dashboard/AddonConfigCard";
 import { GiveawayLaunchCard } from "@/components/dashboard/GiveawayLaunchCard";
 import { FixesBar } from "@/components/dashboard/FixesBar";
 import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
+import { BotDiscordIdentityCard } from "@/components/dashboard/BotDiscordIdentityCard";
 import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
 import { BotControlsPanel } from "@/components/dashboard/BotControlsPanel";
@@ -696,6 +697,16 @@ const BotSection = ({
           </div>
         )}
       </div>
+
+      {!bot.isDemo && !isDeploying && (
+        <BotDiscordIdentityCard
+          botId={bot.id}
+          initialUsername={bot.bot_name}
+          initialBio={bot.bot_bio ?? null}
+          lastUsernameChangeAt={bot.discord_last_username_change_at ?? null}
+          onUpdated={onReload}
+        />
+      )}
 
       {!bot.isDemo && !isDeploying && <BotControlsPanel botId={bot.id} isOffline={isOffline} onCommandSent={handleCommandSent} />}
 
