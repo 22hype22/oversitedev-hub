@@ -54,7 +54,11 @@ export function ReadOnlyBotScope({ ownerUserId, viaTeam, children }: Props) {
 
   return (
     <Ctx.Provider value={ctxValue}>
-      <div className="space-y-3">
+      <fieldset
+        disabled
+        className="readonly-scope space-y-5 border-0 p-0 m-0 min-w-0 w-full"
+        aria-readonly="true"
+      >
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-start gap-3">
           <div className="h-8 w-8 rounded-md bg-amber-500/10 border border-amber-500/30 grid place-items-center shrink-0">
             <Eye className="h-4 w-4 text-amber-400" />
@@ -71,14 +75,8 @@ export function ReadOnlyBotScope({ ownerUserId, viaTeam, children }: Props) {
             </p>
           </div>
         </div>
-        <fieldset
-          disabled
-          className="readonly-scope border-0 p-0 m-0 min-w-0 contents"
-          aria-readonly="true"
-        >
-          {children}
-        </fieldset>
-      </div>
+        {children}
+      </fieldset>
     </Ctx.Provider>
   );
 }
