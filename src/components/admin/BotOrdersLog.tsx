@@ -106,24 +106,24 @@ export const BotOrdersLog = () => {
     }
     const row = deleteTarget;
     setDeletingId(row.id);
-    // Cancel children first (pack siblings), then the row itself.
+    // Hard-delete children first (pack siblings), then the row itself, so the
+    // order disappears entirely from the log/chart instead of lingering as a
+    // cancelled record.
     await supabase
       .from("bot_orders")
-      .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+      .delete()
       .eq("parent_order_id", row.id);
     const { error } = await supabase
       .from("bot_orders")
-      .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+      .delete()
       .eq("id", row.id);
     setDeletingId(null);
     if (error) {
-      toast.error("Couldn't cancel order", { description: error.message });
+      toast.error("Couldn't delete order", { description: error.message });
       return;
     }
-    toast.success(`"${row.bot_name}" cancelled and removed from dashboard`);
-    setRows((prev) =>
-      prev.map((r) => (r.id === row.id ? { ...r, status: "cancelled" } : r)),
-    );
+    toast.success(`"${row.bot_name}" deleted`);
+    setRows((prev) => prev.filter((r) => r.id !== row.id && (r as any).parent_order_id !== row.id));
     if (expandedId === row.id) setExpandedId(null);
     setDeleteTarget(null);
     setDeleteCode("");
@@ -672,15 +672,15 @@ export const BotOrdersLog = () => {
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-destructive">
-            Remove bot from dashboard?
+            Delete bot order?
           </DialogTitle>
           <DialogDescription>
-            This will set{" "}
+            This will permanently delete{" "}
             <span className="font-semibold text-foreground">
               "{deleteTarget?.bot_name}"
             </span>{" "}
-            (and any pack siblings) to <span className="font-mono">cancelled</span>,
-            removing it from the user's dashboard. Enter the confirmation code to
+            (and any pack siblings) from the orders log and the user's
+            dashboard. This cannot be undone. Enter the confirmation code to
             continue.
           </DialogDescription>
         </DialogHeader>
