@@ -236,15 +236,33 @@ Deno.serve(async (req) => {
     const workerToken = Deno.env.get("WORKER_TOKEN") ?? "";
     const fnUrl = `${supabaseUrl}/functions/v1`;
 
-    await setVariables(projectId, environmentId, newServiceId, {
-      BOT_TOKEN: botToken!,
+    if (!botToken || typeof botToken !== "string" || botToken.trim() === "") {
+      throw new Error("Refusing to deploy: BOT_TOKEN is empty after pool claim");
+    }
+
+    const varsPayload: Record<string, string> = {
+      BOT_TOKEN: botToken.trim(),
       ...(poolClientId ? { DISCORD_CLIENT_ID: poolClientId } : {}),
       BOT_ORDER_ID: orderId,
       SUPABASE_URL: supabaseUrl,
       SUPABASE_ANON_KEY: anonKey,
       WORKER_TOKEN: workerToken,
       SUPABASE_FN_URL: fnUrl,
+    };
+
+    // Log shape (not values) of the payload to confirm BOT_TOKEN is present.
+    console.log("[auto-deploy-bot] variableCollectionUpsert payload", {
+      orderId,
+      serviceId: newServiceId,
+      keys: Object.keys(varsPayload),
+      botTokenLength: varsPayload.BOT_TOKEN?.length ?? 0,
+      botTokenPreview: varsPayload.BOT_TOKEN
+        ? `${varsPayload.BOT_TOKEN.slice(0, 4)}…${varsPayload.BOT_TOKEN.slice(-4)}`
+        : "(empty)",
+      hasClientId: Boolean(poolClientId),
     });
+
+    await setVariables(projectId, environmentId, newServiceId, varsPayload);
 
     await redeploy(newServiceId, environmentId);
 
