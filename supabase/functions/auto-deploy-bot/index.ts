@@ -38,11 +38,24 @@ async function railway(query: string, variables: Record<string, unknown>) {
 }
 
 function templateServiceFor(base: string): string {
-  const b = (base ?? "").toLowerCase();
-  if (b === "protection") return Deno.env.get("RAILWAY_TEMPLATE_SERVICE_PROTECTION") ?? "";
-  if (b === "support") return Deno.env.get("RAILWAY_TEMPLATE_SERVICE_SUPPORT") ?? "";
-  if (b === "utilities") return Deno.env.get("RAILWAY_TEMPLATE_SERVICE_UTILITIES") ?? "";
-  return "";
+  const protection = Deno.env.get("RAILWAY_TEMPLATE_SERVICE_PROTECTION") ?? "";
+  const support = Deno.env.get("RAILWAY_TEMPLATE_SERVICE_SUPPORT") ?? "";
+  const utilities = Deno.env.get("RAILWAY_TEMPLATE_SERVICE_UTILITIES") ?? "";
+  const b = (base ?? "").toLowerCase().trim();
+  switch (b) {
+    case "support":
+      return support;
+    case "utilities":
+      return utilities;
+    case "protection":
+    case "scratch":
+    case "all-in-one-pack":
+    case "all_in_one_pack":
+    case "allinonepack":
+    default:
+      // Default fallback: Protection template covers scratch/all-in-one/custom builds.
+      return protection;
+  }
 }
 
 async function getTemplateSource(serviceId: string): Promise<{ repo?: string; branch?: string; image?: string; envId: string }> {
