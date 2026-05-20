@@ -210,12 +210,7 @@ Deno.serve(async (req) => {
     const projectId = Deno.env.get("RAILWAY_PROJECT_ID");
     if (!projectId) throw new Error("RAILWAY_PROJECT_ID not configured");
 
-    const templateId = templateServiceFor(order.base);
-    if (!templateId) {
-      throw new Error(
-        `No Railway template configured for base "${order.base}". Expected protection/support/utilities.`,
-      );
-    }
+    const repo = repoSourceFor(order.base);
 
     // Mark as deploying
     await admin
@@ -235,7 +230,8 @@ Deno.serve(async (req) => {
       .replace(/^-+|-+$/g, "")
       .slice(0, 50);
 
-    const newServiceId = await createServiceFromTemplate(projectId, environmentId, serviceName, templateId);
+    const newServiceId = await createServiceFromRepo(projectId, environmentId, serviceName, repo);
+
 
     const workerToken = Deno.env.get("WORKER_TOKEN") ?? "";
     const fnUrl = `${supabaseUrl}/functions/v1`;
