@@ -60,6 +60,7 @@ export const template = {
   previewData: {
     ownerEmail: 'owner@example.com',
     confirmUrl: 'https://oversite.shop/auth?team_transfer=abc',
+    botNames: ['Moderation Bot', 'Tickets Bot'],
   },
 } satisfies TemplateEntry
 
