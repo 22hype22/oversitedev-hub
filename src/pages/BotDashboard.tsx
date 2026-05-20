@@ -687,7 +687,9 @@ const BotSection = ({
           className={`rounded-lg border px-4 py-3 text-sm flex items-center justify-center gap-3 ${
             deployFailed
               ? "border-destructive/30 bg-destructive/10 text-destructive"
-              : "border-blue-500/30 bg-blue-500/10 text-blue-300"
+              : isQueued
+                ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
+                : "border-blue-500/30 bg-blue-500/10 text-blue-300"
           }`}
         >
           {deployFailed ? (
@@ -696,6 +698,13 @@ const BotSection = ({
               <Button size="sm" variant="outline" onClick={retryDeploy} disabled={retrying}>
                 {retrying ? "Retrying…" : "Retry deployment"}
               </Button>
+            </>
+          ) : isQueued ? (
+            <>
+              <span className="h-2 w-2 rounded-full bg-amber-300 animate-pulse" />
+              <span className="font-medium text-center">
+                We're currently preparing your bot — our team is on it and you'll receive a Discord DM as soon as it's live. Thank you for your patience!
+              </span>
             </>
           ) : (
             <>
