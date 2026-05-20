@@ -1318,6 +1318,7 @@ export type Database = {
           member_user_id: string | null
           owner_user_id: string
           role: string
+          transfer_bot_ids: string[] | null
           transfer_requested_at: string | null
           transfer_requested_by: string | null
           transfer_token: string | null
@@ -1334,6 +1335,7 @@ export type Database = {
           member_user_id?: string | null
           owner_user_id: string
           role: string
+          transfer_bot_ids?: string[] | null
           transfer_requested_at?: string | null
           transfer_requested_by?: string | null
           transfer_token?: string | null
@@ -1350,6 +1352,7 @@ export type Database = {
           member_user_id?: string | null
           owner_user_id?: string
           role?: string
+          transfer_bot_ids?: string[] | null
           transfer_requested_at?: string | null
           transfer_requested_by?: string | null
           transfer_token?: string | null
@@ -2950,7 +2953,7 @@ export type Database = {
       }
       team_remove_member: { Args: { _member_id: string }; Returns: Json }
       team_request_ownership_transfer: {
-        Args: { _member_id: string }
+        Args: { _bot_ids: string[]; _member_id: string }
         Returns: Json
       }
       team_set_role_permissions: {
