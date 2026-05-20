@@ -70,37 +70,26 @@ export function useBotRoles(botId: string | undefined, guildId: string | undefin
     if (!botId || !guildId) return { ok: false, error: "no_guild" };
     setRefreshing(true);
     try {
-      const { data, error } = await supabase.rpc("request_list_roles" as any, {
-        _bot_id: botId,
-        _guild_id: guildId,
+      // Fetch directly from Discord using the bot's DISCORD_TOKEN so this
+      // works for every bot type (worker-managed or Railway-deployed).
+      const { data, error } = await supabase.functions.invoke("bot-list-roles", {
+        body: { bot_id: botId, guild_id: guildId },
       });
-      if (error) return { ok: false, error: error.message };
-      const result = data as { ok: boolean; error?: string };
-      if (!result?.ok) return { ok: false, error: result?.error ?? "request_failed" };
-
-      const before = lastFetchedAt;
-      for (let i = 0; i < 32; i++) {
-        await new Promise((r) => setTimeout(r, 250));
-        const { data: row } = await supabase
-          .from("bot_role_cache" as any)
-          .select("fetched_at")
-          .eq("bot_id", botId)
-          .eq("guild_id", guildId)
-          .order("fetched_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        const fetchedAt = (row as any)?.fetched_at as string | undefined;
-        if (fetchedAt && fetchedAt !== before) {
-          await readCache();
-          return { ok: true };
-        }
+      if (error) {
+        await readCache();
+        return { ok: false, error: error.message };
+      }
+      const result = (data ?? {}) as { ok?: boolean; error?: string };
+      if (!result.ok) {
+        await readCache();
+        return { ok: false, error: result.error ?? "request_failed" };
       }
       await readCache();
-      return { ok: false, error: "timeout" };
+      return { ok: true };
     } finally {
       setRefreshing(false);
     }
-  }, [botId, guildId, lastFetchedAt, readCache]);
+  }, [botId, guildId, readCache]);
 
   // Auto-sync once per bot+guild per session
   const refreshRef = useRef(refreshFromDiscord);

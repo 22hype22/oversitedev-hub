@@ -129,6 +129,11 @@ export function useBotGuilds(botId: string | undefined) {
     refresh();
   }, [refresh]);
 
+  // Auto-sync guilds from Discord once per bot per session so newly deployed
+  // bots populate without requiring a manual refresh click.
+  const autoSyncedGuildRef = useRef<Set<string>>(new Set());
+  const refreshFromDiscordHolder = useRef<(() => Promise<{ ok: boolean; error?: string }>) | null>(null);
+
   /**
    * Ask the worker to re-fetch the guild list from Discord. Polls the
    * runtime heartbeat guild list quickly until the row contents change.
@@ -137,38 +142,43 @@ export function useBotGuilds(botId: string | undefined) {
     if (!botId) return { ok: false, error: "no_bot" };
     setRefreshing(true);
     try {
-      const before = JSON.stringify(
-        [...guilds].map((g) => g.guild_id).sort(),
-      );
-      const { data, error } = await supabase.rpc("request_list_guilds", {
-        _bot_id: botId,
+      // Fetch guilds directly via Discord REST using the bot's DISCORD_TOKEN.
+      // Works for every bot type (worker-managed or Railway-deployed) since
+      // it bypasses the worker command queue.
+      const { data, error } = await supabase.functions.invoke("bot-list-guilds", {
+        body: { bot_id: botId },
       });
-      if (error) return { ok: false, error: error.message };
-      const result = data as { ok: boolean; error?: string };
-      if (!result?.ok) return { ok: false, error: result?.error ?? "request_failed" };
-
-      // Poll up to 24x (every 250ms = ~6s) for the cache to change.
-      for (let i = 0; i < 24; i++) {
-        await new Promise((r) => setTimeout(r, 250));
-        const { data: row } = await (supabase.from("bot_runtime_status") as any)
-          .select("guilds")
-          .eq("bot_id", botId)
-          .maybeSingle();
-        const rows = normalizeRuntimeGuilds((row as { guilds?: unknown } | null)?.guilds);
-        const next = JSON.stringify(
-          rows.map((g) => g.guild_id).sort(),
-        );
-        if (next !== before) {
-          setGuilds(rows);
-          return { ok: true };
-        }
+      if (error) {
+        await refresh();
+        return { ok: false, error: error.message };
+      }
+      const result = (data ?? {}) as { ok?: boolean; error?: string };
+      if (!result.ok) {
+        await refresh();
+        return { ok: false, error: result.error ?? "request_failed" };
       }
       await refresh();
-      return { ok: false, error: "timeout" };
+      return { ok: true };
     } finally {
       setRefreshing(false);
     }
-  }, [botId, guilds, refresh]);
+  }, [botId, refresh]);
+
+  // Keep latest refreshFromDiscord in a ref so the auto-sync effect doesn't
+  // need to re-run on every render.
+  useEffect(() => {
+    refreshFromDiscordHolder.current = refreshFromDiscord;
+  }, [refreshFromDiscord]);
+
+  // Auto-sync once per bot per session so freshly invited bots populate
+  // their guild list without manual intervention.
+  useEffect(() => {
+    if (!botId) return;
+    if (autoSyncedGuildRef.current.has(botId)) return;
+    autoSyncedGuildRef.current.add(botId);
+    void refreshFromDiscordHolder.current?.();
+  }, [botId]);
+
 
   useEffect(() => {
     if (!botId) return;
