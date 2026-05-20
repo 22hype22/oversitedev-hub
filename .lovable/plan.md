@@ -1,46 +1,63 @@
-# Offline Bot Dashboard Lockout
+# Per-Bot Team Membership
 
-## Goal
-When a bot's `effective_status` is `offline` (from `bot_runtime_status`), grey out and disable every interactive element below the Controls panel. The Start button in Controls must stay active so the user can bring the bot back online. Everything re-enables automatically when the bot comes back online.
+Shift team access from per-owner ("you're on my team = you see all my bots") to per-bot ("you're invited to *this* bot"). Existing memberships are preserved so no one loses access.
 
-## Approach
+## Outcome
 
-1. **Read health status in `BotSection`**
-   - Import and call `useBotHealth(bot.id)` inside `BotSection`.
-   - Derive `isOffline = health?.effective_status === 'offline'` (only when health is loaded; do not lock while loading).
+- A new bot starts with **only its owner**. No team members, no other accounts.
+- Owner explicitly invites team members **to a specific bot** (or multiple bots) from that bot's Team tab.
+- Existing teams keep working: every current member is backfilled into every bot the owner has *today*. Only future bots start empty.
+- Admins keep global access via `has_role('admin')` — that's a separate platform role, not a team membership.
 
-2. **Restructure JSX in `BotDashboard.tsx`**
-   - The Controls panel (`BotControlsPanel`) is inside the first `<details>` ("Manage this bot").
-   - Everything after it in that details + the entire second `<details>` ("Add-on configuration") must be wrapped in a lockout container.
-   - Move the closing `</div></details>` of the first section so that the lockout wrapper starts right after `BotControlsPanel` and spans both the remainder of the first details and the entire second details.
+## Database changes
 
-3. **Visual lockout layer**
-   - Wrap the post-Controls content in a `<div className="relative">`.
-   - When `isOffline`:
-     - Apply `opacity-40 pointer-events-none` to the wrapper content.
-     - Render a subtle top banner inside the wrapper:  
-       `"Bot is offline — start the bot to make changes."`
-       Style: muted background, small text, centered.
-   - Do NOT wrap `BotControlsPanel` itself — Start must remain clickable.
+1. **`dashboard_team` becomes per-bot**
+   - Add `bot_id uuid NOT NULL` (after backfill).
+   - Drop old unique index `(owner_user_id, lower(member_email))`, add `(bot_id, lower(member_email))`.
+   - Backfill: for each existing `dashboard_team` row, insert one row per existing `bot_orders.id` owned by `owner_user_id`. Delete the original "global" rows.
+   - Invite/transfer tokens, role, permissions stay on the row (per bot).
 
-4. **What gets disabled**
-   - `BotInviteLinkCard`
-   - `BotServerSlotsCard`
-   - `BotUsageMetricsPanel`
-   - `DashboardServerSelector`
-   - All `AddonConfigCard` instances
-   - `SortableAddonGrid` (drag handles, inputs, save buttons)
-   - `GiveawayLaunchCard`
-   - Any buttons or inputs inside the above
+2. **New SECURITY DEFINER helpers** (replace owner-scoped ones):
+   - `has_bot_team_access(_viewer uuid, _bot_id uuid) returns boolean`
+   - `has_bot_team_perm(_viewer uuid, _bot_id uuid, _perm text) returns boolean`
+   - Old `has_team_access(viewer, owner)` / `has_team_perm(viewer, owner, perm)` are kept as thin wrappers that return `false` (so any leftover policy fails closed) and then removed after sweep.
 
-5. **Real-time re-enable**
-   - `useBotHealth` already polls every 30 seconds.
-   - When `effective_status` changes from `offline` → anything else, `isOffline` becomes `false` and the lockout layer disappears automatically.
+3. **RLS policy rewrite** on every table currently using `has_team_access/has_team_perm` against `user_id`:
+   - `bot_orders` (use `id` as bot_id)
+   - `bot_commands`, `bot_logs`, `bot_config`, `bot_addon_state`, `bot_secrets`, `bot_runtime_status`, `bot_active_guilds`, `bot_channel_cache`, `bot_role_cache`, `bot_credits`, `bot_free_periods`, `bot_pending_discounts`, `bot_server_slots`
+   - Each policy switches from `has_team_access(auth.uid(), user_id)` to `has_bot_team_access(auth.uid(), bot_id)`.
 
-## Files changed
-- `src/pages/BotDashboard.tsx` — add `useBotHealth`, restructure `BotSection` JSX, add lockout wrapper + banner.
+4. **`dashboard_role_permissions`** — extend to `(owner_user_id, bot_id, role)` so per-bot permission overrides are possible. Backfill existing rows across the owner's bots.
 
-## Technical details
-- `pointer-events-none` on the wrapper disables clicks on all nested interactive elements without touching individual components.
-- `opacity-40` provides the greyed-out look.
-- The banner is rendered as a sibling inside the wrapper, above the content, so it remains readable.
+## Frontend changes
+
+- **Team Management Hub** moves from a global "my team" view to a **bot-scoped** Team tab inside each bot's dashboard. The page-level "Team" route either:
+  - lists each bot with its own member roster, or
+  - is removed in favor of the per-bot tab (decide during implementation).
+- **Invite flow** in `team-invite-send` adds a `bot_id` parameter. Invite email and accept URL include the bot context.
+- `useTeamRole(ownerId)` becomes `useTeamRole(botId)`. Update all consumers (`ReadOnlyBotScope`, role badges, gates).
+- Bot list (`useOwnedBots`) — team members see only bots they're invited to (no change needed if RLS is correct; verify).
+
+## Edge function changes
+
+- `team-invite-send`: require `bot_id`, validate the caller owns that bot, insert per-bot row.
+- `team-transfer-send` / accept flow: transfers move ownership of selected bots only (already supports `transfer_bot_ids`); confirm the per-bot model is consistent.
+
+## Migration plan (order)
+
+1. Migration A: add nullable `bot_id`, backfill rows, make `NOT NULL`, swap unique index.
+2. Migration B: create `has_bot_team_access` + `has_bot_team_perm`.
+3. Migration C: rewrite RLS policies table by table.
+4. Migration D: drop old `has_team_access` / `has_team_perm`.
+5. Ship frontend + edge function changes in the same release as migrations B/C so the UI matches the new contract.
+
+## Out of scope
+
+- Admin (`app_role = 'admin'`) access. Admins keep global access; the user confirmed only auto-team-copy is the concern.
+- Changing how `dashboard_team` invites are delivered (email template unchanged aside from bot context).
+
+## Risks
+
+- Backfill multiplies rows: a team of 5 with 4 bots becomes 20 rows. Fine at current scale.
+- Any code path that still calls `has_team_access(viewer, owner)` after the cutover silently denies — sweep all SQL functions and edge functions in step 3.
+- Realtime subscriptions on `dashboard_team` keyed on `owner_user_id` continue to work; add `bot_id` filter on the client where roster is rendered per bot.
