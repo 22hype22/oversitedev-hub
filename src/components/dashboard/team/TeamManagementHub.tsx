@@ -22,7 +22,7 @@ type Props = {
  * Per-bot team management. Each bot has its own roster — members invited to
  * one bot do not get access to other bots owned by the same person.
  */
-export function TeamManagementHub({ botId, ownerUserId }: Props) {
+export function TeamManagementHub({ botId, ownerUserId, ownerEmail }: Props) {
   const { user } = useAuth();
   const viewerIsOwner = !!user && ownerUserId === user.id;
 
