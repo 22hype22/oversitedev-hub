@@ -2774,6 +2774,14 @@ export type Database = {
         Returns: Json
       }
       revoke_worker_token: { Args: { _id: string }; Returns: Json }
+      rotate_billing_override_code: {
+        Args: never
+        Returns: {
+          code: string
+          expires_at: string
+          rotated_at: string
+        }[]
+      }
       runtime_append_bot_log:
         | {
             Args: {
