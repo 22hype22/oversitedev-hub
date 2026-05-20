@@ -327,6 +327,7 @@ const BotSection = ({
   bot,
   allBots,
   userId,
+  ownerEmail,
   freePeriod,
   onCancel,
   onAddAddons,
@@ -337,6 +338,7 @@ const BotSection = ({
   bot: OwnedBot;
   allBots: OwnedBot[];
   userId: string;
+  ownerEmail?: string | null;
   freePeriod?: BotFreePeriod;
   onCancel: (bot: OwnedBot) => void;
   onAddAddons: (bot: OwnedBot) => void;
@@ -887,6 +889,7 @@ const BotSection = ({
           <TeamManagementHub
             botId={bot.id}
             ownerUserId={bot.ownerUserId ?? userId}
+            ownerEmail={ownerEmail}
           />
         </div>
       )}
@@ -1122,6 +1125,7 @@ const BotDashboard = () => {
                       bot={bot}
                       allBots={dashboardBots}
                       userId={user.id}
+                      ownerEmail={user.email}
                       freePeriod={freePeriods[bot.id]}
                       onCancel={setCancelTarget}
                       onAddAddons={setAddonsTarget}

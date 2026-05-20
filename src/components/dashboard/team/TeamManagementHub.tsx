@@ -14,13 +14,15 @@ type Props = {
   botId: string;
   /** The user_id of the bot's owner. */
   ownerUserId: string;
+  /** Optional owner email for displaying the owner row when dashboard_team is empty. */
+  ownerEmail?: string | null;
 };
 
 /**
  * Per-bot team management. Each bot has its own roster — members invited to
  * one bot do not get access to other bots owned by the same person.
  */
-export function TeamManagementHub({ botId, ownerUserId }: Props) {
+export function TeamManagementHub({ botId, ownerUserId, ownerEmail }: Props) {
   const { user } = useAuth();
   const viewerIsOwner = !!user && ownerUserId === user.id;
 
@@ -89,6 +91,7 @@ export function TeamManagementHub({ botId, ownerUserId }: Props) {
               <TeamMembersTab
                 botId={botId}
                 ownerUserId={ownerUserId}
+                ownerEmail={ownerEmail}
                 viewerIsOwner={viewerIsOwner}
                 viewerRole={viewerIsOwner ? "owner" : role}
                 canManageTeam={canManageTeam}
