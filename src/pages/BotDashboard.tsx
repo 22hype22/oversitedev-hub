@@ -372,10 +372,36 @@ const BotSection = ({
   // Offline lockout is based ONLY on actual runtime status. Loading or null
   // health (e.g., RPC error, first paint) must NOT trigger the lockout —
   // we only lock when we have confirmed effective_status === "offline".
+  // A bot is "deploying" when auto-deploy hasn't finished yet — either it's
+  // actively deploying, it failed, or it succeeded but the worker hasn't sent
+  // its first heartbeat yet (no railway_service_id+offline before first ping).
+  const isDeploying =
+    !bot.isDemo &&
+    (bot.deployment_status === "deploying" ||
+      bot.deployment_status === "failed" ||
+      (bot.deployment_status === "deployed" &&
+        !healthLoading &&
+        !health?.last_heartbeat_at));
+  const deployFailed = !bot.isDemo && bot.deployment_status === "failed";
   const isOffline =
     !bot.isDemo &&
+    !isDeploying &&
     (optimisticAction !== null ||
       (!healthLoading && health?.effective_status === "offline"));
+  const [retrying, setRetrying] = useState(false);
+  const retryDeploy = async () => {
+    setRetrying(true);
+    const { error } = await supabase.functions.invoke("auto-deploy-bot", {
+      body: { orderId: bot.id },
+    });
+    setRetrying(false);
+    if (error) {
+      toast.error("Retry failed", { description: error.message });
+    } else {
+      toast.success("Deployment retried — refreshing…");
+      onReload();
+    }
+  };
 
   const handleCommandSent = (action: "start" | "stop" | "restart" | "redeploy") => {
     setOptimisticAction(action === "stop" ? "stop" : "start");
