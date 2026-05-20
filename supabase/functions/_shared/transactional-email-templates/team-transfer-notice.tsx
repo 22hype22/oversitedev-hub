@@ -55,7 +55,7 @@ export const template = {
   component: TeamTransferNoticeEmail,
   subject: () => `Ownership transfer requested on your ${SITE_NAME} account`,
   displayName: 'Team ownership transfer notice (owner copy)',
-  previewData: { memberEmail: 'newowner@example.com' },
+  previewData: { memberEmail: 'newowner@example.com', botNames: ['Moderation Bot'] },
 } satisfies TemplateEntry
 
 const main = {
@@ -66,3 +66,5 @@ const container = { padding: '32px 24px', maxWidth: '560px' }
 const h1 = { fontSize: '22px', fontWeight: 'bold', color: '#0f172a', margin: '0 0 24px' }
 const text = { fontSize: '15px', color: '#334155', lineHeight: '1.6', margin: '0 0 16px' }
 const footer = { fontSize: '13px', color: '#64748b', margin: '24px 0 0' }
+const listStyle = { paddingLeft: '20px', margin: '0 0 16px', color: '#334155', fontSize: '15px' }
+const listItem = { margin: '4px 0' }
