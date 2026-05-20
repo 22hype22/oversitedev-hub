@@ -20,6 +20,17 @@ export function BillingOverrideCodeCard() {
     setLoading(false);
   }, []);
 
+  const rotate = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await (supabase as any).rpc("rotate_billing_override_code");
+    if (error) toast.error("Couldn't rotate", { description: error.message });
+    else if (data?.[0]) {
+      setRow(data[0] as Row);
+      toast.success("New code generated");
+    }
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     load();
     const tick = setInterval(() => setNow(Date.now()), 1000);
@@ -78,7 +89,7 @@ export function BillingOverrideCodeCard() {
           <Button variant="outline" size="icon" onClick={copy} disabled={!row} title="Copy">
             <Copy className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={load} disabled={loading} title="Refresh">
+          <Button variant="outline" size="icon" onClick={rotate} disabled={loading} title="Generate new code now">
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
         </div>
