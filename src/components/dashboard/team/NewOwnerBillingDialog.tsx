@@ -118,8 +118,13 @@ export function NewOwnerBillingDialog({ forceOpen = false }: { forceOpen?: boole
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o && !saving) setOpen(false); }}>
-      <DialogContent className="max-w-lg" onInteractOutside={(e) => e.preventDefault()}>
+    <Dialog open={open} onOpenChange={() => { /* must complete billing or enter override code */ }}>
+      <DialogContent
+        className="max-w-lg [&>button]:hidden"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" /> Confirm your billing details
