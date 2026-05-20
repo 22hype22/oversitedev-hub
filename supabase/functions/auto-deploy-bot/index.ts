@@ -190,16 +190,31 @@ Deno.serve(async (req) => {
       if (claimErr) throw new Error(`Token pool claim failed: ${claimErr.message}`);
       const c = claim as { ok?: boolean; error?: string; token?: string; client_id?: string } | null;
       if (!c?.ok) {
-        const isEmpty = c?.error === "pool_empty";
-        const msg = isEmpty
-          ? "No bot tokens available in the pool. Add more tokens to the bot token pool before marking this order ready."
-          : `Could not claim a bot token: ${c?.error ?? "unknown error"}`;
+        if (c?.error === "pool_empty") {
+          // Hold the order in a friendly "queued" state. A token-pool trigger
+          // will retry this order automatically when a new token is added.
+          const friendly =
+            "We're currently preparing your bot — our team is on it and you'll receive a Discord DM as soon as it's live. Thank you for your patience!";
+          await admin
+            .from("bot_orders")
+            .update({
+              deployment_status: "queued",
+              deployment_error: friendly,
+              deployment_attempted_at: new Date().toISOString(),
+            })
+            .eq("id", orderId);
+          return new Response(
+            JSON.stringify({ ok: true, queued: true, message: friendly }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        const msg = `Could not claim a bot token: ${c?.error ?? "unknown error"}`;
         await admin
           .from("bot_orders")
           .update({ deployment_status: "failed", deployment_error: msg })
           .eq("id", orderId);
-        return new Response(JSON.stringify({ error: msg, pool_empty: isEmpty }), {
-          status: isEmpty ? 409 : 500,
+        return new Response(JSON.stringify({ error: msg }), {
+          status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
