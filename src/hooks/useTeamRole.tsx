@@ -96,6 +96,44 @@ export function useTeamRole(ownerUserId?: string | null) {
     void reload();
   }, [reload]);
 
+  // Live updates: when the owner changes a member's role or tweaks the
+  // role-permission matrix, every active viewer should re-resolve their
+  // effective permissions without a manual refresh.
+  useEffect(() => {
+    if (!user || !targetOwner) return;
+    const suffix = Math.random().toString(36).slice(2);
+    const channel = supabase
+      .channel(`team-role-${targetOwner}-${user.id}-${suffix}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "dashboard_team",
+          filter: `owner_user_id=eq.${targetOwner}`,
+        },
+        () => {
+          void reload();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "dashboard_role_permissions",
+          filter: `owner_user_id=eq.${targetOwner}`,
+        },
+        () => {
+          void reload();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, targetOwner, reload]);
+
   return useMemo(
     () => ({
       role,
