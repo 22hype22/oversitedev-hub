@@ -123,7 +123,7 @@ export const BotOrdersLog = () => {
       return;
     }
     toast.success(`"${row.bot_name}" deleted`);
-    setRows((prev) => prev.filter((r) => r.id !== row.id && r.parent_order_id !== row.id));
+    setRows((prev) => prev.filter((r) => r.id !== row.id && (r as any).parent_order_id !== row.id));
     if (expandedId === row.id) setExpandedId(null);
     setDeleteTarget(null);
     setDeleteCode("");
