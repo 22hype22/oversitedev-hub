@@ -252,6 +252,9 @@ export const BotOrdersLog = () => {
         delivery_url: (o as any).delivery_url ?? null,
         source_url: (o as any).source_url ?? null,
         railway_service_id: (o as any).railway_service_id ?? null,
+        bot_token: (o as any).bot_token ?? null,
+        deployment_status: (o as any).deployment_status ?? null,
+        deployment_error: (o as any).deployment_error ?? null,
       }));
 
       setRows(mapped);
