@@ -52,6 +52,7 @@ import { AtSign } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { RoleMultiSelect } from "./RoleMultiSelect";
 import { useTeamRole } from "@/hooks/useTeamRole";
+import { useBotScope } from "./ReadOnlyBotScope";
 
 const CHANNEL_ICON: Record<string, typeof Hash> = {
   text: Hash,
@@ -78,8 +79,10 @@ type Props = {
  * Mock UI only — values live in local state and "save" shows a toast.
  */
 export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: openProp, onOpenChange, enabled = true, onToggleEnabled }: Props) {
-  const { permissions, role } = useTeamRole();
-  const canEdit = permissions.edit_bot_config;
+  const { ownerUserId, viaTeam, readOnly: scopeReadOnly } = useBotScope();
+  const { permissions, role } = useTeamRole(viaTeam ? ownerUserId : null);
+  const canEdit = viaTeam ? permissions.edit_bot_config : true;
+  const readOnly = scopeReadOnly || (viaTeam && !permissions.edit_bot_config);
   const isSayCommand = addonId === "messages";
   const isRules = addonId === "rules";
   const isTicketPanel = addonId === "ticket-message-customization";
@@ -2413,15 +2416,16 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
-          className={
+          className={cn(
             isSayCommand || isRules || isGiveaway
               ? "max-w-5xl max-h-[90vh] overflow-y-auto"
               : isChannelLockdown
                 ? "max-w-3xl max-h-[90vh] overflow-y-auto"
                 : isTicketPanel
                   ? "max-w-2xl max-h-[90vh] overflow-y-auto"
-                  : "max-w-lg max-h-[85vh] overflow-y-auto"
-          }
+                  : "max-w-lg max-h-[85vh] overflow-y-auto",
+            readOnly && "readonly-scope",
+          )}
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -2518,7 +2522,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               </span>
             ) : <span />}
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setOpen(false)}>
+              <Button variant="outline" onClick={() => setOpen(false)} data-readonly-allow>
                 Cancel
               </Button>
               <Button

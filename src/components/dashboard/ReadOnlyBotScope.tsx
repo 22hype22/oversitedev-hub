@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, createContext, useContext, useMemo } from "react";
 import { Eye, Lock } from "lucide-react";
 import { useTeamRole, ROLE_LABEL } from "@/hooks/useTeamRole";
 
@@ -9,6 +9,23 @@ type Props = {
   viaTeam?: boolean;
   children: ReactNode;
 };
+
+type BotScopeCtx = {
+  ownerUserId: string | null;
+  viaTeam: boolean;
+  readOnly: boolean;
+};
+
+const Ctx = createContext<BotScopeCtx>({
+  ownerUserId: null,
+  viaTeam: false,
+  readOnly: false,
+});
+
+/** Consume the surrounding bot scope (owner + read-only flag). */
+export function useBotScope() {
+  return useContext(Ctx);
+}
 
 /**
  * Wraps a bot's dashboard content and locks all editing UI when the current
@@ -24,35 +41,44 @@ export function ReadOnlyBotScope({ ownerUserId, viaTeam, children }: Props) {
   // Owners (viaTeam=false) and team members with edit perms get full UI.
   const readOnly = !!viaTeam && !loading && !permissions.edit_bot_config;
 
-  if (!readOnly) return <>{children}</>;
+  const ctxValue = useMemo<BotScopeCtx>(
+    () => ({ ownerUserId: ownerUserId ?? null, viaTeam: !!viaTeam, readOnly }),
+    [ownerUserId, viaTeam, readOnly],
+  );
+
+  if (!readOnly) {
+    return <Ctx.Provider value={ctxValue}>{children}</Ctx.Provider>;
+  }
 
   const roleLabel = role ? ROLE_LABEL[role] : "Team member";
 
   return (
-    <div className="space-y-3">
-      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-start gap-3">
-        <div className="h-8 w-8 rounded-md bg-amber-500/10 border border-amber-500/30 grid place-items-center shrink-0">
-          <Eye className="h-4 w-4 text-amber-400" />
-        </div>
-        <div className="text-sm">
-          <div className="font-semibold text-amber-300 flex items-center gap-1.5">
-            <Lock className="h-3.5 w-3.5" />
-            Read-only access · {roleLabel}
+    <Ctx.Provider value={ctxValue}>
+      <div className="space-y-3">
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-start gap-3">
+          <div className="h-8 w-8 rounded-md bg-amber-500/10 border border-amber-500/30 grid place-items-center shrink-0">
+            <Eye className="h-4 w-4 text-amber-400" />
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Your role can view this bot but not change its settings. Inputs,
-            toggles, and save actions are disabled. Ask the owner to grant
-            edit permissions in the Roles tab to unlock changes.
-          </p>
+          <div className="text-sm">
+            <div className="font-semibold text-amber-300 flex items-center gap-1.5">
+              <Lock className="h-3.5 w-3.5" />
+              Read-only access · {roleLabel}
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Your role can view this bot but not change its settings. Inputs,
+              toggles, and save actions are disabled. Ask the owner to grant
+              edit permissions in the Roles tab to unlock changes.
+            </p>
+          </div>
         </div>
+        <fieldset
+          disabled
+          className="readonly-scope border-0 p-0 m-0 min-w-0 contents"
+          aria-readonly="true"
+        >
+          {children}
+        </fieldset>
       </div>
-      <fieldset
-        disabled
-        className="readonly-scope border-0 p-0 m-0 min-w-0 contents"
-        aria-readonly="true"
-      >
-        {children}
-      </fieldset>
-    </div>
+    </Ctx.Provider>
   );
 }
