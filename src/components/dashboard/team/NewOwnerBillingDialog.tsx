@@ -150,6 +150,20 @@ export function NewOwnerBillingDialog({ forceOpen = false }: { forceOpen?: boole
               <Field label="Postal code" value={form.postal_code} onChange={(v) => setForm({ ...form, postal_code: v })} />
               <Field label="Country *" value={form.country} onChange={(v) => setForm({ ...form, country: v })} />
             </div>
+
+            <div className="grid gap-1 pt-3 mt-2 border-t border-border">
+              <Label className="text-xs">Override code (optional)</Label>
+              <Input
+                value={overrideCode}
+                onChange={(e) => setOverrideCode(e.target.value.toUpperCase())}
+                placeholder="ABCD1234"
+                maxLength={16}
+                className="font-mono tracking-widest"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter this if your payment was processed outside of the platform (e.g. PayPal).
+              </p>
+            </div>
           </div>
         )}
 
