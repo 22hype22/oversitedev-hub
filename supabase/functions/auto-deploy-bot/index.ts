@@ -1,13 +1,13 @@
-// Auto-deploy a bot to Railway by cloning a template service.
+// Auto-deploy a bot to Railway from a configured template service.
 //
 // Invocation:
 //   POST { orderId: string }
 //   - Called automatically by the bot_orders trigger when status -> 'ready'.
 //   - Can also be called by an admin (e.g. retry button) using their JWT.
 //
-// It clones the correct Railway template service (Protection / Support /
-// Utilities) based on the order's `base` field, sets the bot-specific env
-// vars, triggers a deploy, and writes the new service id back to bot_orders.
+// It creates the correct Railway service (Protection / Support / Utilities)
+// based on the order's `base` field, sets the bot-specific env vars, triggers
+// a deploy, and writes the new service id back to bot_orders.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -17,7 +17,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const RAILWAY_API = "https://backboard.railway.app/graphql/v2";
+const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
 
 async function railway(query: string, variables: Record<string, unknown>) {
   const token = Deno.env.get("RAILWAY_API_TOKEN");
@@ -58,47 +58,24 @@ function templateServiceFor(base: string): string {
   }
 }
 
-async function getTemplateSource(serviceId: string): Promise<{ repo?: string; branch?: string; image?: string; envId: string }> {
-  const data = await railway(
-    `query($id: String!) {
-      service(id: $id) {
-        id
-        name
-        source { repo image }
-        serviceInstances {
-          edges {
-            node {
-              branch
-              environmentId
-              source { repo image }
-            }
-          }
-        }
-        project { environments { edges { node { id name } } } }
-      }
-    }`,
-    { id: serviceId },
-  );
-  const svc = data?.service;
-  if (!svc) throw new Error("Template service not found");
-  const envEdges = svc.project?.environments?.edges ?? [];
-  const prod = envEdges.find((e: any) => e.node.name === "production") ?? envEdges[0];
-  if (!prod) throw new Error("Template has no environment");
-  const instances = svc.serviceInstances?.edges ?? [];
-  const prodInstance =
-    instances.find((e: any) => e.node.environmentId === prod.node.id)?.node ??
-    instances[0]?.node;
-  const repo = prodInstance?.source?.repo ?? svc.source?.repo;
-  const image = prodInstance?.source?.image ?? svc.source?.image;
-  const branch = prodInstance?.branch;
-  return { repo, image, branch, envId: prod.node.id };
+function railwayEnvironmentId(): string {
+  const environmentId =
+    Deno.env.get("RAILWAY_ENVIRONMENT_ID") ??
+    Deno.env.get("RAILWAY_PRODUCTION_ENVIRONMENT_ID") ??
+    "";
+  if (!environmentId) {
+    throw new Error(
+      "RAILWAY_ENVIRONMENT_ID not configured. Required for variableCollectionUpsert and serviceInstanceRedeploy without querying Railway Service fields.",
+    );
+  }
+  return environmentId;
 }
 
-async function createServiceFromRepo(
+async function createServiceFromTemplate(
   projectId: string,
+  environmentId: string,
   name: string,
-  repo: string,
-  branch: string | undefined,
+  templateServiceId: string,
 ): Promise<string> {
   const data = await railway(
     `mutation($input: ServiceCreateInput!) {
@@ -107,28 +84,15 @@ async function createServiceFromRepo(
     {
       input: {
         projectId,
+        environmentId,
         name,
-        source: { repo },
-        branch: branch ?? undefined,
+        templateServiceId,
       },
     },
   );
   const id = data?.serviceCreate?.id;
   if (!id) throw new Error("serviceCreate returned no id");
   return id;
-}
-
-async function getEnvironmentId(serviceId: string): Promise<string> {
-  const data = await railway(
-    `query($id: String!) {
-      service(id: $id) { project { environments { edges { node { id name } } } } }
-    }`,
-    { id: serviceId },
-  );
-  const edges = data?.service?.project?.environments?.edges ?? [];
-  const prod = edges.find((e: any) => e.node.name === "production") ?? edges[0];
-  if (!prod) throw new Error("No environment found on new service");
-  return prod.node.id;
 }
 
 async function setVariables(
@@ -268,10 +232,7 @@ Deno.serve(async (req) => {
       })
       .eq("id", orderId);
 
-    const tmpl = await getTemplateSource(templateId);
-    if (!tmpl.repo) {
-      throw new Error("Template service has no GitHub repo — cannot clone source.");
-    }
+    const environmentId = railwayEnvironmentId();
 
     const serviceName = `${order.bot_name ?? "bot"}-${orderId.slice(0, 8)}`
       .toLowerCase()
@@ -279,13 +240,12 @@ Deno.serve(async (req) => {
       .replace(/^-+|-+$/g, "")
       .slice(0, 50);
 
-    const newServiceId = await createServiceFromRepo(projectId, serviceName, tmpl.repo, tmpl.branch);
-    const newEnvId = await getEnvironmentId(newServiceId);
+    const newServiceId = await createServiceFromTemplate(projectId, environmentId, serviceName, templateId);
 
     const workerToken = Deno.env.get("WORKER_TOKEN") ?? "";
     const fnUrl = `${supabaseUrl}/functions/v1`;
 
-    await setVariables(projectId, newEnvId, newServiceId, {
+    await setVariables(projectId, environmentId, newServiceId, {
       BOT_TOKEN: botToken!,
       ...(poolClientId ? { DISCORD_CLIENT_ID: poolClientId } : {}),
       BOT_ORDER_ID: orderId,
@@ -295,7 +255,7 @@ Deno.serve(async (req) => {
       SUPABASE_FN_URL: fnUrl,
     });
 
-    await redeploy(newServiceId, newEnvId);
+    await redeploy(newServiceId, environmentId);
 
     await admin
       .from("bot_orders")
