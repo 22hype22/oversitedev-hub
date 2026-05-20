@@ -579,6 +579,14 @@ const BotSection = ({
         actions={headerActions}
       />
 
+      {deployFailed && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm flex items-center justify-between gap-3">
+          <span className="font-medium text-destructive">Deployment failed.</span>
+          <Button size="sm" variant="outline" onClick={retryDeploy} disabled={retrying}>
+            {retrying ? "Retrying…" : "Retry deployment"}
+          </Button>
+        </div>
+      )}
 
       <details
         open={manageOpen}
