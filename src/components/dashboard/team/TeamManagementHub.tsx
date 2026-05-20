@@ -91,6 +91,7 @@ export function TeamManagementHub({ botId, ownerUserId, ownerEmail }: Props) {
               <TeamMembersTab
                 botId={botId}
                 ownerUserId={ownerUserId}
+                ownerEmail={ownerEmail}
                 viewerIsOwner={viewerIsOwner}
                 viewerRole={viewerIsOwner ? "owner" : role}
                 canManageTeam={canManageTeam}
