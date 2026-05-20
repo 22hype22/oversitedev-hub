@@ -54,16 +54,26 @@ Deno.serve(async (req) => {
 
   // Fire-and-forget the email via the existing transactional sender (service-role)
   try {
-    const adminClient = createClient(SUPABASE_URL, SERVICE_KEY)
-    await adminClient.functions.invoke('send-transactional-email', {
-      headers: { Authorization: `Bearer ${SERVICE_KEY}` },
-      body: {
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-transactional-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        apikey: SERVICE_KEY,
+      },
+      body: JSON.stringify({
         templateName: 'team-invite',
         recipientEmail: email,
         templateData: { inviterEmail, role, acceptUrl },
         idempotencyKey: `team-invite:${result.id}`,
-      },
+      }),
     })
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '')
+      console.error('send-transactional-email failed', resp.status, text)
+    } else {
+      await resp.text().catch(() => '')
+    }
   } catch (e) {
     console.error('team-invite email failed', e)
     // Don't fail the whole call — the invite row + link still exist.
