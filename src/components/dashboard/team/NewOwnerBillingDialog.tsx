@@ -69,8 +69,32 @@ export function NewOwnerBillingDialog({ forceOpen = false }: { forceOpen?: boole
     })();
   }, [user, forceOpen]);
 
+  const [overrideCode, setOverrideCode] = useState("");
+
   const save = async () => {
     if (!user) return;
+
+    // Override code path — bypass normal validation entirely
+    if (overrideCode.trim()) {
+      setSaving(true);
+      const { data, error } = await (supabase as any).rpc(
+        "redeem_billing_override_code",
+        { _code: overrideCode.trim() },
+      );
+      setSaving(false);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      if (!data) {
+        toast.error("Invalid or expired override code");
+        return;
+      }
+      toast.success("Override accepted — account marked as paid");
+      setOpen(false);
+      return;
+    }
+
     if (!form.billing_name.trim() || !form.billing_email.trim() || !form.address_line1.trim() || !form.country.trim()) {
       toast.error("Please fill in name, email, address, and country");
       return;
@@ -125,6 +149,20 @@ export function NewOwnerBillingDialog({ forceOpen = false }: { forceOpen?: boole
             <div className="grid grid-cols-2 gap-3">
               <Field label="Postal code" value={form.postal_code} onChange={(v) => setForm({ ...form, postal_code: v })} />
               <Field label="Country *" value={form.country} onChange={(v) => setForm({ ...form, country: v })} />
+            </div>
+
+            <div className="grid gap-1 pt-3 mt-2 border-t border-border">
+              <Label className="text-xs">Override code (optional)</Label>
+              <Input
+                value={overrideCode}
+                onChange={(e) => setOverrideCode(e.target.value.toUpperCase())}
+                placeholder="ABCD1234"
+                maxLength={16}
+                className="font-mono tracking-widest"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter this if your payment was processed outside of the platform (e.g. PayPal).
+              </p>
             </div>
           </div>
         )}

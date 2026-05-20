@@ -33,6 +33,7 @@ import { AccountsLog } from "@/components/admin/AccountsLog";
 import { BotOrdersLog } from "@/components/admin/BotOrdersLog";
 import { FixesManager } from "@/components/admin/FixesManager";
 import { CodesManager } from "@/components/admin/CodesManager";
+import { BillingOverrideCodeCard } from "@/components/admin/BillingOverrideCodeCard";
 import { BotSecretSlotManager } from "@/components/admin/BotSecretSlotManager";
 import { SupportAccessRedeemer } from "@/components/admin/SupportAccessRedeemer";
 import { WorkerTokensManager } from "@/components/admin/WorkerTokensManager";
@@ -202,6 +203,7 @@ const Admin = () => {
                     <ProductManager userId={user.id} />
                   </div>
                   <CodesManager />
+                  <BillingOverrideCodeCard />
                   <FixesManager />
                   <UserVersionUpgrader />
                 </>

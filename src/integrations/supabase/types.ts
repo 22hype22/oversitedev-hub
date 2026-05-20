@@ -89,6 +89,45 @@ export type Database = {
         }
         Relationships: []
       }
+      billing_override_code: {
+        Row: {
+          code: string
+          id: number
+          rotated_at: string
+        }
+        Insert: {
+          code: string
+          id?: number
+          rotated_at?: string
+        }
+        Update: {
+          code?: string
+          id?: number
+          rotated_at?: string
+        }
+        Relationships: []
+      }
+      billing_override_redemptions: {
+        Row: {
+          code_used: string
+          id: string
+          redeemed_at: string
+          user_id: string
+        }
+        Insert: {
+          code_used: string
+          id?: string
+          redeemed_at?: string
+          user_id: string
+        }
+        Update: {
+          code_used?: string
+          id?: string
+          redeemed_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bot_active_guilds: {
         Row: {
           bot_id: string
@@ -2616,6 +2655,14 @@ export type Database = {
           messages_count: number
         }[]
       }
+      get_current_billing_override_code: {
+        Args: never
+        Returns: {
+          code: string
+          expires_at: string
+          rotated_at: string
+        }[]
+      }
       get_total_members_serving: { Args: never; Returns: number }
       has_active_membership: {
         Args: { _env?: string; _user_id: string }
@@ -2693,6 +2740,10 @@ export type Database = {
           _user_id: string
         }
         Returns: Json
+      }
+      redeem_billing_override_code: {
+        Args: { _code: string }
+        Returns: boolean
       }
       redeem_bot_code: {
         Args: { _bot_id: string; _code: string }
