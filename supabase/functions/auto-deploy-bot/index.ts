@@ -246,7 +246,8 @@ Deno.serve(async (req) => {
     const fnUrl = `${supabaseUrl}/functions/v1`;
 
     await setVariables(projectId, newEnvId, newServiceId, {
-      BOT_TOKEN: order.bot_token,
+      BOT_TOKEN: botToken!,
+      ...(poolClientId ? { DISCORD_CLIENT_ID: poolClientId } : {}),
       BOT_ORDER_ID: orderId,
       SUPABASE_URL: supabaseUrl,
       SUPABASE_ANON_KEY: anonKey,
