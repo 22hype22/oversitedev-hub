@@ -678,6 +678,7 @@ export type Database = {
           addons: string[]
           banner_url: string | null
           base: string
+          bot_bio: string | null
           bot_description: string | null
           bot_name: string
           bot_token: string | null
@@ -697,6 +698,7 @@ export type Database = {
           deployment_attempted_at: string | null
           deployment_error: string | null
           deployment_status: string
+          discord_last_username_change_at: string | null
           discord_user_id: string | null
           discord_username: string | null
           discount_amount: number
@@ -732,6 +734,7 @@ export type Database = {
           addons?: string[]
           banner_url?: string | null
           base: string
+          bot_bio?: string | null
           bot_description?: string | null
           bot_name: string
           bot_token?: string | null
@@ -751,6 +754,7 @@ export type Database = {
           deployment_attempted_at?: string | null
           deployment_error?: string | null
           deployment_status?: string
+          discord_last_username_change_at?: string | null
           discord_user_id?: string | null
           discord_username?: string | null
           discount_amount?: number
@@ -786,6 +790,7 @@ export type Database = {
           addons?: string[]
           banner_url?: string | null
           base?: string
+          bot_bio?: string | null
           bot_description?: string | null
           bot_name?: string
           bot_token?: string | null
@@ -805,6 +810,7 @@ export type Database = {
           deployment_attempted_at?: string | null
           deployment_error?: string | null
           deployment_status?: string
+          discord_last_username_change_at?: string | null
           discord_user_id?: string | null
           discord_username?: string | null
           discount_amount?: number
