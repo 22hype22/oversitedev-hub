@@ -69,8 +69,32 @@ export function NewOwnerBillingDialog({ forceOpen = false }: { forceOpen?: boole
     })();
   }, [user, forceOpen]);
 
+  const [overrideCode, setOverrideCode] = useState("");
+
   const save = async () => {
     if (!user) return;
+
+    // Override code path — bypass normal validation entirely
+    if (overrideCode.trim()) {
+      setSaving(true);
+      const { data, error } = await (supabase as any).rpc(
+        "redeem_billing_override_code",
+        { _code: overrideCode.trim() },
+      );
+      setSaving(false);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      if (!data) {
+        toast.error("Invalid or expired override code");
+        return;
+      }
+      toast.success("Override accepted — account marked as paid");
+      setOpen(false);
+      return;
+    }
+
     if (!form.billing_name.trim() || !form.billing_email.trim() || !form.address_line1.trim() || !form.country.trim()) {
       toast.error("Please fill in name, email, address, and country");
       return;
