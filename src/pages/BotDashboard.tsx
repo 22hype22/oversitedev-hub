@@ -373,12 +373,14 @@ const BotSection = ({
   // health (e.g., RPC error, first paint) must NOT trigger the lockout —
   // we only lock when we have confirmed effective_status === "offline".
   // A bot is "deploying" when auto-deploy hasn't finished yet — either it's
-  // actively deploying, it failed, or it succeeded but the worker hasn't sent
-  // its first heartbeat yet (no railway_service_id+offline before first ping).
+  // actively deploying, it's queued waiting on a token from the pool, it
+  // failed, or it succeeded but the worker hasn't sent its first heartbeat yet.
+  const isQueued = !bot.isDemo && bot.deployment_status === "queued";
   const isDeploying =
     !bot.isDemo &&
     (bot.deployment_status === "deploying" ||
       bot.deployment_status === "failed" ||
+      isQueued ||
       (bot.deployment_status === "deployed" &&
         !healthLoading &&
         !health?.last_heartbeat_at));
