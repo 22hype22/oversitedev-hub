@@ -33,6 +33,10 @@ export type OwnedBot = {
   viaTeam?: boolean;
   /** When viaSupport/viaTeam is true, the user_id of the actual bot owner. */
   ownerUserId?: string;
+  /** Auto-deployment lifecycle: pending | deploying | deployed | failed. */
+  deployment_status?: string | null;
+  /** Railway service ID once the bot has been provisioned. */
+  railway_service_id?: string | null;
 };
 
 // Bots that are paid and live show up in the dashboard. Drafts,
