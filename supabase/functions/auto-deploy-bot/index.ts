@@ -294,6 +294,31 @@ Deno.serve(async (req) => {
 
     await setVariables(projectId, environmentId, newServiceId, varsPayload);
 
+    // Verify Railway actually stored BOT_TOKEN with the value we sent.
+    // If it comes back empty/missing, do NOT redeploy — abort so the bot
+    // doesn't boot with an empty token.
+    try {
+      const stored = await fetchServiceVariables(projectId, environmentId, newServiceId);
+      const storedToken = stored?.BOT_TOKEN ?? "";
+      console.log("[auto-deploy-bot] post-upsert verification", {
+        serviceId: newServiceId,
+        storedKeys: Object.keys(stored ?? {}),
+        storedBotTokenLength: storedToken.length,
+      });
+      if (!storedToken || storedToken.length !== varsPayload.BOT_TOKEN.length) {
+        throw new Error(
+          `Railway stored BOT_TOKEN with length ${storedToken.length}, expected ${varsPayload.BOT_TOKEN.length}. Refusing to redeploy.`,
+        );
+      }
+    } catch (verifyErr) {
+      const m = verifyErr instanceof Error ? verifyErr.message : String(verifyErr);
+      // If the verification query itself fails (schema change etc.) log and
+      // continue rather than blocking deploys, but if it's our explicit
+      // mismatch error, re-throw.
+      if (m.includes("Refusing to redeploy")) throw verifyErr;
+      console.warn("[auto-deploy-bot] variable verification query failed (continuing)", { message: m });
+    }
+
     await redeploy(newServiceId, environmentId);
 
     await admin
