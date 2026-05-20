@@ -50,6 +50,7 @@ Deno.serve(async (req) => {
     const adminClient = createClient(SUPABASE_URL, SERVICE_KEY)
     await Promise.all([
       adminClient.functions.invoke('send-transactional-email', {
+        headers: { Authorization: `Bearer ${SERVICE_KEY}` },
         body: {
           templateName: 'team-transfer-confirm',
           recipientEmail: result.member_email,
@@ -59,6 +60,7 @@ Deno.serve(async (req) => {
       }),
       ownerEmail
         ? adminClient.functions.invoke('send-transactional-email', {
+            headers: { Authorization: `Bearer ${SERVICE_KEY}` },
             body: {
               templateName: 'team-transfer-notice',
               recipientEmail: ownerEmail,
