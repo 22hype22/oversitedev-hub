@@ -613,9 +613,23 @@ export const BotBuilder = () => {
   const persistOrder = async (): Promise<string | null> => {
     if (!user) return null; // anonymous: skip persistence, keep legacy flow
     const { primary, notesField } = buildSubmissionPayload();
-    const baseField = isPack ? "scratch" : bases.join("+");
     const planMonths = paymentPlan === "full" ? null : parseInt(paymentPlan, 10);
     const installmentAmount = planMonths ? Number((finalTotal / planMonths).toFixed(2)) : null;
+
+    // For the All-in-One Pack OR multi-select, the parent row represents the
+    // FIRST selected category (e.g. "protection"), NOT "scratch". Each row
+    // (parent + siblings) is its own real bot — its own Railway service,
+    // its own Discord token, its own dashboard — with addons filtered to
+    // only those that belong to that bot's category. The old behaviour of
+    // a single base="scratch" bot with every addon combined caused the
+    // dashboard to render Protection + Support + Utilities blocks all on
+    // one bot, which is not what the pack is supposed to do.
+    const tabsForPack = usesPackTabs ? (isPack ? PACK_TABS : visibleIdentityTabs) : [];
+    const parentBase = usesPackTabs ? tabsForPack[0].id : bases.join("+");
+    const parentAddons = usesPackTabs ? filterAddonsForBase(addons, parentBase) : addons;
+    const parentIdentity = usesPackTabs
+      ? (packIdentities[tabsForPack[0].id] ?? primary)
+      : primary;
 
     // Last-chance fallback: if the form fields are empty but the user has
     // already linked Discord via notification prefs, use that so the order
@@ -638,12 +652,12 @@ export const BotBuilder = () => {
       .from("bot_orders")
       .insert({
         user_id: user.id,
-        bot_name: primary.name.trim(),
-        bot_description: primary.description.trim() || null,
-        icon_url: primary.icon,
-        banner_url: primary.banner,
-        base: baseField,
-        addons,
+        bot_name: parentIdentity.name.trim() || primary.name.trim(),
+        bot_description: (parentIdentity.description || primary.description).trim() || null,
+        icon_url: parentIdentity.icon ?? primary.icon,
+        banner_url: parentIdentity.banner ?? primary.banner,
+        base: parentBase,
+        addons: parentAddons,
         monthly_hosting: monthlyHosting,
         notes: notesField,
         total_amount: finalTotal,
@@ -673,8 +687,7 @@ export const BotBuilder = () => {
     // entry in the dashboard. Payment lives on the parent row; siblings
     // carry $0 and are status-propagated by the webhook.
     if (usesPackTabs) {
-      const tabs = visibleIdentityTabs;
-      const extras = tabs.slice(1); // tabs[0] is the primary already inserted
+      const extras = tabsForPack.slice(1); // tabsForPack[0] is the primary already inserted
       if (extras.length > 0) {
         const siblingRows = extras.map((t) => {
           const ident = packIdentities[t.id] ?? { ...EMPTY_IDENTITY };
@@ -687,7 +700,8 @@ export const BotBuilder = () => {
             banner_url: ident.banner,
             // Sibling row's base is the specific category, not "scratch"
             base: t.id,
-            addons,
+            // Only this category's addons go on this bot.
+            addons: filterAddonsForBase(addons, t.id),
             monthly_hosting: monthlyHosting,
             notes: `Child of pack/multi order ${inserted.id}`,
             total_amount: 0,
@@ -713,6 +727,7 @@ export const BotBuilder = () => {
         }
       }
     }
+
 
     // Best-effort: bump times_used on the code (non-blocking).
     if (appliedDiscount) {
