@@ -95,12 +95,14 @@ export function TeamMembersTab({
               <Button size="sm"><UserPlus className="h-4 w-4 mr-1.5" />Invite member</Button>
             </DialogTrigger>
             <InviteDialog
+              botId={botId}
               onClose={() => setInviteOpen(false)}
               onInvited={reload}
               assignableRoles={assignableRoles}
             />
           </Dialog>
         )}
+
       </div>
 
       <div className="rounded-md border border-border overflow-hidden">
