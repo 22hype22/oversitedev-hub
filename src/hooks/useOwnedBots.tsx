@@ -117,7 +117,7 @@ export function useOwnedBots() {
     // they were originally purchased on.
     const { data: own } = await (supabase as any)
       .from("bot_orders")
-      .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,paid_at,total_amount,deployment_status,railway_service_id")
+      .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,paid_at,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: true });
 
@@ -151,7 +151,7 @@ export function useOwnedBots() {
     if (supportOwnerIds.length > 0) {
       const { data: supportRows } = await (supabase as any)
         .from("bot_orders")
-        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount,deployment_status,railway_service_id")
+        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at")
         .in("user_id", supportOwnerIds)
         .order("created_at", { ascending: true });
       supportMapped = (supportRows ?? [])
@@ -182,7 +182,7 @@ export function useOwnedBots() {
     if (teamOwnerIds.length > 0) {
       const { data: teamRows } = await (supabase as any)
         .from("bot_orders")
-        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount,deployment_status,railway_service_id")
+        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at")
         .in("user_id", teamOwnerIds)
         .order("created_at", { ascending: true });
       teamMapped = (teamRows ?? [])
