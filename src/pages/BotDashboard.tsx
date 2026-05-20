@@ -861,8 +861,17 @@ const BotSection = ({
         </div>
       </details>
       </div>
+      {!bot.isDemo && (
+        <div className="mt-8">
+          <TeamManagementHub
+            botId={bot.id}
+            ownerUserId={bot.ownerUserId ?? userId}
+          />
+        </div>
+      )}
     </section>
   );
+
 
   if (bot.isDemo) return sectionInner;
   return (
