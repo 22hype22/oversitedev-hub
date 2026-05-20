@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
         body: {
           templateName: 'team-transfer-confirm',
           recipientEmail: result.member_email,
-          templateData: { ownerEmail, confirmUrl },
+          templateData: { ownerEmail, confirmUrl, botNames },
           idempotencyKey: `team-transfer-confirm:${result.transfer_token}`,
         },
       }),
