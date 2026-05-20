@@ -77,3 +77,5 @@ const button = {
   fontWeight: 'bold', display: 'inline-block', margin: '8px 0 24px',
 }
 const footer = { fontSize: '13px', color: '#64748b', margin: '24px 0 0' }
+const listStyle = { paddingLeft: '20px', margin: '0 0 16px', color: '#334155', fontSize: '15px' }
+const listItem = { margin: '4px 0' }
