@@ -42,6 +42,9 @@ type OrderRow = {
   delivery_url: string | null;
   source_url: string | null;
   railway_service_id: string | null;
+  bot_token: string | null;
+  deployment_status: string | null;
+  deployment_error: string | null;
 };
 
 const EDITABLE_STATUSES = ["building", "ready", "cancelled"] as const;
