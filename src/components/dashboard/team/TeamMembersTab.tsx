@@ -409,10 +409,12 @@ function TransferBotsDialog({
 }
 
 function InviteDialog({
+  botId,
   onClose,
   onInvited,
   assignableRoles,
 }: {
+  botId: string;
   onClose: () => void;
   onInvited: () => void;
   assignableRoles: TeamRole[];
@@ -427,9 +429,10 @@ function InviteDialog({
   const submit = async () => {
     setSubmitting(true);
     const { data, error } = await supabase.functions.invoke("team-invite-send", {
-      body: { email: email.trim(), role, siteUrl: window.location.origin },
+      body: { email: email.trim(), role, botId, siteUrl: window.location.origin },
     });
     setSubmitting(false);
+
     if (error || !(data as any)?.ok) {
       toast.error(error?.message ?? (data as any)?.error ?? "Couldn't invite");
       return;
