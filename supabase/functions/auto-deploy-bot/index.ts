@@ -63,8 +63,17 @@ async function getTemplateSource(serviceId: string): Promise<{ repo?: string; br
     `query($id: String!) {
       service(id: $id) {
         id
-        repo { fullName branch }
-        templateServiceId
+        name
+        source { repo image }
+        serviceInstances {
+          edges {
+            node {
+              branch
+              environmentId
+              source { repo image }
+            }
+          }
+        }
         project { environments { edges { node { id name } } } }
       }
     }`,
@@ -72,14 +81,17 @@ async function getTemplateSource(serviceId: string): Promise<{ repo?: string; br
   );
   const svc = data?.service;
   if (!svc) throw new Error("Template service not found");
-  const edges = svc.project?.environments?.edges ?? [];
-  const prod = edges.find((e: any) => e.node.name === "production") ?? edges[0];
+  const envEdges = svc.project?.environments?.edges ?? [];
+  const prod = envEdges.find((e: any) => e.node.name === "production") ?? envEdges[0];
   if (!prod) throw new Error("Template has no environment");
-  return {
-    repo: svc.repo?.fullName,
-    branch: svc.repo?.branch,
-    envId: prod.node.id,
-  };
+  const instances = svc.serviceInstances?.edges ?? [];
+  const prodInstance =
+    instances.find((e: any) => e.node.environmentId === prod.node.id)?.node ??
+    instances[0]?.node;
+  const repo = prodInstance?.source?.repo ?? svc.source?.repo;
+  const image = prodInstance?.source?.image ?? svc.source?.image;
+  const branch = prodInstance?.branch;
+  return { repo, image, branch, envId: prod.node.id };
 }
 
 async function createServiceFromRepo(
