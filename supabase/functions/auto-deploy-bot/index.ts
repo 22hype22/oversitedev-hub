@@ -41,16 +41,16 @@ function repoSourceFor(base: string): string {
   const b = (base ?? "").toLowerCase().trim();
   switch (b) {
     case "support":
-      return "oversitedev/oversite-support";
+      return "22hype22/oversite-support";
     case "utilities":
-      return "oversitedev/oversite-utilities";
+      return "22hype22/oversite-utilities";
     case "protection":
     case "scratch":
     case "all-in-one-pack":
     case "all_in_one_pack":
     case "allinonepack":
     default:
-      return "oversitedev/oversite-protection";
+      return "22hype22/oversite-protection";
   }
 }
 
