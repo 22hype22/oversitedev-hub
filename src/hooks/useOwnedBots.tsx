@@ -76,6 +76,8 @@ function mapRow(row: any, opts: { viaSupport?: boolean; viaTeam?: boolean } = {}
     ownerUserId: row.user_id,
     deployment_status: row.deployment_status ?? null,
     railway_service_id: row.railway_service_id ?? null,
+    bot_bio: row.bot_bio ?? null,
+    discord_last_username_change_at: row.discord_last_username_change_at ?? null,
   };
 }
 
