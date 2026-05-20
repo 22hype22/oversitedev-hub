@@ -86,11 +86,12 @@ export const BotOrdersLog = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, { status: string; notes: string; delivery_url: string; source_url: string }>>({});
+  const [drafts, setDrafts] = useState<Record<string, { status: string; notes: string; delivery_url: string; source_url: string; bot_token: string }>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [railwayDrafts, setRailwayDrafts] = useState<Record<string, string>>({});
   const [savingRailwayId, setSavingRailwayId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [redeployingId, setRedeployingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<OrderRow | null>(null);
   const [deleteCode, setDeleteCode] = useState("");
 
