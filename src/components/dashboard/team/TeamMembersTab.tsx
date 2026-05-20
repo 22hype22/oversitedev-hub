@@ -29,18 +29,21 @@ type Member = {
 };
 
 export function TeamMembersTab({
+  botId,
   ownerUserId,
   viewerIsOwner = true,
   viewerRole = null,
   canManageTeam = true,
   canTransferOwnership = true,
 }: {
+  /** Bot whose team roster is shown. */
+  botId: string;
   ownerUserId?: string | null;
   viewerIsOwner?: boolean;
   viewerRole?: TeamRole | null;
   canManageTeam?: boolean;
   canTransferOwnership?: boolean;
-} = {}) {
+}) {
   const { user } = useAuth();
   const targetOwnerId = ownerUserId ?? user?.id ?? null;
   const [members, setMembers] = useState<Member[]>([]);
@@ -48,22 +51,20 @@ export function TeamMembersTab({
   const [inviteOpen, setInviteOpen] = useState(false);
   const [transferTarget, setTransferTarget] = useState<Member | null>(null);
 
-  // Roles this viewer is allowed to assign / invite at.
   const effectiveViewerRole: TeamRole = viewerIsOwner ? "owner" : (viewerRole ?? "viewer");
   const assignableRoles = rolesAssignableBy(effectiveViewerRole);
   const viewerRank = ROLE_RANK[effectiveViewerRole];
 
   const reload = useCallback(async () => {
-    if (!targetOwnerId) return;
+    if (!botId) return;
     setLoading(true);
-    // Only the owner themselves needs the safety-net owner row ensured.
     if (viewerIsOwner) {
       await (supabase as any).rpc("ensure_team_owner_row");
     }
     const { data } = await (supabase as any)
       .from("dashboard_team")
       .select("*")
-      .eq("owner_user_id", targetOwnerId);
+      .eq("bot_id", botId);
     const sorted = ((data ?? []) as Member[]).slice().sort((a, b) => {
       const rankDiff = (ROLE_RANK[b.role] ?? 0) - (ROLE_RANK[a.role] ?? 0);
       if (rankDiff !== 0) return rankDiff;
@@ -71,9 +72,10 @@ export function TeamMembersTab({
     });
     setMembers(sorted);
     setLoading(false);
-  }, [targetOwnerId, viewerIsOwner]);
+  }, [botId, viewerIsOwner]);
 
   useEffect(() => { void reload(); }, [reload]);
+
 
   const inviteLink = (token: string | null) =>
     token ? `${window.location.origin}/auth?team_invite=${token}` : null;
@@ -93,12 +95,14 @@ export function TeamMembersTab({
               <Button size="sm"><UserPlus className="h-4 w-4 mr-1.5" />Invite member</Button>
             </DialogTrigger>
             <InviteDialog
+              botId={botId}
               onClose={() => setInviteOpen(false)}
               onInvited={reload}
               assignableRoles={assignableRoles}
             />
           </Dialog>
         )}
+
       </div>
 
       <div className="rounded-md border border-border overflow-hidden">
@@ -405,10 +409,12 @@ function TransferBotsDialog({
 }
 
 function InviteDialog({
+  botId,
   onClose,
   onInvited,
   assignableRoles,
 }: {
+  botId: string;
   onClose: () => void;
   onInvited: () => void;
   assignableRoles: TeamRole[];
@@ -423,9 +429,10 @@ function InviteDialog({
   const submit = async () => {
     setSubmitting(true);
     const { data, error } = await supabase.functions.invoke("team-invite-send", {
-      body: { email: email.trim(), role, siteUrl: window.location.origin },
+      body: { email: email.trim(), role, botId, siteUrl: window.location.origin },
     });
     setSubmitting(false);
+
     if (error || !(data as any)?.ok) {
       toast.error(error?.message ?? (data as any)?.error ?? "Couldn't invite");
       return;

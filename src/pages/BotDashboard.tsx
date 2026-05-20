@@ -542,10 +542,11 @@ const BotSection = ({
     </>
   );
 
-  // Effective perms on this bot's owner account. For non-team viewers
-  // (owners, admins, support sessions) this resolves to full perms.
-  const { permissions: teamPerms } = useTeamRole(bot.viaTeam ? bot.ownerUserId : null);
+  // Effective perms on this bot. For non-team viewers (owners, admins,
+  // support sessions) this resolves to full perms.
+  const { permissions: teamPerms } = useTeamRole(bot.viaTeam ? bot.id : null);
   const canEditBilling = !bot.viaTeam || teamPerms.edit_billing;
+
 
   const headerActions = !bot.isDemo ? (
     <>
@@ -861,8 +862,17 @@ const BotSection = ({
         </div>
       </details>
       </div>
+      {!bot.isDemo && (
+        <div className="mt-8">
+          <TeamManagementHub
+            botId={bot.id}
+            ownerUserId={bot.ownerUserId ?? userId}
+          />
+        </div>
+      )}
     </section>
   );
+
 
   if (bot.isDemo) return sectionInner;
   return (
@@ -1083,9 +1093,11 @@ const BotDashboard = () => {
                   } ${showBotRing ? "ring-2 ring-primary/40 rounded-2xl -m-2 p-2" : ""}`}
                 >
                   <ReadOnlyBotScope
+                    botId={bot.id}
                     ownerUserId={bot.ownerUserId}
                     viaTeam={bot.viaTeam}
                   >
+
                     <BotSection
                       bot={bot}
                       allBots={dashboardBots}
@@ -1112,13 +1124,8 @@ const BotDashboard = () => {
           </div>
         )}
 
-        {dashboardBots.length > 0 && (
-          <div className="mt-16">
-            <TeamManagementHub
-              ownerUserId={dashboardBots.find((b) => b.ownerUserId)?.ownerUserId ?? user.id}
-            />
-          </div>
-        )}
+        {/* Team management is now per-bot — rendered inside each BotSection. */}
+
 
         <NewOwnerBillingDialog
           forceOpen={new URLSearchParams(window.location.search).get("team_transfer") === "accepted"}

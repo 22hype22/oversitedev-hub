@@ -3,6 +3,8 @@ import { Eye, Lock } from "lucide-react";
 import { useTeamRole, ROLE_LABEL } from "@/hooks/useTeamRole";
 
 type Props = {
+  /** The bot being viewed. Used to resolve per-bot team membership. */
+  botId?: string | null;
   /** The user_id of the bot's actual owner. */
   ownerUserId?: string | null;
   /** When true, this bot was reached via a team membership (not ownership). */
@@ -11,39 +13,45 @@ type Props = {
 };
 
 type BotScopeCtx = {
+  botId: string | null;
   ownerUserId: string | null;
   viaTeam: boolean;
   readOnly: boolean;
 };
 
 const Ctx = createContext<BotScopeCtx>({
+  botId: null,
   ownerUserId: null,
   viaTeam: false,
   readOnly: false,
 });
 
-/** Consume the surrounding bot scope (owner + read-only flag). */
+/** Consume the surrounding bot scope (bot + owner + read-only flag). */
 export function useBotScope() {
   return useContext(Ctx);
 }
 
 /**
  * Wraps a bot's dashboard content and locks all editing UI when the current
- * viewer is a team member without the `edit_bot_config` permission. The
- * lock is enforced visually via the `.readonly-scope` CSS class (see
- * `src/index.css`). All write operations are *also* enforced server-side
- * by RLS policies (`has_team_perm(... 'edit_bot_config')`) so the gate
- * cannot be bypassed by calling the API directly.
+ * viewer is a team member without the `edit_bot_config` permission on this
+ * specific bot. The lock is enforced visually via the `.readonly-scope` CSS
+ * class. All write operations are *also* enforced server-side by RLS
+ * policies (`has_bot_team_perm(... 'edit_bot_config')`).
  */
-export function ReadOnlyBotScope({ ownerUserId, viaTeam, children }: Props) {
-  const { role, permissions, loading } = useTeamRole(viaTeam ? ownerUserId : null);
+export function ReadOnlyBotScope({ botId, ownerUserId, viaTeam, children }: Props) {
+  const { role, permissions, loading } = useTeamRole(viaTeam ? botId : null);
 
   // Owners (viaTeam=false) and team members with edit perms get full UI.
   const readOnly = !!viaTeam && !loading && !permissions.edit_bot_config;
 
   const ctxValue = useMemo<BotScopeCtx>(
-    () => ({ ownerUserId: ownerUserId ?? null, viaTeam: !!viaTeam, readOnly }),
-    [ownerUserId, viaTeam, readOnly],
+    () => ({
+      botId: botId ?? null,
+      ownerUserId: ownerUserId ?? null,
+      viaTeam: !!viaTeam,
+      readOnly,
+    }),
+    [botId, ownerUserId, viaTeam, readOnly],
   );
 
   if (!readOnly) {
@@ -69,9 +77,9 @@ export function ReadOnlyBotScope({ ownerUserId, viaTeam, children }: Props) {
               Read-only access · {roleLabel}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Your role can view this bot but not change its settings. Inputs,
-              toggles, and save actions are disabled. Ask the owner to grant
-              edit permissions in the Roles tab to unlock changes.
+              Your role on this bot can view it but not change its settings.
+              Inputs, toggles, and save actions are disabled. Ask the owner to
+              grant edit permissions in the Team tab to unlock changes.
             </p>
           </div>
         </div>

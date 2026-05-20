@@ -9,14 +9,24 @@ import { RolesTab } from "./RolesTab";
 import { SupportAccessManager } from "@/components/dashboard/SupportAccessManager";
 import { useTeamRole } from "@/hooks/useTeamRole";
 
-export function TeamManagementHub({ ownerUserId }: { ownerUserId?: string | null } = {}) {
-  const { user } = useAuth();
-  const effectiveOwnerId = ownerUserId ?? user?.id ?? null;
-  const viewerIsOwner = !!user && effectiveOwnerId === user.id;
+type Props = {
+  /** The bot whose team is being managed. */
+  botId: string;
+  /** The user_id of the bot's owner. */
+  ownerUserId: string;
+};
 
-  // Pull effective perms on the owner's account so we can gate tabs.
+/**
+ * Per-bot team management. Each bot has its own roster — members invited to
+ * one bot do not get access to other bots owned by the same person.
+ */
+export function TeamManagementHub({ botId, ownerUserId }: Props) {
+  const { user } = useAuth();
+  const viewerIsOwner = !!user && ownerUserId === user.id;
+
+  // Pull effective perms on this specific bot to gate tabs.
   const { permissions, role, loading: roleLoading } = useTeamRole(
-    viewerIsOwner ? null : effectiveOwnerId,
+    viewerIsOwner ? null : botId,
   );
 
   // Auto-accept any pending invites for this user (by email match).
@@ -26,12 +36,8 @@ export function TeamManagementHub({ ownerUserId }: { ownerUserId?: string | null
   }, [user]);
 
   const canManageTeam = viewerIsOwner || permissions.manage_team;
-  // Roles + Support-access screens are part of "manage team" — same gate.
-  const canSeeRoles = viewerIsOwner || permissions.manage_team;
+  const canSeeRoles = viewerIsOwner; // role/permission matrix is owner-only
   const canSeeSupport = viewerIsOwner || permissions.manage_team;
-  // Members tab is at least a roster view — anyone who can view the dashboard
-  // (i.e. any team member who can see this hub at all) can see who else is
-  // on the team. Write-actions are still gated server-side + client-side.
   const canSeeMembers = viewerIsOwner || permissions.view_dashboard;
 
   const visibleTabs = [
@@ -40,7 +46,6 @@ export function TeamManagementHub({ ownerUserId }: { ownerUserId?: string | null
     canSeeSupport && "support",
   ].filter(Boolean) as string[];
 
-  // No tabs at all → hide the whole hub.
   if (!roleLoading && visibleTabs.length === 0) return null;
 
   const defaultTab = visibleTabs[0] ?? "members";
@@ -52,9 +57,10 @@ export function TeamManagementHub({ ownerUserId }: { ownerUserId?: string | null
           <Users className="h-4 w-4 text-primary" />
         </div>
         <div className="flex-1">
-          <div className="font-semibold">Team management</div>
+          <div className="font-semibold">Team for this bot</div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Invite teammates, define what each role can do, and let support in temporarily.
+            Invite teammates to this specific bot. Each bot has its own roster
+            — invites here don't apply to your other bots.
           </p>
         </div>
         {!viewerIsOwner && role && (
@@ -81,7 +87,8 @@ export function TeamManagementHub({ ownerUserId }: { ownerUserId?: string | null
           {canSeeMembers && (
             <TabsContent value="members">
               <TeamMembersTab
-                ownerUserId={effectiveOwnerId}
+                botId={botId}
+                ownerUserId={ownerUserId}
                 viewerIsOwner={viewerIsOwner}
                 viewerRole={viewerIsOwner ? "owner" : role}
                 canManageTeam={canManageTeam}

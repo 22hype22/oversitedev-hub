@@ -1360,6 +1360,7 @@ export type Database = {
       dashboard_team: {
         Row: {
           accepted_at: string | null
+          bot_id: string
           created_at: string
           id: string
           invite_token: string | null
@@ -1377,6 +1378,7 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          bot_id: string
           created_at?: string
           id?: string
           invite_token?: string | null
@@ -1394,6 +1396,7 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          bot_id?: string
           created_at?: string
           id?: string
           invite_token?: string | null
@@ -2705,6 +2708,14 @@ export type Database = {
         Args: { _env?: string; _user_id: string }
         Returns: boolean
       }
+      has_bot_team_access: {
+        Args: { _bot_id: string; _viewer_id: string }
+        Returns: boolean
+      }
+      has_bot_team_perm: {
+        Args: { _bot_id: string; _perm: string; _viewer_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -3039,12 +3050,9 @@ export type Database = {
         Returns: Json
       }
       team_default_permissions: { Args: { _role: string }; Returns: Json }
-      team_get_effective_role: {
-        Args: { _owner_user_id: string }
-        Returns: Json
-      }
+      team_get_effective_role: { Args: { _bot_id: string }; Returns: Json }
       team_invite_member: {
-        Args: { _email: string; _role: string }
+        Args: { _bot_id: string; _email: string; _role: string }
         Returns: Json
       }
       team_remove_member: { Args: { _member_id: string }; Returns: Json }

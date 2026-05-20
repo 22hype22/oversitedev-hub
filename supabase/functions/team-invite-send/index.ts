@@ -20,16 +20,19 @@ Deno.serve(async (req) => {
   let email = ''
   let role = ''
   let siteUrl = ''
+  let botId = ''
   try {
     const body = await req.json()
     email = String(body.email ?? '').trim()
     role = String(body.role ?? '').trim()
     siteUrl = String(body.siteUrl ?? '').trim()
+    botId = String(body.botId ?? body.bot_id ?? '').trim()
   } catch {
     return json({ ok: false, error: 'invalid body' }, 400)
   }
 
   if (!email || !role) return json({ ok: false, error: 'email and role required' }, 400)
+  if (!botId) return json({ ok: false, error: 'botId required' }, 400)
 
   // Caller-scoped client → RPC runs as the inviting user
   const userClient = createClient(SUPABASE_URL, ANON_KEY, {
@@ -43,7 +46,9 @@ Deno.serve(async (req) => {
   const { data: inviteResp, error: inviteErr } = await userClient.rpc('team_invite_member', {
     _email: email,
     _role: role,
+    _bot_id: botId,
   })
+
   if (inviteErr) return json({ ok: false, error: inviteErr.message }, 400)
   const result = inviteResp as { ok: boolean; error?: string; invite_token?: string; id?: string }
   if (!result?.ok) return json({ ok: false, error: result?.error ?? 'invite failed' }, 400)
