@@ -129,6 +129,11 @@ export function useBotGuilds(botId: string | undefined) {
     refresh();
   }, [refresh]);
 
+  // Auto-sync guilds from Discord once per bot per session so newly deployed
+  // bots populate without requiring a manual refresh click.
+  const autoSyncedGuildRef = useRef<Set<string>>(new Set());
+  const refreshFromDiscordHolder = useRef<(() => Promise<{ ok: boolean; error?: string }>) | null>(null);
+
   /**
    * Ask the worker to re-fetch the guild list from Discord. Polls the
    * runtime heartbeat guild list quickly until the row contents change.
