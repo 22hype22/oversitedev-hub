@@ -67,10 +67,13 @@ export function TeamMembersTab({
     const { data } = await (supabase as any)
       .from("dashboard_team")
       .select("*")
-      .eq("owner_user_id", targetOwnerId)
-      .order("role", { ascending: true })
-      .order("invited_at", { ascending: true });
-    setMembers((data ?? []) as Member[]);
+      .eq("owner_user_id", targetOwnerId);
+    const sorted = ((data ?? []) as Member[]).slice().sort((a, b) => {
+      const rankDiff = (ROLE_RANK[b.role] ?? 0) - (ROLE_RANK[a.role] ?? 0);
+      if (rankDiff !== 0) return rankDiff;
+      return (a.member_email ?? "").localeCompare(b.member_email ?? "");
+    });
+    setMembers(sorted);
     setLoading(false);
   }, [targetOwnerId, viewerIsOwner]);
 
