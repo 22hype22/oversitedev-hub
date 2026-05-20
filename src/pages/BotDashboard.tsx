@@ -1093,9 +1093,11 @@ const BotDashboard = () => {
                   } ${showBotRing ? "ring-2 ring-primary/40 rounded-2xl -m-2 p-2" : ""}`}
                 >
                   <ReadOnlyBotScope
+                    botId={bot.id}
                     ownerUserId={bot.ownerUserId}
                     viaTeam={bot.viaTeam}
                   >
+
                     <BotSection
                       bot={bot}
                       allBots={dashboardBots}
