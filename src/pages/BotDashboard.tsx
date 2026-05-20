@@ -542,10 +542,11 @@ const BotSection = ({
     </>
   );
 
-  // Effective perms on this bot's owner account. For non-team viewers
-  // (owners, admins, support sessions) this resolves to full perms.
-  const { permissions: teamPerms } = useTeamRole(bot.viaTeam ? bot.ownerUserId : null);
+  // Effective perms on this bot. For non-team viewers (owners, admins,
+  // support sessions) this resolves to full perms.
+  const { permissions: teamPerms } = useTeamRole(bot.viaTeam ? bot.id : null);
   const canEditBilling = !bot.viaTeam || teamPerms.edit_billing;
+
 
   const headerActions = !bot.isDemo ? (
     <>
