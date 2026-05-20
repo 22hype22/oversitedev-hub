@@ -184,13 +184,9 @@ export const BotOrdersLog = () => {
   const saveRow = async (row: OrderRow) => {
     const draft = drafts[row.id];
     if (!draft) return;
-    // Guard: marking ready requires a bot token (so auto-deploy succeeds).
-    if (draft.status === "ready" && !draft.bot_token.trim() && !row.railway_service_id) {
-      toast.error("Bot token required", {
-        description: "Paste the Discord bot token before marking this order as Ready.",
-      });
-      return;
-    }
+    // No bot token guard — auto-deploy will pull the next available token
+    // from the pool. If the pool is empty it'll surface a clear error on the
+    // order's deployment status.
     setSavingId(row.id);
     const { error } = await supabase
       .from("bot_orders")
