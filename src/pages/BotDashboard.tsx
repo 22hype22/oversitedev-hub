@@ -391,6 +391,11 @@ const BotSection = ({
     !isDeploying &&
     (optimisticAction !== null ||
       (!healthLoading && health?.effective_status === "offline"));
+  const { guilds: connectedGuilds, loading: guildsLoading } = useBotServerSlots(
+    !bot.isDemo ? bot.id : undefined,
+  );
+  const hasNoServers =
+    !bot.isDemo && !isDeploying && !isOffline && !guildsLoading && connectedGuilds.length === 0;
   const [retrying, setRetrying] = useState(false);
   const retryDeploy = async () => {
     setRetrying(true);
