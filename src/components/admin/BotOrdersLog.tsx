@@ -153,7 +153,7 @@ export const BotOrdersLog = () => {
     );
   };
 
-  const setDraft = (id: string, patch: Partial<{ status: string; notes: string; delivery_url: string; source_url: string }>) => {
+  const setDraft = (id: string, patch: Partial<{ status: string; notes: string; delivery_url: string; source_url: string; bot_token: string }>) => {
     setDrafts((prev) => ({
       ...prev,
       [id]: {
@@ -161,6 +161,7 @@ export const BotOrdersLog = () => {
         notes: prev[id]?.notes ?? "",
         delivery_url: prev[id]?.delivery_url ?? "",
         source_url: prev[id]?.source_url ?? "",
+        bot_token: prev[id]?.bot_token ?? "",
         ...patch,
       },
     }));
@@ -175,6 +176,7 @@ export const BotOrdersLog = () => {
         notes: row.notes ?? "",
         delivery_url: row.delivery_url ?? "",
         source_url: row.source_url ?? "",
+        bot_token: row.bot_token ?? "",
       },
     }));
   };
@@ -182,6 +184,13 @@ export const BotOrdersLog = () => {
   const saveRow = async (row: OrderRow) => {
     const draft = drafts[row.id];
     if (!draft) return;
+    // Guard: marking ready requires a bot token (so auto-deploy succeeds).
+    if (draft.status === "ready" && !draft.bot_token.trim() && !row.railway_service_id) {
+      toast.error("Bot token required", {
+        description: "Paste the Discord bot token before marking this order as Ready.",
+      });
+      return;
+    }
     setSavingId(row.id);
     const { error } = await supabase
       .from("bot_orders")
@@ -190,6 +199,7 @@ export const BotOrdersLog = () => {
         notes: draft.notes || null,
         delivery_url: draft.delivery_url || null,
         source_url: draft.source_url || null,
+        bot_token: draft.bot_token.trim() || null,
       })
       .eq("id", row.id);
     setSavingId(null);
