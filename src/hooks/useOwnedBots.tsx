@@ -70,6 +70,8 @@ function mapRow(row: any, opts: { viaSupport?: boolean; viaTeam?: boolean } = {}
     viaSupport: !!opts.viaSupport,
     viaTeam: !!opts.viaTeam,
     ownerUserId: row.user_id,
+    deployment_status: row.deployment_status ?? null,
+    railway_service_id: row.railway_service_id ?? null,
   };
 }
 
