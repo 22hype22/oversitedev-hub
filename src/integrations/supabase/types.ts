@@ -2557,6 +2557,10 @@ export type Database = {
       }
       can_manage_portfolio: { Args: { _owner_key: string }; Returns: boolean }
       claim_bot_token_from_pool: { Args: { _order_id: string }; Returns: Json }
+      claim_pool_token_for_deploy: {
+        Args: { _order_id: string }
+        Returns: Json
+      }
       claim_post_message: {
         Args: { _worker_id?: string }
         Returns: {

@@ -184,13 +184,9 @@ export const BotOrdersLog = () => {
   const saveRow = async (row: OrderRow) => {
     const draft = drafts[row.id];
     if (!draft) return;
-    // Guard: marking ready requires a bot token (so auto-deploy succeeds).
-    if (draft.status === "ready" && !draft.bot_token.trim() && !row.railway_service_id) {
-      toast.error("Bot token required", {
-        description: "Paste the Discord bot token before marking this order as Ready.",
-      });
-      return;
-    }
+    // No bot token guard — auto-deploy will pull the next available token
+    // from the pool. If the pool is empty it'll surface a clear error on the
+    // order's deployment status.
     setSavingId(row.id);
     const { error } = await supabase
       .from("bot_orders")
@@ -614,12 +610,12 @@ export const BotOrdersLog = () => {
                             </div>
                             <div className="md:col-span-3">
                               <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                                Discord bot token <span className="opacity-60">(required to mark "Ready" — used by auto-deploy to bring the bot online)</span>
+                                Discord bot token <span className="opacity-60">(optional — leave blank to auto-assign the next available token from the pool when marking "Ready")</span>
                               </label>
                               <Input
                                 className="mt-1 font-mono text-xs"
                                 type="password"
-                                placeholder={r.bot_token ? "•••••••• (token already set — paste to replace)" : "MTAxxxxxxxxx.G..."}
+                                placeholder={r.bot_token ? "•••••••• (manual token set — paste to replace, or clear to use pool)" : "Auto-assigned from token pool"}
                                 value={draft.bot_token}
                                 onChange={(e) => setDraft(r.id, { bot_token: e.target.value })}
                                 autoComplete="off"

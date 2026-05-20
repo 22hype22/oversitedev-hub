@@ -178,16 +178,34 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!order.bot_token) {
-      const msg = "bot_token is missing on the order — set it before marking ready.";
-      await admin
-        .from("bot_orders")
-        .update({ deployment_status: "failed", deployment_error: msg })
-        .eq("id", orderId);
-      return new Response(JSON.stringify({ error: msg }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Resolve the Discord bot token. Prefer a manually-set token on the
+    // order; otherwise claim the next available token from the pool.
+    let botToken = order.bot_token as string | null;
+    let poolClientId: string | null = null;
+    if (!botToken) {
+      const { data: claim, error: claimErr } = await admin.rpc(
+        "claim_pool_token_for_deploy",
+        { _order_id: orderId },
+      );
+      if (claimErr) throw new Error(`Token pool claim failed: ${claimErr.message}`);
+      const c = claim as { ok?: boolean; error?: string; token?: string; client_id?: string } | null;
+      if (!c?.ok) {
+        const isEmpty = c?.error === "pool_empty";
+        const msg = isEmpty
+          ? "No bot tokens available in the pool. Add more tokens to the bot token pool before marking this order ready."
+          : `Could not claim a bot token: ${c?.error ?? "unknown error"}`;
+        await admin
+          .from("bot_orders")
+          .update({ deployment_status: "failed", deployment_error: msg })
+          .eq("id", orderId);
+        return new Response(JSON.stringify({ error: msg, pool_empty: isEmpty }), {
+          status: isEmpty ? 409 : 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      botToken = c.token ?? null;
+      poolClientId = c.client_id ?? null;
+      if (!botToken) throw new Error("Pool returned an empty token");
     }
 
     const projectId = Deno.env.get("RAILWAY_PROJECT_ID");
@@ -228,7 +246,8 @@ Deno.serve(async (req) => {
     const fnUrl = `${supabaseUrl}/functions/v1`;
 
     await setVariables(projectId, newEnvId, newServiceId, {
-      BOT_TOKEN: order.bot_token,
+      BOT_TOKEN: botToken!,
+      ...(poolClientId ? { DISCORD_CLIENT_ID: poolClientId } : {}),
       BOT_ORDER_ID: orderId,
       SUPABASE_URL: supabaseUrl,
       SUPABASE_ANON_KEY: anonKey,
