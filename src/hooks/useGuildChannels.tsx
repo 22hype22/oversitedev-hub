@@ -137,38 +137,27 @@ export function useBotGuilds(botId: string | undefined) {
     if (!botId) return { ok: false, error: "no_bot" };
     setRefreshing(true);
     try {
-      const before = JSON.stringify(
-        [...guilds].map((g) => g.guild_id).sort(),
-      );
-      const { data, error } = await supabase.rpc("request_list_guilds", {
-        _bot_id: botId,
+      // Fetch guilds directly via Discord REST using the bot's DISCORD_TOKEN.
+      // Works for every bot type (worker-managed or Railway-deployed) since
+      // it bypasses the worker command queue.
+      const { data, error } = await supabase.functions.invoke("bot-list-guilds", {
+        body: { bot_id: botId },
       });
-      if (error) return { ok: false, error: error.message };
-      const result = data as { ok: boolean; error?: string };
-      if (!result?.ok) return { ok: false, error: result?.error ?? "request_failed" };
-
-      // Poll up to 24x (every 250ms = ~6s) for the cache to change.
-      for (let i = 0; i < 24; i++) {
-        await new Promise((r) => setTimeout(r, 250));
-        const { data: row } = await (supabase.from("bot_runtime_status") as any)
-          .select("guilds")
-          .eq("bot_id", botId)
-          .maybeSingle();
-        const rows = normalizeRuntimeGuilds((row as { guilds?: unknown } | null)?.guilds);
-        const next = JSON.stringify(
-          rows.map((g) => g.guild_id).sort(),
-        );
-        if (next !== before) {
-          setGuilds(rows);
-          return { ok: true };
-        }
+      if (error) {
+        await refresh();
+        return { ok: false, error: error.message };
+      }
+      const result = (data ?? {}) as { ok?: boolean; error?: string };
+      if (!result.ok) {
+        await refresh();
+        return { ok: false, error: result.error ?? "request_failed" };
       }
       await refresh();
-      return { ok: false, error: "timeout" };
+      return { ok: true };
     } finally {
       setRefreshing(false);
     }
-  }, [botId, guilds, refresh]);
+  }, [botId, refresh]);
 
   useEffect(() => {
     if (!botId) return;
