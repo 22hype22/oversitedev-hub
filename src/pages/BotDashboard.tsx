@@ -30,6 +30,7 @@ import { AddonConfigCard } from "@/components/dashboard/AddonConfigCard";
 import { GiveawayLaunchCard } from "@/components/dashboard/GiveawayLaunchCard";
 import { FixesBar } from "@/components/dashboard/FixesBar";
 import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
+import { BotDiscordIdentityCard } from "@/components/dashboard/BotDiscordIdentityCard";
 import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
 import { BotControlsPanel } from "@/components/dashboard/BotControlsPanel";
