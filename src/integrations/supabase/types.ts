@@ -2947,6 +2947,7 @@ export type Database = {
         Args: { _bot_id: string; _guilds: Json; _token: string }
         Returns: Json
       }
+      runtime_resolve_bot_token: { Args: { _bot_id: string }; Returns: string }
       runtime_seed_secret_slots: {
         Args: { _slots: Json; _token: string }
         Returns: Json
