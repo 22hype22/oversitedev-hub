@@ -1121,13 +1121,8 @@ const BotDashboard = () => {
           </div>
         )}
 
-        {dashboardBots.length > 0 && (
-          <div className="mt-16">
-            <TeamManagementHub
-              ownerUserId={dashboardBots.find((b) => b.ownerUserId)?.ownerUserId ?? user.id}
-            />
-          </div>
-        )}
+        {/* Team management is now per-bot — rendered inside each BotSection. */}
+
 
         <NewOwnerBillingDialog
           forceOpen={new URLSearchParams(window.location.search).get("team_transfer") === "accepted"}
