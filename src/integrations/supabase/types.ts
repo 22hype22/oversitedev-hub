@@ -680,6 +680,7 @@ export type Database = {
           base: string
           bot_description: string | null
           bot_name: string
+          bot_token: string | null
           build_started: string | null
           cancel_dm_sent: boolean
           cancellation_reason: string | null
@@ -693,6 +694,9 @@ export type Database = {
           created_at: string
           currency: string
           delivery_url: string | null
+          deployment_attempted_at: string | null
+          deployment_error: string | null
+          deployment_status: string
           discord_user_id: string | null
           discord_username: string | null
           discount_amount: number
@@ -730,6 +734,7 @@ export type Database = {
           base: string
           bot_description?: string | null
           bot_name: string
+          bot_token?: string | null
           build_started?: string | null
           cancel_dm_sent?: boolean
           cancellation_reason?: string | null
@@ -743,6 +748,9 @@ export type Database = {
           created_at?: string
           currency?: string
           delivery_url?: string | null
+          deployment_attempted_at?: string | null
+          deployment_error?: string | null
+          deployment_status?: string
           discord_user_id?: string | null
           discord_username?: string | null
           discount_amount?: number
@@ -780,6 +788,7 @@ export type Database = {
           base?: string
           bot_description?: string | null
           bot_name?: string
+          bot_token?: string | null
           build_started?: string | null
           cancel_dm_sent?: boolean
           cancellation_reason?: string | null
@@ -793,6 +802,9 @@ export type Database = {
           created_at?: string
           currency?: string
           delivery_url?: string | null
+          deployment_attempted_at?: string | null
+          deployment_error?: string | null
+          deployment_status?: string
           discord_user_id?: string | null
           discord_username?: string | null
           discount_amount?: number
@@ -1396,6 +1408,24 @@ export type Database = {
           transfer_requested_by?: string | null
           transfer_token?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      deploy_config: {
+        Row: {
+          anon_key: string
+          fn_url: string
+          id: number
+        }
+        Insert: {
+          anon_key: string
+          fn_url: string
+          id?: number
+        }
+        Update: {
+          anon_key?: string
+          fn_url?: string
+          id?: number
         }
         Relationships: []
       }
