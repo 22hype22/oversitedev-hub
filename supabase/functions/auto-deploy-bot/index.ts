@@ -539,6 +539,11 @@ Deno.serve(async (req) => {
       })
       .eq("id", orderId);
 
+    // Provision base-included + purchased addon entitlements so the
+    // dashboard renders every config block the customer paid for the
+    // moment they land on the page after deploy.
+    await provisionAddonEntitlements(admin, orderId, order.base, purchasedAddons);
+
     return new Response(
       JSON.stringify({ ok: true, serviceId: newServiceId }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
