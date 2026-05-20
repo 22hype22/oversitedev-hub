@@ -14,6 +14,8 @@ type Props = {
   botId: string;
   /** The user_id of the bot's owner. */
   ownerUserId: string;
+  /** Optional owner email for displaying the owner row when dashboard_team is empty. */
+  ownerEmail?: string | null;
 };
 
 /**
