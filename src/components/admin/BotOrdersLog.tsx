@@ -672,15 +672,15 @@ export const BotOrdersLog = () => {
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-destructive">
-            Remove bot from dashboard?
+            Delete bot order?
           </DialogTitle>
           <DialogDescription>
-            This will set{" "}
+            This will permanently delete{" "}
             <span className="font-semibold text-foreground">
               "{deleteTarget?.bot_name}"
             </span>{" "}
-            (and any pack siblings) to <span className="font-mono">cancelled</span>,
-            removing it from the user's dashboard. Enter the confirmation code to
+            (and any pack siblings) from the orders log and the user's
+            dashboard. This cannot be undone. Enter the confirmation code to
             continue.
           </DialogDescription>
         </DialogHeader>
