@@ -678,7 +678,33 @@ const BotSection = ({
         )}
       </div>
 
-      {!bot.isDemo && <BotControlsPanel botId={bot.id} isOffline={isOffline} onCommandSent={handleCommandSent} />}
+      {!bot.isDemo && !isDeploying && <BotControlsPanel botId={bot.id} isOffline={isOffline} onCommandSent={handleCommandSent} />}
+
+      {isDeploying && (
+        <div
+          className={`rounded-lg border px-4 py-3 text-sm flex items-center justify-center gap-3 ${
+            deployFailed
+              ? "border-destructive/30 bg-destructive/10 text-destructive"
+              : "border-blue-500/30 bg-blue-500/10 text-blue-300"
+          }`}
+        >
+          {deployFailed ? (
+            <>
+              <span className="font-medium">Deployment failed.</span>
+              <Button size="sm" variant="outline" onClick={retryDeploy} disabled={retrying}>
+                {retrying ? "Retrying…" : "Retry deployment"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
+              <span className="font-medium">
+                Deploying your bot… this usually takes 1–2 minutes.
+              </span>
+            </>
+          )}
+        </div>
+      )}
 
       {isOffline && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center text-xs text-amber-300 font-medium">
