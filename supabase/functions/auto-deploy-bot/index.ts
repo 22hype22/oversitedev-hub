@@ -267,11 +267,11 @@ Deno.serve(async (req) => {
     const fnUrl = `${supabaseUrl}/functions/v1`;
 
     if (!botToken || typeof botToken !== "string" || botToken.trim() === "") {
-      throw new Error("Refusing to deploy: BOT_TOKEN is empty after pool claim");
+      throw new Error("Refusing to deploy: DISCORD_TOKEN is empty after pool claim");
     }
 
     const varsPayload: Record<string, string> = {
-      BOT_TOKEN: botToken.trim(),
+      DISCORD_TOKEN: botToken.trim(),
       ...(poolClientId ? { DISCORD_CLIENT_ID: poolClientId } : {}),
       BOT_ORDER_ID: orderId,
       SUPABASE_URL: supabaseUrl,
@@ -280,34 +280,34 @@ Deno.serve(async (req) => {
       SUPABASE_FN_URL: fnUrl,
     };
 
-    // Log shape (not values) of the payload to confirm BOT_TOKEN is present.
-    console.log("[auto-deploy-bot] variableCollectionUpsert payload", {
+    // Log shape (not values) of the payload to confirm DISCORD_TOKEN is present.
+    console.log("[auto-deploy-bot] variableUpsert payload", {
       orderId,
       serviceId: newServiceId,
       keys: Object.keys(varsPayload),
-      botTokenLength: varsPayload.BOT_TOKEN?.length ?? 0,
-      botTokenPreview: varsPayload.BOT_TOKEN
-        ? `${varsPayload.BOT_TOKEN.slice(0, 4)}…${varsPayload.BOT_TOKEN.slice(-4)}`
+      botTokenLength: varsPayload.DISCORD_TOKEN?.length ?? 0,
+      botTokenPreview: varsPayload.DISCORD_TOKEN
+        ? `${varsPayload.DISCORD_TOKEN.slice(0, 4)}…${varsPayload.DISCORD_TOKEN.slice(-4)}`
         : "(empty)",
       hasClientId: Boolean(poolClientId),
     });
 
     await setVariables(projectId, environmentId, newServiceId, varsPayload);
 
-    // Verify Railway actually stored BOT_TOKEN with the value we sent.
+    // Verify Railway actually stored DISCORD_TOKEN with the value we sent.
     // If it comes back empty/missing, do NOT redeploy — abort so the bot
     // doesn't boot with an empty token.
     try {
       const stored = await fetchServiceVariables(projectId, environmentId, newServiceId);
-      const storedToken = stored?.BOT_TOKEN ?? "";
+      const storedToken = stored?.DISCORD_TOKEN ?? "";
       console.log("[auto-deploy-bot] post-upsert verification", {
         serviceId: newServiceId,
         storedKeys: Object.keys(stored ?? {}),
         storedBotTokenLength: storedToken.length,
       });
-      if (!storedToken || storedToken.length !== varsPayload.BOT_TOKEN.length) {
+      if (!storedToken || storedToken.length !== varsPayload.DISCORD_TOKEN.length) {
         throw new Error(
-          `Railway stored BOT_TOKEN with length ${storedToken.length}, expected ${varsPayload.BOT_TOKEN.length}. Refusing to redeploy.`,
+          `Railway stored DISCORD_TOKEN with length ${storedToken.length}, expected ${varsPayload.DISCORD_TOKEN.length}. Refusing to redeploy.`,
         );
       }
     } catch (verifyErr) {
