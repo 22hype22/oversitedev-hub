@@ -889,6 +889,7 @@ const BotSection = ({
           <TeamManagementHub
             botId={bot.id}
             ownerUserId={bot.ownerUserId ?? userId}
+            ownerEmail={ownerEmail}
           />
         </div>
       )}
