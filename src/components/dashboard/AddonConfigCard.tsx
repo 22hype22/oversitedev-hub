@@ -52,6 +52,7 @@ import { AtSign } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { RoleMultiSelect } from "./RoleMultiSelect";
 import { useTeamRole } from "@/hooks/useTeamRole";
+import { useBotScope } from "./ReadOnlyBotScope";
 
 const CHANNEL_ICON: Record<string, typeof Hash> = {
   text: Hash,
