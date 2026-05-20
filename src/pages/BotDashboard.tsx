@@ -44,6 +44,7 @@ import { BotHealthBadge } from "@/components/dashboard/BotHealthBadge";
 import { DashboardServerSelector } from "@/components/dashboard/DashboardServerSelector";
 import { ActiveGuildProvider } from "@/hooks/useActiveGuild";
 import { useBotFreePeriods, type BotFreePeriod } from "@/hooks/useBotFreePeriods";
+import { useBotServerSlots } from "@/hooks/useBotServerSlots";
 import {
   LogOut,
   Settings,
@@ -390,6 +391,11 @@ const BotSection = ({
     !isDeploying &&
     (optimisticAction !== null ||
       (!healthLoading && health?.effective_status === "offline"));
+  const { guilds: connectedGuilds, loading: guildsLoading } = useBotServerSlots(
+    !bot.isDemo ? bot.id : undefined,
+  );
+  const hasNoServers =
+    !bot.isDemo && !isDeploying && !isOffline && !guildsLoading && connectedGuilds.length === 0;
   const [retrying, setRetrying] = useState(false);
   const retryDeploy = async () => {
     setRetrying(true);
@@ -732,6 +738,12 @@ const BotSection = ({
         </div>
       )}
 
+      {hasNoServers && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center text-xs text-amber-300 font-medium">
+          Add your bot to a server to configure these settings.
+        </div>
+      )}
+
       <div
         className={(isOffline || isDeploying) ? "space-y-5 opacity-40 pointer-events-none select-none" : "space-y-5"}
         aria-disabled={isOffline}
@@ -756,11 +768,11 @@ const BotSection = ({
       </details>
 
       <div
-        className={(isOffline || isDeploying) ? "opacity-40 pointer-events-none select-none" : ""}
-        aria-disabled={isOffline}
+        className={(isOffline || isDeploying || hasNoServers) ? "opacity-40 pointer-events-none select-none" : ""}
+        aria-disabled={isOffline || hasNoServers}
       >
       <details
-        open={addonsOpen && !isOffline}
+        open={addonsOpen && !isOffline && !hasNoServers}
         onToggle={(e) => setAddonsOpen((e.target as HTMLDetailsElement).open)}
         className="group rounded-xl border border-border bg-card/30 overflow-hidden"
       >
