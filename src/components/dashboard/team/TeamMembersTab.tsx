@@ -31,6 +31,7 @@ type Member = {
 export function TeamMembersTab({
   botId,
   ownerUserId,
+  ownerEmail,
   viewerIsOwner = true,
   viewerRole = null,
   canManageTeam = true,
@@ -39,6 +40,7 @@ export function TeamMembersTab({
   /** Bot whose team roster is shown. */
   botId: string;
   ownerUserId?: string | null;
+  ownerEmail?: string | null;
   viewerIsOwner?: boolean;
   viewerRole?: TeamRole | null;
   canManageTeam?: boolean;
@@ -46,6 +48,7 @@ export function TeamMembersTab({
 }) {
   const { user } = useAuth();
   const targetOwnerId = ownerUserId ?? user?.id ?? null;
+  const resolvedOwnerEmail = ownerEmail ?? (viewerIsOwner ? user?.email ?? null : null);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteOpen, setInviteOpen] = useState(false);
