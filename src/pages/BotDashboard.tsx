@@ -44,6 +44,7 @@ import { BotHealthBadge } from "@/components/dashboard/BotHealthBadge";
 import { DashboardServerSelector } from "@/components/dashboard/DashboardServerSelector";
 import { ActiveGuildProvider } from "@/hooks/useActiveGuild";
 import { useBotFreePeriods, type BotFreePeriod } from "@/hooks/useBotFreePeriods";
+import { useBotServerSlots } from "@/hooks/useBotServerSlots";
 import {
   LogOut,
   Settings,
