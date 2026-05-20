@@ -736,7 +736,7 @@ const BotSection = ({
       </details>
 
       <div
-        className={isOffline ? "opacity-40 pointer-events-none select-none" : ""}
+        className={(isOffline || isDeploying) ? "opacity-40 pointer-events-none select-none" : ""}
         aria-disabled={isOffline}
       >
       <details
