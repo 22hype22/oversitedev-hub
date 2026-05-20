@@ -768,11 +768,11 @@ const BotSection = ({
       </details>
 
       <div
-        className={(isOffline || isDeploying) ? "opacity-40 pointer-events-none select-none" : ""}
-        aria-disabled={isOffline}
+        className={(isOffline || isDeploying || hasNoServers) ? "opacity-40 pointer-events-none select-none" : ""}
+        aria-disabled={isOffline || hasNoServers}
       >
       <details
-        open={addonsOpen && !isOffline}
+        open={addonsOpen && !isOffline && !hasNoServers}
         onToggle={(e) => setAddonsOpen((e.target as HTMLDetailsElement).open)}
         className="group rounded-xl border border-border bg-card/30 overflow-hidden"
       >
