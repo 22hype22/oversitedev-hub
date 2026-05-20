@@ -470,6 +470,11 @@ Deno.serve(async (req) => {
       throw new Error("Refusing to deploy: DISCORD_TOKEN is empty after pool claim");
     }
 
+    const purchasedAddons = Array.isArray((order as any).addons)
+      ? ((order as any).addons as string[])
+      : [];
+    const featureFlagVars = buildFeatureFlagVars(order.base, purchasedAddons);
+
     const varsPayload: Record<string, string> = {
       DISCORD_TOKEN: botToken.trim(),
       ...(poolClientId ? { DISCORD_CLIENT_ID: poolClientId } : {}),
@@ -478,6 +483,7 @@ Deno.serve(async (req) => {
       SUPABASE_ANON_KEY: anonKey,
       WORKER_TOKEN: workerToken,
       SUPABASE_FN_URL: fnUrl,
+      ...featureFlagVars,
     };
 
     // Log shape (not values) of the payload to confirm DISCORD_TOKEN is present.
@@ -490,6 +496,9 @@ Deno.serve(async (req) => {
         ? `${varsPayload.DISCORD_TOKEN.slice(0, 4)}…${varsPayload.DISCORD_TOKEN.slice(-4)}`
         : "(empty)",
       hasClientId: Boolean(poolClientId),
+      featureFlagCount: Object.keys(featureFlagVars).length,
+      enabledFlags: Object.keys(featureFlagVars).sort(),
+      purchasedAddons,
     });
 
     await setVariables(projectId, environmentId, newServiceId, varsPayload);
