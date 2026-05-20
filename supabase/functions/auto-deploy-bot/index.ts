@@ -96,20 +96,50 @@ async function setVariables(
   serviceId: string,
   vars: Record<string, string>,
 ) {
-  await railway(
-    `mutation($input: VariableCollectionUpsertInput!) {
-      variableCollectionUpsert(input: $input)
-    }`,
-    {
-      input: {
-        projectId,
-        environmentId,
-        serviceId,
-        variables: vars,
-        replace: false,
+  // Use per-variable variableUpsert instead of variableCollectionUpsert.
+  // The collection mutation takes `variables` as a JSON scalar, and we've
+  // seen Railway end up with empty values for tokens containing dots
+  // (Discord tokens look like "MTQ5...GZMZ3l.j1Xh..."). variableUpsert
+  // takes name/value as explicit String args, eliminating any JSON scalar
+  // coercion risk.
+  for (const [name, value] of Object.entries(vars)) {
+    if (typeof value !== "string") {
+      throw new Error(`Variable ${name} is not a string`);
+    }
+    await railway(
+      `mutation($input: VariableUpsertInput!) {
+        variableUpsert(input: $input)
+      }`,
+      {
+        input: {
+          projectId,
+          environmentId,
+          serviceId,
+          name,
+          value,
+        },
       },
-    },
+    );
+    console.log("[auto-deploy-bot] variableUpsert ok", {
+      serviceId,
+      name,
+      valueLength: value.length,
+    });
+  }
+}
+
+async function fetchServiceVariables(
+  projectId: string,
+  environmentId: string,
+  serviceId: string,
+): Promise<Record<string, string>> {
+  const data = await railway(
+    `query($projectId: String!, $environmentId: String!, $serviceId: String!) {
+      variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)
+    }`,
+    { projectId, environmentId, serviceId },
   );
+  return (data?.variables ?? {}) as Record<string, string>;
 }
 
 async function redeploy(serviceId: string, environmentId: string) {
@@ -263,6 +293,31 @@ Deno.serve(async (req) => {
     });
 
     await setVariables(projectId, environmentId, newServiceId, varsPayload);
+
+    // Verify Railway actually stored BOT_TOKEN with the value we sent.
+    // If it comes back empty/missing, do NOT redeploy — abort so the bot
+    // doesn't boot with an empty token.
+    try {
+      const stored = await fetchServiceVariables(projectId, environmentId, newServiceId);
+      const storedToken = stored?.BOT_TOKEN ?? "";
+      console.log("[auto-deploy-bot] post-upsert verification", {
+        serviceId: newServiceId,
+        storedKeys: Object.keys(stored ?? {}),
+        storedBotTokenLength: storedToken.length,
+      });
+      if (!storedToken || storedToken.length !== varsPayload.BOT_TOKEN.length) {
+        throw new Error(
+          `Railway stored BOT_TOKEN with length ${storedToken.length}, expected ${varsPayload.BOT_TOKEN.length}. Refusing to redeploy.`,
+        );
+      }
+    } catch (verifyErr) {
+      const m = verifyErr instanceof Error ? verifyErr.message : String(verifyErr);
+      // If the verification query itself fails (schema change etc.) log and
+      // continue rather than blocking deploys, but if it's our explicit
+      // mismatch error, re-throw.
+      if (m.includes("Refusing to redeploy")) throw verifyErr;
+      console.warn("[auto-deploy-bot] variable verification query failed (continuing)", { message: m });
+    }
 
     await redeploy(newServiceId, environmentId);
 
