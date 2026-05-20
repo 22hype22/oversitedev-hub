@@ -20,14 +20,19 @@ Deno.serve(async (req) => {
 
   let memberId = ''
   let siteUrl = ''
+  let botIds: string[] = []
   try {
     const body = await req.json()
     memberId = String(body.memberId ?? '').trim()
     siteUrl = String(body.siteUrl ?? '').trim()
+    if (Array.isArray(body.botIds)) {
+      botIds = body.botIds.map((v: unknown) => String(v)).filter(Boolean)
+    }
   } catch {
     return json({ ok: false, error: 'invalid body' }, 400)
   }
   if (!memberId) return json({ ok: false, error: 'memberId required' }, 400)
+  if (botIds.length === 0) return json({ ok: false, error: 'select at least one bot' }, 400)
 
   const userClient = createClient(SUPABASE_URL, ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
@@ -37,11 +42,21 @@ Deno.serve(async (req) => {
   const ownerEmail = userResp.user.email ?? null
 
   const { data: rpcResp, error: rpcErr } = await userClient.rpc(
-    'team_request_ownership_transfer', { _member_id: memberId },
+    'team_request_ownership_transfer', { _member_id: memberId, _bot_ids: botIds },
   )
   if (rpcErr) return json({ ok: false, error: rpcErr.message }, 400)
-  const result = rpcResp as { ok: boolean; error?: string; transfer_token?: string; member_email?: string; id?: string }
+  const result = rpcResp as { ok: boolean; error?: string; transfer_token?: string; member_email?: string; id?: string; bot_ids?: string[] }
   if (!result?.ok) return json({ ok: false, error: result?.error ?? 'request failed' }, 400)
+
+  // Fetch bot names for the email body.
+  let botNames: string[] = []
+  if (result.bot_ids && result.bot_ids.length > 0) {
+    const { data: botRows } = await userClient
+      .from('bot_orders')
+      .select('bot_name')
+      .in('id', result.bot_ids)
+    botNames = ((botRows ?? []) as any[]).map((r) => r.bot_name).filter(Boolean)
+  }
 
   const origin = siteUrl || req.headers.get('origin') || 'https://oversite.shop'
   const confirmUrl = `${origin.replace(/\/$/, '')}/auth?team_transfer=${result.transfer_token}`
@@ -54,7 +69,7 @@ Deno.serve(async (req) => {
         body: {
           templateName: 'team-transfer-confirm',
           recipientEmail: result.member_email,
-          templateData: { ownerEmail, confirmUrl },
+          templateData: { ownerEmail, confirmUrl, botNames },
           idempotencyKey: `team-transfer-confirm:${result.transfer_token}`,
         },
       }),
@@ -64,7 +79,7 @@ Deno.serve(async (req) => {
             body: {
               templateName: 'team-transfer-notice',
               recipientEmail: ownerEmail,
-              templateData: { memberEmail: result.member_email },
+              templateData: { memberEmail: result.member_email, botNames },
               idempotencyKey: `team-transfer-notice:${result.transfer_token}`,
             },
           })
