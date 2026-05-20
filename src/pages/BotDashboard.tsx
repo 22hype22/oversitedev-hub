@@ -1125,6 +1125,7 @@ const BotDashboard = () => {
                       bot={bot}
                       allBots={dashboardBots}
                       userId={user.id}
+                      ownerEmail={user.email}
                       freePeriod={freePeriods[bot.id]}
                       onCancel={setCancelTarget}
                       onAddAddons={setAddonsTarget}
