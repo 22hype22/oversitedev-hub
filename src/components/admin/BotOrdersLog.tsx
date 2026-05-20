@@ -610,12 +610,12 @@ export const BotOrdersLog = () => {
                             </div>
                             <div className="md:col-span-3">
                               <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                                Discord bot token <span className="opacity-60">(required to mark "Ready" — used by auto-deploy to bring the bot online)</span>
+                                Discord bot token <span className="opacity-60">(optional — leave blank to auto-assign the next available token from the pool when marking "Ready")</span>
                               </label>
                               <Input
                                 className="mt-1 font-mono text-xs"
                                 type="password"
-                                placeholder={r.bot_token ? "•••••••• (token already set — paste to replace)" : "MTAxxxxxxxxx.G..."}
+                                placeholder={r.bot_token ? "•••••••• (manual token set — paste to replace, or clear to use pool)" : "Auto-assigned from token pool"}
                                 value={draft.bot_token}
                                 onChange={(e) => setDraft(r.id, { bot_token: e.target.value })}
                                 autoComplete="off"
