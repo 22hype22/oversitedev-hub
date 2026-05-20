@@ -1533,6 +1533,7 @@ export type Database = {
       }
       hosting_subscriptions: {
         Row: {
+          billing_override: boolean
           created_at: string
           current_period_end: string | null
           environment: string
@@ -1547,6 +1548,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          billing_override?: boolean
           created_at?: string
           current_period_end?: string | null
           environment?: string
@@ -1561,6 +1563,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          billing_override?: boolean
           created_at?: string
           current_period_end?: string | null
           environment?: string
