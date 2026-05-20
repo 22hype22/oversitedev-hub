@@ -37,24 +37,20 @@ async function railway(query: string, variables: Record<string, unknown>) {
   return json.data;
 }
 
-function templateServiceFor(base: string): string {
-  const protection = Deno.env.get("RAILWAY_TEMPLATE_SERVICE_PROTECTION") ?? "";
-  const support = Deno.env.get("RAILWAY_TEMPLATE_SERVICE_SUPPORT") ?? "";
-  const utilities = Deno.env.get("RAILWAY_TEMPLATE_SERVICE_UTILITIES") ?? "";
+function repoSourceFor(base: string): string {
   const b = (base ?? "").toLowerCase().trim();
   switch (b) {
     case "support":
-      return support;
+      return "oversitedev/oversite-support";
     case "utilities":
-      return utilities;
+      return "oversitedev/oversite-utilities";
     case "protection":
     case "scratch":
     case "all-in-one-pack":
     case "all_in_one_pack":
     case "allinonepack":
     default:
-      // Default fallback: Protection template covers scratch/all-in-one/custom builds.
-      return protection;
+      return "oversitedev/oversite-protection";
   }
 }
 
@@ -64,18 +60,16 @@ function railwayEnvironmentId(): string {
     Deno.env.get("RAILWAY_PRODUCTION_ENVIRONMENT_ID") ??
     "";
   if (!environmentId) {
-    throw new Error(
-      "RAILWAY_ENVIRONMENT_ID not configured. Required for variableCollectionUpsert and serviceInstanceRedeploy without querying Railway Service fields.",
-    );
+    throw new Error("RAILWAY_ENVIRONMENT_ID not configured.");
   }
   return environmentId;
 }
 
-async function createServiceFromTemplate(
+async function createServiceFromRepo(
   projectId: string,
   environmentId: string,
   name: string,
-  templateServiceId: string,
+  repo: string,
 ): Promise<string> {
   const data = await railway(
     `mutation($input: ServiceCreateInput!) {
@@ -86,7 +80,7 @@ async function createServiceFromTemplate(
         projectId,
         environmentId,
         name,
-        templateServiceId,
+        source: { repo },
       },
     },
   );
@@ -94,6 +88,7 @@ async function createServiceFromTemplate(
   if (!id) throw new Error("serviceCreate returned no id");
   return id;
 }
+
 
 async function setVariables(
   projectId: string,
@@ -215,12 +210,7 @@ Deno.serve(async (req) => {
     const projectId = Deno.env.get("RAILWAY_PROJECT_ID");
     if (!projectId) throw new Error("RAILWAY_PROJECT_ID not configured");
 
-    const templateId = templateServiceFor(order.base);
-    if (!templateId) {
-      throw new Error(
-        `No Railway template configured for base "${order.base}". Expected protection/support/utilities.`,
-      );
-    }
+    const repo = repoSourceFor(order.base);
 
     // Mark as deploying
     await admin
@@ -240,7 +230,8 @@ Deno.serve(async (req) => {
       .replace(/^-+|-+$/g, "")
       .slice(0, 50);
 
-    const newServiceId = await createServiceFromTemplate(projectId, environmentId, serviceName, templateId);
+    const newServiceId = await createServiceFromRepo(projectId, environmentId, serviceName, repo);
+
 
     const workerToken = Deno.env.get("WORKER_TOKEN") ?? "";
     const fnUrl = `${supabaseUrl}/functions/v1`;
