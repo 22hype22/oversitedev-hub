@@ -37,6 +37,10 @@ export type OwnedBot = {
   deployment_status?: string | null;
   /** Railway service ID once the bot has been provisioned. */
   railway_service_id?: string | null;
+  /** Stored bio shown in the bot's Discord "About me" section. */
+  bot_bio?: string | null;
+  /** Last time the username was pushed to Discord (used for rate-limit warning). */
+  discord_last_username_change_at?: string | null;
 };
 
 // Bots that are paid and live show up in the dashboard. Drafts,
