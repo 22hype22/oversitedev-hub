@@ -2522,7 +2522,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               </span>
             ) : <span />}
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setOpen(false)}>
+              <Button variant="outline" onClick={() => setOpen(false)} data-readonly-allow>
                 Cancel
               </Button>
               <Button
