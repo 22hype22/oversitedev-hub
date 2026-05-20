@@ -68,14 +68,31 @@ export function TeamMembersTab({
       .from("dashboard_team")
       .select("*")
       .eq("bot_id", botId);
-    const sorted = ((data ?? []) as Member[]).slice().sort((a, b) => {
+    const fetched = ((data ?? []) as Member[]).slice();
+    // Always ensure the owner is present as the first entry, even when
+    // dashboard_team has no rows (e.g. ensure_team_owner_row hasn't run yet).
+    const hasOwnerRow = fetched.some(
+      (m) => m.role === "owner" && m.member_user_id === targetOwnerId
+    );
+    if (!hasOwnerRow && targetOwnerId) {
+      fetched.unshift({
+        id: "__owner__",
+        member_email: resolvedOwnerEmail ?? "Owner",
+        member_user_id: targetOwnerId,
+        role: "owner",
+        invite_token: null,
+        invited_at: new Date().toISOString(),
+        accepted_at: new Date().toISOString(),
+      });
+    }
+    const sorted = fetched.sort((a, b) => {
       const rankDiff = (ROLE_RANK[b.role] ?? 0) - (ROLE_RANK[a.role] ?? 0);
       if (rankDiff !== 0) return rankDiff;
       return (a.member_email ?? "").localeCompare(b.member_email ?? "");
     });
     setMembers(sorted);
     setLoading(false);
-  }, [botId, viewerIsOwner]);
+  }, [botId, viewerIsOwner, targetOwnerId, resolvedOwnerEmail]);
 
   useEffect(() => { void reload(); }, [reload]);
 
