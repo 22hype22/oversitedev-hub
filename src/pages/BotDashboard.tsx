@@ -713,7 +713,7 @@ const BotSection = ({
       )}
 
       <div
-        className={isOffline ? "space-y-5 opacity-40 pointer-events-none select-none" : "space-y-5"}
+        className={(isOffline || isDeploying) ? "space-y-5 opacity-40 pointer-events-none select-none" : "space-y-5"}
         aria-disabled={isOffline}
       >
         {!bot.isDemo && (
