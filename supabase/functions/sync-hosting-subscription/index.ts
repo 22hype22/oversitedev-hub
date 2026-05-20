@@ -111,6 +111,21 @@ serve(async (req) => {
     if (countErr) throw countErr;
     const paidBots = count ?? 0;
 
+    // Short-circuit: users who redeemed a billing override code are
+    // paying off-platform (e.g. PayPal) — never create or modify a
+    // Stripe subscription for them.
+    const { data: overrideRow } = await admin
+      .from("hosting_subscriptions")
+      .select("billing_override")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (overrideRow?.billing_override) {
+      return new Response(
+        JSON.stringify({ ok: true, paidBots, tier: null, action: "billing_override" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const env = resolveStripeEnv();
     const stripe = createStripeClient(env);
     const existing = await findExistingHostingSub(stripe, user.id);
