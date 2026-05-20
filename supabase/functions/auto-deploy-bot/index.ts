@@ -96,20 +96,50 @@ async function setVariables(
   serviceId: string,
   vars: Record<string, string>,
 ) {
-  await railway(
-    `mutation($input: VariableCollectionUpsertInput!) {
-      variableCollectionUpsert(input: $input)
-    }`,
-    {
-      input: {
-        projectId,
-        environmentId,
-        serviceId,
-        variables: vars,
-        replace: false,
+  // Use per-variable variableUpsert instead of variableCollectionUpsert.
+  // The collection mutation takes `variables` as a JSON scalar, and we've
+  // seen Railway end up with empty values for tokens containing dots
+  // (Discord tokens look like "MTQ5...GZMZ3l.j1Xh..."). variableUpsert
+  // takes name/value as explicit String args, eliminating any JSON scalar
+  // coercion risk.
+  for (const [name, value] of Object.entries(vars)) {
+    if (typeof value !== "string") {
+      throw new Error(`Variable ${name} is not a string`);
+    }
+    await railway(
+      `mutation($input: VariableUpsertInput!) {
+        variableUpsert(input: $input)
+      }`,
+      {
+        input: {
+          projectId,
+          environmentId,
+          serviceId,
+          name,
+          value,
+        },
       },
-    },
+    );
+    console.log("[auto-deploy-bot] variableUpsert ok", {
+      serviceId,
+      name,
+      valueLength: value.length,
+    });
+  }
+}
+
+async function fetchServiceVariables(
+  projectId: string,
+  environmentId: string,
+  serviceId: string,
+): Promise<Record<string, string>> {
+  const data = await railway(
+    `query($projectId: String!, $environmentId: String!, $serviceId: String!) {
+      variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)
+    }`,
+    { projectId, environmentId, serviceId },
   );
+  return (data?.variables ?? {}) as Record<string, string>;
 }
 
 async function redeploy(serviceId: string, environmentId: string) {
