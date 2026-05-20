@@ -61,27 +61,38 @@ Deno.serve(async (req) => {
   const origin = siteUrl || req.headers.get('origin') || 'https://oversite.shop'
   const confirmUrl = `${origin.replace(/\/$/, '')}/auth?team_transfer=${result.transfer_token}`
 
+  const sendEmail = async (payload: Record<string, unknown>) => {
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-transactional-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        apikey: SERVICE_KEY,
+      },
+      body: JSON.stringify(payload),
+    })
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '')
+      console.error('send-transactional-email failed', resp.status, text, payload)
+    } else {
+      await resp.text().catch(() => '')
+    }
+  }
+
   try {
-    const adminClient = createClient(SUPABASE_URL, SERVICE_KEY)
     await Promise.all([
-      adminClient.functions.invoke('send-transactional-email', {
-        headers: { Authorization: `Bearer ${SERVICE_KEY}` },
-        body: {
-          templateName: 'team-transfer-confirm',
-          recipientEmail: result.member_email,
-          templateData: { ownerEmail, confirmUrl, botNames },
-          idempotencyKey: `team-transfer-confirm:${result.transfer_token}`,
-        },
+      sendEmail({
+        templateName: 'team-transfer-confirm',
+        recipientEmail: result.member_email,
+        templateData: { ownerEmail, confirmUrl, botNames },
+        idempotencyKey: `team-transfer-confirm:${result.transfer_token}`,
       }),
       ownerEmail
-        ? adminClient.functions.invoke('send-transactional-email', {
-            headers: { Authorization: `Bearer ${SERVICE_KEY}` },
-            body: {
-              templateName: 'team-transfer-notice',
-              recipientEmail: ownerEmail,
-              templateData: { memberEmail: result.member_email, botNames },
-              idempotencyKey: `team-transfer-notice:${result.transfer_token}`,
-            },
+        ? sendEmail({
+            templateName: 'team-transfer-notice',
+            recipientEmail: ownerEmail,
+            templateData: { memberEmail: result.member_email, botNames },
+            idempotencyKey: `team-transfer-notice:${result.transfer_token}`,
           })
         : Promise.resolve(),
     ])
