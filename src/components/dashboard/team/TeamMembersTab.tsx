@@ -241,41 +241,170 @@ export function TeamMembersTab({
         </Table>
       </div>
 
-      <AlertDialog open={!!transferTarget} onOpenChange={(o) => !o && setTransferTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Transfer ownership?</AlertDialogTitle>
-            <AlertDialogDescription>
-              We'll email <strong>{transferTarget?.member_email}</strong> a
-              confirmation link. The transfer only happens once they click it
-              and sign in. They'll become Owner with full control (including
-              billing) and you'll be demoted to Co-Owner. The link expires in
-              7 days — you can cancel it before then.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                if (!transferTarget) return;
-                const { data, error } = await supabase.functions.invoke("team-transfer-send", {
-                  body: { memberId: transferTarget.id, siteUrl: window.location.origin },
-                });
-                if (error || !(data as any)?.ok) {
-                  toast.error((error as any)?.message ?? (data as any)?.error ?? "Failed to send confirmation");
-                  return;
-                }
-                toast.success(`Confirmation email sent to ${transferTarget.member_email}`);
-                setTransferTarget(null);
-                reload();
-              }}
-            >
-              Send confirmation email
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <TransferBotsDialog
+        target={transferTarget}
+        ownerUserId={targetOwnerId}
+        onClose={() => setTransferTarget(null)}
+        onDone={() => { setTransferTarget(null); reload(); }}
+      />
     </div>
+  );
+}
+
+function TransferBotsDialog({
+  target,
+  ownerUserId,
+  onClose,
+  onDone,
+}: {
+  target: Member | null;
+  ownerUserId: string | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [bots, setBots] = useState<Array<{ id: string; bot_name: string }>>([]);
+  const [loadingBots, setLoadingBots] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [step, setStep] = useState<"pick" | "confirm">("pick");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!target || !ownerUserId) return;
+    setStep("pick");
+    setSelected(new Set());
+    setLoadingBots(true);
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("bot_orders")
+        .select("id,bot_name,status")
+        .eq("user_id", ownerUserId)
+        .in("status", ["paid", "ready"])
+        .order("created_at", { ascending: true });
+      setBots(((data ?? []) as any[]).map((b) => ({ id: b.id, bot_name: b.bot_name })));
+      setLoadingBots(false);
+    })();
+  }, [target, ownerUserId]);
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectedBots = bots.filter((b) => selected.has(b.id));
+
+  const send = async () => {
+    if (!target || selected.size === 0) return;
+    setSubmitting(true);
+    const { data, error } = await supabase.functions.invoke("team-transfer-send", {
+      body: {
+        memberId: target.id,
+        siteUrl: window.location.origin,
+        botIds: Array.from(selected),
+      },
+    });
+    setSubmitting(false);
+    if (error || !(data as any)?.ok) {
+      toast.error((error as any)?.message ?? (data as any)?.error ?? "Failed to send confirmation");
+      return;
+    }
+    toast.success(`Confirmation email sent to ${target.member_email}`);
+    onDone();
+  };
+
+  return (
+    <Dialog open={!!target} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {step === "pick" ? "Choose bots to transfer" : "Transfer ownership?"}
+          </DialogTitle>
+          <DialogDescription>
+            {step === "pick" ? (
+              <>
+                Select the bots you want to transfer to{" "}
+                <strong>{target?.member_email}</strong>. Only the bots you
+                check will move to their account — the rest stay with you.
+              </>
+            ) : (
+              <>
+                We'll email <strong>{target?.member_email}</strong> a
+                confirmation link. Once they confirm and sign in, ownership of
+                the selected {selected.size === 1 ? "bot" : `${selected.size} bots`} will
+                transfer to them. The link expires in 7 days — you can cancel
+                it before then.
+              </>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        {step === "pick" ? (
+          <div className="max-h-72 overflow-y-auto rounded-md border border-border divide-y divide-border">
+            {loadingBots ? (
+              <div className="p-4 text-sm text-muted-foreground text-center">
+                <Loader2 className="h-4 w-4 animate-spin inline mr-2" />Loading bots…
+              </div>
+            ) : bots.length === 0 ? (
+              <div className="p-4 text-sm text-muted-foreground text-center">
+                You don't have any transferable bots.
+              </div>
+            ) : (
+              bots.map((b) => {
+                const checked = selected.has(b.id);
+                return (
+                  <label
+                    key={b.id}
+                    className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/40"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggle(b.id)}
+                      className="h-4 w-4 rounded border-border accent-primary"
+                    />
+                    <span className="text-sm font-medium">{b.bot_name}</span>
+                  </label>
+                );
+              })
+            )}
+          </div>
+        ) : (
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
+            <div className="font-semibold mb-1">Bots being transferred:</div>
+            <ul className="list-disc list-inside space-y-0.5">
+              {selectedBots.map((b) => (
+                <li key={b.id}>{b.bot_name}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <DialogFooter>
+          {step === "pick" ? (
+            <>
+              <Button variant="ghost" onClick={onClose}>Cancel</Button>
+              <Button
+                onClick={() => setStep("confirm")}
+                disabled={selected.size === 0 || loadingBots}
+              >
+                Continue ({selected.size})
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={() => setStep("pick")}>Back</Button>
+              <Button onClick={send} disabled={submitting}>
+                {submitting && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                Send confirmation email
+              </Button>
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
