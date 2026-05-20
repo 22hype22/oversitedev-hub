@@ -164,6 +164,22 @@ export function useBotGuilds(botId: string | undefined) {
     }
   }, [botId, refresh]);
 
+  // Keep latest refreshFromDiscord in a ref so the auto-sync effect doesn't
+  // need to re-run on every render.
+  useEffect(() => {
+    refreshFromDiscordHolder.current = refreshFromDiscord;
+  }, [refreshFromDiscord]);
+
+  // Auto-sync once per bot per session so freshly invited bots populate
+  // their guild list without manual intervention.
+  useEffect(() => {
+    if (!botId) return;
+    if (autoSyncedGuildRef.current.has(botId)) return;
+    autoSyncedGuildRef.current.add(botId);
+    void refreshFromDiscordHolder.current?.();
+  }, [botId]);
+
+
   useEffect(() => {
     if (!botId) return;
     const channel = supabase
