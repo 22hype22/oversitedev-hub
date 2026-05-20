@@ -42,6 +42,9 @@ type OrderRow = {
   delivery_url: string | null;
   source_url: string | null;
   railway_service_id: string | null;
+  bot_token: string | null;
+  deployment_status: string | null;
+  deployment_error: string | null;
 };
 
 const EDITABLE_STATUSES = ["building", "ready", "cancelled"] as const;
@@ -83,11 +86,12 @@ export const BotOrdersLog = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, { status: string; notes: string; delivery_url: string; source_url: string }>>({});
+  const [drafts, setDrafts] = useState<Record<string, { status: string; notes: string; delivery_url: string; source_url: string; bot_token: string }>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [railwayDrafts, setRailwayDrafts] = useState<Record<string, string>>({});
   const [savingRailwayId, setSavingRailwayId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [redeployingId, setRedeployingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<OrderRow | null>(null);
   const [deleteCode, setDeleteCode] = useState("");
 
@@ -149,7 +153,7 @@ export const BotOrdersLog = () => {
     );
   };
 
-  const setDraft = (id: string, patch: Partial<{ status: string; notes: string; delivery_url: string; source_url: string }>) => {
+  const setDraft = (id: string, patch: Partial<{ status: string; notes: string; delivery_url: string; source_url: string; bot_token: string }>) => {
     setDrafts((prev) => ({
       ...prev,
       [id]: {
@@ -157,6 +161,7 @@ export const BotOrdersLog = () => {
         notes: prev[id]?.notes ?? "",
         delivery_url: prev[id]?.delivery_url ?? "",
         source_url: prev[id]?.source_url ?? "",
+        bot_token: prev[id]?.bot_token ?? "",
         ...patch,
       },
     }));
@@ -171,6 +176,7 @@ export const BotOrdersLog = () => {
         notes: row.notes ?? "",
         delivery_url: row.delivery_url ?? "",
         source_url: row.source_url ?? "",
+        bot_token: row.bot_token ?? "",
       },
     }));
   };
@@ -178,6 +184,13 @@ export const BotOrdersLog = () => {
   const saveRow = async (row: OrderRow) => {
     const draft = drafts[row.id];
     if (!draft) return;
+    // Guard: marking ready requires a bot token (so auto-deploy succeeds).
+    if (draft.status === "ready" && !draft.bot_token.trim() && !row.railway_service_id) {
+      toast.error("Bot token required", {
+        description: "Paste the Discord bot token before marking this order as Ready.",
+      });
+      return;
+    }
     setSavingId(row.id);
     const { error } = await supabase
       .from("bot_orders")
@@ -186,6 +199,7 @@ export const BotOrdersLog = () => {
         notes: draft.notes || null,
         delivery_url: draft.delivery_url || null,
         source_url: draft.source_url || null,
+        bot_token: draft.bot_token.trim() || null,
       })
       .eq("id", row.id);
     setSavingId(null);
@@ -209,7 +223,7 @@ export const BotOrdersLog = () => {
       const { data: orders, error } = await supabase
         .from("bot_orders")
         .select(
-          "id, created_at, submitted_at, bot_name, base, addons, total_amount, currency, status, monthly_hosting, user_id, notes, delivery_url, source_url, railway_service_id",
+          "id, created_at, submitted_at, bot_name, base, addons, total_amount, currency, status, monthly_hosting, user_id, notes, delivery_url, source_url, railway_service_id, bot_token, deployment_status, deployment_error",
         )
         .order("submitted_at", { ascending: true, nullsFirst: false })
         .limit(500);
@@ -249,6 +263,9 @@ export const BotOrdersLog = () => {
         delivery_url: (o as any).delivery_url ?? null,
         source_url: (o as any).source_url ?? null,
         railway_service_id: (o as any).railway_service_id ?? null,
+        bot_token: (o as any).bot_token ?? null,
+        deployment_status: (o as any).deployment_status ?? null,
+        deployment_error: (o as any).deployment_error ?? null,
       }));
 
       setRows(mapped);
@@ -595,6 +612,76 @@ export const BotOrdersLog = () => {
                                 onChange={(e) => setDraft(r.id, { source_url: e.target.value })}
                               />
                             </div>
+                            <div className="md:col-span-3">
+                              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                                Discord bot token <span className="opacity-60">(required to mark "Ready" — used by auto-deploy to bring the bot online)</span>
+                              </label>
+                              <Input
+                                className="mt-1 font-mono text-xs"
+                                type="password"
+                                placeholder={r.bot_token ? "•••••••• (token already set — paste to replace)" : "MTAxxxxxxxxx.G..."}
+                                value={draft.bot_token}
+                                onChange={(e) => setDraft(r.id, { bot_token: e.target.value })}
+                                autoComplete="off"
+                              />
+                            </div>
+                            {(r.deployment_status === "deploying" ||
+                              r.deployment_status === "failed" ||
+                              r.deployment_status === "deployed") && (
+                              <div className="md:col-span-3">
+                                <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                                  Auto-deploy status
+                                </label>
+                                <div className="mt-1 flex items-center gap-2 flex-wrap">
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      r.deployment_status === "deployed"
+                                        ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                                        : r.deployment_status === "failed"
+                                          ? "bg-destructive/15 text-destructive border-destructive/30"
+                                          : "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                                    }
+                                  >
+                                    {r.deployment_status === "deployed"
+                                      ? "Deployed"
+                                      : r.deployment_status === "failed"
+                                        ? "Failed"
+                                        : "Deploying…"}
+                                  </Badge>
+                                  {r.deployment_status === "failed" && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={redeployingId === r.id}
+                                      onClick={async () => {
+                                        setRedeployingId(r.id);
+                                        const { error } = await supabase.functions.invoke(
+                                          "auto-deploy-bot",
+                                          { body: { orderId: r.id } },
+                                        );
+                                        setRedeployingId(null);
+                                        if (error) {
+                                          toast.error("Retry failed", {
+                                            description: error.message,
+                                          });
+                                        } else {
+                                          toast.success("Deployment retried");
+                                          load();
+                                        }
+                                      }}
+                                    >
+                                      {redeployingId === r.id ? "Retrying…" : "Retry deployment"}
+                                    </Button>
+                                  )}
+                                </div>
+                                {r.deployment_error && (
+                                  <p className="text-xs text-destructive mt-1 break-all">
+                                    {r.deployment_error}
+                                  </p>
+                                )}
+                              </div>
+                            )}
                             <div className="md:col-span-3">
                               <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
                                 Internal notes <span className="opacity-60">(not shown to user)</span>
