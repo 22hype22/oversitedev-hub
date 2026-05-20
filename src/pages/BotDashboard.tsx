@@ -327,6 +327,7 @@ const BotSection = ({
   bot,
   allBots,
   userId,
+  ownerEmail,
   freePeriod,
   onCancel,
   onAddAddons,
@@ -337,6 +338,7 @@ const BotSection = ({
   bot: OwnedBot;
   allBots: OwnedBot[];
   userId: string;
+  ownerEmail?: string | null;
   freePeriod?: BotFreePeriod;
   onCancel: (bot: OwnedBot) => void;
   onAddAddons: (bot: OwnedBot) => void;
