@@ -14,9 +14,6 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Loader2, UserPlus, Crown, Trash2, Copy, ArrowRightLeft } from "lucide-react";
 import { ROLE_LABEL, ROLE_RANK, rolesAssignableBy, type TeamRole } from "@/hooks/useTeamRole";
