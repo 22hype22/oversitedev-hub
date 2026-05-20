@@ -614,6 +614,76 @@ export const BotOrdersLog = () => {
                             </div>
                             <div className="md:col-span-3">
                               <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                                Discord bot token <span className="opacity-60">(required to mark "Ready" — used by auto-deploy to bring the bot online)</span>
+                              </label>
+                              <Input
+                                className="mt-1 font-mono text-xs"
+                                type="password"
+                                placeholder={r.bot_token ? "•••••••• (token already set — paste to replace)" : "MTAxxxxxxxxx.G..."}
+                                value={draft.bot_token}
+                                onChange={(e) => setDraft(r.id, { bot_token: e.target.value })}
+                                autoComplete="off"
+                              />
+                            </div>
+                            {(r.deployment_status === "deploying" ||
+                              r.deployment_status === "failed" ||
+                              r.deployment_status === "deployed") && (
+                              <div className="md:col-span-3">
+                                <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                                  Auto-deploy status
+                                </label>
+                                <div className="mt-1 flex items-center gap-2 flex-wrap">
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      r.deployment_status === "deployed"
+                                        ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                                        : r.deployment_status === "failed"
+                                          ? "bg-destructive/15 text-destructive border-destructive/30"
+                                          : "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                                    }
+                                  >
+                                    {r.deployment_status === "deployed"
+                                      ? "Deployed"
+                                      : r.deployment_status === "failed"
+                                        ? "Failed"
+                                        : "Deploying…"}
+                                  </Badge>
+                                  {r.deployment_status === "failed" && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={redeployingId === r.id}
+                                      onClick={async () => {
+                                        setRedeployingId(r.id);
+                                        const { error } = await supabase.functions.invoke(
+                                          "auto-deploy-bot",
+                                          { body: { orderId: r.id } },
+                                        );
+                                        setRedeployingId(null);
+                                        if (error) {
+                                          toast.error("Retry failed", {
+                                            description: error.message,
+                                          });
+                                        } else {
+                                          toast.success("Deployment retried");
+                                          load();
+                                        }
+                                      }}
+                                    >
+                                      {redeployingId === r.id ? "Retrying…" : "Retry deployment"}
+                                    </Button>
+                                  )}
+                                </div>
+                                {r.deployment_error && (
+                                  <p className="text-xs text-destructive mt-1 break-all">
+                                    {r.deployment_error}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            <div className="md:col-span-3">
+                              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
                                 Internal notes <span className="opacity-60">(not shown to user)</span>
                               </label>
                               <Textarea
