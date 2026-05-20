@@ -54,6 +54,206 @@ function repoSourceFor(base: string): string {
   }
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// Feature flag catalog
+//
+// Maps every purchasable add-on id (the values stored in
+// `bot_orders.addons`, also defined in `src/lib/botCatalog.ts`) to the
+// feature-flag environment variable the bot script reads at boot.
+// Keep this list in sync with `worker/src/index.ts` ADDON_FLAGS and with
+// any feature flag the bot repos consume.
+// ──────────────────────────────────────────────────────────────────────
+const ADDON_FLAGS: Record<string, string> = {
+  // Protection — base-included
+  "verification-system":        "F_VERIFICATION",
+  "mod-actions":                "F_MODERATION",
+  "anti-spam":                  "F_ANTI_SPAM",
+  "anti-raid":                  "F_ANTI_RAID",
+  "auto-role":                  "F_AUTOROLE",
+  "phishing-detection":         "F_PHISHING",
+  "rules":                      "F_RULES",
+  // Protection — paid add-ons
+  "advanced-logging":           "F_ADVANCED_LOGGING",
+  "nsfw-invite-scanner":        "F_NSFW_SCANNER",
+  "avatar-nsfw-detection":      "F_AVATAR_NSFW",
+  "bio-phrase-detection":       "F_BIO_PHRASES",
+  "auto-escalating-warnings":   "F_AUTO_ESCALATE",
+  "softban-massban":            "F_SOFTBAN_MASSBAN",
+  "channel-lockdown":           "F_CHANNEL_LOCKDOWN",
+  "staff-notes":                "F_STAFF_NOTES",
+  "moderation-history":         "F_MOD_HISTORY",
+  "auto-slowmode":              "F_AUTO_SLOWMODE",
+  "temp-ban":                   "F_TEMP_BAN",
+  "ban-tools":                  "F_SOFTBAN_MASSBAN",
+
+  // Support
+  "staff-performance":             "F_STAFF_PERFORMANCE",
+  "ticket-logs":                   "F_TICKET_LOGS",
+  "ticket-notes":                  "F_TICKET_NOTES",
+  "ticket-add-remove":             "F_TICKET_MEMBERS",
+  "close-all-tickets":             "F_CLOSE_ALL",
+  "ticket-message-customization":  "F_TICKET_MSG_CUSTOM",
+  "priority-flagging":             "F_PRIORITY_TICKETS",
+  "auto-close-inactive":           "F_AUTO_CLOSE",
+  "anonymous-reporting":           "F_ANON_REPORTING",
+  "messages":                      "F_SAY",
+
+  // Utilities
+  "music-addon":                "F_MUSIC_ADDON",
+  "auto-radio":                 "F_AUTO_RADIO",
+  "starboard":                  "F_STARBOARD",
+  "recurring-messages":         "F_RECURRING",
+  "giveaway-system":            "F_GIVEAWAY",
+  "server-stats-channels":      "F_SERVER_STATS",
+  "live-notifications":         "F_STREAM_NOTIFS",
+  "leveling-system":            "F_LEVELING",
+  "economy-system":             "F_ECONOMY",
+  "remindme":                   "F_REMINDME",
+
+  // Shared / cross-bot extras
+  "branding":                   "F_CUSTOM_BRANDING",
+  "dashboard":                  "F_WEB_DASHBOARD",
+  "multi-server":               "F_MULTI_SERVER",
+};
+
+/**
+ * Features that are always on for a given base (no purchase required).
+ * Mirrors `BASE_INCLUDED_ADDONS` in `src/lib/botCatalog.ts` plus a few
+ * built-in commands that ship with each base bot.
+ */
+const BASE_FEATURE_FLAGS: Record<string, string[]> = {
+  protection: [
+    "F_VERIFICATION", "F_MODERATION", "F_ANTI_SPAM", "F_ANTI_RAID",
+    "F_AUTOROLE", "F_PHISHING", "F_BASIC_LOGGING", "F_RULES", "F_SAY",
+    "F_ADMIN_ABUSE",
+  ],
+  support: [
+    "F_TICKETS", "F_APPEALS", "F_REPORTS", "F_WELCOME", "F_SAY",
+    "F_SUGGESTIONS",
+  ],
+  utilities: [
+    "F_ANNOUNCE", "F_REACTION_ROLES", "F_POLL", "F_USERINFO",
+    "F_SERVERINFO", "F_AVATAR", "F_8BALL", "F_COINFLIP",
+    "F_BASIC_MUSIC", "F_SAY",
+  ],
+};
+
+/**
+ * Mirrors `BASE_INCLUDED_ADDONS` from the catalog — the addon ids whose
+ * config blocks ship with each base bot. We provision these into
+ * `bot_addon_state` alongside purchased addons so the dashboard renders
+ * them as enabled immediately after deploy.
+ */
+const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
+  protection: [
+    "verification-system", "mod-actions", "anti-spam", "anti-raid",
+    "phishing-detection", "auto-role", "messages", "rules",
+  ],
+  support: [
+    "staff-performance", "ticket-logs", "ticket-notes", "ticket-add-remove",
+    "close-all-tickets", "ticket-message-customization", "priority-flagging",
+    "auto-close-inactive", "messages",
+  ],
+  utilities: [
+    "music-addon", "auto-radio", "starboard", "recurring-messages",
+    "giveaway-system", "server-stats-channels", "live-notifications",
+    "leveling-system", "economy-system", "remindme", "staff-notes",
+    "messages",
+  ],
+};
+
+function normalizeBase(base: string): "protection" | "support" | "utilities" | "scratch" {
+  const b = (base ?? "").toLowerCase().trim();
+  if (b === "support" || b === "utilities") return b;
+  if (
+    b === "scratch" ||
+    b === "all-in-one-pack" ||
+    b === "all_in_one_pack" ||
+    b === "allinonepack"
+  ) {
+    return "scratch";
+  }
+  return "protection";
+}
+
+/**
+ * Compute the `F_*` env vars to set on the Railway service from the
+ * order's purchased addons + the bot's base features.
+ */
+function buildFeatureFlagVars(
+  base: string,
+  purchasedAddons: string[],
+): Record<string, string> {
+  const flags: Record<string, string> = {};
+  const norm = normalizeBase(base);
+
+  // Always-on base features. "scratch" turns every base on (legacy combined bot).
+  const baseSets = norm === "scratch"
+    ? [...BASE_FEATURE_FLAGS.protection, ...BASE_FEATURE_FLAGS.support, ...BASE_FEATURE_FLAGS.utilities]
+    : BASE_FEATURE_FLAGS[norm] ?? [];
+  for (const f of baseSets) flags[f] = "true";
+
+  // Base-included addons (config-only but bot script may also gate on them).
+  const includedAddons = norm === "scratch"
+    ? [...BASE_INCLUDED_ADDONS.protection, ...BASE_INCLUDED_ADDONS.support, ...BASE_INCLUDED_ADDONS.utilities]
+    : BASE_INCLUDED_ADDONS[norm] ?? [];
+  for (const id of includedAddons) {
+    const flag = ADDON_FLAGS[id];
+    if (flag) flags[flag] = "true";
+  }
+
+  // Purchased add-ons.
+  for (const id of purchasedAddons ?? []) {
+    const flag = ADDON_FLAGS[id];
+    if (flag) flags[flag] = "true";
+  }
+
+  return flags;
+}
+
+/**
+ * Ensure a `bot_addon_state` row exists with enabled=true for every
+ * base-included and purchased addon. This "provisions" the customer's
+ * entitlements so the dashboard shows the matching config blocks the
+ * moment the bot finishes deploying.
+ */
+async function provisionAddonEntitlements(
+  admin: ReturnType<typeof createClient>,
+  botId: string,
+  base: string,
+  purchasedAddons: string[],
+) {
+  const norm = normalizeBase(base);
+  const ids = new Set<string>();
+  const included = norm === "scratch"
+    ? [...BASE_INCLUDED_ADDONS.protection, ...BASE_INCLUDED_ADDONS.support, ...BASE_INCLUDED_ADDONS.utilities]
+    : BASE_INCLUDED_ADDONS[norm] ?? [];
+  for (const id of included) ids.add(id);
+  for (const id of purchasedAddons ?? []) ids.add(id);
+  if (ids.size === 0) return;
+
+  const rows = [...ids].map((addon_id) => ({
+    bot_id: botId,
+    addon_id,
+    enabled: true,
+    updated_at: new Date().toISOString(),
+  }));
+  const { error } = await admin
+    .from("bot_addon_state")
+    .upsert(rows, { onConflict: "bot_id,addon_id", ignoreDuplicates: false });
+  if (error) {
+    console.warn("[auto-deploy-bot] provisionAddonEntitlements failed", {
+      botId,
+      message: error.message,
+    });
+  } else {
+    console.log("[auto-deploy-bot] provisioned addon entitlements", {
+      botId,
+      count: rows.length,
+    });
+  }
+}
+
 function railwayEnvironmentId(): string {
   const environmentId =
     Deno.env.get("RAILWAY_ENVIRONMENT_ID") ??
