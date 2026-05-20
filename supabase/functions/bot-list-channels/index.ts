@@ -76,15 +76,15 @@ Deno.serve(async (req) => {
       if (!isAdmin) return json(403, { error: "Not bot owner" });
     }
 
-    // Pull the bot's Discord token (service-role only RPC).
+    // Pull the bot's Discord token. Falls back across bot_secrets,
+    // bot_orders.bot_token, and the assigned bot_token_pool entry so
+    // both worker-managed and Railway-deployed bots resolve a token.
     const { data: tokenData, error: tokenErr } = await admin.rpc(
-      "runtime_get_bot_secret",
-      { _bot_id: botId, _key: "DISCORD_TOKEN" },
+      "runtime_resolve_bot_token",
+      { _bot_id: botId },
     );
     if (tokenErr) return json(500, { error: `secret lookup failed: ${tokenErr.message}` });
-    const botToken = typeof tokenData === "string"
-      ? tokenData
-      : (tokenData as { value?: string } | null)?.value;
+    const botToken = typeof tokenData === "string" ? tokenData : null;
     if (!botToken) return json(400, { error: "Bot has no DISCORD_TOKEN configured" });
 
     // Fetch channels from Discord directly.
