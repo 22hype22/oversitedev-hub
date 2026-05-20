@@ -56,6 +56,7 @@ Deno.serve(async (req) => {
   try {
     const adminClient = createClient(SUPABASE_URL, SERVICE_KEY)
     await adminClient.functions.invoke('send-transactional-email', {
+      headers: { Authorization: `Bearer ${SERVICE_KEY}` },
       body: {
         templateName: 'team-invite',
         recipientEmail: email,
