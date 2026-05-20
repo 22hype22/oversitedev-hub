@@ -71,6 +71,7 @@ Deno.serve(async (_req) => {
       .from("hosting_subscriptions")
       .select("id,user_id")
       .eq("status", "past_due")
+      .eq("billing_override", false)
       .lte("grace_period_ends_at", new Date().toISOString());
 
     if (error) throw error;
