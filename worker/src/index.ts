@@ -30,45 +30,66 @@ const BOT_REPOS: Record<string, string> = {
   "utilities":  "22hype22/oversite-utilities",
 };
 
-// Addon ID -> feature flag env var name
+// Addon ID -> feature flag env var name.
+// Keys are the canonical catalog ids (the ones stored in
+// `bot_orders.addons` and defined in `src/lib/botCatalog.ts`).
+// Mirrors `supabase/functions/auto-deploy-bot/index.ts` ADDON_FLAGS —
+// keep both in sync.
 const ADDON_FLAGS: Record<string, string> = {
-  // Protection addons
-  "advanced-logging":         "F_ADVANCED_LOGGING",
-  "nsfw-invite-scanner":      "F_NSFW_SCANNER",
-  "avatar-nsfw-detection":    "F_AVATAR_NSFW",
-  "bio-phrase-detection":     "F_BIO_PHRASES",
-  "account-age-gating":       "F_ACCOUNT_AGE_GATE",
-  "auto-escalating-warnings": "F_AUTO_ESCALATE",
-  "softban-massban":          "F_SOFTBAN_MASSBAN",
-  "channel-lockdown":         "F_CHANNEL_LOCKDOWN",
-  "staff-notes":              "F_STAFF_NOTES",
-  "moderation-history":       "F_MOD_HISTORY",
-  "auto-slowmode":            "F_AUTO_SLOWMODE",
-  "temp-ban":                 "F_TEMP_BAN",
-  // Support addons
-  "staff-performance":            "F_STAFF_PERFORMANCE",
-  "ticket-logs":                  "F_TICKET_LOGS",
-  "per-category-roles":           "F_PER_CATEGORY_ROLES",
-  "ticket-notes":                 "F_TICKET_NOTES",
-  "ticket-members":               "F_TICKET_MEMBERS",
-  "close-all-tickets":            "F_CLOSE_ALL",
-  "ticket-message-customization": "F_TICKET_MSG_CUSTOM",
-  "priority-ticket":              "F_PRIORITY_TICKETS",
-  "auto-close-tickets":           "F_AUTO_CLOSE",
-  "anonymous-reporting":          "F_ANON_REPORTING",
-  // Utilities addons
-  "music":                "F_MUSIC_ADDON",
-  "auto-radio":           "F_AUTO_RADIO",
-  "roblox-verification":  "F_ROBLOX",
-  "starboard":            "F_STARBOARD",
-  "recurring-messages":   "F_RECURRING",
-  "giveaway":             "F_GIVEAWAY",
-  "birthday":             "F_BIRTHDAY",
-  "server-stats":         "F_SERVER_STATS",
-  "stream-notifications": "F_STREAM_NOTIFS",
-  "leveling":             "F_LEVELING",
-  "economy":              "F_ECONOMY",
-  "remindme":             "F_REMINDME",
+  // Protection — base-included
+  "verification-system":        "F_VERIFICATION",
+  "mod-actions":                "F_MODERATION",
+  "anti-spam":                  "F_ANTI_SPAM",
+  "anti-raid":                  "F_ANTI_RAID",
+  "auto-role":                  "F_AUTOROLE",
+  "phishing-detection":         "F_PHISHING",
+  "rules":                      "F_RULES",
+  // Protection — paid add-ons
+  "advanced-logging":           "F_ADVANCED_LOGGING",
+  "nsfw-invite-scanner":        "F_NSFW_SCANNER",
+  "avatar-nsfw-detection":      "F_AVATAR_NSFW",
+  "bio-phrase-detection":       "F_BIO_PHRASES",
+  "account-age-gating":         "F_ACCOUNT_AGE_GATE",
+  "auto-escalating-warnings":   "F_AUTO_ESCALATE",
+  "softban-massban":            "F_SOFTBAN_MASSBAN",
+  "ban-tools":                  "F_SOFTBAN_MASSBAN",
+  "channel-lockdown":           "F_CHANNEL_LOCKDOWN",
+  "staff-notes":                "F_STAFF_NOTES",
+  "moderation-history":         "F_MOD_HISTORY",
+  "auto-slowmode":              "F_AUTO_SLOWMODE",
+  "temp-ban":                   "F_TEMP_BAN",
+
+  // Support
+  "staff-performance":             "F_STAFF_PERFORMANCE",
+  "ticket-logs":                   "F_TICKET_LOGS",
+  "per-category-roles":            "F_PER_CATEGORY_ROLES",
+  "ticket-notes":                  "F_TICKET_NOTES",
+  "ticket-add-remove":             "F_TICKET_MEMBERS",
+  "close-all-tickets":             "F_CLOSE_ALL",
+  "ticket-message-customization":  "F_TICKET_MSG_CUSTOM",
+  "priority-flagging":             "F_PRIORITY_TICKETS",
+  "auto-close-inactive":           "F_AUTO_CLOSE",
+  "anonymous-reporting":           "F_ANON_REPORTING",
+  "messages":                      "F_SAY",
+
+  // Utilities
+  "music-addon":                "F_MUSIC_ADDON",
+  "auto-radio":                 "F_AUTO_RADIO",
+  "roblox-verification":        "F_ROBLOX",
+  "starboard":                  "F_STARBOARD",
+  "recurring-messages":         "F_RECURRING",
+  "giveaway-system":            "F_GIVEAWAY",
+  "birthday":                   "F_BIRTHDAY",
+  "server-stats-channels":      "F_SERVER_STATS",
+  "live-notifications":         "F_STREAM_NOTIFS",
+  "leveling-system":            "F_LEVELING",
+  "economy-system":             "F_ECONOMY",
+  "remindme":                   "F_REMINDME",
+
+  // Shared / cross-bot extras
+  "branding":                   "F_CUSTOM_BRANDING",
+  "dashboard":                  "F_WEB_DASHBOARD",
+  "multi-server":               "F_MULTI_SERVER",
 };
 
 function getRuntime(botId: string): BotRuntime {
