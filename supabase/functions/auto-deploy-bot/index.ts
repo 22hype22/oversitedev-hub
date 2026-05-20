@@ -232,10 +232,7 @@ Deno.serve(async (req) => {
       })
       .eq("id", orderId);
 
-    const tmpl = await getTemplateSource(templateId);
-    if (!tmpl.repo) {
-      throw new Error("Template service has no GitHub repo — cannot clone source.");
-    }
+    const environmentId = railwayEnvironmentId();
 
     const serviceName = `${order.bot_name ?? "bot"}-${orderId.slice(0, 8)}`
       .toLowerCase()
@@ -243,13 +240,12 @@ Deno.serve(async (req) => {
       .replace(/^-+|-+$/g, "")
       .slice(0, 50);
 
-    const newServiceId = await createServiceFromRepo(projectId, serviceName, tmpl.repo, tmpl.branch);
-    const newEnvId = await getEnvironmentId(newServiceId);
+    const newServiceId = await createServiceFromTemplate(projectId, environmentId, serviceName, templateId);
 
     const workerToken = Deno.env.get("WORKER_TOKEN") ?? "";
     const fnUrl = `${supabaseUrl}/functions/v1`;
 
-    await setVariables(projectId, newEnvId, newServiceId, {
+    await setVariables(projectId, environmentId, newServiceId, {
       BOT_TOKEN: botToken!,
       ...(poolClientId ? { DISCORD_CLIENT_ID: poolClientId } : {}),
       BOT_ORDER_ID: orderId,
@@ -259,7 +255,7 @@ Deno.serve(async (req) => {
       SUPABASE_FN_URL: fnUrl,
     });
 
-    await redeploy(newServiceId, newEnvId);
+    await redeploy(newServiceId, environmentId);
 
     await admin
       .from("bot_orders")
