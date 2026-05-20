@@ -48,25 +48,23 @@ export const ROLE_RANK: Record<TeamRole, number> = {
 export function rolesAssignableBy(role: TeamRole | null): TeamRole[] {
   if (!role) return [];
   const ceiling = ROLE_RANK[role];
-  // Owner can assign anything except owner (transfer ownership is a separate flow).
   const candidates: TeamRole[] = ["co_owner", "admin", "moderator", "viewer"];
   return candidates.filter((r) => ROLE_RANK[r] <= ceiling);
 }
 
 /**
- * Returns the current user's effective role + permissions for the given owner account.
- * If ownerUserId is undefined, defaults to the current user (i.e. they're the owner).
+ * Returns the current user's effective role + permissions for a specific bot.
+ * If botId is null/undefined, returns null role + empty permissions.
+ * Team membership is per-bot: each bot has its own roster of teammates.
  */
-export function useTeamRole(ownerUserId?: string | null) {
+export function useTeamRole(botId?: string | null) {
   const { user } = useAuth();
   const [role, setRole] = useState<TeamRole | null>(null);
   const [permissions, setPermissions] = useState<TeamPermissions>(EMPTY);
   const [loading, setLoading] = useState(true);
 
-  const targetOwner = ownerUserId ?? user?.id ?? null;
-
   const reload = useCallback(async () => {
-    if (!user || !targetOwner) {
+    if (!user || !botId) {
       setRole(null);
       setPermissions(EMPTY);
       setLoading(false);
@@ -74,47 +72,37 @@ export function useTeamRole(ownerUserId?: string | null) {
     }
     setLoading(true);
     const { data, error } = await (supabase as any).rpc("team_get_effective_role", {
-      _owner_user_id: targetOwner,
+      _bot_id: botId,
     });
     if (error || !data) {
-      // fallback: if same user, treat as owner
-      if (user.id === targetOwner) {
-        setRole("owner");
-        setPermissions(DEFAULT_PERMISSIONS.owner);
-      } else {
-        setRole(null);
-        setPermissions(EMPTY);
-      }
+      setRole(null);
+      setPermissions(EMPTY);
     } else {
       setRole((data.role as TeamRole) ?? null);
       setPermissions({ ...EMPTY, ...(data.permissions ?? {}) });
     }
     setLoading(false);
-  }, [user, targetOwner]);
+  }, [user, botId]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
-  // Live updates: when the owner changes a member's role or tweaks the
-  // role-permission matrix, every active viewer should re-resolve their
-  // effective permissions without a manual refresh.
+  // Live updates: when team membership for this bot changes, re-resolve.
   useEffect(() => {
-    if (!user || !targetOwner) return;
+    if (!user || !botId) return;
     const suffix = Math.random().toString(36).slice(2);
     const channel = supabase
-      .channel(`team-role-${targetOwner}-${user.id}-${suffix}`)
+      .channel(`team-role-${botId}-${user.id}-${suffix}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "dashboard_team",
-          filter: `owner_user_id=eq.${targetOwner}`,
+          filter: `bot_id=eq.${botId}`,
         },
-        () => {
-          void reload();
-        },
+        () => { void reload(); },
       )
       .on(
         "postgres_changes",
@@ -122,17 +110,14 @@ export function useTeamRole(ownerUserId?: string | null) {
           event: "*",
           schema: "public",
           table: "dashboard_role_permissions",
-          filter: `owner_user_id=eq.${targetOwner}`,
         },
-        () => {
-          void reload();
-        },
+        () => { void reload(); },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, targetOwner, reload]);
+  }, [user, botId, reload]);
 
   return useMemo(
     () => ({
