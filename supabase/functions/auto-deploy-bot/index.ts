@@ -552,13 +552,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (order.railway_service_id) {
-      return new Response(
-        JSON.stringify({ ok: true, alreadyDeployed: true, serviceId: order.railway_service_id }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
     // Resolve the Discord bot token. Prefer a manually-set token on the
     // order; otherwise claim the next available token from the pool.
     let botToken = order.bot_token as string | null;
@@ -621,14 +614,14 @@ Deno.serve(async (req) => {
 
     const environmentId = railwayEnvironmentId();
 
-    const randomSuffix = Math.random().toString(36).slice(2, 6);
-    const serviceName = `${order.bot_name ?? "bot"}-${orderId.slice(0, 8)}-${randomSuffix}`
-      .toLowerCase()
-      .replace(/[^a-z0-9-]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 50);
-
-    const newServiceId = await createServiceFromRepo(projectId, environmentId, serviceName, repo);
+    const serviceName = buildServiceName(order.bot_name, orderId);
+    const existingServiceId = await resolveReusableService(
+      projectId,
+      serviceName,
+      order.railway_service_id as string | null,
+    );
+    const targetServiceId = existingServiceId ??
+      await createServiceFromRepo(projectId, environmentId, serviceName, repo);
 
 
     const workerToken = Deno.env.get("WORKER_TOKEN") ?? "";
@@ -669,16 +662,16 @@ Deno.serve(async (req) => {
       purchasedAddons,
     });
 
-    await setVariables(projectId, environmentId, newServiceId, varsPayload);
+    await setVariables(projectId, environmentId, targetServiceId, varsPayload);
 
     // Verify Railway actually stored DISCORD_TOKEN with the value we sent.
     // If it comes back empty/missing, do NOT redeploy — abort so the bot
     // doesn't boot with an empty token.
     try {
-      const stored = await fetchServiceVariables(projectId, environmentId, newServiceId);
+      const stored = await fetchServiceVariables(projectId, environmentId, targetServiceId);
       const storedToken = stored?.DISCORD_TOKEN ?? "";
       console.log("[auto-deploy-bot] post-upsert verification", {
-        serviceId: newServiceId,
+        serviceId: targetServiceId,
         storedKeys: Object.keys(stored ?? {}),
         storedBotTokenLength: storedToken.length,
       });
@@ -696,12 +689,12 @@ Deno.serve(async (req) => {
       console.warn("[auto-deploy-bot] variable verification query failed (continuing)", { message: m });
     }
 
-    await redeploy(newServiceId, environmentId);
+    await redeploy(targetServiceId, environmentId);
 
     await admin
       .from("bot_orders")
       .update({
-        railway_service_id: newServiceId,
+        railway_service_id: targetServiceId,
         deployment_status: "deployed",
         deployment_error: null,
       })
@@ -732,7 +725,7 @@ Deno.serve(async (req) => {
 
 
     return new Response(
-      JSON.stringify({ ok: true, serviceId: newServiceId }),
+      JSON.stringify({ ok: true, serviceId: targetServiceId, reusedService: Boolean(existingServiceId) }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
