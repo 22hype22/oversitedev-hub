@@ -9,6 +9,8 @@ export interface BotConfig {
   monthly_hosting: boolean;
   status: string;
   notes: string | null;
+  activity_type?: string | null;
+  activity_text?: string | null;
 }
 
 export async function loadBotConfig(botId: string): Promise<BotConfig | null> {
