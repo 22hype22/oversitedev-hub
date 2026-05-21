@@ -564,6 +564,28 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Concurrency lock: refuse to start a new deploy if one is already in
+    // flight. A stale lock older than 10 minutes is considered abandoned.
+    if (order.deployment_status === "deploying") {
+      const attemptedAt = (order as { deployment_attempted_at?: string | null })
+        .deployment_attempted_at
+        ? new Date(
+            (order as { deployment_attempted_at: string }).deployment_attempted_at,
+          ).getTime()
+        : 0;
+      const ageMs = Date.now() - attemptedAt;
+      if (ageMs < 10 * 60 * 1000) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            alreadyInProgress: true,
+            message: "A deployment is already in progress for this bot.",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     // Resolve the Discord bot token. Prefer a manually-set token on the
     // order; otherwise claim the next available token from the pool.
     let botToken = order.bot_token as string | null;
