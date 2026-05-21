@@ -396,34 +396,33 @@ async function createServiceFromRepo(
         projectId,
         environmentId,
         name,
-        branch: "main",
-        source: { repo },
       },
     },
   );
   const id = data?.serviceCreate?.id;
   if (!id) throw new Error("serviceCreate returned no id");
-  // Explicitly connect the GitHub repo + branch via serviceConnect so Railway
-  // links the service to GitHub and auto-deploys on push (no manual "Deploy"
-  // confirmation in the dashboard). serviceInstanceUpdate does NOT establish
-  // the GitHub link on its own — serviceConnect is the documented mutation.
-  try {
-    await railway(
-      `mutation($id: String!, $input: ServiceConnectInput!) {
-        serviceConnect(id: $id, input: $input) { id }
-      }`,
-      {
-        id,
-        input: { repo, branch: "main" },
-      },
-    );
-  } catch (e) {
-    console.warn("[auto-deploy-bot] serviceConnect failed", {
-      serviceId: id,
-      message: e instanceof Error ? e.message : String(e),
-    });
-  }
+  await updateServiceSource(id, environmentId, repo);
   return id;
+}
+
+async function updateServiceSource(serviceId: string, environmentId: string, repo: string) {
+  await railway(
+    `mutation($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
+      serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
+    }`,
+    {
+      serviceId,
+      environmentId,
+      input: {
+        source: { repo, branch: "main" },
+      },
+    },
+  );
+  console.log("[auto-deploy-bot] Railway source connected via serviceInstanceUpdate", {
+    serviceId,
+    repo,
+    branch: "main",
+  });
 }
 
 
@@ -480,11 +479,9 @@ async function fetchServiceVariables(
 }
 
 async function redeploy(serviceId: string, environmentId: string) {
-  // serviceInstanceDeployV2 triggers a build from the latest commit and works
-  // for BOTH first-time deploys (no prior deployment) and redeploys. The older
-  // serviceInstanceRedeploy mutation requires an existing deployment, which
-  // means freshly-created services would otherwise wait for a manual click
-  // in the Railway dashboard.
+  // serviceInstanceDeployV2 explicitly starts a build from the service source;
+  // this avoids Railway leaving the service at "1 Change" waiting for a
+  // manual Deploy confirmation.
   try {
     await railway(
       `mutation($serviceId: String!, $environmentId: String!) {
@@ -495,6 +492,20 @@ async function redeploy(serviceId: string, environmentId: string) {
     return;
   } catch (e) {
     console.warn("[auto-deploy-bot] serviceInstanceDeployV2 failed, falling back to redeploy", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+  try {
+    await railway(
+      `mutation($serviceId: String!, $environmentId: String!) {
+        serviceDeploy(serviceId: $serviceId, environmentId: $environmentId)
+      }`,
+      { serviceId, environmentId },
+    );
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] serviceDeploy failed, falling back to redeploy", {
       serviceId,
       message: e instanceof Error ? e.message : String(e),
     });
