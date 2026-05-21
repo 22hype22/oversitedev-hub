@@ -837,7 +837,22 @@ Deno.serve(async (req) => {
       purchasedAddons,
     });
 
-    await setVariables(projectId, environmentId, targetServiceId, varsPayload);
+    let existingVars: Record<string, string> = {};
+    try {
+      existingVars = await fetchServiceVariables(projectId, environmentId, targetServiceId);
+    } catch (e) {
+      console.warn("[auto-deploy-bot] could not fetch existing variables (will upsert all)", {
+        serviceId: targetServiceId,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+    const { upserted, skipped } = await setVariables(
+      projectId,
+      environmentId,
+      targetServiceId,
+      varsPayload,
+      existingVars,
+    );
 
     // Verify Railway actually stored DISCORD_TOKEN with the value we sent.
     // If it comes back empty/missing, do NOT redeploy — abort so the bot
