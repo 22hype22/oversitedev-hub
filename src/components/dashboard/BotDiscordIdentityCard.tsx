@@ -17,16 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Loader2, RefreshCw, Upload, AlertTriangle, Bot as BotIcon, IdCard, Activity } from "lucide-react";
 
-type ActivityType = "playing" | "watching" | "listening" | "competing" | "streaming";
 type PresenceStatus = "online" | "idle" | "dnd" | "invisible";
-
-const ACTIVITY_OPTIONS: { value: ActivityType; label: string }[] = [
-  { value: "playing", label: "Playing" },
-  { value: "watching", label: "Watching" },
-  { value: "listening", label: "Listening to" },
-  { value: "competing", label: "Competing in" },
-  { value: "streaming", label: "Streaming" },
-];
 
 const PRESENCE_OPTIONS: { value: PresenceStatus; label: string; dot: string }[] = [
   { value: "online", label: "Online", dot: "bg-emerald-500" },
