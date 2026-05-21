@@ -1257,9 +1257,9 @@ export const BotBuilder = () => {
                     </p>
                   )}
                 </div>
-                </div>
               </div>
             </div>
+
 
             {usesPackTabs && visibleIdentityTabs.length > 1 && (() => {
               const tabs = visibleIdentityTabs;
