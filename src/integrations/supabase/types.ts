@@ -3073,7 +3073,12 @@ export type Database = {
         Args: { _bot_id: string; _email: string; _role: string }
         Returns: Json
       }
+      team_invite_member_all_owner_bots: {
+        Args: { _email: string; _role: string }
+        Returns: Json
+      }
       team_remove_member: { Args: { _member_id: string }; Returns: Json }
+      team_remove_member_by_email: { Args: { _email: string }; Returns: Json }
       team_request_ownership_transfer: {
         Args: { _bot_ids: string[]; _member_id: string }
         Returns: Json
@@ -3085,6 +3090,10 @@ export type Database = {
       team_transfer_ownership: { Args: { _member_id: string }; Returns: Json }
       team_update_member_role: {
         Args: { _member_id: string; _role: string }
+        Returns: Json
+      }
+      team_update_member_role_by_email: {
+        Args: { _email: string; _role: string }
         Returns: Json
       }
       update_bot_token_pool_entry:
