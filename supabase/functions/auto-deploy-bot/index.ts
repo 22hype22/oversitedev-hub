@@ -516,7 +516,12 @@ async function fetchServiceVariables(
   return out;
 }
 
-async function deployService(projectId: string, serviceId: string, environmentId: string) {
+async function deployService(
+  projectId: string,
+  serviceId: string,
+  environmentId: string,
+  variables: Record<string, string>,
+) {
   // After variableCollectionUpsert, explicitly create a fresh service deploy.
   // If Railway ever stages the variables anyway, deploymentCreate is tried as
   // the final direct-build fallback.
@@ -591,13 +596,28 @@ async function deployService(projectId: string, serviceId: string, environmentId
       message: e instanceof Error ? e.message : String(e),
     });
   }
+  try {
+    await railway(
+      `mutation($input: DeploymentCreateInput!) {
+        deploymentCreate(input: $input) { id status }
+      }`,
+      { input: { projectId, serviceId, environmentId, variables } },
+    );
+    console.log("[auto-deploy-bot] deploymentCreate ok", { serviceId, withVariables: true });
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] deploymentCreate with variables failed, trying without variables", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
   await railway(
     `mutation($input: DeploymentCreateInput!) {
       deploymentCreate(input: $input) { id status }
     }`,
     { input: { projectId, serviceId, environmentId } },
   );
-  console.log("[auto-deploy-bot] deploymentCreate ok", { serviceId });
+  console.log("[auto-deploy-bot] deploymentCreate ok", { serviceId, withVariables: false });
 }
 
 async function fetchImageAsDataUrl(url: string): Promise<string | null> {
@@ -880,7 +900,7 @@ Deno.serve(async (req) => {
       console.warn("[auto-deploy-bot] variable verification query failed (continuing)", { message: m });
     }
 
-    await deployService(projectId, targetServiceId, environmentId);
+    await deployService(projectId, targetServiceId, environmentId, varsPayload);
 
     await admin
       .from("bot_orders")
