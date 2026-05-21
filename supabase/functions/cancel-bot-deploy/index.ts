@@ -83,24 +83,39 @@ Deno.serve(async (req) => {
     }
 
     const serviceId = order.railway_service_id as string | null;
+    let deleted = false;
     if (serviceId) {
-      const envId = await getEnvironmentId(serviceId);
-      if (envId) await scaleToZero(serviceId, envId);
-      // Then fully remove the service so the Railway slot is freed.
-      await deleteService(serviceId);
+      // Fully remove the Railway service so cancelled bots don't pile up.
+      deleted = await deleteService(serviceId);
+    }
+
+    // Release any token assigned to this order back to the pool (safety net —
+    // the bot_orders cancel trigger normally does this, but make it idempotent
+    // so a direct invocation still cleans up.)
+    const { error: releaseErr } = await admin
+      .from("bot_token_pool")
+      .update({
+        status: "available",
+        assigned_bot_id: null,
+        assigned_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("assigned_bot_id", orderId);
+    if (releaseErr) {
+      console.warn("[cancel-bot-deploy] token release failed", releaseErr.message);
     }
 
     await admin
       .from("bot_orders")
       .update({
         railway_service_id: null,
-        deployment_status: "pending",
+        deployment_status: "cancelled",
         deployment_error: null,
       })
       .eq("id", orderId);
 
     return new Response(
-      JSON.stringify({ ok: true, teardown: serviceId ?? null }),
+      JSON.stringify({ ok: true, teardown: serviceId ?? null, deleted }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
