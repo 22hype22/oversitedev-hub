@@ -344,7 +344,7 @@ export const BotDiscordIdentityCard = ({
           <Button
             size="sm"
             onClick={saveUsername}
-            disabled={!usernameDirty || savingUsername}
+            disabled={savingUsername || username.trim().length < 2 || username.trim().length > 32}
           >
             {savingUsername ? (
               <Loader2 className="h-4 w-4 animate-spin" />
