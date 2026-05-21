@@ -517,7 +517,8 @@ Deno.serve(async (req) => {
 
     const environmentId = railwayEnvironmentId();
 
-    const serviceName = `${order.bot_name ?? "bot"}-${orderId.slice(0, 8)}`
+    const randomSuffix = Math.random().toString(36).slice(2, 6);
+    const serviceName = `${order.bot_name ?? "bot"}-${orderId.slice(0, 8)}-${randomSuffix}`
       .toLowerCase()
       .replace(/[^a-z0-9-]+/g, "-")
       .replace(/^-+|-+$/g, "")
