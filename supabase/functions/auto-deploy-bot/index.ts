@@ -1022,6 +1022,30 @@ Deno.serve(async (req) => {
     // moment they land on the page after deploy.
     await provisionAddonEntitlements(admin, orderId, order.base, purchasedAddons);
 
+    // Send the "your bot is live" Discord DM directly from the edge function
+    // using the Oversite Utilities notifier bot. This replaces the previous
+    // Python-bot-polled /pending?type=ready flow which never ran reliably.
+    const discordUserId = (order as any).discord_user_id as string | null;
+    const alreadyDmd = Boolean((order as any).ready_dm_sent);
+    if (discordUserId && !alreadyDmd) {
+      const dm = await sendDeployedDM(discordUserId, (order as any).bot_name);
+      if (dm.ok) {
+        await admin
+          .from("bot_orders")
+          .update({ ready_dm_sent: true, updated_at: new Date().toISOString() })
+          .eq("id", orderId);
+        console.log("[auto-deploy-bot] deployed DM sent", { orderId, discordUserId });
+      } else {
+        console.warn("[auto-deploy-bot] deployed DM failed", { orderId, discordUserId, error: dm.error });
+      }
+    } else {
+      console.log("[auto-deploy-bot] deployed DM skipped", {
+        orderId,
+        hasDiscordUserId: Boolean(discordUserId),
+        alreadyDmd,
+      });
+    }
+
 
     return new Response(
       JSON.stringify({ ok: true, serviceId: targetServiceId, reusedService: Boolean(existingServiceId) }),
