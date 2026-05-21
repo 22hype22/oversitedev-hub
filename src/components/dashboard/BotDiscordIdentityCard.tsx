@@ -202,19 +202,9 @@ export const BotDiscordIdentityCard = ({
     }
   };
 
-  const statusDirty =
-    activityType !== (savedActivityType ?? "playing") ||
-    activityText.trim() !== (savedActivityText ?? "").trim() ||
-    presenceStatus !== savedPresenceStatus;
-
   const saveStatus = async () => {
     if (!user) {
       toast.error("Sign in required");
-      return;
-    }
-    const text = activityText.trim();
-    if (text.length > 128) {
-      toast.error("Status message must be 128 characters or fewer");
       return;
     }
     setSavingStatus(true);
@@ -223,8 +213,8 @@ export const BotDiscordIdentityCard = ({
       const { error: upErr } = await (supabase as any)
         .from("bot_orders")
         .update({
-          activity_type: activityType,
-          activity_text: text || null,
+          activity_type: savedActivityType,
+          activity_text: savedActivityText || null,
           presence_status: presenceStatus,
         })
         .eq("id", botId);
@@ -239,15 +229,13 @@ export const BotDiscordIdentityCard = ({
           requested_by: user.id,
           action: "set_status",
           payload: {
-            activity_type: activityType,
-            activity_text: text,
+            activity_type: savedActivityType,
+            activity_text: savedActivityText,
             presence_status: presenceStatus,
           },
         });
       if (cmdErr) throw cmdErr;
 
-      setSavedActivityType(activityType);
-      setSavedActivityText(text);
       setSavedPresenceStatus(presenceStatus);
       toast.success("Status updated", {
         description: "Your bot will apply the new presence shortly.",
