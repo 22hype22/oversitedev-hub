@@ -480,6 +480,32 @@ async function fetchServiceVariables(
 }
 
 async function redeploy(serviceId: string, environmentId: string) {
+  // serviceInstanceDeployV2 triggers a build from the latest commit and works
+  // for BOTH first-time deploys (no prior deployment) and redeploys. The older
+  // serviceInstanceRedeploy mutation requires an existing deployment, which
+  // means freshly-created services would otherwise wait for a manual click
+  // in the Railway dashboard.
+  try {
+    await railway(
+      `mutation($serviceId: String!, $environmentId: String!) {
+        serviceInstanceDeployV2(serviceId: $serviceId, environmentId: $environmentId)
+      }`,
+      { serviceId, environmentId },
+    );
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] serviceInstanceDeployV2 failed, falling back to redeploy", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+  await railway(
+    `mutation($serviceId: String!, $environmentId: String!) {
+      serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
+    }`,
+    { serviceId, environmentId },
+  );
+}
   await railway(
     `mutation($serviceId: String!, $environmentId: String!) {
       serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
