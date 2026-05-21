@@ -242,7 +242,7 @@ export const Navbar = () => {
                     <SettingsIcon size={14} />
                     Settings
                   </NavLink>
-                  {canDashboard ? (
+                  {canDashboard || dashboardAccessPending ? (
                     <NavLink
                       to="/bot-dashboard"
                       className="flex items-center gap-2 py-2 text-sm text-muted-foreground"
