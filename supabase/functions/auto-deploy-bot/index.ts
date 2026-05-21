@@ -635,6 +635,11 @@ Deno.serve(async (req) => {
     const targetServiceId = existingServiceId ??
       await createServiceFromRepo(projectId, environmentId, serviceName, repo);
 
+    await admin
+      .from("bot_orders")
+      .update({ railway_service_id: targetServiceId })
+      .eq("id", orderId);
+
 
     const workerToken = Deno.env.get("WORKER_TOKEN") ?? "";
     const fnUrl = `${supabaseUrl}/functions/v1`;
