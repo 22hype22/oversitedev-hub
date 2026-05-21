@@ -112,6 +112,7 @@ export function useOwnedBots() {
   const [ownsDashboardAddon, setOwnsDashboardAddon] = useState(false);
   const [loading, setLoading] = useState(true);
   const hasLoadedRef = useRef(false);
+  const emptyRetriesRef = useRef(0);
 
   const reload = useCallback(async () => {
     if (!userId) {
@@ -128,11 +129,21 @@ export function useOwnedBots() {
     // for `bots`, but we keep the full list around so account-wide perks
     // (like the Web Dashboard add-on) survive cancellations of the order
     // they were originally purchased on.
-    const { data: own } = await (supabase as any)
+    const { data: own, error: ownErr } = await (supabase as any)
       .from("bot_orders")
       .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,paid_at,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status")
       .eq("user_id", userId)
       .order("created_at", { ascending: true });
+
+    // If the request errored (auth race, transient network), DO NOT clobber
+    // existing state with empty arrays — that's what was making the dashboard
+    // flash the "locked" screen until the customer hit refresh many times.
+    // Keep whatever we have and let the next reload/realtime tick recover.
+    if (ownErr) {
+      console.warn("[useOwnedBots] reload error, keeping previous state", ownErr.message);
+      setLoading(false);
+      return;
+    }
 
     const ownAll: any[] = own ?? [];
     const ownMapped: OwnedBot[] = ownAll
@@ -209,6 +220,25 @@ export function useOwnedBots() {
     setOwnsDashboardAddon(ownsDashboardAddon);
     hasLoadedRef.current = true;
     setLoading(false);
+
+    // Auto-retry: if the first fetch came back with zero bots AND zero
+    // entitlement AND no team/support seats, it's almost always an auth/RLS
+    // race on cold load — the customer "really has bots" but the request
+    // ran before the session was ready. Quietly retry a few times instead
+    // of forcing them to hit refresh.
+    const looksEmpty =
+      ownMapped.length === 0 &&
+      !ownsDashboardAddon &&
+      supportMapped.length === 0 &&
+      teamMapped.length === 0;
+    if (looksEmpty && emptyRetriesRef.current < 4) {
+      emptyRetriesRef.current += 1;
+      setTimeout(() => {
+        void reload();
+      }, 800 * emptyRetriesRef.current);
+    } else if (!looksEmpty) {
+      emptyRetriesRef.current = 0;
+    }
   }, [userId]);
 
   useEffect(() => {
