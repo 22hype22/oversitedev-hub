@@ -169,7 +169,7 @@ export function useOwnedBots() {
     const { data: grants } = await (supabase as any)
       .from("support_access_grants")
       .select("owner_user_id")
-      .eq("admin_user_id", user.id)
+      .eq("admin_user_id", userId)
       .is("revoked_at", null)
       .gt("expires_at", new Date().toISOString());
 
@@ -196,7 +196,7 @@ export function useOwnedBots() {
     const { data: memberships } = await (supabase as any)
       .from("dashboard_team")
       .select("owner_user_id,role,accepted_at")
-      .eq("member_user_id", user.id)
+      .eq("member_user_id", userId)
       .not("accepted_at", "is", null);
 
     const teamOwnerIds: string[] = Array.from(
