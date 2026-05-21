@@ -139,17 +139,42 @@ Deno.serve(async (req) => {
         Math.max(1, Number(url.searchParams.get("limit") || "25")),
       );
       const flag = DM_TYPES[type];
-      const { data, error } = await admin
+      let query = admin
         .from("bot_orders")
         .select(
-          "id, user_id, bot_name, status, discord_user_id, discord_username, total_amount, currency, addons, base, notes, confirmation_deadline_at, created_at",
+          "id, user_id, bot_name, status, discord_user_id, discord_username, total_amount, currency, addons, base, notes, confirmation_deadline_at, created_at, deployment_status, railway_service_id",
         )
         .eq("status", type)
-        .eq(flag, false)
+        .eq(flag, false);
+
+      // For the "ready" DM, only surface orders that have actually finished
+      // deploying — the Railway service exists AND the bot has reported its
+      // first heartbeat. Otherwise we'd DM the customer "your bot is live"
+      // the instant status flips to ready, before the bot is reachable.
+      if (type === "ready") {
+        query = query.eq("deployment_status", "deployed").not("railway_service_id", "is", null);
+      }
+
+      const { data, error } = await query
         .order("created_at", { ascending: true })
         .limit(limit);
       if (error) return json(500, { error: error.message });
-      return json(200, { orders: data ?? [] });
+
+      let orders = data ?? [];
+
+      if (type === "ready" && orders.length > 0) {
+        const ids = orders.map((o: any) => o.id);
+        const { data: rt, error: rtErr } = await admin
+          .from("bot_runtime_status")
+          .select("bot_id, last_heartbeat_at")
+          .in("bot_id", ids)
+          .not("last_heartbeat_at", "is", null);
+        if (rtErr) return json(500, { error: rtErr.message });
+        const liveIds = new Set((rt ?? []).map((r: any) => r.bot_id));
+        orders = orders.filter((o: any) => liveIds.has(o.id));
+      }
+
+      return json(200, { orders });
     }
 
     // POST /record-metrics { bot_id, commands, messages, errors, active_servers, member_count }
