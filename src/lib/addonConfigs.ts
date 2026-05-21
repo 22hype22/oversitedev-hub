@@ -1007,6 +1007,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         label: "Update interval (minutes)",
         type: "number",
         defaultValue: 10,
+        help: "Minimum 10 minutes to avoid Discord rate limits.",
       },
     ],
   },

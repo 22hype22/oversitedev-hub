@@ -30,6 +30,14 @@ const DM_TYPES = {
 } as const;
 type DmType = keyof typeof DM_TYPES;
 
+function normalizeBotConfig(feature: string, row: any) {
+  if (!row || feature !== "server-stats") return row;
+  const config = { ...(row.config ?? {}) };
+  const minutes = Number(config.update_interval_minutes ?? 10);
+  config.update_interval_minutes = Math.max(10, Number.isFinite(minutes) ? minutes : 10);
+  return { ...row, config };
+}
+
 function normalizeWorkerToken(value: string | null | undefined): string {
   return (value ?? "")
     .replace(/^Bearer\s+/i, "")
@@ -199,7 +207,7 @@ Deno.serve(async (req) => {
         .eq("feature", feature)
         .maybeSingle();
       if (error) return json(500, { error: error.message });
-      return json(200, { config: data ?? null });
+      return json(200, { config: normalizeBotConfig(feature, data) ?? null });
     }
 
     // POST /mark-config-applied { bot_id, feature }
@@ -217,7 +225,33 @@ Deno.serve(async (req) => {
         .eq("bot_id", botId)
         .eq("feature", feature);
       if (error) return json(500, { error: error.message });
-      return json(200, { ok: true });
+
+      // Older Python utilities bot builds call mark-config-applied after
+      // processing apply_config but never call complete-command. Close the
+      // matching command here so it cannot be reclaimed forever.
+      const { data: completed, error: cmdError } = await admin
+        .from("bot_commands")
+        .update({
+          status: "done",
+          completed_at: now,
+          updated_at: now,
+          error_message: null,
+        })
+        .eq("bot_id", botId)
+        .eq("action", "apply_config")
+        .in("status", ["pending", "claimed"])
+        .contains("payload", { feature })
+        .select("id, action, status");
+      if (cmdError) return json(500, { error: cmdError.message });
+      if (completed && completed.length > 0) {
+        console.log("utilities-bot-api mark-config-applied completed apply_config", {
+          botId,
+          feature,
+          count: completed.length,
+          ids: completed.map((c: any) => c.id),
+        });
+      }
+      return json(200, { ok: true, completed_commands: completed?.length ?? 0 });
     }
 
     // POST /claim-command { bot_id } -> claims the next pending command owned
@@ -323,25 +357,39 @@ Deno.serve(async (req) => {
     }
 
     // POST /complete-command { command_id, status, error_message? }
-    if (req.method === "POST" && path.startsWith("/complete-command")) {
+    // Be permissive about field names/status words because the external
+    // Utilities bot is a separate Python process and older builds used
+    // commandId/id plus success/completed instead of command_id/done.
+    if (req.method === "POST" && (path.startsWith("/complete-command") || path.startsWith("/complete_command"))) {
       const body = await req.json().catch(() => ({} as any));
-      const commandId = String(body.command_id || "");
-      const status = String(body.status || "");
+      const commandId = String(body.command_id || body.commandId || body.id || "");
+      const rawStatus = body.status ?? body.state ?? body.result ?? body.ok;
+      const normalizedStatus = String(rawStatus ?? "").toLowerCase().trim();
+      const status = ["done", "complete", "completed", "success", "succeeded", "ok", "true"].includes(normalizedStatus)
+        ? "done"
+        : ["failed", "fail", "failure", "error", "errored", "false"].includes(normalizedStatus)
+          ? "failed"
+          : "";
       if (!commandId) return json(400, { error: "command_id required" });
-      if (status !== "done" && status !== "failed") {
-        return json(400, { error: "status must be 'done' or 'failed'" });
+      if (!status) {
+        return json(400, { error: "status must mean 'done' or 'failed'" });
       }
-      const { error: updErr } = await admin
+      const nowIso = new Date().toISOString();
+      const { data: updated, error: updErr } = await admin
         .from("bot_commands")
         .update({
           status,
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          completed_at: nowIso,
+          updated_at: nowIso,
           error_message: body.error_message ?? null,
         })
-        .eq("id", commandId);
+        .eq("id", commandId)
+        .select("id, bot_id, action, status")
+        .maybeSingle();
       if (updErr) return json(500, { error: updErr.message });
-      return json(200, { ok: true });
+      if (!updated) return json(404, { error: "Command not found", command_id: commandId });
+      console.log("utilities-bot-api complete-command", updated);
+      return json(200, { ok: true, command: updated });
     }
 
     // POST /upsert-role-cache { bot_id, guild_id, roles[] }
