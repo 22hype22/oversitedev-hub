@@ -338,14 +338,24 @@ async function setRailwayEnvVars(serviceId: string, variables: Record<string, st
 }
 
 async function deployRailwayService(serviceId: string): Promise<void> {
+  // serviceInstanceDeployV2 works for first-time deploys (no prior deployment
+  // exists yet) AND for redeploys. serviceInstanceRedeploy fails on freshly
+  // created services and leaves them waiting on a manual "Deploy" click.
+  try {
+    await railwayGraphQL(`
+      mutation ServiceInstanceDeployV2($serviceId: String!, $environmentId: String!) {
+        serviceInstanceDeployV2(serviceId: $serviceId, environmentId: $environmentId)
+      }
+    `, { serviceId, environmentId: RAILWAY_ENVIRONMENT_ID });
+    return;
+  } catch (e) {
+    console.warn("serviceInstanceDeployV2 failed, falling back to redeploy:", (e as Error).message);
+  }
   await railwayGraphQL(`
-    mutation ServiceInstanceDeploy($serviceId: String!, $environmentId: String!) {
+    mutation ServiceInstanceRedeploy($serviceId: String!, $environmentId: String!) {
       serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
     }
-  `, {
-    serviceId,
-    environmentId: RAILWAY_ENVIRONMENT_ID,
-  });
+  `, { serviceId, environmentId: RAILWAY_ENVIRONMENT_ID });
 }
 
 // ============================================================
