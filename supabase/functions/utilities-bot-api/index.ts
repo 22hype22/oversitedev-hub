@@ -225,7 +225,33 @@ Deno.serve(async (req) => {
         .eq("bot_id", botId)
         .eq("feature", feature);
       if (error) return json(500, { error: error.message });
-      return json(200, { ok: true });
+
+      // Older Python utilities bot builds call mark-config-applied after
+      // processing apply_config but never call complete-command. Close the
+      // matching command here so it cannot be reclaimed forever.
+      const { data: completed, error: cmdError } = await admin
+        .from("bot_commands")
+        .update({
+          status: "done",
+          completed_at: now,
+          updated_at: now,
+          error_message: null,
+        })
+        .eq("bot_id", botId)
+        .eq("action", "apply_config")
+        .in("status", ["pending", "claimed"])
+        .contains("payload", { feature })
+        .select("id, action, status");
+      if (cmdError) return json(500, { error: cmdError.message });
+      if (completed && completed.length > 0) {
+        console.log("utilities-bot-api mark-config-applied completed apply_config", {
+          botId,
+          feature,
+          count: completed.length,
+          ids: completed.map((c: any) => c.id),
+        });
+      }
+      return json(200, { ok: true, completed_commands: completed?.length ?? 0 });
     }
 
     // POST /claim-command { bot_id } -> claims the next pending command owned
@@ -334,7 +360,7 @@ Deno.serve(async (req) => {
     // Be permissive about field names/status words because the external
     // Utilities bot is a separate Python process and older builds used
     // commandId/id plus success/completed instead of command_id/done.
-    if (req.method === "POST" && path.startsWith("/complete-command")) {
+    if (req.method === "POST" && (path.startsWith("/complete-command") || path.startsWith("/complete_command"))) {
       const body = await req.json().catch(() => ({} as any));
       const commandId = String(body.command_id || body.commandId || body.id || "");
       const rawStatus = body.status ?? body.state ?? body.result ?? body.ok;
