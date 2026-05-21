@@ -276,18 +276,30 @@ function buildServiceName(botName: string | null | undefined, orderId: string): 
 }
 
 async function listProjectServices(projectId: string): Promise<RailwayService[]> {
-  const data = await railway(
-    `query($projectId: String!) {
+  const services: RailwayService[] = [];
+  let after: string | null = null;
+  do {
+    const data = await railway(
+      `query($projectId: String!, $after: String) {
       project(id: $projectId) {
-        services { edges { node { id name } } }
+        services(first: 100, after: $after) {
+          edges { cursor node { id name } }
+          pageInfo { hasNextPage endCursor }
+        }
       }
     }`,
-    { projectId },
-  );
-  const edges = data?.project?.services?.edges ?? [];
-  return edges
-    .map((edge: any) => edge?.node)
-    .filter((node: any): node is RailwayService => Boolean(node?.id && node?.name));
+      { projectId, after },
+    );
+    const conn = data?.project?.services;
+    const edges = conn?.edges ?? [];
+    services.push(
+      ...edges
+        .map((edge: any) => edge?.node)
+        .filter((node: any): node is RailwayService => Boolean(node?.id && node?.name)),
+    );
+    after = conn?.pageInfo?.hasNextPage ? conn?.pageInfo?.endCursor ?? null : null;
+  } while (after);
+  return services;
 }
 
 async function deleteService(serviceId: string) {
