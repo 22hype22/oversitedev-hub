@@ -570,15 +570,30 @@ const BotSection = ({
   const canEditBilling = !bot.viaTeam || teamPerms.edit_billing;
 
 
+  const [leaving, setLeaving] = useState(false);
+  const leaveBot = async () => {
+    if (leaving) return;
+    if (!window.confirm(`Leave "${bot.bot_name}"? You'll lose access to this bot's dashboard. The owner will need to re-invite you to get back in.`)) return;
+    setLeaving(true);
+    const { data, error } = await (supabase as any).rpc("team_leave_bot", { _bot_id: bot.id });
+    setLeaving(false);
+    if (error || !data?.ok) {
+      toast.error(error?.message ?? data?.error ?? "Failed to leave bot");
+      return;
+    }
+    toast.success(`You left "${bot.bot_name}"`);
+    onReload();
+  };
+
   const headerActions = !bot.isDemo ? (
     <>
-      {canEditBilling && (
+      {!bot.viaTeam && canEditBilling && (
         <Button variant="outline" size="sm" onClick={() => onAddAddons(bot)}>
           <Plus className="h-4 w-4 mr-1.5" />
           Add add-ons
         </Button>
       )}
-      {cancellable && canEditBilling && (
+      {!bot.viaTeam && cancellable && canEditBilling && (
         <Button
           variant="outline"
           size="sm"
@@ -587,6 +602,18 @@ const BotSection = ({
         >
           <XCircle className="h-4 w-4 mr-1.5" />
           Cancel
+        </Button>
+      )}
+      {bot.viaTeam && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+          onClick={leaveBot}
+          disabled={leaving}
+        >
+          <LogOut className="h-4 w-4 mr-1.5" />
+          {leaving ? "Leaving…" : "Leave bot"}
         </Button>
       )}
     </>
@@ -913,15 +940,7 @@ const BotSection = ({
         </div>
       </details>
       </div>
-      {!bot.isDemo && (
-        <div className="mt-8">
-          <TeamManagementHub
-            botId={bot.id}
-            ownerUserId={bot.ownerUserId ?? userId}
-            ownerEmail={ownerEmail}
-          />
-        </div>
-      )}
+      {/* Team panel rendered once at the bottom of the dashboard, not per bot. */}
     </section>
   );
 
@@ -1177,7 +1196,21 @@ const BotDashboard = () => {
           </div>
         )}
 
-        {/* Team management is now per-bot — rendered inside each BotSection. */}
+        {/* One unified team panel for ALL of the viewer's owned bots. */}
+        {(() => {
+          const firstOwned = dashboardBots.find((b) => !b.isDemo && !b.viaTeam && !b.viaSupport);
+          if (!firstOwned || !user) return null;
+          return (
+            <div className="mt-10">
+              <TeamManagementHub
+                botId={firstOwned.id}
+                ownerUserId={user.id}
+                ownerEmail={user.email ?? null}
+              />
+            </div>
+          );
+        })()}
+
 
 
         <NewOwnerBillingDialog
