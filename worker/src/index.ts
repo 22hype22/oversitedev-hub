@@ -289,28 +289,24 @@ async function createRailwayService(serviceName: string, repoFullName: string): 
       projectId: RAILWAY_PROJECT_ID,
       environmentId: RAILWAY_ENVIRONMENT_ID,
       name: serviceName,
-      branch: "main",
-      source: {
-        repo: repoFullName,
-      },
     },
   }) as { serviceCreate: { id: string; name: string } };
   const id = data.serviceCreate.id;
-  // Connect the GitHub repo+branch via serviceConnect so Railway links the
-  // service to GitHub and auto-deploys (no manual "Deploy" click required).
-  try {
-    await railwayGraphQL(`
-      mutation ServiceConnect($id: String!, $input: ServiceConnectInput!) {
-        serviceConnect(id: $id, input: $input) { id }
-      }
-    `, {
-      id,
-      input: { repo: repoFullName, branch: "main" },
-    });
-  } catch (e) {
-    console.warn("serviceConnect failed:", (e as Error).message);
-  }
+  await updateRailwayServiceSource(id, repoFullName);
   return id;
+}
+
+async function updateRailwayServiceSource(serviceId: string, repoFullName: string): Promise<void> {
+  await railwayGraphQL(`
+    mutation ServiceInstanceUpdate($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
+      serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
+    }
+  `, {
+    serviceId,
+    environmentId: RAILWAY_ENVIRONMENT_ID,
+    input: { source: { repo: repoFullName, branch: "main" } },
+  });
+  console.log(`[railway] source connected via serviceInstanceUpdate: ${repoFullName}@main`);
 }
 
 async function setRailwayEnvVars(serviceId: string, variables: Record<string, string>) {
@@ -337,9 +333,8 @@ async function setRailwayEnvVars(serviceId: string, variables: Record<string, st
 }
 
 async function deployRailwayService(serviceId: string): Promise<void> {
-  // serviceInstanceDeployV2 works for first-time deploys (no prior deployment
-  // exists yet) AND for redeploys. serviceInstanceRedeploy fails on freshly
-  // created services and leaves them waiting on a manual "Deploy" click.
+  // Explicitly start a build so Railway does not leave the service at
+  // "1 Change" waiting for a manual Deploy confirmation.
   try {
     await railwayGraphQL(`
       mutation ServiceInstanceDeployV2($serviceId: String!, $environmentId: String!) {
@@ -348,7 +343,17 @@ async function deployRailwayService(serviceId: string): Promise<void> {
     `, { serviceId, environmentId: RAILWAY_ENVIRONMENT_ID });
     return;
   } catch (e) {
-    console.warn("serviceInstanceDeployV2 failed, falling back to redeploy:", (e as Error).message);
+    console.warn("serviceInstanceDeployV2 failed, trying serviceDeploy:", (e as Error).message);
+  }
+  try {
+    await railwayGraphQL(`
+      mutation ServiceDeploy($serviceId: String!, $environmentId: String!) {
+        serviceDeploy(serviceId: $serviceId, environmentId: $environmentId)
+      }
+    `, { serviceId, environmentId: RAILWAY_ENVIRONMENT_ID });
+    return;
+  } catch (e) {
+    console.warn("serviceDeploy failed, falling back to redeploy:", (e as Error).message);
   }
   await railwayGraphQL(`
     mutation ServiceInstanceRedeploy($serviceId: String!, $environmentId: String!) {
