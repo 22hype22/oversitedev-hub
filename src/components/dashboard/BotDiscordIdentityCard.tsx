@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { Loader2, RefreshCw, Upload, AlertTriangle, Bot as BotIcon, IdCard, Activity } from "lucide-react";
 
 type ActivityType = "playing" | "watching" | "listening" | "competing" | "streaming";
+type PresenceStatus = "online" | "idle" | "dnd" | "invisible";
 
 const ACTIVITY_OPTIONS: { value: ActivityType; label: string }[] = [
   { value: "playing", label: "Playing" },
@@ -25,6 +26,13 @@ const ACTIVITY_OPTIONS: { value: ActivityType; label: string }[] = [
   { value: "listening", label: "Listening to" },
   { value: "competing", label: "Competing in" },
   { value: "streaming", label: "Streaming" },
+];
+
+const PRESENCE_OPTIONS: { value: PresenceStatus; label: string; dot: string }[] = [
+  { value: "online", label: "Online", dot: "bg-emerald-500" },
+  { value: "idle", label: "Idle", dot: "bg-amber-400" },
+  { value: "dnd", label: "Do Not Disturb", dot: "bg-red-500" },
+  { value: "invisible", label: "Invisible", dot: "bg-muted-foreground" },
 ];
 
 type Props = {
@@ -39,8 +47,11 @@ type Props = {
   initialActivityType?: string | null;
   /** Saved presence activity text. */
   initialActivityText?: string | null;
+  /** Saved presence status (online/idle/dnd/invisible). */
+  initialPresenceStatus?: string | null;
   onUpdated?: () => void;
 };
+
 
 
 type LiveIdentity = {
