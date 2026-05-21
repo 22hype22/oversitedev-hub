@@ -292,7 +292,7 @@ export const BotDiscordIdentityCard = ({
         </div>
         <div className="min-w-0">
           <div className="text-sm font-semibold truncate">
-            {live.username ?? "—"}
+            {initialUsername || live.username || "—"}
           </div>
           <div className="text-xs text-muted-foreground truncate">
             {live.bio || "No bio set"}
