@@ -193,7 +193,9 @@ const RUNTIME_REQUIRED_ACTIONS = new Set([
   "list_roles",
   "list_channels",
   "list_guilds",
+  "set_status",
 ]);
+
 
 async function processCommand(cmd: Cmd) {
   if (ALWAYS_EXTERNAL_ACTIONS.has(cmd.action)) {
