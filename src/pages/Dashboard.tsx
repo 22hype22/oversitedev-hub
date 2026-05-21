@@ -556,7 +556,13 @@ export default function Dashboard() {
     window.location.href = data.url as string;
   };
 
-  if (loading || !user) return null;
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
+        Loading...
+      </div>
+    );
+  }
 
   // Purchases list is already filtered to paid rows in loadPurchases.
 
