@@ -45,7 +45,10 @@ export type OwnedBot = {
   activity_type?: string | null;
   /** Discord presence activity text. */
   activity_text?: string | null;
+  /** Discord presence status (online/idle/dnd/invisible). */
+  presence_status?: string | null;
 };
+
 
 
 // Bots that are paid and live show up in the dashboard. Drafts,
