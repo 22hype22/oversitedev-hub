@@ -440,7 +440,7 @@ export const BotOrdersLog = () => {
           [
             ["Preorders", counts.preorder, "submitted"],
             ["Paid", counts.paid, "paid"],
-            ["In build", counts.building, "building"],
+            ["Confirmation", counts.building, "building"],
             ["Ready", counts.ready, "ready"],
             ["Live", counts.live, "live"],
             ["Cancelled", counts.cancelled, "cancelled"],
