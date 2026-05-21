@@ -396,12 +396,33 @@ async function createServiceFromRepo(
         projectId,
         environmentId,
         name,
+        branch: "main",
         source: { repo },
       },
     },
   );
   const id = data?.serviceCreate?.id;
   if (!id) throw new Error("serviceCreate returned no id");
+  // Explicitly connect the GitHub repo + branch on the service instance so
+  // Railway treats it as a real auto-deploying GitHub service (no manual
+  // "Deploy" confirmation in the dashboard).
+  try {
+    await railway(
+      `mutation($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
+        serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
+      }`,
+      {
+        serviceId: id,
+        environmentId,
+        input: { source: { repo }, branch: "main" },
+      },
+    );
+  } catch (e) {
+    console.warn("[auto-deploy-bot] serviceInstanceUpdate (connect repo) failed", {
+      serviceId: id,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
   return id;
 }
 
