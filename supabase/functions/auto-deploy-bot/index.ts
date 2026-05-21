@@ -465,62 +465,30 @@ async function setVariables(
   environmentId: string,
   serviceId: string,
   vars: Record<string, string>,
-  existing: Record<string, string> = {},
 ) {
-  // Use per-variable variableUpsert instead of variableCollectionUpsert.
-  // Skip variables whose value already matches what Railway has stored —
-  // re-upserting identical values can leave the service in a "1 Change"
-  // pending state requiring manual Deploy confirmation.
-  let upserted = 0;
-  let skipped = 0;
-  const existingKeys = Object.keys(existing);
-  const skippedNames: string[] = [];
-  const changedNames: string[] = [];
-  for (const [name, value] of Object.entries(vars)) {
-    if (typeof value !== "string") {
-      throw new Error(`Variable ${name} is not a string`);
-    }
-    // Normalize to strings + trim so booleans-as-strings and stray whitespace
-    // don't trigger a phantom "1 Change" in Railway.
-    const newStr = String(value).trim();
-    const hasExisting = Object.prototype.hasOwnProperty.call(existing, name);
-    const existingStr = hasExisting ? String(existing[name] ?? "").trim() : null;
-    if (hasExisting && existingStr === newStr) {
-      skipped++;
-      skippedNames.push(name);
-      continue;
-    }
-    changedNames.push(name);
-    await railway(
-      `mutation($input: VariableUpsertInput!) {
-        variableUpsert(input: $input)
-      }`,
-      {
-        input: {
-          projectId,
-          environmentId,
-          serviceId,
-          name,
-          value,
-        },
+  // Railway's per-variable variableUpsert can stage pending changes that the
+  // dashboard shows as "1 Change". Send the full set atomically instead.
+  const variables = Object.fromEntries(
+    Object.entries(vars).map(([name, value]) => [name, String(value).trim()]),
+  );
+  await railway(
+    `mutation($input: VariableCollectionUpsertInput!) {
+      variableCollectionUpsert(input: $input)
+    }`,
+    {
+      input: {
+        projectId,
+        environmentId,
+        serviceId,
+        variables,
       },
-    );
-    upserted++;
-    console.log("[auto-deploy-bot] variableUpsert ok", {
-      serviceId,
-      name,
-      valueLength: value.length,
-    });
-  }
-  console.log("[auto-deploy-bot] setVariables summary", {
+    },
+  );
+  console.log("[auto-deploy-bot] variableCollectionUpsert ok", {
     serviceId,
-    upserted,
-    skipped,
-    existingKeyCount: existingKeys.length,
-    changedNames,
-    skippedSample: skippedNames.slice(0, 10),
+    count: Object.keys(variables).length,
+    keys: Object.keys(variables).sort(),
   });
-  return { upserted, skipped };
 }
 
 async function fetchServiceVariables(
