@@ -238,9 +238,11 @@ async function processCommand(cmd: Cmd) {
       case "set_status": {
         const type = String(cmd.payload?.activity_type ?? "playing");
         const text = String(cmd.payload?.activity_text ?? "");
-        await runtime.setStatus(type, text);
+        const presence = String(cmd.payload?.presence_status ?? "online");
+        await runtime.setStatus(type, text, presence);
         break;
       }
+
     }
 
     await completeCommand(cmd.id, true);
