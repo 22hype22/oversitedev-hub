@@ -118,10 +118,24 @@ export const BotOrdersLog = () => {
       .select("id")
       .eq("parent_order_id", row.id);
 
-    // Always run Railway cleanup (serviceDelete + token release + clear
-    // railway_service_id), regardless of whether the order was cancelled
-    // first. cancel-bot-deploy is idempotent and safe to call on any status.
     const teardownIds = [row.id, ...((children ?? []).map((c: any) => c.id))];
+
+    // 1. Mark every affected order as cancelled first so any concurrent
+    //    process (auto-deploy, heartbeat watcher, DM dispatcher) treats them
+    //    as torn down while we wait for Railway cleanup to finish.
+    await supabase
+      .from("bot_orders")
+      .update({
+        status: "cancelled",
+        cancelled_at: new Date().toISOString(),
+        cancellation_reason: "admin_delete",
+      })
+      .in("id", teardownIds);
+
+    // 2. Run Railway cleanup (serviceDelete + token release + clear
+    //    railway_service_id). cancel-bot-deploy is idempotent and safe to
+    //    call on any status. Await ALL teardowns before deleting the rows
+    //    so we never delete a record whose Railway service is still up.
     await Promise.all(
       teardownIds.map((id) =>
         supabase.functions
@@ -132,9 +146,9 @@ export const BotOrdersLog = () => {
       ),
     );
 
-    // Hard-delete children first (pack siblings), then the row itself, so the
-    // order disappears entirely from the log/chart instead of lingering as a
-    // cancelled record.
+    // 3. Hard-delete children first (pack siblings), then the row itself, so
+    //    the order disappears entirely from the log/chart instead of lingering
+    //    as a cancelled record.
     await supabase
       .from("bot_orders")
       .delete()
