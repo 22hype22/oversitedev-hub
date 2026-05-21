@@ -292,8 +292,33 @@ async function createRailwayService(serviceName: string, repoFullName: string): 
     },
   }) as { serviceCreate: { id: string; name: string } };
   const id = data.serviceCreate.id;
-  await updateRailwayServiceSource(id, repoFullName);
+  await connectRailwayServiceToRepo(id, repoFullName);
   return id;
+}
+
+async function connectRailwayServiceToRepo(serviceId: string, repoFullName: string): Promise<void> {
+  let connected = false;
+  try {
+    await railwayGraphQL(`
+      mutation ServiceConnect($id: String!, $input: ServiceConnectInput!) {
+        serviceConnect(id: $id, input: $input) { id }
+      }
+    `, {
+      id: serviceId,
+      input: { repo: repoFullName, branch: "main" },
+    });
+    connected = true;
+    console.log(`[railway] source connected via serviceConnect: ${repoFullName}@main`);
+  } catch (e) {
+    console.warn("serviceConnect failed, trying serviceInstanceUpdate:", (e as Error).message);
+  }
+
+  try {
+    await updateRailwayServiceSource(serviceId, repoFullName);
+  } catch (e) {
+    if (!connected) throw e;
+    console.warn("serviceInstanceUpdate source fallback failed after serviceConnect:", (e as Error).message);
+  }
 }
 
 async function updateRailwayServiceSource(serviceId: string, repoFullName: string): Promise<void> {
@@ -333,8 +358,28 @@ async function setRailwayEnvVars(serviceId: string, variables: Record<string, st
 }
 
 async function deployRailwayService(serviceId: string): Promise<void> {
-  // Explicitly start a build so Railway does not leave the service at
-  // "1 Change" waiting for a manual Deploy confirmation.
+  // Explicitly kick a build after the repo connection so Railway cannot leave
+  // the service at "1 Change" waiting for a manual Deploy confirmation.
+  try {
+    await railwayGraphQL(`
+      mutation ServiceInstanceDeploy($serviceId: String!, $environmentId: String!) {
+        serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId)
+      }
+    `, { serviceId, environmentId: RAILWAY_ENVIRONMENT_ID });
+    return;
+  } catch (e) {
+    console.warn("serviceInstanceDeploy failed, trying deploymentTrigger:", (e as Error).message);
+  }
+  try {
+    await railwayGraphQL(`
+      mutation DeploymentTrigger($serviceId: String!, $environmentId: String!) {
+        deploymentTrigger(serviceId: $serviceId, environmentId: $environmentId)
+      }
+    `, { serviceId, environmentId: RAILWAY_ENVIRONMENT_ID });
+    return;
+  } catch (e) {
+    console.warn("deploymentTrigger failed, trying serviceInstanceDeployV2:", (e as Error).message);
+  }
   try {
     await railwayGraphQL(`
       mutation ServiceInstanceDeployV2($serviceId: String!, $environmentId: String!) {
