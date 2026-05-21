@@ -534,7 +534,18 @@ async function fetchServiceVariables(
     }`,
     { projectId, environmentId, serviceId },
   );
-  return (data?.variables ?? {}) as Record<string, string>;
+  const raw = (data?.variables ?? {}) as Record<string, unknown>;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (v == null) continue;
+    out[k] = String(v);
+  }
+  console.log("[auto-deploy-bot] fetchServiceVariables", {
+    serviceId,
+    count: Object.keys(out).length,
+    keys: Object.keys(out).sort(),
+  });
+  return out;
 }
 
 async function redeploy(serviceId: string, environmentId: string) {
