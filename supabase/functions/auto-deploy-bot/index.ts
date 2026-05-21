@@ -750,7 +750,7 @@ Deno.serve(async (req) => {
     const identityRes = await applyDiscordIdentity(botToken.trim(), {
       username: (order as any).bot_name ?? null,
       iconUrl: (order as any).icon_url ?? null,
-      bio: (order as any).bot_bio ?? (order as any).bot_description ?? null,
+      bio: (order as any).bot_bio ?? null,
     });
     if (identityRes.ok) {
       const patch: Record<string, unknown> = {
