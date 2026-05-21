@@ -147,10 +147,11 @@ Deno.serve(async (req) => {
         .eq("status", type)
         .eq(flag, false);
 
-      // For the "ready" DM, only surface orders that have actually finished
-      // deploying — the Railway service exists AND the bot has reported its
-      // first heartbeat. Otherwise we'd DM the customer "your bot is live"
-      // the instant status flips to ready, before the bot is reachable.
+      // For the "ready" DM, surface orders whose Railway deployment finished
+      // (deployment_status='deployed' and a service id exists). We previously
+      // also required a bot_runtime_status heartbeat, but utilities/support
+      // bots don't heartbeat back through this API before the customer is
+      // notified, so that gate prevented any ready DM from ever being sent.
       if (type === "ready") {
         query = query.eq("deployment_status", "deployed").not("railway_service_id", "is", null);
       }
@@ -160,21 +161,7 @@ Deno.serve(async (req) => {
         .limit(limit);
       if (error) return json(500, { error: error.message });
 
-      let orders = data ?? [];
-
-      if (type === "ready" && orders.length > 0) {
-        const ids = orders.map((o: any) => o.id);
-        const { data: rt, error: rtErr } = await admin
-          .from("bot_runtime_status")
-          .select("bot_id, last_heartbeat_at")
-          .in("bot_id", ids)
-          .not("last_heartbeat_at", "is", null);
-        if (rtErr) return json(500, { error: rtErr.message });
-        const liveIds = new Set((rt ?? []).map((r: any) => r.bot_id));
-        orders = orders.filter((o: any) => liveIds.has(o.id));
-      }
-
-      return json(200, { orders });
+      return json(200, { orders: data ?? [] });
     }
 
     // POST /record-metrics { bot_id, commands, messages, errors, active_servers, member_count }
