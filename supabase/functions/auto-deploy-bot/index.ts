@@ -512,7 +512,14 @@ async function setVariables(
       valueLength: value.length,
     });
   }
-  console.log("[auto-deploy-bot] setVariables summary", { serviceId, upserted, skipped });
+  console.log("[auto-deploy-bot] setVariables summary", {
+    serviceId,
+    upserted,
+    skipped,
+    existingKeyCount: existingKeys.length,
+    changedNames,
+    skippedSample: skippedNames.slice(0, 10),
+  });
   return { upserted, skipped };
 }
 
