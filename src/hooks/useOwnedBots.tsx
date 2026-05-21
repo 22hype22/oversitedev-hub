@@ -232,6 +232,15 @@ export function useOwnedBots() {
         { event: "*", schema: "public", table: "support_access_grants", filter: `admin_user_id=eq.${userId}` },
         () => reload(),
       )
+      .on(
+        // Watch our own bot_orders so deployment_status flips (e.g. the
+        // heartbeat trigger setting it to 'deployed') refresh the dashboard
+        // automatically and the "Deploying your bot…" banner disappears
+        // without a manual page refresh.
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "bot_orders", filter: `user_id=eq.${userId}` },
+        () => reload(),
+      )
       .subscribe();
     return () => {
       (supabase as any).removeChannel(channel);
