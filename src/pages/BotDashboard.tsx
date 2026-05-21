@@ -957,7 +957,7 @@ const BotSection = ({
 
 const BotDashboard = () => {
   const { user, isAdmin, loading } = useAuth();
-  const { dashboardBots, loading: botsLoading, reload } = useOwnedBots();
+  const { dashboardBots, hasDashboardAccess, loading: botsLoading, reload } = useOwnedBots();
   useHostingSubscriptionSync();
   const { periods: freePeriods, reload: reloadFreePeriods } = useBotFreePeriods();
   const navigate = useNavigate();
@@ -1035,7 +1035,7 @@ const BotDashboard = () => {
 
   if (!user) return null;
 
-  const hasAccess = isAdmin || dashboardBots.length > 0;
+  const hasAccess = isAdmin || hasDashboardAccess;
 
   // No Web Dashboard add-on on any of their bots — show locked / explainer state.
   if (!hasAccess) {
