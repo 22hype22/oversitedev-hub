@@ -473,14 +473,24 @@ async function setVariables(
   // pending state requiring manual Deploy confirmation.
   let upserted = 0;
   let skipped = 0;
+  const existingKeys = Object.keys(existing);
+  const skippedNames: string[] = [];
+  const changedNames: string[] = [];
   for (const [name, value] of Object.entries(vars)) {
     if (typeof value !== "string") {
       throw new Error(`Variable ${name} is not a string`);
     }
-    if (Object.prototype.hasOwnProperty.call(existing, name) && existing[name] === value) {
+    // Normalize to strings + trim so booleans-as-strings and stray whitespace
+    // don't trigger a phantom "1 Change" in Railway.
+    const newStr = String(value).trim();
+    const hasExisting = Object.prototype.hasOwnProperty.call(existing, name);
+    const existingStr = hasExisting ? String(existing[name] ?? "").trim() : null;
+    if (hasExisting && existingStr === newStr) {
       skipped++;
+      skippedNames.push(name);
       continue;
     }
+    changedNames.push(name);
     await railway(
       `mutation($input: VariableUpsertInput!) {
         variableUpsert(input: $input)
@@ -502,7 +512,14 @@ async function setVariables(
       valueLength: value.length,
     });
   }
-  console.log("[auto-deploy-bot] setVariables summary", { serviceId, upserted, skipped });
+  console.log("[auto-deploy-bot] setVariables summary", {
+    serviceId,
+    upserted,
+    skipped,
+    existingKeyCount: existingKeys.length,
+    changedNames,
+    skippedSample: skippedNames.slice(0, 10),
+  });
   return { upserted, skipped };
 }
 
@@ -517,7 +534,18 @@ async function fetchServiceVariables(
     }`,
     { projectId, environmentId, serviceId },
   );
-  return (data?.variables ?? {}) as Record<string, string>;
+  const raw = (data?.variables ?? {}) as Record<string, unknown>;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (v == null) continue;
+    out[k] = String(v);
+  }
+  console.log("[auto-deploy-bot] fetchServiceVariables", {
+    serviceId,
+    count: Object.keys(out).length,
+    keys: Object.keys(out).sort(),
+  });
+  return out;
 }
 
 async function redeploy(serviceId: string, environmentId: string) {
