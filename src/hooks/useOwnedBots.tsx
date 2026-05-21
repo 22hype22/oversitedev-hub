@@ -245,8 +245,12 @@ export function useOwnedBots() {
       emptyRetriesRef.current = 0;
     }
 
-    hasLoadedRef.current = !looksEmpty || emptyRetriesRef.current >= 4;
-    setLoading(!hasLoadedRef.current);
+    // Always drop the loading flag after a successful response so the
+    // dashboard renders (either with bots or the locked/empty state).
+    // Background retries above still run silently for the cold-load race
+    // case, but they don't re-show the full-screen "Loading..." anymore.
+    hasLoadedRef.current = true;
+    setLoading(false);
   }, [userId, authLoading]);
 
   useEffect(() => {
