@@ -401,8 +401,42 @@ async function createServiceFromRepo(
   );
   const id = data?.serviceCreate?.id;
   if (!id) throw new Error("serviceCreate returned no id");
-  await updateServiceSource(id, environmentId, repo);
+  await connectServiceToRepo(id, environmentId, repo);
   return id;
+}
+
+async function connectServiceToRepo(serviceId: string, environmentId: string, repo: string) {
+  let connected = false;
+  try {
+    await railway(
+      `mutation($id: String!, $input: ServiceConnectInput!) {
+        serviceConnect(id: $id, input: $input) { id }
+      }`,
+      { id: serviceId, input: { repo, branch: "main" } },
+    );
+    connected = true;
+    console.log("[auto-deploy-bot] Railway source connected via serviceConnect", {
+      serviceId,
+      repo,
+      branch: "main",
+    });
+  } catch (e) {
+    console.warn("[auto-deploy-bot] serviceConnect failed, trying serviceInstanceUpdate", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  try {
+    await updateServiceSource(serviceId, environmentId, repo);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (!connected) throw new Error(`Could not connect Railway repo source: ${message}`);
+    console.warn("[auto-deploy-bot] serviceInstanceUpdate source fallback failed after serviceConnect", {
+      serviceId,
+      message,
+    });
+  }
 }
 
 async function updateServiceSource(serviceId: string, environmentId: string, repo: string) {
@@ -479,9 +513,36 @@ async function fetchServiceVariables(
 }
 
 async function redeploy(serviceId: string, environmentId: string) {
-  // serviceInstanceDeployV2 explicitly starts a build from the service source;
-  // this avoids Railway leaving the service at "1 Change" waiting for a
-  // manual Deploy confirmation.
+  // Explicitly kick a build after the repo connection so Railway cannot leave
+  // the service at "1 Change" waiting for a manual Deploy confirmation.
+  try {
+    await railway(
+      `mutation($serviceId: String!, $environmentId: String!) {
+        serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId)
+      }`,
+      { serviceId, environmentId },
+    );
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] serviceInstanceDeploy failed, trying deploymentTrigger", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+  try {
+    await railway(
+      `mutation($serviceId: String!, $environmentId: String!) {
+        deploymentTrigger(serviceId: $serviceId, environmentId: $environmentId)
+      }`,
+      { serviceId, environmentId },
+    );
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] deploymentTrigger failed, trying serviceInstanceDeployV2", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
   try {
     await railway(
       `mutation($serviceId: String!, $environmentId: String!) {
@@ -714,7 +775,7 @@ Deno.serve(async (req) => {
       await createServiceFromRepo(projectId, environmentId, serviceName, repo);
 
     if (existingServiceId) {
-      await updateServiceSource(targetServiceId, environmentId, repo);
+      await connectServiceToRepo(targetServiceId, environmentId, repo);
     }
 
     await admin
