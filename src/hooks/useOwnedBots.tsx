@@ -41,7 +41,12 @@ export type OwnedBot = {
   bot_bio?: string | null;
   /** Last time the username was pushed to Discord (used for rate-limit warning). */
   discord_last_username_change_at?: string | null;
+  /** Discord presence activity type (playing/watching/listening/competing/streaming). */
+  activity_type?: string | null;
+  /** Discord presence activity text. */
+  activity_text?: string | null;
 };
+
 
 // Bots that are paid and live show up in the dashboard. Drafts,
 // submitted-but-unpaid, cancelled, etc. are hidden. `ready` means the
