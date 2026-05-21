@@ -553,7 +553,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderErr } = await admin
       .from("bot_orders")
-      .select("id, user_id, bot_name, bot_description, bot_bio, icon_url, base, bot_token, addons, railway_service_id, status, deployment_status")
+      .select("id, user_id, bot_name, bot_description, bot_bio, icon_url, base, bot_token, addons, railway_service_id, status, deployment_status, deployment_attempted_at")
       .eq("id", orderId)
       .maybeSingle();
 
@@ -562,6 +562,28 @@ Deno.serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Concurrency lock: refuse to start a new deploy if one is already in
+    // flight. A stale lock older than 10 minutes is considered abandoned.
+    if (order.deployment_status === "deploying") {
+      const attemptedAt = (order as { deployment_attempted_at?: string | null })
+        .deployment_attempted_at
+        ? new Date(
+            (order as { deployment_attempted_at: string }).deployment_attempted_at,
+          ).getTime()
+        : 0;
+      const ageMs = Date.now() - attemptedAt;
+      if (ageMs < 10 * 60 * 1000) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            alreadyInProgress: true,
+            message: "A deployment is already in progress for this bot.",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
     }
 
     // Resolve the Discord bot token. Prefer a manually-set token on the
