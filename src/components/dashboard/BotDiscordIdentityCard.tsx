@@ -85,17 +85,12 @@ export const BotDiscordIdentityCard = ({
   const [savingBio, setSavingBio] = useState(false);
   const [savingAvatar, setSavingAvatar] = useState(false);
 
-  const [activityType, setActivityType] = useState<ActivityType>(
-    (initialActivityType as ActivityType) ?? "playing",
-  );
-  const [activityText, setActivityText] = useState(initialActivityText ?? "");
+  // Keep prior activity values around so save still clears them on the worker
+  const savedActivityType = initialActivityType ?? null;
+  const savedActivityText = initialActivityText ?? "";
   const [presenceStatus, setPresenceStatus] = useState<PresenceStatus>(
     (initialPresenceStatus as PresenceStatus) ?? "online",
   );
-  const [savedActivityType, setSavedActivityType] = useState<ActivityType | null>(
-    (initialActivityType as ActivityType) ?? null,
-  );
-  const [savedActivityText, setSavedActivityText] = useState<string>(initialActivityText ?? "");
   const [savedPresenceStatus, setSavedPresenceStatus] = useState<PresenceStatus>(
     (initialPresenceStatus as PresenceStatus) ?? "online",
   );
