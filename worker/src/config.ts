@@ -11,7 +11,9 @@ export interface BotConfig {
   notes: string | null;
   activity_type?: string | null;
   activity_text?: string | null;
+  presence_status?: string | null;
 }
+
 
 export async function loadBotConfig(botId: string): Promise<BotConfig | null> {
   const { data, error } = await supabase.rpc("runtime_load_bot_config", {
