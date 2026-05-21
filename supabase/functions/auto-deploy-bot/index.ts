@@ -374,7 +374,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderErr } = await admin
       .from("bot_orders")
-      .select("id, user_id, bot_name, base, bot_token, addons, railway_service_id, status, deployment_status")
+      .select("id, user_id, bot_name, bot_description, bot_bio, icon_url, base, bot_token, addons, railway_service_id, status, deployment_status")
       .eq("id", orderId)
       .maybeSingle();
 
