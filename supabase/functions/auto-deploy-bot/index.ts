@@ -521,8 +521,24 @@ async function fetchServiceVariables(
 }
 
 async function redeploy(serviceId: string, environmentId: string) {
-  // Explicitly kick a build after the repo connection so Railway cannot leave
-  // the service at "1 Change" waiting for a manual Deploy confirmation.
+  // Prefer serviceInstanceRedeploy — it redeploys the latest known-good
+  // deployment without waiting for a "Deploy Changes" confirmation that
+  // Railway sometimes surfaces after variable upserts.
+  try {
+    await railway(
+      `mutation($serviceId: String!, $environmentId: String!) {
+        serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
+      }`,
+      { serviceId, environmentId },
+    );
+    console.log("[auto-deploy-bot] serviceInstanceRedeploy ok", { serviceId });
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] serviceInstanceRedeploy failed, trying serviceInstanceDeploy", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
   try {
     await railway(
       `mutation($serviceId: String!, $environmentId: String!) {
@@ -560,28 +576,14 @@ async function redeploy(serviceId: string, environmentId: string) {
     );
     return;
   } catch (e) {
-    console.warn("[auto-deploy-bot] serviceInstanceDeployV2 failed, falling back to redeploy", {
-      serviceId,
-      message: e instanceof Error ? e.message : String(e),
-    });
-  }
-  try {
-    await railway(
-      `mutation($serviceId: String!, $environmentId: String!) {
-        serviceDeploy(serviceId: $serviceId, environmentId: $environmentId)
-      }`,
-      { serviceId, environmentId },
-    );
-    return;
-  } catch (e) {
-    console.warn("[auto-deploy-bot] serviceDeploy failed, falling back to redeploy", {
+    console.warn("[auto-deploy-bot] serviceInstanceDeployV2 failed, falling back to serviceDeploy", {
       serviceId,
       message: e instanceof Error ? e.message : String(e),
     });
   }
   await railway(
     `mutation($serviceId: String!, $environmentId: String!) {
-      serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
+      serviceDeploy(serviceId: $serviceId, environmentId: $environmentId)
     }`,
     { serviceId, environmentId },
   );
