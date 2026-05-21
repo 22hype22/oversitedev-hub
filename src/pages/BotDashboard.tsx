@@ -913,15 +913,7 @@ const BotSection = ({
         </div>
       </details>
       </div>
-      {!bot.isDemo && (
-        <div className="mt-8">
-          <TeamManagementHub
-            botId={bot.id}
-            ownerUserId={bot.ownerUserId ?? userId}
-            ownerEmail={ownerEmail}
-          />
-        </div>
-      )}
+      {/* Team panel rendered once at the bottom of the dashboard, not per bot. */}
     </section>
   );
 
