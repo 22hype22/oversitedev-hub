@@ -265,6 +265,122 @@ function railwayEnvironmentId(): string {
   return environmentId;
 }
 
+type RailwayService = { id: string; name: string };
+
+function buildServiceName(botName: string | null | undefined, orderId: string): string {
+  return `${botName ?? "bot"}-${orderId.slice(0, 8)}`
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 50);
+}
+
+async function listProjectServices(projectId: string): Promise<RailwayService[]> {
+  const services: RailwayService[] = [];
+  let after: string | null = null;
+  do {
+    const data = await railway(
+      `query($projectId: String!, $after: String) {
+      project(id: $projectId) {
+        services(first: 100, after: $after) {
+          edges { cursor node { id name } }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+    }`,
+      { projectId, after },
+    );
+    const conn = data?.project?.services;
+    const edges = conn?.edges ?? [];
+    services.push(
+      ...edges
+        .map((edge: any) => edge?.node)
+        .filter((node: any): node is RailwayService => Boolean(node?.id && node?.name)),
+    );
+    after = conn?.pageInfo?.hasNextPage ? conn?.pageInfo?.endCursor ?? null : null;
+  } while (after);
+  return services;
+}
+
+async function deleteService(serviceId: string) {
+  await railway(
+    `mutation($id: String!) { serviceDelete(id: $id) }`,
+    { id: serviceId },
+  );
+}
+
+async function renameService(serviceId: string, name: string) {
+  await railway(
+    `mutation($id: String!, $input: ServiceUpdateInput!) {
+      serviceUpdate(id: $id, input: $input) { id name }
+    }`,
+    { id: serviceId, input: { name } },
+  );
+}
+
+async function resolveReusableService(
+  projectId: string,
+  canonicalName: string,
+  preferredServiceId?: string | null,
+): Promise<string | null> {
+  const services = await listProjectServices(projectId);
+  const byId = new Map<string, RailwayService>();
+  for (const service of services) {
+    if (service.name === canonicalName || service.name.startsWith(`${canonicalName}-`)) {
+      byId.set(service.id, service);
+    }
+  }
+  const candidates = [...byId.values()];
+  if (candidates.length === 0) return null;
+
+  const exact = candidates.filter((service) => service.name === canonicalName);
+  const keep =
+    exact.find((service) => service.id === preferredServiceId) ??
+    exact[0] ??
+    candidates.find((service) => service.id === preferredServiceId) ??
+    candidates[0];
+
+  for (const duplicate of candidates) {
+    if (duplicate.id === keep.id) continue;
+    try {
+      await deleteService(duplicate.id);
+      console.log("[auto-deploy-bot] deleted duplicate Railway service", {
+        serviceId: duplicate.id,
+        serviceName: duplicate.name,
+        keptServiceId: keep.id,
+        canonicalName,
+      });
+    } catch (e) {
+      console.warn("[auto-deploy-bot] duplicate Railway service delete failed", {
+        serviceId: duplicate.id,
+        serviceName: duplicate.name,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  if (keep.name !== canonicalName && exact.length === 0) {
+    try {
+      await renameService(keep.id, canonicalName);
+    } catch (e) {
+      console.warn("[auto-deploy-bot] Railway service rename failed", {
+        serviceId: keep.id,
+        from: keep.name,
+        to: canonicalName,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  console.log("[auto-deploy-bot] reusing Railway service", {
+    serviceId: keep.id,
+    serviceName: keep.name,
+    canonicalName,
+    duplicateCount: Math.max(candidates.length - 1, 0),
+  });
+  return keep.id;
+}
+
 async function createServiceFromRepo(
   projectId: string,
   environmentId: string,
@@ -448,13 +564,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (order.railway_service_id) {
-      return new Response(
-        JSON.stringify({ ok: true, alreadyDeployed: true, serviceId: order.railway_service_id }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
     // Resolve the Discord bot token. Prefer a manually-set token on the
     // order; otherwise claim the next available token from the pool.
     let botToken = order.bot_token as string | null;
@@ -517,14 +626,19 @@ Deno.serve(async (req) => {
 
     const environmentId = railwayEnvironmentId();
 
-    const randomSuffix = Math.random().toString(36).slice(2, 6);
-    const serviceName = `${order.bot_name ?? "bot"}-${orderId.slice(0, 8)}-${randomSuffix}`
-      .toLowerCase()
-      .replace(/[^a-z0-9-]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 50);
+    const serviceName = buildServiceName(order.bot_name, orderId);
+    const existingServiceId = await resolveReusableService(
+      projectId,
+      serviceName,
+      order.railway_service_id as string | null,
+    );
+    const targetServiceId = existingServiceId ??
+      await createServiceFromRepo(projectId, environmentId, serviceName, repo);
 
-    const newServiceId = await createServiceFromRepo(projectId, environmentId, serviceName, repo);
+    await admin
+      .from("bot_orders")
+      .update({ railway_service_id: targetServiceId })
+      .eq("id", orderId);
 
 
     const workerToken = Deno.env.get("WORKER_TOKEN") ?? "";
@@ -553,7 +667,9 @@ Deno.serve(async (req) => {
     // Log shape (not values) of the payload to confirm DISCORD_TOKEN is present.
     console.log("[auto-deploy-bot] variableUpsert payload", {
       orderId,
-      serviceId: newServiceId,
+      serviceId: targetServiceId,
+      serviceName,
+      reusedService: Boolean(existingServiceId),
       keys: Object.keys(varsPayload),
       botTokenLength: varsPayload.DISCORD_TOKEN?.length ?? 0,
       botTokenPreview: varsPayload.DISCORD_TOKEN
@@ -565,16 +681,16 @@ Deno.serve(async (req) => {
       purchasedAddons,
     });
 
-    await setVariables(projectId, environmentId, newServiceId, varsPayload);
+    await setVariables(projectId, environmentId, targetServiceId, varsPayload);
 
     // Verify Railway actually stored DISCORD_TOKEN with the value we sent.
     // If it comes back empty/missing, do NOT redeploy — abort so the bot
     // doesn't boot with an empty token.
     try {
-      const stored = await fetchServiceVariables(projectId, environmentId, newServiceId);
+      const stored = await fetchServiceVariables(projectId, environmentId, targetServiceId);
       const storedToken = stored?.DISCORD_TOKEN ?? "";
       console.log("[auto-deploy-bot] post-upsert verification", {
-        serviceId: newServiceId,
+        serviceId: targetServiceId,
         storedKeys: Object.keys(stored ?? {}),
         storedBotTokenLength: storedToken.length,
       });
@@ -592,12 +708,12 @@ Deno.serve(async (req) => {
       console.warn("[auto-deploy-bot] variable verification query failed (continuing)", { message: m });
     }
 
-    await redeploy(newServiceId, environmentId);
+    await redeploy(targetServiceId, environmentId);
 
     await admin
       .from("bot_orders")
       .update({
-        railway_service_id: newServiceId,
+        railway_service_id: targetServiceId,
         deployment_status: "deployed",
         deployment_error: null,
       })
@@ -628,7 +744,7 @@ Deno.serve(async (req) => {
 
 
     return new Response(
-      JSON.stringify({ ok: true, serviceId: newServiceId }),
+      JSON.stringify({ ok: true, serviceId: targetServiceId, reusedService: Boolean(existingServiceId) }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
