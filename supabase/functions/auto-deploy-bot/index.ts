@@ -832,7 +832,7 @@ Deno.serve(async (req) => {
     };
 
     // Log shape (not values) of the payload to confirm DISCORD_TOKEN is present.
-    console.log("[auto-deploy-bot] variableUpsert payload", {
+    console.log("[auto-deploy-bot] variableCollectionUpsert payload", {
       orderId,
       serviceId: targetServiceId,
       serviceName,
@@ -848,21 +848,11 @@ Deno.serve(async (req) => {
       purchasedAddons,
     });
 
-    let existingVars: Record<string, string> = {};
-    try {
-      existingVars = await fetchServiceVariables(projectId, environmentId, targetServiceId);
-    } catch (e) {
-      console.warn("[auto-deploy-bot] could not fetch existing variables (will upsert all)", {
-        serviceId: targetServiceId,
-        message: e instanceof Error ? e.message : String(e),
-      });
-    }
     await setVariables(
       projectId,
       environmentId,
       targetServiceId,
       varsPayload,
-      existingVars,
     );
 
     // Verify Railway actually stored DISCORD_TOKEN with the value we sent.
@@ -890,7 +880,7 @@ Deno.serve(async (req) => {
       console.warn("[auto-deploy-bot] variable verification query failed (continuing)", { message: m });
     }
 
-    await redeploy(targetServiceId, environmentId);
+    await deployService(projectId, targetServiceId, environmentId);
 
     await admin
       .from("bot_orders")
