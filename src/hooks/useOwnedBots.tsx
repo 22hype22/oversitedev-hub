@@ -247,6 +247,26 @@ export function useOwnedBots() {
     };
   }, [userId, reload]);
 
+  // Polling fallback: realtime events can be missed (especially for team
+  // members viewing the owner's bots, where the UPDATE filter above doesn't
+  // match). Poll bot_orders every 10s while any visible bot isn't fully
+  // deployed yet so the "Deploying your bot…" banner clears as soon as
+  // deployment_status flips to 'deployed' and a railway_service_id is set.
+  useEffect(() => {
+    if (!userId) return;
+    const allVisible = [...bots, ...supportBots, ...teamBots];
+    const anyDeploying = allVisible.some(
+      (b) =>
+        !b.isDemo &&
+        (b.deployment_status !== "deployed" || !b.railway_service_id),
+    );
+    if (!anyDeploying) return;
+    const id = setInterval(() => {
+      void reload();
+    }, 10000);
+    return () => clearInterval(id);
+  }, [userId, reload, bots, supportBots, teamBots]);
+
   // The Web Dashboard add-on is a one-time, account-wide unlock. Once any
   // PAID bot order includes it, the user can manage ALL of their bots from
   // the dashboard — current and future ones — even if that original order
