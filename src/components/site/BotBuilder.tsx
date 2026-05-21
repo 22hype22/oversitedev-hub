@@ -412,9 +412,6 @@ export const BotBuilder = () => {
 
   const activeIdentity: Identity = usesPackTabs ? packIdentities[effectiveActiveTab] : identity;
   const { name, description, bio, icon, banner } = activeIdentity;
-  // ... keep existing code
-  const updateActiveIdentity = (patch: Partial<Identity>) => {
-
 
   const updateActiveIdentity = (patch: Partial<Identity>) => {
     if (usesPackTabs) {
@@ -428,6 +425,7 @@ export const BotBuilder = () => {
   };
   const setName = (v: string) => updateActiveIdentity({ name: v });
   const setDescription = (v: string) => updateActiveIdentity({ description: v });
+  const setBio = (v: string) => updateActiveIdentity({ bio: v });
   const setIcon = (v: string) => updateActiveIdentity({ icon: v });
   const setBanner = (v: string) => updateActiveIdentity({ banner: v });
 
