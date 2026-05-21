@@ -265,6 +265,110 @@ function railwayEnvironmentId(): string {
   return environmentId;
 }
 
+type RailwayService = { id: string; name: string };
+
+function buildServiceName(botName: string | null | undefined, orderId: string): string {
+  return `${botName ?? "bot"}-${orderId.slice(0, 8)}`
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 50);
+}
+
+async function listProjectServices(projectId: string): Promise<RailwayService[]> {
+  const data = await railway(
+    `query($projectId: String!) {
+      project(id: $projectId) {
+        services { edges { node { id name } } }
+      }
+    }`,
+    { projectId },
+  );
+  const edges = data?.project?.services?.edges ?? [];
+  return edges
+    .map((edge: any) => edge?.node)
+    .filter((node: any): node is RailwayService => Boolean(node?.id && node?.name));
+}
+
+async function deleteService(serviceId: string) {
+  await railway(
+    `mutation($id: String!) { serviceDelete(id: $id) }`,
+    { id: serviceId },
+  );
+}
+
+async function renameService(serviceId: string, name: string) {
+  await railway(
+    `mutation($id: String!, $input: ServiceUpdateInput!) {
+      serviceUpdate(id: $id, input: $input) { id name }
+    }`,
+    { id: serviceId, input: { name } },
+  );
+}
+
+async function resolveReusableService(
+  projectId: string,
+  canonicalName: string,
+  preferredServiceId?: string | null,
+): Promise<string | null> {
+  const services = await listProjectServices(projectId);
+  const byId = new Map<string, RailwayService>();
+  for (const service of services) {
+    if (service.name === canonicalName || service.name.startsWith(`${canonicalName}-`)) {
+      byId.set(service.id, service);
+    }
+  }
+  const candidates = [...byId.values()];
+  if (candidates.length === 0) return null;
+
+  const exact = candidates.filter((service) => service.name === canonicalName);
+  const keep =
+    exact.find((service) => service.id === preferredServiceId) ??
+    exact[0] ??
+    candidates.find((service) => service.id === preferredServiceId) ??
+    candidates[0];
+
+  for (const duplicate of candidates) {
+    if (duplicate.id === keep.id) continue;
+    try {
+      await deleteService(duplicate.id);
+      console.log("[auto-deploy-bot] deleted duplicate Railway service", {
+        serviceId: duplicate.id,
+        serviceName: duplicate.name,
+        keptServiceId: keep.id,
+        canonicalName,
+      });
+    } catch (e) {
+      console.warn("[auto-deploy-bot] duplicate Railway service delete failed", {
+        serviceId: duplicate.id,
+        serviceName: duplicate.name,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  if (keep.name !== canonicalName && exact.length === 0) {
+    try {
+      await renameService(keep.id, canonicalName);
+    } catch (e) {
+      console.warn("[auto-deploy-bot] Railway service rename failed", {
+        serviceId: keep.id,
+        from: keep.name,
+        to: canonicalName,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  console.log("[auto-deploy-bot] reusing Railway service", {
+    serviceId: keep.id,
+    serviceName: keep.name,
+    canonicalName,
+    duplicateCount: Math.max(candidates.length - 1, 0),
+  });
+  return keep.id;
+}
+
 async function createServiceFromRepo(
   projectId: string,
   environmentId: string,
