@@ -62,15 +62,37 @@ export function TeamMembersTab({
     if (!botId) return;
     setLoading(true);
     if (viewerIsOwner) {
+      // Seed owner rows for every bot owned by this user.
       await (supabase as any).rpc("ensure_team_owner_row");
     }
-    const { data } = await (supabase as any)
-      .from("dashboard_team")
-      .select("*")
-      .eq("bot_id", botId);
-    const fetched = ((data ?? []) as Member[]).slice();
-    // Always ensure the owner is present as the first entry, even when
-    // dashboard_team has no rows (e.g. ensure_team_owner_row hasn't run yet).
+    // For owners we show a single unified roster across all their bots
+    // (invite/role/remove actions apply across every bot they own — the
+    // transfer flow has its own bot picker). Non-owners only see the roster
+    // for the bot they're currently viewing.
+    const query = (supabase as any).from("dashboard_team").select("*");
+    const { data } = viewerIsOwner && targetOwnerId
+      ? await query.eq("owner_user_id", targetOwnerId)
+      : await query.eq("bot_id", botId);
+
+    // Dedupe by lower(email): keep the highest-ranked role and prefer rows
+    // that already have an accepted_at / invite_token.
+    const byEmail = new Map<string, Member>();
+    for (const row of (data ?? []) as Member[]) {
+      const key = (row.member_email ?? "").toLowerCase();
+      const existing = byEmail.get(key);
+      if (!existing) {
+        byEmail.set(key, row);
+        continue;
+      }
+      const better =
+        (ROLE_RANK[row.role] ?? 0) > (ROLE_RANK[existing.role] ?? 0) ||
+        (!existing.accepted_at && row.accepted_at) ||
+        (!existing.invite_token && row.invite_token);
+      if (better) byEmail.set(key, row);
+    }
+    const fetched = Array.from(byEmail.values());
+
+    // Always ensure the owner is present as the first entry.
     const hasOwnerRow = fetched.some(
       (m) => m.role === "owner" && m.member_user_id === targetOwnerId
     );
