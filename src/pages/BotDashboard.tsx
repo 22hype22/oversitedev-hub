@@ -75,7 +75,6 @@ import {
   ChevronDown,
   ChevronUp,
   Search,
-  LogOut,
   
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
