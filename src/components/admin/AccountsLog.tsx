@@ -128,6 +128,36 @@ export const AccountsLog = () => {
     toast.success("Account deleted");
   };
 
+  const resetPassword = async (row: AccountRow) => {
+    setBusyId(row.user_id);
+    const { data, error } = await supabase.functions.invoke("admin-set-temp-password", {
+      body: { targetUserId: row.user_id },
+    });
+    setBusyId(null);
+    setConfirmReset(null);
+    const payload = data as { tempPassword?: string; email?: string | null; error?: string } | null;
+    if (error || !payload?.tempPassword) {
+      const msg = error?.message || payload?.error || "Failed";
+      toast.error(`Reset failed: ${msg}`);
+      return;
+    }
+    setTempPasswordResult({
+      email: payload.email ?? null,
+      password: payload.tempPassword,
+      username: row.roblox_username,
+    });
+  };
+
+  const copyTempPassword = async () => {
+    if (!tempPasswordResult) return;
+    try {
+      await navigator.clipboard.writeText(tempPasswordResult.password);
+      toast.success("Password copied");
+    } catch {
+      toast.error("Copy failed");
+    }
+  };
+
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between gap-3 mb-4">
