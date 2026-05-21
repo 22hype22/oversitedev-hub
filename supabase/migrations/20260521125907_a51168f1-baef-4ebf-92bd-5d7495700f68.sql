@@ -1,0 +1,1 @@
+UPDATE public.bot_orders SET deployment_status='pending', deployment_attempted_at=NULL, deployment_error=NULL, status='ready' WHERE id='be56f6bc-1d54-4ffc-bb2a-e887ea3562c0';
