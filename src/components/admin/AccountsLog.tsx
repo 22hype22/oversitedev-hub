@@ -294,6 +294,75 @@ export const AccountsLog = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={!!confirmReset}
+        onOpenChange={(o) => !o && setConfirmReset(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset this user's password?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This generates a new temporary password for{" "}
+              <strong>{confirmReset?.roblox_username}</strong> and immediately
+              invalidates their current one. You'll see the new password once —
+              share it securely and tell them to change it after signing in.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!busyId}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => confirmReset && resetPassword(confirmReset)}
+              disabled={!!busyId}
+            >
+              Generate temporary password
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog
+        open={!!tempPasswordResult}
+        onOpenChange={(o) => !o && setTempPasswordResult(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Temporary password generated</DialogTitle>
+            <DialogDescription>
+              Shown once. Copy it now — you won't be able to see it again.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div>
+              <div className="text-xs text-muted-foreground">User</div>
+              <div className="font-medium">{tempPasswordResult?.username}</div>
+              {tempPasswordResult?.email && (
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {tempPasswordResult.email}
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Temporary password</div>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 px-3 py-2 rounded-md bg-muted font-mono text-sm break-all">
+                  {tempPasswordResult?.password}
+                </code>
+                <Button variant="outline" size="sm" onClick={copyTempPassword}>
+                  <Copy className="h-4 w-4 mr-1" />
+                  Copy
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Tell the user to sign in with this password and change it immediately.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setTempPasswordResult(null)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
