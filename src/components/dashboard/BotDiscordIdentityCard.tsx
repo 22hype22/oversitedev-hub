@@ -143,8 +143,8 @@ export const BotDiscordIdentityCard = ({
   const recentChange = lastUsernameChangeAt
     ? Date.now() - new Date(lastUsernameChangeAt).getTime() < 60 * 60 * 1000
     : false;
-  const usernameDirty = username.trim() !== (live.username ?? "").trim();
-  const bioDirty = (bio ?? "") !== (live.bio ?? "");
+
+
 
   const callUpdate = async (
     patch: { username?: string; bio?: string; avatar?: string },
