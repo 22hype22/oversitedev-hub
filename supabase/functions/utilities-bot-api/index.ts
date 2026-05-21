@@ -30,6 +30,14 @@ const DM_TYPES = {
 } as const;
 type DmType = keyof typeof DM_TYPES;
 
+function normalizeBotConfig(feature: string, row: any) {
+  if (!row || feature !== "server-stats") return row;
+  const config = { ...(row.config ?? {}) };
+  const minutes = Number(config.update_interval_minutes ?? 10);
+  config.update_interval_minutes = Math.max(10, Number.isFinite(minutes) ? minutes : 10);
+  return { ...row, config };
+}
+
 function normalizeWorkerToken(value: string | null | undefined): string {
   return (value ?? "")
     .replace(/^Bearer\s+/i, "")
@@ -199,7 +207,7 @@ Deno.serve(async (req) => {
         .eq("feature", feature)
         .maybeSingle();
       if (error) return json(500, { error: error.message });
-      return json(200, { config: data ?? null });
+      return json(200, { config: normalizeBotConfig(feature, data) ?? null });
     }
 
     // POST /mark-config-applied { bot_id, feature }
