@@ -218,7 +218,8 @@ export const BotDiscordIdentityCard = ({
 
   const statusDirty =
     activityType !== (savedActivityType ?? "playing") ||
-    activityText.trim() !== (savedActivityText ?? "").trim();
+    activityText.trim() !== (savedActivityText ?? "").trim() ||
+    presenceStatus !== savedPresenceStatus;
 
   const saveStatus = async () => {
     if (!user) {
@@ -235,7 +236,11 @@ export const BotDiscordIdentityCard = ({
       // Persist to bot_orders so it restores on restart
       const { error: upErr } = await (supabase as any)
         .from("bot_orders")
-        .update({ activity_type: activityType, activity_text: text || null })
+        .update({
+          activity_type: activityType,
+          activity_text: text || null,
+          presence_status: presenceStatus,
+        })
         .eq("id", botId);
       if (upErr) throw upErr;
 
@@ -247,12 +252,17 @@ export const BotDiscordIdentityCard = ({
           user_id: user.id,
           requested_by: user.id,
           action: "set_status",
-          payload: { activity_type: activityType, activity_text: text },
+          payload: {
+            activity_type: activityType,
+            activity_text: text,
+            presence_status: presenceStatus,
+          },
         });
       if (cmdErr) throw cmdErr;
 
       setSavedActivityType(activityType);
       setSavedActivityText(text);
+      setSavedPresenceStatus(presenceStatus);
       toast.success("Status updated", {
         description: "Your bot will apply the new presence shortly.",
       });
@@ -263,6 +273,7 @@ export const BotDiscordIdentityCard = ({
       setSavingStatus(false);
     }
   };
+
 
 
 
