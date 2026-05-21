@@ -112,6 +112,7 @@ export function useOwnedBots() {
   const [ownsDashboardAddon, setOwnsDashboardAddon] = useState(false);
   const [loading, setLoading] = useState(true);
   const hasLoadedRef = useRef(false);
+  const emptyRetriesRef = useRef(0);
 
   const reload = useCallback(async () => {
     if (!userId) {
