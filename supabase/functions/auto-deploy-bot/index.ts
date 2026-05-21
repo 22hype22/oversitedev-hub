@@ -506,13 +506,6 @@ async function redeploy(serviceId: string, environmentId: string) {
     { serviceId, environmentId },
   );
 }
-  await railway(
-    `mutation($serviceId: String!, $environmentId: String!) {
-      serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
-    }`,
-    { serviceId, environmentId },
-  );
-}
 
 async function fetchImageAsDataUrl(url: string): Promise<string | null> {
   try {
