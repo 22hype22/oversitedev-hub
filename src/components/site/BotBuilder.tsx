@@ -827,6 +827,7 @@ export const BotBuilder = () => {
             user_id: user.id,
             bot_name: primary.name.trim(),
             bot_description: primary.description.trim() || null,
+            bot_bio: (primary.bio || "").trim().slice(0, 190) || null,
             icon_url: primary.icon,
             banner_url: primary.banner,
             base: baseField,
