@@ -2669,7 +2669,9 @@ export type Database = {
         }
         Returns: string
       }
-      ensure_team_owner_row: { Args: never; Returns: undefined }
+      ensure_team_owner_row:
+        | { Args: never; Returns: undefined }
+        | { Args: { _bot_id?: string }; Returns: undefined }
       expire_pending_confirmations: { Args: never; Returns: number }
       get_bot_client_id: { Args: { _bot_id: string }; Returns: string }
       get_bot_health: { Args: { _bot_id: string }; Returns: Json }
