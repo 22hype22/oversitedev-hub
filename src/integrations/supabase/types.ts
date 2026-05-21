@@ -675,6 +675,8 @@ export type Database = {
       }
       bot_orders: {
         Row: {
+          activity_text: string | null
+          activity_type: string | null
           addons: string[]
           banner_url: string | null
           base: string
@@ -731,6 +733,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          activity_text?: string | null
+          activity_type?: string | null
           addons?: string[]
           banner_url?: string | null
           base: string
@@ -787,6 +791,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          activity_text?: string | null
+          activity_type?: string | null
           addons?: string[]
           banner_url?: string | null
           base?: string

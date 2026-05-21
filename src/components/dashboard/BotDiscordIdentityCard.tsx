@@ -5,9 +5,27 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, Upload, AlertTriangle, Bot as BotIcon, IdCard } from "lucide-react";
+import { Loader2, RefreshCw, Upload, AlertTriangle, Bot as BotIcon, IdCard, Activity } from "lucide-react";
+
+type ActivityType = "playing" | "watching" | "listening" | "competing" | "streaming";
+
+const ACTIVITY_OPTIONS: { value: ActivityType; label: string }[] = [
+  { value: "playing", label: "Playing" },
+  { value: "watching", label: "Watching" },
+  { value: "listening", label: "Listening to" },
+  { value: "competing", label: "Competing in" },
+  { value: "streaming", label: "Streaming" },
+];
 
 type Props = {
   botId: string;
@@ -17,8 +35,13 @@ type Props = {
   initialBio: string | null;
   /** Saved name from bot_orders (used as fallback). */
   initialUsername: string;
+  /** Saved presence activity type. */
+  initialActivityType?: string | null;
+  /** Saved presence activity text. */
+  initialActivityText?: string | null;
   onUpdated?: () => void;
 };
+
 
 type LiveIdentity = {
   username: string | null;
@@ -41,8 +64,11 @@ export const BotDiscordIdentityCard = ({
   lastUsernameChangeAt,
   initialBio,
   initialUsername,
+  initialActivityType,
+  initialActivityText,
   onUpdated,
 }: Props) => {
+  const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState<LiveIdentity>({
@@ -55,6 +81,17 @@ export const BotDiscordIdentityCard = ({
   const [savingUsername, setSavingUsername] = useState(false);
   const [savingBio, setSavingBio] = useState(false);
   const [savingAvatar, setSavingAvatar] = useState(false);
+
+  const [activityType, setActivityType] = useState<ActivityType>(
+    (initialActivityType as ActivityType) ?? "playing",
+  );
+  const [activityText, setActivityText] = useState(initialActivityText ?? "");
+  const [savedActivityType, setSavedActivityType] = useState<ActivityType | null>(
+    (initialActivityType as ActivityType) ?? null,
+  );
+  const [savedActivityText, setSavedActivityText] = useState<string>(initialActivityText ?? "");
+  const [savingStatus, setSavingStatus] = useState(false);
+
 
   const refresh = async () => {
     setLoading(true);
@@ -159,6 +196,56 @@ export const BotDiscordIdentityCard = ({
       setSavingAvatar(false);
     }
   };
+
+  const statusDirty =
+    activityType !== (savedActivityType ?? "playing") ||
+    activityText.trim() !== (savedActivityText ?? "").trim();
+
+  const saveStatus = async () => {
+    if (!user) {
+      toast.error("Sign in required");
+      return;
+    }
+    const text = activityText.trim();
+    if (text.length > 128) {
+      toast.error("Status message must be 128 characters or fewer");
+      return;
+    }
+    setSavingStatus(true);
+    try {
+      // Persist to bot_orders so it restores on restart
+      const { error: upErr } = await (supabase as any)
+        .from("bot_orders")
+        .update({ activity_type: activityType, activity_text: text || null })
+        .eq("id", botId);
+      if (upErr) throw upErr;
+
+      // Queue a live update command for the worker
+      const { error: cmdErr } = await (supabase as any)
+        .from("bot_commands")
+        .insert({
+          bot_id: botId,
+          user_id: user.id,
+          requested_by: user.id,
+          action: "set_status",
+          payload: { activity_type: activityType, activity_text: text },
+        });
+      if (cmdErr) throw cmdErr;
+
+      setSavedActivityType(activityType);
+      setSavedActivityText(text);
+      toast.success("Status updated", {
+        description: "Your bot will apply the new presence shortly.",
+      });
+      onUpdated?.();
+    } catch (e: any) {
+      toast.error("Couldn't update status", { description: e?.message });
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
+
 
   return (
     <Card className="p-5 space-y-5 bg-card/40 border-border">
@@ -309,6 +396,51 @@ export const BotDiscordIdentityCard = ({
           </Button>
         </div>
       </div>
+
+      {/* Status (presence) */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Activity className="h-3.5 w-3.5 text-primary" />
+          <Label className="text-xs">Status</Label>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Select
+            value={activityType}
+            onValueChange={(v) => setActivityType(v as ActivityType)}
+            disabled={savingStatus}
+          >
+            <SelectTrigger className="sm:w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ACTIVITY_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            value={activityText}
+            onChange={(e) => setActivityText(e.target.value)}
+            maxLength={128}
+            placeholder="your server"
+            disabled={savingStatus}
+            className="flex-1"
+          />
+          <Button
+            size="sm"
+            onClick={saveStatus}
+            disabled={!statusDirty || savingStatus}
+          >
+            {savingStatus ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save status"}
+          </Button>
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          Shows under your bot's name in Discord (e.g. "Watching your server"). Saved and restored on restart.
+        </p>
+      </div>
     </Card>
   );
 };
+

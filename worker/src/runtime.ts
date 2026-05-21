@@ -1,4 +1,5 @@
 import {
+  ActivityType,
   Client,
   Events,
   GatewayIntentBits,
@@ -129,6 +130,18 @@ export class BotRuntime {
       // 6. Login
       await client.login(token);
       await this.registerSlashCommands(token, client.user!.id);
+
+      // Restore saved presence (Playing / Watching / etc.) if any
+      if (config.activity_type && config.activity_text) {
+        try {
+          this.applyPresence(config.activity_type, config.activity_text);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          await appendLog(this.botId, "warn", `Could not restore presence: ${msg}`);
+        }
+      }
+
+
 
       // 7. Initial metrics & status
       const guilds = client.guilds.cache;
@@ -389,6 +402,32 @@ export class BotRuntime {
     }
     await appendLog(this.botId, "info", `leave_all_guilds: left ${left}/${guilds.length}`);
   }
+
+  private applyPresence(type: string, text: string) {
+    if (!this.client?.user) throw new Error("Client not ready");
+    const map: Record<string, ActivityType> = {
+      playing: ActivityType.Playing,
+      watching: ActivityType.Watching,
+      listening: ActivityType.Listening,
+      competing: ActivityType.Competing,
+      streaming: ActivityType.Streaming,
+    };
+    const activityType = map[type.toLowerCase()] ?? ActivityType.Playing;
+    const activity: any = { name: text || " ", type: activityType };
+    // Streaming requires a URL; supply a placeholder Twitch URL so Discord renders it.
+    if (activityType === ActivityType.Streaming) {
+      activity.url = "https://twitch.tv/discord";
+    }
+    this.client.user.setPresence({ activities: [activity], status: "online" });
+  }
+
+  async setStatus(type: string, text: string) {
+    if (!this.client?.user) throw new Error("Bot is not running");
+    this.applyPresence(type, text);
+    await appendLog(this.botId, "info", `Presence set: ${type} ${text}`);
+  }
+
+
 
   isRunning() {
     return this.running;
