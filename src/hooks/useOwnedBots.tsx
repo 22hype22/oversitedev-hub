@@ -88,8 +88,10 @@ function mapRow(row: any, opts: { viaSupport?: boolean; viaTeam?: boolean } = {}
     discord_last_username_change_at: row.discord_last_username_change_at ?? null,
     activity_type: row.activity_type ?? null,
     activity_text: row.activity_text ?? null,
+    presence_status: row.presence_status ?? null,
   };
 }
+
 
 
 /**
