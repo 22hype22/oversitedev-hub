@@ -323,25 +323,39 @@ Deno.serve(async (req) => {
     }
 
     // POST /complete-command { command_id, status, error_message? }
+    // Be permissive about field names/status words because the external
+    // Utilities bot is a separate Python process and older builds used
+    // commandId/id plus success/completed instead of command_id/done.
     if (req.method === "POST" && path.startsWith("/complete-command")) {
       const body = await req.json().catch(() => ({} as any));
-      const commandId = String(body.command_id || "");
-      const status = String(body.status || "");
+      const commandId = String(body.command_id || body.commandId || body.id || "");
+      const rawStatus = body.status ?? body.state ?? body.result ?? body.ok;
+      const normalizedStatus = String(rawStatus ?? "").toLowerCase().trim();
+      const status = ["done", "complete", "completed", "success", "succeeded", "ok", "true"].includes(normalizedStatus)
+        ? "done"
+        : ["failed", "fail", "failure", "error", "errored", "false"].includes(normalizedStatus)
+          ? "failed"
+          : "";
       if (!commandId) return json(400, { error: "command_id required" });
-      if (status !== "done" && status !== "failed") {
-        return json(400, { error: "status must be 'done' or 'failed'" });
+      if (!status) {
+        return json(400, { error: "status must mean 'done' or 'failed'" });
       }
-      const { error: updErr } = await admin
+      const nowIso = new Date().toISOString();
+      const { data: updated, error: updErr } = await admin
         .from("bot_commands")
         .update({
           status,
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          completed_at: nowIso,
+          updated_at: nowIso,
           error_message: body.error_message ?? null,
         })
-        .eq("id", commandId);
+        .eq("id", commandId)
+        .select("id, bot_id, action, status")
+        .maybeSingle();
       if (updErr) return json(500, { error: updErr.message });
-      return json(200, { ok: true });
+      if (!updated) return json(404, { error: "Command not found", command_id: commandId });
+      console.log("utilities-bot-api complete-command", updated);
+      return json(200, { ok: true, command: updated });
     }
 
     // POST /upsert-role-cache { bot_id, guild_id, roles[] }
