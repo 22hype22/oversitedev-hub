@@ -516,10 +516,10 @@ async function fetchServiceVariables(
   return out;
 }
 
-async function redeploy(serviceId: string, environmentId: string) {
-  // Prefer serviceInstanceRedeploy — it redeploys the latest known-good
-  // deployment without waiting for a "Deploy Changes" confirmation that
-  // Railway sometimes surfaces after variable upserts.
+async function deployService(projectId: string, serviceId: string, environmentId: string) {
+  // After variableCollectionUpsert, explicitly create a fresh service deploy.
+  // If Railway ever stages the variables anyway, deploymentCreate is tried as
+  // the final direct-build fallback.
   try {
     await railway(
       `mutation($serviceId: String!, $environmentId: String!) {
@@ -577,12 +577,27 @@ async function redeploy(serviceId: string, environmentId: string) {
       message: e instanceof Error ? e.message : String(e),
     });
   }
+  try {
+    await railway(
+      `mutation($serviceId: String!, $environmentId: String!) {
+        serviceDeploy(serviceId: $serviceId, environmentId: $environmentId)
+      }`,
+      { serviceId, environmentId },
+    );
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] serviceDeploy failed, trying deploymentCreate", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
   await railway(
-    `mutation($serviceId: String!, $environmentId: String!) {
-      serviceDeploy(serviceId: $serviceId, environmentId: $environmentId)
+    `mutation($input: DeploymentCreateInput!) {
+      deploymentCreate(input: $input) { id status }
     }`,
-    { serviceId, environmentId },
+    { input: { projectId, serviceId, environmentId } },
   );
+  console.log("[auto-deploy-bot] deploymentCreate ok", { serviceId });
 }
 
 async function fetchImageAsDataUrl(url: string): Promise<string | null> {
