@@ -157,9 +157,9 @@ const ADDON_GROUPS: {
 type StatusMeta = { label: string; className: string; loading?: boolean };
 const STATUS_META: Record<string, StatusMeta> = {
   draft:     { label: "Draft",            className: "bg-muted text-muted-foreground border-border" },
-  submitted: { label: "Building",         className: "bg-primary/15 text-primary border-primary/30", loading: true },
-  paid:      { label: "Building",         className: "bg-primary/15 text-primary border-primary/30", loading: true },
-  building:  { label: "Building",         className: "bg-blue-500/15 text-blue-400 border-blue-500/30", loading: true },
+  submitted: { label: "Confirmation",     className: "bg-primary/15 text-primary border-primary/30", loading: true },
+  paid:      { label: "Confirmation",     className: "bg-primary/15 text-primary border-primary/30", loading: true },
+  building:  { label: "Confirmation",     className: "bg-blue-500/15 text-blue-400 border-blue-500/30", loading: true },
   ready:     { label: "Ready to invite",  className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
   live:      { label: "Live",             className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
   cancelled: { label: "Cancelled",        className: "bg-destructive/15 text-destructive border-destructive/30" },
