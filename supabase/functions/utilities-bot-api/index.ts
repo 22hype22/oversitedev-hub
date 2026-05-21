@@ -228,6 +228,27 @@ Deno.serve(async (req) => {
       const botId = String(body.bot_id || "");
       if (!botId) return json(400, { error: "bot_id required" });
 
+      // Sweep stale 'claimed' commands for this bot that were never completed.
+      // Without this, every apply_config / list_roles / etc. that the bot
+      // claims but forgets to ack accumulates forever in 'claimed' and the
+      // bot ends up looping over the same backlog on each poll.
+      const STALE_CLAIM_MS = 90_000;
+      const staleCutoff = new Date(Date.now() - STALE_CLAIM_MS).toISOString();
+      const { error: sweepErr } = await admin
+        .from("bot_commands")
+        .update({
+          status: "failed",
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          error_message: "auto-failed: claimed but never completed by worker",
+        })
+        .eq("bot_id", botId)
+        .eq("status", "claimed")
+        .lt("claimed_at", staleCutoff);
+      if (sweepErr) {
+        console.warn("utilities-bot-api stale claim sweep failed", sweepErr.message);
+      }
+
       const claimCommand = async (actions: string[]) => {
         const { data: pending, error: selErr } = await admin
           .from("bot_commands")
