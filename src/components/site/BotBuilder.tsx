@@ -440,7 +440,7 @@ export const BotBuilder = () => {
       setActivePackTab(visibleIdentityTabs[idx + 1].id);
     }
   };
-  const handleDescriptionBlur = () => advanceToNextTab();
+  const handleBioBlur = () => advanceToNextTab();
 
   const goToTab = (id: string) => {
     const fromIdx = visibleIdentityTabs.findIndex((t) => t.id === effectiveActiveTab);
