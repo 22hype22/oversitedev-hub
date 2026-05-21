@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOwnedBots, type OwnedBot } from "@/hooks/useOwnedBots";
+import { useAddonOverrides } from "@/hooks/useAddonOverrides";
 import {
   getAddonCategory,
   getAddonIdsForBase,
   getAddonLabel,
   getAddonPrice,
+  getIncludedAddonsForBase,
   type AddonCategory,
 } from "@/lib/botCatalog";
 import {
