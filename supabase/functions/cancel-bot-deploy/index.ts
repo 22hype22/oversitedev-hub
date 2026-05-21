@@ -36,41 +36,17 @@ async function railway(query: string, variables: Record<string, unknown>) {
   return json.data;
 }
 
-async function getEnvironmentId(serviceId: string): Promise<string | null> {
+async function deleteService(serviceId: string): Promise<boolean> {
   try {
-    const data = await railway(
-      `query($id: String!) {
-        service(id: $id) { project { environments { edges { node { id name } } } } }
-      }`,
+    await railway(
+      `mutation($id: String!) { serviceDelete(id: $id) }`,
       { id: serviceId },
     );
-    const edges = data?.service?.project?.environments?.edges ?? [];
-    const prod = edges.find((e: any) => e.node.name === "production") ?? edges[0];
-    return prod?.node?.id ?? null;
-  } catch {
-    return null;
+    return true;
+  } catch (err) {
+    console.warn("[cancel-bot-deploy] delete failed", (err as Error).message);
+    return false;
   }
-}
-
-async function scaleToZero(serviceId: string, environmentId: string) {
-  // Set replicas to 0 so the service stops running but stays available for inspection.
-  await railway(
-    `mutation($serviceId: String!, $environmentId: String!, $replicas: Int!) {
-      serviceInstanceUpdate(
-        serviceId: $serviceId,
-        environmentId: $environmentId,
-        input: { numReplicas: $replicas }
-      )
-    }`,
-    { serviceId, environmentId, replicas: 0 },
-  ).catch((err) => console.warn("[cancel-bot-deploy] scale failed", err.message));
-}
-
-async function deleteService(serviceId: string) {
-  await railway(
-    `mutation($id: String!) { serviceDelete(id: $id) }`,
-    { id: serviceId },
-  ).catch((err) => console.warn("[cancel-bot-deploy] delete failed", err.message));
 }
 
 Deno.serve(async (req) => {
