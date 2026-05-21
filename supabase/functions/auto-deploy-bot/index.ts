@@ -775,7 +775,7 @@ Deno.serve(async (req) => {
       await createServiceFromRepo(projectId, environmentId, serviceName, repo);
 
     if (existingServiceId) {
-      await updateServiceSource(targetServiceId, environmentId, repo);
+      await connectServiceToRepo(targetServiceId, environmentId, repo);
     }
 
     await admin
