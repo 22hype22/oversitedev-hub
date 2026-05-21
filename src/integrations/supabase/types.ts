@@ -716,6 +716,7 @@ export type Database = {
           parent_order_id: string | null
           payment_plan: string
           plan_months: number | null
+          presence_status: string | null
           purchase_id: string | null
           railway_service_id: string | null
           ready_dm_sent: boolean
@@ -774,6 +775,7 @@ export type Database = {
           parent_order_id?: string | null
           payment_plan?: string
           plan_months?: number | null
+          presence_status?: string | null
           purchase_id?: string | null
           railway_service_id?: string | null
           ready_dm_sent?: boolean
@@ -832,6 +834,7 @@ export type Database = {
           parent_order_id?: string | null
           payment_plan?: string
           plan_months?: number | null
+          presence_status?: string | null
           purchase_id?: string | null
           railway_service_id?: string | null
           ready_dm_sent?: boolean
