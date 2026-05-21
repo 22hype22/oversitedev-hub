@@ -89,9 +89,35 @@ Deno.serve(async (req) => {
       deleted = await deleteService(serviceId);
     }
 
-    // Release any token assigned to this order back to the pool (safety net —
-    // the bot_orders cancel trigger normally does this, but make it idempotent
-    // so a direct invocation still cleans up.)
+    // Reset the Discord identity (avatar + bio) BEFORE releasing the token
+    // back to the pool. Otherwise the next bot to claim this token inherits
+    // the previous bot's avatar/bio. (Username can't be cleared via API, but
+    // the next deploy's auto-deploy-bot will PATCH it to the new bot_name.)
+    try {
+      const { data: tokenData } = await admin.rpc("runtime_resolve_bot_token", {
+        _bot_id: orderId,
+      });
+      const botToken = typeof tokenData === "string" ? tokenData : null;
+      if (botToken) {
+        const dRes = await fetch("https://discord.com/api/v10/users/@me", {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bot ${botToken}`,
+            "Content-Type": "application/json",
+          },
+          // null avatar clears it; empty bio clears it.
+          body: JSON.stringify({ avatar: null, bio: "" }),
+        });
+        if (!dRes.ok) {
+          const t = await dRes.text();
+          console.warn("[cancel-bot-deploy] Discord identity reset failed", dRes.status, t.slice(0, 200));
+        }
+      }
+    } catch (e) {
+      console.warn("[cancel-bot-deploy] identity reset error", (e as Error).message);
+    }
+
+    // Now release the pool token (the trigger no longer does this, so we own it).
     const { error: releaseErr } = await admin
       .from("bot_token_pool")
       .update({
