@@ -411,7 +411,9 @@ export const BotBuilder = () => {
   }, [currentAddons, addonIsIncluded, userSelectedAddons]);
 
   const activeIdentity: Identity = usesPackTabs ? packIdentities[effectiveActiveTab] : identity;
-  const { name, description, icon, banner } = activeIdentity;
+  const { name, description, bio, icon, banner } = activeIdentity;
+  // ... keep existing code
+  const updateActiveIdentity = (patch: Partial<Identity>) => {
 
 
   const updateActiveIdentity = (patch: Partial<Identity>) => {
