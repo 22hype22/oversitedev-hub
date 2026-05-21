@@ -3077,6 +3077,7 @@ export type Database = {
         Args: { _email: string; _role: string }
         Returns: Json
       }
+      team_leave_bot: { Args: { _bot_id: string }; Returns: Json }
       team_remove_member: { Args: { _member_id: string }; Returns: Json }
       team_remove_member_by_email: { Args: { _email: string }; Returns: Json }
       team_request_ownership_transfer: {
