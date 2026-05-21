@@ -400,17 +400,30 @@ const BotSection = ({
   const hasNoServers =
     !bot.isDemo && !isDeploying && !isOffline && !guildsLoading && connectedGuilds.length === 0;
   const [retrying, setRetrying] = useState(false);
+  const retryInFlight = useRef(false);
   const retryDeploy = async () => {
+    if (retryInFlight.current) return;
+    retryInFlight.current = true;
     setRetrying(true);
-    const { error } = await supabase.functions.invoke("auto-deploy-bot", {
-      body: { orderId: bot.id },
-    });
-    setRetrying(false);
-    if (error) {
-      toast.error("Retry failed", { description: error.message });
-    } else {
-      toast.success("Deployment retried — refreshing…");
-      onReload();
+    try {
+      const { data, error } = await supabase.functions.invoke("auto-deploy-bot", {
+        body: { orderId: bot.id },
+      });
+      if (error) {
+        toast.error("Retry failed", { description: error.message });
+      } else if ((data as { alreadyInProgress?: boolean } | null)?.alreadyInProgress) {
+        toast.info("A deployment is already in progress for this bot.");
+        onReload();
+      } else {
+        toast.success("Deployment retried — refreshing…");
+        onReload();
+      }
+    } finally {
+      setRetrying(false);
+      // Brief cooldown to absorb rapid double-clicks across re-renders.
+      setTimeout(() => {
+        retryInFlight.current = false;
+      }, 2000);
     }
   };
 
