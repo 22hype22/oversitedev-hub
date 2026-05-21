@@ -655,6 +655,7 @@ export const BotBuilder = () => {
         user_id: user.id,
         bot_name: parentIdentity.name.trim() || primary.name.trim(),
         bot_description: (parentIdentity.description || primary.description).trim() || null,
+        bot_bio: (parentIdentity.bio || primary.bio || "").trim().slice(0, 190) || null,
         icon_url: parentIdentity.icon ?? primary.icon,
         banner_url: parentIdentity.banner ?? primary.banner,
         base: parentBase,
