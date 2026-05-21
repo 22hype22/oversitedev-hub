@@ -287,13 +287,31 @@ async function createRailwayService(serviceName: string, repoFullName: string): 
   `, {
     input: {
       projectId: RAILWAY_PROJECT_ID,
+      environmentId: RAILWAY_ENVIRONMENT_ID,
       name: serviceName,
+      branch: "main",
       source: {
         repo: repoFullName,
       },
     },
   }) as { serviceCreate: { id: string; name: string } };
-  return data.serviceCreate.id;
+  const id = data.serviceCreate.id;
+  // Ensure the service instance is connected to the repo+branch so Railway
+  // auto-deploys on creation instead of requiring a manual "Deploy" click.
+  try {
+    await railwayGraphQL(`
+      mutation ServiceInstanceUpdate($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
+        serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
+      }
+    `, {
+      serviceId: id,
+      environmentId: RAILWAY_ENVIRONMENT_ID,
+      input: { source: { repo: repoFullName }, branch: "main" },
+    });
+  } catch (e) {
+    console.warn("serviceInstanceUpdate (connect repo) failed:", (e as Error).message);
+  }
+  return id;
 }
 
 async function setRailwayEnvVars(serviceId: string, variables: Record<string, string>) {
@@ -320,14 +338,24 @@ async function setRailwayEnvVars(serviceId: string, variables: Record<string, st
 }
 
 async function deployRailwayService(serviceId: string): Promise<void> {
+  // serviceInstanceDeployV2 works for first-time deploys (no prior deployment
+  // exists yet) AND for redeploys. serviceInstanceRedeploy fails on freshly
+  // created services and leaves them waiting on a manual "Deploy" click.
+  try {
+    await railwayGraphQL(`
+      mutation ServiceInstanceDeployV2($serviceId: String!, $environmentId: String!) {
+        serviceInstanceDeployV2(serviceId: $serviceId, environmentId: $environmentId)
+      }
+    `, { serviceId, environmentId: RAILWAY_ENVIRONMENT_ID });
+    return;
+  } catch (e) {
+    console.warn("serviceInstanceDeployV2 failed, falling back to redeploy:", (e as Error).message);
+  }
   await railwayGraphQL(`
-    mutation ServiceInstanceDeploy($serviceId: String!, $environmentId: String!) {
+    mutation ServiceInstanceRedeploy($serviceId: String!, $environmentId: String!) {
       serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
     }
-  `, {
-    serviceId,
-    environmentId: RAILWAY_ENVIRONMENT_ID,
-  });
+  `, { serviceId, environmentId: RAILWAY_ENVIRONMENT_ID });
 }
 
 // ============================================================

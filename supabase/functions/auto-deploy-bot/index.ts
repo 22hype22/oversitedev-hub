@@ -396,12 +396,33 @@ async function createServiceFromRepo(
         projectId,
         environmentId,
         name,
+        branch: "main",
         source: { repo },
       },
     },
   );
   const id = data?.serviceCreate?.id;
   if (!id) throw new Error("serviceCreate returned no id");
+  // Explicitly connect the GitHub repo + branch on the service instance so
+  // Railway treats it as a real auto-deploying GitHub service (no manual
+  // "Deploy" confirmation in the dashboard).
+  try {
+    await railway(
+      `mutation($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
+        serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
+      }`,
+      {
+        serviceId: id,
+        environmentId,
+        input: { source: { repo }, branch: "main" },
+      },
+    );
+  } catch (e) {
+    console.warn("[auto-deploy-bot] serviceInstanceUpdate (connect repo) failed", {
+      serviceId: id,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
   return id;
 }
 
@@ -459,6 +480,25 @@ async function fetchServiceVariables(
 }
 
 async function redeploy(serviceId: string, environmentId: string) {
+  // serviceInstanceDeployV2 triggers a build from the latest commit and works
+  // for BOTH first-time deploys (no prior deployment) and redeploys. The older
+  // serviceInstanceRedeploy mutation requires an existing deployment, which
+  // means freshly-created services would otherwise wait for a manual click
+  // in the Railway dashboard.
+  try {
+    await railway(
+      `mutation($serviceId: String!, $environmentId: String!) {
+        serviceInstanceDeployV2(serviceId: $serviceId, environmentId: $environmentId)
+      }`,
+      { serviceId, environmentId },
+    );
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] serviceInstanceDeployV2 failed, falling back to redeploy", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
   await railway(
     `mutation($serviceId: String!, $environmentId: String!) {
       serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
