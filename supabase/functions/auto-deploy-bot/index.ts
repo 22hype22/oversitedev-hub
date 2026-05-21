@@ -650,7 +650,9 @@ Deno.serve(async (req) => {
     // Log shape (not values) of the payload to confirm DISCORD_TOKEN is present.
     console.log("[auto-deploy-bot] variableUpsert payload", {
       orderId,
-      serviceId: newServiceId,
+      serviceId: targetServiceId,
+      serviceName,
+      reusedService: Boolean(existingServiceId),
       keys: Object.keys(varsPayload),
       botTokenLength: varsPayload.DISCORD_TOKEN?.length ?? 0,
       botTokenPreview: varsPayload.DISCORD_TOKEN
