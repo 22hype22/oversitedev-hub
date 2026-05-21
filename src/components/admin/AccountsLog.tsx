@@ -240,6 +240,15 @@ export const AccountsLog = () => {
                   )}
                 </Button>
                 <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmReset(r)}
+                  disabled={busyId === r.user_id}
+                >
+                  <KeyRound className="h-4 w-4 mr-1" />
+                  Reset PW
+                </Button>
+                <Button
                   variant="destructive"
                   size="sm"
                   onClick={() => setConfirmDelete(r)}
