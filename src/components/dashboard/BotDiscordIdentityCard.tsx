@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { Loader2, RefreshCw, Upload, AlertTriangle, Bot as BotIcon, IdCard, Activity } from "lucide-react";
 
 type ActivityType = "playing" | "watching" | "listening" | "competing" | "streaming";
+type PresenceStatus = "online" | "idle" | "dnd" | "invisible";
 
 const ACTIVITY_OPTIONS: { value: ActivityType; label: string }[] = [
   { value: "playing", label: "Playing" },
@@ -25,6 +26,13 @@ const ACTIVITY_OPTIONS: { value: ActivityType; label: string }[] = [
   { value: "listening", label: "Listening to" },
   { value: "competing", label: "Competing in" },
   { value: "streaming", label: "Streaming" },
+];
+
+const PRESENCE_OPTIONS: { value: PresenceStatus; label: string; dot: string }[] = [
+  { value: "online", label: "Online", dot: "bg-emerald-500" },
+  { value: "idle", label: "Idle", dot: "bg-amber-400" },
+  { value: "dnd", label: "Do Not Disturb", dot: "bg-red-500" },
+  { value: "invisible", label: "Invisible", dot: "bg-muted-foreground" },
 ];
 
 type Props = {
@@ -39,8 +47,11 @@ type Props = {
   initialActivityType?: string | null;
   /** Saved presence activity text. */
   initialActivityText?: string | null;
+  /** Saved presence status (online/idle/dnd/invisible). */
+  initialPresenceStatus?: string | null;
   onUpdated?: () => void;
 };
+
 
 
 type LiveIdentity = {
@@ -66,6 +77,7 @@ export const BotDiscordIdentityCard = ({
   initialUsername,
   initialActivityType,
   initialActivityText,
+  initialPresenceStatus,
   onUpdated,
 }: Props) => {
   const { user } = useAuth();
@@ -86,11 +98,18 @@ export const BotDiscordIdentityCard = ({
     (initialActivityType as ActivityType) ?? "playing",
   );
   const [activityText, setActivityText] = useState(initialActivityText ?? "");
+  const [presenceStatus, setPresenceStatus] = useState<PresenceStatus>(
+    (initialPresenceStatus as PresenceStatus) ?? "online",
+  );
   const [savedActivityType, setSavedActivityType] = useState<ActivityType | null>(
     (initialActivityType as ActivityType) ?? null,
   );
   const [savedActivityText, setSavedActivityText] = useState<string>(initialActivityText ?? "");
+  const [savedPresenceStatus, setSavedPresenceStatus] = useState<PresenceStatus>(
+    (initialPresenceStatus as PresenceStatus) ?? "online",
+  );
   const [savingStatus, setSavingStatus] = useState(false);
+
 
 
   const refresh = async () => {
@@ -124,8 +143,8 @@ export const BotDiscordIdentityCard = ({
   const recentChange = lastUsernameChangeAt
     ? Date.now() - new Date(lastUsernameChangeAt).getTime() < 60 * 60 * 1000
     : false;
-  const usernameDirty = username.trim() !== (live.username ?? "").trim();
-  const bioDirty = (bio ?? "") !== (live.bio ?? "");
+
+
 
   const callUpdate = async (
     patch: { username?: string; bio?: string; avatar?: string },
@@ -199,7 +218,8 @@ export const BotDiscordIdentityCard = ({
 
   const statusDirty =
     activityType !== (savedActivityType ?? "playing") ||
-    activityText.trim() !== (savedActivityText ?? "").trim();
+    activityText.trim() !== (savedActivityText ?? "").trim() ||
+    presenceStatus !== savedPresenceStatus;
 
   const saveStatus = async () => {
     if (!user) {
@@ -216,7 +236,11 @@ export const BotDiscordIdentityCard = ({
       // Persist to bot_orders so it restores on restart
       const { error: upErr } = await (supabase as any)
         .from("bot_orders")
-        .update({ activity_type: activityType, activity_text: text || null })
+        .update({
+          activity_type: activityType,
+          activity_text: text || null,
+          presence_status: presenceStatus,
+        })
         .eq("id", botId);
       if (upErr) throw upErr;
 
@@ -228,12 +252,17 @@ export const BotDiscordIdentityCard = ({
           user_id: user.id,
           requested_by: user.id,
           action: "set_status",
-          payload: { activity_type: activityType, activity_text: text },
+          payload: {
+            activity_type: activityType,
+            activity_text: text,
+            presence_status: presenceStatus,
+          },
         });
       if (cmdErr) throw cmdErr;
 
       setSavedActivityType(activityType);
       setSavedActivityText(text);
+      setSavedPresenceStatus(presenceStatus);
       toast.success("Status updated", {
         description: "Your bot will apply the new presence shortly.",
       });
@@ -244,6 +273,7 @@ export const BotDiscordIdentityCard = ({
       setSavingStatus(false);
     }
   };
+
 
 
 
@@ -314,7 +344,7 @@ export const BotDiscordIdentityCard = ({
           <Button
             size="sm"
             onClick={saveUsername}
-            disabled={!usernameDirty || savingUsername}
+            disabled={savingUsername || username.trim().length < 2 || username.trim().length > 32}
           >
             {savingUsername ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -390,7 +420,7 @@ export const BotDiscordIdentityCard = ({
           <Button
             size="sm"
             onClick={saveBio}
-            disabled={!bioDirty || savingBio}
+            disabled={savingBio || bio.length > 190}
           >
             {savingBio ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save bio"}
           </Button>
@@ -398,36 +428,75 @@ export const BotDiscordIdentityCard = ({
       </div>
 
       {/* Status (presence) */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Activity className="h-3.5 w-3.5 text-primary" />
           <Label className="text-xs">Status</Label>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
+
+        {/* Presence dot */}
+        <div className="space-y-1">
+          <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">
+            Online status
+          </Label>
           <Select
-            value={activityType}
-            onValueChange={(v) => setActivityType(v as ActivityType)}
+            value={presenceStatus}
+            onValueChange={(v) => setPresenceStatus(v as PresenceStatus)}
             disabled={savingStatus}
           >
-            <SelectTrigger className="sm:w-44">
+            <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {ACTIVITY_OPTIONS.map((o) => (
+              {PRESENCE_OPTIONS.map((o) => (
                 <SelectItem key={o.value} value={o.value}>
-                  {o.label}
+                  <span className="flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full ${o.dot}`} />
+                    {o.label}
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Input
-            value={activityText}
-            onChange={(e) => setActivityText(e.target.value)}
-            maxLength={128}
-            placeholder="your server"
-            disabled={savingStatus}
-            className="flex-1"
-          />
+        </div>
+
+        {/* Activity */}
+        <div className="space-y-1">
+          <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">
+            Activity
+          </Label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Select
+              value={activityType}
+              onValueChange={(v) => setActivityType(v as ActivityType)}
+              disabled={savingStatus}
+            >
+              <SelectTrigger className="sm:w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ACTIVITY_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              value={activityText}
+              onChange={(e) => setActivityText(e.target.value)}
+              maxLength={128}
+              placeholder="your server"
+              disabled={savingStatus}
+              className="flex-1"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] text-muted-foreground">
+            Saved and restored on restart.
+          </p>
           <Button
             size="sm"
             onClick={saveStatus}
@@ -436,10 +505,8 @@ export const BotDiscordIdentityCard = ({
             {savingStatus ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save status"}
           </Button>
         </div>
-        <p className="text-[10px] text-muted-foreground">
-          Shows under your bot's name in Discord (e.g. "Watching your server"). Saved and restored on restart.
-        </p>
       </div>
+
     </Card>
   );
 };

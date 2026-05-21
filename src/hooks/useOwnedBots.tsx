@@ -45,7 +45,10 @@ export type OwnedBot = {
   activity_type?: string | null;
   /** Discord presence activity text. */
   activity_text?: string | null;
+  /** Discord presence status (online/idle/dnd/invisible). */
+  presence_status?: string | null;
 };
+
 
 
 // Bots that are paid and live show up in the dashboard. Drafts,
@@ -85,8 +88,10 @@ function mapRow(row: any, opts: { viaSupport?: boolean; viaTeam?: boolean } = {}
     discord_last_username_change_at: row.discord_last_username_change_at ?? null,
     activity_type: row.activity_type ?? null,
     activity_text: row.activity_text ?? null,
+    presence_status: row.presence_status ?? null,
   };
 }
+
 
 
 /**
@@ -125,7 +130,7 @@ export function useOwnedBots() {
     // they were originally purchased on.
     const { data: own } = await (supabase as any)
       .from("bot_orders")
-      .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,paid_at,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text")
+      .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,paid_at,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status")
       .eq("user_id", userId)
       .order("created_at", { ascending: true });
 
@@ -159,7 +164,7 @@ export function useOwnedBots() {
     if (supportOwnerIds.length > 0) {
       const { data: supportRows } = await (supabase as any)
         .from("bot_orders")
-        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text")
+        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status")
         .in("user_id", supportOwnerIds)
         .order("created_at", { ascending: true });
       supportMapped = (supportRows ?? [])
@@ -190,7 +195,7 @@ export function useOwnedBots() {
     if (teamOwnerIds.length > 0) {
       const { data: teamRows } = await (supabase as any)
         .from("bot_orders")
-        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text")
+        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status")
         .in("user_id", teamOwnerIds)
         .order("created_at", { ascending: true });
       teamMapped = (teamRows ?? [])
