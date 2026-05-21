@@ -715,6 +715,61 @@ async function applyDiscordIdentity(
   }
 }
 
+async function sendDeployedDM(
+  discordUserId: string,
+  botName: string | null | undefined,
+): Promise<{ ok: boolean; error?: string }> {
+  const notifierToken = Deno.env.get("OVERSITE_UTILITIES_BOT_TOKEN");
+  if (!notifierToken) {
+    return { ok: false, error: "OVERSITE_UTILITIES_BOT_TOKEN not configured" };
+  }
+  try {
+    const dmRes = await fetch("https://discord.com/api/v10/users/@me/channels", {
+      method: "POST",
+      headers: {
+        Authorization: `Bot ${notifierToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ recipient_id: discordUserId }),
+    });
+    if (!dmRes.ok) {
+      const text = await dmRes.text();
+      return { ok: false, error: `open DM ${dmRes.status}: ${text.slice(0, 200)}` };
+    }
+    const channel = await dmRes.json();
+    const channelId = channel?.id;
+    if (!channelId) return { ok: false, error: "no DM channel id returned" };
+
+    const name = botName?.trim() || "Your bot";
+    const content =
+      `🎉 **${name} is live!**\n\n` +
+      `Your bot has finished deploying and is online. ` +
+      `Head to your Oversite dashboard to invite it to your server and start configuring features.\n\n` +
+      `https://oversite.shop/dashboard`;
+
+    const msgRes = await fetch(
+      `https://discord.com/api/v10/channels/${channelId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bot ${notifierToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content }),
+      },
+    );
+    if (!msgRes.ok) {
+      const text = await msgRes.text();
+      return { ok: false, error: `send DM ${msgRes.status}: ${text.slice(0, 200)}` };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
