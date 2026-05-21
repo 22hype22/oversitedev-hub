@@ -704,9 +704,12 @@ const BotSection = ({
           initialUsername={bot.bot_name}
           initialBio={bot.bot_bio ?? null}
           lastUsernameChangeAt={bot.discord_last_username_change_at ?? null}
+          initialActivityType={bot.activity_type ?? null}
+          initialActivityText={bot.activity_text ?? null}
           onUpdated={onReload}
         />
       )}
+
 
       {!bot.isDemo && !isDeploying && <BotControlsPanel botId={bot.id} isOffline={isOffline} onCommandSent={handleCommandSent} />}
 
