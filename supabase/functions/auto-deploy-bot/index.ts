@@ -403,22 +403,22 @@ async function createServiceFromRepo(
   );
   const id = data?.serviceCreate?.id;
   if (!id) throw new Error("serviceCreate returned no id");
-  // Explicitly connect the GitHub repo + branch on the service instance so
-  // Railway treats it as a real auto-deploying GitHub service (no manual
-  // "Deploy" confirmation in the dashboard).
+  // Explicitly connect the GitHub repo + branch via serviceConnect so Railway
+  // links the service to GitHub and auto-deploys on push (no manual "Deploy"
+  // confirmation in the dashboard). serviceInstanceUpdate does NOT establish
+  // the GitHub link on its own — serviceConnect is the documented mutation.
   try {
     await railway(
-      `mutation($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
-        serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
+      `mutation($id: String!, $input: GitHubRepoDeployInput!) {
+        serviceConnect(id: $id, input: $input) { id }
       }`,
       {
-        serviceId: id,
-        environmentId,
-        input: { source: { repo }, branch: "main" },
+        id,
+        input: { repo, branch: "main" },
       },
     );
   } catch (e) {
-    console.warn("[auto-deploy-bot] serviceInstanceUpdate (connect repo) failed", {
+    console.warn("[auto-deploy-bot] serviceConnect failed", {
       serviceId: id,
       message: e instanceof Error ? e.message : String(e),
     });
