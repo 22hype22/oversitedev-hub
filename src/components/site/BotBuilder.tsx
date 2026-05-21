@@ -257,11 +257,12 @@ const SCRATCH_CATEGORIES: { id: string; label: string; icon: typeof Shield; addo
 type Identity = {
   name: string;
   description: string;
+  bio: string;
   icon: string | null;
   banner: string | null;
 };
 
-const EMPTY_IDENTITY: Identity = { name: "", description: "", icon: null, banner: null };
+const EMPTY_IDENTITY: Identity = { name: "", description: "", bio: "", icon: null, banner: null };
 
 const PACK_TABS: { id: string; label: string; icon: typeof Shield }[] = [
   { id: "protection", label: "Protection bot", icon: Shield },
