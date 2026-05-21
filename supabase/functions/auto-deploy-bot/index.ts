@@ -541,9 +541,11 @@ Deno.serve(async (req) => {
   const admin = createClient(supabaseUrl, serviceKey);
 
   let orderId: string | undefined;
+  let invocationSource: string | undefined;
   try {
     const body = await req.json().catch(() => ({}));
     orderId = body?.orderId;
+    invocationSource = body?.source;
     if (!orderId) {
       return new Response(JSON.stringify({ error: "orderId required" }), {
         status: 400,
@@ -566,7 +568,10 @@ Deno.serve(async (req) => {
 
     // Concurrency lock: refuse to start a new deploy if one is already in
     // flight. A stale lock older than 10 minutes is considered abandoned.
-    if (order.deployment_status === "deploying") {
+    // Skip this check when invoked by the bot_orders trigger — the trigger
+    // sets deployment_status='deploying' in the same transaction before
+    // calling us, so the lock would always trip on the first auto-deploy.
+    if (order.deployment_status === "deploying" && invocationSource !== "trigger") {
       const attemptedAt = (order as { deployment_attempted_at?: string | null })
         .deployment_attempted_at
         ? new Date(
