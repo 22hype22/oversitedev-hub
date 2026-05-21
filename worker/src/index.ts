@@ -335,14 +335,6 @@ async function updateRailwayServiceSource(serviceId: string, repoFullName: strin
 }
 
 async function setRailwayEnvVars(serviceId: string, variables: Record<string, string>) {
-  const variablesInput = Object.entries(variables).map(([name, value]) => ({
-    name,
-    value,
-    serviceId,
-    environmentId: RAILWAY_ENVIRONMENT_ID,
-    projectId: RAILWAY_PROJECT_ID,
-  }));
-
   await railwayGraphQL(`
     mutation VariableCollectionUpsert($input: VariableCollectionUpsertInput!) {
       variableCollectionUpsert(input: $input)
@@ -352,14 +344,24 @@ async function setRailwayEnvVars(serviceId: string, variables: Record<string, st
       projectId: RAILWAY_PROJECT_ID,
       environmentId: RAILWAY_ENVIRONMENT_ID,
       serviceId,
-      variables: Object.fromEntries(Object.entries(variables)),
+      variables: Object.fromEntries(Object.entries(variables).map(([name, value]) => [name, String(value).trim()])),
     },
   });
 }
 
-async function deployRailwayService(serviceId: string): Promise<void> {
-  // Explicitly kick a build after the repo connection so Railway cannot leave
-  // the service at "1 Change" waiting for a manual Deploy confirmation.
+async function deployRailwayService(serviceId: string, variables: Record<string, string>): Promise<void> {
+  // Explicitly redeploy after the atomic variableCollectionUpsert so Railway
+  // cannot leave the service at "1 Change" waiting for manual confirmation.
+  try {
+    await railwayGraphQL(`
+      mutation ServiceInstanceRedeploy($serviceId: String!, $environmentId: String!) {
+        serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
+      }
+    `, { serviceId, environmentId: RAILWAY_ENVIRONMENT_ID });
+    return;
+  } catch (e) {
+    console.warn("serviceInstanceRedeploy failed, trying serviceInstanceDeploy:", (e as Error).message);
+  }
   try {
     await railwayGraphQL(`
       mutation ServiceInstanceDeploy($serviceId: String!, $environmentId: String!) {
@@ -398,13 +400,23 @@ async function deployRailwayService(serviceId: string): Promise<void> {
     `, { serviceId, environmentId: RAILWAY_ENVIRONMENT_ID });
     return;
   } catch (e) {
-    console.warn("serviceDeploy failed, falling back to redeploy:", (e as Error).message);
+    console.warn("serviceDeploy failed, falling back to deploymentCreate:", (e as Error).message);
+  }
+  try {
+    await railwayGraphQL(`
+      mutation DeploymentCreate($input: DeploymentCreateInput!) {
+        deploymentCreate(input: $input) { id status }
+      }
+    `, { input: { projectId: RAILWAY_PROJECT_ID, serviceId, environmentId: RAILWAY_ENVIRONMENT_ID, variables } });
+    return;
+  } catch (e) {
+    console.warn("deploymentCreate with variables failed, trying without variables:", (e as Error).message);
   }
   await railwayGraphQL(`
-    mutation ServiceInstanceRedeploy($serviceId: String!, $environmentId: String!) {
-      serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
+    mutation DeploymentCreate($input: DeploymentCreateInput!) {
+      deploymentCreate(input: $input) { id status }
     }
-  `, { serviceId, environmentId: RAILWAY_ENVIRONMENT_ID });
+  `, { input: { projectId: RAILWAY_PROJECT_ID, serviceId, environmentId: RAILWAY_ENVIRONMENT_ID } });
 }
 
 // ============================================================
@@ -529,7 +541,7 @@ async function processBuildJob(job: BuildJob) {
 
     // 7. Deploy the service
     console.log(`[build:${id}] Deploying Railway service`);
-    await deployRailwayService(railwayServiceId);
+    await deployRailwayService(railwayServiceId, envVars);
 
     // 8. Update bot_orders with Railway service ID and mark ready
     await supabase.rpc("runtime_finalize_build", {
