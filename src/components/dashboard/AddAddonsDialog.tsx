@@ -239,7 +239,7 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
         <div className="flex-1 overflow-y-auto pr-1 -mr-1">
           {allAvailable.length === 0 ? (
             <div className="text-center py-8 text-sm text-muted-foreground">
-              You already own every add-on available for this bot. 🎉
+              You already have all available add-ons.
             </div>
           ) : available.length === 0 ? (
             <div className="text-center py-8 text-sm text-muted-foreground">
