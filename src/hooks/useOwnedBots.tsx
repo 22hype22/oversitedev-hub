@@ -83,8 +83,11 @@ function mapRow(row: any, opts: { viaSupport?: boolean; viaTeam?: boolean } = {}
     railway_service_id: row.railway_service_id ?? null,
     bot_bio: row.bot_bio ?? null,
     discord_last_username_change_at: row.discord_last_username_change_at ?? null,
+    activity_type: row.activity_type ?? null,
+    activity_text: row.activity_text ?? null,
   };
 }
+
 
 /**
  * Loads bots the signed-in user has ordered. `bots` is everything they've
