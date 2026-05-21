@@ -427,71 +427,32 @@ export const BotDiscordIdentityCard = ({
         </div>
       </div>
 
-      {/* Status (presence) */}
+      {/* Online status (presence) */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Activity className="h-3.5 w-3.5 text-primary" />
-          <Label className="text-xs">Status</Label>
+          <Label className="text-xs">Online status</Label>
         </div>
 
-        {/* Presence dot */}
-        <div className="space-y-1">
-          <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">
-            Online status
-          </Label>
-          <Select
-            value={presenceStatus}
-            onValueChange={(v) => setPresenceStatus(v as PresenceStatus)}
-            disabled={savingStatus}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PRESENCE_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  <span className="flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-full ${o.dot}`} />
-                    {o.label}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Activity */}
-        <div className="space-y-1">
-          <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">
-            Activity
-          </Label>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Select
-              value={activityType}
-              onValueChange={(v) => setActivityType(v as ActivityType)}
-              disabled={savingStatus}
-            >
-              <SelectTrigger className="sm:w-44">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ACTIVITY_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              value={activityText}
-              onChange={(e) => setActivityText(e.target.value)}
-              maxLength={128}
-              placeholder="your server"
-              disabled={savingStatus}
-              className="flex-1"
-            />
-          </div>
-        </div>
+        <Select
+          value={presenceStatus}
+          onValueChange={(v) => setPresenceStatus(v as PresenceStatus)}
+          disabled={savingStatus}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PRESENCE_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                <span className="flex items-center gap-2">
+                  <span className={`h-2 w-2 rounded-full ${o.dot}`} />
+                  {o.label}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         <div className="flex items-center justify-between gap-2">
           <p className="text-[10px] text-muted-foreground">
@@ -500,7 +461,7 @@ export const BotDiscordIdentityCard = ({
           <Button
             size="sm"
             onClick={saveStatus}
-            disabled={!statusDirty || savingStatus}
+            disabled={presenceStatus === savedPresenceStatus || savingStatus}
           >
             {savingStatus ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save status"}
           </Button>
