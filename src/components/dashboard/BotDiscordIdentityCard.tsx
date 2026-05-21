@@ -77,6 +77,7 @@ export const BotDiscordIdentityCard = ({
   initialUsername,
   initialActivityType,
   initialActivityText,
+  initialPresenceStatus,
   onUpdated,
 }: Props) => {
   const { user } = useAuth();
@@ -97,11 +98,18 @@ export const BotDiscordIdentityCard = ({
     (initialActivityType as ActivityType) ?? "playing",
   );
   const [activityText, setActivityText] = useState(initialActivityText ?? "");
+  const [presenceStatus, setPresenceStatus] = useState<PresenceStatus>(
+    (initialPresenceStatus as PresenceStatus) ?? "online",
+  );
   const [savedActivityType, setSavedActivityType] = useState<ActivityType | null>(
     (initialActivityType as ActivityType) ?? null,
   );
   const [savedActivityText, setSavedActivityText] = useState<string>(initialActivityText ?? "");
+  const [savedPresenceStatus, setSavedPresenceStatus] = useState<PresenceStatus>(
+    (initialPresenceStatus as PresenceStatus) ?? "online",
+  );
   const [savingStatus, setSavingStatus] = useState(false);
+
 
 
   const refresh = async () => {
