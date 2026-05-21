@@ -232,21 +232,57 @@ Deno.serve(async (req) => {
       // Without this, every apply_config / list_roles / etc. that the bot
       // claims but forgets to ack accumulates forever in 'claimed' and the
       // bot ends up looping over the same backlog on each poll.
-      const STALE_CLAIM_MS = 90_000;
+      const STALE_CLAIM_MS = 30_000;
       const staleCutoff = new Date(Date.now() - STALE_CLAIM_MS).toISOString();
-      const { error: sweepErr } = await admin
+      const nowIso = new Date().toISOString();
+      const { data: sweepClaimed, error: sweepErr } = await admin
         .from("bot_commands")
         .update({
           status: "failed",
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          completed_at: nowIso,
+          updated_at: nowIso,
           error_message: "auto-failed: claimed but never completed by worker",
         })
         .eq("bot_id", botId)
         .eq("status", "claimed")
-        .lt("claimed_at", staleCutoff);
+        .lt("claimed_at", staleCutoff)
+        .select("id, action");
       if (sweepErr) {
         console.warn("utilities-bot-api stale claim sweep failed", sweepErr.message);
+      } else if (sweepClaimed && sweepClaimed.length > 0) {
+        console.log("utilities-bot-api stale claim sweep", {
+          botId,
+          count: sweepClaimed.length,
+          actions: sweepClaimed.map((c: any) => c.action),
+        });
+      }
+
+      // Also auto-cancel apply_config commands that have been sitting in
+      // 'pending' for more than 2 minutes. The Python utilities bot writes
+      // config directly to the database, so a long-pending apply_config row
+      // means the queue is just churning and will never be consumed.
+      const PENDING_CANCEL_MS = 120_000;
+      const pendingCutoff = new Date(Date.now() - PENDING_CANCEL_MS).toISOString();
+      const { data: sweepPending, error: pendingSweepErr } = await admin
+        .from("bot_commands")
+        .update({
+          status: "canceled",
+          completed_at: nowIso,
+          updated_at: nowIso,
+          error_message: "auto-canceled: pending too long, no worker consumed it",
+        })
+        .eq("bot_id", botId)
+        .eq("status", "pending")
+        .eq("action", "apply_config")
+        .lt("created_at", pendingCutoff)
+        .select("id");
+      if (pendingSweepErr) {
+        console.warn("utilities-bot-api pending sweep failed", pendingSweepErr.message);
+      } else if (sweepPending && sweepPending.length > 0) {
+        console.log("utilities-bot-api stale pending apply_config canceled", {
+          botId,
+          count: sweepPending.length,
+        });
       }
 
       const claimCommand = async (actions: string[]) => {

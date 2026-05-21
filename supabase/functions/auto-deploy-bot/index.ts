@@ -715,6 +715,61 @@ async function applyDiscordIdentity(
   }
 }
 
+async function sendDeployedDM(
+  discordUserId: string,
+  botName: string | null | undefined,
+): Promise<{ ok: boolean; error?: string }> {
+  const notifierToken = Deno.env.get("OVERSITE_UTILITIES_BOT_TOKEN");
+  if (!notifierToken) {
+    return { ok: false, error: "OVERSITE_UTILITIES_BOT_TOKEN not configured" };
+  }
+  try {
+    const dmRes = await fetch("https://discord.com/api/v10/users/@me/channels", {
+      method: "POST",
+      headers: {
+        Authorization: `Bot ${notifierToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ recipient_id: discordUserId }),
+    });
+    if (!dmRes.ok) {
+      const text = await dmRes.text();
+      return { ok: false, error: `open DM ${dmRes.status}: ${text.slice(0, 200)}` };
+    }
+    const channel = await dmRes.json();
+    const channelId = channel?.id;
+    if (!channelId) return { ok: false, error: "no DM channel id returned" };
+
+    const name = botName?.trim() || "Your bot";
+    const content =
+      `🎉 **${name} is live!**\n\n` +
+      `Your bot has finished deploying and is online. ` +
+      `Head to your Oversite dashboard to invite it to your server and start configuring features.\n\n` +
+      `https://oversite.shop/dashboard`;
+
+    const msgRes = await fetch(
+      `https://discord.com/api/v10/channels/${channelId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bot ${notifierToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content }),
+      },
+    );
+    if (!msgRes.ok) {
+      const text = await msgRes.text();
+      return { ok: false, error: `send DM ${msgRes.status}: ${text.slice(0, 200)}` };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -741,7 +796,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderErr } = await admin
       .from("bot_orders")
-      .select("id, user_id, bot_name, bot_description, bot_bio, icon_url, base, bot_token, addons, railway_service_id, status, deployment_status, deployment_attempted_at")
+      .select("id, user_id, bot_name, bot_description, bot_bio, icon_url, base, bot_token, addons, railway_service_id, status, deployment_status, deployment_attempted_at, discord_user_id, ready_dm_sent")
       .eq("id", orderId)
       .maybeSingle();
 
@@ -966,6 +1021,30 @@ Deno.serve(async (req) => {
     // dashboard renders every config block the customer paid for the
     // moment they land on the page after deploy.
     await provisionAddonEntitlements(admin, orderId, order.base, purchasedAddons);
+
+    // Send the "your bot is live" Discord DM directly from the edge function
+    // using the Oversite Utilities notifier bot. This replaces the previous
+    // Python-bot-polled /pending?type=ready flow which never ran reliably.
+    const discordUserId = (order as any).discord_user_id as string | null;
+    const alreadyDmd = Boolean((order as any).ready_dm_sent);
+    if (discordUserId && !alreadyDmd) {
+      const dm = await sendDeployedDM(discordUserId, (order as any).bot_name);
+      if (dm.ok) {
+        await admin
+          .from("bot_orders")
+          .update({ ready_dm_sent: true, updated_at: new Date().toISOString() })
+          .eq("id", orderId);
+        console.log("[auto-deploy-bot] deployed DM sent", { orderId, discordUserId });
+      } else {
+        console.warn("[auto-deploy-bot] deployed DM failed", { orderId, discordUserId, error: dm.error });
+      }
+    } else {
+      console.log("[auto-deploy-bot] deployed DM skipped", {
+        orderId,
+        hasDiscordUserId: Boolean(discordUserId),
+        alreadyDmd,
+      });
+    }
 
 
     return new Response(
