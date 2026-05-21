@@ -187,9 +187,13 @@ export function TeamMembersTab({
                       <Select
                         value={m.role}
                         onValueChange={async (v) => {
-                          const { data, error } = await (supabase as any).rpc("team_update_member_role", {
-                            _member_id: m.id, _role: v,
-                          });
+                          const rpcName = viewerIsOwner
+                            ? "team_update_member_role_by_email"
+                            : "team_update_member_role";
+                          const args = viewerIsOwner
+                            ? { _email: m.member_email, _role: v }
+                            : { _member_id: m.id, _role: v };
+                          const { data, error } = await (supabase as any).rpc(rpcName, args);
                           if (error || !data?.ok) {
                             toast.error(error?.message ?? data?.error ?? "Failed");
                             return;
