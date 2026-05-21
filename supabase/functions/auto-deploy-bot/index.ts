@@ -846,7 +846,7 @@ Deno.serve(async (req) => {
         message: e instanceof Error ? e.message : String(e),
       });
     }
-    const { upserted, skipped } = await setVariables(
+    await setVariables(
       projectId,
       environmentId,
       targetServiceId,
