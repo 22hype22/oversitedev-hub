@@ -420,7 +420,7 @@ export const BotDiscordIdentityCard = ({
           <Button
             size="sm"
             onClick={saveBio}
-            disabled={!bioDirty || savingBio}
+            disabled={savingBio || bio.length > 190}
           >
             {savingBio ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save bio"}
           </Button>
