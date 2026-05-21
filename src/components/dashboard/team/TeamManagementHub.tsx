@@ -59,10 +59,11 @@ export function TeamManagementHub({ botId, ownerUserId, ownerEmail }: Props) {
           <Users className="h-4 w-4 text-primary" />
         </div>
         <div className="flex-1">
-          <div className="font-semibold">Team for this bot</div>
+          <div className="font-semibold">Your team</div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Invite teammates to this specific bot. Each bot has its own roster
-            — invites here don't apply to your other bots.
+            One team across all of your bots. Members you invite get access to
+            every bot you own — when you transfer ownership, you choose which
+            bots move over.
           </p>
         </div>
         {!viewerIsOwner && role && (
