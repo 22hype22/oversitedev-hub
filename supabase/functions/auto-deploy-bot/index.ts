@@ -513,9 +513,36 @@ async function fetchServiceVariables(
 }
 
 async function redeploy(serviceId: string, environmentId: string) {
-  // serviceInstanceDeployV2 explicitly starts a build from the service source;
-  // this avoids Railway leaving the service at "1 Change" waiting for a
-  // manual Deploy confirmation.
+  // Explicitly kick a build after the repo connection so Railway cannot leave
+  // the service at "1 Change" waiting for a manual Deploy confirmation.
+  try {
+    await railway(
+      `mutation($serviceId: String!, $environmentId: String!) {
+        serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId)
+      }`,
+      { serviceId, environmentId },
+    );
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] serviceInstanceDeploy failed, trying deploymentTrigger", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+  try {
+    await railway(
+      `mutation($serviceId: String!, $environmentId: String!) {
+        deploymentTrigger(serviceId: $serviceId, environmentId: $environmentId)
+      }`,
+      { serviceId, environmentId },
+    );
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] deploymentTrigger failed, trying serviceInstanceDeployV2", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
   try {
     await railway(
       `mutation($serviceId: String!, $environmentId: String!) {
