@@ -1285,7 +1285,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         format: cfg.channel_name_format ?? prev.format ?? "📊 Members: {count}",
         updateMinutes:
           typeof cfg.update_interval_minutes === "number"
-            ? cfg.update_interval_minutes
+            ? Math.max(10, cfg.update_interval_minutes)
             : (prev.updateMinutes ?? 10),
       }));
       setAppliedAt((data as any).applied_at ?? null);
@@ -1305,7 +1305,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         show_bots: !!values.showBots,
         show_boosts: !!values.showBoosts,
         channel_name_format: String(values.format ?? "📊 Members: {count}"),
-        update_interval_minutes: Math.max(1, Number(values.updateMinutes ?? 10) || 10),
+        update_interval_minutes: Math.max(10, Number(values.updateMinutes ?? 10) || 10),
       },
       updated_at: new Date().toISOString(),
     };
