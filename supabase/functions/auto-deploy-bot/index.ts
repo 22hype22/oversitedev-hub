@@ -516,6 +516,38 @@ async function fetchServiceVariables(
   return out;
 }
 
+async function deploymentCreate(
+  projectId: string,
+  serviceId: string,
+  environmentId: string,
+  variables: Record<string, string>,
+  required: boolean,
+) {
+  try {
+    await railway(
+      `mutation($input: DeploymentCreateInput!) {
+        deploymentCreate(input: $input) { id status }
+      }`,
+      { input: { projectId, serviceId, environmentId, variables } },
+    );
+    console.log("[auto-deploy-bot] deploymentCreate ok", { serviceId, withVariables: true });
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] deploymentCreate with variables failed", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+    if (!required) return;
+  }
+  await railway(
+    `mutation($input: DeploymentCreateInput!) {
+      deploymentCreate(input: $input) { id status }
+    }`,
+    { input: { projectId, serviceId, environmentId } },
+  );
+  console.log("[auto-deploy-bot] deploymentCreate ok", { serviceId, withVariables: false });
+}
+
 async function deployService(
   projectId: string,
   serviceId: string,
@@ -533,6 +565,7 @@ async function deployService(
       { serviceId, environmentId },
     );
     console.log("[auto-deploy-bot] serviceInstanceRedeploy ok", { serviceId });
+    await deploymentCreate(projectId, serviceId, environmentId, variables, false);
     return;
   } catch (e) {
     console.warn("[auto-deploy-bot] serviceInstanceRedeploy failed, trying serviceInstanceDeploy", {
