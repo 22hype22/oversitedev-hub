@@ -778,7 +778,18 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  // Workers need the legacy JWT anon key (eyJ...) to talk to PostgREST/RPC.
+  // Newer Supabase projects auto-inject SUPABASE_ANON_KEY as a publishable
+  // key (sb_publishable_...) which PostgREST rejects. Prefer an explicit
+  // SUPABASE_ANON_JWT secret when present.
+  const envAnon = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  const anonJwt = Deno.env.get("SUPABASE_ANON_JWT") ?? "";
+  const anonKey = anonJwt && anonJwt.startsWith("eyJ")
+    ? anonJwt
+    : (envAnon.startsWith("eyJ") ? envAnon : anonJwt || envAnon);
+  if (!anonKey.startsWith("eyJ")) {
+    console.warn("[auto-deploy-bot] anon key does not look like a JWT — worker may fail to auth. Set SUPABASE_ANON_JWT secret to the legacy anon JWT (eyJ...).");
+  }
   const admin = createClient(supabaseUrl, serviceKey);
 
   let orderId: string | undefined;
