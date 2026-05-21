@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOwnedBots, type OwnedBot } from "@/hooks/useOwnedBots";
+import { useAddonOverrides } from "@/hooks/useAddonOverrides";
 import {
   getAddonCategory,
   getAddonIdsForBase,
   getAddonLabel,
   getAddonPrice,
+  getIncludedAddonsForBase,
   type AddonCategory,
 } from "@/lib/botCatalog";
 import {
@@ -48,6 +50,7 @@ const CATEGORY_LABELS: Record<CategoryFilter, string> = {
 
 export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProps) {
   const { hasDashboardAccess, reload } = useOwnedBots();
+  const { isIncluded } = useAddonOverrides();
   const [selected, setSelected] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [query, setQuery] = useState("");
@@ -65,10 +68,25 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
   }, [open, bot?.id]);
 
 
-  const owned = useMemo(() => new Set(bot?.addons ?? []), [bot?.addons.join("|")]);
+  // An addon is considered "already provisioned" if any of:
+  //   - it's on the bot order (purchased)
+  //   - it's part of the bot's base (free, always-on)
+  //   - admin has flipped it to INCLUDED globally (free for everyone)
+  const owned = useMemo(() => {
+    if (!bot) return new Set<string>();
+    const set = new Set<string>(bot.addons ?? []);
+    for (const id of getIncludedAddonsForBase(bot.base)) set.add(id);
+    return set;
+  }, [bot?.id, bot?.base, bot?.addons.join("|")]);
+
   const allAvailable = useMemo(
-    () => (bot ? getAddonIdsForBase(bot.base).filter((id) => !owned.has(id)) : []),
-    [bot?.base, bot?.addons.join("|"), owned],
+    () =>
+      bot
+        ? getAddonIdsForBase(bot.base).filter(
+            (id) => !owned.has(id) && !isIncluded(id),
+          )
+        : [],
+    [bot?.base, owned, isIncluded],
   );
 
   // Counts per category — used to disable empty filter chips.
@@ -221,7 +239,7 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
         <div className="flex-1 overflow-y-auto pr-1 -mr-1">
           {allAvailable.length === 0 ? (
             <div className="text-center py-8 text-sm text-muted-foreground">
-              You already own every add-on available for this bot. 🎉
+              You already have all available add-ons.
             </div>
           ) : available.length === 0 ? (
             <div className="text-center py-8 text-sm text-muted-foreground">
