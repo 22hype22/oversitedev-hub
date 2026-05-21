@@ -409,7 +409,7 @@ async function createServiceFromRepo(
   // the GitHub link on its own — serviceConnect is the documented mutation.
   try {
     await railway(
-      `mutation($id: String!, $input: GitHubRepoDeployInput!) {
+      `mutation($id: String!, $input: ServiceConnectInput!) {
         serviceConnect(id: $id, input: $input) { id }
       }`,
       {
