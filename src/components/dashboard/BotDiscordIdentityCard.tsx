@@ -64,8 +64,11 @@ export const BotDiscordIdentityCard = ({
   lastUsernameChangeAt,
   initialBio,
   initialUsername,
+  initialActivityType,
+  initialActivityText,
   onUpdated,
 }: Props) => {
+  const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState<LiveIdentity>({
@@ -78,6 +81,17 @@ export const BotDiscordIdentityCard = ({
   const [savingUsername, setSavingUsername] = useState(false);
   const [savingBio, setSavingBio] = useState(false);
   const [savingAvatar, setSavingAvatar] = useState(false);
+
+  const [activityType, setActivityType] = useState<ActivityType>(
+    (initialActivityType as ActivityType) ?? "playing",
+  );
+  const [activityText, setActivityText] = useState(initialActivityText ?? "");
+  const [savedActivityType, setSavedActivityType] = useState<ActivityType | null>(
+    (initialActivityType as ActivityType) ?? null,
+  );
+  const [savedActivityText, setSavedActivityText] = useState<string>(initialActivityText ?? "");
+  const [savingStatus, setSavingStatus] = useState(false);
+
 
   const refresh = async () => {
     setLoading(true);
