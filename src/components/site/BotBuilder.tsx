@@ -257,11 +257,12 @@ const SCRATCH_CATEGORIES: { id: string; label: string; icon: typeof Shield; addo
 type Identity = {
   name: string;
   description: string;
+  bio: string;
   icon: string | null;
   banner: string | null;
 };
 
-const EMPTY_IDENTITY: Identity = { name: "", description: "", icon: null, banner: null };
+const EMPTY_IDENTITY: Identity = { name: "", description: "", bio: "", icon: null, banner: null };
 
 const PACK_TABS: { id: string; label: string; icon: typeof Shield }[] = [
   { id: "protection", label: "Protection bot", icon: Shield },
@@ -410,8 +411,7 @@ export const BotBuilder = () => {
   }, [currentAddons, addonIsIncluded, userSelectedAddons]);
 
   const activeIdentity: Identity = usesPackTabs ? packIdentities[effectiveActiveTab] : identity;
-  const { name, description, icon, banner } = activeIdentity;
-
+  const { name, description, bio, icon, banner } = activeIdentity;
 
   const updateActiveIdentity = (patch: Partial<Identity>) => {
     if (usesPackTabs) {
@@ -425,6 +425,7 @@ export const BotBuilder = () => {
   };
   const setName = (v: string) => updateActiveIdentity({ name: v });
   const setDescription = (v: string) => updateActiveIdentity({ description: v });
+  const setBio = (v: string) => updateActiveIdentity({ bio: v });
   const setIcon = (v: string) => updateActiveIdentity({ icon: v });
   const setBanner = (v: string) => updateActiveIdentity({ banner: v });
 
@@ -654,6 +655,7 @@ export const BotBuilder = () => {
         user_id: user.id,
         bot_name: parentIdentity.name.trim() || primary.name.trim(),
         bot_description: (parentIdentity.description || primary.description).trim() || null,
+        bot_bio: (parentIdentity.bio || primary.bio || "").trim().slice(0, 190) || null,
         icon_url: parentIdentity.icon ?? primary.icon,
         banner_url: parentIdentity.banner ?? primary.banner,
         base: parentBase,
@@ -696,6 +698,7 @@ export const BotBuilder = () => {
             parent_order_id: inserted.id,
             bot_name: (ident.name || `${t.label}`).trim(),
             bot_description: ident.description?.trim() || null,
+            bot_bio: (ident.bio || "").trim().slice(0, 190) || null,
             icon_url: ident.icon,
             banner_url: ident.banner,
             // Sibling row's base is the specific category, not "scratch"
@@ -824,6 +827,7 @@ export const BotBuilder = () => {
             user_id: user.id,
             bot_name: primary.name.trim(),
             bot_description: primary.description.trim() || null,
+            bot_bio: (primary.bio || "").trim().slice(0, 190) || null,
             icon_url: primary.icon,
             banner_url: primary.banner,
             base: baseField,
@@ -1238,6 +1242,20 @@ export const BotBuilder = () => {
                       Tip: click out of this box to slide to the next bot.
                     </p>
                   )}
+                </div>
+                <div>
+                  <Label htmlFor="bot-bio" className="text-xs text-muted-foreground mb-2 block">
+                    Discord profile bio <span className="text-muted-foreground/70">(optional, max 190 chars)</span>
+                  </Label>
+                  <Textarea
+                    id="bot-bio"
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value.slice(0, 190))}
+                    placeholder="Short About Me shown on your bot's Discord profile."
+                    rows={2}
+                    maxLength={190}
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground text-right">{bio.length}/190</p>
                 </div>
               </div>
             </div>
