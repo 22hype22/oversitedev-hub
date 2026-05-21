@@ -473,14 +473,24 @@ async function setVariables(
   // pending state requiring manual Deploy confirmation.
   let upserted = 0;
   let skipped = 0;
+  const existingKeys = Object.keys(existing);
+  const skippedNames: string[] = [];
+  const changedNames: string[] = [];
   for (const [name, value] of Object.entries(vars)) {
     if (typeof value !== "string") {
       throw new Error(`Variable ${name} is not a string`);
     }
-    if (Object.prototype.hasOwnProperty.call(existing, name) && existing[name] === value) {
+    // Normalize to strings + trim so booleans-as-strings and stray whitespace
+    // don't trigger a phantom "1 Change" in Railway.
+    const newStr = String(value).trim();
+    const hasExisting = Object.prototype.hasOwnProperty.call(existing, name);
+    const existingStr = hasExisting ? String(existing[name] ?? "").trim() : null;
+    if (hasExisting && existingStr === newStr) {
       skipped++;
+      skippedNames.push(name);
       continue;
     }
+    changedNames.push(name);
     await railway(
       `mutation($input: VariableUpsertInput!) {
         variableUpsert(input: $input)
