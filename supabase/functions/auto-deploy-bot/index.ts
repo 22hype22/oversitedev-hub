@@ -713,6 +713,10 @@ Deno.serve(async (req) => {
     const targetServiceId = existingServiceId ??
       await createServiceFromRepo(projectId, environmentId, serviceName, repo);
 
+    if (existingServiceId) {
+      await updateServiceSource(targetServiceId, environmentId, repo);
+    }
+
     await admin
       .from("bot_orders")
       .update({ railway_service_id: targetServiceId })
