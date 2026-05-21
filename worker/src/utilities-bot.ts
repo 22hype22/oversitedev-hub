@@ -26,10 +26,113 @@ import { supabase } from "./supabase.js";
 
 const UTILS_TOKEN = process.env.OVERSITE_UTILITIES_BOT_TOKEN;
 const UTILS_POLL_INTERVAL_MS = Number(process.env.UTILS_POLL_INTERVAL_MS ?? 5000);
+const UTILS_PENDING_POLL_INTERVAL_MS = Number(
+  process.env.UTILS_PENDING_POLL_INTERVAL_MS ?? 15000,
+);
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_ANON_KEY =
   process.env.SUPABASE_ANON_KEY ?? process.env.SUPABASE_PUBLISHABLE_KEY ?? "";
 const INTERNAL_CHARGE_SECRET = process.env.INTERNAL_CHARGE_SECRET ?? "";
+const WORKER_TOKEN = process.env.WORKER_TOKEN ?? "";
+const UTILS_API_BASE = `${SUPABASE_URL}/functions/v1/utilities-bot-api`;
+
+type PendingOrder = {
+  id: string;
+  bot_name: string | null;
+  discord_user_id: string | null;
+  discord_username: string | null;
+  status: string;
+  deployment_status: string | null;
+  railway_service_id: string | null;
+};
+
+async function utilsApi(
+  path: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  const headers = new Headers(init.headers ?? {});
+  headers.set("Content-Type", "application/json");
+  headers.set("Authorization", `Bearer ${SUPABASE_ANON_KEY}`);
+  if (WORKER_TOKEN) headers.set("x-worker-token", WORKER_TOKEN);
+  return fetch(`${UTILS_API_BASE}${path}`, { ...init, headers });
+}
+
+async function markDmSent(orderId: string, type: "in_build" | "ready" | "cancel") {
+  try {
+    const res = await utilsApi("/mark-dm-sent", {
+      method: "POST",
+      body: JSON.stringify({ orderId, type }),
+    });
+    if (!res.ok) {
+      console.error(
+        `[utils-bot] mark-dm-sent ${type} failed for ${orderId}: ${res.status} ${await res.text()}`,
+      );
+    }
+  } catch (e) {
+    console.error(
+      `[utils-bot] mark-dm-sent ${type} threw for ${orderId}:`,
+      (e as Error).message,
+    );
+  }
+}
+
+function buildMessage(
+  type: "in_build" | "ready" | "cancel",
+  order: PendingOrder,
+): string {
+  const name = order.bot_name ?? "your bot";
+  if (type === "ready") {
+    return `🎉 Your bot **${name}** is live! It's been deployed and is ready to be invited to your server. Head to your Oversite dashboard to grab the invite link and configure it.`;
+  }
+  if (type === "cancel") {
+    return `Your order for **${name}** has been cancelled. If this wasn't expected, please reach out to support.`;
+  }
+  // in_build = preorder confirmation prompt
+  return `Hi! We're about to start building your bot **${name}**. Please reply **YES** to confirm and we'll charge your card and begin the build, or **NO** to cancel.`;
+}
+
+async function pollPendingDms(type: "in_build" | "ready" | "cancel") {
+  let orders: PendingOrder[] = [];
+  try {
+    const res = await utilsApi(`/pending?type=${type}&limit=25`, { method: "GET" });
+    if (!res.ok) {
+      console.error(
+        `[utils-bot] pending ${type} fetch failed: ${res.status} ${await res.text()}`,
+      );
+      return;
+    }
+    const body = (await res.json()) as { orders?: PendingOrder[] };
+    orders = body.orders ?? [];
+  } catch (e) {
+    console.error(`[utils-bot] pending ${type} threw:`, (e as Error).message);
+    return;
+  }
+
+  console.log(`[utils-bot] poll pending ${type}: ${orders.length} order(s)`);
+  if (orders.length === 0) return;
+
+  for (const order of orders) {
+    if (!order.discord_user_id) {
+      console.warn(
+        `[utils-bot] ${type} order ${order.id} has no discord_user_id; marking sent to skip`,
+      );
+      await markDmSent(order.id, type);
+      continue;
+    }
+    const message = buildMessage(type, order);
+    console.log(
+      `[utils-bot] sending ${type} DM to ${order.discord_user_id} for order ${order.id} (${order.bot_name})`,
+    );
+    const ok = await dmUser(order.discord_user_id, message);
+    if (ok) {
+      await markDmSent(order.id, type);
+    } else {
+      console.error(
+        `[utils-bot] ${type} DM failed for order ${order.id}; will retry on next poll`,
+      );
+    }
+  }
+}
 
 type DmCmd = {
   id: string;
