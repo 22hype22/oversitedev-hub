@@ -602,10 +602,29 @@ Deno.serve(async (req) => {
       })
       .eq("id", orderId);
 
+    // Apply the customer's chosen identity (username/avatar/bio) to the
+    // Discord application now that we have a confirmed token. This makes the
+    // bot come online already branded without any manual step from the owner.
+    const identityRes = await applyDiscordIdentity(botToken.trim(), {
+      username: (order as any).bot_name ?? null,
+      iconUrl: (order as any).icon_url ?? null,
+      bio: (order as any).bot_bio ?? (order as any).bot_description ?? null,
+    });
+    if (identityRes.ok) {
+      const patch: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      };
+      if ((order as any).bot_name) {
+        patch.discord_last_username_change_at = new Date().toISOString();
+      }
+      await admin.from("bot_orders").update(patch).eq("id", orderId);
+    }
+
     // Provision base-included + purchased addon entitlements so the
     // dashboard renders every config block the customer paid for the
     // moment they land on the page after deploy.
     await provisionAddonEntitlements(admin, orderId, order.base, purchasedAddons);
+
 
     return new Response(
       JSON.stringify({ ok: true, serviceId: newServiceId }),
