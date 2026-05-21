@@ -484,7 +484,7 @@ export const BotOrdersLog = () => {
             <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="preorder">Preorders</SelectItem>
             <SelectItem value="paid">Paid</SelectItem>
-            <SelectItem value="building">In build</SelectItem>
+            <SelectItem value="building">Confirmation</SelectItem>
             <SelectItem value="ready">Ready</SelectItem>
             <SelectItem value="live">Live</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
