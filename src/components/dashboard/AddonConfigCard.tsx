@@ -2347,12 +2347,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         <Input
           id={f.key}
           type={f.type === "number" ? "number" : "text"}
+          min={f.type === "number" && f.key === "updateMinutes" ? 10 : undefined}
           value={String(value ?? "")}
           placeholder={f.placeholder}
           onChange={(e) =>
             setValue(
               f.key,
-              f.type === "number" ? Number(e.target.value) : e.target.value,
+              f.type === "number" && f.key === "updateMinutes"
+                ? Math.max(10, Number(e.target.value) || 10)
+                : f.type === "number" ? Number(e.target.value) : e.target.value,
             )
           }
         />
