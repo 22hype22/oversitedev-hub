@@ -235,7 +235,14 @@ async function processCommand(cmd: Cmd) {
         runtimes.delete(cmd.bot_id);
         break;
       }
+      case "set_status": {
+        const type = String(cmd.payload?.activity_type ?? "playing");
+        const text = String(cmd.payload?.activity_text ?? "");
+        await runtime.setStatus(type, text);
+        break;
+      }
     }
+
     await completeCommand(cmd.id, true);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
