@@ -36,41 +36,17 @@ async function railway(query: string, variables: Record<string, unknown>) {
   return json.data;
 }
 
-async function getEnvironmentId(serviceId: string): Promise<string | null> {
+async function deleteService(serviceId: string): Promise<boolean> {
   try {
-    const data = await railway(
-      `query($id: String!) {
-        service(id: $id) { project { environments { edges { node { id name } } } } }
-      }`,
+    await railway(
+      `mutation($id: String!) { serviceDelete(id: $id) }`,
       { id: serviceId },
     );
-    const edges = data?.service?.project?.environments?.edges ?? [];
-    const prod = edges.find((e: any) => e.node.name === "production") ?? edges[0];
-    return prod?.node?.id ?? null;
-  } catch {
-    return null;
+    return true;
+  } catch (err) {
+    console.warn("[cancel-bot-deploy] delete failed", (err as Error).message);
+    return false;
   }
-}
-
-async function scaleToZero(serviceId: string, environmentId: string) {
-  // Set replicas to 0 so the service stops running but stays available for inspection.
-  await railway(
-    `mutation($serviceId: String!, $environmentId: String!, $replicas: Int!) {
-      serviceInstanceUpdate(
-        serviceId: $serviceId,
-        environmentId: $environmentId,
-        input: { numReplicas: $replicas }
-      )
-    }`,
-    { serviceId, environmentId, replicas: 0 },
-  ).catch((err) => console.warn("[cancel-bot-deploy] scale failed", err.message));
-}
-
-async function deleteService(serviceId: string) {
-  await railway(
-    `mutation($id: String!) { serviceDelete(id: $id) }`,
-    { id: serviceId },
-  ).catch((err) => console.warn("[cancel-bot-deploy] delete failed", err.message));
 }
 
 Deno.serve(async (req) => {
@@ -107,24 +83,39 @@ Deno.serve(async (req) => {
     }
 
     const serviceId = order.railway_service_id as string | null;
+    let deleted = false;
     if (serviceId) {
-      const envId = await getEnvironmentId(serviceId);
-      if (envId) await scaleToZero(serviceId, envId);
-      // Then fully remove the service so the Railway slot is freed.
-      await deleteService(serviceId);
+      // Fully remove the Railway service so cancelled bots don't pile up.
+      deleted = await deleteService(serviceId);
+    }
+
+    // Release any token assigned to this order back to the pool (safety net —
+    // the bot_orders cancel trigger normally does this, but make it idempotent
+    // so a direct invocation still cleans up.)
+    const { error: releaseErr } = await admin
+      .from("bot_token_pool")
+      .update({
+        status: "available",
+        assigned_bot_id: null,
+        assigned_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("assigned_bot_id", orderId);
+    if (releaseErr) {
+      console.warn("[cancel-bot-deploy] token release failed", releaseErr.message);
     }
 
     await admin
       .from("bot_orders")
       .update({
         railway_service_id: null,
-        deployment_status: "pending",
+        deployment_status: "cancelled",
         deployment_error: null,
       })
       .eq("id", orderId);
 
     return new Response(
-      JSON.stringify({ ok: true, teardown: serviceId ?? null }),
+      JSON.stringify({ ok: true, teardown: serviceId ?? null, deleted }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
