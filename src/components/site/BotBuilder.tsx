@@ -698,6 +698,7 @@ export const BotBuilder = () => {
             parent_order_id: inserted.id,
             bot_name: (ident.name || `${t.label}`).trim(),
             bot_description: ident.description?.trim() || null,
+            bot_bio: (ident.bio || "").trim().slice(0, 190) || null,
             icon_url: ident.icon,
             banner_url: ident.banner,
             // Sibling row's base is the specific category, not "scratch"
