@@ -404,5 +404,29 @@ export async function startUtilitiesBot() {
     );
   }, UTILS_POLL_INTERVAL_MS);
 
-  console.log("[utils-bot] started — polling send_dm commands every", UTILS_POLL_INTERVAL_MS, "ms");
+  // Poll the utilities-bot-api /pending endpoint for orders that need a
+  // "your bot is live" / "your build is starting" / "your order was cancelled"
+  // DM. Each type clears itself via /mark-dm-sent after a successful send.
+  const runPendingPoll = () => {
+    pollPendingDms("ready").catch((e) =>
+      console.error("[utils-bot] pending ready loop error:", (e as Error).message),
+    );
+    pollPendingDms("in_build").catch((e) =>
+      console.error("[utils-bot] pending in_build loop error:", (e as Error).message),
+    );
+    pollPendingDms("cancel").catch((e) =>
+      console.error("[utils-bot] pending cancel loop error:", (e as Error).message),
+    );
+  };
+  // Run once on boot so we don't wait a full interval.
+  runPendingPoll();
+  setInterval(runPendingPoll, UTILS_PENDING_POLL_INTERVAL_MS);
+
+  console.log(
+    "[utils-bot] started — send_dm poll every",
+    UTILS_POLL_INTERVAL_MS,
+    "ms; /pending poll every",
+    UTILS_PENDING_POLL_INTERVAL_MS,
+    "ms",
+  );
 }
