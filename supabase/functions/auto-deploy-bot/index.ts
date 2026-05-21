@@ -465,16 +465,21 @@ async function setVariables(
   environmentId: string,
   serviceId: string,
   vars: Record<string, string>,
+  existing: Record<string, string> = {},
 ) {
   // Use per-variable variableUpsert instead of variableCollectionUpsert.
-  // The collection mutation takes `variables` as a JSON scalar, and we've
-  // seen Railway end up with empty values for tokens containing dots
-  // (Discord tokens look like "MTQ5...GZMZ3l.j1Xh..."). variableUpsert
-  // takes name/value as explicit String args, eliminating any JSON scalar
-  // coercion risk.
+  // Skip variables whose value already matches what Railway has stored —
+  // re-upserting identical values can leave the service in a "1 Change"
+  // pending state requiring manual Deploy confirmation.
+  let upserted = 0;
+  let skipped = 0;
   for (const [name, value] of Object.entries(vars)) {
     if (typeof value !== "string") {
       throw new Error(`Variable ${name} is not a string`);
+    }
+    if (Object.prototype.hasOwnProperty.call(existing, name) && existing[name] === value) {
+      skipped++;
+      continue;
     }
     await railway(
       `mutation($input: VariableUpsertInput!) {
@@ -490,12 +495,15 @@ async function setVariables(
         },
       },
     );
+    upserted++;
     console.log("[auto-deploy-bot] variableUpsert ok", {
       serviceId,
       name,
       valueLength: value.length,
     });
   }
+  console.log("[auto-deploy-bot] setVariables summary", { serviceId, upserted, skipped });
+  return { upserted, skipped };
 }
 
 async function fetchServiceVariables(
