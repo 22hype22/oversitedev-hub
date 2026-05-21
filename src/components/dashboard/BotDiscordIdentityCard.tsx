@@ -197,6 +197,56 @@ export const BotDiscordIdentityCard = ({
     }
   };
 
+  const statusDirty =
+    activityType !== (savedActivityType ?? "playing") ||
+    activityText.trim() !== (savedActivityText ?? "").trim();
+
+  const saveStatus = async () => {
+    if (!user) {
+      toast.error("Sign in required");
+      return;
+    }
+    const text = activityText.trim();
+    if (text.length > 128) {
+      toast.error("Status message must be 128 characters or fewer");
+      return;
+    }
+    setSavingStatus(true);
+    try {
+      // Persist to bot_orders so it restores on restart
+      const { error: upErr } = await (supabase as any)
+        .from("bot_orders")
+        .update({ activity_type: activityType, activity_text: text || null })
+        .eq("id", botId);
+      if (upErr) throw upErr;
+
+      // Queue a live update command for the worker
+      const { error: cmdErr } = await (supabase as any)
+        .from("bot_commands")
+        .insert({
+          bot_id: botId,
+          user_id: user.id,
+          requested_by: user.id,
+          action: "set_status",
+          payload: { activity_type: activityType, activity_text: text },
+        });
+      if (cmdErr) throw cmdErr;
+
+      setSavedActivityType(activityType);
+      setSavedActivityText(text);
+      toast.success("Status updated", {
+        description: "Your bot will apply the new presence shortly.",
+      });
+      onUpdated?.();
+    } catch (e: any) {
+      toast.error("Couldn't update status", { description: e?.message });
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
+
+
   return (
     <Card className="p-5 space-y-5 bg-card/40 border-border">
       <div className="flex items-center justify-between gap-3">
