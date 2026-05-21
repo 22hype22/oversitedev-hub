@@ -32,7 +32,6 @@ Deno.serve(async (req) => {
   }
 
   if (!email || !role) return json({ ok: false, error: 'email and role required' }, 400)
-  if (!botId) return json({ ok: false, error: 'botId required' }, 400)
 
   // Caller-scoped client → RPC runs as the inviting user
   const userClient = createClient(SUPABASE_URL, ANON_KEY, {
@@ -43,11 +42,12 @@ Deno.serve(async (req) => {
   if (userErr || !userResp.user) return json({ ok: false, error: 'not authenticated' }, 401)
   const inviterEmail = userResp.user.email ?? null
 
-  const { data: inviteResp, error: inviteErr } = await userClient.rpc('team_invite_member', {
-    _email: email,
-    _role: role,
-    _bot_id: botId,
-  })
+  // If a botId is provided, scope the invite to that single bot (legacy).
+  // Otherwise invite across every bot the caller owns so the dashboard team
+  // stays unified across the owner's bots.
+  const { data: inviteResp, error: inviteErr } = botId
+    ? await userClient.rpc('team_invite_member', { _email: email, _role: role, _bot_id: botId })
+    : await userClient.rpc('team_invite_member_all_owner_bots', { _email: email, _role: role })
 
   if (inviteErr) return json({ ok: false, error: inviteErr.message }, 400)
   const result = inviteResp as { ok: boolean; error?: string; invite_token?: string; id?: string }
