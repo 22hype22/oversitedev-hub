@@ -265,7 +265,13 @@ export function TeamMembersTab({
                           <Button
                             size="sm" variant="ghost" className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                             onClick={async () => {
-                              const { data, error } = await (supabase as any).rpc("team_remove_member", { _member_id: m.id });
+                              const rpcName = viewerIsOwner
+                                ? "team_remove_member_by_email"
+                                : "team_remove_member";
+                              const args = viewerIsOwner
+                                ? { _email: m.member_email }
+                                : { _member_id: m.id };
+                              const { data, error } = await (supabase as any).rpc(rpcName, args);
                               if (error || !data?.ok) {
                                 toast.error(error?.message ?? data?.error ?? "Failed");
                                 return;
