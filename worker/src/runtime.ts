@@ -131,15 +131,20 @@ export class BotRuntime {
       await client.login(token);
       await this.registerSlashCommands(token, client.user!.id);
 
-      // Restore saved presence (Playing / Watching / etc.) if any
-      if (config.activity_type && config.activity_text) {
+      // Restore saved presence (Playing / Watching / etc. + online/idle/dnd/invisible)
+      if (config.activity_type || config.presence_status) {
         try {
-          this.applyPresence(config.activity_type, config.activity_text);
+          this.applyPresence(
+            config.activity_type ?? "playing",
+            config.activity_text ?? "",
+            config.presence_status ?? "online",
+          );
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           await appendLog(this.botId, "warn", `Could not restore presence: ${msg}`);
         }
       }
+
 
 
 
