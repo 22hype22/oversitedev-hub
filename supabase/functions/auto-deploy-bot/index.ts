@@ -351,6 +351,69 @@ async function redeploy(serviceId: string, environmentId: string) {
   );
 }
 
+async function fetchImageAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const contentType = res.headers.get("content-type") ?? "image/png";
+    const buf = new Uint8Array(await res.arrayBuffer());
+    // Cap at ~8 MB raw to stay well under Discord's limit.
+    if (buf.byteLength > 8_000_000) return null;
+    let bin = "";
+    for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+    const b64 = btoa(bin);
+    return `data:${contentType};base64,${b64}`;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] avatar fetch failed", { url, e: String(e) });
+    return null;
+  }
+}
+
+async function applyDiscordIdentity(
+  botToken: string,
+  identity: { username?: string | null; iconUrl?: string | null; bio?: string | null },
+): Promise<{ ok: boolean; status?: number; error?: string }> {
+  const payload: Record<string, unknown> = {};
+  if (identity.username) {
+    payload.username = identity.username.trim().slice(0, 32);
+  }
+  if (identity.bio) {
+    payload.bio = identity.bio.slice(0, 190);
+  }
+  if (identity.iconUrl) {
+    const dataUrl = await fetchImageAsDataUrl(identity.iconUrl);
+    if (dataUrl) payload.avatar = dataUrl;
+  }
+  if (Object.keys(payload).length === 0) return { ok: true };
+  try {
+    const res = await fetch("https://discord.com/api/v10/users/@me", {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bot ${botToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      console.warn("[auto-deploy-bot] discord identity patch failed", {
+        status: res.status,
+        body: text.slice(0, 300),
+        keys: Object.keys(payload),
+      });
+      return { ok: false, status: res.status, error: text.slice(0, 300) };
+    }
+    console.log("[auto-deploy-bot] discord identity applied", {
+      keys: Object.keys(payload),
+    });
+    return { ok: true };
+  } catch (e) {
+    console.warn("[auto-deploy-bot] discord identity patch threw", { e: String(e) });
+    return { ok: false, error: String(e) };
+  }
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
