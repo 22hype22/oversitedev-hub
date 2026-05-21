@@ -480,8 +480,10 @@ function InviteDialog({
 
   const submit = async () => {
     setSubmitting(true);
+    // Omit botId so the invite covers every bot the inviter owns — the team
+    // is unified across all of their bots.
     const { data, error } = await supabase.functions.invoke("team-invite-send", {
-      body: { email: email.trim(), role, botId, siteUrl: window.location.origin },
+      body: { email: email.trim(), role, siteUrl: window.location.origin },
     });
     setSubmitting(false);
 
