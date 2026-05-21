@@ -28,8 +28,9 @@ export const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
-  const { hasDashboardAccess } = useOwnedBots();
+  const { hasDashboardAccess, loading: botsLoading } = useOwnedBots();
   const canDashboard = isAdmin || hasDashboardAccess;
+  const dashboardAccessPending = !!user && botsLoading;
 
   useEffect(() => {
     setOpen(false);
@@ -117,13 +118,13 @@ export const Navbar = () => {
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => canDashboard && navigate("/bot-dashboard")}
-                  disabled={!canDashboard}
-                  className={!canDashboard ? "opacity-60" : ""}
+                  onClick={() => (canDashboard || dashboardAccessPending) && navigate("/bot-dashboard")}
+                  disabled={!canDashboard && !dashboardAccessPending}
+                  className={!canDashboard && !dashboardAccessPending ? "opacity-60" : ""}
                 >
                   <span className="relative mr-2 inline-flex items-center justify-center">
                     <LayoutDashboard size={14} />
-                    {!canDashboard && (
+                    {!canDashboard && !dashboardAccessPending && (
                       <Lock
                         size={9}
                         className="absolute -bottom-0.5 -right-1 bg-popover rounded-sm p-[1px]"
@@ -132,7 +133,7 @@ export const Navbar = () => {
                     )}
                   </span>
                   Dashboard
-                  {!canDashboard && (
+                  {!canDashboard && !dashboardAccessPending && (
                     <span className="ml-auto text-[10px] text-muted-foreground">
                       Locked
                     </span>
