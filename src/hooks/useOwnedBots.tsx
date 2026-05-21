@@ -104,7 +104,7 @@ function mapRow(row: any, opts: { viaSupport?: boolean; viaTeam?: boolean } = {}
  * tagged with `viaTeam: true`.
  */
 export function useOwnedBots() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const userId = user?.id ?? null;
   const [bots, setBots] = useState<OwnedBot[]>([]);
   const [supportBots, setSupportBots] = useState<OwnedBot[]>([]);
@@ -116,11 +116,17 @@ export function useOwnedBots() {
 
   const reload = useCallback(async () => {
     if (!userId) {
+      if (authLoading) {
+        setLoading(true);
+        return;
+      }
       setBots([]);
       setSupportBots([]);
+      setTeamBots([]);
       setOwnsDashboardAddon(false);
       setLoading(false);
       hasLoadedRef.current = false;
+      emptyRetriesRef.current = 0;
       return;
     }
     if (!hasLoadedRef.current) setLoading(true);
@@ -214,13 +220,6 @@ export function useOwnedBots() {
         .map((row: any) => mapRow(row, { viaTeam: true }));
     }
 
-    setBots(ownMapped);
-    setSupportBots(supportMapped);
-    setTeamBots(teamMapped);
-    setOwnsDashboardAddon(ownsDashboardAddon);
-    hasLoadedRef.current = true;
-    setLoading(false);
-
     // Auto-retry: if the first fetch came back with zero bots AND zero
     // entitlement AND no team/support seats, it's almost always an auth/RLS
     // race on cold load — the customer "really has bots" but the request
@@ -231,6 +230,12 @@ export function useOwnedBots() {
       !ownsDashboardAddon &&
       supportMapped.length === 0 &&
       teamMapped.length === 0;
+
+    setBots(ownMapped);
+    setSupportBots(supportMapped);
+    setTeamBots(teamMapped);
+    setOwnsDashboardAddon(ownsDashboardAddon);
+
     if (looksEmpty && emptyRetriesRef.current < 4) {
       emptyRetriesRef.current += 1;
       setTimeout(() => {
@@ -239,7 +244,10 @@ export function useOwnedBots() {
     } else if (!looksEmpty) {
       emptyRetriesRef.current = 0;
     }
-  }, [userId]);
+
+    hasLoadedRef.current = !looksEmpty || emptyRetriesRef.current >= 4;
+    setLoading(!hasLoadedRef.current);
+  }, [userId, authLoading]);
 
   useEffect(() => {
     reload();
