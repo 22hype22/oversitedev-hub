@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Download, Users, Ban, Trash2, ShieldCheck } from "lucide-react";
+import { RefreshCw, Download, Users, Ban, Trash2, ShieldCheck, KeyRound, Copy } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -16,6 +16,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type AccountRow = {
   id: string;
@@ -34,6 +42,10 @@ export const AccountsLog = () => {
   const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AccountRow | null>(null);
+  const [confirmReset, setConfirmReset] = useState<AccountRow | null>(null);
+  const [tempPasswordResult, setTempPasswordResult] = useState<
+    { email: string | null; password: string; username: string } | null
+  >(null);
 
   const load = async () => {
     setLoading(true);
@@ -114,6 +126,36 @@ export const AccountsLog = () => {
     }
     setRows((prev) => prev.filter((r) => r.user_id !== row.user_id));
     toast.success("Account deleted");
+  };
+
+  const resetPassword = async (row: AccountRow) => {
+    setBusyId(row.user_id);
+    const { data, error } = await supabase.functions.invoke("admin-set-temp-password", {
+      body: { targetUserId: row.user_id },
+    });
+    setBusyId(null);
+    setConfirmReset(null);
+    const payload = data as { tempPassword?: string; email?: string | null; error?: string } | null;
+    if (error || !payload?.tempPassword) {
+      const msg = error?.message || payload?.error || "Failed";
+      toast.error(`Reset failed: ${msg}`);
+      return;
+    }
+    setTempPasswordResult({
+      email: payload.email ?? null,
+      password: payload.tempPassword,
+      username: row.roblox_username,
+    });
+  };
+
+  const copyTempPassword = async () => {
+    if (!tempPasswordResult) return;
+    try {
+      await navigator.clipboard.writeText(tempPasswordResult.password);
+      toast.success("Password copied");
+    } catch {
+      toast.error("Copy failed");
+    }
   };
 
   return (
@@ -198,6 +240,15 @@ export const AccountsLog = () => {
                   )}
                 </Button>
                 <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmReset(r)}
+                  disabled={busyId === r.user_id}
+                >
+                  <KeyRound className="h-4 w-4 mr-1" />
+                  Reset PW
+                </Button>
+                <Button
                   variant="destructive"
                   size="sm"
                   onClick={() => setConfirmDelete(r)}
@@ -243,6 +294,75 @@ export const AccountsLog = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={!!confirmReset}
+        onOpenChange={(o) => !o && setConfirmReset(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset this user's password?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This generates a new temporary password for{" "}
+              <strong>{confirmReset?.roblox_username}</strong> and immediately
+              invalidates their current one. You'll see the new password once —
+              share it securely and tell them to change it after signing in.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!busyId}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => confirmReset && resetPassword(confirmReset)}
+              disabled={!!busyId}
+            >
+              Generate temporary password
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog
+        open={!!tempPasswordResult}
+        onOpenChange={(o) => !o && setTempPasswordResult(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Temporary password generated</DialogTitle>
+            <DialogDescription>
+              Shown once. Copy it now — you won't be able to see it again.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div>
+              <div className="text-xs text-muted-foreground">User</div>
+              <div className="font-medium">{tempPasswordResult?.username}</div>
+              {tempPasswordResult?.email && (
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {tempPasswordResult.email}
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Temporary password</div>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 px-3 py-2 rounded-md bg-muted font-mono text-sm break-all">
+                  {tempPasswordResult?.password}
+                </code>
+                <Button variant="outline" size="sm" onClick={copyTempPassword}>
+                  <Copy className="h-4 w-4 mr-1" />
+                  Copy
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Tell the user to sign in with this password and change it immediately.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setTempPasswordResult(null)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
