@@ -465,16 +465,21 @@ async function setVariables(
   environmentId: string,
   serviceId: string,
   vars: Record<string, string>,
+  existing: Record<string, string> = {},
 ) {
   // Use per-variable variableUpsert instead of variableCollectionUpsert.
-  // The collection mutation takes `variables` as a JSON scalar, and we've
-  // seen Railway end up with empty values for tokens containing dots
-  // (Discord tokens look like "MTQ5...GZMZ3l.j1Xh..."). variableUpsert
-  // takes name/value as explicit String args, eliminating any JSON scalar
-  // coercion risk.
+  // Skip variables whose value already matches what Railway has stored —
+  // re-upserting identical values can leave the service in a "1 Change"
+  // pending state requiring manual Deploy confirmation.
+  let upserted = 0;
+  let skipped = 0;
   for (const [name, value] of Object.entries(vars)) {
     if (typeof value !== "string") {
       throw new Error(`Variable ${name} is not a string`);
+    }
+    if (Object.prototype.hasOwnProperty.call(existing, name) && existing[name] === value) {
+      skipped++;
+      continue;
     }
     await railway(
       `mutation($input: VariableUpsertInput!) {
@@ -490,12 +495,15 @@ async function setVariables(
         },
       },
     );
+    upserted++;
     console.log("[auto-deploy-bot] variableUpsert ok", {
       serviceId,
       name,
       valueLength: value.length,
     });
   }
+  console.log("[auto-deploy-bot] setVariables summary", { serviceId, upserted, skipped });
+  return { upserted, skipped };
 }
 
 async function fetchServiceVariables(
@@ -513,8 +521,24 @@ async function fetchServiceVariables(
 }
 
 async function redeploy(serviceId: string, environmentId: string) {
-  // Explicitly kick a build after the repo connection so Railway cannot leave
-  // the service at "1 Change" waiting for a manual Deploy confirmation.
+  // Prefer serviceInstanceRedeploy — it redeploys the latest known-good
+  // deployment without waiting for a "Deploy Changes" confirmation that
+  // Railway sometimes surfaces after variable upserts.
+  try {
+    await railway(
+      `mutation($serviceId: String!, $environmentId: String!) {
+        serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
+      }`,
+      { serviceId, environmentId },
+    );
+    console.log("[auto-deploy-bot] serviceInstanceRedeploy ok", { serviceId });
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] serviceInstanceRedeploy failed, trying serviceInstanceDeploy", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
   try {
     await railway(
       `mutation($serviceId: String!, $environmentId: String!) {
@@ -552,28 +576,14 @@ async function redeploy(serviceId: string, environmentId: string) {
     );
     return;
   } catch (e) {
-    console.warn("[auto-deploy-bot] serviceInstanceDeployV2 failed, falling back to redeploy", {
-      serviceId,
-      message: e instanceof Error ? e.message : String(e),
-    });
-  }
-  try {
-    await railway(
-      `mutation($serviceId: String!, $environmentId: String!) {
-        serviceDeploy(serviceId: $serviceId, environmentId: $environmentId)
-      }`,
-      { serviceId, environmentId },
-    );
-    return;
-  } catch (e) {
-    console.warn("[auto-deploy-bot] serviceDeploy failed, falling back to redeploy", {
+    console.warn("[auto-deploy-bot] serviceInstanceDeployV2 failed, falling back to serviceDeploy", {
       serviceId,
       message: e instanceof Error ? e.message : String(e),
     });
   }
   await railway(
     `mutation($serviceId: String!, $environmentId: String!) {
-      serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
+      serviceDeploy(serviceId: $serviceId, environmentId: $environmentId)
     }`,
     { serviceId, environmentId },
   );
@@ -827,7 +837,22 @@ Deno.serve(async (req) => {
       purchasedAddons,
     });
 
-    await setVariables(projectId, environmentId, targetServiceId, varsPayload);
+    let existingVars: Record<string, string> = {};
+    try {
+      existingVars = await fetchServiceVariables(projectId, environmentId, targetServiceId);
+    } catch (e) {
+      console.warn("[auto-deploy-bot] could not fetch existing variables (will upsert all)", {
+        serviceId: targetServiceId,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+    await setVariables(
+      projectId,
+      environmentId,
+      targetServiceId,
+      varsPayload,
+      existingVars,
+    );
 
     // Verify Railway actually stored DISCORD_TOKEN with the value we sent.
     // If it comes back empty/missing, do NOT redeploy — abort so the bot
