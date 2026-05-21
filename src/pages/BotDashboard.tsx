@@ -1196,7 +1196,21 @@ const BotDashboard = () => {
           </div>
         )}
 
-        {/* Team management is now per-bot — rendered inside each BotSection. */}
+        {/* One unified team panel for ALL of the viewer's owned bots. */}
+        {(() => {
+          const firstOwned = dashboardBots.find((b) => !b.isDemo && !b.viaTeam && !b.viaSupport);
+          if (!firstOwned || !user) return null;
+          return (
+            <div className="mt-10">
+              <TeamManagementHub
+                botId={firstOwned.id}
+                ownerUserId={user.id}
+                ownerEmail={user.email ?? null}
+              />
+            </div>
+          );
+        })()}
+
 
 
         <NewOwnerBillingDialog
