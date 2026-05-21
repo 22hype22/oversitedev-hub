@@ -112,10 +112,14 @@ type Cmd = {
     | "list_channels"
     | "list_guilds"
     | "list_roles"
-    | "leave_all_guilds";
+    | "leave_all_guilds"
+    | "set_status";
   payload?: {
     guild_id?: string;
     reason?: string;
+    activity_type?: string;
+    activity_text?: string;
+    presence_status?: string;
   } | null;
 };
 
