@@ -42,6 +42,10 @@ export const AccountsLog = () => {
   const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AccountRow | null>(null);
+  const [confirmReset, setConfirmReset] = useState<AccountRow | null>(null);
+  const [tempPasswordResult, setTempPasswordResult] = useState<
+    { email: string | null; password: string; username: string } | null
+  >(null);
 
   const load = async () => {
     setLoading(true);
