@@ -131,6 +131,18 @@ export class BotRuntime {
       await client.login(token);
       await this.registerSlashCommands(token, client.user!.id);
 
+      // Restore saved presence (Playing / Watching / etc.) if any
+      if (config.activity_type && config.activity_text) {
+        try {
+          this.applyPresence(config.activity_type, config.activity_text);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          await appendLog(this.botId, "warn", `Could not restore presence: ${msg}`);
+        }
+      }
+
+
+
       // 7. Initial metrics & status
       const guilds = client.guilds.cache;
       const members = guilds.reduce((sum, g) => sum + g.memberCount, 0);
