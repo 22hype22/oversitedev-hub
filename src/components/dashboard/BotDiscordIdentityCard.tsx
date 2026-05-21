@@ -5,9 +5,27 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, Upload, AlertTriangle, Bot as BotIcon, IdCard } from "lucide-react";
+import { Loader2, RefreshCw, Upload, AlertTriangle, Bot as BotIcon, IdCard, Activity } from "lucide-react";
+
+type ActivityType = "playing" | "watching" | "listening" | "competing" | "streaming";
+
+const ACTIVITY_OPTIONS: { value: ActivityType; label: string }[] = [
+  { value: "playing", label: "Playing" },
+  { value: "watching", label: "Watching" },
+  { value: "listening", label: "Listening to" },
+  { value: "competing", label: "Competing in" },
+  { value: "streaming", label: "Streaming" },
+];
 
 type Props = {
   botId: string;
@@ -17,8 +35,13 @@ type Props = {
   initialBio: string | null;
   /** Saved name from bot_orders (used as fallback). */
   initialUsername: string;
+  /** Saved presence activity type. */
+  initialActivityType?: string | null;
+  /** Saved presence activity text. */
+  initialActivityText?: string | null;
   onUpdated?: () => void;
 };
+
 
 type LiveIdentity = {
   username: string | null;
