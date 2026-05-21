@@ -1240,6 +1240,20 @@ export const BotBuilder = () => {
                     </p>
                   )}
                 </div>
+                <div>
+                  <Label htmlFor="bot-bio" className="text-xs text-muted-foreground mb-2 block">
+                    Discord profile bio <span className="text-muted-foreground/70">(optional, max 190 chars)</span>
+                  </Label>
+                  <Textarea
+                    id="bot-bio"
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value.slice(0, 190))}
+                    placeholder="Short About Me shown on your bot's Discord profile."
+                    rows={2}
+                    maxLength={190}
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground text-right">{bio.length}/190</p>
+                </div>
               </div>
             </div>
 
