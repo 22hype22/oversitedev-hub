@@ -380,14 +380,15 @@ const BotSection = ({
   // actively deploying, it's queued waiting on a token from the pool, it
   // failed, or it succeeded but the worker hasn't sent its first heartbeat yet.
   const isQueued = !bot.isDemo && bot.deployment_status === "queued";
+  // Only show the deploying banner when the order is actively mid-deploy.
+  // Once deployment_status flips to 'deployed' (with a railway_service_id),
+  // never show it again — even if a heartbeat hasn't landed yet.
   const isDeploying =
     !bot.isDemo &&
+    bot.deployment_status !== "deployed" &&
     (bot.deployment_status === "deploying" ||
       bot.deployment_status === "failed" ||
-      isQueued ||
-      (bot.deployment_status === "deployed" &&
-        !healthLoading &&
-        !health?.last_heartbeat_at));
+      isQueued);
   const deployFailed = !bot.isDemo && bot.deployment_status === "failed";
   const isOffline =
     !bot.isDemo &&
