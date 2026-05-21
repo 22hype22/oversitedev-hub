@@ -296,20 +296,19 @@ async function createRailwayService(serviceName: string, repoFullName: string): 
     },
   }) as { serviceCreate: { id: string; name: string } };
   const id = data.serviceCreate.id;
-  // Ensure the service instance is connected to the repo+branch so Railway
-  // auto-deploys on creation instead of requiring a manual "Deploy" click.
+  // Connect the GitHub repo+branch via serviceConnect so Railway links the
+  // service to GitHub and auto-deploys (no manual "Deploy" click required).
   try {
     await railwayGraphQL(`
-      mutation ServiceInstanceUpdate($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
-        serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
+      mutation ServiceConnect($id: String!, $input: ServiceConnectInput!) {
+        serviceConnect(id: $id, input: $input) { id }
       }
     `, {
-      serviceId: id,
-      environmentId: RAILWAY_ENVIRONMENT_ID,
-      input: { source: { repo: repoFullName }, branch: "main" },
+      id,
+      input: { repo: repoFullName, branch: "main" },
     });
   } catch (e) {
-    console.warn("serviceInstanceUpdate (connect repo) failed:", (e as Error).message);
+    console.warn("serviceConnect failed:", (e as Error).message);
   }
   return id;
 }
