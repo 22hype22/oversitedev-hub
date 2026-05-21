@@ -401,8 +401,42 @@ async function createServiceFromRepo(
   );
   const id = data?.serviceCreate?.id;
   if (!id) throw new Error("serviceCreate returned no id");
-  await updateServiceSource(id, environmentId, repo);
+  await connectServiceToRepo(id, environmentId, repo);
   return id;
+}
+
+async function connectServiceToRepo(serviceId: string, environmentId: string, repo: string) {
+  let connected = false;
+  try {
+    await railway(
+      `mutation($id: String!, $input: ServiceConnectInput!) {
+        serviceConnect(id: $id, input: $input) { id }
+      }`,
+      { id: serviceId, input: { repo, branch: "main" } },
+    );
+    connected = true;
+    console.log("[auto-deploy-bot] Railway source connected via serviceConnect", {
+      serviceId,
+      repo,
+      branch: "main",
+    });
+  } catch (e) {
+    console.warn("[auto-deploy-bot] serviceConnect failed, trying serviceInstanceUpdate", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  try {
+    await updateServiceSource(serviceId, environmentId, repo);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (!connected) throw new Error(`Could not connect Railway repo source: ${message}`);
+    console.warn("[auto-deploy-bot] serviceInstanceUpdate source fallback failed after serviceConnect", {
+      serviceId,
+      message,
+    });
+  }
 }
 
 async function updateServiceSource(serviceId: string, environmentId: string, repo: string) {
