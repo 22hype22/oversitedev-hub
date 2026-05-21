@@ -669,6 +669,9 @@ Deno.serve(async (req) => {
     if (!botToken || typeof botToken !== "string" || botToken.trim() === "") {
       throw new Error("Refusing to deploy: DISCORD_TOKEN is empty after pool claim");
     }
+    if (!workerToken || workerToken.trim() === "") {
+      throw new Error("Refusing to deploy: WORKER_TOKEN secret is not configured");
+    }
 
     const purchasedAddons = Array.isArray((order as any).addons)
       ? ((order as any).addons as string[])
