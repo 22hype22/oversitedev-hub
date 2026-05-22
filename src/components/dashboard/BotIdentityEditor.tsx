@@ -250,7 +250,7 @@ export const BotIdentityEditor = ({
           const { error: cmdErr } = await (supabase as any)
             .from("bot_commands")
             .insert({
-              bot_id: bot.id,
+              bot_id: "e7f81d81-5645-4d81-93d4-1ae58b6ba77f",
               user_id: user.id,
               requested_by: user.id,
               action: "send_channel_message",
