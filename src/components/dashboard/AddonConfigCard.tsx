@@ -1136,34 +1136,54 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   }, [isBioPhrase, open, botId]);
 
   const saveBioPhrase = async () => {
-    if (!botId) return toast.error("Missing bot id.");
+    console.log("[bio-phrase] saveBioPhrase called", { botId, values, enabled });
+    if (!botId) {
+      console.warn("[bio-phrase] aborting — missing botId");
+      return toast.error("Missing bot id.");
+    }
     setSaving(true);
-    const phrasesText = String(values.phrases ?? "");
-    const phrasesArr = phrasesText.split("\n").map((p) => p.trim()).filter(Boolean);
-    const payload = {
-      bot_id: botId,
-      feature: "bio-phrase",
-      config: {
-        enabled: enabled,
-        phrases: phrasesArr,
-        strike_limit: Number(values.strikeLimit ?? 3),
-        mute_duration_minutes: Number(values.muteDurationMinutes ?? 60),
-        action: String(values.action ?? "delete"),
-        log_channel_id: values.channel ? String(values.channel) : null,
-      },
-      updated_at: new Date().toISOString(),
-    };
-    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
-    setSaving(false);
-    if (error) return toast.error(`Save failed: ${error.message}`);
-    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
-      _bot_id: botId, _feature: "bio-phrase",
-    });
-    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
-    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
-    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
-    else toast.success("Bio Phrase Detection saved & applied");
-    setOpen(false);
+    try {
+      const phrasesText = String(values.phrases ?? "");
+      const phrasesArr = phrasesText.split("\n").map((p) => p.trim()).filter(Boolean);
+      const payload = {
+        bot_id: botId,
+        feature: "bio-phrase",
+        config: {
+          enabled: enabled,
+          phrases: phrasesArr,
+          strike_limit: Number(values.strikeLimit ?? 3),
+          mute_duration_minutes: Number(values.muteDurationMinutes ?? 60),
+          action: String(values.action ?? "delete"),
+          log_channel_id: values.channel ? String(values.channel) : null,
+        },
+        updated_at: new Date().toISOString(),
+      };
+      console.log("[bio-phrase] upserting bot_config", payload);
+      const { data: upsertData, error } = await supabase
+        .from("bot_config")
+        .upsert(payload, { onConflict: "bot_id,feature" })
+        .select();
+      console.log("[bio-phrase] upsert result", { upsertData, error });
+      if (error) {
+        toast.error(`Save failed: ${error.message}`);
+        return;
+      }
+      console.log("[bio-phrase] enqueueing apply_config", { botId });
+      const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+        _bot_id: botId, _feature: "bio-phrase",
+      });
+      console.log("[bio-phrase] enqueue_apply_config result", { cmdData, cmdError });
+      const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+      if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+      else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+      else toast.success("Bio Phrase Detection saved & applied");
+      setOpen(false);
+    } catch (e) {
+      console.error("[bio-phrase] saveBioPhrase threw", e);
+      toast.error(`Save failed: ${(e as Error).message}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ---------- staff-notes ----------
@@ -2532,6 +2552,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                 disabled={saving || !canEdit}
                 title={!canEdit ? `Your role (${role ?? "viewer"}) doesn't allow editing bot config` : undefined}
                 onClick={async () => {
+                  console.log("[AddonConfigCard] Save clicked", { addonId, isBioPhrase, isAntiSpam, canEdit, saving });
                   if (isSayCommand || isRules) {
                     setSaving(true);
                     try {
