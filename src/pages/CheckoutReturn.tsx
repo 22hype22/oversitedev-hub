@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Download, Loader2, UserPlus } from "lucide-react";
+import { CheckCircle2, Download, Loader2, UserPlus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useAuth } from "@/hooks/useAuth";
@@ -18,6 +18,7 @@ type PurchasedFile = {
 
 export default function CheckoutReturn() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const sessionId = searchParams.get("session_id");
   const setupOrderId = searchParams.get("order");
   const { user } = useAuth();
@@ -25,6 +26,7 @@ export default function CheckoutReturn() {
   const [files, setFiles] = useState<PurchasedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [botOrderId, setBotOrderId] = useState<string | null>(setupOrderId);
+  const [showClose, setShowClose] = useState(false);
   const { isMember } = useMembership();
 
   useEffect(() => {
@@ -72,9 +74,25 @@ export default function CheckoutReturn() {
   const downloadable = files.filter((f) => f.url);
   const isBotOrder = !!botOrderId;
 
+  useEffect(() => {
+    if (!isBotOrder) return;
+    const t = setTimeout(() => setShowClose(true), 5000);
+    return () => clearTimeout(t);
+  }, [isBotOrder]);
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
-      <div className="max-w-lg w-full text-center bg-card border border-border rounded-2xl p-8 shadow-elegant">
+      <div className="relative max-w-lg w-full text-center bg-card border border-border rounded-2xl p-8 shadow-elegant">
+        {isBotOrder && showClose && (
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => navigate("/")}
+            className="absolute top-3 right-3 p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors animate-in fade-in"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
         <CheckCircle2 className="mx-auto h-14 w-14 text-primary mb-4" />
         <h1 className="text-2xl font-bold mb-2">Thanks for your order!</h1>
         <p className="text-muted-foreground mb-6">
@@ -85,12 +103,7 @@ export default function CheckoutReturn() {
 
         {/* Bot order — Discord-join gate then status-driven next-step */}
         {isBotOrder && botOrderId && (
-          <>
-            <DiscordJoinGate orderId={botOrderId} />
-            <Button asChild size="sm" variant="outlineGlow" className="mb-4">
-              <Link to="/bot-dashboard">Go to Bot Dashboard</Link>
-            </Button>
-          </>
+          <DiscordJoinGate orderId={botOrderId} />
         )}
 
 
@@ -163,14 +176,16 @@ export default function CheckoutReturn() {
           <p className="text-xs text-muted-foreground mb-6 break-all">Ref: {sessionId}</p>
         )}
 
-        <div className="flex gap-3 justify-center">
-          <Button asChild variant="outlineGlow">
-            <Link to="/">Back home</Link>
-          </Button>
-          <Button asChild variant="hero">
-            <Link to="/products">Keep shopping</Link>
-          </Button>
-        </div>
+        {!isBotOrder && (
+          <div className="flex gap-3 justify-center">
+            <Button asChild variant="outlineGlow">
+              <Link to="/">Back home</Link>
+            </Button>
+            <Button asChild variant="hero">
+              <Link to="/products">Keep shopping</Link>
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
