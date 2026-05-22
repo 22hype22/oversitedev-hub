@@ -212,7 +212,11 @@ async function pollSendDmCommands() {
   }
 }
 
-async function sendChannelMessage(channelId: string, content: string): Promise<boolean> {
+async function sendChannelMessage(
+  channelId: string,
+  content: string,
+  embed?: any,
+): Promise<boolean> {
   if (!client) return false;
   try {
     const ch = await client.channels.fetch(channelId);
@@ -220,10 +224,30 @@ async function sendChannelMessage(channelId: string, content: string): Promise<b
       console.error(`[utils-bot] channel ${channelId} is not sendable`);
       return false;
     }
-    await (ch as any).send({
-      content,
+    const payload: any = {
       allowedMentions: { parse: ["everyone", "roles"] },
-    });
+    };
+    if (content) payload.content = content;
+    if (embed && typeof embed === "object") {
+      const e: any = {};
+      if (embed.title) e.title = String(embed.title);
+      if (embed.description) e.description = String(embed.description);
+      if (typeof embed.color === "number") e.color = embed.color;
+      else if (typeof embed.color === "string") {
+        const parsed = parseInt(embed.color.replace(/^#/, ""), 16);
+        if (!Number.isNaN(parsed)) e.color = parsed;
+      } else {
+        e.color = 0x3b82f6;
+      }
+      if (embed.author?.name) {
+        e.author = { name: String(embed.author.name) };
+        if (embed.author.icon_url) e.author.icon_url = String(embed.author.icon_url);
+      }
+      if (embed.footer?.text) e.footer = { text: String(embed.footer.text) };
+      if (embed.timestamp) e.timestamp = embed.timestamp;
+      payload.embeds = [e];
+    }
+    await (ch as any).send(payload);
     return true;
   } catch (e) {
     console.error(
