@@ -55,19 +55,58 @@ export const Hero = () => {
     return () => window.clearTimeout(timer);
   }, []);
 
-  const [membersServing, setMembersServing] = useState<number | null>(null);
+  const MEMBERS_CACHE_KEY = "membersServing:v1";
+  const MEMBERS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+  const [membersServing, setMembersServing] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = window.localStorage.getItem(MEMBERS_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { value: number; ts: number };
+      if (typeof parsed?.value === "number" && Number.isFinite(parsed.value)) {
+        return parsed.value;
+      }
+    } catch {}
+    return null;
+  });
 
   useEffect(() => {
     let cancelled = false;
+
+    const readCache = (): { value: number; ts: number } | null => {
+      try {
+        const raw = window.localStorage.getItem(MEMBERS_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as { value: number; ts: number };
+        if (typeof parsed?.value === "number" && typeof parsed?.ts === "number") {
+          return parsed;
+        }
+      } catch {}
+      return null;
+    };
+
     const load = async () => {
+      const cached = readCache();
+      if (cached && Date.now() - cached.ts < MEMBERS_CACHE_TTL_MS) {
+        if (!cancelled) setMembersServing(cached.value);
+        return;
+      }
       const { data, error } = await supabase.rpc("get_total_members_serving");
       const count = typeof data === "number" ? data : typeof data === "string" ? Number(data) : null;
       if (!cancelled && !error && count !== null && Number.isFinite(count)) {
         setMembersServing(count);
+        try {
+          window.localStorage.setItem(
+            MEMBERS_CACHE_KEY,
+            JSON.stringify({ value: count, ts: Date.now() }),
+          );
+        } catch {}
       }
     };
+
     load();
-    const interval = window.setInterval(load, 60000);
+    const interval = window.setInterval(load, MEMBERS_CACHE_TTL_MS);
     return () => {
       cancelled = true;
       window.clearInterval(interval);
