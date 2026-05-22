@@ -1968,19 +1968,20 @@ export const BotBuilder = () => {
 
             {showPayment && (
               <>
-                <BotStockIndicator className="mt-4" />
                 <Button
                   ref={confirmBtnRef}
                   variant="hero"
                   size="lg"
-                  className="w-full mt-2"
+                  className="w-full mt-4"
                   onClick={submit}
                   disabled={submitting}
                 >
                   {salesLive ? "Confirm purchase" : "Confirm preorder"} <ArrowRight />
                 </Button>
+                <BotStockIndicator className="mt-2" />
               </>
             )}
+
 
 
             <p className="text-[10px] text-muted-foreground mt-3 leading-relaxed">
