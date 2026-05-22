@@ -232,34 +232,21 @@ export const BotIdentityEditor = ({
             .eq("id", bot.id);
           if (upErr) throw upErr;
 
-          const meta = (user.user_metadata ?? {}) as Record<string, any>;
-          const customerName =
-            meta.discord_username || meta.user_name || meta.full_name || user.email || "unknown customer";
-
-          const message =
-            `@here **New About Me update request**\n` +
-            `**Bot:** ${bot.bot_name} (\`#${shortBotId}\`)\n` +
-            `**Order ID:** \`${bot.id}\`\n` +
-            `**Customer:** ${customerName}\n` +
-            `**Requested description:**\n` +
-            "```\n" +
-            (bioTrimmed || "(cleared)") +
-            "\n```\n" +
-            `_Update this in the Discord Developer Portal → ${bot.bot_name} application → General Information → Description._`;
-
           const { error: cmdErr } = await (supabase as any)
             .from("bot_commands")
             .insert({
-              bot_id: "e7f81d81-5645-4d81-93d4-1ae58b6ba77f",
+              bot_id: bot.id,
               user_id: user.id,
               requested_by: user.id,
-              action: "send_channel_message",
+              action: "bio_update_request",
+              status: "pending",
               payload: {
-                channel_id: "1507437307349962842",
-                content: message,
+                bot_name: bot.bot_name,
+                bio: bioTrimmed,
               },
             });
           if (cmdErr) throw cmdErr;
+
           anySucceeded = true;
           bioSubmitted = true;
         } catch (e: any) {
