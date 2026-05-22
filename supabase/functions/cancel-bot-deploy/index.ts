@@ -128,16 +128,24 @@ Deno.serve(async (req) => {
             try {
               const lRes = await fetch(
                 `https://discord.com/api/v10/users/@me/guilds/${g.id}`,
-                { method: "DELETE", headers: authHeader },
+                {
+                  method: "DELETE",
+                  headers: { Authorization: `Bot ${botToken}` },
+                },
               );
-              if (!lRes.ok && lRes.status !== 404) {
-                const t = await lRes.text();
-                console.warn("[cancel-bot-deploy] leave guild failed", g.id, lRes.status, t.slice(0, 200));
-                // Respect Discord rate limits.
-                if (lRes.status === 429) {
-                  const ra = Number(lRes.headers.get("retry-after") ?? "1");
-                  await new Promise((r) => setTimeout(r, Math.min(5000, ra * 1000)));
-                }
+              const body = await lRes.text();
+              console.log(
+                "[cancel-bot-deploy] leave guild",
+                g.id,
+                g.name ?? "",
+                "status=",
+                lRes.status,
+                "body=",
+                body.slice(0, 300),
+              );
+              if (lRes.status === 429) {
+                const ra = Number(lRes.headers.get("retry-after") ?? "1");
+                await new Promise((r) => setTimeout(r, Math.min(5000, ra * 1000)));
               }
             } catch (e) {
               console.warn("[cancel-bot-deploy] leave guild error", g.id, (e as Error).message);
