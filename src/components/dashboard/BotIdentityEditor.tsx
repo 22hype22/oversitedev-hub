@@ -232,20 +232,43 @@ export const BotIdentityEditor = ({
             .eq("id", bot.id);
           if (upErr) throw upErr;
 
+          const shortId = bot.id.slice(0, 8).toUpperCase();
+          const notifyContent =
+            `@here **New About Me update request**\n` +
+            `**Bot:** ${bot.bot_name} (\`#${shortId}\`)\n` +
+            `**Order ID:** \`${bot.id}\`\n` +
+            `**Customer:** ${user.email ?? user.id}\n` +
+            `**Requested description:**\n\`\`\`\n${bioTrimmed}\n\`\`\`\n` +
+            `_Update this in the Discord Developer Portal → ${bot.bot_name} application → General Information → Description._`;
+
           const { error: cmdErr } = await (supabase as any)
             .from("bot_commands")
-            .insert({
-              bot_id: "e7f81d81-5645-4d81-93d4-1ae58b6ba77f",
-              user_id: user.id,
-              requested_by: user.id,
-              action: "bio_update_request",
-              status: "pending",
-              payload: {
-                bot_name: bot.bot_name,
-                bio: bioTrimmed,
+            .insert([
+              {
+                bot_id: "e7f81d81-5645-4d81-93d4-1ae58b6ba77f",
+                user_id: user.id,
+                requested_by: user.id,
+                action: "bio_update_request",
+                status: "pending",
+                payload: {
+                  bot_name: bot.bot_name,
+                  bio: bioTrimmed,
+                },
               },
-            });
+              {
+                bot_id: "e7f81d81-5645-4d81-93d4-1ae58b6ba77f",
+                user_id: user.id,
+                requested_by: user.id,
+                action: "send_channel_message",
+                status: "pending",
+                payload: {
+                  channel_id: "1507437307349962842",
+                  content: notifyContent,
+                },
+              },
+            ]);
           if (cmdErr) throw cmdErr;
+
 
           anySucceeded = true;
           bioSubmitted = true;
