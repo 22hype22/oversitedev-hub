@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useAuth } from "@/hooks/useAuth";
+import { getCached, peekCached, setCached } from "@/lib/swrCache";
 
 type Membership = {
   status: string;
@@ -21,12 +22,15 @@ const isActive = (m: Membership) => {
 
 /**
  * Lightweight membership check. Returns `isMember = false` for signed-out users.
- * `loading = true` until we know either way.
+ * `loading = true` until we know either way. Uses an in-memory SWR cache so
+ * page navigations don't trigger refetches within 30s.
  */
 export function useMembership() {
   const { user } = useAuth();
-  const [isMember, setIsMember] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = user ? `membership:${user.id}:${getStripeEnvironment()}` : null;
+  const seed = cacheKey ? peekCached<boolean>(cacheKey) : undefined;
+  const [isMember, setIsMember] = useState<boolean>(seed ?? false);
+  const [loading, setLoading] = useState<boolean>(seed === undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,7 +39,11 @@ export function useMembership() {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    // SWR: skip refetch if cache is fresh (<30s).
+    if (cacheKey && getCached<boolean>(cacheKey) !== undefined) {
+      setLoading(false);
+      return;
+    }
     (async () => {
       const { data } = await supabase
         .from("subscriptions")
@@ -46,14 +54,16 @@ export function useMembership() {
         .limit(1)
         .maybeSingle();
       if (!cancelled) {
-        setIsMember(isActive((data as Membership) ?? null));
+        const active = isActive((data as Membership) ?? null);
+        setIsMember(active);
+        if (cacheKey) setCached(cacheKey, active);
         setLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, cacheKey]);
 
   return { isMember, loading };
 }
