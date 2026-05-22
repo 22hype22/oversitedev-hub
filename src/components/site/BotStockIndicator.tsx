@@ -3,7 +3,7 @@ import { AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const THRESHOLD = 20;
-const POLL_MS = 15_000;
+const POLL_MS = 60_000;
 
 /**
  * Shows a low-stock badge ("Only X left") when the number of available bot
@@ -38,15 +38,15 @@ export const BotStockIndicator = ({ className = "" }: { className?: string }) =>
   if (count === null || count >= THRESHOLD || count < 0) return null;
 
   return (
-    <div
-      className={`flex items-center justify-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-medium text-amber-500 ${className}`}
-      role="status"
-      aria-live="polite"
-    >
-      <AlertTriangle className="h-3.5 w-3.5" />
-      {count === 0
-        ? "Out of stock — joining waitlist"
-        : `Only ${count} left in stock`}
+    <div className={`flex justify-center ${className}`}>
+      <span
+        className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-500"
+        role="status"
+        aria-live="polite"
+      >
+        <AlertTriangle className="h-3 w-3" />
+        {count === 0 ? "Out of stock — waitlist" : `Only ${count} left`}
+      </span>
     </div>
   );
 };
