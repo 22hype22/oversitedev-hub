@@ -278,9 +278,9 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
                       </div>
                     </div>
                     <div className="mt-1.5 text-xs text-muted-foreground">
-                      {isFreeDashboard ? (
+                      {isFreeDashboard || isFreeIncluded ? (
                         <span className="text-primary font-medium">
-                          Included — already unlocked
+                          Included — free to add
                         </span>
                       ) : (
                         <>+${price.toFixed(2)}</>
