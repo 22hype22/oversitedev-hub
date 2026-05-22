@@ -82,7 +82,7 @@ export const BotIdentityEditor = ({
     : false;
 
   const callUpdate = async (
-    patch: { username?: string; bio?: string; avatar?: string; banner?: string },
+    patch: { username?: string; avatar?: string; banner?: string },
   ): Promise<boolean> => {
     const { data, error } = await supabase.functions.invoke("bot-update-identity", {
       body: { bot_id: bot.id, ...patch },
@@ -154,13 +154,11 @@ export const BotIdentityEditor = ({
 
   const saveDetails = async () => {
     if (!user) return toast.error("Sign in required");
-    if (bio.length > 190) return toast.error("Bio must be 190 characters or fewer");
 
-    const bioChanged = (bio ?? "") !== (bot.bot_bio ?? "");
     const presenceChanged = presence !== ((bot.presence_status as PresenceStatus) ?? "online");
     const activityChanged = (activityText ?? "") !== (bot.activity_text ?? "");
 
-    if (!bioChanged && !presenceChanged && !activityChanged) {
+    if (!presenceChanged && !activityChanged) {
       toast.info("Nothing to save");
       return;
     }
@@ -169,12 +167,6 @@ export const BotIdentityEditor = ({
     const errors: string[] = [];
     let anySucceeded = false;
     try {
-      if (bioChanged) {
-        const ok = await callUpdate({ bio });
-        if (ok) anySucceeded = true;
-        else errors.push("bio");
-      }
-
       if (presenceChanged || activityChanged) {
         const activityType = bot.activity_type ?? "playing";
         try {
@@ -393,32 +385,32 @@ export const BotIdentityEditor = ({
             )}
 
             {enableDiscordEdits && (
-              <>
+            <>
                 <button
                   type="button"
                   onClick={() => setExpanded((v) => !v)}
                   className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-smooth"
                 >
                   {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                  {expanded ? "Hide bio & status" : "Edit bio & status"}
+                  {expanded ? "Hide status" : "Edit status"}
                 </button>
 
                 {expanded && (
                   <div className="mt-3 space-y-3 rounded-lg border border-border bg-background/40 p-3">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="bot-bio-inline" className="text-xs">About me (bio)</Label>
-                        <span className="text-[10px] text-muted-foreground">{bio.length}/190</span>
-                      </div>
-                      <Textarea
-                        id="bot-bio-inline"
-                        value={bio}
-                        onChange={(e) => setBio(e.target.value)}
-                        maxLength={190}
-                        rows={2}
-                        placeholder="Tell people what your bot does…"
-                        disabled={savingDetails}
-                      />
+                    <div className="flex items-start gap-2 rounded-md bg-muted/40 p-2.5 text-xs text-muted-foreground">
+                      <Info className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+                      <span>
+                        To update your bot's About Me, visit the{" "}
+                        <a
+                          href="https://discord.com/developers/applications"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline hover:text-foreground"
+                        >
+                          Discord Developer Portal
+                        </a>
+                        {" "}→ your application → General Information → Description.
+                      </span>
                     </div>
 
                     <div className="grid sm:grid-cols-2 gap-3">
