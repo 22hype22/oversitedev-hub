@@ -240,15 +240,6 @@ export function useOwnedBots() {
     setTeamBots(teamMapped);
     setOwnsDashboardAddon(ownsDashboardAddon);
 
-    if (cacheKey) {
-      setCached<OwnedBotsCache>(cacheKey, {
-        bots: ownMapped,
-        supportBots: supportMapped,
-        teamBots: teamMapped,
-        ownsDashboardAddon,
-      });
-    }
-
     if (looksEmpty && emptyRetriesRef.current < 4) {
       emptyRetriesRef.current += 1;
       setTimeout(() => {
@@ -260,14 +251,12 @@ export function useOwnedBots() {
 
     hasLoadedRef.current = true;
     setLoading(false);
-  }, [userId, authLoading, cacheKey]);
+  }, [userId, authLoading]);
 
   useEffect(() => {
-    // Stale-while-revalidate: if we have a fresh cache (<30s), skip the
-    // refetch on mount. Otherwise revalidate in the background.
-    if (cacheKey && getCached<OwnedBotsCache>(cacheKey)) return;
     reload();
-  }, [reload, cacheKey]);
+  }, [reload]);
+
 
   // Realtime: if an owner removes this user from their team, or an owner
   // revokes a support grant this user holds, refresh immediately so the
