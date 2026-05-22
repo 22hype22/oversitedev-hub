@@ -427,8 +427,18 @@ const BotSection = ({
   const { guilds: connectedGuilds, loading: guildsLoading } = useBotServerSlots(
     !bot.isDemo ? bot.id : undefined,
   );
+  // Only show the "no servers" lockout when we're confident the bot is fully
+  // online AND the guild fetch returned zero. During Starting / deploying /
+  // offline phases the guild count can't be trusted (runtime_status hasn't
+  // been refreshed yet), so we skip the lockout in those cases.
   const hasNoServers =
-    !bot.isDemo && !isDeploying && !isOffline && !guildsLoading && connectedGuilds.length === 0;
+    !bot.isDemo &&
+    !isDeploying &&
+    !isOffline &&
+    !isStarting &&
+    !guildsLoading &&
+    health?.effective_status === "online" &&
+    connectedGuilds.length === 0;
   const [retrying, setRetrying] = useState(false);
   const retryInFlight = useRef(false);
   const retryDeploy = async () => {
