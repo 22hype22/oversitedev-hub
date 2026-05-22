@@ -23,8 +23,10 @@ export type OwnedProduct = {
  */
 export function useUserPurchases() {
   const { user } = useAuth();
-  const [owned, setOwned] = useState<Map<string, OwnedProduct>>(new Map());
-  const [loading, setLoading] = useState(true);
+  const cacheKey = user ? `userPurchases:${user.id}` : null;
+  const seed = cacheKey ? peekCached<Map<string, OwnedProduct>>(cacheKey) : undefined;
+  const [owned, setOwned] = useState<Map<string, OwnedProduct>>(seed ?? new Map());
+  const [loading, setLoading] = useState(!seed);
 
   const reload = useCallback(async () => {
     if (!user) {
@@ -32,7 +34,10 @@ export function useUserPurchases() {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!cacheKey || !getCached<Map<string, OwnedProduct>>(cacheKey)) {
+      // Only show the loading flag when we don't have fresh cached data.
+      setLoading(true);
+    }
 
     // 1. Stripe purchases keyed by user_id / email.
     const filters = [`user_id.eq.${user.id}`];
