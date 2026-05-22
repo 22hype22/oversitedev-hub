@@ -97,12 +97,15 @@ export function useUserPurchases() {
     }
 
     setOwned(map);
+    if (cacheKey) setCached(cacheKey, map);
     setLoading(false);
-  }, [user]);
+  }, [user, cacheKey]);
 
   useEffect(() => {
+    // SWR: skip refetch on mount if cache is fresh (<30s).
+    if (cacheKey && getCached(cacheKey)) return;
     reload();
-  }, [reload]);
+  }, [reload, cacheKey]);
 
   // Auto-refresh ownership when new purchases land. We only subscribe to
   // `pending_purchases` realtime (no sensitive fields). The `purchases` table
