@@ -2702,6 +2702,7 @@ export type Database = {
         }[]
       }
       get_bot_server_limit: { Args: { _bot_id: string }; Returns: Json }
+      get_bot_token_label: { Args: { _bot_id: string }; Returns: string }
       get_bot_usage_daily: {
         Args: { _bot_id: string; _days?: number }
         Returns: {
