@@ -109,15 +109,14 @@ function mapRow(row: any, opts: { viaSupport?: boolean; viaTeam?: boolean } = {}
 export function useOwnedBots() {
   const { user, loading: authLoading } = useAuth();
   const userId = user?.id ?? null;
-  const cacheKey = userId ? `ownedBots:${userId}` : null;
-  const seed = cacheKey ? peekCached<OwnedBotsCache>(cacheKey) : undefined;
-  const [bots, setBots] = useState<OwnedBot[]>(seed?.bots ?? []);
-  const [supportBots, setSupportBots] = useState<OwnedBot[]>(seed?.supportBots ?? []);
-  const [teamBots, setTeamBots] = useState<OwnedBot[]>(seed?.teamBots ?? []);
-  const [ownsDashboardAddon, setOwnsDashboardAddon] = useState(seed?.ownsDashboardAddon ?? false);
-  const [loading, setLoading] = useState(!seed);
-  const hasLoadedRef = useRef(!!seed);
+  const [bots, setBots] = useState<OwnedBot[]>([]);
+  const [supportBots, setSupportBots] = useState<OwnedBot[]>([]);
+  const [teamBots, setTeamBots] = useState<OwnedBot[]>([]);
+  const [ownsDashboardAddon, setOwnsDashboardAddon] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const hasLoadedRef = useRef(false);
   const emptyRetriesRef = useRef(0);
+
 
   const reload = useCallback(async () => {
     if (!userId) {
