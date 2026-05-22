@@ -24,10 +24,8 @@ export type OwnedProduct = {
  */
 export function useUserPurchases() {
   const { user } = useAuth();
-  const cacheKey = user ? `userPurchases:${user.id}` : null;
-  const seed = cacheKey ? peekCached<Map<string, OwnedProduct>>(cacheKey) : undefined;
-  const [owned, setOwned] = useState<Map<string, OwnedProduct>>(seed ?? new Map());
-  const [loading, setLoading] = useState(!seed);
+  const [owned, setOwned] = useState<Map<string, OwnedProduct>>(new Map());
+  const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
     if (!user) {
@@ -35,10 +33,7 @@ export function useUserPurchases() {
       setLoading(false);
       return;
     }
-    if (!cacheKey || !getCached<Map<string, OwnedProduct>>(cacheKey)) {
-      // Only show the loading flag when we don't have fresh cached data.
-      setLoading(true);
-    }
+    setLoading(true);
 
     // 1. Stripe purchases keyed by user_id / email.
     const filters = [`user_id.eq.${user.id}`];
@@ -87,7 +82,6 @@ export function useUserPurchases() {
     }
     for (const row of gamepassRows) {
       if (!row.product_id) continue;
-      // Only fill in if Stripe didn't already establish ownership for this product.
       if (!map.has(row.product_id)) {
         map.set(row.product_id, {
           productId: row.product_id,
@@ -98,15 +92,13 @@ export function useUserPurchases() {
     }
 
     setOwned(map);
-    if (cacheKey) setCached(cacheKey, map);
     setLoading(false);
-  }, [user, cacheKey]);
+  }, [user]);
 
   useEffect(() => {
-    // SWR: skip refetch on mount if cache is fresh (<30s).
-    if (cacheKey && getCached(cacheKey)) return;
     reload();
-  }, [reload, cacheKey]);
+  }, [reload]);
+
 
   // Auto-refresh ownership when new purchases land. We only subscribe to
   // `pending_purchases` realtime (no sensitive fields). The `purchases` table
