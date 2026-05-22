@@ -803,9 +803,16 @@ const BotSection = ({
         </div>
       )}
 
-      {isOffline && (
+      {isOffline && !isStarting && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center text-xs text-amber-300 font-medium">
           Bot is offline — start the bot to make changes.
+        </div>
+      )}
+
+      {isStarting && (
+        <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-2.5 text-center text-xs text-blue-300 font-medium flex items-center justify-center gap-2">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Starting… your bot will be online in ~30 seconds. You can keep editing settings.
         </div>
       )}
 
