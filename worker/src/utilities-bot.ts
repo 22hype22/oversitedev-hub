@@ -468,6 +468,9 @@ export async function startUtilitiesBot() {
     pollSendDmCommands().catch((e) =>
       console.error("[utils-bot] poll loop error:", (e as Error).message),
     );
+    pollSendChannelMessageCommands().catch((e) =>
+      console.error("[utils-bot] channel poll loop error:", (e as Error).message),
+    );
   }, UTILS_POLL_INTERVAL_MS);
 
   // Poll the utilities-bot-api /pending endpoint for orders that need a
