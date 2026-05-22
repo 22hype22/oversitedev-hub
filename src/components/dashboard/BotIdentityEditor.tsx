@@ -268,7 +268,7 @@ export const BotIdentityEditor = ({
       <div className="px-5 pb-5 -mt-8">
         <div className="flex items-start justify-between gap-3">
         <div className="relative shrink-0 group">
-          <div className="h-20 w-20 rounded-2xl bg-primary/10 border-4 border-card grid place-items-center overflow-hidden shadow-md">
+          <div className="h-20 w-20 rounded-2xl bg-primary/10 border-4 border-card ring-1 ring-border grid place-items-center overflow-hidden shadow-md">
             {bot.icon_url ? (
               <img src={bot.icon_url} alt={bot.bot_name} className="h-full w-full object-cover" />
             ) : (
