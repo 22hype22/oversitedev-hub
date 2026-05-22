@@ -56,7 +56,17 @@ Deno.serve(async (req) => {
         _user_id: userId,
         _role: "admin",
       });
-      if (!isAdmin) return json(403, { error: "Not bot owner" });
+      let allowed = !!isAdmin;
+      if (!allowed) {
+        // Check team membership (any role with view_dashboard permission)
+        const { data: roleData } = await userClient.rpc(
+          "team_get_effective_role",
+          { _bot_id: botId },
+        );
+        const perms = (roleData as any)?.permissions ?? {};
+        if (perms.view_dashboard) allowed = true;
+      }
+      if (!allowed) return json(200, { ok: false, fallback: true, error: "Not authorized" });
     }
 
     const { data: tokenData, error: tokenErr } = await admin.rpc(
