@@ -48,7 +48,7 @@ export const BotStockIndicator = ({ className = "" }: { className?: string }) =>
         <AlertTriangle className="h-3 w-3 shrink-0" />
         {count === 0
           ? "Out of stock — we're actively restocking."
-          : `Limited availability — ${count} ${count === 1 ? "bot" : "bots"} remaining. We're actively restocking.`}
+          : <><strong className="font-semibold">Limited availability</strong>{` — ${count} ${count === 1 ? "bot" : "bots"} remaining. We're actively restocking.`}</>}
       </span>
     </div>
   );
