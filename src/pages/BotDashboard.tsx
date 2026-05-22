@@ -374,8 +374,19 @@ const BotSection = ({
   }, [optimisticAction, health?.effective_status]);
   useEffect(() => {
     if (!isStarting) return;
-    if (health?.effective_status === "online") setIsStarting(false);
+    // Clear as soon as the bot reports any non-offline status (online, ready,
+    // live, starting, etc.) — the heartbeat is back, so the "Starting…" banner
+    // has served its purpose.
+    const status = health?.effective_status;
+    if (status && status !== "offline") setIsStarting(false);
   }, [isStarting, health?.effective_status]);
+  // Safety net: never let the "Starting…" banner stick around longer than
+  // 90 seconds, even if the heartbeat never lands.
+  useEffect(() => {
+    if (!isStarting) return;
+    const t = setTimeout(() => setIsStarting(false), 90_000);
+    return () => clearTimeout(t);
+  }, [isStarting]);
   // Debug: log health resolution per bot/viewer to diagnose team-member lockout issues.
   useEffect(() => {
     if (bot.isDemo) return;
