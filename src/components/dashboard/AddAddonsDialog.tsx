@@ -254,6 +254,7 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
               {available.map((id) => {
                 const active = selected.includes(id);
                 const isFreeDashboard = id === "dashboard" && hasDashboardAccess;
+                const isFreeIncluded = isIncluded(id);
                 const price = getAddonPrice(id);
                 return (
                   <button
