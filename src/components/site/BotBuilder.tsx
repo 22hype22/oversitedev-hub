@@ -11,6 +11,7 @@ import { useOwnedBots } from "@/hooks/useOwnedBots";
 import { useBotSalesMode } from "@/hooks/useBotSalesMode";
 import { useAddonOverrides, setAddonIncluded } from "@/hooks/useAddonOverrides";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
+import { BotStockIndicator } from "@/components/site/BotStockIndicator";
 import { filterAddonsForBase } from "@/lib/addonCategories";
 import {
   Shield,
