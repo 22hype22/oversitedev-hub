@@ -65,7 +65,6 @@ export const BotIdentityEditor = ({
   const [savingName, setSavingName] = useState(false);
 
   const [expanded, setExpanded] = useState(false);
-  const [bio, setBio] = useState(bot.bot_bio ?? "");
   const [presence, setPresence] = useState<PresenceStatus>(
     (bot.presence_status as PresenceStatus) ?? "online",
   );
