@@ -51,8 +51,10 @@ Deno.serve(async (req) => {
     // Accept either a full data URL or a raw base64 PNG/JPEG payload.
     let avatar: string | null =
       typeof body.avatar === "string" ? body.avatar.trim() : null;
+    let banner: string | null =
+      typeof body.banner === "string" ? body.banner.trim() : null;
 
-    if (username === null && bio === null && avatar === null) {
+    if (username === null && bio === null && avatar === null && banner === null) {
       return json(400, { error: "Nothing to update" });
     }
 
@@ -62,16 +64,18 @@ Deno.serve(async (req) => {
     if (bio !== null && bio.length > 190) {
       return json(400, { error: "Bio must be 190 characters or fewer" });
     }
-    if (avatar && !avatar.startsWith("data:") && !/^[A-Za-z0-9+/=]+$/.test(avatar)) {
-      return json(400, { error: "Avatar must be a data URL or base64 string" });
+    for (const [name, val] of [["avatar", avatar], ["banner", banner]] as const) {
+      if (val && !val.startsWith("data:") && !/^[A-Za-z0-9+/=]+$/.test(val)) {
+        return json(400, { error: `${name} must be a data URL or base64 string` });
+      }
     }
-    // Normalize raw base64 → data URL (Discord wants the full data URI).
-    if (avatar && !avatar.startsWith("data:")) {
-      avatar = `data:image/png;base64,${avatar}`;
-    }
-    // Cap avatar payload at ~10 MB of base64 to avoid runaway requests.
+    if (avatar && !avatar.startsWith("data:")) avatar = `data:image/png;base64,${avatar}`;
+    if (banner && !banner.startsWith("data:")) banner = `data:image/png;base64,${banner}`;
     if (avatar && avatar.length > 14_000_000) {
       return json(400, { error: "Avatar image too large (max ~10 MB)" });
+    }
+    if (banner && banner.length > 14_000_000) {
+      return json(400, { error: "Banner image too large (max ~10 MB)" });
     }
 
     const { data: order, error: orderErr } = await admin
@@ -101,6 +105,7 @@ Deno.serve(async (req) => {
     const payload: Record<string, unknown> = {};
     if (username !== null) payload.username = username;
     if (avatar !== null) payload.avatar = avatar;
+    if (banner !== null) payload.banner = banner;
     if (bio !== null) payload.bio = bio;
 
     const dRes = await fetch("https://discord.com/api/v10/users/@me", {
@@ -123,6 +128,17 @@ Deno.serve(async (req) => {
 
     const updated = await dRes.json().catch(() => ({} as any));
 
+    const newAvatarUrl = updated?.avatar
+      ? `https://cdn.discordapp.com/avatars/${updated.id}/${updated.avatar}.${
+          String(updated.avatar).startsWith("a_") ? "gif" : "png"
+        }?size=256`
+      : null;
+    const newBannerUrl = updated?.banner
+      ? `https://cdn.discordapp.com/banners/${updated.id}/${updated.banner}.${
+          String(updated.banner).startsWith("a_") ? "gif" : "png"
+        }?size=600`
+      : null;
+
     // Persist desired values + rate-limit timestamp.
     const dbPatch: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (username !== null) {
@@ -130,8 +146,8 @@ Deno.serve(async (req) => {
       dbPatch.discord_last_username_change_at = new Date().toISOString();
     }
     if (bio !== null) dbPatch.bot_bio = bio;
-    // Don't persist avatar data URL in the DB (huge); the existing
-    // icon_url / Discord CDN is the source of truth.
+    if (avatar !== null && newAvatarUrl) dbPatch.icon_url = newAvatarUrl;
+    if (banner !== null && newBannerUrl) dbPatch.banner_url = newBannerUrl;
 
     const { error: updErr } = await admin
       .from("bot_orders")
@@ -141,17 +157,12 @@ Deno.serve(async (req) => {
       console.warn("bot-update-identity: db persist failed", updErr);
     }
 
-    const newAvatarUrl = updated?.avatar
-      ? `https://cdn.discordapp.com/avatars/${updated.id}/${updated.avatar}.${
-          String(updated.avatar).startsWith("a_") ? "gif" : "png"
-        }?size=256`
-      : null;
-
     return json(200, {
       ok: true,
       id: updated?.id ?? null,
       username: updated?.username ?? null,
       avatar_url: newAvatarUrl,
+      banner_url: newBannerUrl,
       bio: updated?.bio ?? null,
     });
   } catch (e) {

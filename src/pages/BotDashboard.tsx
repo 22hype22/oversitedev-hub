@@ -35,7 +35,7 @@ const AddonConfigCard = lazy(() =>
 import { GiveawayLaunchCard } from "@/components/dashboard/GiveawayLaunchCard";
 import { FixesBar } from "@/components/dashboard/FixesBar";
 import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
-import { BotDiscordIdentityCard } from "@/components/dashboard/BotDiscordIdentityCard";
+
 import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
 import { BotControlsPanel } from "@/components/dashboard/BotControlsPanel";
@@ -632,6 +632,7 @@ const BotSection = ({
         onUpdated={onReload}
         badges={headerBadges}
         actions={headerActions}
+        enableDiscordEdits={!bot.isDemo && !isDeploying}
       />
 
       {deployFailed && (
@@ -744,18 +745,6 @@ const BotSection = ({
         )}
       </div>
 
-      {!bot.isDemo && !isDeploying && (
-        <BotDiscordIdentityCard
-          botId={bot.id}
-          initialUsername={bot.bot_name}
-          initialBio={bot.bot_bio ?? null}
-          lastUsernameChangeAt={bot.discord_last_username_change_at ?? null}
-          initialActivityType={bot.activity_type ?? null}
-          initialActivityText={bot.activity_text ?? null}
-          initialPresenceStatus={bot.presence_status ?? null}
-          onUpdated={onReload}
-        />
-      )}
 
 
 
