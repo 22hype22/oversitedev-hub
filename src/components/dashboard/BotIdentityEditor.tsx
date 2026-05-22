@@ -168,46 +168,61 @@ export const BotIdentityEditor = ({
     }
 
     setSavingDetails(true);
+    const errors: string[] = [];
+    let anySucceeded = false;
     try {
       if (bioChanged) {
         const ok = await callUpdate({ bio });
-        if (!ok) return;
+        if (ok) anySucceeded = true;
+        else errors.push("bio");
       }
 
       if (presenceChanged || activityChanged) {
         const activityType = bot.activity_type ?? "playing";
-        const { error: upErr } = await (supabase as any)
-          .from("bot_orders")
-          .update({
-            activity_type: activityType,
-            activity_text: activityText || null,
-            presence_status: presence,
-          })
-          .eq("id", bot.id);
-        if (upErr) throw upErr;
-
-        const { error: cmdErr } = await (supabase as any)
-          .from("bot_commands")
-          .insert({
-            bot_id: bot.id,
-            user_id: user.id,
-            requested_by: user.id,
-            action: "set_status",
-            payload: {
+        try {
+          const { error: upErr } = await (supabase as any)
+            .from("bot_orders")
+            .update({
               activity_type: activityType,
-              activity_text: activityText,
+              activity_text: activityText || null,
               presence_status: presence,
-            },
-          });
-        if (cmdErr) throw cmdErr;
+            })
+            .eq("id", bot.id);
+          if (upErr) throw upErr;
+
+          const { error: cmdErr } = await (supabase as any)
+            .from("bot_commands")
+            .insert({
+              bot_id: bot.id,
+              user_id: user.id,
+              requested_by: user.id,
+              action: "set_status",
+              payload: {
+                activity_type: activityType,
+                activity_text: activityText,
+                presence_status: presence,
+              },
+            });
+          if (cmdErr) throw cmdErr;
+          anySucceeded = true;
+        } catch (e: any) {
+          console.error("set_status save failed", e);
+          const msg = e?.message ?? "unknown error";
+          errors.push(`status (${msg})`);
+          toast.error("Couldn't save status", { description: msg });
+        }
       }
 
-      toast.success("Saved", {
-        description: "Your bot will apply changes shortly.",
-      });
-      onUpdated();
-    } catch (e: any) {
-      toast.error("Couldn't save", { description: e?.message });
+      if (errors.length === 0) {
+        toast.success("Saved", {
+          description: "Your bot will apply changes shortly.",
+        });
+      } else if (anySucceeded) {
+        toast.warning("Partially saved", {
+          description: `Failed: ${errors.join(", ")}`,
+        });
+      }
+      if (anySucceeded) onUpdated();
     } finally {
       setSavingDetails(false);
     }
