@@ -285,9 +285,9 @@ async function pollSendChannelMessageCommands() {
       .eq("status", "pending");
     if (claimErr) continue;
 
-    const { channel_id, content } = cmd.payload || {};
-    const ok = channel_id && content
-      ? await sendChannelMessage(String(channel_id), String(content))
+    const { channel_id, content, embed } = cmd.payload || {};
+    const ok = channel_id && (content || embed)
+      ? await sendChannelMessage(String(channel_id), content ? String(content) : "", embed)
       : false;
 
     await supabase
