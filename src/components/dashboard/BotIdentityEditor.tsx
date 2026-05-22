@@ -212,7 +212,7 @@ export const BotIdentityEditor = ({
       return;
     }
     setSavingName(true);
-    const ok = await callUpdate({ username: trimmed });
+    const { ok } = await callUpdate({ username: trimmed });
     setSavingName(false);
     if (ok) {
       toast.success("Username updated on Discord");
