@@ -70,13 +70,12 @@ export const useBotHealth = (botId: string | null) => {
   // flash a "locked / offline" state for team members before the first poll
   // resolves. We only treat the bot as truly offline once we have a fresh,
   // confirmed offline status from the server.
-  const [health, setHealth] = useState<BotHealth | null>(() =>
-    botId ? readCache(botId) : null,
-  );
-  const [loading, setLoading] = useState(Boolean(botId));
-  const lastKnownGoodRef = useRef<BotHealth | null>(
-    botId ? readCache(botId) : null,
-  );
+  const initialCached = botId ? readCache(botId) : null;
+  const [health, setHealth] = useState<BotHealth | null>(initialCached);
+  // If we have any cached value, render instantly (not "loading"). The
+  // background refresh below revalidates without flashing a spinner.
+  const [loading, setLoading] = useState(Boolean(botId) && !initialCached);
+  const lastKnownGoodRef = useRef<BotHealth | null>(initialCached);
 
   const load = useCallback(async () => {
     if (!botId) {
@@ -93,8 +92,6 @@ export const useBotHealth = (botId: string | null) => {
       writeCache(botId, data);
       setHealth(data);
     } else if (lastKnownGoodRef.current) {
-      // Transient RPC error — keep the last known good status rather than
-      // downgrading to null (which the dashboard treats as "loading").
       setHealth(lastKnownGoodRef.current);
     }
     setLoading(false);
@@ -109,10 +106,14 @@ export const useBotHealth = (botId: string | null) => {
     }
     const cached = readCache(botId);
     lastKnownGoodRef.current = cached;
-    setHealth(cached);
-    setLoading(true);
+    if (cached) {
+      // SWR: render cached immediately, revalidate in background.
+      setHealth(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     load();
-    // Refresh every 30s so "last seen" stays fresh and stale flips quickly
     const t = setInterval(load, 30_000);
     return () => clearInterval(t);
   }, [botId, load]);
