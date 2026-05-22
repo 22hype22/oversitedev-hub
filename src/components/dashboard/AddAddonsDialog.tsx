@@ -132,6 +132,8 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
   const total = selected.reduce((sum, id) => {
     // Dashboard add-on is a one-time, account-wide unlock — free if owned
     if (id === "dashboard" && hasDashboardAccess) return sum;
+    // Admin-marked included add-ons are free to add
+    if (isIncluded(id)) return sum;
     return sum + getAddonPrice(id);
   }, 0);
 
