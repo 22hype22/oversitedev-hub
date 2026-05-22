@@ -80,6 +80,8 @@ import {
   ChevronDown,
   ChevronUp,
   Search,
+  Loader2,
+  
   
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -359,12 +361,21 @@ const BotSection = ({
   // dashboard should flip from offline → online on its own once the next
   // heartbeat lands (useBotHealth polls every 10s).
   const [optimisticAction, setOptimisticAction] = useState<"stop" | null>(null);
+  // Non-blocking "starting" indicator — set when the user clicks
+  // Start/Restart/Redeploy and Railway accepts the request. Cleared as soon
+  // as the worker's heartbeat confirms it's online. The dashboard is NOT
+  // locked while starting — the user can still browse settings.
+  const [isStarting, setIsStarting] = useState(false);
   useEffect(() => {
     if (!optimisticAction || !health?.effective_status) return;
     if (optimisticAction === "stop" && health.effective_status === "offline") {
       setOptimisticAction(null);
     }
   }, [optimisticAction, health?.effective_status]);
+  useEffect(() => {
+    if (!isStarting) return;
+    if (health?.effective_status === "online") setIsStarting(false);
+  }, [isStarting, health?.effective_status]);
   // Debug: log health resolution per bot/viewer to diagnose team-member lockout issues.
   useEffect(() => {
     if (bot.isDemo) return;
@@ -399,6 +410,7 @@ const BotSection = ({
   const isOffline =
     !bot.isDemo &&
     !isDeploying &&
+    !isStarting &&
     (optimisticAction !== null ||
       (!healthLoading && health?.effective_status === "offline"));
   const { guilds: connectedGuilds, loading: guildsLoading } = useBotServerSlots(
@@ -435,10 +447,13 @@ const BotSection = ({
   };
 
   const handleCommandSent = (action: "start" | "stop" | "restart" | "redeploy") => {
-    // Only "stop" needs an optimistic lockout. For start/restart/redeploy we
-    // let the health poll pick up the new online state on its own so the UI
-    // never gets stuck waiting.
-    if (action === "stop") setOptimisticAction("stop");
+    if (action === "stop") {
+      setOptimisticAction("stop");
+      setIsStarting(false);
+    } else {
+      // Show non-blocking "Starting…" indicator until the heartbeat lands.
+      setIsStarting(true);
+    }
     reloadHealth();
   };
   const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
@@ -789,9 +804,16 @@ const BotSection = ({
         </div>
       )}
 
-      {isOffline && (
+      {isOffline && !isStarting && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center text-xs text-amber-300 font-medium">
           Bot is offline — start the bot to make changes.
+        </div>
+      )}
+
+      {isStarting && (
+        <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-2.5 text-center text-xs text-blue-300 font-medium flex items-center justify-center gap-2">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Starting… your bot will be online in ~30 seconds. You can keep editing settings.
         </div>
       )}
 
