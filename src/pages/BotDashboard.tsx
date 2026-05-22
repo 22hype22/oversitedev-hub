@@ -907,12 +907,14 @@ const BotSection = ({
                               : ""
                           }`}
                         >
-                          <AddonConfigCard
-                            addonId={id}
-                            botId={bot.id}
-                            botName={bot.bot_name}
-                            botAvatarUrl={bot.icon_url}
-                          />
+                          <Suspense fallback={<div className="h-24 rounded-xl border border-border/40 bg-card/40 animate-pulse" />}>
+                            <AddonConfigCard
+                              addonId={id}
+                              botId={bot.id}
+                              botName={bot.bot_name}
+                              botAvatarUrl={bot.icon_url}
+                            />
+                          </Suspense>
                           {id === "giveaway-system" && (
                             <div className="mt-3">
                               <GiveawayLaunchCard botId={bot.id} />
