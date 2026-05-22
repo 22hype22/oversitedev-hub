@@ -176,14 +176,16 @@ export default function CheckoutReturn() {
           <p className="text-xs text-muted-foreground mb-6 break-all">Ref: {sessionId}</p>
         )}
 
-        <div className="flex gap-3 justify-center">
-          <Button asChild variant="outlineGlow">
-            <Link to="/">Back home</Link>
-          </Button>
-          <Button asChild variant="hero">
-            <Link to="/products">Keep shopping</Link>
-          </Button>
-        </div>
+        {!isBotOrder && (
+          <div className="flex gap-3 justify-center">
+            <Button asChild variant="outlineGlow">
+              <Link to="/">Back home</Link>
+            </Button>
+            <Button asChild variant="hero">
+              <Link to="/products">Keep shopping</Link>
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
