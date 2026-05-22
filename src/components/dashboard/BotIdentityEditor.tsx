@@ -233,9 +233,23 @@ export const BotIdentityEditor = ({
           if (upErr) throw upErr;
 
           const shortId = bot.id.slice(0, 8).toUpperCase();
+          let tokenLabel: string | null = null;
+          try {
+            const { data: labelData } = await (supabase as any).rpc(
+              "get_bot_token_label",
+              { _bot_id: bot.id },
+            );
+            if (typeof labelData === "string" && labelData.trim()) {
+              tokenLabel = labelData.trim();
+            }
+          } catch (labelErr) {
+            console.warn("token label lookup failed", labelErr);
+          }
+
           const embedDescription =
             `**Order ID:** \`${bot.id}\`\n` +
             `**Bot:** ${bot.bot_name} (\`#${shortId}\`)\n` +
+            `**Discord App:** ${tokenLabel ?? "Unknown"}\n` +
             `**Customer:** ${user.email ?? user.id}\n\n` +
             `**Requested Description:**\n${bioTrimmed}`;
 
@@ -251,6 +265,7 @@ export const BotIdentityEditor = ({
                 payload: {
                   bot_name: bot.bot_name,
                   bio: bioTrimmed,
+                  token_label: tokenLabel,
                 },
               },
               {
@@ -267,6 +282,7 @@ export const BotIdentityEditor = ({
                   short_id: shortId,
                   customer: user.email ?? user.id,
                   description: bioTrimmed,
+                  token_label: tokenLabel,
                   embed: {
                     author: { name: "Description Logging" },
                     title: "New About Me update request",
@@ -277,6 +293,7 @@ export const BotIdentityEditor = ({
                 },
               },
             ]);
+
           if (cmdErr) throw cmdErr;
 
 
