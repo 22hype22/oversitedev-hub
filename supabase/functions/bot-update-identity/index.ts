@@ -108,6 +108,13 @@ Deno.serve(async (req) => {
     if (banner !== null) payload.banner = banner;
     if (bio !== null) payload.bio = bio;
 
+    const fieldsSent = Object.keys(payload);
+    console.log(
+      `[bot-update-identity] bot=${botId} PATCH /users/@me fields=${fieldsSent.join(",")} bio_len=${
+        bio !== null ? bio.length : "n/a"
+      }`,
+    );
+
     const dRes = await fetch("https://discord.com/api/v10/users/@me", {
       method: "PATCH",
       headers: {
@@ -117,16 +124,34 @@ Deno.serve(async (req) => {
       body: JSON.stringify(payload),
     });
 
+    const rawBody = await dRes.text();
+    console.log(
+      `[bot-update-identity] bot=${botId} discord_status=${dRes.status} retry_after=${
+        dRes.headers.get("retry-after") ?? "-"
+      } body=${rawBody.slice(0, 500)}`,
+    );
+
     if (!dRes.ok) {
-      const text = await dRes.text();
       const retryAfter = dRes.headers.get("retry-after");
       return json(dRes.status === 429 ? 429 : dRes.status === 401 || dRes.status === 403 ? 400 : 502, {
-        error: `Discord API error ${dRes.status}: ${text.slice(0, 300)}`,
+        error: `Discord API error ${dRes.status}: ${rawBody.slice(0, 300)}`,
         retry_after: retryAfter ? Number(retryAfter) : undefined,
       });
     }
 
-    const updated = await dRes.json().catch(() => ({} as any));
+    const updated = (() => {
+      try { return JSON.parse(rawBody); } catch { return {} as any; }
+    })();
+
+    // Warn if Discord silently dropped the bio (returned 200 but no bio in response).
+    if (bio !== null && typeof updated?.bio !== "string") {
+      console.warn(
+        `[bot-update-identity] bot=${botId} bio sent but missing from Discord response. response_keys=${Object.keys(
+          updated ?? {},
+        ).join(",")}`,
+      );
+    }
+
 
     const newAvatarUrl = updated?.avatar
       ? `https://cdn.discordapp.com/avatars/${updated.id}/${updated.avatar}.${
