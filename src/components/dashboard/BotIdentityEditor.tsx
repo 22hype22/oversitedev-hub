@@ -199,7 +199,7 @@ export const BotIdentityEditor = ({
               action: "set_status",
               payload: {
                 activity_type: activityType,
-                activity_text: activityText,
+                status_text: activityText,
                 presence_status: presence,
               },
             });
