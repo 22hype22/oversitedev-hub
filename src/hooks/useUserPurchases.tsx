@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getCached, peekCached, setCached } from "@/lib/swrCache";
+
 
 export type OwnedProduct = {
   productId: string;
@@ -21,8 +23,10 @@ export type OwnedProduct = {
  */
 export function useUserPurchases() {
   const { user } = useAuth();
-  const [owned, setOwned] = useState<Map<string, OwnedProduct>>(new Map());
-  const [loading, setLoading] = useState(true);
+  const cacheKey = user ? `userPurchases:${user.id}` : null;
+  const seed = cacheKey ? peekCached<Map<string, OwnedProduct>>(cacheKey) : undefined;
+  const [owned, setOwned] = useState<Map<string, OwnedProduct>>(seed ?? new Map());
+  const [loading, setLoading] = useState(!seed);
 
   const reload = useCallback(async () => {
     if (!user) {
@@ -30,7 +34,10 @@ export function useUserPurchases() {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!cacheKey || !getCached<Map<string, OwnedProduct>>(cacheKey)) {
+      // Only show the loading flag when we don't have fresh cached data.
+      setLoading(true);
+    }
 
     // 1. Stripe purchases keyed by user_id / email.
     const filters = [`user_id.eq.${user.id}`];
@@ -90,12 +97,15 @@ export function useUserPurchases() {
     }
 
     setOwned(map);
+    if (cacheKey) setCached(cacheKey, map);
     setLoading(false);
-  }, [user]);
+  }, [user, cacheKey]);
 
   useEffect(() => {
+    // SWR: skip refetch on mount if cache is fresh (<30s).
+    if (cacheKey && getCached(cacheKey)) return;
     reload();
-  }, [reload]);
+  }, [reload, cacheKey]);
 
   // Auto-refresh ownership when new purchases land. We only subscribe to
   // `pending_purchases` realtime (no sensitive fields). The `purchases` table
