@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getCached, peekCached, setCached } from "@/lib/swrCache";
+
+type OwnedBotsCache = {
+  bots: OwnedBot[];
+  supportBots: OwnedBot[];
+  teamBots: OwnedBot[];
+  ownsDashboardAddon: boolean;
+};
+
 
 
 export type OwnedBot = {
