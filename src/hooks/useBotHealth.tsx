@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export type BotHealth = {
@@ -16,70 +16,12 @@ export type BotHealth = {
   updated_at?: string | null;
 };
 
-const VALID_EFFECTIVE_STATUSES = new Set([
-  "online",
-  "offline",
-  "starting",
-  "stopping",
-  "crashed",
-  "updating",
-  "suspended",
-]);
-
-const isValidBotHealth = (value: unknown): value is BotHealth => {
-  if (!value || typeof value !== "object") return false;
-  const health = value as Partial<BotHealth>;
-  return (
-    typeof health.bot_id === "string" &&
-    typeof health.status === "string" &&
-    typeof health.effective_status === "string" &&
-    VALID_EFFECTIVE_STATUSES.has(health.effective_status)
-  );
-};
-
-const CACHE_PREFIX = "bot-health-cache:";
-const CACHE_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
-
-const readCache = (botId: string): BotHealth | null => {
-  try {
-    const raw = localStorage.getItem(CACHE_PREFIX + botId);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { savedAt: number; value: BotHealth };
-    if (!parsed || typeof parsed.savedAt !== "number") return null;
-    if (Date.now() - parsed.savedAt > CACHE_MAX_AGE_MS) return null;
-    if (!isValidBotHealth(parsed.value)) return null;
-    return parsed.value;
-  } catch {
-    return null;
-  }
-};
-
-const writeCache = (botId: string, value: BotHealth) => {
-  try {
-    localStorage.setItem(
-      CACHE_PREFIX + botId,
-      JSON.stringify({ savedAt: Date.now(), value }),
-    );
-  } catch {
-    /* ignore quota errors */
-  }
-};
-
 export const useBotHealth = (botId: string | null) => {
-  // Seed health from a recent cached value so that a refresh doesn't briefly
-  // flash a "locked / offline" state for team members before the first poll
-  // resolves. We only treat the bot as truly offline once we have a fresh,
-  // confirmed offline status from the server.
-  const initialCached = botId ? readCache(botId) : null;
-  const [health, setHealth] = useState<BotHealth | null>(initialCached);
-  // If we have any cached value, render instantly (not "loading"). The
-  // background refresh below revalidates without flashing a spinner.
-  const [loading, setLoading] = useState(Boolean(botId) && !initialCached);
-  const lastKnownGoodRef = useRef<BotHealth | null>(initialCached);
+  const [health, setHealth] = useState<BotHealth | null>(null);
+  const [loading, setLoading] = useState(Boolean(botId));
 
   const load = useCallback(async () => {
     if (!botId) {
-      lastKnownGoodRef.current = null;
       setHealth(null);
       setLoading(false);
       return;
@@ -87,32 +29,19 @@ export const useBotHealth = (botId: string | null) => {
     const { data, error } = await supabase.rpc("get_bot_health", {
       _bot_id: botId,
     });
-    if (!error && isValidBotHealth(data)) {
-      lastKnownGoodRef.current = data;
-      writeCache(botId, data);
-      setHealth(data);
-    } else if (lastKnownGoodRef.current) {
-      setHealth(lastKnownGoodRef.current);
+    if (!error && data) {
+      setHealth(data as BotHealth);
     }
     setLoading(false);
   }, [botId]);
 
   useEffect(() => {
     if (!botId) {
-      lastKnownGoodRef.current = null;
       setHealth(null);
       setLoading(false);
       return;
     }
-    const cached = readCache(botId);
-    lastKnownGoodRef.current = cached;
-    if (cached) {
-      // SWR: render cached immediately, revalidate in background.
-      setHealth(cached);
-      setLoading(false);
-    } else {
-      setLoading(true);
-    }
+    setLoading(true);
     load();
     const t = setInterval(load, 30_000);
     return () => clearInterval(t);
