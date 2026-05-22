@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
@@ -427,36 +427,60 @@ export default function Dashboard() {
     setRobuxUpgradePromptOpen(true);
   };
 
+  // Tab-gated loading: the dashboard has 4 tabs but used to fetch
+  // everything (purchases + pending_purchases + product_catalog +
+  // membership + bot orders + build jobs + profile + realtime sub)
+  // on mount. That added up to ~7+ Supabase round-trips before the
+  // first paint. We now only seed the email field eagerly and let
+  // each tab fetch its own data the first time it's opened.
+  const [activeTab, setActiveTab] = useState("purchases");
+  const loadedTabsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (!user) return;
     setNewEmail(user.email ?? "");
-    loadPurchases();
-    loadMembership();
-    loadBotOrders();
+  }, [user]);
 
-    (async () => {
-      setProfileLoading(true);
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id,roblox_username,discord_username")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (error) {
-        toast.error("Couldn't load your profile");
-      } else if (data) {
-        setProfile(data as Profile);
-        setRobloxUsername(data.roblox_username ?? "");
-        setDiscordUsername(data.discord_username ?? "");
-      }
-      setProfileLoading(false);
-    })();
-  }, [user, loadPurchases, loadBotOrders]);
+  const loadProfile = useCallback(async () => {
+    if (!user) return;
+    setProfileLoading(true);
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id,roblox_username,discord_username")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (error) {
+      toast.error("Couldn't load your profile");
+    } else if (data) {
+      setProfile(data as Profile);
+      setRobloxUsername(data.roblox_username ?? "");
+      setDiscordUsername(data.discord_username ?? "");
+    }
+    setProfileLoading(false);
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
+    if (loadedTabsRef.current.has(activeTab)) return;
+    loadedTabsRef.current.add(activeTab);
 
-    // Note: `purchases` is intentionally NOT in realtime (sensitive payment data).
-    // We refresh on focus and on `pending_purchases` / `profiles` changes instead.
+    if (activeTab === "purchases") {
+      loadPurchases();
+      loadMembership();
+    } else if (activeTab === "bots") {
+      loadBotOrders();
+    } else if (activeTab === "settings") {
+      loadProfile();
+    }
+  }, [activeTab, user, loadPurchases, loadBotOrders, loadProfile]);
+
+  // Realtime subscription is only useful while the Purchases tab is
+  // visible — defer it until that tab is opened. Avoids spinning up
+  // a channel + listener on initial mount for users who don't care.
+  useEffect(() => {
+    if (!user) return;
+    if (activeTab !== "purchases") return;
+
     const channel = supabase
       .channel(`dashboard-purchases-${user.id}`)
       .on(
@@ -478,7 +502,7 @@ export default function Dashboard() {
       supabase.removeChannel(channel);
       window.removeEventListener("focus", onFocus);
     };
-  }, [user, loadPurchases]);
+  }, [user, activeTab, loadPurchases]);
 
   const saveProfile = async () => {
     if (!user) return;
@@ -583,7 +607,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <Tabs defaultValue="purchases" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid grid-cols-4 w-full max-w-2xl">
             <TabsTrigger value="purchases">
               <ShoppingBag size={14} className="mr-1.5" />
