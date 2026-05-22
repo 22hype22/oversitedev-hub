@@ -118,17 +118,6 @@ export const BotDiscordIdentityCard = ({
     });
     if (typeof data.bio === "string") setBio(data.bio);
   };
-    setLive({
-      username: data.username ?? null,
-      avatar_url: data.avatar_url ?? null,
-      bio: data.bio ?? null,
-    });
-    // NOTE: deliberately do NOT overwrite the username input from Discord.
-    // The input should reflect the customer's chosen name from their order
-    // (initialUsername = bot_orders.bot_name) so they can update it from
-    // there, not the live Discord username (which may be stale or different).
-    if (typeof data.bio === "string") setBio(data.bio);
-  };
 
   useEffect(() => {
     refresh();
