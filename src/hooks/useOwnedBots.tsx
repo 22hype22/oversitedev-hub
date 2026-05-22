@@ -247,6 +247,15 @@ export function useOwnedBots() {
     setTeamBots(teamMapped);
     setOwnsDashboardAddon(ownsDashboardAddon);
 
+    if (cacheKey) {
+      setCached<OwnedBotsCache>(cacheKey, {
+        bots: ownMapped,
+        supportBots: supportMapped,
+        teamBots: teamMapped,
+        ownsDashboardAddon,
+      });
+    }
+
     if (looksEmpty && emptyRetriesRef.current < 4) {
       emptyRetriesRef.current += 1;
       setTimeout(() => {
@@ -256,17 +265,16 @@ export function useOwnedBots() {
       emptyRetriesRef.current = 0;
     }
 
-    // Always drop the loading flag after a successful response so the
-    // dashboard renders (either with bots or the locked/empty state).
-    // Background retries above still run silently for the cold-load race
-    // case, but they don't re-show the full-screen "Loading..." anymore.
     hasLoadedRef.current = true;
     setLoading(false);
-  }, [userId, authLoading]);
+  }, [userId, authLoading, cacheKey]);
 
   useEffect(() => {
+    // Stale-while-revalidate: if we have a fresh cache (<30s), skip the
+    // refetch on mount. Otherwise revalidate in the background.
+    if (cacheKey && getCached<OwnedBotsCache>(cacheKey)) return;
     reload();
-  }, [reload]);
+  }, [reload, cacheKey]);
 
   // Realtime: if an owner removes this user from their team, or an owner
   // revokes a support grant this user holds, refresh immediately so the
