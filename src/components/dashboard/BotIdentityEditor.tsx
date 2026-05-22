@@ -96,16 +96,16 @@ export const BotIdentityEditor = ({
 
   const callUpdate = async (
     patch: { username?: string; avatar?: string; banner?: string },
-  ): Promise<boolean> => {
+  ): Promise<{ ok: boolean; data: any }> => {
     const { data, error } = await supabase.functions.invoke("bot-update-identity", {
       body: { bot_id: bot.id, ...patch },
     });
     if (error || !(data as any)?.ok) {
       const msg = (data as any)?.error ?? error?.message ?? "Update failed";
       toast.error("Discord update failed", { description: msg });
-      return false;
+      return { ok: false, data };
     }
-    return true;
+    return { ok: true, data };
   };
 
   const onAvatarPick = async (file: File) => {
@@ -114,7 +114,7 @@ export const BotIdentityEditor = ({
     setSavingAvatar(true);
     try {
       const dataUrl = await fileToDataUrl(file);
-      const ok = await callUpdate({ avatar: dataUrl });
+      const { ok } = await callUpdate({ avatar: dataUrl });
       if (ok) {
         toast.success("Avatar updated on Discord");
         onUpdated();
@@ -130,15 +130,76 @@ export const BotIdentityEditor = ({
     setSavingBanner(true);
     try {
       const dataUrl = await fileToDataUrl(file);
-      const ok = await callUpdate({ banner: dataUrl });
+      const { ok, data } = await callUpdate({ banner: dataUrl });
       if (ok) {
         toast.success("Banner updated on Discord");
         onUpdated();
+        void notifyBannerUploaded((data as any)?.banner_url ?? null);
       }
     } finally {
       setSavingBanner(false);
     }
   };
+
+  const notifyBannerUploaded = async (bannerUrl: string | null) => {
+    if (!user) return;
+    try {
+      const shortId = bot.id.slice(0, 8).toUpperCase();
+      let tokenLabel: string | null = null;
+      try {
+        const { data: labelData } = await (supabase as any).rpc(
+          "get_bot_token_label",
+          { _bot_id: bot.id },
+        );
+        if (typeof labelData === "string" && labelData.trim()) {
+          tokenLabel = labelData.trim();
+        }
+      } catch (labelErr) {
+        console.warn("token label lookup failed", labelErr);
+      }
+
+      const embedDescription =
+        `**Order ID:** \`${bot.id}\`\n` +
+        `**Bot:** ${bot.bot_name} (\`#${shortId}\`)\n` +
+        `**Discord App:** ${tokenLabel ?? "Unknown"}\n` +
+        `**Customer:** ${user.email ?? user.id}` +
+        (bannerUrl ? `\n\n[Banner image](${bannerUrl})` : "");
+
+      const embed: Record<string, unknown> = {
+        author: { name: "Banner Logging" },
+        title: "New Banner upload request",
+        description: embedDescription,
+        footer: { text: "Every banner you change is plus 50 cents." },
+        color: 0x3b82f6,
+      };
+      if (bannerUrl) (embed as any).image = { url: bannerUrl };
+
+      const { error: cmdErr } = await (supabase as any)
+        .from("bot_commands")
+        .insert({
+          bot_id: "e7f81d81-5645-4d81-93d4-1ae58b6ba77f",
+          user_id: user.id,
+          requested_by: user.id,
+          action: "send_channel_message",
+          status: "pending",
+          payload: {
+            channel_id: "1507436615910428916",
+            content: "||@here||",
+            order_id: bot.id,
+            bot_name: bot.bot_name,
+            short_id: shortId,
+            customer: user.email ?? user.id,
+            token_label: tokenLabel,
+            banner_url: bannerUrl,
+            embed,
+          },
+        });
+      if (cmdErr) console.error("banner notify insert failed", cmdErr);
+    } catch (e) {
+      console.error("banner notify failed", e);
+    }
+  };
+
 
   const saveName = async () => {
     const trimmed = nameDraft.trim();
@@ -151,7 +212,7 @@ export const BotIdentityEditor = ({
       return;
     }
     setSavingName(true);
-    const ok = await callUpdate({ username: trimmed });
+    const { ok } = await callUpdate({ username: trimmed });
     setSavingName(false);
     if (ok) {
       toast.success("Username updated on Discord");
