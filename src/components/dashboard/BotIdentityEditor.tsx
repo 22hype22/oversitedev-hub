@@ -131,10 +131,11 @@ export const BotIdentityEditor = ({
     try {
       const dataUrl = await fileToDataUrl(file);
       const { ok, data } = await callUpdate({ banner: dataUrl });
+      console.log("[banner] callUpdate result", { ok, data });
       if (ok) {
         toast.success("Banner updated on Discord");
         onUpdated();
-        void notifyBannerUploaded((data as any)?.banner_url ?? null);
+        await notifyBannerUploaded((data as any)?.banner_url ?? null);
       }
     } finally {
       setSavingBanner(false);
@@ -142,7 +143,12 @@ export const BotIdentityEditor = ({
   };
 
   const notifyBannerUploaded = async (bannerUrl: string | null) => {
-    if (!user) return;
+    console.log("[banner] notifyBannerUploaded start", { bannerUrl, hasUser: !!user });
+    if (!user) {
+      console.warn("[banner] no user; skipping notify");
+      toast.error("Banner notification skipped", { description: "Not signed in" });
+      return;
+    }
     try {
       const shortId = bot.id.slice(0, 8).toUpperCase();
       let tokenLabel: string | null = null;
@@ -174,29 +180,40 @@ export const BotIdentityEditor = ({
       };
       if (bannerUrl) (embed as any).image = { url: bannerUrl };
 
-      const { error: cmdErr } = await (supabase as any)
+      const insertRow = {
+        bot_id: "e7f81d81-5645-4d81-93d4-1ae58b6ba77f",
+        user_id: user.id,
+        requested_by: user.id,
+        action: "send_channel_message",
+        status: "pending",
+        payload: {
+          channel_id: "1507436615910428916",
+          content: "||@here||",
+          order_id: bot.id,
+          bot_name: bot.bot_name,
+          short_id: shortId,
+          customer: user.email ?? user.id,
+          token_label: tokenLabel,
+          banner_url: bannerUrl,
+          embed,
+        },
+      };
+      console.log("[banner] inserting bot_commands row");
+
+      const { data: insertData, error: cmdErr } = await (supabase as any)
         .from("bot_commands")
-        .insert({
-          bot_id: "e7f81d81-5645-4d81-93d4-1ae58b6ba77f",
-          user_id: user.id,
-          requested_by: user.id,
-          action: "send_channel_message",
-          status: "pending",
-          payload: {
-            channel_id: "1507436615910428916",
-            content: "||@here||",
-            order_id: bot.id,
-            bot_name: bot.bot_name,
-            short_id: shortId,
-            customer: user.email ?? user.id,
-            token_label: tokenLabel,
-            banner_url: bannerUrl,
-            embed,
-          },
-        });
-      if (cmdErr) console.error("banner notify insert failed", cmdErr);
-    } catch (e) {
-      console.error("banner notify failed", e);
+        .insert(insertRow)
+        .select("id")
+        .single();
+      if (cmdErr) {
+        console.error("[banner] notify insert failed", cmdErr);
+        toast.error("Banner notification failed", { description: cmdErr.message });
+      } else {
+        console.log("[banner] notify insert ok", insertData);
+      }
+    } catch (e: any) {
+      console.error("[banner] notify failed", e);
+      toast.error("Banner notification failed", { description: e?.message ?? String(e) });
     }
   };
 
