@@ -106,11 +106,18 @@ export const BotDiscordIdentityCard = ({
     });
     setLoading(false);
     if (error || !data?.ok) {
-      toast.error("Couldn't load Discord identity", {
-        description: (data as any)?.error ?? error?.message,
-      });
+      // Graceful fallback: show muted "Identity unavailable" state without a toast
+      setUnavailable(true);
       return;
     }
+    setUnavailable(false);
+    setLive({
+      username: data.username ?? null,
+      avatar_url: data.avatar_url ?? null,
+      bio: data.bio ?? null,
+    });
+    if (typeof data.bio === "string") setBio(data.bio);
+  };
     setLive({
       username: data.username ?? null,
       avatar_url: data.avatar_url ?? null,
