@@ -11,6 +11,7 @@ function SetupForm({ orderId }: { orderId: string }) {
   const elements = useElements();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const [paymentReady, setPaymentReady] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
