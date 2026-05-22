@@ -17,7 +17,11 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/integrations/supabase/client";
-import { AddonConfigCard } from "./AddonConfigCard";
+// Lazy-loaded so the dashboard's bot header & controls paint quickly
+// without waiting on the (large) addon editor bundle.
+const AddonConfigCard = lazy(() =>
+  import("./AddonConfigCard").then((m) => ({ default: m.AddonConfigCard })),
+);
 import { useBotAddonStates } from "@/hooks/useBotAddonStates";
 
 /**
