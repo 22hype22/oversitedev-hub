@@ -474,26 +474,38 @@ export const BotIdentityEditor = ({
                   className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-smooth"
                 >
                   {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                  {expanded ? "Hide status" : "Edit status"}
+                  {expanded ? "Hide bio & status" : "Edit bio & status"}
                 </button>
 
                 {expanded && (
                   <div className="mt-3 space-y-3 rounded-lg border border-border bg-background/40 p-3">
-                    <div className="flex items-start gap-2 rounded-md bg-muted/40 p-2.5 text-xs text-muted-foreground">
-                      <Info className="h-4 w-4 shrink-0 text-primary mt-0.5" />
-                      <span>
-                        To update your bot's About Me, visit the{" "}
-                        <a
-                          href="https://discord.com/developers/applications"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline hover:text-foreground"
-                        >
-                          Discord Developer Portal
-                        </a>
-                        {" "}→ your application → General Information → Description.
-                      </span>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="bot-bio" className="text-xs flex items-center gap-1.5">
+                        <Info className="h-3 w-3 text-primary" />
+                        About Me
+                      </Label>
+                      <Textarea
+                        id="bot-bio"
+                        value={bio}
+                        onChange={(e) => setBio(e.target.value)}
+                        maxLength={190}
+                        rows={3}
+                        placeholder="Describe what your bot does…"
+                        disabled={savingDetails}
+                      />
+                      <div className="flex items-start gap-2 rounded-md bg-muted/40 p-2 text-[11px] text-muted-foreground">
+                        <Info className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
+                        <span>
+                          Discord doesn't allow bots to update their own About Me via the API.
+                          When you save, your request is sent to our team and we'll update it manually
+                          in the Discord Developer Portal within 24 hours.
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground text-right">
+                        {bio.length}/190
+                      </div>
                     </div>
+
 
                     <div className="grid sm:grid-cols-2 gap-3">
                       <div className="space-y-1.5">
