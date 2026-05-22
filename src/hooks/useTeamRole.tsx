@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getCached, peekCached, setCached } from "@/lib/swrCache";
+
 
 export type TeamRole = "owner" | "co_owner" | "admin" | "moderator" | "viewer";
 
