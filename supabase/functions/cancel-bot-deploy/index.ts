@@ -99,13 +99,63 @@ Deno.serve(async (req) => {
       });
       const botToken = typeof tokenData === "string" ? tokenData : null;
       if (botToken) {
+        // 1) Leave every guild the bot is currently in. We must finish this
+        // BEFORE releasing the token, otherwise the next bot to claim it
+        // would inherit membership in these servers.
+        try {
+          const authHeader = { Authorization: `Bot ${botToken}` };
+          const guilds: Array<{ id: string; name?: string }> = [];
+          let after: string | null = null;
+          // Paginate (Discord caps at 200 per page).
+          for (let i = 0; i < 50; i++) {
+            const url = new URL("https://discord.com/api/v10/users/@me/guilds");
+            url.searchParams.set("limit", "200");
+            if (after) url.searchParams.set("after", after);
+            const gRes = await fetch(url.toString(), { headers: authHeader });
+            if (!gRes.ok) {
+              const t = await gRes.text();
+              console.warn("[cancel-bot-deploy] list guilds failed", gRes.status, t.slice(0, 200));
+              break;
+            }
+            const page = (await gRes.json()) as Array<{ id: string; name?: string }>;
+            if (!Array.isArray(page) || page.length === 0) break;
+            guilds.push(...page);
+            if (page.length < 200) break;
+            after = page[page.length - 1].id;
+          }
+
+          for (const g of guilds) {
+            try {
+              const lRes = await fetch(
+                `https://discord.com/api/v10/users/@me/guilds/${g.id}`,
+                { method: "DELETE", headers: authHeader },
+              );
+              if (!lRes.ok && lRes.status !== 404) {
+                const t = await lRes.text();
+                console.warn("[cancel-bot-deploy] leave guild failed", g.id, lRes.status, t.slice(0, 200));
+                // Respect Discord rate limits.
+                if (lRes.status === 429) {
+                  const ra = Number(lRes.headers.get("retry-after") ?? "1");
+                  await new Promise((r) => setTimeout(r, Math.min(5000, ra * 1000)));
+                }
+              }
+            } catch (e) {
+              console.warn("[cancel-bot-deploy] leave guild error", g.id, (e as Error).message);
+            }
+          }
+          console.log("[cancel-bot-deploy] left", guilds.length, "guilds for bot", orderId);
+        } catch (e) {
+          console.warn("[cancel-bot-deploy] guild leave loop error", (e as Error).message);
+        }
+
+        // 2) Reset Discord identity (avatar + bio) so the next bot to claim
+        // this token doesn't inherit the previous bot's look.
         const dRes = await fetch("https://discord.com/api/v10/users/@me", {
           method: "PATCH",
           headers: {
             Authorization: `Bot ${botToken}`,
             "Content-Type": "application/json",
           },
-          // null avatar clears it; empty bio clears it.
           body: JSON.stringify({ avatar: null, bio: "" }),
         });
         if (!dRes.ok) {
@@ -116,6 +166,7 @@ Deno.serve(async (req) => {
     } catch (e) {
       console.warn("[cancel-bot-deploy] identity reset error", (e as Error).message);
     }
+
 
     // Now release the pool token (the trigger no longer does this, so we own it).
     const { error: releaseErr } = await admin
