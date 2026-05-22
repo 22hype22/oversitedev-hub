@@ -116,65 +116,29 @@ serve(async (req) => {
       );
     }
 
-    // Low-stock path: every row -> 'confirmation', awaiting username reply.
+    // Low-stock path: every row -> 'waitlisted'. No DM is sent yet — the
+    // promote_waitlisted_order_on_token_available trigger will DM the customer
+    // a "still want to proceed?" prompt the moment a bot slot opens up.
     const { error: updErr } = await admin
       .from("bot_orders")
       .update({
-        status: "confirmation",
-        confirmation_state: "awaiting_username",
-        confirmation_dm_sent_at: now,
-        confirmation_deadline_at: new Date(
-          Date.now() + 7 * 24 * 60 * 60 * 1000,
-        ).toISOString(),
+        status: "waitlisted",
         updated_at: now,
       })
       .in("id", allIds)
       .in("status", ["paid", "preorder", "preorder_pending_card"]);
     if (updErr) return bad(`Status update failed: ${updErr.message}`, 500);
 
-    // Enqueue ONE Discord DM for the whole order (parent row only).
-    const expectedName = (order.discord_username || "your Discord username")
-      .trim();
-    const botList = siblings
-      .map((r) => `• ${r.bot_name}`)
-      .join("\n");
-    const title = botsNeeded === 1
-      ? "Confirm your Oversite bot preorder"
-      : `Confirm your Oversite preorder (${botsNeeded} bots)`;
-    const dmBody = [
-      `Thanks for preordering with Oversite! To finalize your order and reserve your spot, please reply to this DM with your Discord username (\`${expectedName}\`).`,
-      "",
-      botsNeeded === 1 ? "Your bot:" : "Your bots:",
-      botList,
-      "",
-      "Once we receive your confirmation, your bot will be queued for deployment as soon as a slot opens. You can also confirm from your dashboard.",
-    ].join("\n");
-
-    await admin.from("bot_notifications").insert({
-      user_id: user.id,
-      bot_id: parentId,
-      event_type: "order_confirmation_request",
-      title,
-      body: dmBody,
-      status: "pending",
-      context: { parent_order_id: parentId, bots_needed: botsNeeded },
-    });
-
-    // Best-effort kick to the dispatcher so the DM goes out promptly.
-    admin.functions
-      .invoke("discord-notify-dispatch", { body: {} })
-      .catch(() => {});
-
     return new Response(
       JSON.stringify({
         ok: true,
         path: "low_stock",
-        status: "confirmation",
+        status: "waitlisted",
         botsNeeded,
-        expectedUsername: expectedName,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
+
   } catch (e) {
     console.error("confirm-order-discord-join failed:", e);
     return bad("Unexpected error", 500);
