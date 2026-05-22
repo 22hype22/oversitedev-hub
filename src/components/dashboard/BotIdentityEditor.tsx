@@ -444,6 +444,15 @@ export const BotIdentityEditor = ({
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={copyBotId}
+                    title={`Bot ID: ${bot.id} — click to copy`}
+                    className="ml-1 inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted transition-smooth"
+                  >
+                    #{shortBotId}
+                    <Copy className="h-3 w-3" />
+                  </button>
                 </>
               )}
             </div>
