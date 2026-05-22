@@ -43,7 +43,10 @@ export const useBotHealth = (botId: string | null) => {
     }
     setLoading(true);
     load();
-    const t = setInterval(load, 30_000);
+    // Poll every 10s so an offline → online transition after a Start /
+    // Restart / Redeploy is reflected on the dashboard within ~10s of the
+    // worker's first heartbeat, without requiring a manual refresh.
+    const t = setInterval(load, 10_000);
     return () => clearInterval(t);
   }, [botId, load]);
 
