@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { Loader2, ExternalLink, MessageSquare, CheckCircle2, Bot } from "lucide-react";
+import { Loader2, ExternalLink, MessageSquare, Clock, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -10,8 +9,8 @@ const DISCORD_INVITE = "https://discord.gg/oversite";
 type Phase =
   | { kind: "join" }
   | { kind: "in_stock" }
-  | { kind: "low_stock"; expectedUsername: string; botsNeeded: number }
-  | { kind: "confirmed"; status: "ready" | "waitlist" };
+  | { kind: "waitlist"; botsNeeded: number };
+
 
 /**
  * Post-payment gate shown on /checkout/return for bot orders.
