@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Download, Loader2, UserPlus, Bot } from "lucide-react";
+import { CheckCircle2, Download, Loader2, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useAuth } from "@/hooks/useAuth";
 import { useMembership } from "@/hooks/useMembership";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
+import { DiscordJoinGate } from "@/components/checkout/DiscordJoinGate";
 
 type PurchasedFile = {
   id: string;
@@ -18,43 +19,46 @@ type PurchasedFile = {
 export default function CheckoutReturn() {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("session_id");
+  const setupOrderId = searchParams.get("order");
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [files, setFiles] = useState<PurchasedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [isBotOrder, setIsBotOrder] = useState(false);
+  const [botOrderId, setBotOrderId] = useState<string | null>(setupOrderId);
   const { isMember } = useMembership();
 
   useEffect(() => {
-    if (!sessionId) {
+    if (!sessionId && !setupOrderId) {
       setLoading(false);
       return;
     }
     const load = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke(
-          "get-purchase-files",
-          {
-            body: { sessionId, environment: getStripeEnvironment() },
-          },
-        );
-        if (error) throw new Error(error.message);
-        if (data?.error) throw new Error(data.error);
-        setFiles(data?.files || []);
+        if (sessionId) {
+          const { data, error } = await supabase.functions.invoke(
+            "get-purchase-files",
+            {
+              body: { sessionId, environment: getStripeEnvironment() },
+            },
+          );
+          if (error) throw new Error(error.message);
+          if (data?.error) throw new Error(data.error);
+          setFiles(data?.files || []);
+        }
 
-        // Check if any bot orders were just paid
-        if (user) {
+        // Resolve the bot order tied to this checkout (if any). For a charge
+        // session we look up by stripe_session_id; for a SetupIntent return
+        // the order id is passed in the URL.
+        if (user && !botOrderId && sessionId) {
           const { data: orders } = await (supabase as any)
             .from("bot_orders")
-            .select("id, status")
+            .select("id")
             .eq("user_id", user.id)
-            .in("status", ["paid", "ready", "building"])
+            .eq("stripe_session_id", sessionId)
+            .is("parent_order_id", null)
             .order("created_at", { ascending: false })
             .limit(1);
-
-          if (orders && orders.length > 0) {
-            setIsBotOrder(true);
-          }
+          if (orders && orders.length > 0) setBotOrderId(orders[0].id);
         }
       } catch (e) {
         setError((e as Error).message);
@@ -63,9 +67,10 @@ export default function CheckoutReturn() {
       }
     };
     load();
-  }, [sessionId, user]);
+  }, [sessionId, setupOrderId, user, botOrderId]);
 
   const downloadable = files.filter((f) => f.url);
+  const isBotOrder = !!botOrderId;
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
@@ -73,29 +78,21 @@ export default function CheckoutReturn() {
         <CheckCircle2 className="mx-auto h-14 w-14 text-primary mb-4" />
         <h1 className="text-2xl font-bold mb-2">Thanks for your order!</h1>
         <p className="text-muted-foreground mb-6">
-          {sessionId
+          {sessionId || setupOrderId
             ? "Your payment was received."
             : "No session information found."}
         </p>
 
-        {/* Bot order confirmation */}
-        {isBotOrder && (
-          <div className="mb-6 rounded-lg border border-primary/30 bg-primary/5 p-5 text-left">
-            <div className="flex items-start gap-3">
-              <Bot className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold">Your bot is being built!</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  We're assembling your custom Discord bot now. You'll receive a notification
-                  when it's ready to configure. This usually takes less than a minute.
-                </p>
-                <Button asChild size="sm" variant="hero" className="mt-3">
-                  <Link to="/bot-dashboard">Go to Bot Dashboard</Link>
-                </Button>
-              </div>
-            </div>
-          </div>
+        {/* Bot order — Discord-join gate then status-driven next-step */}
+        {isBotOrder && botOrderId && (
+          <>
+            <DiscordJoinGate orderId={botOrderId} />
+            <Button asChild size="sm" variant="outlineGlow" className="mb-4">
+              <Link to="/bot-dashboard">Go to Bot Dashboard</Link>
+            </Button>
+          </>
         )}
+
 
         {/* File downloads (Roblox products) */}
         {sessionId && !isBotOrder && (

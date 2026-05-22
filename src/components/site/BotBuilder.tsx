@@ -12,6 +12,7 @@ import { useBotSalesMode } from "@/hooks/useBotSalesMode";
 import { useAddonOverrides, setAddonIncluded } from "@/hooks/useAddonOverrides";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { BotStockIndicator } from "@/components/site/BotStockIndicator";
+import { useBotStockCount } from "@/hooks/useBotStockCount";
 import { filterAddonsForBase } from "@/lib/addonCategories";
 import {
   Shield,
@@ -275,6 +276,7 @@ export const BotBuilder = () => {
   const { user, isAdmin } = useAuth();
   const { hasDashboardAccess: dashboardAlreadyOwned } = useOwnedBots();
   const { isLive: salesLive } = useBotSalesMode();
+  const stockCount = useBotStockCount();
   const { isIncluded: addonIsIncluded } = useAddonOverrides();
   // Multi-select bases. Rules:
   //  • All-in-One Pack ("scratch") is exclusive — selecting it clears others.
@@ -373,6 +375,16 @@ export const BotBuilder = () => {
     : visibleIdentityTabs[0]?.id ?? "protection";
 
   const currentAddons = useMemo(() => getAddonsForBases(bases), [bases]);
+
+  // How many bot tokens this order would consume (1 per identity).
+  const botsNeeded = usesPackTabs ? visibleIdentityTabs.length : 1;
+  // In stock = admin sales mode is live AND we have enough tokens for this order.
+  // While stockCount is still loading (null) we conservatively assume preorder so
+  // the button doesn't flip mid-render.
+  const inStock = salesLive && stockCount !== null && stockCount >= botsNeeded;
+  const primaryCtaLabel = inStock ? "Order my bot" : "Preorder my bot";
+  const confirmCtaLabel = inStock ? "Confirm order" : "Confirm preorder";
+
 
   // React to admin "INCLUDED" toggles in real time:
   //   - When an addon flips to INCLUDED → auto-select it (so the customer
@@ -1773,7 +1785,7 @@ export const BotBuilder = () => {
                   onClick={submit}
                   disabled={submitting}
                 >
-                  {salesLive ? "Buy my bot" : "Preorder my bot"} <ArrowRight />
+                  {primaryCtaLabel} <ArrowRight />
                 </Button>
                 <BotStockIndicator className="mt-2" />
               </>
@@ -1980,7 +1992,7 @@ export const BotBuilder = () => {
                   onClick={submit}
                   disabled={submitting}
                 >
-                  {salesLive ? "Confirm purchase" : "Confirm preorder"} <ArrowRight />
+                  {confirmCtaLabel} <ArrowRight />
                 </Button>
                 <BotStockIndicator className="mt-2" />
               </>
