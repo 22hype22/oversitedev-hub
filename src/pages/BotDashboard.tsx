@@ -359,12 +359,21 @@ const BotSection = ({
   // dashboard should flip from offline → online on its own once the next
   // heartbeat lands (useBotHealth polls every 10s).
   const [optimisticAction, setOptimisticAction] = useState<"stop" | null>(null);
+  // Non-blocking "starting" indicator — set when the user clicks
+  // Start/Restart/Redeploy and Railway accepts the request. Cleared as soon
+  // as the worker's heartbeat confirms it's online. The dashboard is NOT
+  // locked while starting — the user can still browse settings.
+  const [isStarting, setIsStarting] = useState(false);
   useEffect(() => {
     if (!optimisticAction || !health?.effective_status) return;
     if (optimisticAction === "stop" && health.effective_status === "offline") {
       setOptimisticAction(null);
     }
   }, [optimisticAction, health?.effective_status]);
+  useEffect(() => {
+    if (!isStarting) return;
+    if (health?.effective_status === "online") setIsStarting(false);
+  }, [isStarting, health?.effective_status]);
   // Debug: log health resolution per bot/viewer to diagnose team-member lockout issues.
   useEffect(() => {
     if (bot.isDemo) return;
