@@ -1,14 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { getCached, peekCached, setCached } from "@/lib/swrCache";
 
-type OwnedBotsCache = {
-  bots: OwnedBot[];
-  supportBots: OwnedBot[];
-  teamBots: OwnedBot[];
-  ownsDashboardAddon: boolean;
-};
+
 
 
 
@@ -115,15 +109,14 @@ function mapRow(row: any, opts: { viaSupport?: boolean; viaTeam?: boolean } = {}
 export function useOwnedBots() {
   const { user, loading: authLoading } = useAuth();
   const userId = user?.id ?? null;
-  const cacheKey = userId ? `ownedBots:${userId}` : null;
-  const seed = cacheKey ? peekCached<OwnedBotsCache>(cacheKey) : undefined;
-  const [bots, setBots] = useState<OwnedBot[]>(seed?.bots ?? []);
-  const [supportBots, setSupportBots] = useState<OwnedBot[]>(seed?.supportBots ?? []);
-  const [teamBots, setTeamBots] = useState<OwnedBot[]>(seed?.teamBots ?? []);
-  const [ownsDashboardAddon, setOwnsDashboardAddon] = useState(seed?.ownsDashboardAddon ?? false);
-  const [loading, setLoading] = useState(!seed);
-  const hasLoadedRef = useRef(!!seed);
+  const [bots, setBots] = useState<OwnedBot[]>([]);
+  const [supportBots, setSupportBots] = useState<OwnedBot[]>([]);
+  const [teamBots, setTeamBots] = useState<OwnedBot[]>([]);
+  const [ownsDashboardAddon, setOwnsDashboardAddon] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const hasLoadedRef = useRef(false);
   const emptyRetriesRef = useRef(0);
+
 
   const reload = useCallback(async () => {
     if (!userId) {
@@ -247,15 +240,6 @@ export function useOwnedBots() {
     setTeamBots(teamMapped);
     setOwnsDashboardAddon(ownsDashboardAddon);
 
-    if (cacheKey) {
-      setCached<OwnedBotsCache>(cacheKey, {
-        bots: ownMapped,
-        supportBots: supportMapped,
-        teamBots: teamMapped,
-        ownsDashboardAddon,
-      });
-    }
-
     if (looksEmpty && emptyRetriesRef.current < 4) {
       emptyRetriesRef.current += 1;
       setTimeout(() => {
@@ -267,14 +251,12 @@ export function useOwnedBots() {
 
     hasLoadedRef.current = true;
     setLoading(false);
-  }, [userId, authLoading, cacheKey]);
+  }, [userId, authLoading]);
 
   useEffect(() => {
-    // Stale-while-revalidate: if we have a fresh cache (<30s), skip the
-    // refetch on mount. Otherwise revalidate in the background.
-    if (cacheKey && getCached<OwnedBotsCache>(cacheKey)) return;
     reload();
-  }, [reload, cacheKey]);
+  }, [reload]);
+
 
   // Realtime: if an owner removes this user from their team, or an owner
   // revokes a support grant this user holds, refresh immediately so the
