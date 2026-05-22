@@ -2682,6 +2682,7 @@ export type Database = {
         | { Args: never; Returns: undefined }
         | { Args: { _bot_id?: string }; Returns: undefined }
       expire_pending_confirmations: { Args: never; Returns: number }
+      get_available_bot_token_count: { Args: never; Returns: number }
       get_bot_client_id: { Args: { _bot_id: string }; Returns: string }
       get_bot_health: { Args: { _bot_id: string }; Returns: Json }
       get_bot_secrets_metadata: {

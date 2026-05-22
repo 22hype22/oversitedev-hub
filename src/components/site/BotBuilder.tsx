@@ -11,6 +11,7 @@ import { useOwnedBots } from "@/hooks/useOwnedBots";
 import { useBotSalesMode } from "@/hooks/useBotSalesMode";
 import { useAddonOverrides, setAddonIncluded } from "@/hooks/useAddonOverrides";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
+import { BotStockIndicator } from "@/components/site/BotStockIndicator";
 import { filterAddonsForBase } from "@/lib/addonCategories";
 import {
   Shield,
@@ -1966,17 +1967,21 @@ export const BotBuilder = () => {
             </div>
 
             {showPayment && (
-              <Button
-                ref={confirmBtnRef}
-                variant="hero"
-                size="lg"
-                className="w-full mt-4"
-                onClick={submit}
-                disabled={submitting}
-              >
-                {salesLive ? "Confirm purchase" : "Confirm preorder"} <ArrowRight />
-              </Button>
+              <>
+                <BotStockIndicator className="mt-4" />
+                <Button
+                  ref={confirmBtnRef}
+                  variant="hero"
+                  size="lg"
+                  className="w-full mt-2"
+                  onClick={submit}
+                  disabled={submitting}
+                >
+                  {salesLive ? "Confirm purchase" : "Confirm preorder"} <ArrowRight />
+                </Button>
+              </>
             )}
+
 
             <p className="text-[10px] text-muted-foreground mt-3 leading-relaxed">
               *Final pricing depends on scope. We'll confirm everything before any work begins.
