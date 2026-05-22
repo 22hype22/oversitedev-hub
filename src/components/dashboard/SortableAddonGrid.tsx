@@ -124,16 +124,18 @@ function SortableCard({
       style={style}
       {...dragProps}
     >
-      <AddonConfigCard
-        addonId={id}
-        botId={botId}
-        botName={botName}
-        botAvatarUrl={botAvatarUrl}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        enabled={enabled}
-        onToggleEnabled={onToggleEnabled}
-      />
+      <Suspense fallback={<div className="h-24 rounded-xl border border-border/40 bg-card/40 animate-pulse" />}>
+        <AddonConfigCard
+          addonId={id}
+          botId={botId}
+          botName={botName}
+          botAvatarUrl={botAvatarUrl}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          enabled={enabled}
+          onToggleEnabled={onToggleEnabled}
+        />
+      </Suspense>
     </div>
   );
 }
