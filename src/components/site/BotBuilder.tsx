@@ -1785,7 +1785,7 @@ export const BotBuilder = () => {
                   onClick={submit}
                   disabled={submitting}
                 >
-                  {salesLive ? "Buy my bot" : "Preorder my bot"} <ArrowRight />
+                  {primaryCtaLabel} <ArrowRight />
                 </Button>
                 <BotStockIndicator className="mt-2" />
               </>
