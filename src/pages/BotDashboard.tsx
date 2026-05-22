@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useBotHealth } from "@/hooks/useBotHealth";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,7 +26,12 @@ import {
 import { toast } from "sonner";
 import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
 import { SortableAddonGrid } from "@/components/dashboard/SortableAddonGrid";
-import { AddonConfigCard } from "@/components/dashboard/AddonConfigCard";
+// Lazy-loaded: the add-on configuration UI pulls in a large bundle of
+// per-addon editors. Defer it so the bot header/controls paint within
+// 1-2s of navigation instead of waiting on all addon code to load.
+const AddonConfigCard = lazy(() =>
+  import("@/components/dashboard/AddonConfigCard").then((m) => ({ default: m.AddonConfigCard })),
+);
 import { GiveawayLaunchCard } from "@/components/dashboard/GiveawayLaunchCard";
 import { FixesBar } from "@/components/dashboard/FixesBar";
 import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
@@ -902,12 +907,14 @@ const BotSection = ({
                               : ""
                           }`}
                         >
-                          <AddonConfigCard
-                            addonId={id}
-                            botId={bot.id}
-                            botName={bot.bot_name}
-                            botAvatarUrl={bot.icon_url}
-                          />
+                          <Suspense fallback={<div className="h-24 rounded-xl border border-border/40 bg-card/40 animate-pulse" />}>
+                            <AddonConfigCard
+                              addonId={id}
+                              botId={bot.id}
+                              botName={bot.bot_name}
+                              botAvatarUrl={bot.icon_url}
+                            />
+                          </Suspense>
                           {id === "giveaway-system" && (
                             <div className="mt-3">
                               <GiveawayLaunchCard botId={bot.id} />

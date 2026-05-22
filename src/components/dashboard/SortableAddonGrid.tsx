@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -17,7 +17,11 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/integrations/supabase/client";
-import { AddonConfigCard } from "./AddonConfigCard";
+// Lazy-loaded so the dashboard's bot header & controls paint quickly
+// without waiting on the (large) addon editor bundle.
+const AddonConfigCard = lazy(() =>
+  import("./AddonConfigCard").then((m) => ({ default: m.AddonConfigCard })),
+);
 import { useBotAddonStates } from "@/hooks/useBotAddonStates";
 
 /**
@@ -120,16 +124,18 @@ function SortableCard({
       style={style}
       {...dragProps}
     >
-      <AddonConfigCard
-        addonId={id}
-        botId={botId}
-        botName={botName}
-        botAvatarUrl={botAvatarUrl}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        enabled={enabled}
-        onToggleEnabled={onToggleEnabled}
-      />
+      <Suspense fallback={<div className="h-24 rounded-xl border border-border/40 bg-card/40 animate-pulse" />}>
+        <AddonConfigCard
+          addonId={id}
+          botId={botId}
+          botName={botName}
+          botAvatarUrl={botAvatarUrl}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          enabled={enabled}
+          onToggleEnabled={onToggleEnabled}
+        />
+      </Suspense>
     </div>
   );
 }
