@@ -84,6 +84,7 @@ export const BotDiscordIdentityCard = ({
   const [savingUsername, setSavingUsername] = useState(false);
   const [savingBio, setSavingBio] = useState(false);
   const [savingAvatar, setSavingAvatar] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
 
   // Keep prior activity values around so save still clears them on the worker
   const savedActivityType = initialActivityType ?? null;
@@ -105,20 +106,16 @@ export const BotDiscordIdentityCard = ({
     });
     setLoading(false);
     if (error || !data?.ok) {
-      toast.error("Couldn't load Discord identity", {
-        description: (data as any)?.error ?? error?.message,
-      });
+      // Graceful fallback: show muted "Identity unavailable" state without a toast
+      setUnavailable(true);
       return;
     }
+    setUnavailable(false);
     setLive({
       username: data.username ?? null,
       avatar_url: data.avatar_url ?? null,
       bio: data.bio ?? null,
     });
-    // NOTE: deliberately do NOT overwrite the username input from Discord.
-    // The input should reflect the customer's chosen name from their order
-    // (initialUsername = bot_orders.bot_name) so they can update it from
-    // there, not the live Discord username (which may be stale or different).
     if (typeof data.bio === "string") setBio(data.bio);
   };
 
@@ -299,7 +296,7 @@ export const BotDiscordIdentityCard = ({
           </div>
         </div>
         <Badge variant="secondary" className="ml-auto text-[10px]">
-          Live from Discord
+          {unavailable ? "Identity unavailable" : "Live from Discord"}
         </Badge>
       </div>
 

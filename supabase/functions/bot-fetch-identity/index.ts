@@ -56,23 +56,35 @@ Deno.serve(async (req) => {
         _user_id: userId,
         _role: "admin",
       });
-      if (!isAdmin) return json(403, { error: "Not bot owner" });
+      let allowed = !!isAdmin;
+      if (!allowed) {
+        // Check team membership (any role with view_dashboard permission)
+        const { data: roleData } = await userClient.rpc(
+          "team_get_effective_role",
+          { _bot_id: botId },
+        );
+        const perms = (roleData as any)?.permissions ?? {};
+        if (perms.view_dashboard) allowed = true;
+      }
+      if (!allowed) return json(200, { ok: false, fallback: true, error: "Not authorized" });
     }
 
     const { data: tokenData, error: tokenErr } = await admin.rpc(
       "runtime_resolve_bot_token",
       { _bot_id: botId },
     );
-    if (tokenErr) return json(500, { error: `secret lookup failed: ${tokenErr.message}` });
+    if (tokenErr) return json(200, { ok: false, fallback: true, error: `secret lookup failed: ${tokenErr.message}` });
     const botToken = typeof tokenData === "string" ? tokenData : null;
-    if (!botToken) return json(400, { error: "Bot has no DISCORD_TOKEN configured" });
+    if (!botToken) return json(200, { ok: false, fallback: true, error: "Bot has no DISCORD_TOKEN configured" });
 
     const dRes = await fetch("https://discord.com/api/v10/users/@me", {
       headers: { Authorization: `Bot ${botToken}` },
     });
     if (!dRes.ok) {
       const text = await dRes.text();
-      return json(dRes.status === 401 || dRes.status === 403 ? 400 : 502, {
+      return json(200, {
+        ok: false,
+        fallback: true,
         error: `Discord API error ${dRes.status}: ${text.slice(0, 200)}`,
       });
     }
