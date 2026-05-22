@@ -61,13 +61,9 @@ export function rolesAssignableBy(role: TeamRole | null): TeamRole[] {
  */
 export function useTeamRole(botId?: string | null) {
   const { user } = useAuth();
-  const cacheKey = user && botId ? `teamRole:${user.id}:${botId}` : null;
-  const seed = cacheKey
-    ? peekCached<{ role: TeamRole | null; permissions: TeamPermissions }>(cacheKey)
-    : undefined;
-  const [role, setRole] = useState<TeamRole | null>(seed?.role ?? null);
-  const [permissions, setPermissions] = useState<TeamPermissions>(seed?.permissions ?? EMPTY);
-  const [loading, setLoading] = useState(!seed);
+  const [role, setRole] = useState<TeamRole | null>(null);
+  const [permissions, setPermissions] = useState<TeamPermissions>(EMPTY);
+  const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
     if (!user || !botId) {
@@ -79,26 +75,20 @@ export function useTeamRole(botId?: string | null) {
     const { data, error } = await (supabase as any).rpc("team_get_effective_role", {
       _bot_id: botId,
     });
-    let nextRole: TeamRole | null = null;
-    let nextPerms: TeamPermissions = EMPTY;
     if (!error && data) {
-      nextRole = (data.role as TeamRole) ?? null;
-      nextPerms = { ...EMPTY, ...(data.permissions ?? {}) };
+      setRole((data.role as TeamRole) ?? null);
+      setPermissions({ ...EMPTY, ...(data.permissions ?? {}) });
+    } else {
+      setRole(null);
+      setPermissions(EMPTY);
     }
-    setRole(nextRole);
-    setPermissions(nextPerms);
-    if (cacheKey) setCached(cacheKey, { role: nextRole, permissions: nextPerms });
     setLoading(false);
-  }, [user, botId, cacheKey]);
+  }, [user, botId]);
 
   useEffect(() => {
-    // SWR: skip refetch on mount if cache is fresh (<30s).
-    if (cacheKey && getCached(cacheKey)) {
-      setLoading(false);
-      return;
-    }
     void reload();
-  }, [reload, cacheKey]);
+  }, [reload]);
+
 
   // Live updates: when team membership for this bot changes, re-resolve.
   useEffect(() => {
