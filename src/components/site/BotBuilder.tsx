@@ -376,6 +376,16 @@ export const BotBuilder = () => {
 
   const currentAddons = useMemo(() => getAddonsForBases(bases), [bases]);
 
+  // How many bot tokens this order would consume (1 per identity).
+  const botsNeeded = usesPackTabs ? visibleIdentityTabs.length : 1;
+  // In stock = admin sales mode is live AND we have enough tokens for this order.
+  // While stockCount is still loading (null) we conservatively assume preorder so
+  // the button doesn't flip mid-render.
+  const inStock = salesLive && stockCount !== null && stockCount >= botsNeeded;
+  const primaryCtaLabel = inStock ? "Order my bot" : "Preorder my bot";
+  const confirmCtaLabel = inStock ? "Confirm order" : "Confirm preorder";
+
+
   // React to admin "INCLUDED" toggles in real time:
   //   - When an addon flips to INCLUDED → auto-select it (so the customer
   //     gets the freebie without having to click).
