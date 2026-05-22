@@ -410,6 +410,7 @@ const BotSection = ({
   const isOffline =
     !bot.isDemo &&
     !isDeploying &&
+    !isStarting &&
     (optimisticAction !== null ||
       (!healthLoading && health?.effective_status === "offline"));
   const { guilds: connectedGuilds, loading: guildsLoading } = useBotServerSlots(
