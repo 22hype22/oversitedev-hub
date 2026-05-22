@@ -1,63 +1,99 @@
-# Per-Bot Team Membership
+# Stock-driven order submission flow
 
-Shift team access from per-owner ("you're on my team = you see all my bots") to per-bot ("you're invited to *this* bot"). Existing memberships are preserved so no one loses access.
+## Scope
 
-## Outcome
+Wire up the order-submission UX so it's driven by real-time token availability instead of just the global admin sales-mode toggle. Gate every order with a "Join our Discord" confirmation modal that fires after payment succeeds. Send a single Discord-confirm DM per order (not per bot in a pack) when the order goes through the low-stock path.
 
-- A new bot starts with **only its owner**. No team members, no other accounts.
-- Owner explicitly invites team members **to a specific bot** (or multiple bots) from that bot's Team tab.
-- Existing teams keep working: every current member is backfilled into every bot the owner has *today*. Only future bots start empty.
-- Admins keep global access via `has_role('admin')` — that's a separate platform role, not a team membership.
+## What changes
 
-## Database changes
+### 1. Dynamic button text (`BotBuilder.tsx`)
 
-1. **`dashboard_team` becomes per-bot**
-   - Add `bot_id uuid NOT NULL` (after backfill).
-   - Drop old unique index `(owner_user_id, lower(member_email))`, add `(bot_id, lower(member_email))`.
-   - Backfill: for each existing `dashboard_team` row, insert one row per existing `bot_orders.id` owned by `owner_user_id`. Delete the original "global" rows.
-   - Invite/transfer tokens, role, permissions stay on the row (per bot).
+- Read `bot_token_pool` available count (reuse the `get_available_bot_token_count` RPC the indicator already polls).
+- Compute `botsNeeded` from the current selection (1 for single, N for multi/pack).
+- Button label:
+  - `Order my bot →` when `available >= botsNeeded` **AND** admin sales mode is live.
+  - `Preorder my bot →` otherwise (low/no stock OR admin set preorder).
+- Applies to both the collapsed top-level button and the expanded "Confirm" button.
 
-2. **New SECURITY DEFINER helpers** (replace owner-scoped ones):
-   - `has_bot_team_access(_viewer uuid, _bot_id uuid) returns boolean`
-   - `has_bot_team_perm(_viewer uuid, _bot_id uuid, _perm text) returns boolean`
-   - Old `has_team_access(viewer, owner)` / `has_team_perm(viewer, owner, perm)` are kept as thin wrappers that return `false` (so any leftover policy fails closed) and then removed after sweep.
+### 2. Discord-join modal — post-payment gate
 
-3. **RLS policy rewrite** on every table currently using `has_team_access/has_team_perm` against `user_id`:
-   - `bot_orders` (use `id` as bot_id)
-   - `bot_commands`, `bot_logs`, `bot_config`, `bot_addon_state`, `bot_secrets`, `bot_runtime_status`, `bot_active_guilds`, `bot_channel_cache`, `bot_role_cache`, `bot_credits`, `bot_free_periods`, `bot_pending_discounts`, `bot_server_slots`
-   - Each policy switches from `has_team_access(auth.uid(), user_id)` to `has_bot_team_access(auth.uid(), bot_id)`.
+A new component `DiscordJoinGate.tsx` shown on `/checkout/return` (and `/checkout/setup` success) when the just-completed session has a `bot_order_id`.
 
-4. **`dashboard_role_permissions`** — extend to `(owner_user_id, bot_id, role)` so per-bot permission overrides are possible. Backfill existing rows across the owner's bots.
+- Step A: "Join our Discord server to receive updates about your bot." with a link to `https://discord.gg/oversite` and an "I've joined" button.
+- "I've joined" calls a new edge function `confirm-order-discord-join` that:
+  - Loads the order (and its parent/siblings if part of a pack).
+  - Re-checks `bot_token_pool` available count vs. `botsNeeded`.
+  - **In stock path**: sets every row to `ready` (already triggers auto-deploy via existing DB trigger).
+  - **Low/no stock path**: sets every row to `confirmation`, sets `confirmation_state = 'awaiting_username'`, stamps `confirmation_dm_sent_at`, and enqueues **one** `bot_notifications` row (parent order only) asking the customer to reply with their Discord username to confirm.
+- After response, modal shows the matching message (deploying vs. DM-sent) and a link to the dashboard.
 
-## Frontend changes
+The Discord-join modal is **mandatory** — until the user clicks "I've joined", the order stays in `paid` / `preorder` and nothing deploys.
 
-- **Team Management Hub** moves from a global "my team" view to a **bot-scoped** Team tab inside each bot's dashboard. The page-level "Team" route either:
-  - lists each bot with its own member roster, or
-  - is removed in favor of the per-bot tab (decide during implementation).
-- **Invite flow** in `team-invite-send` adds a `bot_id` parameter. Invite email and accept URL include the bot context.
-- `useTeamRole(ownerId)` becomes `useTeamRole(botId)`. Update all consumers (`ReadOnlyBotScope`, role badges, gates).
-- Bot list (`useOwnedBots`) — team members see only bots they're invited to (no change needed if RLS is correct; verify).
+### 3. Username-confirmation reply handling
 
-## Edge function changes
+A new edge function `confirm-order-username` callable from the discord bot DM webhook (or from the dashboard as a fallback "I've confirmed" button) that:
 
-- `team-invite-send`: require `bot_id`, validate the caller owns that bot, insert per-bot row.
-- `team-transfer-send` / accept flow: transfers move ownership of selected bots only (already supports `transfer_bot_ids`); confirm the per-bot model is consistent.
+- Looks up the order by `confirmation_state = 'awaiting_username'` + `discord_user_id`.
+- Compares the reply text to `discord_username` (case-insensitive, trimmed).
+- On match: re-checks token availability. If tokens available → status `ready` (triggers deploy). If still none → status `waitlist` (existing waitlist machinery promotes to `ready` when a token frees up). Stamps `confirmation_responded_at`, `confirmation_state = 'confirmed'`.
+- On mismatch: increments a counter and DMs the user a retry prompt.
 
-## Migration plan (order)
+For this iteration we wire up the **dashboard fallback button** (the DM-reply handler can be a follow-up). The DM body already instructs them to confirm in dashboard if they prefer.
 
-1. Migration A: add nullable `bot_id`, backfill rows, make `NOT NULL`, swap unique index.
-2. Migration B: create `has_bot_team_access` + `has_bot_team_perm`.
-3. Migration C: rewrite RLS policies table by table.
-4. Migration D: drop old `has_team_access` / `has_team_perm`.
-5. Ship frontend + edge function changes in the same release as migrations B/C so the UI matches the new contract.
+### 4. Pack handling — single DM
 
-## Out of scope
+The `confirm-order-discord-join` function dedupes by `parent_order_id` (or `id` when there's no parent), so a 3-bot pack triggers exactly one `bot_notifications` row, not three.
 
-- Admin (`app_role = 'admin'`) access. Admins keep global access; the user confirmed only auto-team-copy is the concern.
-- Changing how `dashboard_team` invites are delivered (email template unchanged aside from bot context).
+## Status transitions (summary)
 
-## Risks
+```text
+                       ┌──────────────────────────────────────┐
+                       │  user clicks Order/Preorder          │
+                       │  payment completes (Stripe webhook)  │
+                       └──────────────────────────────────────┘
+                                       │
+                          ┌────────────┴────────────┐
+                          │                         │
+                     paid (in stock)         preorder (card saved)
+                          │                         │
+                          └────────────┬────────────┘
+                                       │
+                       Discord-join modal on /checkout/return
+                                       │
+                  ┌────────────────────┴────────────────────┐
+                  │                                         │
+        tokens available now                       no tokens available
+                  │                                         │
+                ready  ──► auto-deploy ──► DM       confirmation + 1 DM
+                                                            │
+                                         user confirms username (DM or dashboard)
+                                                            │
+                                                ┌───────────┴──────────┐
+                                                │                      │
+                                          tokens now              still none
+                                                │                      │
+                                              ready              waitlist
+                                                │                      │
+                                          auto-deploy        promoted later
+                                                │                      │
+                                                DM ─────────────────── DM
+```
 
-- Backfill multiplies rows: a team of 5 with 4 bots becomes 20 rows. Fine at current scale.
-- Any code path that still calls `has_team_access(viewer, owner)` after the cutover silently denies — sweep all SQL functions and edge functions in step 3.
-- Realtime subscriptions on `dashboard_team` keyed on `owner_user_id` continue to work; add `bot_id` filter on the client where roster is rendered per bot.
+## Files
+
+- **Modify** `src/components/site/BotBuilder.tsx` — dynamic button label, share availability count via lightweight hook.
+- **New** `src/hooks/useBotStockCount.tsx` — small hook wrapping the existing RPC poll so both the indicator and the builder share one source.
+- **New** `src/components/checkout/DiscordJoinGate.tsx` — modal shown on `/checkout/return` and `/checkout/setup` success.
+- **Modify** `src/pages/CheckoutReturn.tsx` — mount the gate when `isBotOrder`.
+- **Modify** `src/pages/CheckoutSetup.tsx` — after `SetupIntent` success, route to a return URL that shows the gate.
+- **New** `supabase/functions/confirm-order-discord-join/index.ts` — server-side status transition + DM enqueue.
+- **New** `supabase/functions/confirm-order-username/index.ts` — server-side username-confirmation handler (dashboard-callable).
+- **Modify** `src/components/dashboard/...` — add a "Confirm my username" button on orders in `confirmation` state (small UI surface, links to the new function).
+- **No schema migration required** — `confirmation_state`, `confirmation_dm_sent_at`, `confirmation_responded_at`, `waitlist`, `confirmation`, `ready`, `paid` are all already on `bot_orders`.
+
+## Technical notes
+
+- The existing webhook already flips paid → `paid` when tokens are available, and to `waitlisted` when not. The new gate transitions `paid → ready` (in stock) or `paid → confirmation` (low stock). For the `preorder` (SetupIntent) path, the gate transitions `preorder → confirmation` (low stock is the expected path here; if stock has refilled by the time they finish saving the card, we still take the standard preorder route — confirmation DM, then charge-confirmed-order).
+- The auto-deploy DB trigger fires on `status -> 'ready'`, so we don't have to call the deploy function directly.
+- Stock checks happen **server-side** in the new edge functions — never trust the client value.
+- The Discord-join gate is non-blocking on close: if the user navigates away, the order remains in `paid`/`preorder` and we surface a "Finish setup" banner on the dashboard with the same button.
