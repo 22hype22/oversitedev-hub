@@ -24,6 +24,7 @@ export const BotStockIndicator = ({ className = "" }: { className?: string }) =>
       const { data, error } = await (supabase as any).rpc(
         "get_available_bot_token_count",
       );
+      console.log("[BotStockIndicator] rpc result:", { data, error });
       if (cancelled || error) return;
       setCount(typeof data === "number" ? data : Number(data ?? 0));
     };
