@@ -1,18 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { getCached, peekCached, setCached } from "@/lib/swrCache";
 
 /**
  * Loads the enabled/disabled state for every addon on a given bot.
  * Returns a map of addonId -> enabled (defaults to true when no row exists).
- * Uses an in-memory SWR cache so navigating back to the dashboard renders
- * instantly from cache while revalidating in the background.
  */
 export function useBotAddonStates(botId?: string) {
-  const cacheKey = botId ? `botAddonStates:${botId}` : null;
-  const seed = cacheKey ? peekCached<Record<string, boolean>>(cacheKey) : undefined;
-  const [states, setStates] = useState<Record<string, boolean>>(seed ?? {});
-  const [loading, setLoading] = useState(!seed);
+  const [states, setStates] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     if (!botId) {
@@ -29,18 +24,12 @@ export function useBotAddonStates(botId?: string) {
       map[row.addon_id] = row.enabled;
     }
     setStates(map);
-    if (cacheKey) setCached(cacheKey, map);
     setLoading(false);
-  }, [botId, cacheKey]);
+  }, [botId]);
 
   useEffect(() => {
-    // SWR: skip refetch on mount if cache is fresh (<30s).
-    if (cacheKey && getCached(cacheKey)) {
-      setLoading(false);
-      return;
-    }
     void refresh();
-  }, [refresh, cacheKey]);
+  }, [refresh]);
 
   // Realtime: react to other tabs / the worker flipping a switch.
   useEffect(() => {
@@ -66,11 +55,7 @@ export function useBotAddonStates(botId?: string) {
   const setEnabled = useCallback(
     async (addonId: string, enabled: boolean) => {
       if (!botId) return;
-      setStates((prev) => {
-        const next = { ...prev, [addonId]: enabled };
-        if (cacheKey) setCached(cacheKey, next);
-        return next;
-      });
+      setStates((prev) => ({ ...prev, [addonId]: enabled }));
       await (supabase as any).from("bot_addon_state").upsert(
         {
           bot_id: botId,
@@ -81,10 +66,11 @@ export function useBotAddonStates(botId?: string) {
         { onConflict: "bot_id,addon_id" },
       );
     },
-    [botId, cacheKey],
+    [botId],
   );
 
   const isEnabled = (addonId: string) => states[addonId] ?? true;
 
   return { states, isEnabled, setEnabled, loading, refresh };
 }
+
