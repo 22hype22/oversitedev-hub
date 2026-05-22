@@ -12,6 +12,7 @@ import { useBotSalesMode } from "@/hooks/useBotSalesMode";
 import { useAddonOverrides, setAddonIncluded } from "@/hooks/useAddonOverrides";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { BotStockIndicator } from "@/components/site/BotStockIndicator";
+import { useBotStockCount } from "@/hooks/useBotStockCount";
 import { filterAddonsForBase } from "@/lib/addonCategories";
 import {
   Shield,
