@@ -103,12 +103,7 @@ export default function CheckoutReturn() {
 
         {/* Bot order — Discord-join gate then status-driven next-step */}
         {isBotOrder && botOrderId && (
-          <>
-            <DiscordJoinGate orderId={botOrderId} />
-            <Button asChild size="sm" variant="outlineGlow" className="mb-4">
-              <Link to="/bot-dashboard">Go to Bot Dashboard</Link>
-            </Button>
-          </>
+          <DiscordJoinGate orderId={botOrderId} />
         )}
 
 
