@@ -435,7 +435,10 @@ const BotSection = ({
   };
 
   const handleCommandSent = (action: "start" | "stop" | "restart" | "redeploy") => {
-    setOptimisticAction(action === "stop" ? "stop" : "start");
+    // Only "stop" needs an optimistic lockout. For start/restart/redeploy we
+    // let the health poll pick up the new online state on its own so the UI
+    // never gets stuck waiting.
+    if (action === "stop") setOptimisticAction("stop");
     reloadHealth();
   };
   const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
