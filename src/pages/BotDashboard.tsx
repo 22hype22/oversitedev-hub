@@ -632,6 +632,7 @@ const BotSection = ({
         onUpdated={onReload}
         badges={headerBadges}
         actions={headerActions}
+        enableDiscordEdits={!bot.isDemo && !isDeploying}
       />
 
       {deployFailed && (
