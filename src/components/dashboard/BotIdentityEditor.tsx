@@ -265,7 +265,8 @@ export const BotIdentityEditor = ({
       </div>
 
       {/* Icon + name row */}
-      <div className="px-5 pb-5 -mt-12 flex items-start gap-4 flex-wrap">
+      <div className="px-5 pb-5 -mt-12">
+        <div className="flex items-start justify-between gap-3">
         <div className="relative shrink-0 group">
           <div className="h-20 w-20 rounded-2xl bg-primary/10 border-4 border-card grid place-items-center overflow-hidden shadow-md">
             {bot.icon_url ? (
@@ -303,9 +304,12 @@ export const BotIdentityEditor = ({
             </>
           )}
         </div>
+          {actions && (
+            <div className="flex flex-wrap items-center gap-2 shrink-0 pt-14">{actions}</div>
+          )}
+        </div>
 
-        <div className="flex-1 min-w-0 pt-14 flex items-start justify-between gap-3 flex-wrap">
-          <div className="min-w-0 flex-1">
+        <div className="mt-3 min-w-0">
             <div className="flex items-center gap-2 min-w-0">
               {editingName ? (
                 <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -451,12 +455,9 @@ export const BotIdentityEditor = ({
                 )}
               </>
             )}
-          </div>
-          {actions && (
-            <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>
-          )}
         </div>
       </div>
+
     </Card>
   );
 };
