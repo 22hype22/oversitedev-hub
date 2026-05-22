@@ -73,16 +73,18 @@ Deno.serve(async (req) => {
       "runtime_resolve_bot_token",
       { _bot_id: botId },
     );
-    if (tokenErr) return json(500, { error: `secret lookup failed: ${tokenErr.message}` });
+    if (tokenErr) return json(200, { ok: false, fallback: true, error: `secret lookup failed: ${tokenErr.message}` });
     const botToken = typeof tokenData === "string" ? tokenData : null;
-    if (!botToken) return json(400, { error: "Bot has no DISCORD_TOKEN configured" });
+    if (!botToken) return json(200, { ok: false, fallback: true, error: "Bot has no DISCORD_TOKEN configured" });
 
     const dRes = await fetch("https://discord.com/api/v10/users/@me", {
       headers: { Authorization: `Bot ${botToken}` },
     });
     if (!dRes.ok) {
       const text = await dRes.text();
-      return json(dRes.status === 401 || dRes.status === 403 ? 400 : 502, {
+      return json(200, {
+        ok: false,
+        fallback: true,
         error: `Discord API error ${dRes.status}: ${text.slice(0, 200)}`,
       });
     }
