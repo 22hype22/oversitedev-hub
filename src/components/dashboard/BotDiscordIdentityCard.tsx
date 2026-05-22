@@ -296,7 +296,7 @@ export const BotDiscordIdentityCard = ({
           </div>
         </div>
         <Badge variant="secondary" className="ml-auto text-[10px]">
-          Live from Discord
+          {unavailable ? "Identity unavailable" : "Live from Discord"}
         </Badge>
       </div>
 
