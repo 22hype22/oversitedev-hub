@@ -607,7 +607,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <Tabs defaultValue="purchases" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid grid-cols-4 w-full max-w-2xl">
             <TabsTrigger value="purchases">
               <ShoppingBag size={14} className="mr-1.5" />
