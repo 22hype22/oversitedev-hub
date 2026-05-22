@@ -745,18 +745,6 @@ const BotSection = ({
         )}
       </div>
 
-      {!bot.isDemo && !isDeploying && (
-        <BotDiscordIdentityCard
-          botId={bot.id}
-          initialUsername={bot.bot_name}
-          initialBio={bot.bot_bio ?? null}
-          lastUsernameChangeAt={bot.discord_last_username_change_at ?? null}
-          initialActivityType={bot.activity_type ?? null}
-          initialActivityText={bot.activity_text ?? null}
-          initialPresenceStatus={bot.presence_status ?? null}
-          onUpdated={onReload}
-        />
-      )}
 
 
 
