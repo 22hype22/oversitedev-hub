@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from "react";
-import { Bot, Image as ImageIcon, Pencil, Upload, Loader2, ChevronDown, ChevronUp, Activity, Check, X, AlertTriangle, Info } from "lucide-react";
+import { Bot, Image as ImageIcon, Pencil, Upload, Loader2, ChevronDown, ChevronUp, Activity, Check, X, AlertTriangle, Info, Copy } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +70,7 @@ export const BotIdentityEditor = ({
     (bot.presence_status as PresenceStatus) ?? "online",
   );
   const [activityText, setActivityText] = useState(bot.activity_text ?? "");
+  const [bio, setBio] = useState(bot.bot_bio ?? "");
   const [savingDetails, setSavingDetails] = useState(false);
 
   useEffect(() => { setNameDraft(bot.bot_name); }, [bot.bot_name]);
@@ -76,6 +78,17 @@ export const BotIdentityEditor = ({
     setPresence((bot.presence_status as PresenceStatus) ?? "online");
   }, [bot.presence_status]);
   useEffect(() => { setActivityText(bot.activity_text ?? ""); }, [bot.activity_text]);
+  useEffect(() => { setBio(bot.bot_bio ?? ""); }, [bot.bot_bio]);
+
+  const shortBotId = bot.id.slice(0, 8).toUpperCase();
+  const copyBotId = async () => {
+    try {
+      await navigator.clipboard.writeText(bot.id);
+      toast.success("Bot ID copied");
+    } catch {
+      toast.error("Couldn't copy");
+    }
+  };
 
   const recentChange = bot.discord_last_username_change_at
     ? Date.now() - new Date(bot.discord_last_username_change_at).getTime() < 60 * 60 * 1000
@@ -157,15 +170,23 @@ export const BotIdentityEditor = ({
 
     const presenceChanged = presence !== ((bot.presence_status as PresenceStatus) ?? "online");
     const activityChanged = (activityText ?? "") !== (bot.activity_text ?? "");
+    const bioTrimmed = bio.trim();
+    const bioChanged = bioTrimmed !== ((bot.bot_bio ?? "").trim());
 
-    if (!presenceChanged && !activityChanged) {
+    if (!presenceChanged && !activityChanged && !bioChanged) {
       toast.info("Nothing to save");
+      return;
+    }
+
+    if (bioChanged && bioTrimmed.length > 190) {
+      toast.error("About Me must be 190 characters or fewer");
       return;
     }
 
     setSavingDetails(true);
     const errors: string[] = [];
     let anySucceeded = false;
+    let bioSubmitted = false;
     try {
       if (presenceChanged || activityChanged) {
         const activityType = bot.activity_type ?? "playing";
@@ -203,10 +224,62 @@ export const BotIdentityEditor = ({
         }
       }
 
+      if (bioChanged) {
+        try {
+          const { error: upErr } = await (supabase as any)
+            .from("bot_orders")
+            .update({ bot_bio: bioTrimmed || null })
+            .eq("id", bot.id);
+          if (upErr) throw upErr;
+
+          const meta = (user.user_metadata ?? {}) as Record<string, any>;
+          const customerName =
+            meta.discord_username || meta.user_name || meta.full_name || user.email || "unknown customer";
+
+          const message =
+            `@here **New About Me update request**\n` +
+            `**Bot:** ${bot.bot_name} (\`#${shortBotId}\`)\n` +
+            `**Order ID:** \`${bot.id}\`\n` +
+            `**Customer:** ${customerName}\n` +
+            `**Requested description:**\n` +
+            "```\n" +
+            (bioTrimmed || "(cleared)") +
+            "\n```\n" +
+            `_Update this in the Discord Developer Portal → ${bot.bot_name} application → General Information → Description._`;
+
+          const { error: cmdErr } = await (supabase as any)
+            .from("bot_commands")
+            .insert({
+              bot_id: bot.id,
+              user_id: user.id,
+              requested_by: user.id,
+              action: "send_channel_message",
+              payload: {
+                channel_id: "1507437307349962842",
+                content: message,
+              },
+            });
+          if (cmdErr) throw cmdErr;
+          anySucceeded = true;
+          bioSubmitted = true;
+        } catch (e: any) {
+          console.error("bio request save failed", e);
+          const msg = e?.message ?? "unknown error";
+          errors.push(`about me (${msg})`);
+          toast.error("Couldn't submit About Me request", { description: msg });
+        }
+      }
+
       if (errors.length === 0) {
-        toast.success("Saved", {
-          description: "Your bot will apply changes shortly.",
-        });
+        if (bioSubmitted) {
+          toast.success("Your description request has been submitted.", {
+            description: "Our team will update it within 24 hours.",
+          });
+        } else {
+          toast.success("Saved", {
+            description: "Your bot will apply changes shortly.",
+          });
+        }
       } else if (anySucceeded) {
         toast.warning("Partially saved", {
           description: `Failed: ${errors.join(", ")}`,
@@ -371,6 +444,15 @@ export const BotIdentityEditor = ({
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={copyBotId}
+                    title={`Bot ID: ${bot.id} — click to copy`}
+                    className="ml-1 inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted transition-smooth"
+                  >
+                    #{shortBotId}
+                    <Copy className="h-3 w-3" />
+                  </button>
                 </>
               )}
             </div>
@@ -392,26 +474,38 @@ export const BotIdentityEditor = ({
                   className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-smooth"
                 >
                   {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                  {expanded ? "Hide status" : "Edit status"}
+                  {expanded ? "Hide bio & status" : "Edit bio & status"}
                 </button>
 
                 {expanded && (
                   <div className="mt-3 space-y-3 rounded-lg border border-border bg-background/40 p-3">
-                    <div className="flex items-start gap-2 rounded-md bg-muted/40 p-2.5 text-xs text-muted-foreground">
-                      <Info className="h-4 w-4 shrink-0 text-primary mt-0.5" />
-                      <span>
-                        To update your bot's About Me, visit the{" "}
-                        <a
-                          href="https://discord.com/developers/applications"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline hover:text-foreground"
-                        >
-                          Discord Developer Portal
-                        </a>
-                        {" "}→ your application → General Information → Description.
-                      </span>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="bot-bio" className="text-xs flex items-center gap-1.5">
+                        <Info className="h-3 w-3 text-primary" />
+                        About Me
+                      </Label>
+                      <Textarea
+                        id="bot-bio"
+                        value={bio}
+                        onChange={(e) => setBio(e.target.value)}
+                        maxLength={190}
+                        rows={3}
+                        placeholder="Describe what your bot does…"
+                        disabled={savingDetails}
+                      />
+                      <div className="flex items-start gap-2 rounded-md bg-muted/40 p-2 text-[11px] text-muted-foreground">
+                        <Info className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
+                        <span>
+                          Discord doesn't allow bots to update their own About Me via the API.
+                          When you save, your request is sent to our team and we'll update it manually
+                          in the Discord Developer Portal within 24 hours.
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground text-right">
+                        {bio.length}/190
+                      </div>
                     </div>
+
 
                     <div className="grid sm:grid-cols-2 gap-3">
                       <div className="space-y-1.5">
