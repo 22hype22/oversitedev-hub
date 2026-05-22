@@ -304,8 +304,12 @@ export const BotIdentityEditor = ({
             </>
           )}
         </div>
+          {actions && (
+            <div className="flex flex-wrap items-center gap-2 shrink-0 pt-14">{actions}</div>
+          )}
+        </div>
 
-        <div className="flex-1 min-w-0 pt-14 flex items-start justify-between gap-3 flex-wrap">
+        <div className="mt-3 min-w-0">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 min-w-0">
               {editingName ? (
