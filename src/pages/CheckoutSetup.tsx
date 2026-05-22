@@ -11,6 +11,7 @@ function SetupForm({ orderId }: { orderId: string }) {
   const elements = useElements();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const [paymentReady, setPaymentReady] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,8 +37,17 @@ function SetupForm({ orderId }: { orderId: string }) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
-      <PaymentElement />
-      <Button type="submit" disabled={!stripe || submitting} className="w-full" size="lg" variant="hero">
+      <div className="relative min-h-[200px]">
+        {!paymentReady && (
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+            Loading secure card form…
+          </div>
+        )}
+        <div className={paymentReady ? "" : "invisible"}>
+          <PaymentElement onReady={() => setPaymentReady(true)} />
+        </div>
+      </div>
+      <Button type="submit" disabled={!stripe || !paymentReady || submitting} className="w-full" size="lg" variant="hero">
         {submitting ? "Saving card…" : "Save card & reserve preorder"}
       </Button>
       <p className="text-xs text-muted-foreground text-center">

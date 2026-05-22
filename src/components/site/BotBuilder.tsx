@@ -877,6 +877,10 @@ export const BotBuilder = () => {
       // PREORDER MODE: don't charge — save the card via SetupIntent. We'll
       // charge off-session when the customer confirms via Discord DM.
       if (!salesLive) {
+        // Kick off Stripe.js download in parallel with the SetupIntent
+        // creation so the card form is ready instantly on /checkout/setup.
+        import("@/lib/stripe").then((m) => m.getStripe()).catch(() => {});
+
         const { data, error } = await (supabase as any).functions.invoke("create-setup-intent", {
           body: { botOrderId: orderId, customerEmail: user.email },
         });
