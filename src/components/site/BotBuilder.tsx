@@ -1992,7 +1992,7 @@ export const BotBuilder = () => {
                   onClick={submit}
                   disabled={submitting}
                 >
-                  {salesLive ? "Confirm purchase" : "Confirm preorder"} <ArrowRight />
+                  {confirmCtaLabel} <ArrowRight />
                 </Button>
                 <BotStockIndicator className="mt-2" />
               </>
