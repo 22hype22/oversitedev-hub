@@ -84,6 +84,7 @@ export const BotDiscordIdentityCard = ({
   const [savingUsername, setSavingUsername] = useState(false);
   const [savingBio, setSavingBio] = useState(false);
   const [savingAvatar, setSavingAvatar] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
 
   // Keep prior activity values around so save still clears them on the worker
   const savedActivityType = initialActivityType ?? null;
