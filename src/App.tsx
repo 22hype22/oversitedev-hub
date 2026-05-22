@@ -31,10 +31,8 @@ import NotFound from "./pages/NotFound.tsx";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Stale-while-revalidate: serve cached data for 30s, keep in memory
-      // for 5 min so navigating between pages doesn't trigger refetches.
-      staleTime: 30 * 1000,
-      gcTime: 5 * 60 * 1000,
+      staleTime: 60 * 1000,
+      gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
       refetchOnMount: false,
       retry: 1,
