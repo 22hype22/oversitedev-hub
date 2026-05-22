@@ -41,12 +41,14 @@ export const BotStockIndicator = ({ className = "" }: { className?: string }) =>
   return (
     <div className={`flex justify-center ${className}`}>
       <span
-        className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-500"
+        className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-[11px] font-medium text-amber-500"
         role="status"
         aria-live="polite"
       >
-        <AlertTriangle className="h-3 w-3" />
-        {count === 0 ? "Out of stock — waitlist" : `Only ${count} left`}
+        <AlertTriangle className="h-3 w-3 shrink-0" />
+        {count === 0
+          ? "Out of stock — we're actively restocking."
+          : `Limited availability — ${count} ${count === 1 ? "bot" : "bots"} remaining. We're actively restocking.`}
       </span>
     </div>
   );
