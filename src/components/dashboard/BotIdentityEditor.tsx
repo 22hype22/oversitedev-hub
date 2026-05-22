@@ -70,6 +70,7 @@ export const BotIdentityEditor = ({
     (bot.presence_status as PresenceStatus) ?? "online",
   );
   const [activityText, setActivityText] = useState(bot.activity_text ?? "");
+  const [bio, setBio] = useState(bot.bot_bio ?? "");
   const [savingDetails, setSavingDetails] = useState(false);
 
   useEffect(() => { setNameDraft(bot.bot_name); }, [bot.bot_name]);
@@ -77,6 +78,17 @@ export const BotIdentityEditor = ({
     setPresence((bot.presence_status as PresenceStatus) ?? "online");
   }, [bot.presence_status]);
   useEffect(() => { setActivityText(bot.activity_text ?? ""); }, [bot.activity_text]);
+  useEffect(() => { setBio(bot.bot_bio ?? ""); }, [bot.bot_bio]);
+
+  const shortBotId = bot.id.slice(0, 8).toUpperCase();
+  const copyBotId = async () => {
+    try {
+      await navigator.clipboard.writeText(bot.id);
+      toast.success("Bot ID copied");
+    } catch {
+      toast.error("Couldn't copy");
+    }
+  };
 
   const recentChange = bot.discord_last_username_change_at
     ? Date.now() - new Date(bot.discord_last_username_change_at).getTime() < 60 * 60 * 1000
