@@ -265,7 +265,7 @@ export const BotIdentityEditor = ({
       </div>
 
       {/* Icon + name row */}
-      <div className="px-5 pb-5 -mt-10 flex items-end gap-4 flex-wrap">
+      <div className="px-5 pb-5 -mt-12 flex items-start gap-4 flex-wrap">
         <div className="relative shrink-0 group">
           <div className="h-20 w-20 rounded-2xl bg-primary/10 border-4 border-card grid place-items-center overflow-hidden shadow-md">
             {bot.icon_url ? (
@@ -304,7 +304,7 @@ export const BotIdentityEditor = ({
           )}
         </div>
 
-        <div className="flex-1 min-w-0 pt-10 flex items-end justify-between gap-3 flex-wrap">
+        <div className="flex-1 min-w-0 pt-14 flex items-start justify-between gap-3 flex-wrap">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 min-w-0">
               {editingName ? (
