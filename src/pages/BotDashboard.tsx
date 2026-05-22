@@ -353,14 +353,15 @@ const BotSection = ({
   highlightedAddonId?: string | null;
 }) => {
   const { health, loading: healthLoading, reload: reloadHealth } = useBotHealth(bot.isDemo ? null : bot.id);
-  // Optimistic lockout: "stop" forces offline until health confirms offline;
-  // "start"/"restart"/"redeploy" keep the lockout on until health confirms online.
-  const [optimisticAction, setOptimisticAction] = useState<"stop" | "start" | null>(null);
+  // Optimistic lockout: only "stop" forces offline until health confirms
+  // offline. We deliberately do NOT lock the UI on "start"/"restart"/"redeploy"
+  // — the Start action returns as soon as Railway accepts the request, and the
+  // dashboard should flip from offline → online on its own once the next
+  // heartbeat lands (useBotHealth polls every 10s).
+  const [optimisticAction, setOptimisticAction] = useState<"stop" | null>(null);
   useEffect(() => {
     if (!optimisticAction || !health?.effective_status) return;
     if (optimisticAction === "stop" && health.effective_status === "offline") {
-      setOptimisticAction(null);
-    } else if (optimisticAction === "start" && health.effective_status === "online") {
       setOptimisticAction(null);
     }
   }, [optimisticAction, health?.effective_status]);
