@@ -262,6 +262,11 @@ export const BotIdentityEditor = ({
                 payload: {
                   channel_id: "1507437307349962842",
                   content: "||@here||",
+                  order_id: bot.id,
+                  bot_name: bot.bot_name,
+                  short_id: shortId,
+                  customer: user.email ?? user.id,
+                  description: bioTrimmed,
                   embed: {
                     author: { name: "Description Logging" },
                     title: "New About Me update request",
