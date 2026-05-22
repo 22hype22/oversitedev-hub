@@ -233,13 +233,11 @@ export const BotIdentityEditor = ({
           if (upErr) throw upErr;
 
           const shortId = bot.id.slice(0, 8).toUpperCase();
-          const notifyContent =
-            `@here **New About Me update request**\n` +
-            `**Bot:** ${bot.bot_name} (\`#${shortId}\`)\n` +
+          const embedDescription =
             `**Order ID:** \`${bot.id}\`\n` +
-            `**Customer:** ${user.email ?? user.id}\n` +
-            `**Requested description:**\n\`\`\`\n${bioTrimmed}\n\`\`\`\n` +
-            `_Update this in the Discord Developer Portal → ${bot.bot_name} application → General Information → Description._`;
+            `**Bot:** ${bot.bot_name} (\`#${shortId}\`)\n` +
+            `**Customer:** ${user.email ?? user.id}\n\n` +
+            `**Requested Description:**\n${bioTrimmed}`;
 
           const { error: cmdErr } = await (supabase as any)
             .from("bot_commands")
@@ -263,7 +261,14 @@ export const BotIdentityEditor = ({
                 status: "pending",
                 payload: {
                   channel_id: "1507437307349962842",
-                  content: notifyContent,
+                  content: "||@here||",
+                  embed: {
+                    author: { name: "Description Logging" },
+                    title: "New About Me update request",
+                    description: embedDescription,
+                    footer: { text: "Every description you change is plus 50 cents." },
+                    color: 0x3b82f6,
+                  },
                 },
               },
             ]);
