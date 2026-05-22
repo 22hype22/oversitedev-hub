@@ -3,7 +3,7 @@ import { AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const THRESHOLD = 20;
-const POLL_MS = 15_000;
+const POLL_MS = 60_000;
 
 /**
  * Shows a low-stock badge ("Only X left") when the number of available bot
