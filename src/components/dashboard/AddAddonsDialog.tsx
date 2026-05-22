@@ -58,14 +58,16 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
   const [sortMode, setSortMode] = useState<SortMode>("default");
 
   // Reset selection + filters when the bot changes or dialog reopens
+  // Auto-select any add-ons that are marked as included (free).
   useEffect(() => {
     if (open) {
-      setSelected([]);
+      const preselected = allAvailable.filter((id) => isIncluded(id));
+      setSelected(preselected);
       setQuery("");
       setCategory("all");
       setSortMode("default");
     }
-  }, [open, bot?.id]);
+  }, [open, bot?.id, allAvailable, isIncluded]);
 
 
   // An addon is considered "already provisioned" if any of:
