@@ -212,6 +212,72 @@ async function pollSendDmCommands() {
   }
 }
 
+async function sendChannelMessage(channelId: string, content: string): Promise<boolean> {
+  if (!client) return false;
+  try {
+    const ch = await client.channels.fetch(channelId);
+    if (!ch || !ch.isTextBased() || !("send" in ch)) {
+      console.error(`[utils-bot] channel ${channelId} is not sendable`);
+      return false;
+    }
+    await (ch as any).send({
+      content,
+      allowedMentions: { parse: ["everyone", "roles"] },
+    });
+    return true;
+  } catch (e) {
+    console.error(
+      `[utils-bot] channel send failed for ${channelId}:`,
+      (e as Error).message,
+    );
+    return false;
+  }
+}
+
+async function pollSendChannelMessageCommands() {
+  const { data: rows, error } = await supabase
+    .from("bot_commands")
+    .select("id,payload")
+    .eq("action", "send_channel_message")
+    .eq("status", "pending")
+    .order("created_at", { ascending: true })
+    .limit(5);
+  if (error) {
+    console.error("[utils-bot] channel poll error:", error.message);
+    return;
+  }
+  if (!rows || rows.length === 0) return;
+
+  for (const cmd of rows as Array<{ id: string; payload: any }>) {
+    const { error: claimErr } = await supabase
+      .from("bot_commands")
+      .update({
+        status: "claimed",
+        claimed_at: new Date().toISOString(),
+        worker_id: "utils-bot",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", cmd.id)
+      .eq("status", "pending");
+    if (claimErr) continue;
+
+    const { channel_id, content } = cmd.payload || {};
+    const ok = channel_id && content
+      ? await sendChannelMessage(String(channel_id), String(content))
+      : false;
+
+    await supabase
+      .from("bot_commands")
+      .update({
+        status: ok ? "done" : "failed",
+        completed_at: new Date().toISOString(),
+        error_message: ok ? null : "channel send failed",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", cmd.id);
+  }
+}
+
 async function fetchDmState(discordUserId: string): Promise<DmState | null> {
   const { data } = await supabase
     .from("utility_bot_dm_state")
