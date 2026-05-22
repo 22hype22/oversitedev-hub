@@ -276,6 +276,7 @@ export const BotBuilder = () => {
   const { user, isAdmin } = useAuth();
   const { hasDashboardAccess: dashboardAlreadyOwned } = useOwnedBots();
   const { isLive: salesLive } = useBotSalesMode();
+  const stockCount = useBotStockCount();
   const { isIncluded: addonIsIncluded } = useAddonOverrides();
   // Multi-select bases. Rules:
   //  • All-in-One Pack ("scratch") is exclusive — selecting it clears others.
