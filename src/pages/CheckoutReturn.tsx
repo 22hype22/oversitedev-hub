@@ -18,6 +18,7 @@ type PurchasedFile = {
 
 export default function CheckoutReturn() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const sessionId = searchParams.get("session_id");
   const setupOrderId = searchParams.get("order");
   const { user } = useAuth();
@@ -25,6 +26,7 @@ export default function CheckoutReturn() {
   const [files, setFiles] = useState<PurchasedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [botOrderId, setBotOrderId] = useState<string | null>(setupOrderId);
+  const [showClose, setShowClose] = useState(false);
   const { isMember } = useMembership();
 
   useEffect(() => {
