@@ -2552,6 +2552,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                 disabled={saving || !canEdit}
                 title={!canEdit ? `Your role (${role ?? "viewer"}) doesn't allow editing bot config` : undefined}
                 onClick={async () => {
+                  console.log("[AddonConfigCard] Save clicked", { addonId, isBioPhrase, isAntiSpam, canEdit, saving });
                   if (isSayCommand || isRules) {
                     setSaving(true);
                     try {
