@@ -61,9 +61,13 @@ export function rolesAssignableBy(role: TeamRole | null): TeamRole[] {
  */
 export function useTeamRole(botId?: string | null) {
   const { user } = useAuth();
-  const [role, setRole] = useState<TeamRole | null>(null);
-  const [permissions, setPermissions] = useState<TeamPermissions>(EMPTY);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = user && botId ? `teamRole:${user.id}:${botId}` : null;
+  const seed = cacheKey
+    ? peekCached<{ role: TeamRole | null; permissions: TeamPermissions }>(cacheKey)
+    : undefined;
+  const [role, setRole] = useState<TeamRole | null>(seed?.role ?? null);
+  const [permissions, setPermissions] = useState<TeamPermissions>(seed?.permissions ?? EMPTY);
+  const [loading, setLoading] = useState(!seed);
 
   const reload = useCallback(async () => {
     if (!user || !botId) {
@@ -72,23 +76,29 @@ export function useTeamRole(botId?: string | null) {
       setLoading(false);
       return;
     }
-    setLoading(true);
     const { data, error } = await (supabase as any).rpc("team_get_effective_role", {
       _bot_id: botId,
     });
-    if (error || !data) {
-      setRole(null);
-      setPermissions(EMPTY);
-    } else {
-      setRole((data.role as TeamRole) ?? null);
-      setPermissions({ ...EMPTY, ...(data.permissions ?? {}) });
+    let nextRole: TeamRole | null = null;
+    let nextPerms: TeamPermissions = EMPTY;
+    if (!error && data) {
+      nextRole = (data.role as TeamRole) ?? null;
+      nextPerms = { ...EMPTY, ...(data.permissions ?? {}) };
     }
+    setRole(nextRole);
+    setPermissions(nextPerms);
+    if (cacheKey) setCached(cacheKey, { role: nextRole, permissions: nextPerms });
     setLoading(false);
-  }, [user, botId]);
+  }, [user, botId, cacheKey]);
 
   useEffect(() => {
+    // SWR: skip refetch on mount if cache is fresh (<30s).
+    if (cacheKey && getCached(cacheKey)) {
+      setLoading(false);
+      return;
+    }
     void reload();
-  }, [reload]);
+  }, [reload, cacheKey]);
 
   // Live updates: when team membership for this bot changes, re-resolve.
   useEffect(() => {
