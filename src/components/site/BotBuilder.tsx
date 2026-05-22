@@ -1765,16 +1765,20 @@ export const BotBuilder = () => {
               </div>
             )}
             {!showPayment && (
-              <Button
-                variant="hero"
-                size="lg"
-                className="w-full mt-4"
-                onClick={submit}
-                disabled={submitting}
-              >
-                {salesLive ? "Buy my bot" : "Preorder my bot"} <ArrowRight />
-              </Button>
+              <>
+                <Button
+                  variant="hero"
+                  size="lg"
+                  className="w-full mt-4"
+                  onClick={submit}
+                  disabled={submitting}
+                >
+                  {salesLive ? "Buy my bot" : "Preorder my bot"} <ArrowRight />
+                </Button>
+                <BotStockIndicator className="mt-2" />
+              </>
             )}
+
 
             {/* Collapsible payment / contact details */}
             <div
