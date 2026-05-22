@@ -170,15 +170,23 @@ export const BotIdentityEditor = ({
 
     const presenceChanged = presence !== ((bot.presence_status as PresenceStatus) ?? "online");
     const activityChanged = (activityText ?? "") !== (bot.activity_text ?? "");
+    const bioTrimmed = bio.trim();
+    const bioChanged = bioTrimmed !== ((bot.bot_bio ?? "").trim());
 
-    if (!presenceChanged && !activityChanged) {
+    if (!presenceChanged && !activityChanged && !bioChanged) {
       toast.info("Nothing to save");
+      return;
+    }
+
+    if (bioChanged && bioTrimmed.length > 190) {
+      toast.error("About Me must be 190 characters or fewer");
       return;
     }
 
     setSavingDetails(true);
     const errors: string[] = [];
     let anySucceeded = false;
+    let bioSubmitted = false;
     try {
       if (presenceChanged || activityChanged) {
         const activityType = bot.activity_type ?? "playing";
@@ -216,10 +224,62 @@ export const BotIdentityEditor = ({
         }
       }
 
+      if (bioChanged) {
+        try {
+          const { error: upErr } = await (supabase as any)
+            .from("bot_orders")
+            .update({ bot_bio: bioTrimmed || null })
+            .eq("id", bot.id);
+          if (upErr) throw upErr;
+
+          const meta = (user.user_metadata ?? {}) as Record<string, any>;
+          const customerName =
+            meta.discord_username || meta.user_name || meta.full_name || user.email || "unknown customer";
+
+          const message =
+            `@here **New About Me update request**\n` +
+            `**Bot:** ${bot.bot_name} (\`#${shortBotId}\`)\n` +
+            `**Order ID:** \`${bot.id}\`\n` +
+            `**Customer:** ${customerName}\n` +
+            `**Requested description:**\n` +
+            "```\n" +
+            (bioTrimmed || "(cleared)") +
+            "\n```\n" +
+            `_Update this in the Discord Developer Portal → ${bot.bot_name} application → General Information → Description._`;
+
+          const { error: cmdErr } = await (supabase as any)
+            .from("bot_commands")
+            .insert({
+              bot_id: bot.id,
+              user_id: user.id,
+              requested_by: user.id,
+              action: "send_channel_message",
+              payload: {
+                channel_id: "1507437307349962842",
+                content: message,
+              },
+            });
+          if (cmdErr) throw cmdErr;
+          anySucceeded = true;
+          bioSubmitted = true;
+        } catch (e: any) {
+          console.error("bio request save failed", e);
+          const msg = e?.message ?? "unknown error";
+          errors.push(`about me (${msg})`);
+          toast.error("Couldn't submit About Me request", { description: msg });
+        }
+      }
+
       if (errors.length === 0) {
-        toast.success("Saved", {
-          description: "Your bot will apply changes shortly.",
-        });
+        if (bioSubmitted) {
+          toast.success("Your description request has been submitted.", {
+            description: "Our team will update it within 24 hours.",
+          });
+        } else {
+          toast.success("Saved", {
+            description: "Your bot will apply changes shortly.",
+          });
+        }
       } else if (anySucceeded) {
         toast.warning("Partially saved", {
           description: `Failed: ${errors.join(", ")}`,
