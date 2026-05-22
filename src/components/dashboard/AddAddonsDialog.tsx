@@ -57,17 +57,6 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
   const [category, setCategory] = useState<CategoryFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("default");
 
-  // Reset selection + filters when the bot changes or dialog reopens
-  useEffect(() => {
-    if (open) {
-      setSelected([]);
-      setQuery("");
-      setCategory("all");
-      setSortMode("default");
-    }
-  }, [open, bot?.id]);
-
-
   // An addon is considered "already provisioned" if any of:
   //   - it's on the bot order (purchased)
   //   - it's part of the bot's base (free, always-on)
@@ -83,11 +72,24 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
     () =>
       bot
         ? getAddonIdsForBase(bot.base).filter(
-            (id) => !owned.has(id) && !isIncluded(id),
+            (id) => !owned.has(id),
           )
         : [],
-    [bot?.base, owned, isIncluded],
+    [bot?.base, owned],
   );
+
+  // Reset selection + filters when the bot changes or dialog reopens
+  // Auto-select any add-ons that are marked as included (free).
+  useEffect(() => {
+    if (open) {
+      const preselected = allAvailable.filter((id) => isIncluded(id));
+      setSelected(preselected);
+      setQuery("");
+      setCategory("all");
+      setSortMode("default");
+    }
+  }, [open, bot?.id, allAvailable, isIncluded]);
+
 
   // Counts per category — used to disable empty filter chips.
   const categoryCounts = useMemo(() => {
@@ -130,6 +132,8 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
   const total = selected.reduce((sum, id) => {
     // Dashboard add-on is a one-time, account-wide unlock — free if owned
     if (id === "dashboard" && hasDashboardAccess) return sum;
+    // Admin-marked included add-ons are free to add
+    if (isIncluded(id)) return sum;
     return sum + getAddonPrice(id);
   }, 0);
 
@@ -250,6 +254,7 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
               {available.map((id) => {
                 const active = selected.includes(id);
                 const isFreeDashboard = id === "dashboard" && hasDashboardAccess;
+                const isFreeIncluded = isIncluded(id);
                 const price = getAddonPrice(id);
                 return (
                   <button
@@ -273,9 +278,9 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
                       </div>
                     </div>
                     <div className="mt-1.5 text-xs text-muted-foreground">
-                      {isFreeDashboard ? (
+                      {isFreeDashboard || isFreeIncluded ? (
                         <span className="text-primary font-medium">
-                          Included — already unlocked
+                          Included — free to add
                         </span>
                       ) : (
                         <>+${price.toFixed(2)}</>
