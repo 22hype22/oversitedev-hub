@@ -89,6 +89,35 @@ export type Database = {
         }
         Relationships: []
       }
+      authorized_guilds: {
+        Row: {
+          bot_order_id: string
+          created_at: string
+          guild_id: string
+          id: string
+        }
+        Insert: {
+          bot_order_id: string
+          created_at?: string
+          guild_id: string
+          id?: string
+        }
+        Update: {
+          bot_order_id?: string
+          created_at?: string
+          guild_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "authorized_guilds_bot_order_id_fkey"
+            columns: ["bot_order_id"]
+            isOneToOne: false
+            referencedRelation: "bot_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       banned_members_backup: {
         Row: {
           ban_reason: string | null
