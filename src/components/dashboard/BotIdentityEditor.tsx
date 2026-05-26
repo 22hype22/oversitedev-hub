@@ -627,6 +627,12 @@ export const BotIdentityEditor = ({
                         placeholder="Describe what your bot does…"
                         disabled={savingDetails}
                       />
+                      {bioError && (
+                        <div className="flex items-start gap-2 rounded-md bg-red-500/10 border border-red-500/20 p-2 text-[11px] text-red-400">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                          <span>{bioError}</span>
+                        </div>
+                      )}
                       <div className="flex items-start gap-2 rounded-md bg-muted/40 p-2 text-[11px] text-muted-foreground">
                         <Info className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
                         <span>
