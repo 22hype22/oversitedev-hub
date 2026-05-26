@@ -89,6 +89,45 @@ export type Database = {
         }
         Relationships: []
       }
+      banned_members_backup: {
+        Row: {
+          ban_reason: string | null
+          banned_at: string
+          bot_id: string
+          guild_id: string
+          id: string
+          joined_at: string | null
+          recovered: boolean
+          roles: Json
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          ban_reason?: string | null
+          banned_at?: string
+          bot_id: string
+          guild_id: string
+          id?: string
+          joined_at?: string | null
+          recovered?: boolean
+          roles?: Json
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          ban_reason?: string | null
+          banned_at?: string
+          bot_id?: string
+          guild_id?: string
+          id?: string
+          joined_at?: string | null
+          recovered?: boolean
+          roles?: Json
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
       billing_override_code: {
         Row: {
           code: string
@@ -1582,6 +1621,33 @@ export type Database = {
         }
         Relationships: []
       }
+      flagged_entities: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_type: string
+          flagged_by_guild_id: string | null
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          flagged_by_guild_id?: string | null
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          flagged_by_guild_id?: string | null
+          id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       hosting_subscriptions: {
         Row: {
           billing_override: boolean
@@ -1648,6 +1714,33 @@ export type Database = {
           count?: number
           kind?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      nuke_actions: {
+        Row: {
+          action_type: string
+          actor_id: string
+          bot_id: string
+          created_at: string
+          guild_id: string
+          id: string
+        }
+        Insert: {
+          action_type: string
+          actor_id: string
+          bot_id: string
+          created_at?: string
+          guild_id: string
+          id?: string
+        }
+        Update: {
+          action_type?: string
+          actor_id?: string
+          bot_id?: string
+          created_at?: string
+          guild_id?: string
+          id?: string
         }
         Relationships: []
       }
@@ -1996,6 +2089,39 @@ export type Database = {
           updated_at?: string
           user_id?: string
           welcome_discount_available?: boolean
+        }
+        Relationships: []
+      }
+      protection_events: {
+        Row: {
+          action_taken: string | null
+          bot_id: string
+          created_at: string
+          event_type: string
+          guild_id: string
+          id: string
+          metadata: Json
+          target_id: string | null
+        }
+        Insert: {
+          action_taken?: string | null
+          bot_id: string
+          created_at?: string
+          event_type: string
+          guild_id: string
+          id?: string
+          metadata?: Json
+          target_id?: string | null
+        }
+        Update: {
+          action_taken?: string | null
+          bot_id?: string
+          created_at?: string
+          event_type?: string
+          guild_id?: string
+          id?: string
+          metadata?: Json
+          target_id?: string | null
         }
         Relationships: []
       }
