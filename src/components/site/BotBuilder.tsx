@@ -566,34 +566,23 @@ export const BotBuilder = () => {
     const code = discountCodeInput.trim().toUpperCase();
     if (!code) return;
     setApplyingDiscount(true);
-    const { data, error } = await (supabase as any)
-      .from("discount_codes")
-      .select("code, kind, value, max_uses, times_used, expires_at, is_active")
-      .ilike("code", code)
-      .maybeSingle();
+    // Use the server-side validator RPC so we never expose the full
+    // discount_codes table to the client.
+    const { data, error } = await (supabase as any).rpc("validate_discount_code", {
+      _code: code,
+    });
     setApplyingDiscount(false);
-    if (error || !data) {
-      sonnerToast.error("Invalid code");
-      return;
-    }
-    if (!data.is_active) {
-      sonnerToast.error("This code is disabled");
-      return;
-    }
-    if (data.expires_at && new Date(data.expires_at) < new Date()) {
-      sonnerToast.error("This code has expired");
-      return;
-    }
-    if (data.max_uses != null && data.times_used >= data.max_uses) {
-      sonnerToast.error("This code has reached its limit");
+    const row = Array.isArray(data) ? data[0] : data;
+    if (error || !row) {
+      sonnerToast.error("Invalid or expired code");
       return;
     }
     setAppliedDiscount({
-      code: data.code,
-      kind: data.kind,
-      value: Number(data.value),
+      code: row.code,
+      kind: row.kind,
+      value: Number(row.value),
     });
-    sonnerToast.success(`Code ${data.code} applied`);
+    sonnerToast.success(`Code ${row.code} applied`);
   };
 
   const removeDiscount = () => {
