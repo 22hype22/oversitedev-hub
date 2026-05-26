@@ -71,6 +71,7 @@ export const BotIdentityEditor = ({
   );
   const [activityText, setActivityText] = useState(bot.activity_text ?? "");
   const [bio, setBio] = useState(bot.bot_bio ?? "");
+  const [bioError, setBioError] = useState<string | null>(null);
   const [savingDetails, setSavingDetails] = useState(false);
 
   useEffect(() => { setNameDraft(bot.bot_name); }, [bot.bot_name]);
@@ -267,6 +268,11 @@ export const BotIdentityEditor = ({
 
     if (bioChanged && bioTrimmed.length > 190) {
       toast.error("About Me must be 190 characters or fewer");
+      return;
+    }
+
+    if (bioError) {
+      toast.error("Fix the About Me error before saving");
       return;
     }
 
@@ -611,12 +617,27 @@ export const BotIdentityEditor = ({
                       <Textarea
                         id="bot-bio"
                         value={bio}
-                        onChange={(e) => setBio(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setBio(val);
+                          const hasCustomEmoji = /:[a-zA-Z0-9_]+:/.test(val);
+                          if (hasCustomEmoji) {
+                            setBioError("Discord doesn't permit the use of custom emojis in bot bios. Use a Unicode emoji instead.");
+                          } else {
+                            setBioError(null);
+                          }
+                        }}
                         maxLength={190}
                         rows={3}
                         placeholder="Describe what your bot does…"
                         disabled={savingDetails}
                       />
+                      {bioError && (
+                        <div className="flex items-start gap-2 rounded-md bg-red-500/10 border border-red-500/20 p-2 text-[11px] text-red-400">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                          <span>{bioError}</span>
+                        </div>
+                      )}
                       <div className="flex items-start gap-2 rounded-md bg-muted/40 p-2 text-[11px] text-muted-foreground">
                         <Info className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
                         <span>
@@ -670,7 +691,7 @@ export const BotIdentityEditor = ({
                     </div>
 
                     <div className="flex justify-end">
-                      <Button size="sm" onClick={saveDetails} disabled={savingDetails}>
+                      <Button size="sm" onClick={saveDetails} disabled={savingDetails || !!bioError}>
                         {savingDetails ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
                       </Button>
                     </div>
