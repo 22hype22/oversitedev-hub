@@ -736,17 +736,9 @@ export const BotBuilder = () => {
 
     // Best-effort: bump times_used on the code (non-blocking).
     if (appliedDiscount) {
-      const { data: row } = await (supabase as any)
-        .from("discount_codes")
-        .select("id, times_used")
-        .ilike("code", appliedDiscount.code)
-        .maybeSingle();
-      if (row) {
-        await (supabase as any)
-          .from("discount_codes")
-          .update({ times_used: (row.times_used ?? 0) + 1 })
-          .eq("id", row.id);
-      }
+      await (supabase as any).rpc("increment_discount_code_usage", {
+        _code: appliedDiscount.code,
+      });
     }
     return inserted.id as string;
   };
