@@ -4,19 +4,26 @@ import ws from "ws";
 import os from "node:os";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-// Worker now authenticates via WORKER_TOKEN passed to runtime_* RPCs,
-// so we use the public anon/publishable key — no service role needed.
-const SUPABASE_ANON_KEY =
+// Worker MUST use the service_role key. Anonymous policies on bot_commands,
+// bot_runtime_status, and utility_bot_dm_state were removed for security —
+// the anon key no longer has access to those tables. WORKER_TOKEN is still
+// validated by `runtime_*` SECURITY DEFINER RPCs as a second layer.
+const SUPABASE_SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ??
   process.env.SUPABASE_ANON_KEY ??
-  process.env.SUPABASE_PUBLISHABLE_KEY ??
-  process.env.SUPABASE_SERVICE_ROLE_KEY; // fallback for old deployments
+  process.env.SUPABASE_PUBLISHABLE_KEY;
 const WORKER_TOKEN = process.env.WORKER_TOKEN;
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error(
-    "Missing SUPABASE_URL or SUPABASE_ANON_KEY (set SUPABASE_ANON_KEY in your .env)",
+    "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY — set SUPABASE_SERVICE_ROLE_KEY in your .env (anon key no longer has worker access)",
   );
   process.exit(1);
+}
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.warn(
+    "[worker] SUPABASE_SERVICE_ROLE_KEY is not set; falling back to anon key. Worker DB writes will fail — set SUPABASE_SERVICE_ROLE_KEY in Railway.",
+  );
 }
 if (!WORKER_TOKEN) {
   console.error(
@@ -25,7 +32,7 @@ if (!WORKER_TOKEN) {
   process.exit(1);
 }
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
   realtime: { transport: ws as unknown as any },
 });
