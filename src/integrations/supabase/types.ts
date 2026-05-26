@@ -1623,6 +1623,7 @@ export type Database = {
       }
       flagged_entities: {
         Row: {
+          bot_id: string | null
           created_at: string
           entity_id: string
           entity_type: string
@@ -1631,6 +1632,7 @@ export type Database = {
           reason: string | null
         }
         Insert: {
+          bot_id?: string | null
           created_at?: string
           entity_id: string
           entity_type: string
@@ -1639,6 +1641,7 @@ export type Database = {
           reason?: string | null
         }
         Update: {
+          bot_id?: string | null
           created_at?: string
           entity_id?: string
           entity_type?: string
