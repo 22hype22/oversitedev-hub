@@ -1,0 +1,1 @@
+ALTER TABLE public.bot_orders ADD COLUMN IF NOT EXISTS auto_identity_applied_at timestamptz;

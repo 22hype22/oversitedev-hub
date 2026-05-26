@@ -21,6 +21,59 @@ const json = (status: number, data: unknown) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+/**
+ * After the bot's first online heartbeat, push the customer-chosen
+ * `bot_orders.bot_name` to Discord as the bot's username. Only runs once
+ * per bot (gated by `bot_orders.auto_identity_applied_at`).
+ */
+async function maybeApplyInitialIdentity(botId: string): Promise<void> {
+  const { data: order, error } = await admin
+    .from("bot_orders")
+    .select("id, bot_name, auto_identity_applied_at")
+    .eq("id", botId)
+    .maybeSingle();
+  if (error || !order) return;
+  if (order.auto_identity_applied_at) return;
+  const username = typeof order.bot_name === "string" ? order.bot_name.trim() : "";
+  if (username.length < 2 || username.length > 32) return;
+
+  const { data: tokenData, error: tokenErr } = await admin.rpc(
+    "runtime_resolve_bot_token",
+    { _bot_id: botId },
+  );
+  if (tokenErr) {
+    console.warn("[auto-identity] token lookup failed", botId, tokenErr.message);
+    return;
+  }
+  const botToken = typeof tokenData === "string" ? tokenData : null;
+  if (!botToken) return;
+
+  const dRes = await fetch("https://discord.com/api/v10/users/@me", {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bot ${botToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ username }),
+  });
+  const rawBody = await dRes.text();
+  console.log(
+    `[auto-identity] bot=${botId} username=${username} discord_status=${dRes.status} body=${rawBody.slice(0, 300)}`,
+  );
+  if (!dRes.ok) return;
+
+  const nowIso = new Date().toISOString();
+  await admin
+    .from("bot_orders")
+    .update({
+      auto_identity_applied_at: nowIso,
+      discord_last_username_change_at: nowIso,
+      updated_at: nowIso,
+    })
+    .eq("id", botId);
+}
+
+
 async function authenticate(req: Request): Promise<boolean> {
   const token =
     req.headers.get("x-worker-token") ||
@@ -85,6 +138,15 @@ Deno.serve(async (req) => {
         .from("bot_runtime_status")
         .upsert(upsertData, { onConflict: "bot_id" });
       if (upsertError) return json(500, { error: upsertError.message });
+
+      // First-heartbeat-after-deploy: push the customer's chosen bot name to
+      // Discord. Wait for the heartbeat so the gateway session is live before
+      // calling the Discord REST API. Fire-and-forget — failures shouldn't
+      // break the heartbeat acknowledgement.
+      maybeApplyInitialIdentity(botId).catch((err) => {
+        console.warn("[support-bot-api] auto identity failed", botId, err);
+      });
+
       return json(200, { ok: true });
     }
 
