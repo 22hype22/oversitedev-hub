@@ -71,6 +71,7 @@ export const BotIdentityEditor = ({
   );
   const [activityText, setActivityText] = useState(bot.activity_text ?? "");
   const [bio, setBio] = useState(bot.bot_bio ?? "");
+  const [bioError, setBioError] = useState<string | null>(null);
   const [savingDetails, setSavingDetails] = useState(false);
 
   useEffect(() => { setNameDraft(bot.bot_name); }, [bot.bot_name]);
