@@ -271,6 +271,11 @@ export const BotIdentityEditor = ({
       return;
     }
 
+    if (bioError) {
+      toast.error("Fix the About Me error before saving");
+      return;
+    }
+
     setSavingDetails(true);
     const errors: string[] = [];
     let anySucceeded = false;
@@ -686,7 +691,7 @@ export const BotIdentityEditor = ({
                     </div>
 
                     <div className="flex justify-end">
-                      <Button size="sm" onClick={saveDetails} disabled={savingDetails}>
+                      <Button size="sm" onClick={saveDetails} disabled={savingDetails || !!bioError}>
                         {savingDetails ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
                       </Button>
                     </div>
