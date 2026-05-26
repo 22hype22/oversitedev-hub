@@ -31,7 +31,7 @@ const UTILS_PENDING_POLL_INTERVAL_MS = Number(
 );
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_ANON_KEY =
-  process.env.SUPABASE_ANON_KEY ?? process.env.SUPABASE_PUBLISHABLE_KEY ?? "";
+  process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? process.env.SUPABASE_PUBLISHABLE_KEY ?? "";
 const INTERNAL_CHARGE_SECRET = process.env.INTERNAL_CHARGE_SECRET ?? "";
 const WORKER_TOKEN = process.env.WORKER_TOKEN ?? "";
 const UTILS_API_BASE = `${SUPABASE_URL}/functions/v1/utilities-bot-api`;
