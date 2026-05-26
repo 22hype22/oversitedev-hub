@@ -678,6 +678,7 @@ export type Database = {
           activity_text: string | null
           activity_type: string | null
           addons: string[]
+          auto_identity_applied_at: string | null
           banner_url: string | null
           base: string
           bot_bio: string | null
@@ -737,6 +738,7 @@ export type Database = {
           activity_text?: string | null
           activity_type?: string | null
           addons?: string[]
+          auto_identity_applied_at?: string | null
           banner_url?: string | null
           base: string
           bot_bio?: string | null
@@ -796,6 +798,7 @@ export type Database = {
           activity_text?: string | null
           activity_type?: string | null
           addons?: string[]
+          auto_identity_applied_at?: string | null
           banner_url?: string | null
           base?: string
           bot_bio?: string | null
