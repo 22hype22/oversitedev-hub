@@ -2757,6 +2757,10 @@ export type Database = {
         Args: { _owner_id: string; _perm: string; _viewer_id: string }
         Returns: boolean
       }
+      increment_discount_code_usage: {
+        Args: { _code: string }
+        Returns: undefined
+      }
       is_portfolio_manager: { Args: never; Returns: boolean }
       is_super_admin:
         | { Args: never; Returns: boolean }
@@ -3125,6 +3129,18 @@ export type Database = {
             }
             Returns: Json
           }
+      validate_discount_code: {
+        Args: { _code: string }
+        Returns: {
+          code: string
+          expires_at: string
+          is_active: boolean
+          kind: string
+          max_uses: number
+          times_used: number
+          value: number
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "user"
