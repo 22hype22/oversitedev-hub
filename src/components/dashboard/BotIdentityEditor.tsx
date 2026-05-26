@@ -612,7 +612,16 @@ export const BotIdentityEditor = ({
                       <Textarea
                         id="bot-bio"
                         value={bio}
-                        onChange={(e) => setBio(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setBio(val);
+                          const hasCustomEmoji = /:[a-zA-Z0-9_]+:/.test(val);
+                          if (hasCustomEmoji) {
+                            setBioError("Discord doesn't permit the use of custom emojis in bot bios. Use a Unicode emoji instead.");
+                          } else {
+                            setBioError(null);
+                          }
+                        }}
                         maxLength={190}
                         rows={3}
                         placeholder="Describe what your bot does…"
