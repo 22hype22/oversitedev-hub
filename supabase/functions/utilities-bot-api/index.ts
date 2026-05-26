@@ -133,6 +133,15 @@ Deno.serve(async (req) => {
         .from("bot_runtime_status")
         .upsert(upsertData, { onConflict: "bot_id" });
       if (upsertError) return json(500, { error: upsertError.message });
+
+      // First-heartbeat-after-deploy: push the customer's chosen bot name to
+      // Discord. We wait for the heartbeat (instead of doing it right after
+      // Railway deploy) because the bot token isn't usable until the gateway
+      // session is live. Fire-and-forget — failures shouldn't break the heartbeat.
+      maybeApplyInitialIdentity(admin, botId).catch((err) => {
+        console.warn("[utilities-bot-api] auto identity failed", botId, err);
+      });
+
       return json(200, { ok: true });
     }
 
