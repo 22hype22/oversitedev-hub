@@ -232,6 +232,15 @@ export const BotIdentityEditor = ({
     const { ok } = await callUpdate({ username: trimmed });
     setSavingName(false);
     if (ok) {
+      // Ensure bot_orders.bot_name is in sync even if the edge function's
+      // persist step silently failed or was skipped.
+      const { error: updErr } = await supabase
+        .from("bot_orders")
+        .update({ bot_name: trimmed })
+        .eq("id", bot.id);
+      if (updErr) {
+        console.warn("[saveName] bot_orders bot_name update failed", updErr);
+      }
       toast.success("Username updated on Discord");
       setEditingName(false);
       onUpdated();
