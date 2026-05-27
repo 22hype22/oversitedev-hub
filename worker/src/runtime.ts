@@ -30,16 +30,30 @@ export class BotRuntime {
     // bot_runtime_status is owned by the Python bot heartbeat; do not write here.
 
     try {
-      // 1. Load order config
+      // 1. Load order config + per-bot addon enable/disable state
       const config = await loadBotConfig(this.botId);
       if (!config) throw new Error("Bot order not found");
+      const disabled = await loadDisabledAddons(this.botId);
       // Website-only addons (e.g. "dashboard") aren't loaded by the worker —
       // they're features of the hosted dashboard, not the Discord bot.
       const WEBSITE_ONLY = new Set(["dashboard"]);
+      const skipped: string[] = [];
       this.activeAddons = (config.addons ?? [])
         .filter((id) => !WEBSITE_ONLY.has(id))
+        .filter((id) => {
+          // Match against both the catalog id (as stored in bot_orders.addons
+          // and bot_addon_state.addon_id) and the resolved addon's own id, so
+          // either spelling in the disabled set will gate the addon off.
+          const addon = ADDONS[id];
+          const blocked = disabled.has(id) || (addon ? disabled.has(addon.id) : false);
+          if (blocked) skipped.push(id);
+          return !blocked;
+        })
         .map((id) => ADDONS[id])
         .filter((a): a is Addon => Boolean(a));
+      if (skipped.length > 0) {
+        await appendLog(this.botId, "info", `Skipping disabled addon(s): ${skipped.join(", ")}`);
+      }
 
       // 2. Pull credentials
       const token = await getSecret(this.botId, "DISCORD_TOKEN");
