@@ -11,7 +11,7 @@ import { ChannelType } from "discord.js";
 import { appendLog, recordMetrics, getSecret, upsertGuild, removeGuild, upsertChannels, upsertRoles } from "./runtime-api.js";
 import { HEARTBEAT_INTERVAL_MS } from "./supabase.js";
 import { loadBotConfig, loadDisabledAddons } from "./config.js";
-import { ADDONS, type AddonContext, type Addon } from "./addons/index.js";
+import { resolveAddon, WEBSITE_ONLY_CATALOG, type AddonContext, type Addon } from "./addons/index.js";
 
 /**
  * Bot lifecycle controller. One instance per running bot.
@@ -34,25 +34,33 @@ export class BotRuntime {
       const config = await loadBotConfig(this.botId);
       if (!config) throw new Error("Bot order not found");
       const disabled = await loadDisabledAddons(this.botId);
-      // Website-only addons (e.g. "dashboard") aren't loaded by the worker —
-      // they're features of the hosted dashboard, not the Discord bot.
-      const WEBSITE_ONLY = new Set(["dashboard"]);
+      // Website-only catalog entries (dashboard, branding, …) aren't loaded
+      // by the worker — they're features of the hosted dashboard.
       const skipped: string[] = [];
+      const unknown: string[] = [];
       this.activeAddons = (config.addons ?? [])
-        .filter((id) => !WEBSITE_ONLY.has(id))
-        .filter((id) => {
-          // Match against both the catalog id (as stored in bot_orders.addons
-          // and bot_addon_state.addon_id) and the resolved addon's own id, so
-          // either spelling in the disabled set will gate the addon off.
-          const addon = ADDONS[id];
-          const blocked = disabled.has(id) || (addon ? disabled.has(addon.id) : false);
-          if (blocked) skipped.push(id);
-          return !blocked;
+        .filter((id) => !WEBSITE_ONLY_CATALOG.has(id))
+        .map((catalogId) => {
+          const addon = resolveAddon(catalogId);
+          if (!addon) {
+            unknown.push(catalogId);
+            return null;
+          }
+          // Check the disabled set against both the catalog id (what the
+          // dashboard writes to `bot_addon_state.addon_id`) and the resolved
+          // runtime addon id, so either spelling gates the addon off.
+          if (disabled.has(catalogId) || disabled.has(addon.id)) {
+            skipped.push(catalogId);
+            return null;
+          }
+          return addon;
         })
-        .map((id) => ADDONS[id])
         .filter((a): a is Addon => Boolean(a));
       if (skipped.length > 0) {
         await appendLog(this.botId, "info", `Skipping disabled addon(s): ${skipped.join(", ")}`);
+      }
+      if (unknown.length > 0) {
+        await appendLog(this.botId, "warn", `Unknown addon(s) on order (no runtime impl): ${unknown.join(", ")}`);
       }
 
       // 2. Pull credentials
@@ -260,14 +268,14 @@ export class BotRuntime {
       return;
     }
     const disabled = await loadDisabledAddons(this.botId);
-    const WEBSITE_ONLY = new Set(["dashboard"]);
     const nextAddons = (config.addons ?? [])
-      .filter((id) => !WEBSITE_ONLY.has(id))
-      .filter((id) => {
-        const addon = ADDONS[id];
-        return !(disabled.has(id) || (addon ? disabled.has(addon.id) : false));
+      .filter((id) => !WEBSITE_ONLY_CATALOG.has(id))
+      .map((catalogId) => {
+        const addon = resolveAddon(catalogId);
+        if (!addon) return null;
+        if (disabled.has(catalogId) || disabled.has(addon.id)) return null;
+        return addon;
       })
-      .map((id) => ADDONS[id])
       .filter((a): a is Addon => Boolean(a));
     const nextIds = new Set(nextAddons.map((a) => a.id));
 
