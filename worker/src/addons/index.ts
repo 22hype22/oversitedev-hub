@@ -157,3 +157,44 @@ export const ADDONS: Record<string, Addon> = {
   [economyAddon.id]: economyAddon,
   [reminderAddon.id]: reminderAddon,
 };
+
+/**
+ * Catalog IDs (as stored on `bot_orders.addons` and the dashboard catalog)
+ * don't always match the internal addon `id`. This map translates catalog
+ * IDs to the runtime addon id. If a catalog id is missing here, we fall back
+ * to a direct `ADDONS[id]` lookup (which works when the names already match).
+ *
+ * Keep this in sync with the dashboard catalog (`src/data/addons.ts`).
+ */
+export const CATALOG_TO_ADDON_ID: Record<string, string> = {
+  "auto-close-inactive": "auto-close-tickets",
+  "birthday-announcements": "birthday",
+  "economy-system": "economy",
+  "giveaway-system": "giveaway",
+  "leveling-system": "leveling",
+  "live-notifications": "stream-notifications",
+  "music-addon": "music",
+  "priority-flagging": "priority-ticket",
+  "server-stats-channels": "server-stats",
+  "ticket-add-remove": "ticket-members",
+};
+
+/**
+ * Website-only catalog entries the worker should never try to load — they're
+ * features of the hosted dashboard, not the Discord bot.
+ */
+export const WEBSITE_ONLY_CATALOG = new Set<string>([
+  "dashboard",
+  "branding",
+  "multi-server",
+]);
+
+/**
+ * Resolve a catalog id (whatever shape `bot_orders.addons` stores) to the
+ * runtime `Addon` object, or `undefined` when there's no matching addon.
+ */
+export function resolveAddon(catalogId: string): Addon | undefined {
+  const mapped = CATALOG_TO_ADDON_ID[catalogId];
+  if (mapped && ADDONS[mapped]) return ADDONS[mapped];
+  return ADDONS[catalogId];
+}
