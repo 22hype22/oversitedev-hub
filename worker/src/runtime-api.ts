@@ -5,6 +5,7 @@ export type BotStatus =
   | "offline"
   | "starting"
   | "stopping"
+  | "restarting"
   | "crashed"
   | "updating"
   | "suspended";
