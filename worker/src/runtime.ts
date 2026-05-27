@@ -243,6 +243,50 @@ export class BotRuntime {
     await this.start();
   }
 
+  /**
+   * Re-read `bot_addon_state` and restart the bot if the set of enabled
+   * addons has changed. Triggered by `apply_config` commands so toggling an
+   * addon off in the dashboard actually tears down its event listeners.
+   *
+   * discord.js doesn't expose a clean per-addon `unregister`, so the safest
+   * way to truly stop a disabled addon's listeners is to drop the client and
+   * re-login with only the enabled addons attached.
+   */
+  async refreshAddons() {
+    const previousIds = new Set(this.activeAddons.map((a) => a.id));
+    const config = await loadBotConfig(this.botId);
+    if (!config) {
+      await appendLog(this.botId, "warn", "refreshAddons: bot order not found");
+      return;
+    }
+    const disabled = await loadDisabledAddons(this.botId);
+    const WEBSITE_ONLY = new Set(["dashboard"]);
+    const nextAddons = (config.addons ?? [])
+      .filter((id) => !WEBSITE_ONLY.has(id))
+      .filter((id) => {
+        const addon = ADDONS[id];
+        return !(disabled.has(id) || (addon ? disabled.has(addon.id) : false));
+      })
+      .map((id) => ADDONS[id])
+      .filter((a): a is Addon => Boolean(a));
+    const nextIds = new Set(nextAddons.map((a) => a.id));
+
+    const changed =
+      nextIds.size !== previousIds.size ||
+      [...nextIds].some((id) => !previousIds.has(id));
+    if (!changed) {
+      await appendLog(this.botId, "info", "refreshAddons: no change");
+      return;
+    }
+    await appendLog(this.botId, "info", "refreshAddons: addon set changed — restarting", {
+      previous: [...previousIds],
+      next: [...nextIds],
+    });
+    if (this.running) {
+      await this.restart();
+    }
+  }
+
   async listChannels(guildId: string) {
     if (!this.client) {
       const token = await getSecret(this.botId, "DISCORD_TOKEN");
