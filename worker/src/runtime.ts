@@ -10,7 +10,7 @@ import {
 import { ChannelType } from "discord.js";
 import { appendLog, recordMetrics, getSecret, upsertGuild, removeGuild, upsertChannels, upsertRoles } from "./runtime-api.js";
 import { HEARTBEAT_INTERVAL_MS } from "./supabase.js";
-import { loadBotConfig } from "./config.js";
+import { loadBotConfig, loadDisabledAddons } from "./config.js";
 import { ADDONS, type AddonContext, type Addon } from "./addons/index.js";
 
 /**
@@ -30,16 +30,30 @@ export class BotRuntime {
     // bot_runtime_status is owned by the Python bot heartbeat; do not write here.
 
     try {
-      // 1. Load order config
+      // 1. Load order config + per-bot addon enable/disable state
       const config = await loadBotConfig(this.botId);
       if (!config) throw new Error("Bot order not found");
+      const disabled = await loadDisabledAddons(this.botId);
       // Website-only addons (e.g. "dashboard") aren't loaded by the worker —
       // they're features of the hosted dashboard, not the Discord bot.
       const WEBSITE_ONLY = new Set(["dashboard"]);
+      const skipped: string[] = [];
       this.activeAddons = (config.addons ?? [])
         .filter((id) => !WEBSITE_ONLY.has(id))
+        .filter((id) => {
+          // Match against both the catalog id (as stored in bot_orders.addons
+          // and bot_addon_state.addon_id) and the resolved addon's own id, so
+          // either spelling in the disabled set will gate the addon off.
+          const addon = ADDONS[id];
+          const blocked = disabled.has(id) || (addon ? disabled.has(addon.id) : false);
+          if (blocked) skipped.push(id);
+          return !blocked;
+        })
         .map((id) => ADDONS[id])
         .filter((a): a is Addon => Boolean(a));
+      if (skipped.length > 0) {
+        await appendLog(this.botId, "info", `Skipping disabled addon(s): ${skipped.join(", ")}`);
+      }
 
       // 2. Pull credentials
       const token = await getSecret(this.botId, "DISCORD_TOKEN");
@@ -227,6 +241,50 @@ export class BotRuntime {
   async restart() {
     await this.stop();
     await this.start();
+  }
+
+  /**
+   * Re-read `bot_addon_state` and restart the bot if the set of enabled
+   * addons has changed. Triggered by `apply_config` commands so toggling an
+   * addon off in the dashboard actually tears down its event listeners.
+   *
+   * discord.js doesn't expose a clean per-addon `unregister`, so the safest
+   * way to truly stop a disabled addon's listeners is to drop the client and
+   * re-login with only the enabled addons attached.
+   */
+  async refreshAddons() {
+    const previousIds = new Set(this.activeAddons.map((a) => a.id));
+    const config = await loadBotConfig(this.botId);
+    if (!config) {
+      await appendLog(this.botId, "warn", "refreshAddons: bot order not found");
+      return;
+    }
+    const disabled = await loadDisabledAddons(this.botId);
+    const WEBSITE_ONLY = new Set(["dashboard"]);
+    const nextAddons = (config.addons ?? [])
+      .filter((id) => !WEBSITE_ONLY.has(id))
+      .filter((id) => {
+        const addon = ADDONS[id];
+        return !(disabled.has(id) || (addon ? disabled.has(addon.id) : false));
+      })
+      .map((id) => ADDONS[id])
+      .filter((a): a is Addon => Boolean(a));
+    const nextIds = new Set(nextAddons.map((a) => a.id));
+
+    const changed =
+      nextIds.size !== previousIds.size ||
+      [...nextIds].some((id) => !previousIds.has(id));
+    if (!changed) {
+      await appendLog(this.botId, "info", "refreshAddons: no change");
+      return;
+    }
+    await appendLog(this.botId, "info", "refreshAddons: addon set changed — restarting", {
+      previous: [...previousIds],
+      next: [...nextIds],
+    });
+    if (this.running) {
+      await this.restart();
+    }
   }
 
   async listChannels(guildId: string) {
