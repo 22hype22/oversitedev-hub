@@ -257,6 +257,13 @@ async function processCommand(cmd: Cmd) {
         await runtime.setStatus(type, text, presence);
         break;
       }
+      case "apply_config": {
+        // Re-read bot_addon_state and restart the bot if any addon was just
+        // toggled on/off. Only reached when we own the runtime; bots owned
+        // by external workers were released back to pending above.
+        await runtime.refreshAddons();
+        break;
+      }
 
     }
 
