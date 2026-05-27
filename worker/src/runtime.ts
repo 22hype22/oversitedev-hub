@@ -10,7 +10,7 @@ import {
 import { ChannelType } from "discord.js";
 import { appendLog, recordMetrics, getSecret, upsertGuild, removeGuild, upsertChannels, upsertRoles } from "./runtime-api.js";
 import { HEARTBEAT_INTERVAL_MS } from "./supabase.js";
-import { loadBotConfig } from "./config.js";
+import { loadBotConfig, loadDisabledAddons } from "./config.js";
 import { ADDONS, type AddonContext, type Addon } from "./addons/index.js";
 
 /**
