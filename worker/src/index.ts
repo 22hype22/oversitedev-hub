@@ -189,7 +189,11 @@ async function releaseCommandToPending(id: string, action: string) {
 }
 
 // Actions that are always owned by an external bot (never this worker).
-const ALWAYS_EXTERNAL_ACTIONS = new Set(["apply_config", "post_message"]);
+// NOTE: `apply_config` used to live here, but the Lovable worker now owns
+// it for any bot whose runtime is started in-process — so addon toggles in
+// the dashboard can immediately tear down disabled listeners. If we don't
+// own a runtime for that bot_id we still release it to the external bot.
+const ALWAYS_EXTERNAL_ACTIONS = new Set(["post_message"]);
 // Actions that need a live Discord client. If this worker has no runtime
 // started for cmd.bot_id (e.g. the command targets the externally-hosted
 // support bot, which polls support-bot-api directly), release the command
@@ -204,6 +208,12 @@ const RUNTIME_REQUIRED_ACTIONS = new Set([
 
 async function processCommand(cmd: Cmd) {
   if (ALWAYS_EXTERNAL_ACTIONS.has(cmd.action)) {
+    await releaseCommandToPending(cmd.id, cmd.action);
+    return;
+  }
+  // apply_config: handled in-process only when we already own the runtime.
+  // Otherwise release so the external bot that owns this bot_id can claim it.
+  if (cmd.action === "apply_config" && !runtimes.has(cmd.bot_id)) {
     await releaseCommandToPending(cmd.id, cmd.action);
     return;
   }
