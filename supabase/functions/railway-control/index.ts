@@ -170,6 +170,19 @@ Deno.serve(async (req) => {
       .single();
 
     try {
+      if (action === "restart" || action === "redeploy") {
+        await admin
+          .from("bot_runtime_status")
+          .upsert(
+            {
+              bot_id: botId,
+              user_id: bot.user_id,
+              status: "restarting",
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "bot_id" },
+          );
+      }
       const environmentId = await getLatestEnvironmentId(bot.railway_service_id);
       if (action === "start") {
         await ensureRunning(bot.railway_service_id, environmentId);
