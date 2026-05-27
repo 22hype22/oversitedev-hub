@@ -113,7 +113,8 @@ type Cmd = {
     | "list_guilds"
     | "list_roles"
     | "leave_all_guilds"
-    | "set_status";
+    | "set_status"
+    | "apply_config";
   payload?: {
     guild_id?: string;
     reason?: string;
