@@ -31,3 +31,26 @@ export async function loadBotConfig(botId: string): Promise<BotConfig | null> {
   }
   return result.config ?? null;
 }
+
+/**
+ * Returns the set of addon ids the customer has explicitly toggled OFF in the
+ * dashboard (rows in `bot_addon_state` with `enabled = false`).
+ *
+ * Addons with no row default to enabled, matching the dashboard's behaviour.
+ * Uses the service-role client — bypasses RLS.
+ */
+export async function loadDisabledAddons(botId: string): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from("bot_addon_state")
+    .select("addon_id, enabled")
+    .eq("bot_id", botId);
+  if (error) {
+    console.error(`[${botId}] loadDisabledAddons failed:`, error.message);
+    return new Set();
+  }
+  const disabled = new Set<string>();
+  for (const row of (data ?? []) as { addon_id: string; enabled: boolean }[]) {
+    if (row.enabled === false) disabled.add(row.addon_id);
+  }
+  return disabled;
+}
