@@ -3731,8 +3731,18 @@ function VerificationForm({
                     <Input
                       type="number"
                       min={1}
-                      value={Number(values.suspicious_join_max_per_minute ?? 5)}
-                      onChange={(e) => setValue("suspicious_join_max_per_minute", Number(e.target.value) || 1)}
+                      value={values.suspicious_join_max_per_minute ?? ""}
+                      onChange={(e) =>
+                        setValue(
+                          "suspicious_join_max_per_minute",
+                          e.target.value === "" ? "" : Number(e.target.value)
+                        )
+                      }
+                      onBlur={(e) => {
+                        if (e.target.value === "") {
+                          setValue("suspicious_join_max_per_minute", 5);
+                        }
+                      }}
                     />
                   </div>
                 )}
