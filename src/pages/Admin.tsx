@@ -312,6 +312,25 @@ const Admin = () => {
             </AccordionItem>
           )}
 
+          {/* ─── Captcha Images (super admin, only when a bot uses captcha_image) ── */}
+          {isSuperAdmin && hasCaptchaImageBot && (
+            <AccordionItem
+              value="captcha-images"
+              className="border rounded-xl bg-card px-4 sm:px-5"
+            >
+              <AccordionTrigger className="hover:no-underline py-4">
+                <SectionHeader
+                  icon={ImageIcon}
+                  title="Captcha images"
+                  description="Global pool of captcha images shared across all bots using image captcha verification."
+                />
+              </AccordionTrigger>
+              <AccordionContent className="pt-2 pb-5">
+                <CaptchaImageManager />
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
           {/* ─── Danger Zone (always last) ─────────────────────────── */}
           <AccordionItem
             value="danger"
