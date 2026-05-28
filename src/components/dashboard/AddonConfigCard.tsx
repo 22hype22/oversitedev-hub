@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -282,6 +282,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         embed_author: cfg.author ?? cfg.embed_author ?? "",
         embed_title: cfg.title ?? cfg.embed_title ?? "",
         embed_footer: cfg.footer ?? cfg.embed_footer ?? "",
+        embed_color: cfg.embed_color ?? "#5865f2",
         verification_type: cfg.verification_type ?? "one_click",
         captcha_length: cfg.captcha_length ?? 6,
         captcha_difficulty: cfg.captcha_difficulty ?? "medium",
@@ -725,6 +726,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         author: String(values.embed_author ?? ""),
         title: String(values.embed_title ?? ""),
         footer: String(values.embed_footer ?? ""),
+        embed_color: String(values.embed_color ?? "#5865f2"),
         verification_type: String(values.verification_type ?? "one_click"),
         captcha_length: Number(values.captcha_length ?? 6),
         captcha_difficulty: String(values.captcha_difficulty ?? "medium"),
@@ -2563,6 +2565,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               config={config}
               botName={botName}
               botAvatarUrl={botAvatarUrl ?? undefined}
+              botId={botId}
             />
           ) : (
             <div className="space-y-5 py-2">
@@ -3553,6 +3556,7 @@ function VerificationForm({
   config,
   botName,
   botAvatarUrl,
+  botId,
 }: {
   values: Record<string, any>;
   setValue: (k: string, v: string | number | boolean | string[]) => void;
@@ -3560,6 +3564,7 @@ function VerificationForm({
   config: { fields: AddonField[] };
   botName: string;
   botAvatarUrl?: string;
+  botId?: string;
 }) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
@@ -3568,16 +3573,39 @@ function VerificationForm({
   const message = String(values.message ?? "Click the button below to verify and unlock the server.");
   const footer = String(values.embed_footer ?? "");
   const buttonLabel = String(values.button_label ?? "Verify");
+  const embedColor = String(values.embed_color ?? "#5865f2");
+  const colorHex = /^#[0-9a-fA-F]{6}$/.test(embedColor) ? embedColor : "#5865f2";
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-2">
       {/* Left: form fields */}
       <div className="space-y-5">
+
         {config.fields
           .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
           .map((f) => (
             <div key={f.key}>{renderField(f)}</div>
           ))}
+
+        {/* Embed color */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Embed color</Label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={colorHex}
+              onChange={(e) => setValue("embed_color", e.target.value)}
+              className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
+            />
+            <Input
+              value={embedColor}
+              onChange={(e) => setValue("embed_color", e.target.value)}
+              placeholder="#5865f2"
+              className="font-mono text-sm"
+            />
+          </div>
+        </div>
+
 
         {/* Advanced Security collapsible */}
         <div className="rounded-md border border-border">
@@ -3724,7 +3752,10 @@ function VerificationForm({
                 <span className="bg-[#5865F2] text-white text-[10px] px-1 py-px rounded font-semibold">APP</span>
                 <span className="text-[11px] text-[#949ba4]">Today at 12:00 PM</span>
               </div>
-              <div className="mt-1 max-w-md rounded border-l-4 border-[#5865F2] bg-[#2b2d31] p-3">
+              <div
+                className="mt-1 max-w-md rounded border-l-4 bg-[#2b2d31] p-3"
+                style={{ borderLeftColor: colorHex }}
+              >
                 {author && (
                   <div className="text-xs text-[#dbdee1] mb-1">{author}</div>
                 )}
@@ -3747,6 +3778,119 @@ function VerificationForm({
           </div>
         </div>
       </div>
+
+      {/* Verification queue (full width) */}
+      <div className="lg:col-span-2">
+        <VerificationQueuePanel botId={botId} />
+      </div>
     </div>
   );
 }
+
+function VerificationQueuePanel({ botId }: { botId?: string }) {
+  const [rows, setRows] = useState<Array<{
+    id: string;
+    username: string | null;
+    user_id: string;
+    account_age_days: number | null;
+    reason: string | null;
+    created_at: string;
+  }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [actingId, setActingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!botId) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("verification_queue")
+      .select("id, username, user_id, account_age_days, reason, created_at")
+      .eq("bot_id", botId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+    setLoading(false);
+    if (error) {
+      toast.error(`Failed to load queue: ${error.message}`);
+      return;
+    }
+    setRows((data ?? []) as any);
+  }, [botId]);
+
+  useEffect(() => {
+    void load();
+    const id = setInterval(() => { void load(); }, 30000);
+    return () => clearInterval(id);
+  }, [load]);
+
+  const decide = async (id: string, status: "approved" | "denied") => {
+    setActingId(id);
+    const { error } = await supabase
+      .from("verification_queue")
+      .update({ status })
+      .eq("id", id);
+    setActingId(null);
+    if (error) {
+      toast.error(`Failed: ${error.message}`);
+      return;
+    }
+    toast.success(status === "approved" ? "Approved" : "Denied");
+    setRows((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  return (
+    <div className="rounded-md border border-border">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium">Verification Queue</span>
+          <span className="text-xs text-muted-foreground">({rows.length} pending)</span>
+        </div>
+        <Button type="button" variant="ghost" size="sm" onClick={() => void load()} disabled={loading} className="h-7 px-2 text-xs gap-1.5">
+          <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
+          Refresh
+        </Button>
+      </div>
+      {rows.length === 0 ? (
+        <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+          {loading ? "Loading…" : "No pending verifications."}
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {rows.map((r) => (
+            <div key={r.id} className="px-4 py-3 flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium truncate">
+                  {r.username ?? r.user_id}
+                  <span className="ml-2 text-xs text-muted-foreground">({r.user_id})</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Account age: {r.account_age_days ?? "?"} days
+                  {r.reason ? ` · ${r.reason}` : ""}
+                </div>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="default"
+                  disabled={actingId === r.id}
+                  onClick={() => void decide(r.id, "approved")}
+                >
+                  Approve
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={actingId === r.id}
+                  onClick={() => void decide(r.id, "denied")}
+                >
+                  Deny
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
