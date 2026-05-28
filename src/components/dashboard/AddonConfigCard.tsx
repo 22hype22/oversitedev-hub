@@ -3543,3 +3543,209 @@ function GiveawayForm({
     </div>
   );
 }
+
+// ─── Verification System form (with live preview + advanced security) ───
+function VerificationForm({
+  values,
+  setValue,
+  renderField,
+  config,
+  botName,
+  botAvatarUrl,
+}: {
+  values: Record<string, any>;
+  setValue: (k: string, v: string | number | boolean | string[]) => void;
+  renderField: (f: AddonField) => JSX.Element | null;
+  config: { fields: AddonField[] };
+  botName: string;
+  botAvatarUrl?: string;
+}) {
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  const author = String(values.embed_author ?? "");
+  const title = String(values.embed_title ?? "");
+  const message = String(values.message ?? "Click the button below to verify and unlock the server.");
+  const footer = String(values.embed_footer ?? "");
+  const buttonLabel = String(values.button_label ?? "Verify");
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-2">
+      {/* Left: form fields */}
+      <div className="space-y-5">
+        {config.fields
+          .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+          .map((f) => (
+            <div key={f.key}>{renderField(f)}</div>
+          ))}
+
+        {/* Advanced Security collapsible */}
+        <div className="rounded-md border border-border">
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/40 transition-smooth"
+          >
+            <span className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              Advanced Security
+            </span>
+            <ChevronsUpDown className={cn("h-4 w-4 transition-transform", advancedOpen && "rotate-180")} />
+          </button>
+          {advancedOpen && (
+            <div className="px-4 pb-4 pt-2 space-y-5 border-t border-border">
+              {/* Rate limiting */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-medium">Rate Limiting</Label>
+                    <p className="text-xs text-muted-foreground">Lock users out after too many failed attempts.</p>
+                  </div>
+                  <Switch
+                    checked={!!values.rate_limit_enabled}
+                    onCheckedChange={(v) => setValue("rate_limit_enabled", v)}
+                  />
+                </div>
+                {values.rate_limit_enabled && (
+                  <div className="grid grid-cols-2 gap-3 pl-1">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Max attempts before lockout</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={Number(values.rate_limit_max_attempts ?? 3)}
+                        onChange={(e) => setValue("rate_limit_max_attempts", Number(e.target.value) || 1)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Lockout duration</Label>
+                      <Select
+                        value={String(values.rate_limit_lockout_minutes ?? 10)}
+                        onValueChange={(v) => setValue("rate_limit_lockout_minutes", Number(v))}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5 minutes</SelectItem>
+                          <SelectItem value="10">10 minutes</SelectItem>
+                          <SelectItem value="30">30 minutes</SelectItem>
+                          <SelectItem value="60">1 hour</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Phone verified required */}
+              <div className="flex items-center justify-between">
+                <div className="pr-3">
+                  <Label className="text-sm font-medium">Phone Verified Required</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Requires Discord phone verification before users can verify.
+                  </p>
+                </div>
+                <Switch
+                  checked={!!values.phone_verified_required}
+                  onCheckedChange={(v) => setValue("phone_verified_required", v)}
+                />
+              </div>
+
+              {/* Honeypot */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="pr-3">
+                    <Label className="text-sm font-medium">New Account Honeypot</Label>
+                    <p className="text-xs text-muted-foreground">Silently flag suspiciously new accounts.</p>
+                  </div>
+                  <Switch
+                    checked={!!values.honeypot_enabled}
+                    onCheckedChange={(v) => setValue("honeypot_enabled", v)}
+                  />
+                </div>
+                {values.honeypot_enabled && (
+                  <div className="pl-1 space-y-1.5">
+                    <Label className="text-xs">Flag accounts under X days</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={Number(values.honeypot_flag_under_days ?? 7)}
+                      onChange={(e) => setValue("honeypot_flag_under_days", Number(e.target.value) || 1)}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Suspicious joins */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="pr-3">
+                    <Label className="text-sm font-medium">Suspicious Join Detection</Label>
+                    <p className="text-xs text-muted-foreground">Flag bursts of verification attempts.</p>
+                  </div>
+                  <Switch
+                    checked={!!values.suspicious_join_enabled}
+                    onCheckedChange={(v) => setValue("suspicious_join_enabled", v)}
+                  />
+                </div>
+                {values.suspicious_join_enabled && (
+                  <div className="pl-1 space-y-1.5">
+                    <Label className="text-xs">Max verifications per minute before flagging</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={Number(values.suspicious_join_max_per_minute ?? 5)}
+                      onChange={(e) => setValue("suspicious_join_max_per_minute", Number(e.target.value) || 1)}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right: live embed preview */}
+      <div className="lg:sticky lg:top-0 self-start">
+        <Label className="text-xs text-muted-foreground mb-2 block">Live preview</Label>
+        <div className="rounded-md bg-[#313338] p-4 text-[#dbdee1]">
+          <div className="flex gap-3">
+            <div className="h-10 w-10 rounded-full bg-[#5865F2] grid place-items-center shrink-0 overflow-hidden">
+              {botAvatarUrl ? (
+                <img src={botAvatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-white text-sm font-bold">
+                  {botName.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2">
+                <span className="text-white font-medium">{botName}</span>
+                <span className="bg-[#5865F2] text-white text-[10px] px-1 py-px rounded font-semibold">APP</span>
+                <span className="text-[11px] text-[#949ba4]">Today at 12:00 PM</span>
+              </div>
+              <div className="mt-1 max-w-md rounded border-l-4 border-[#5865F2] bg-[#2b2d31] p-3">
+                {author && (
+                  <div className="text-xs text-[#dbdee1] mb-1">{author}</div>
+                )}
+                {title && (
+                  <div className="font-semibold text-white">{title}</div>
+                )}
+                {message && (
+                  <div className="mt-1 whitespace-pre-wrap text-sm text-[#dbdee1]">{message}</div>
+                )}
+                {footer && (
+                  <div className="mt-2 text-[11px] text-[#949ba4]">{footer}</div>
+                )}
+                <div className="mt-3">
+                  <span className="inline-flex items-center rounded bg-[#248046] text-white text-sm font-medium px-3 py-1.5 cursor-default">
+                    {buttonLabel || "Verify"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
