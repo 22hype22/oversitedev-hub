@@ -213,7 +213,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
           { value: "medium", label: "Medium" },
           { value: "hard", label: "Hard" },
         ],
-        visibleIf: (v) => v.verification_type === "captcha_code" || v.verification_type === "captcha_image",
+        visibleIf: (v) => v.verification_type === "captcha_code",
       },
       {
         key: "web_captcha_provider",
