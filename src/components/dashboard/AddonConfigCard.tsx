@@ -716,6 +716,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       feature: "verification",
       config: {
         channel_id: String(values.channel_id ?? ""),
+        log_channel_id: String(values.log_channel_id ?? ""),
         role_id: String(values.role_id ?? ""),
         message: String(values.message ?? ""),
         button_label: String(values.button_label ?? "Verify"),
@@ -728,6 +729,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         captcha_difficulty: String(values.captcha_difficulty ?? "medium"),
         web_captcha_provider: String(values.web_captcha_provider ?? "hcaptcha"),
         web_captcha_site_key: String(values.web_captcha_site_key ?? ""),
+        // Advanced security
+        rate_limit_enabled: !!values.rate_limit_enabled,
+        rate_limit_max_attempts: Number(values.rate_limit_max_attempts ?? 3),
+        rate_limit_lockout_minutes: Number(values.rate_limit_lockout_minutes ?? 10),
+        phone_verified_required: !!values.phone_verified_required,
+        honeypot_enabled: !!values.honeypot_enabled,
+        honeypot_flag_under_days: Number(values.honeypot_flag_under_days ?? 7),
+        suspicious_join_enabled: !!values.suspicious_join_enabled,
+        suspicious_join_max_per_minute: Number(values.suspicious_join_max_per_minute ?? 5),
       },
       updated_at: new Date().toISOString(),
     };
