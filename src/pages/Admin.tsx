@@ -137,6 +137,43 @@ const Admin = () => {
 
   const isSuperAdmin = user.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
 
+  return <AdminContent user={user} isSuperAdmin={isSuperAdmin} navigate={navigate} marketingShutdown={marketingShutdown} />;
+};
+
+const AdminContent = ({
+  user,
+  isSuperAdmin,
+  navigate,
+  marketingShutdown,
+}: {
+  user: { id: string; email?: string | null };
+  isSuperAdmin: boolean;
+  navigate: ReturnType<typeof useNavigate>;
+  marketingShutdown: boolean;
+}) => {
+  const [hasCaptchaImageBot, setHasCaptchaImageBot] = useState(false);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("feature", "verification")
+        .limit(1000);
+      if (cancelled) return;
+      const found = (data ?? []).some((row: { config: unknown }) => {
+        const cfg = (row.config ?? {}) as Record<string, unknown>;
+        return cfg.verification_type === "captcha_image";
+      });
+      setHasCaptchaImageBot(found);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSuperAdmin]);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-4 py-10 max-w-7xl">
