@@ -3587,6 +3587,26 @@ function VerificationForm({
             <div key={f.key}>{renderField(f)}</div>
           ))}
 
+        {/* Embed color */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Embed color</Label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={colorHex}
+              onChange={(e) => setValue("embed_color", e.target.value)}
+              className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
+            />
+            <Input
+              value={embedColor}
+              onChange={(e) => setValue("embed_color", e.target.value)}
+              placeholder="#5865f2"
+              className="font-mono text-sm"
+            />
+          </div>
+        </div>
+
+
         {/* Advanced Security collapsible */}
         <div className="rounded-md border border-border">
           <button
