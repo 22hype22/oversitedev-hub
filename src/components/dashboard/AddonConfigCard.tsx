@@ -295,6 +295,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         phone_verified_required: !!cfg.phone_verified_required,
         honeypot_enabled: !!cfg.honeypot_enabled,
         honeypot_flag_under_days: cfg.honeypot_flag_under_days ?? 7,
+        honeypot_ping_roles: Array.isArray(cfg.honeypot_ping_roles)
+          ? cfg.honeypot_ping_roles.map(String)
+          : [],
         suspicious_join_enabled: !!cfg.suspicious_join_enabled,
         suspicious_join_max_per_minute: cfg.suspicious_join_max_per_minute ?? 5,
       }));
@@ -739,6 +742,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         phone_verified_required: !!values.phone_verified_required,
         honeypot_enabled: !!values.honeypot_enabled,
         honeypot_flag_under_days: Number(values.honeypot_flag_under_days ?? 7),
+        honeypot_ping_roles: Array.isArray(values.honeypot_ping_roles)
+          ? (values.honeypot_ping_roles as string[]).filter(Boolean)
+          : [],
         suspicious_join_enabled: !!values.suspicious_join_enabled,
         suspicious_join_max_per_minute: Number(values.suspicious_join_max_per_minute ?? 5),
       },
@@ -3691,23 +3697,31 @@ function VerificationForm({
                   />
                 </div>
                 {values.honeypot_enabled && (
-                  <div className="pl-1 space-y-1.5">
-                    <Label className="text-xs">Flag accounts under X days</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={values.honeypot_flag_under_days ?? ""}
-                      onChange={(e) =>
-                        setValue(
-                          "honeypot_flag_under_days",
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
-                      }
-                      onBlur={(e) => {
-                        if (e.target.value === "") {
-                          setValue("honeypot_flag_under_days", 7);
+                  <div className="pl-1 space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Flag accounts under X days</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={values.honeypot_flag_under_days ?? ""}
+                        onChange={(e) =>
+                          setValue(
+                            "honeypot_flag_under_days",
+                            e.target.value === "" ? "" : Number(e.target.value)
+                          )
                         }
-                      }}
+                        onBlur={(e) => {
+                          if (e.target.value === "") {
+                            setValue("honeypot_flag_under_days", 7);
+                          }
+                        }}
+                      />
+                    </div>
+                    <MultiRoleField
+                      field={{ label: "Staff roles to ping", key: "honeypot_ping_roles", type: "multiselect", help: "Roles to mention when a suspicious new account is flagged." }}
+                      value={Array.isArray(values.honeypot_ping_roles) ? values.honeypot_ping_roles as string[] : []}
+                      onChange={(v) => setValue("honeypot_ping_roles", v)}
+                      botId={botId}
                     />
                   </div>
                 )}
