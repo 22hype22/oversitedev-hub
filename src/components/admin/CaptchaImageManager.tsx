@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Trash2, Upload, ImageIcon } from "lucide-react";
+import { Trash2, Upload, ImageIcon, Eye, EyeOff } from "lucide-react";
 
 type CaptchaImage = {
   id: string;
