@@ -192,7 +192,6 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         options: [
           { value: "one_click", label: "One-Click" },
           { value: "captcha_code", label: "Captcha Text" },
-          { value: "captcha_image", label: "Captcha Image" },
           { value: "web_captcha", label: "Web Captcha" },
         ],
       },
