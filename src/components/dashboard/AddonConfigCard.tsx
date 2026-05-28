@@ -2587,6 +2587,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               botAvatarUrl={botAvatarUrl ?? undefined}
               botId={botId}
             />
+          ) : isRemindme ? (
+            <RemindmeForm
+              values={values}
+              setValue={setValue}
+              renderField={renderField}
+              config={config}
+              botName={botName}
+              botAvatarUrl={botAvatarUrl ?? undefined}
+            />
           ) : (
             <div className="space-y-5 py-2">
               {config.fields
