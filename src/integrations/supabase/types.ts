@@ -1009,6 +1009,7 @@ export type Database = {
       }
       bot_runtime_status: {
         Row: {
+          activity_type: string | null
           bot_id: string
           created_at: string
           details: Json | null
@@ -1018,8 +1019,10 @@ export type Database = {
           last_error_at: string | null
           last_heartbeat_at: string | null
           last_offline_alert_at: string | null
+          presence_status: string | null
           started_at: string | null
           status: string
+          status_text: string | null
           updated_at: string
           uptime_seconds: number
           user_id: string
@@ -1027,6 +1030,7 @@ export type Database = {
           worker_id: string | null
         }
         Insert: {
+          activity_type?: string | null
           bot_id: string
           created_at?: string
           details?: Json | null
@@ -1036,8 +1040,10 @@ export type Database = {
           last_error_at?: string | null
           last_heartbeat_at?: string | null
           last_offline_alert_at?: string | null
+          presence_status?: string | null
           started_at?: string | null
           status?: string
+          status_text?: string | null
           updated_at?: string
           uptime_seconds?: number
           user_id: string
@@ -1045,6 +1051,7 @@ export type Database = {
           worker_id?: string | null
         }
         Update: {
+          activity_type?: string | null
           bot_id?: string
           created_at?: string
           details?: Json | null
@@ -1054,8 +1061,10 @@ export type Database = {
           last_error_at?: string | null
           last_heartbeat_at?: string | null
           last_offline_alert_at?: string | null
+          presence_status?: string | null
           started_at?: string | null
           status?: string
+          status_text?: string | null
           updated_at?: string
           uptime_seconds?: number
           user_id?: string
