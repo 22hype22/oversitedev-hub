@@ -102,11 +102,66 @@ Deno.serve(async (req) => {
     const botToken = typeof tokenData === "string" ? tokenData : null;
     if (!botToken) return json(400, { error: "Bot has no DISCORD_TOKEN configured" });
 
+    // Resolve :emojiname: references in the bio against the bot's guild emojis.
+    let resolvedBio = bio;
+    if (bio !== null && /(?<![<a]):[a-zA-Z0-9_]+:/.test(bio)) {
+      try {
+        const gRes = await fetch("https://discord.com/api/v10/users/@me/guilds", {
+          headers: { Authorization: `Bot ${botToken}` },
+        });
+        if (gRes.ok) {
+          const guilds = (await gRes.json()) as Array<{ id: string }>;
+          const emojiMap: Record<string, { id: string; animated: boolean }> = {};
+          const lists = await Promise.all(
+            guilds.slice(0, 50).map(async (g) => {
+              try {
+                const r = await fetch(
+                  `https://discord.com/api/v10/guilds/${g.id}/emojis`,
+                  { headers: { Authorization: `Bot ${botToken}` } },
+                );
+                if (!r.ok) return [];
+                return (await r.json()) as Array<{
+                  id: string | null;
+                  name: string | null;
+                  animated?: boolean;
+                }>;
+              } catch {
+                return [];
+              }
+            }),
+          );
+          for (const list of lists) {
+            for (const e of list) {
+              if (e.id && e.name && !emojiMap[e.name]) {
+                emojiMap[e.name] = { id: e.id, animated: !!e.animated };
+              }
+            }
+          }
+          resolvedBio = bio.replace(
+            /(?<![<a]):([a-zA-Z0-9_]+):/g,
+            (match, name: string) => {
+              const e = emojiMap[name];
+              if (!e) return match;
+              return `<${e.animated ? "a" : ""}:${name}:${e.id}>`;
+            },
+          );
+          console.log(
+            `[bot-update-identity] bot=${botId} resolved emojis: ${
+              Object.keys(emojiMap).length
+            } available, bio changed=${resolvedBio !== bio}`,
+          );
+        }
+      } catch (e) {
+        console.warn(`[bot-update-identity] emoji resolve failed: ${(e as Error).message}`);
+      }
+    }
+
     const payload: Record<string, unknown> = {};
     if (username !== null) payload.username = username;
     if (avatar !== null) payload.avatar = avatar;
     if (banner !== null) payload.banner = banner;
-    if (bio !== null) payload.bio = bio;
+    if (resolvedBio !== null) payload.bio = resolvedBio;
+
 
     const fieldsSent = Object.keys(payload);
     console.log(
