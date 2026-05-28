@@ -742,6 +742,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         phone_verified_required: !!values.phone_verified_required,
         honeypot_enabled: !!values.honeypot_enabled,
         honeypot_flag_under_days: Number(values.honeypot_flag_under_days ?? 7),
+        honeypot_ping_roles: Array.isArray(values.honeypot_ping_roles)
+          ? (values.honeypot_ping_roles as string[]).filter(Boolean)
+          : [],
         suspicious_join_enabled: !!values.suspicious_join_enabled,
         suspicious_join_max_per_minute: Number(values.suspicious_join_max_per_minute ?? 5),
       },
