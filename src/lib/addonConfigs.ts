@@ -264,6 +264,15 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
           { value: "30", label: "30 days" },
         ],
       },
+      toggle("vpn_block_enabled", "VPN Blocking", false, "Block users connecting through VPNs during verification."),
+      {
+        key: "vpn_block_iphub_key",
+        label: "IPHub API Key",
+        type: "text",
+        placeholder: "Your IPHub API key",
+        help: "API key for IPHub VPN detection service.",
+        visibleIf: (v) => !!v.vpn_block_enabled,
+      },
     ],
 
   },
