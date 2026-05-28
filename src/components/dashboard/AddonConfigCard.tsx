@@ -726,6 +726,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         author: String(values.embed_author ?? ""),
         title: String(values.embed_title ?? ""),
         footer: String(values.embed_footer ?? ""),
+        embed_color: String(values.embed_color ?? "#5865f2"),
         verification_type: String(values.verification_type ?? "one_click"),
         captcha_length: Number(values.captcha_length ?? 6),
         captcha_difficulty: String(values.captcha_difficulty ?? "medium"),
