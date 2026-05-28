@@ -18,6 +18,7 @@ import {
   ScrollText,
   AlertTriangle,
   ShieldCheck,
+  ImageIcon,
   type LucideIcon,
 } from "lucide-react";
 
