@@ -3694,23 +3694,31 @@ function VerificationForm({
                   />
                 </div>
                 {values.honeypot_enabled && (
-                  <div className="pl-1 space-y-1.5">
-                    <Label className="text-xs">Flag accounts under X days</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={values.honeypot_flag_under_days ?? ""}
-                      onChange={(e) =>
-                        setValue(
-                          "honeypot_flag_under_days",
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
-                      }
-                      onBlur={(e) => {
-                        if (e.target.value === "") {
-                          setValue("honeypot_flag_under_days", 7);
+                  <div className="pl-1 space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Flag accounts under X days</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={values.honeypot_flag_under_days ?? ""}
+                        onChange={(e) =>
+                          setValue(
+                            "honeypot_flag_under_days",
+                            e.target.value === "" ? "" : Number(e.target.value)
+                          )
                         }
-                      }}
+                        onBlur={(e) => {
+                          if (e.target.value === "") {
+                            setValue("honeypot_flag_under_days", 7);
+                          }
+                        }}
+                      />
+                    </div>
+                    <MultiRoleField
+                      field={{ label: "Staff roles to ping", key: "honeypot_ping_roles", type: "multiselect", help: "Roles to mention when a suspicious new account is flagged." }}
+                      value={Array.isArray(values.honeypot_ping_roles) ? values.honeypot_ping_roles as string[] : []}
+                      onChange={(v) => setValue("honeypot_ping_roles", v)}
+                      botId={botId}
                     />
                   </div>
                 )}
