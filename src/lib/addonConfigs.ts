@@ -191,8 +191,8 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         help: "How users prove they're human.",
         options: [
           { value: "one_click", label: "One-Click" },
-          { value: "captcha_code", label: "Captcha Code | Text" },
-          { value: "captcha_image", label: "Captcha Code | Image" },
+          { value: "captcha_code", label: "Captcha Text" },
+          { value: "captcha_image", label: "Captcha Image" },
           { value: "web_captcha", label: "Web Captcha" },
         ],
       },
