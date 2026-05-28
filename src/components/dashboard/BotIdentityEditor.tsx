@@ -73,6 +73,9 @@ export const BotIdentityEditor = ({
   const [bio, setBio] = useState(bot.bot_bio ?? "");
   const [bioError, setBioError] = useState<string | null>(null);
   const [savingDetails, setSavingDetails] = useState(false);
+  const [emojiMap, setEmojiMap] = useState<Record<string, { id: string; animated: boolean }>>({});
+  const emojiFetchedRef = useRef(false);
+
 
   useEffect(() => { setNameDraft(bot.bot_name); }, [bot.bot_name]);
   useEffect(() => {
