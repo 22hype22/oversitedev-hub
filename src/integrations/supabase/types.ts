@@ -2608,6 +2608,72 @@ export type Database = {
         }
         Relationships: []
       }
+      verification_attempts: {
+        Row: {
+          attempts: number
+          bot_id: string
+          created_at: string
+          guild_id: string
+          id: string
+          locked_until: string | null
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          bot_id: string
+          created_at?: string
+          guild_id: string
+          id?: string
+          locked_until?: string | null
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          bot_id?: string
+          created_at?: string
+          guild_id?: string
+          id?: string
+          locked_until?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      verification_queue: {
+        Row: {
+          account_age_days: number | null
+          bot_id: string
+          created_at: string
+          guild_id: string
+          id: string
+          reason: string | null
+          status: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          account_age_days?: number | null
+          bot_id: string
+          created_at?: string
+          guild_id: string
+          id?: string
+          reason?: string | null
+          status?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          account_age_days?: number | null
+          bot_id?: string
+          created_at?: string
+          guild_id?: string
+          id?: string
+          reason?: string | null
+          status?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
       verification_tokens: {
         Row: {
           bot_id: string
