@@ -1314,6 +1314,27 @@ export type Database = {
         }
         Relationships: []
       }
+      captcha_images: {
+        Row: {
+          answer: string
+          created_at: string
+          id: string
+          image_url: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          id?: string
+          image_url: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          id?: string
+          image_url?: string
+        }
+        Relationships: []
+      }
       dashboard_addon_order: {
         Row: {
           bot_id: string
