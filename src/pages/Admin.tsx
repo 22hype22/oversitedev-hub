@@ -91,12 +91,36 @@ const Admin = () => {
   const navigate = useNavigate();
   const [marketingShutdown] = useMarketingShutdown();
 
+  const isSuperAdmin = user?.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
+  const [hasCaptchaImageBot, setHasCaptchaImageBot] = useState(false);
+
   useEffect(() => {
     if (loading) return;
     if (!user) {
       navigate("/auth", { replace: true });
     }
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("feature", "verification")
+        .limit(1000);
+      if (cancelled) return;
+      const found = (data ?? []).some((row: { config: unknown }) => {
+        const cfg = (row.config ?? {}) as Record<string, unknown>;
+        return cfg.verification_type === "captcha_image";
+      });
+      setHasCaptchaImageBot(found);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSuperAdmin]);
 
   if (loading) {
     return (
@@ -135,30 +159,6 @@ const Admin = () => {
     );
   }
 
-  const isSuperAdmin = user.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
-
-  const [hasCaptchaImageBot, setHasCaptchaImageBot] = useState(false);
-
-  useEffect(() => {
-    if (!isSuperAdmin) return;
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from("bot_config")
-        .select("config")
-        .eq("feature", "verification")
-        .limit(1000);
-      if (cancelled) return;
-      const found = (data ?? []).some((row: { config: unknown }) => {
-        const cfg = (row.config ?? {}) as Record<string, unknown>;
-        return cfg.verification_type === "captcha_image";
-      });
-      setHasCaptchaImageBot(found);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isSuperAdmin]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
