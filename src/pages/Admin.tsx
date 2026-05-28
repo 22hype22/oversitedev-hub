@@ -40,6 +40,7 @@ import { WorkerTokensManager } from "@/components/admin/WorkerTokensManager";
 import { TokenPoolManager } from "@/components/admin/TokenPoolManager";
 import { AdminAuditLog } from "@/components/admin/AdminAuditLog";
 import { NotificationSender } from "@/components/admin/NotificationSender";
+import { CaptchaImageManager } from "@/components/admin/CaptchaImageManager";
 import { Card } from "@/components/ui/card";
 
 const SUPER_ADMIN_EMAIL = "everant00@gmail.com";
@@ -227,6 +228,7 @@ const Admin = () => {
               <BotSecretSlotManager />
               <TokenPoolManager />
               <WorkerTokensManager />
+              <CaptchaImageManager />
             </AccordionContent>
           </AccordionItem>
 
