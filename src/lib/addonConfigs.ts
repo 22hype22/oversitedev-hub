@@ -192,7 +192,6 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         options: [
           { value: "one_click", label: "One-Click" },
           { value: "captcha_code", label: "Captcha Text" },
-          { value: "captcha_image", label: "Captcha Image" },
           { value: "web_captcha", label: "Web Captcha" },
         ],
       },
@@ -202,7 +201,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         type: "number",
         defaultValue: 6,
         help: "Number of characters in the captcha code (4–8).",
-        visibleIf: (v) => v.verification_type === "captcha_code" || v.verification_type === "captcha_image",
+        visibleIf: (v) => v.verification_type === "captcha_code",
       },
       {
         key: "captcha_difficulty",
@@ -214,7 +213,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
           { value: "medium", label: "Medium" },
           { value: "hard", label: "Hard" },
         ],
-        visibleIf: (v) => v.verification_type === "captcha_code" || v.verification_type === "captcha_image",
+        visibleIf: (v) => v.verification_type === "captcha_code",
       },
       {
         key: "web_captcha_provider",
