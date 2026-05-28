@@ -229,7 +229,6 @@ const Admin = () => {
               <BotSecretSlotManager />
               <TokenPoolManager />
               <WorkerTokensManager />
-              <CaptchaImageManager />
             </AccordionContent>
           </AccordionItem>
 
