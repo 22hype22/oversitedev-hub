@@ -273,6 +273,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       setValues((prev) => ({
         ...prev,
         channel_id: cfg.channel_id ?? "",
+        log_channel_id: cfg.log_channel_id ?? "",
         role_id: cfg.role_id ?? "",
         message: cfg.message ?? prev.message ?? "",
         button_label: cfg.button_label ?? prev.button_label ?? "Verify",
@@ -280,6 +281,20 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         embed_author: cfg.author ?? cfg.embed_author ?? "",
         embed_title: cfg.title ?? cfg.embed_title ?? "",
         embed_footer: cfg.footer ?? cfg.embed_footer ?? "",
+        verification_type: cfg.verification_type ?? "one_click",
+        captcha_length: cfg.captcha_length ?? 6,
+        captcha_difficulty: cfg.captcha_difficulty ?? "medium",
+        web_captcha_provider: cfg.web_captcha_provider ?? "hcaptcha",
+        web_captcha_site_key: cfg.web_captcha_site_key ?? "",
+        // Advanced security
+        rate_limit_enabled: !!cfg.rate_limit_enabled,
+        rate_limit_max_attempts: cfg.rate_limit_max_attempts ?? 3,
+        rate_limit_lockout_minutes: cfg.rate_limit_lockout_minutes ?? 10,
+        phone_verified_required: !!cfg.phone_verified_required,
+        honeypot_enabled: !!cfg.honeypot_enabled,
+        honeypot_flag_under_days: cfg.honeypot_flag_under_days ?? 7,
+        suspicious_join_enabled: !!cfg.suspicious_join_enabled,
+        suspicious_join_max_per_minute: cfg.suspicious_join_max_per_minute ?? 5,
       }));
       setAppliedAt((data as any).applied_at ?? null);
     })();
