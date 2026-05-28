@@ -1291,6 +1291,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         maxPerUser: typeof cfg.max_per_user === "number" ? cfg.max_per_user : (prev.maxPerUser ?? 25),
         deliveryMethod: ["dm", "channel", "both"].includes(cfg.delivery_method) ? cfg.delivery_method : "dm",
         allowRecurring: !!cfg.allow_recurring,
+        embed_color: typeof cfg.embed_color === "string" ? cfg.embed_color : "#5865f2",
+        embed_title: typeof cfg.embed_title === "string" ? cfg.embed_title : "Reminder",
+        footer_text: typeof cfg.footer_text === "string" ? cfg.footer_text : "",
+        show_original: cfg.show_original !== false,
+        ping_user: cfg.ping_user !== false,
       }));
       setAppliedAt((data as any).applied_at ?? null);
     })();
