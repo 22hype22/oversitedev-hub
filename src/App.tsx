@@ -31,6 +31,7 @@ const MeetTheOwner = lazy(() => import("./pages/MeetTheOwner.tsx"));
 const MeetTheTeam = lazy(() => import("./pages/MeetTheTeam.tsx"));
 const Plugyxz = lazy(() => import("./pages/Plugyxz.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
+const Verify = lazy(() => import("./pages/Verify.tsx"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -85,6 +86,7 @@ const App = () => {
                 <Route path="/explore/team" element={<MeetTheTeam />} />
                 <Route path="/explore/owner" element={<MeetTheOwner />} />
                 <Route path="/explore/plugyxz" element={<Plugyxz />} />
+                <Route path="/verify" element={<Verify />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
