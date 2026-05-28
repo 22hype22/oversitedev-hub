@@ -2470,7 +2470,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           className={cn(
-            isSayCommand || isRules || isGiveaway
+            isSayCommand || isRules || isGiveaway || isVerification
               ? "max-w-5xl max-h-[90vh] overflow-y-auto"
               : isChannelLockdown
                 ? "max-w-3xl max-h-[90vh] overflow-y-auto"
