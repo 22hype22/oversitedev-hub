@@ -183,6 +183,57 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       channel("channel_id", "Verification channel", "Where the verify button is posted."),
       channel("log_channel_id", "Verification logging channel", "Where verification attempts and results are logged."),
       role("role_id", "Verified role", "Granted once a user verifies."),
+      {
+        key: "verification_type",
+        label: "Verification type",
+        type: "select",
+        defaultValue: "one_click",
+        help: "How users prove they're human.",
+        options: [
+          { value: "one_click", label: "One-Click" },
+          { value: "captcha_code", label: "Captcha Code" },
+          { value: "web_captcha", label: "Web Captcha" },
+        ],
+      },
+      {
+        key: "captcha_length",
+        label: "Captcha length",
+        type: "number",
+        defaultValue: 6,
+        help: "Number of characters in the captcha code (4–8).",
+        visibleIf: (v) => v.verification_type === "captcha_code",
+      },
+      {
+        key: "captcha_difficulty",
+        label: "Captcha difficulty",
+        type: "select",
+        defaultValue: "medium",
+        options: [
+          { value: "easy", label: "Easy" },
+          { value: "medium", label: "Medium" },
+          { value: "hard", label: "Hard" },
+        ],
+        visibleIf: (v) => v.verification_type === "captcha_code",
+      },
+      {
+        key: "web_captcha_provider",
+        label: "Web captcha provider",
+        type: "select",
+        defaultValue: "hcaptcha",
+        options: [
+          { value: "hcaptcha", label: "hCaptcha" },
+          { value: "turnstile", label: "Cloudflare Turnstile" },
+        ],
+        visibleIf: (v) => v.verification_type === "web_captcha",
+      },
+      {
+        key: "web_captcha_site_key",
+        label: "Site key",
+        type: "text",
+        placeholder: "Your hCaptcha / Turnstile site key",
+        help: "Public site key issued by your captcha provider.",
+        visibleIf: (v) => v.verification_type === "web_captcha",
+      },
       ...embedHeaderFields(),
       {
         key: "message",
@@ -214,6 +265,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         ],
       },
     ],
+
   },
 
   "mod-actions": {
