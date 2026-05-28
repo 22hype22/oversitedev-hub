@@ -225,7 +225,8 @@ Deno.serve(async (req) => {
       dbPatch.bot_name = username;
       dbPatch.discord_last_username_change_at = new Date().toISOString();
     }
-    if (bio !== null) dbPatch.bot_bio = bio;
+    if (bio !== null) dbPatch.bot_bio = resolvedBio;
+
     if (avatar !== null && newAvatarUrl) dbPatch.icon_url = newAvatarUrl;
     if (banner !== null && newBannerUrl) dbPatch.banner_url = newBannerUrl;
 
