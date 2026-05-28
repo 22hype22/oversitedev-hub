@@ -1303,16 +1303,21 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   }, [isRemindme, open, botId]);
 
   const saveRemindme = async () => {
-    if (!botId) return toast.error("Missing bot id.");
-    setSaving(true);
-    const rawMethod = String(values.deliveryMethod ?? "dm");
-    const delivery_method: "dm" | "channel" | "both" = ["dm", "channel", "both"].includes(rawMethod) ? (rawMethod as "dm" | "channel" | "both") : "dm";
-    const max_per_user = Math.max(1, Number(values.maxPerUser ?? 25) || 25);
     const payload = {
       bot_id: botId,
       feature: "remindme",
       config: {
         max_per_user,
+        delivery_method,
+        allow_recurring: !!values.allowRecurring,
+        embed_color: String(values.embed_color ?? "#5865f2"),
+        embed_title: String(values.embed_title ?? "Reminder"),
+        footer_text: String(values.footer_text ?? ""),
+        show_original: !!values.show_original,
+        ping_user: !!values.ping_user,
+      },
+      updated_at: new Date().toISOString(),
+    };
         delivery_method,
         allow_recurring: !!values.allowRecurring,
       },
