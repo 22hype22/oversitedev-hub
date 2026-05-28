@@ -3556,6 +3556,7 @@ function VerificationForm({
   config,
   botName,
   botAvatarUrl,
+  botId,
 }: {
   values: Record<string, any>;
   setValue: (k: string, v: string | number | boolean | string[]) => void;
@@ -3563,6 +3564,7 @@ function VerificationForm({
   config: { fields: AddonField[] };
   botName: string;
   botAvatarUrl?: string;
+  botId?: string;
 }) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
@@ -3571,11 +3573,14 @@ function VerificationForm({
   const message = String(values.message ?? "Click the button below to verify and unlock the server.");
   const footer = String(values.embed_footer ?? "");
   const buttonLabel = String(values.button_label ?? "Verify");
+  const embedColor = String(values.embed_color ?? "#5865f2");
+  const colorHex = /^#[0-9a-fA-F]{6}$/.test(embedColor) ? embedColor : "#5865f2";
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-2">
       {/* Left: form fields */}
       <div className="space-y-5">
+
         {config.fields
           .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
           .map((f) => (
