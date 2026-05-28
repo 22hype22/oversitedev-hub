@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Trash2, Upload, ImageIcon } from "lucide-react";
+import { Trash2, Upload, ImageIcon, Eye, EyeOff } from "lucide-react";
 
 type CaptchaImage = {
   id: string;
@@ -23,6 +23,7 @@ export const CaptchaImageManager = () => {
   const [answer, setAnswer] = useState("");
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -165,9 +166,21 @@ export const CaptchaImageManager = () => {
                   />
                 </div>
                 <div className="p-2 space-y-2">
-                  <div className="text-xs font-mono truncate" title={img.answer}>
-                    {img.answer}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRevealed((r) => ({ ...r, [img.id]: !r[img.id] }))}
+                    className="w-full text-xs font-mono flex items-center justify-between gap-2 px-2 py-1 rounded border bg-background hover:bg-muted transition-colors"
+                    title={revealed[img.id] ? "Hide answer" : "Click to reveal"}
+                  >
+                    <span className="truncate">
+                      {revealed[img.id] ? img.answer : "••••••"}
+                    </span>
+                    {revealed[img.id] ? (
+                      <EyeOff className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    )}
+                  </button>
                   <Button
                     variant="destructive"
                     size="sm"

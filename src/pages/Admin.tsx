@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,7 @@ import {
   ScrollText,
   AlertTriangle,
   ShieldCheck,
+  ImageIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -136,6 +137,29 @@ const Admin = () => {
 
   const isSuperAdmin = user.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
 
+  const [hasCaptchaImageBot, setHasCaptchaImageBot] = useState(false);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("feature", "verification")
+        .limit(1000);
+      if (cancelled) return;
+      const found = (data ?? []).some((row: { config: unknown }) => {
+        const cfg = (row.config ?? {}) as Record<string, unknown>;
+        return cfg.verification_type === "captcha_image";
+      });
+      setHasCaptchaImageBot(found);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSuperAdmin]);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-4 py-10 max-w-7xl">
@@ -228,7 +252,6 @@ const Admin = () => {
               <BotSecretSlotManager />
               <TokenPoolManager />
               <WorkerTokensManager />
-              <CaptchaImageManager />
             </AccordionContent>
           </AccordionItem>
 
@@ -285,6 +308,25 @@ const Admin = () => {
               </AccordionTrigger>
               <AccordionContent className="pt-2 pb-5">
                 <AdminManager />
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {/* ─── Captcha Images (super admin, only when a bot uses captcha_image) ── */}
+          {isSuperAdmin && hasCaptchaImageBot && (
+            <AccordionItem
+              value="captcha-images"
+              className="border rounded-xl bg-card px-4 sm:px-5"
+            >
+              <AccordionTrigger className="hover:no-underline py-4">
+                <SectionHeader
+                  icon={ImageIcon}
+                  title="Captcha images"
+                  description="Global pool of captcha images shared across all bots using image captcha verification."
+                />
+              </AccordionTrigger>
+              <AccordionContent className="pt-2 pb-5">
+                <CaptchaImageManager />
               </AccordionContent>
             </AccordionItem>
           )}
