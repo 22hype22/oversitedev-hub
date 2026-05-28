@@ -73,6 +73,9 @@ export const BotIdentityEditor = ({
   const [bio, setBio] = useState(bot.bot_bio ?? "");
   const [bioError, setBioError] = useState<string | null>(null);
   const [savingDetails, setSavingDetails] = useState(false);
+  const [emojiMap, setEmojiMap] = useState<Record<string, { id: string; animated: boolean }>>({});
+  const emojiFetchedRef = useRef(false);
+
 
   useEffect(() => { setNameDraft(bot.bot_name); }, [bot.bot_name]);
   useEffect(() => {
@@ -80,6 +83,37 @@ export const BotIdentityEditor = ({
   }, [bot.presence_status]);
   useEffect(() => { setActivityText(bot.activity_text ?? ""); }, [bot.activity_text]);
   useEffect(() => { setBio(bot.bot_bio ?? ""); }, [bot.bot_bio]);
+
+  // Load custom emojis from bot's guilds the first time the bio editor opens.
+  useEffect(() => {
+    if (!expanded || emojiFetchedRef.current) return;
+    emojiFetchedRef.current = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("bot-list-emojis", {
+          body: { bot_id: bot.id },
+        });
+        if (error || !data?.emojis) return;
+        const map: Record<string, { id: string; animated: boolean }> = {};
+        for (const e of data.emojis as Array<{ name: string; id: string; animated: boolean }>) {
+          if (!map[e.name]) map[e.name] = { id: e.id, animated: e.animated };
+        }
+        setEmojiMap(map);
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [expanded, bot.id]);
+
+  const resolveEmojis = (text: string): string => {
+    if (!Object.keys(emojiMap).length) return text;
+    return text.replace(/(?<![<a]):([a-zA-Z0-9_]+):/g, (match, name: string) => {
+      const e = emojiMap[name];
+      if (!e) return match;
+      return `<${e.animated ? "a" : ""}:${name}:${e.id}>`;
+    });
+  };
+
 
   const shortBotId = bot.id.slice(0, 8).toUpperCase();
   const copyBotId = async () => {
@@ -618,15 +652,9 @@ export const BotIdentityEditor = ({
                         id="bot-bio"
                         value={bio}
                         onChange={(e) => {
-                          const val = e.target.value;
-                          setBio(val);
-                          const hasCustomEmoji = /:[a-zA-Z0-9_]+:/.test(val);
-                          if (hasCustomEmoji) {
-                            setBioError("Discord doesn't permit the use of custom emojis in bot bios. Use a Unicode emoji instead.");
-                          } else {
-                            setBioError(null);
-                          }
+                          setBio(resolveEmojis(e.target.value));
                         }}
+
                         maxLength={190}
                         rows={3}
                         placeholder="Describe what your bot does…"
