@@ -1,0 +1,1 @@
+GRANT SELECT (id) ON TABLE public.bot_orders TO anon;
