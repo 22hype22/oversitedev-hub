@@ -79,7 +79,40 @@ export const BotIdentityEditor = ({
 
   useEffect(() => { setNameDraft(bot.bot_name); }, [bot.bot_name]);
   useEffect(() => {
-    setPresence((bot.presence_status as PresenceStatus) ?? "online");
+  useEffect(() => { setBio(bot.bot_bio ?? ""); }, [bot.bot_bio]);
+
+  // Load custom emojis from bot's guilds the first time the bio editor opens.
+  useEffect(() => {
+    if (!expanded || emojiFetchedRef.current) return;
+    emojiFetchedRef.current = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("bot-list-emojis", {
+          body: { bot_id: bot.id },
+        });
+        if (error || !data?.emojis) return;
+        const map: Record<string, { id: string; animated: boolean }> = {};
+        for (const e of data.emojis as Array<{ name: string; id: string; animated: boolean }>) {
+          // First occurrence wins; don't overwrite with duplicates from other guilds.
+          if (!map[e.name]) map[e.name] = { id: e.id, animated: e.animated };
+        }
+        setEmojiMap(map);
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [expanded, bot.id]);
+
+  const resolveEmojis = (text: string): string => {
+    if (!Object.keys(emojiMap).length) return text;
+    // Replace :name: not already inside <...:name:id> markup.
+    return text.replace(/(?<![<a]):([a-zA-Z0-9_]+):/g, (match, name: string) => {
+      const e = emojiMap[name];
+      if (!e) return match;
+      return `<${e.animated ? "a" : ""}:${name}:${e.id}>`;
+    });
+  };
+
   }, [bot.presence_status]);
   useEffect(() => { setActivityText(bot.activity_text ?? ""); }, [bot.activity_text]);
   useEffect(() => { setBio(bot.bot_bio ?? ""); }, [bot.bot_bio]);
