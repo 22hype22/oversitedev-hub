@@ -2540,6 +2540,44 @@ export type Database = {
         }
         Relationships: []
       }
+      user_xp: {
+        Row: {
+          bot_id: string
+          guild_id: string
+          id: string
+          level: number
+          updated_at: string
+          user_id: string
+          xp: number
+        }
+        Insert: {
+          bot_id: string
+          guild_id: string
+          id?: string
+          level?: number
+          updated_at?: string
+          user_id: string
+          xp?: number
+        }
+        Update: {
+          bot_id?: string
+          guild_id?: string
+          id?: string
+          level?: number
+          updated_at?: string
+          user_id?: string
+          xp?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_xp_bot_id_fkey"
+            columns: ["bot_id"]
+            isOneToOne: false
+            referencedRelation: "bot_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       utility_bot_dm_state: {
         Row: {
           attempts: number
