@@ -201,7 +201,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         type: "number",
         defaultValue: 6,
         help: "Number of characters in the captcha code (4–8).",
-        visibleIf: (v) => v.verification_type === "captcha_code" || v.verification_type === "captcha_image",
+        visibleIf: (v) => v.verification_type === "captcha_code",
       },
       {
         key: "captcha_difficulty",
