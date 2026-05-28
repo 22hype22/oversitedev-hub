@@ -2608,6 +2608,50 @@ export type Database = {
         }
         Relationships: []
       }
+      verification_tokens: {
+        Row: {
+          bot_id: string
+          completed: boolean
+          created_at: string
+          expires_at: string | null
+          guild_id: string | null
+          id: string
+          token: string
+          used: boolean
+          user_id: string | null
+        }
+        Insert: {
+          bot_id: string
+          completed?: boolean
+          created_at?: string
+          expires_at?: string | null
+          guild_id?: string | null
+          id?: string
+          token: string
+          used?: boolean
+          user_id?: string | null
+        }
+        Update: {
+          bot_id?: string
+          completed?: boolean
+          created_at?: string
+          expires_at?: string | null
+          guild_id?: string | null
+          id?: string
+          token?: string
+          used?: boolean
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verification_tokens_bot_id_fkey"
+            columns: ["bot_id"]
+            isOneToOne: false
+            referencedRelation: "bot_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       worker_tokens: {
         Row: {
           bot_id: string | null
