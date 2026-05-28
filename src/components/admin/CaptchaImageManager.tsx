@@ -23,6 +23,7 @@ export const CaptchaImageManager = () => {
   const [answer, setAnswer] = useState("");
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
