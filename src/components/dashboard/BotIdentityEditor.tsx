@@ -654,15 +654,9 @@ export const BotIdentityEditor = ({
                         id="bot-bio"
                         value={bio}
                         onChange={(e) => {
-                          const val = e.target.value;
-                          setBio(val);
-                          const hasCustomEmoji = /:[a-zA-Z0-9_]+:/.test(val);
-                          if (hasCustomEmoji) {
-                            setBioError("Discord doesn't permit the use of custom emojis in bot bios. Use a Unicode emoji instead.");
-                          } else {
-                            setBioError(null);
-                          }
+                          setBio(resolveEmojis(e.target.value));
                         }}
+
                         maxLength={190}
                         rows={3}
                         placeholder="Describe what your bot does…"
