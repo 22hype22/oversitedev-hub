@@ -282,6 +282,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         embed_author: cfg.author ?? cfg.embed_author ?? "",
         embed_title: cfg.title ?? cfg.embed_title ?? "",
         embed_footer: cfg.footer ?? cfg.embed_footer ?? "",
+        embed_color: cfg.embed_color ?? "#5865f2",
         verification_type: cfg.verification_type ?? "one_click",
         captcha_length: cfg.captcha_length ?? 6,
         captcha_difficulty: cfg.captcha_difficulty ?? "medium",
