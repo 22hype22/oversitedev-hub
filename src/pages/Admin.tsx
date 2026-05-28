@@ -137,20 +137,6 @@ const Admin = () => {
 
   const isSuperAdmin = user.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
 
-  return <AdminContent user={user} isSuperAdmin={isSuperAdmin} navigate={navigate} marketingShutdown={marketingShutdown} />;
-};
-
-const AdminContent = ({
-  user,
-  isSuperAdmin,
-  navigate,
-  marketingShutdown,
-}: {
-  user: { id: string; email?: string | null };
-  isSuperAdmin: boolean;
-  navigate: ReturnType<typeof useNavigate>;
-  marketingShutdown: boolean;
-}) => {
   const [hasCaptchaImageBot, setHasCaptchaImageBot] = useState(false);
 
   useEffect(() => {
