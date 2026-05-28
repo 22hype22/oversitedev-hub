@@ -191,7 +191,8 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         help: "How users prove they're human.",
         options: [
           { value: "one_click", label: "One-Click" },
-          { value: "captcha_code", label: "Captcha Code" },
+          { value: "captcha_code", label: "Captcha Code | Text" },
+          { value: "captcha_image", label: "Captcha Code | Image" },
           { value: "web_captcha", label: "Web Captcha" },
         ],
       },
@@ -201,7 +202,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         type: "number",
         defaultValue: 6,
         help: "Number of characters in the captcha code (4–8).",
-        visibleIf: (v) => v.verification_type === "captcha_code",
+        visibleIf: (v) => v.verification_type === "captcha_code" || v.verification_type === "captcha_image",
       },
       {
         key: "captcha_difficulty",
