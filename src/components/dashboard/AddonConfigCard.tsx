@@ -2565,6 +2565,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               config={config}
               botName={botName}
               botAvatarUrl={botAvatarUrl ?? undefined}
+              botId={botId}
             />
           ) : (
             <div className="space-y-5 py-2">
