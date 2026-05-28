@@ -3696,8 +3696,18 @@ function VerificationForm({
                     <Input
                       type="number"
                       min={1}
-                      value={Number(values.honeypot_flag_under_days ?? 7)}
-                      onChange={(e) => setValue("honeypot_flag_under_days", Number(e.target.value) || 1)}
+                      value={values.honeypot_flag_under_days ?? ""}
+                      onChange={(e) =>
+                        setValue(
+                          "honeypot_flag_under_days",
+                          e.target.value === "" ? "" : Number(e.target.value)
+                        )
+                      }
+                      onBlur={(e) => {
+                        if (e.target.value === "") {
+                          setValue("honeypot_flag_under_days", 7);
+                        }
+                      }}
                     />
                   </div>
                 )}
