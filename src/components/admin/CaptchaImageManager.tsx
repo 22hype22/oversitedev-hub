@@ -166,9 +166,21 @@ export const CaptchaImageManager = () => {
                   />
                 </div>
                 <div className="p-2 space-y-2">
-                  <div className="text-xs font-mono truncate" title={img.answer}>
-                    {img.answer}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRevealed((r) => ({ ...r, [img.id]: !r[img.id] }))}
+                    className="w-full text-xs font-mono flex items-center justify-between gap-2 px-2 py-1 rounded border bg-background hover:bg-muted transition-colors"
+                    title={revealed[img.id] ? "Hide answer" : "Click to reveal"}
+                  >
+                    <span className="truncate">
+                      {revealed[img.id] ? img.answer : "••••••"}
+                    </span>
+                    {revealed[img.id] ? (
+                      <EyeOff className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    )}
+                  </button>
                   <Button
                     variant="destructive"
                     size="sm"
