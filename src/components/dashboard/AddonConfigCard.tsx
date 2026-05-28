@@ -1291,6 +1291,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         maxPerUser: typeof cfg.max_per_user === "number" ? cfg.max_per_user : (prev.maxPerUser ?? 25),
         deliveryMethod: ["dm", "channel", "both"].includes(cfg.delivery_method) ? cfg.delivery_method : "dm",
         allowRecurring: !!cfg.allow_recurring,
+        embed_color: typeof cfg.embed_color === "string" ? cfg.embed_color : "#5865f2",
+        embed_title: typeof cfg.embed_title === "string" ? cfg.embed_title : "Reminder",
+        footer_text: typeof cfg.footer_text === "string" ? cfg.footer_text : "",
+        show_original: cfg.show_original !== false,
+        ping_user: cfg.ping_user !== false,
       }));
       setAppliedAt((data as any).applied_at ?? null);
     })();
@@ -1310,6 +1315,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         max_per_user,
         delivery_method,
         allow_recurring: !!values.allowRecurring,
+        embed_color: String(values.embed_color ?? "#5865f2"),
+        embed_title: String(values.embed_title ?? "Reminder"),
+        footer_text: String(values.footer_text ?? ""),
+        show_original: !!values.show_original,
+        ping_user: !!values.ping_user,
       },
       updated_at: new Date().toISOString(),
     };
@@ -2483,7 +2493,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           className={cn(
-            isSayCommand || isRules || isGiveaway || isVerification
+            isSayCommand || isRules || isGiveaway || isVerification || isRemindme
               ? "max-w-5xl max-h-[90vh] overflow-y-auto"
               : isChannelLockdown
                 ? "max-w-3xl max-h-[90vh] overflow-y-auto"
@@ -2576,6 +2586,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               botName={botName}
               botAvatarUrl={botAvatarUrl ?? undefined}
               botId={botId}
+            />
+          ) : isRemindme ? (
+            <RemindmeForm
+              values={values}
+              setValue={setValue}
+              renderField={renderField}
+              config={config}
+              botName={botName}
+              botAvatarUrl={botAvatarUrl ?? undefined}
             />
           ) : (
             <div className="space-y-5 py-2">
@@ -3843,6 +3862,120 @@ function VerificationForm({
         </div>
       </div>
 
+    </div>
+  );
+}
+
+// ─── Remindme form (with live embed preview) ───
+function RemindmeForm({
+  values,
+  setValue,
+  renderField,
+  config,
+  botName,
+  botAvatarUrl,
+}: {
+  values: Record<string, any>;
+  setValue: (k: string, v: string | number | boolean | string[]) => void;
+  renderField: (f: AddonField) => JSX.Element | null;
+  config: { fields: AddonField[] };
+  botName: string;
+  botAvatarUrl?: string;
+}) {
+  const embedColor = String(values.embed_color ?? "#5865f2");
+  const colorHex = /^#[0-9a-fA-F]{6}$/.test(embedColor) ? embedColor : "#5865f2";
+  const embedTitle = String(values.embed_title ?? "Reminder");
+  const footerText = String(values.footer_text ?? "");
+  const showOriginal = values.show_original !== false;
+  const pingUser = values.ping_user !== false;
+  const sampleReminder = "Take out the trash 🗑️";
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-2">
+      {/* Left: fields */}
+      <div className="space-y-5">
+        {config.fields
+          .filter((f) => f.key !== "embed_title" && f.key !== "footer_text" && f.key !== "show_original" && f.key !== "ping_user")
+          .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+          .map((f) => (
+            <div key={f.key}>{renderField(f)}</div>
+          ))}
+
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Embed color</Label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={colorHex}
+              onChange={(e) => setValue("embed_color", e.target.value)}
+              className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
+            />
+            <Input
+              value={embedColor}
+              onChange={(e) => setValue("embed_color", e.target.value)}
+              placeholder="#5865f2"
+              className="font-mono text-sm"
+            />
+          </div>
+        </div>
+
+        {config.fields
+          .filter((f) => f.key === "embed_title" || f.key === "footer_text" || f.key === "show_original" || f.key === "ping_user")
+          .map((f) => (
+            <div key={f.key}>{renderField(f)}</div>
+          ))}
+      </div>
+
+      {/* Right: preview */}
+      <div className="lg:sticky lg:top-2 self-start">
+        <Label className="text-sm font-medium">Preview</Label>
+        <div className="mt-2 rounded-md bg-[#313338] p-4 text-[#dbdee1]">
+          <div className="flex gap-3">
+            <div className="h-10 w-10 rounded-full bg-[#5865F2] grid place-items-center shrink-0 overflow-hidden">
+              {botAvatarUrl ? (
+                <img src={botAvatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-white text-sm font-bold">
+                  {botName.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2">
+                <span className="text-white font-medium">{botName}</span>
+                <span className="bg-[#5865F2] text-white text-[10px] px-1 py-px rounded font-semibold">APP</span>
+                <span className="text-[11px] text-[#949ba4]">Today at 12:00 PM</span>
+              </div>
+              {pingUser && (
+                <div className="mt-1 text-sm text-[#dbdee1]">
+                  <span className="bg-[#3c4270] text-[#c9cdfb] px-1 rounded">@user</span> ⏰
+                </div>
+              )}
+              <div
+                className="mt-1 rounded border-l-4 bg-[#2b2d31] p-3"
+                style={{ borderLeftColor: colorHex }}
+              >
+                {embedTitle && (
+                  <div className="font-semibold text-white">{embedTitle}</div>
+                )}
+                {showOriginal && (
+                  <div className="mt-1 whitespace-pre-wrap text-sm text-[#dbdee1]">
+                    {sampleReminder}
+                  </div>
+                )}
+                {!showOriginal && (
+                  <div className="mt-1 whitespace-pre-wrap text-sm text-[#dbdee1]">
+                    Your reminder is ready!
+                  </div>
+                )}
+                {footerText && (
+                  <div className="mt-2 text-[11px] text-[#949ba4]">{footerText}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

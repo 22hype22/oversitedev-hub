@@ -1261,6 +1261,10 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         ],
       },
       toggle("allowRecurring", "Allow recurring reminders"),
+      { key: "embed_title", label: "Reminder embed title", type: "text", defaultValue: "Reminder", placeholder: "Reminder" },
+      { key: "footer_text", label: "Footer text", type: "text", placeholder: "e.g. Set with /remindme" },
+      toggle("show_original", "Show original reminder message in embed", true),
+      toggle("ping_user", "Ping the user when the reminder fires", true),
     ],
   },
 
