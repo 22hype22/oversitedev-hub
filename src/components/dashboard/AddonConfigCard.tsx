@@ -300,6 +300,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
           : [],
         suspicious_join_enabled: !!cfg.suspicious_join_enabled,
         suspicious_join_max_per_minute: cfg.suspicious_join_max_per_minute ?? 5,
+        vpn_block_enabled: !!cfg.vpn_block_enabled,
+        vpn_block_iphub_key: cfg.vpn_block_iphub_key ?? "",
       }));
       setAppliedAt((data as any).applied_at ?? null);
     })();
@@ -747,6 +749,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
           : [],
         suspicious_join_enabled: !!values.suspicious_join_enabled,
         suspicious_join_max_per_minute: Number(values.suspicious_join_max_per_minute ?? 5),
+        vpn_block_enabled: !!values.vpn_block_enabled,
+        vpn_block_iphub_key: String(values.vpn_block_iphub_key ?? ""),
       },
       updated_at: new Date().toISOString(),
     };
@@ -3758,6 +3762,32 @@ function VerificationForm({
                         }
                       }}
                     />
+                  </div>
+                )}
+              </div>
+
+              {/* VPN Blocking */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="pr-3">
+                    <Label className="text-sm font-medium">VPN Blocking</Label>
+                    <p className="text-xs text-muted-foreground">Block users connecting through VPNs during verification.</p>
+                  </div>
+                  <Switch
+                    checked={!!values.vpn_block_enabled}
+                    onCheckedChange={(v) => setValue("vpn_block_enabled", v)}
+                  />
+                </div>
+                {values.vpn_block_enabled && (
+                  <div className="pl-1 space-y-1.5">
+                    <Label className="text-xs">IPHub API Key</Label>
+                    <Input
+                      type="text"
+                      placeholder="Your IPHub API key"
+                      value={String(values.vpn_block_iphub_key ?? "")}
+                      onChange={(e) => setValue("vpn_block_iphub_key", e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">API key for IPHub VPN detection service.</p>
                   </div>
                 )}
               </div>
