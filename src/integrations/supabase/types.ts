@@ -2934,12 +2934,12 @@ export type Database = {
           updated_at: string
           user_id: string
           worker_id: string | null
-        }
+        }[]
         SetofOptions: {
           from: "*"
           to: "bot_commands"
-          isOneToOne: true
-          isSetofReturn: false
+          isOneToOne: false
+          isSetofReturn: true
         }
       }
       cleanup_old_bot_logs: { Args: never; Returns: number }
