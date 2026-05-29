@@ -2533,8 +2533,13 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
 
           {isSayCommand ? (
             <div className="py-2">
-              <SayCommandBuilder ref={sayBuilderRef} botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
+              {engineVersion === "v2" ? (
+                <MessagesV2Builder ref={v2BuilderRef} botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
+              ) : (
+                <SayCommandBuilder ref={sayBuilderRef} botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
+              )}
             </div>
+          ) : isRules ? (
           ) : isRules ? (
             <div className="py-2">
               <SayCommandBuilder ref={sayBuilderRef} mode="rules" botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
