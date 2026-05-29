@@ -2515,13 +2515,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           className={cn(
-            isSayCommand || isRules || isGiveaway || isVerification || isRemindme
-              ? "max-w-5xl max-h-[90vh] overflow-y-auto"
-              : isChannelLockdown
-                ? "max-w-3xl max-h-[90vh] overflow-y-auto"
-                : isTicketPanel
-                  ? "max-w-2xl max-h-[90vh] overflow-y-auto"
-                  : "max-w-lg max-h-[85vh] overflow-y-auto",
+            isSayCommand && engineVersion === "v2"
+              ? "max-w-6xl max-h-[90vh] overflow-y-auto"
+              : isSayCommand || isRules || isGiveaway || isVerification || isRemindme
+                ? "max-w-5xl max-h-[90vh] overflow-y-auto"
+                : isChannelLockdown
+                  ? "max-w-3xl max-h-[90vh] overflow-y-auto"
+                  : isTicketPanel
+                    ? "max-w-2xl max-h-[90vh] overflow-y-auto"
+                    : "max-w-lg max-h-[85vh] overflow-y-auto",
             readOnly && "readonly-scope",
           )}
         >

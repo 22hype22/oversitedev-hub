@@ -251,7 +251,7 @@ export const MessagesV2Builder = forwardRef<
   useImperativeHandle(ref, () => ({ send }));
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr,1fr] gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(440px,500px)] gap-6">
       {/* Editor */}
       <div className="space-y-3">
         {botId ? (
