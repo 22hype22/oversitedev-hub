@@ -332,7 +332,8 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           </section>
         </>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(440px,500px)] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(520px,600px)] gap-6 items-stretch">
+
           {/* LEFT: all form questions */}
           <div className="space-y-6 min-w-0">
             {botId ? (
