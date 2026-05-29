@@ -85,8 +85,6 @@ function SortableCard({
   onToggleEnabled: (next: boolean) => void;
 }) {
 
-  onToggleEnabled: (next: boolean) => void;
-}) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const {
     attributes,
