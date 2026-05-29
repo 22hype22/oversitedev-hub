@@ -232,6 +232,7 @@ export const MessagesV2Builder = forwardRef<
 
   // ---------- send ----------
   const send = async (): Promise<boolean> => {
+    if (embedded) return false;
     if (!botId) {
       toast.error("Bot not ready yet.");
       return false;
@@ -267,13 +268,18 @@ export const MessagesV2Builder = forwardRef<
     }
   };
 
-  useImperativeHandle(ref, () => ({ send }));
+  useImperativeHandle(ref, () => ({
+    send,
+    getItems: () => items,
+    setItems: (next: V2Item[]) => setItems(next),
+  }));
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(440px,500px)] gap-6">
       {/* Editor */}
       <div className="space-y-3">
-        {botId ? (
+        {editorNotice}
+        {!embedded && botId ? (
           <GuildChannelPicker
             botId={botId}
             guildId={guild?.guild_id ?? null}
