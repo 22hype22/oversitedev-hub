@@ -17,10 +17,10 @@ import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
-  MessagesV2Builder,
-  type MessagesV2BuilderHandle,
+  TicketPanelV2Builder,
+  type TicketPanelV2BuilderHandle,
   type V2Item,
-} from "./MessagesV2Builder";
+} from "./TicketPanelV2Builder";
 
 type Category = {
   id: string;
