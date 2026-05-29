@@ -151,14 +151,25 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         toast.error("Bot is not ready yet");
         return false;
       }
-      if (!panelTitle.trim()) {
-        toast.error("Panel title is required");
-        return false;
+
+      let v2Items: V2Item[] | null = null;
+      if (isV2) {
+        v2Items = v2Ref.current?.getItems() ?? [];
+        if (v2Items.length === 0) {
+          toast.error("Add at least one component to the panel message");
+          return false;
+        }
+      } else {
+        if (!panelTitle.trim()) {
+          toast.error("Panel title is required");
+          return false;
+        }
+        if (!panelDescription.trim()) {
+          toast.error("Panel description is required");
+          return false;
+        }
       }
-      if (!panelDescription.trim()) {
-        toast.error("Panel description is required");
-        return false;
-      }
+
       const cleanedCategories = categories
         .map((c) => ({
           name: c.name.trim(),
@@ -176,18 +187,22 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         feature,
         config: {
           variant,
+          engine_version: engineVersion,
           guild_id: guild?.guild_id ?? null,
           guild_name: guild?.guild_name ?? null,
           channel_id: panelChannel?.channel_id ?? null,
           channel_name: panelChannel?.channel_name ?? null,
-          panel_title: panelTitle.trim(),
-          panel_description: panelDescription.trim(),
+          panel_title: isV2 ? null : panelTitle.trim(),
+          panel_description: isV2 ? null : panelDescription.trim(),
           color: embedColor,
           cooldown_minutes: isReport ? cooldownMinutes : null,
           categories: cleanedCategories,
+          components_v2: isV2 ? v2Items : null,
         },
         updated_at: new Date().toISOString(),
       };
+
+
 
       const { error } = await supabase
         .from("bot_config")
