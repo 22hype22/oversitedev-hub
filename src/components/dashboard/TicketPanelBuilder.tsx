@@ -44,8 +44,11 @@ export type TicketPanelBuilderHandle = {
 type Props = {
   botId?: string;
   botName: string;
+  botAvatarUrl?: string | null;
   variant?: Variant;
+  engineVersion?: "v1" | "v2";
 };
+
 
 const COPY: Record<Variant, {
   panelTitleLabel: string;
