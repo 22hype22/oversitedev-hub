@@ -43,12 +43,14 @@ type Props = {
   botId: string;
   botName: string;
   botAvatarUrl?: string | null;
+  engineVersion?: "v1" | "v2";
   groupKey: string;
   /** Default order coming from the catalog. */
   ids: string[];
   /** Optional addon id to highlight (search match). */
   highlightedAddonId?: string | null;
 };
+
 
 const storageKey = (userId: string, botId: string, groupKey: string) =>
   `addon-order:${userId}:${botId}:${groupKey}`;
