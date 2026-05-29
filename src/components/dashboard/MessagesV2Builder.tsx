@@ -279,7 +279,7 @@ export const MessagesV2Builder = forwardRef<
       {/* Editor */}
       <div className="space-y-3">
         {editorNotice}
-        {!embedded && botId ? (
+        {embedded ? null : botId ? (
           <GuildChannelPicker
             botId={botId}
             guildId={guild?.guild_id ?? null}
@@ -298,6 +298,7 @@ export const MessagesV2Builder = forwardRef<
             </div>
           </div>
         )}
+
 
         <div className="space-y-2">
           {items.map((it, i) => (
