@@ -237,7 +237,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   const previewDesc = panelDescription.trim() || copy.panelDescPlaceholder.replace(/^e\.g\. /, "");
 
   const V1Preview = (
-    <div className="rounded-lg border border-border bg-[#313338] p-4 text-white min-h-[280px]">
+    <div className="rounded-lg border border-border bg-[#313338] p-4 text-white h-full min-h-[420px]">
       <div className="flex items-start gap-3">
         <div className="h-10 w-10 rounded-full bg-muted overflow-hidden shrink-0">
           {botAvatarUrl ? (
@@ -332,7 +332,8 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           </section>
         </>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(440px,500px)] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(520px,600px)] gap-6 items-stretch">
+
           {/* LEFT: all form questions */}
           <div className="space-y-6 min-w-0">
             {botId ? (
@@ -409,7 +410,8 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           </div>
 
           {/* RIGHT: sticky live preview */}
-          <div className="lg:sticky lg:top-2 lg:self-start space-y-2">
+          <div className="flex flex-col space-y-2 min-w-0">
+
             <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Live preview
             </div>
