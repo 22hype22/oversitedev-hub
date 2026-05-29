@@ -122,11 +122,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isServerStats = addonId === "server-stats-channels";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
-  const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
-  const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
-  const [engineVersion, setEngineVersion] = useState<"v1" | "v2">("v1");
+  const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
   useEffect(() => {
-    if (!isSayCommand || !botId) return;
+    if (!isSayCommand || !botId || engineVersionProp) return;
     let cancelled = false;
     (async () => {
       const { data } = await supabase
@@ -135,8 +133,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         .eq("id", botId)
         .maybeSingle();
       if (cancelled) return;
-      setEngineVersion(data?.engine_version === "v2" ? "v2" : "v1");
+      setEngineVersionFetched(data?.engine_version === "v2" ? "v2" : "v1");
     })();
+    return () => { cancelled = true; };
+  }, [isSayCommand, botId, engineVersionProp]);
+  const engineVersion: "v1" | "v2" = engineVersionProp ?? engineVersionFetched ?? "v1";
+
     return () => { cancelled = true; };
   }, [isSayCommand, botId]);
 
