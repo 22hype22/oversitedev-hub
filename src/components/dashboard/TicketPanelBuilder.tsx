@@ -320,14 +320,6 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
               botId={botId}
               botName={botName}
               botAvatarUrl={botAvatarUrl}
-              previewExtras={
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded bg-[#5865F2] text-white">
-                    <Ticket className="h-3.5 w-3.5 mr-1.5" />
-                    Open Ticket
-                  </span>
-                </div>
-              }
             />
           </section>
         </>
