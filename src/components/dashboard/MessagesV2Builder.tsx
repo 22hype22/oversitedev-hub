@@ -86,6 +86,41 @@ export type V2Item = V2Leaf | V2Container;
 
 const uid = () => crypto.randomUUID();
 
+/**
+ * Discord V2 messages require top-level components to be either:
+ *  - only TextDisplay/Separator, or
+ *  - wrapped in Container(s) (containers cannot be nested).
+ * Mixed structures (e.g. a bare Section or Gallery at top level, or a
+ * Container alongside loose leaves) get rejected by Discord.
+ *
+ * This normalizer groups consecutive top-level leaves into Containers,
+ * leaving existing Containers intact and preserving order.
+ */
+export function normalizeV2Items(items: V2Item[]): V2Item[] {
+  const out: V2Item[] = [];
+  let buffer: V2Leaf[] = [];
+  const flush = () => {
+    if (buffer.length === 0) return;
+    out.push({
+      id: uid(),
+      type: "container",
+      accentColor: "#5865F2",
+      children: buffer,
+    });
+    buffer = [];
+  };
+  for (const it of items) {
+    if (it.type === "container") {
+      flush();
+      out.push(it);
+    } else {
+      buffer.push(it);
+    }
+  }
+  flush();
+  return out;
+}
+
 const newItem = (type: V2Item["type"]): V2Item => {
   switch (type) {
     case "text":
@@ -248,7 +283,7 @@ export const MessagesV2Builder = forwardRef<
     try {
       const payload = {
         channel_id: channel.channel_id,
-        components_v2: items,
+        components_v2: normalizeV2Items(items),
       };
       const { data, error } = await supabase.rpc("enqueue_post_message", {
         _bot_id: botId,
@@ -270,7 +305,7 @@ export const MessagesV2Builder = forwardRef<
 
   useImperativeHandle(ref, () => ({
     send,
-    getItems: () => items,
+    getItems: () => normalizeV2Items(items),
     setItems: (next: V2Item[]) => setItems(next),
   }));
 
