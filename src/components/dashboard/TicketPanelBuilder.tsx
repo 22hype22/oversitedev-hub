@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, AlertTriangle, Info, Ticket } from "lucide-react";
+import { Plus, Trash2, Info, Ticket } from "lucide-react";
 import { GuildChannelPicker } from "./GuildChannelPicker";
 import { RoleMultiSelect } from "./RoleMultiSelect";
 import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
