@@ -265,32 +265,67 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         </div>
       )}
 
-      {/* Panel title */}
-      <div className="space-y-2">
-        <Label htmlFor="panel-title">
-          {copy.panelTitleLabel} <span className="text-destructive">*</span>
-        </Label>
-        <Input
-          id="panel-title"
-          placeholder={copy.panelTitlePlaceholder}
-          value={panelTitle}
-          onChange={(e) => setPanelTitle(e.target.value)}
-        />
-      </div>
+      {/* Panel message — V1 = title + description, V2 = Component V2 builder */}
+      {isV2 ? (
+        <div className="space-y-2">
+          <Label>
+            Panel Message <span className="text-destructive">*</span>
+          </Label>
+          <MessagesV2Builder
+            ref={v2Ref}
+            embedded
+            botId={botId}
+            botName={botName}
+            botAvatarUrl={botAvatarUrl}
+            editorNotice={
+              <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs text-foreground/80">
+                <Ticket className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
+                <span>
+                  An <span className="font-semibold">Open Ticket</span> button is
+                  added automatically at the bottom of your panel — you can't
+                  remove it, but you can build anything you want above it.
+                </span>
+              </div>
+            }
+            previewExtras={
+              <div className="flex flex-wrap gap-2 pt-1">
+                <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded bg-[#5865F2] text-white">
+                  <Ticket className="h-3.5 w-3.5 mr-1.5" />
+                  Open Ticket
+                </span>
+              </div>
+            }
+          />
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="panel-title">
+              {copy.panelTitleLabel} <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="panel-title"
+              placeholder={copy.panelTitlePlaceholder}
+              value={panelTitle}
+              onChange={(e) => setPanelTitle(e.target.value)}
+            />
+          </div>
 
-      {/* Panel description */}
-      <div className="space-y-2">
-        <Label htmlFor="panel-description">
-          {copy.panelDescLabel} <span className="text-destructive">*</span>
-        </Label>
-        <Textarea
-          id="panel-description"
-          placeholder={copy.panelDescPlaceholder}
-          value={panelDescription}
-          onChange={(e) => setPanelDescription(e.target.value)}
-          rows={3}
-        />
-      </div>
+          <div className="space-y-2">
+            <Label htmlFor="panel-description">
+              {copy.panelDescLabel} <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              id="panel-description"
+              placeholder={copy.panelDescPlaceholder}
+              value={panelDescription}
+              onChange={(e) => setPanelDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+        </>
+      )}
+
 
       {/* Cooldown — report variant only */}
       {isReport && (
