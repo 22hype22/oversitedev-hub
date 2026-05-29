@@ -68,6 +68,7 @@ type Props = {
   botId?: string;
   botName: string;
   botAvatarUrl?: string | null;
+  engineVersion?: "v1" | "v2";
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   enabled?: boolean;
@@ -80,7 +81,8 @@ type Props = {
  *
  * Mock UI only — values live in local state and "save" shows a toast.
  */
-export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: openProp, onOpenChange, enabled = true, onToggleEnabled }: Props) {
+export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineVersion: engineVersionProp, open: openProp, onOpenChange, enabled = true, onToggleEnabled }: Props) {
+
   const { botId: scopeBotId, viaTeam, readOnly: scopeReadOnly } = useBotScope();
   const { permissions, role } = useTeamRole(viaTeam ? (scopeBotId ?? botId ?? null) : null);
   const canEdit = viaTeam ? permissions.edit_bot_config : true;
