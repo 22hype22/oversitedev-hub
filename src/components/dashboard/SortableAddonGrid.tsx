@@ -43,12 +43,14 @@ type Props = {
   botId: string;
   botName: string;
   botAvatarUrl?: string | null;
+  engineVersion?: "v1" | "v2";
   groupKey: string;
   /** Default order coming from the catalog. */
   ids: string[];
   /** Optional addon id to highlight (search match). */
   highlightedAddonId?: string | null;
 };
+
 
 const storageKey = (userId: string, botId: string, groupKey: string) =>
   `addon-order:${userId}:${botId}:${groupKey}`;
@@ -66,10 +68,12 @@ function reconcile(saved: string[] | null, current: string[]): string[] {
 }
 
 function SortableCard({
+
   id,
   botId,
   botName,
   botAvatarUrl,
+  engineVersion,
   highlighted,
   enabled,
   onToggleEnabled,
@@ -78,10 +82,12 @@ function SortableCard({
   botId: string;
   botName: string;
   botAvatarUrl?: string | null;
+  engineVersion?: "v1" | "v2";
   highlighted?: boolean;
   enabled: boolean;
   onToggleEnabled: (next: boolean) => void;
 }) {
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const {
     attributes,
@@ -130,6 +136,7 @@ function SortableCard({
           botId={botId}
           botName={botName}
           botAvatarUrl={botAvatarUrl}
+          engineVersion={engineVersion}
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           enabled={enabled}
@@ -144,10 +151,12 @@ export function SortableAddonGrid({
   botId,
   botName,
   botAvatarUrl,
+  engineVersion,
   groupKey,
   ids,
   highlightedAddonId,
 }: Props) {
+
   const key = useMemo(
     () => storageKey(userId, botId, groupKey),
     [userId, botId, groupKey],
@@ -279,6 +288,8 @@ export function SortableAddonGrid({
               botId={botId}
               botName={botName}
               botAvatarUrl={botAvatarUrl}
+              engineVersion={engineVersion}
+
               highlighted={highlightedAddonId === id}
               enabled={
                 id === "ban-tools"

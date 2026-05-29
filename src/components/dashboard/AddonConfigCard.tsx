@@ -68,6 +68,7 @@ type Props = {
   botId?: string;
   botName: string;
   botAvatarUrl?: string | null;
+  engineVersion?: "v1" | "v2";
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   enabled?: boolean;
@@ -80,7 +81,8 @@ type Props = {
  *
  * Mock UI only — values live in local state and "save" shows a toast.
  */
-export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: openProp, onOpenChange, enabled = true, onToggleEnabled }: Props) {
+export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineVersion: engineVersionProp, open: openProp, onOpenChange, enabled = true, onToggleEnabled }: Props) {
+
   const { botId: scopeBotId, viaTeam, readOnly: scopeReadOnly } = useBotScope();
   const { permissions, role } = useTeamRole(viaTeam ? (scopeBotId ?? botId ?? null) : null);
   const canEdit = viaTeam ? permissions.edit_bot_config : true;
@@ -122,9 +124,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
-  const [engineVersion, setEngineVersion] = useState<"v1" | "v2">("v1");
+
+  const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
   useEffect(() => {
-    if (!isSayCommand || !botId) return;
+    if (!isSayCommand || !botId || engineVersionProp) return;
     let cancelled = false;
     (async () => {
       const { data } = await supabase
@@ -133,10 +136,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
         .eq("id", botId)
         .maybeSingle();
       if (cancelled) return;
-      setEngineVersion(data?.engine_version === "v2" ? "v2" : "v1");
+      setEngineVersionFetched(data?.engine_version === "v2" ? "v2" : "v1");
     })();
     return () => { cancelled = true; };
-  }, [isSayCommand, botId]);
+  }, [isSayCommand, botId, engineVersionProp]);
+  const engineVersion: "v1" | "v2" = engineVersionProp ?? engineVersionFetched ?? "v1";
+
 
   // Map dashboard addon id → bot_config.feature name for toggleable features.
   const TOGGLE_FEATURE_MAP: Record<string, string> = {
