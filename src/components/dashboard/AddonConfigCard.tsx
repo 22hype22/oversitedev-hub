@@ -120,7 +120,23 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isServerStats = addonId === "server-stats-channels";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
+  const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
+  const [engineVersion, setEngineVersion] = useState<"v1" | "v2">("v1");
+  useEffect(() => {
+    if (!isSayCommand || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_orders")
+        .select("engine_version")
+        .eq("id", botId)
+        .maybeSingle();
+      if (cancelled) return;
+      setEngineVersion(data?.engine_version === "v2" ? "v2" : "v1");
+    })();
+    return () => { cancelled = true; };
+  }, [isSayCommand, botId]);
 
   // Map dashboard addon id → bot_config.feature name for toggleable features.
   const TOGGLE_FEATURE_MAP: Record<string, string> = {
