@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, AlertTriangle, Info, Ticket } from "lucide-react";
+import { Plus, Trash2, Info, Ticket } from "lucide-react";
 import { GuildChannelPicker } from "./GuildChannelPicker";
 import { RoleMultiSelect } from "./RoleMultiSelect";
 import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
@@ -232,16 +232,56 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     },
   }));
 
+  // ---- V1 preview helpers ----
+  const previewTitle = panelTitle.trim() || copy.panelTitlePlaceholder.replace(/^e\.g\. /, "");
+  const previewDesc = panelDescription.trim() || copy.panelDescPlaceholder.replace(/^e\.g\. /, "");
+
+  const V1Preview = (
+    <div className="rounded-lg border border-border bg-[#313338] p-4 text-white min-h-[280px]">
+      <div className="flex items-start gap-3">
+        <div className="h-10 w-10 rounded-full bg-muted overflow-hidden shrink-0">
+          {botAvatarUrl ? (
+            <img src={botAvatarUrl} alt="" className="h-full w-full object-cover" />
+          ) : null}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2">
+            <span className="font-semibold text-white">{botName || "Bot"}</span>
+            <span className="text-[10px] bg-[#5865F2] text-white px-1 rounded">APP</span>
+            <span className="text-[11px] text-[#949ba4]">
+              Today at {new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+            </span>
+          </div>
+          <div
+            className="mt-2 rounded border-l-4 bg-[#2b2d31] p-3"
+            style={{ borderLeftColor: embedColor }}
+          >
+            <div className="font-semibold text-white text-sm">{previewTitle}</div>
+            <div className="mt-1 text-sm text-[#dbdee1] whitespace-pre-wrap break-words">
+              {previewDesc}
+            </div>
+            <div className="mt-3">
+              <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded bg-[#5865F2] text-white">
+                <Ticket className="h-3.5 w-3.5 mr-1.5" />
+                Open Ticket
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="space-y-5 py-2">
-      {/* Warning banner */}
-      <div className="flex items-start gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3">
-        <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-        <p className="text-sm text-foreground/90">
-          This form will be submitted to{" "}
-          <span className="font-semibold">{botName}</span>. Do not share
-          passwords or other sensitive information.
-        </p>
+    <div className="space-y-8 py-2">
+      {/* Subtle info note */}
+      <div className="flex items-start gap-2 rounded-md border border-border bg-muted/40 p-2.5 text-xs text-muted-foreground">
+        <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+        <span>
+          Submitting to <span className="font-medium text-foreground">{botName}</span>. Don't share
+          passwords or sensitive info. An <span className="font-medium text-foreground">Open Ticket</span> button
+          is added automatically to your panel.
+        </span>
       </div>
 
       {/* Server + channel picker */}
@@ -265,28 +305,22 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         </div>
       )}
 
-      {/* Panel message — V1 = title + description, V2 = Component V2 builder */}
-      {isV2 ? (
-        <div className="space-y-2">
-          <Label>
-            Panel Message <span className="text-destructive">*</span>
-          </Label>
+      {/* Panel Message */}
+      <section className="space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Panel Message</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            What members see when they open the panel.
+          </p>
+        </div>
+
+        {isV2 ? (
           <MessagesV2Builder
             ref={v2Ref}
             embedded
             botId={botId}
             botName={botName}
             botAvatarUrl={botAvatarUrl}
-            editorNotice={
-              <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs text-foreground/80">
-                <Ticket className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
-                <span>
-                  An <span className="font-semibold">Open Ticket</span> button is
-                  added automatically at the bottom of your panel — you can't
-                  remove it, but you can build anything you want above it.
-                </span>
-              </div>
-            }
             previewExtras={
               <div className="flex flex-wrap gap-2 pt-1">
                 <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded bg-[#5865F2] text-white">
@@ -296,36 +330,56 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
               </div>
             }
           />
-        </div>
-      ) : (
-        <>
-          <div className="space-y-2">
-            <Label htmlFor="panel-title">
-              {copy.panelTitleLabel} <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="panel-title"
-              placeholder={copy.panelTitlePlaceholder}
-              value={panelTitle}
-              onChange={(e) => setPanelTitle(e.target.value)}
-            />
-          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(440px,500px)] gap-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="panel-title">
+                  {copy.panelTitleLabel} <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="panel-title"
+                  placeholder={copy.panelTitlePlaceholder}
+                  value={panelTitle}
+                  onChange={(e) => setPanelTitle(e.target.value)}
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="panel-description">
-              {copy.panelDescLabel} <span className="text-destructive">*</span>
-            </Label>
-            <Textarea
-              id="panel-description"
-              placeholder={copy.panelDescPlaceholder}
-              value={panelDescription}
-              onChange={(e) => setPanelDescription(e.target.value)}
-              rows={3}
-            />
-          </div>
-        </>
-      )}
+              <div className="space-y-2">
+                <Label htmlFor="panel-description">
+                  {copy.panelDescLabel} <span className="text-destructive">*</span>
+                </Label>
+                <Textarea
+                  id="panel-description"
+                  placeholder={copy.panelDescPlaceholder}
+                  value={panelDescription}
+                  onChange={(e) => setPanelDescription(e.target.value)}
+                  rows={5}
+                />
+              </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="embed-color">Embed Color</Label>
+                <div className="flex items-center gap-3">
+                  <input
+                    id="embed-color"
+                    type="color"
+                    value={embedColor}
+                    onChange={(e) => setEmbedColor(e.target.value)}
+                    className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
+                  />
+                  <Input
+                    value={embedColor}
+                    onChange={(e) => setEmbedColor(e.target.value)}
+                    className="font-mono text-sm w-32"
+                  />
+                </div>
+              </div>
+            </div>
+            {V1Preview}
+          </div>
+        )}
+      </section>
 
       {/* Cooldown — report variant only */}
       {isReport && (
@@ -346,41 +400,21 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         </div>
       )}
 
-      {/* Embed color — V1 only (V2 uses container accent colors) */}
-      {!isV2 && (
-        <div className="space-y-2">
-          <Label htmlFor="embed-color">Embed Color</Label>
-          <div className="flex items-center gap-3">
-            <input
-              id="embed-color"
-              type="color"
-              value={embedColor}
-              onChange={(e) => setEmbedColor(e.target.value)}
-              className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
-            />
-            <Input
-              value={embedColor}
-              onChange={(e) => setEmbedColor(e.target.value)}
-              className="font-mono text-sm w-32"
-            />
-          </div>
-        </div>
-      )}
+      {/* Divider */}
+      <div className="border-t border-border" />
 
-
-      {/* Categories — each with a paired roles + opening message */}
-      <div className="space-y-3">
+      {/* Categories */}
+      <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <Label>
-            {copy.categoriesLabel}{" "}
-            <span className="text-destructive">*</span>
-          </Label>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={addCategory}
-          >
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">
+              {copy.categoriesLabel} <span className="text-destructive">*</span>
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Each category routes to its own staff roles and opening message.
+            </p>
+          </div>
+          <Button type="button" size="sm" variant="outline" onClick={addCategory}>
             <Plus className="h-4 w-4 mr-1.5" />
             Add category
           </Button>
@@ -390,7 +424,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           {categories.map((cat, idx) => (
             <div
               key={cat.id}
-              className="rounded-md border border-border bg-card/40 p-3 space-y-3"
+              className="rounded-md border border-border bg-card/40 p-4 space-y-3"
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-muted-foreground">
@@ -447,7 +481,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
             </div>
           ))}
         </div>
-      </div>
+      </section>
     </div>
   );
 });
