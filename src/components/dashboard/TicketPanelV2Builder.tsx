@@ -161,13 +161,13 @@ const ADD_OPTIONS: { type: V2Item["type"]; label: string; Icon: React.ComponentT
 
 const LEAF_OPTIONS = ADD_OPTIONS.filter((o) => o.type !== "container");
 
-export type MessagesV2BuilderHandle = {
+export type TicketPanelV2BuilderHandle = {
   send: () => Promise<boolean>;
   getItems: () => V2Item[];
   setItems: (items: V2Item[]) => void;
 };
 
-export type MessagesV2BuilderProps = {
+export type TicketPanelV2BuilderProps = {
   botId?: string;
   botName: string;
   botAvatarUrl?: string | null;
@@ -181,10 +181,10 @@ export type MessagesV2BuilderProps = {
   editorNotice?: React.ReactNode;
 };
 
-export const MessagesV2Builder = forwardRef<
-  MessagesV2BuilderHandle,
-  MessagesV2BuilderProps
->(function MessagesV2Builder(
+export const TicketPanelV2Builder = forwardRef<
+  TicketPanelV2BuilderHandle,
+  TicketPanelV2BuilderProps
+>(function TicketPanelV2Builder(
   { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice },
   ref,
 ) {
