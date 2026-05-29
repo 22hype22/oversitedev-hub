@@ -305,7 +305,7 @@ export const MessagesV2Builder = forwardRef<
 
   useImperativeHandle(ref, () => ({
     send,
-    getItems: () => items,
+    getItems: () => normalizeV2Items(items),
     setItems: (next: V2Item[]) => setItems(next),
   }));
 
