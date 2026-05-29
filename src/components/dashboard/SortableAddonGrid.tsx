@@ -65,13 +65,12 @@ function reconcile(saved: string[] | null, current: string[]): string[] {
   const keptSet = new Set(kept);
   const appended = current.filter((id) => !keptSet.has(id));
   return [...kept, ...appended];
-}
-
 function SortableCard({
   id,
   botId,
   botName,
   botAvatarUrl,
+  engineVersion,
   highlighted,
   enabled,
   onToggleEnabled,
@@ -80,8 +79,12 @@ function SortableCard({
   botId: string;
   botName: string;
   botAvatarUrl?: string | null;
+  engineVersion?: "v1" | "v2";
   highlighted?: boolean;
   enabled: boolean;
+  onToggleEnabled: (next: boolean) => void;
+}) {
+
   onToggleEnabled: (next: boolean) => void;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
