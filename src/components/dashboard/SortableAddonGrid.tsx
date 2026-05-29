@@ -142,15 +142,17 @@ function SortableCard({
 
       </Suspense>
     </div>
-  );
-}
 export function SortableAddonGrid({
   userId,
   botId,
   botName,
   botAvatarUrl,
+  engineVersion,
   groupKey,
   ids,
+  highlightedAddonId,
+}: Props) {
+
   highlightedAddonId,
 }: Props) {
   const key = useMemo(
