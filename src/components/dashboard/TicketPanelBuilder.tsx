@@ -279,8 +279,19 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
         <span>
           Submitting to <span className="font-medium text-foreground">{botName}</span>. Don't share
-          passwords or sensitive info. An <span className="font-medium text-foreground">Open Ticket</span> button
-          is added automatically to your panel.
+          passwords or sensitive info.{" "}
+          {isV2 ? (
+            <>
+              Add an <span className="font-medium text-foreground">Open Ticket</span> button
+              manually by inserting a <span className="font-medium text-foreground">Button Row</span> component
+              wherever you want it in the panel message.
+            </>
+          ) : (
+            <>
+              An <span className="font-medium text-foreground">Open Ticket</span> button
+              is added automatically to your panel.
+            </>
+          )}
         </span>
       </div>
 
@@ -320,14 +331,6 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
               botId={botId}
               botName={botName}
               botAvatarUrl={botAvatarUrl}
-              previewExtras={
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded bg-[#5865F2] text-white">
-                    <Ticket className="h-3.5 w-3.5 mr-1.5" />
-                    Open Ticket
-                  </span>
-                </div>
-              }
             />
           </section>
         </>
