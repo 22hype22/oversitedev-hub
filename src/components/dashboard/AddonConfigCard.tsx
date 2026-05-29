@@ -139,8 +139,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   }, [isSayCommand, botId, engineVersionProp]);
   const engineVersion: "v1" | "v2" = engineVersionProp ?? engineVersionFetched ?? "v1";
 
-    return () => { cancelled = true; };
-  }, [isSayCommand, botId]);
 
   // Map dashboard addon id → bot_config.feature name for toggleable features.
   const TOGGLE_FEATURE_MAP: Record<string, string> = {
