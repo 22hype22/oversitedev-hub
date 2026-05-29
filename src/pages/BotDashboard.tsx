@@ -969,10 +969,12 @@ const BotSection = ({
                       botId={bot.id}
                       botName={bot.bot_name}
                       botAvatarUrl={bot.icon_url}
+                      engineVersion={bot.engine_version}
                       groupKey={group.key}
                       ids={group.owned}
                       highlightedAddonId={highlightedAddonId}
                     />
+
                     {group.owned.includes("giveaway-system") && (
                       <GiveawayLaunchCard botId={bot.id} />
                     )}
