@@ -288,6 +288,8 @@ export function SortableAddonGrid({
               botId={botId}
               botName={botName}
               botAvatarUrl={botAvatarUrl}
+              engineVersion={engineVersion}
+
               highlighted={highlightedAddonId === id}
               enabled={
                 id === "ban-tools"
