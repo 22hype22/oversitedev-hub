@@ -45,6 +45,7 @@ import { cn } from "@/lib/utils";
 import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
 import { getAddonLabel } from "@/lib/botCatalog";
 import { SayCommandBuilder, type SayCommandBuilderHandle } from "./SayCommandBuilder";
+import { MessagesV2Builder, type MessagesV2BuilderHandle } from "./MessagesV2Builder";
 import { TicketPanelBuilder, type TicketPanelBuilderHandle } from "./TicketPanelBuilder";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildChannels";
@@ -119,7 +120,23 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
   const isServerStats = addonId === "server-stats-channels";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
+  const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
+  const [engineVersion, setEngineVersion] = useState<"v1" | "v2">("v1");
+  useEffect(() => {
+    if (!isSayCommand || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_orders")
+        .select("engine_version")
+        .eq("id", botId)
+        .maybeSingle();
+      if (cancelled) return;
+      setEngineVersion(data?.engine_version === "v2" ? "v2" : "v1");
+    })();
+    return () => { cancelled = true; };
+  }, [isSayCommand, botId]);
 
   // Map dashboard addon id → bot_config.feature name for toggleable features.
   const TOGGLE_FEATURE_MAP: Record<string, string> = {
@@ -2516,7 +2533,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
 
           {isSayCommand ? (
             <div className="py-2">
-              <SayCommandBuilder ref={sayBuilderRef} botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
+              {engineVersion === "v2" ? (
+                <MessagesV2Builder ref={v2BuilderRef} botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
+              ) : (
+                <SayCommandBuilder ref={sayBuilderRef} botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
+              )}
             </div>
           ) : isRules ? (
             <div className="py-2">
@@ -2628,7 +2649,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                   if (isSayCommand || isRules) {
                     setSaving(true);
                     try {
-                      const ok = await sayBuilderRef.current?.send();
+                      const ok = isSayCommand && engineVersion === "v2"
+                        ? await v2BuilderRef.current?.send()
+                        : await sayBuilderRef.current?.send();
                       if (ok) setOpen(false);
                     } finally {
                       setSaving(false);
