@@ -743,9 +743,9 @@ function PreviewItem({ item }: { item: V2Item }) {
     if (imgs.length === 0)
       return <div className="text-xs text-[#949ba4] italic">[empty gallery]</div>;
     return (
-      <div className={cn("grid gap-1 rounded overflow-hidden max-w-md", imgs.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
+      <div className={cn("grid gap-1 rounded overflow-hidden", imgs.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
         {imgs.slice(0, 4).map((u, i) => (
-          <img key={i} src={u} alt="" className="w-full h-32 object-cover" />
+          <img key={i} src={u} alt="" className="w-full h-auto object-cover" />
         ))}
       </div>
     );
