@@ -284,55 +284,85 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         </span>
       </div>
 
-      {/* Server + channel picker */}
-      {botId ? (
-        <GuildChannelPicker
-          botId={botId}
-          guildId={guild?.guild_id ?? null}
-          channelId={panelChannel?.channel_id ?? null}
-          onGuildChange={setGuild}
-          onChannelChange={setPanelChannel}
-          guildLabel="Server to post the panel in"
-          channelLabel={copy.channelLabel}
-        />
-      ) : (
-        <div className="space-y-2">
-          <Label>{copy.channelLabel}</Label>
-          <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            <span>Server &amp; channel picker will appear here once your bot is online.</span>
-          </div>
-        </div>
-      )}
-
-      {/* Panel Message */}
-      <section className="space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">Panel Message</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            What members see when they open the panel.
-          </p>
-        </div>
-
-        {isV2 ? (
-          <MessagesV2Builder
-            ref={v2Ref}
-            embedded
-            botId={botId}
-            botName={botName}
-            botAvatarUrl={botAvatarUrl}
-            previewExtras={
-              <div className="flex flex-wrap gap-2 pt-1">
-                <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded bg-[#5865F2] text-white">
-                  <Ticket className="h-3.5 w-3.5 mr-1.5" />
-                  Open Ticket
-                </span>
+      {isV2 ? (
+        <>
+          {/* Server + channel picker */}
+          {botId ? (
+            <GuildChannelPicker
+              botId={botId}
+              guildId={guild?.guild_id ?? null}
+              channelId={panelChannel?.channel_id ?? null}
+              onGuildChange={setGuild}
+              onChannelChange={setPanelChannel}
+              guildLabel="Server to post the panel in"
+              channelLabel={copy.channelLabel}
+            />
+          ) : (
+            <div className="space-y-2">
+              <Label>{copy.channelLabel}</Label>
+              <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>Server &amp; channel picker will appear here once your bot is online.</span>
               </div>
-            }
-          />
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(440px,500px)] gap-6">
-            <div className="space-y-4">
+            </div>
+          )}
+
+          <section className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Panel Message</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                What members see when they open the panel.
+              </p>
+            </div>
+            <MessagesV2Builder
+              ref={v2Ref}
+              embedded
+              botId={botId}
+              botName={botName}
+              botAvatarUrl={botAvatarUrl}
+              previewExtras={
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded bg-[#5865F2] text-white">
+                    <Ticket className="h-3.5 w-3.5 mr-1.5" />
+                    Open Ticket
+                  </span>
+                </div>
+              }
+            />
+          </section>
+        </>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(440px,500px)] gap-6">
+          {/* LEFT: all form questions */}
+          <div className="space-y-6 min-w-0">
+            {botId ? (
+              <GuildChannelPicker
+                botId={botId}
+                guildId={guild?.guild_id ?? null}
+                channelId={panelChannel?.channel_id ?? null}
+                onGuildChange={setGuild}
+                onChannelChange={setPanelChannel}
+                guildLabel="Server to post the panel in"
+                channelLabel={copy.channelLabel}
+              />
+            ) : (
+              <div className="space-y-2">
+                <Label>{copy.channelLabel}</Label>
+                <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                  <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  <span>Server &amp; channel picker will appear here once your bot is online.</span>
+                </div>
+              </div>
+            )}
+
+            <section className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Panel Message</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  What members see when they open the panel.
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="panel-title">
                   {copy.panelTitleLabel} <span className="text-destructive">*</span>
@@ -375,11 +405,19 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
                   />
                 </div>
               </div>
+            </section>
+          </div>
+
+          {/* RIGHT: sticky live preview */}
+          <div className="lg:sticky lg:top-2 lg:self-start space-y-2">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Live preview
             </div>
             {V1Preview}
           </div>
-        )}
-      </section>
+        </div>
+      )}
+
 
       {/* Cooldown — report variant only */}
       {isReport && (
