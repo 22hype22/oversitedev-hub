@@ -22,9 +22,13 @@ import {
   type V2Item,
 } from "./MessagesV2Builder";
 
+type Category = {
+  id: string;
+  name: string;
   roles: string[];
   openingMessage: string;
 };
+
 
 const uid = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
