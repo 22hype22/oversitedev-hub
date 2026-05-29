@@ -106,8 +106,6 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   const v2Ref = useRef<MessagesV2BuilderHandle>(null);
 
 
-  const feature = isReport ? "reports" : "tickets";
-
   const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
   const [guild, setGuildLocal] = useState<BotGuild | null>(activeGuild);
   // Keep our local picker in sync if the dashboard-wide active server changes.
