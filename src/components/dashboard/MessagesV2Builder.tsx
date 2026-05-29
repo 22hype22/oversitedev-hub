@@ -337,12 +337,14 @@ export const MessagesV2Builder = forwardRef<
               <span className="text-[11px] text-[#949ba4]">Today at {new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
             </div>
             <div className="mt-1 space-y-2">
-              {items.length === 0 ? (
+              {items.length === 0 && !previewExtras ? (
                 <div className="text-xs text-[#949ba4] italic">No components yet — add one to see a preview.</div>
               ) : (
                 items.map((it) => <PreviewItem key={it.id} item={it} />)
               )}
+              {previewExtras}
             </div>
+
           </div>
         </div>
       </div>
