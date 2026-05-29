@@ -949,7 +949,9 @@ const BotSection = ({
                               botId={bot.id}
                               botName={bot.bot_name}
                               botAvatarUrl={bot.icon_url}
+                              engineVersion={bot.engine_version}
                             />
+
                           </Suspense>
                           {id === "giveaway-system" && (
                             <div className="mt-3">
