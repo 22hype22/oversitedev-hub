@@ -139,9 +139,10 @@ function SortableCard({
           enabled={enabled}
           onToggleEnabled={onToggleEnabled}
         />
-
       </Suspense>
     </div>
+  );
+}
 export function SortableAddonGrid({
   userId,
   botId,
@@ -153,8 +154,6 @@ export function SortableAddonGrid({
   highlightedAddonId,
 }: Props) {
 
-  highlightedAddonId,
-}: Props) {
   const key = useMemo(
     () => storageKey(userId, botId, groupKey),
     [userId, botId, groupKey],
