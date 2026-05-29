@@ -346,24 +346,27 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         </div>
       )}
 
-      {/* Embed color */}
-      <div className="space-y-2">
-        <Label htmlFor="embed-color">Embed Color</Label>
-        <div className="flex items-center gap-3">
-          <input
-            id="embed-color"
-            type="color"
-            value={embedColor}
-            onChange={(e) => setEmbedColor(e.target.value)}
-            className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
-          />
-          <Input
-            value={embedColor}
-            onChange={(e) => setEmbedColor(e.target.value)}
-            className="font-mono text-sm w-32"
-          />
+      {/* Embed color — V1 only (V2 uses container accent colors) */}
+      {!isV2 && (
+        <div className="space-y-2">
+          <Label htmlFor="embed-color">Embed Color</Label>
+          <div className="flex items-center gap-3">
+            <input
+              id="embed-color"
+              type="color"
+              value={embedColor}
+              onChange={(e) => setEmbedColor(e.target.value)}
+              className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
+            />
+            <Input
+              value={embedColor}
+              onChange={(e) => setEmbedColor(e.target.value)}
+              className="font-mono text-sm w-32"
+            />
+          </div>
         </div>
-      </div>
+      )}
+
 
       {/* Categories — each with a paired roles + opening message */}
       <div className="space-y-3">
