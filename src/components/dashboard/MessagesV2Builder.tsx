@@ -128,12 +128,31 @@ const LEAF_OPTIONS = ADD_OPTIONS.filter((o) => o.type !== "container");
 
 export type MessagesV2BuilderHandle = {
   send: () => Promise<boolean>;
+  getItems: () => V2Item[];
+  setItems: (items: V2Item[]) => void;
+};
+
+export type MessagesV2BuilderProps = {
+  botId?: string;
+  botName: string;
+  botAvatarUrl?: string | null;
+  /** When true, hides the channel picker and disables send(). Parent owns persistence. */
+  embedded?: boolean;
+  /** Optional initial items for embedded mode. */
+  initialItems?: V2Item[];
+  /** Extra preview content rendered after the user's components (e.g. a forced Open Ticket button). */
+  previewExtras?: React.ReactNode;
+  /** Optional banner shown above the editor stack (e.g. "Open Ticket button is added automatically"). */
+  editorNotice?: React.ReactNode;
 };
 
 export const MessagesV2Builder = forwardRef<
   MessagesV2BuilderHandle,
-  { botId?: string; botName: string; botAvatarUrl?: string | null }
->(function MessagesV2Builder({ botId, botName, botAvatarUrl }, ref) {
+  MessagesV2BuilderProps
+>(function MessagesV2Builder(
+  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice },
+  ref,
+) {
   const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
   const [guild, setGuildLocal] = useState<BotGuild | null>(activeGuild);
   const setGuild = (g: BotGuild | null) => {
@@ -141,9 +160,9 @@ export const MessagesV2Builder = forwardRef<
     if (g) setActiveGuild(g);
   };
   const [channel, setChannel] = useState<BotChannel | null>(null);
-  const [items, setItems] = useState<V2Item[]>([
-    newItem("text"),
-  ]);
+  const [items, setItems] = useState<V2Item[]>(
+    initialItems && initialItems.length > 0 ? initialItems : [newItem("text")],
+  );
 
   const addItem = (type: V2Item["type"]) =>
     setItems((prev) => [...prev, newItem(type)]);
