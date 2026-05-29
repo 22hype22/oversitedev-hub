@@ -283,7 +283,7 @@ export const MessagesV2Builder = forwardRef<
     try {
       const payload = {
         channel_id: channel.channel_id,
-        components_v2: items,
+        components_v2: normalizeV2Items(items),
       };
       const { data, error } = await supabase.rpc("enqueue_post_message", {
         _bot_id: botId,
