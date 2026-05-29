@@ -410,7 +410,8 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           </div>
 
           {/* RIGHT: sticky live preview */}
-          <div className="lg:sticky lg:top-2 lg:self-start space-y-2">
+          <div className="flex flex-col space-y-2 min-w-0">
+
             <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Live preview
             </div>
