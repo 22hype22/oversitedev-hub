@@ -93,11 +93,19 @@ const COPY: Record<Variant, {
       "e.g. Your report has been received anonymously. Staff will review it shortly.",
   },
 };
-
 export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
-  function TicketPanelBuilder({ botId, botName, variant = "ticket" }, ref) {
+  function TicketPanelBuilder(
+    { botId, botName, botAvatarUrl, variant = "ticket", engineVersion = "v1" },
+    ref,
+  ) {
   const copy = COPY[variant];
   const isReport = variant === "report";
+  const isV2 = engineVersion === "v2";
+  const feature = isReport ? "reports" : "tickets";
+
+  const v2Ref = useRef<MessagesV2BuilderHandle>(null);
+
+
   const feature = isReport ? "reports" : "tickets";
 
   const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
