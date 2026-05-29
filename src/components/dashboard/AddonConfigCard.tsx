@@ -122,6 +122,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isServerStats = addonId === "server-stats-channels";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
+  const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
+  const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
+
   const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
   useEffect(() => {
     if (!isSayCommand || !botId || engineVersionProp) return;
