@@ -17,10 +17,10 @@ import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
-  MessagesV2Builder,
-  type MessagesV2BuilderHandle,
+  TicketPanelV2Builder,
+  type TicketPanelV2BuilderHandle,
   type V2Item,
-} from "./MessagesV2Builder";
+} from "./TicketPanelV2Builder";
 
 type Category = {
   id: string;
@@ -103,7 +103,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   const isV2 = engineVersion === "v2";
   const feature = isReport ? "reports" : "tickets";
 
-  const v2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const v2Ref = useRef<TicketPanelV2BuilderHandle>(null);
 
 
   const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
@@ -197,7 +197,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           color: embedColor,
           cooldown_minutes: isReport ? cooldownMinutes : null,
           categories: cleanedCategories,
-          components_v2: isV2 ? v2Items : null,
+          ticket_panel_v2: isV2 ? v2Items : null, components_v2: null,
         },
         updated_at: new Date().toISOString(),
       };
@@ -325,7 +325,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
                 What members see when they open the panel.
               </p>
             </div>
-            <MessagesV2Builder
+            <TicketPanelV2Builder
               ref={v2Ref}
               embedded
               botId={botId}
