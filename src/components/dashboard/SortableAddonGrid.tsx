@@ -65,7 +65,10 @@ function reconcile(saved: string[] | null, current: string[]): string[] {
   const keptSet = new Set(kept);
   const appended = current.filter((id) => !keptSet.has(id));
   return [...kept, ...appended];
+}
+
 function SortableCard({
+
   id,
   botId,
   botName,
