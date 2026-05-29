@@ -2540,7 +2540,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
               )}
             </div>
           ) : isRules ? (
-          ) : isRules ? (
             <div className="py-2">
               <SayCommandBuilder ref={sayBuilderRef} mode="rules" botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
             </div>
