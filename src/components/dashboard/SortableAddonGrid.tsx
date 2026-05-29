@@ -133,11 +133,13 @@ function SortableCard({
           botId={botId}
           botName={botName}
           botAvatarUrl={botAvatarUrl}
+          engineVersion={engineVersion}
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           enabled={enabled}
           onToggleEnabled={onToggleEnabled}
         />
+
       </Suspense>
     </div>
   );
