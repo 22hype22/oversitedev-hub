@@ -82,7 +82,7 @@ type V2Container = {
   children: V2Leaf[];
 };
 type V2Leaf = V2Text | V2Section | V2Gallery | V2Separator | V2ButtonRow;
-type V2Item = V2Leaf | V2Container;
+export type V2Item = V2Leaf | V2Container;
 
 const uid = () => crypto.randomUUID();
 
