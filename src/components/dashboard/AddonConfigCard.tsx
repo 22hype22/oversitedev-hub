@@ -2649,7 +2649,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, open: o
                   if (isSayCommand || isRules) {
                     setSaving(true);
                     try {
-                      const ok = await sayBuilderRef.current?.send();
+                      const ok = isSayCommand && engineVersion === "v2"
+                        ? await v2BuilderRef.current?.send()
+                        : await sayBuilderRef.current?.send();
                       if (ok) setOpen(false);
                     } finally {
                       setSaving(false);
