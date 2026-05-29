@@ -2,19 +2,25 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useRef,
   useState,
 } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, AlertTriangle, Info } from "lucide-react";
+import { Plus, Trash2, AlertTriangle, Info, Ticket } from "lucide-react";
 import { GuildChannelPicker } from "./GuildChannelPicker";
 import { RoleMultiSelect } from "./RoleMultiSelect";
 import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import {
+  MessagesV2Builder,
+  type MessagesV2BuilderHandle,
+  type V2Item,
+} from "./MessagesV2Builder";
 
 type Category = {
   id: string;
@@ -22,6 +28,7 @@ type Category = {
   roles: string[];
   openingMessage: string;
 };
+
 
 const uid = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -37,8 +44,11 @@ export type TicketPanelBuilderHandle = {
 type Props = {
   botId?: string;
   botName: string;
+  botAvatarUrl?: string | null;
   variant?: Variant;
+  engineVersion?: "v1" | "v2";
 };
+
 
 const COPY: Record<Variant, {
   panelTitleLabel: string;
@@ -83,12 +93,18 @@ const COPY: Record<Variant, {
       "e.g. Your report has been received anonymously. Staff will review it shortly.",
   },
 };
-
 export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
-  function TicketPanelBuilder({ botId, botName, variant = "ticket" }, ref) {
+  function TicketPanelBuilder(
+    { botId, botName, botAvatarUrl, variant = "ticket", engineVersion = "v1" },
+    ref,
+  ) {
   const copy = COPY[variant];
   const isReport = variant === "report";
+  const isV2 = engineVersion === "v2";
   const feature = isReport ? "reports" : "tickets";
+
+  const v2Ref = useRef<MessagesV2BuilderHandle>(null);
+
 
   const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
   const [guild, setGuildLocal] = useState<BotGuild | null>(activeGuild);
@@ -135,14 +151,25 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         toast.error("Bot is not ready yet");
         return false;
       }
-      if (!panelTitle.trim()) {
-        toast.error("Panel title is required");
-        return false;
+
+      let v2Items: V2Item[] | null = null;
+      if (isV2) {
+        v2Items = v2Ref.current?.getItems() ?? [];
+        if (v2Items.length === 0) {
+          toast.error("Add at least one component to the panel message");
+          return false;
+        }
+      } else {
+        if (!panelTitle.trim()) {
+          toast.error("Panel title is required");
+          return false;
+        }
+        if (!panelDescription.trim()) {
+          toast.error("Panel description is required");
+          return false;
+        }
       }
-      if (!panelDescription.trim()) {
-        toast.error("Panel description is required");
-        return false;
-      }
+
       const cleanedCategories = categories
         .map((c) => ({
           name: c.name.trim(),
@@ -160,18 +187,22 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         feature,
         config: {
           variant,
+          engine_version: engineVersion,
           guild_id: guild?.guild_id ?? null,
           guild_name: guild?.guild_name ?? null,
           channel_id: panelChannel?.channel_id ?? null,
           channel_name: panelChannel?.channel_name ?? null,
-          panel_title: panelTitle.trim(),
-          panel_description: panelDescription.trim(),
+          panel_title: isV2 ? null : panelTitle.trim(),
+          panel_description: isV2 ? null : panelDescription.trim(),
           color: embedColor,
           cooldown_minutes: isReport ? cooldownMinutes : null,
           categories: cleanedCategories,
+          components_v2: isV2 ? v2Items : null,
         },
         updated_at: new Date().toISOString(),
       };
+
+
 
       const { error } = await supabase
         .from("bot_config")
@@ -234,32 +265,67 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         </div>
       )}
 
-      {/* Panel title */}
-      <div className="space-y-2">
-        <Label htmlFor="panel-title">
-          {copy.panelTitleLabel} <span className="text-destructive">*</span>
-        </Label>
-        <Input
-          id="panel-title"
-          placeholder={copy.panelTitlePlaceholder}
-          value={panelTitle}
-          onChange={(e) => setPanelTitle(e.target.value)}
-        />
-      </div>
+      {/* Panel message — V1 = title + description, V2 = Component V2 builder */}
+      {isV2 ? (
+        <div className="space-y-2">
+          <Label>
+            Panel Message <span className="text-destructive">*</span>
+          </Label>
+          <MessagesV2Builder
+            ref={v2Ref}
+            embedded
+            botId={botId}
+            botName={botName}
+            botAvatarUrl={botAvatarUrl}
+            editorNotice={
+              <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs text-foreground/80">
+                <Ticket className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
+                <span>
+                  An <span className="font-semibold">Open Ticket</span> button is
+                  added automatically at the bottom of your panel — you can't
+                  remove it, but you can build anything you want above it.
+                </span>
+              </div>
+            }
+            previewExtras={
+              <div className="flex flex-wrap gap-2 pt-1">
+                <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded bg-[#5865F2] text-white">
+                  <Ticket className="h-3.5 w-3.5 mr-1.5" />
+                  Open Ticket
+                </span>
+              </div>
+            }
+          />
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="panel-title">
+              {copy.panelTitleLabel} <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="panel-title"
+              placeholder={copy.panelTitlePlaceholder}
+              value={panelTitle}
+              onChange={(e) => setPanelTitle(e.target.value)}
+            />
+          </div>
 
-      {/* Panel description */}
-      <div className="space-y-2">
-        <Label htmlFor="panel-description">
-          {copy.panelDescLabel} <span className="text-destructive">*</span>
-        </Label>
-        <Textarea
-          id="panel-description"
-          placeholder={copy.panelDescPlaceholder}
-          value={panelDescription}
-          onChange={(e) => setPanelDescription(e.target.value)}
-          rows={3}
-        />
-      </div>
+          <div className="space-y-2">
+            <Label htmlFor="panel-description">
+              {copy.panelDescLabel} <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              id="panel-description"
+              placeholder={copy.panelDescPlaceholder}
+              value={panelDescription}
+              onChange={(e) => setPanelDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+        </>
+      )}
+
 
       {/* Cooldown — report variant only */}
       {isReport && (
@@ -280,24 +346,27 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         </div>
       )}
 
-      {/* Embed color */}
-      <div className="space-y-2">
-        <Label htmlFor="embed-color">Embed Color</Label>
-        <div className="flex items-center gap-3">
-          <input
-            id="embed-color"
-            type="color"
-            value={embedColor}
-            onChange={(e) => setEmbedColor(e.target.value)}
-            className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
-          />
-          <Input
-            value={embedColor}
-            onChange={(e) => setEmbedColor(e.target.value)}
-            className="font-mono text-sm w-32"
-          />
+      {/* Embed color — V1 only (V2 uses container accent colors) */}
+      {!isV2 && (
+        <div className="space-y-2">
+          <Label htmlFor="embed-color">Embed Color</Label>
+          <div className="flex items-center gap-3">
+            <input
+              id="embed-color"
+              type="color"
+              value={embedColor}
+              onChange={(e) => setEmbedColor(e.target.value)}
+              className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
+            />
+            <Input
+              value={embedColor}
+              onChange={(e) => setEmbedColor(e.target.value)}
+              className="font-mono text-sm w-32"
+            />
+          </div>
         </div>
-      </div>
+      )}
+
 
       {/* Categories — each with a paired roles + opening message */}
       <div className="space-y-3">

@@ -2522,7 +2522,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 : isChannelLockdown
                   ? "max-w-3xl max-h-[90vh] overflow-y-auto"
                   : isTicketPanel
-                    ? "max-w-2xl max-h-[90vh] overflow-y-auto"
+                    ? engineVersion === "v2"
+                      ? "max-w-6xl max-h-[90vh] overflow-y-auto"
+                      : "max-w-2xl max-h-[90vh] overflow-y-auto"
                     : "max-w-lg max-h-[85vh] overflow-y-auto",
             readOnly && "readonly-scope",
           )}
@@ -2551,7 +2553,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               <SayCommandBuilder ref={sayBuilderRef} mode="rules" botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
             </div>
           ) : isTicketPanel ? (
-            <TicketPanelBuilder ref={ticketBuilderRef} botId={botId} botName={botName} variant="ticket" />
+            <TicketPanelBuilder
+              ref={ticketBuilderRef}
+              botId={botId}
+              botName={botName}
+              botAvatarUrl={botAvatarUrl}
+              variant="ticket"
+              engineVersion={engineVersion}
+            />
+
           ) : isChannelLockdown ? (
             <div className="space-y-5 py-2">
               {config.fields.map((f) => (
