@@ -2919,7 +2919,7 @@ export type Database = {
         Returns: Json
       }
       claim_post_message: {
-        Args: { _worker_id?: string }
+        Args: { _bot_id?: string; _worker_id?: string }
         Returns: {
           action: string
           bot_id: string

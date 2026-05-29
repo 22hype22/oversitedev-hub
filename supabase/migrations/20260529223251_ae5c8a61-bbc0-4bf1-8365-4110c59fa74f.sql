@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.claim_post_message(_worker_id text);
