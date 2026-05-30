@@ -1,5 +1,7 @@
 import {
+  createContext,
   forwardRef,
+  useContext,
   useImperativeHandle,
   useMemo,
   useState,
@@ -51,14 +53,23 @@ import { cn } from "@/lib/utils";
  */
 
 type V2Text = { id: string; type: "text"; text: string };
+type V2SectionButton =
+  | { label: string; url: string }
+  | { label: string; category: string };
 type V2Section = {
   id: string;
   type: "section";
   title: string;
   text: string;
   thumbnailUrl: string;
-  button: { label: string; url: string } | null;
+  button: V2SectionButton | null;
 };
+
+const CategoryNamesContext = createContext<string[]>([]);
+const isCategoryButton = (
+  b: V2SectionButton | null | undefined,
+): b is { label: string; category: string } =>
+  !!b && "category" in b;
 type V2Gallery = { id: string; type: "gallery"; images: string[] };
 type V2Separator = {
   id: string;
@@ -181,13 +192,15 @@ export type TicketPanelV2BuilderProps = {
   previewExtras?: React.ReactNode;
   /** Optional banner shown above the editor stack (e.g. "Open Ticket button is added automatically"). */
   editorNotice?: React.ReactNode;
+  /** Names of ticket categories — populates the Category dropdown in Section buttons. */
+  categoryNames?: string[];
 };
 
 export const TicketPanelV2Builder = forwardRef<
   TicketPanelV2BuilderHandle,
   TicketPanelV2BuilderProps
 >(function TicketPanelV2Builder(
-  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice },
+  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [] },
   ref,
 ) {
   const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
@@ -321,6 +334,7 @@ export const TicketPanelV2Builder = forwardRef<
   }));
 
   return (
+    <CategoryNamesContext.Provider value={categoryNames}>
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(440px,500px)] gap-6">
       {/* Editor */}
       <div className="space-y-3">
@@ -409,6 +423,7 @@ export const TicketPanelV2Builder = forwardRef<
         </div>
       </div>
     </div>
+    </CategoryNamesContext.Provider>
   );
 });
 
@@ -605,35 +620,10 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             placeholder="https://…"
           />
         </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs">Button (optional)</Label>
-            <Switch
-              checked={!!item.button}
-              onCheckedChange={(c) =>
-                onUpdate({ button: c ? { label: "Click me", url: "https://example.com" } : null } as Partial<V2Item>)
-              }
-            />
-          </div>
-          {item.button && (
-            <div className="grid grid-cols-2 gap-2">
-              <Input
-                placeholder="Label"
-                value={item.button.label}
-                onChange={(e) =>
-                  onUpdate({ button: { ...item.button!, label: e.target.value } } as Partial<V2Item>)
-                }
-              />
-              <Input
-                placeholder="URL"
-                value={item.button.url}
-                onChange={(e) =>
-                  onUpdate({ button: { ...item.button!, url: e.target.value } } as Partial<V2Item>)
-                }
-              />
-            </div>
-          )}
-        </div>
+        <SectionButtonEditor
+          button={item.button}
+          onChange={(b) => onUpdate({ button: b } as Partial<V2Item>)}
+        />
       </div>
     );
   }
@@ -802,6 +792,107 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
 }
 
 // ============================================================
+// Section button editor (Link / Category)
+// ============================================================
+function SectionButtonEditor({
+  button,
+  onChange,
+}: {
+  button: V2SectionButton | null;
+  onChange: (b: V2SectionButton | null) => void;
+}) {
+  const categoryNames = useContext(CategoryNamesContext);
+  const mode: "link" | "category" = isCategoryButton(button) ? "category" : "link";
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs">Button (optional)</Label>
+        <Switch
+          checked={!!button}
+          onCheckedChange={(c) =>
+            onChange(c ? { label: "Click me", url: "https://example.com" } : null)
+          }
+        />
+      </div>
+      {button && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 text-xs">
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="radio"
+                name={`section-btn-mode-${Math.random()}`}
+                checked={mode === "link"}
+                onChange={() =>
+                  onChange({ label: button.label, url: "https://example.com" })
+                }
+              />
+              Link
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="radio"
+                name={`section-btn-mode-${Math.random()}`}
+                checked={mode === "category"}
+                onChange={() =>
+                  onChange({ label: button.label, category: categoryNames[0] ?? "" })
+                }
+              />
+              Category
+            </label>
+          </div>
+          {mode === "link" ? (
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                placeholder="Label"
+                value={button.label}
+                onChange={(e) =>
+                  onChange({ ...(button as { label: string; url: string }), label: e.target.value })
+                }
+              />
+              <Input
+                placeholder="URL"
+                value={(button as { label: string; url: string }).url}
+                onChange={(e) =>
+                  onChange({ ...(button as { label: string; url: string }), url: e.target.value })
+                }
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                placeholder="Label"
+                value={button.label}
+                onChange={(e) =>
+                  onChange({ ...(button as { label: string; category: string }), label: e.target.value })
+                }
+              />
+              <Select
+                value={(button as { label: string; category: string }).category || ""}
+                onValueChange={(v) =>
+                  onChange({ ...(button as { label: string; category: string }), category: v })
+                }
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder={categoryNames.length === 0 ? "No categories yet" : "Pick a category"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {categoryNames.map((n) => (
+                    <SelectItem key={n} value={n}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // Preview
 // ============================================================
 function PreviewItem({ item }: { item: V2Item }) {
@@ -814,14 +905,20 @@ function PreviewItem({ item }: { item: V2Item }) {
         <div className="flex-1 min-w-0 space-y-1">
           <PreviewMarkdown text={item.title ? `**${item.title}**\n${item.text}` : item.text} />
           {item.button && (
-            <a
-              href={item.button.url || "#"}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center px-3 py-1.5 mt-1 text-xs font-medium rounded bg-[#4e5058] hover:bg-[#6d6f78] text-white"
-            >
-              {item.button.label || "Button"}
-            </a>
+            isCategoryButton(item.button) ? (
+              <span className="inline-flex items-center px-3 py-1.5 mt-1 text-xs font-medium rounded bg-[#4e5058] text-white">
+                {item.button.label || "Button"}
+              </span>
+            ) : (
+              <a
+                href={item.button.url || "#"}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center px-3 py-1.5 mt-1 text-xs font-medium rounded bg-[#4e5058] hover:bg-[#6d6f78] text-white"
+              >
+                {item.button.label || "Button"}
+              </a>
+            )
           )}
         </div>
         {item.thumbnailUrl && (
