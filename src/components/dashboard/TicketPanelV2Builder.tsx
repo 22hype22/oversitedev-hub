@@ -198,11 +198,20 @@ export const TicketPanelV2Builder = forwardRef<
   };
   const [channel, setChannel] = useState<BotChannel | null>(null);
   const [items, setItems] = useState<V2Item[]>(
-    initialItems && initialItems.length > 0 ? initialItems : [newItem("text")],
+    initialItems && initialItems.length > 0
+      ? initialItems
+      : [
+          {
+            id: uid(),
+            type: "container",
+            accentColor: "#5865F2",
+            children: [newItem("text") as V2Leaf],
+          },
+        ],
   );
 
-  const addItem = (type: V2Item["type"]) =>
-    setItems((prev) => [...prev, newItem(type)]);
+  const addItem = (_type: V2Item["type"]) =>
+    setItems((prev) => [...prev, newItem("container")]);
 
   const updateItem = (id: string, patch: Partial<V2Item>) =>
     setItems((prev) =>
@@ -337,6 +346,11 @@ export const TicketPanelV2Builder = forwardRef<
         )}
 
 
+        <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>All components must be inside a Container for the ticket panel to work.</span>
+        </div>
+
         <div className="space-y-2">
           {items.map((it, i) => (
             <ItemBlock
@@ -355,7 +369,16 @@ export const TicketPanelV2Builder = forwardRef<
           ))}
         </div>
 
-        <AddComponentMenu onAdd={addItem} />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => addItem("container")}
+        >
+          <Plus className="h-4 w-4 mr-1.5" />
+          Add Container
+        </Button>
       </div>
 
       {/* Preview */}
