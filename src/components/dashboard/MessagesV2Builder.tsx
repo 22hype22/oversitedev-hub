@@ -54,6 +54,7 @@ type V2Text = { id: string; type: "text"; text: string };
 type V2Section = {
   id: string;
   type: "section";
+  title: string;
   text: string;
   thumbnailUrl: string;
   button: { label: string; url: string } | null;
