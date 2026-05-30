@@ -423,6 +423,7 @@ export const TicketPanelV2Builder = forwardRef<
         </div>
       </div>
     </div>
+    </CategoryNamesContext.Provider>
   );
 });
 
