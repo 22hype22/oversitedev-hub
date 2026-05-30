@@ -792,6 +792,107 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
 }
 
 // ============================================================
+// Section button editor (Link / Category)
+// ============================================================
+function SectionButtonEditor({
+  button,
+  onChange,
+}: {
+  button: V2SectionButton | null;
+  onChange: (b: V2SectionButton | null) => void;
+}) {
+  const categoryNames = useContext(CategoryNamesContext);
+  const mode: "link" | "category" = isCategoryButton(button) ? "category" : "link";
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs">Button (optional)</Label>
+        <Switch
+          checked={!!button}
+          onCheckedChange={(c) =>
+            onChange(c ? { label: "Click me", url: "https://example.com" } : null)
+          }
+        />
+      </div>
+      {button && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 text-xs">
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="radio"
+                name={`section-btn-mode-${Math.random()}`}
+                checked={mode === "link"}
+                onChange={() =>
+                  onChange({ label: button.label, url: "https://example.com" })
+                }
+              />
+              Link
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="radio"
+                name={`section-btn-mode-${Math.random()}`}
+                checked={mode === "category"}
+                onChange={() =>
+                  onChange({ label: button.label, category: categoryNames[0] ?? "" })
+                }
+              />
+              Category
+            </label>
+          </div>
+          {mode === "link" ? (
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                placeholder="Label"
+                value={button.label}
+                onChange={(e) =>
+                  onChange({ ...(button as { label: string; url: string }), label: e.target.value })
+                }
+              />
+              <Input
+                placeholder="URL"
+                value={(button as { label: string; url: string }).url}
+                onChange={(e) =>
+                  onChange({ ...(button as { label: string; url: string }), url: e.target.value })
+                }
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                placeholder="Label"
+                value={button.label}
+                onChange={(e) =>
+                  onChange({ ...(button as { label: string; category: string }), label: e.target.value })
+                }
+              />
+              <Select
+                value={(button as { label: string; category: string }).category || ""}
+                onValueChange={(v) =>
+                  onChange({ ...(button as { label: string; category: string }), category: v })
+                }
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder={categoryNames.length === 0 ? "No categories yet" : "Pick a category"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {categoryNames.map((n) => (
+                    <SelectItem key={n} value={n}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // Preview
 // ============================================================
 function PreviewItem({ item }: { item: V2Item }) {
