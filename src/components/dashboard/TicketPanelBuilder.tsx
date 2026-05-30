@@ -331,6 +331,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
               botId={botId}
               botName={botName}
               botAvatarUrl={botAvatarUrl}
+              categoryNames={categories.map((c) => c.name.trim()).filter((n) => n.length > 0)}
             />
           </section>
         </>
