@@ -130,6 +130,7 @@ const newItem = (type: V2Item["type"]): V2Item => {
       return {
         id: uid(),
         type,
+        title: "",
         text: "Section body text. Supports **markdown**.",
         thumbnailUrl: "",
         button: null,
