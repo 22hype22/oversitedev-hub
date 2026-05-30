@@ -192,13 +192,15 @@ export type TicketPanelV2BuilderProps = {
   previewExtras?: React.ReactNode;
   /** Optional banner shown above the editor stack (e.g. "Open Ticket button is added automatically"). */
   editorNotice?: React.ReactNode;
+  /** Names of ticket categories — populates the Category dropdown in Section buttons. */
+  categoryNames?: string[];
 };
 
 export const TicketPanelV2Builder = forwardRef<
   TicketPanelV2BuilderHandle,
   TicketPanelV2BuilderProps
 >(function TicketPanelV2Builder(
-  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice },
+  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [] },
   ref,
 ) {
   const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
