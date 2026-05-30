@@ -624,7 +624,6 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
           button={item.button}
           onChange={(b) => onUpdate({ button: b } as Partial<V2Item>)}
         />
-        </div>
       </div>
     );
   }
