@@ -789,7 +789,7 @@ function PreviewItem({ item }: { item: V2Item }) {
     return (
       <div className="flex gap-3 items-start">
         <div className="flex-1 min-w-0 space-y-1">
-          <PreviewMarkdown text={item.text} />
+          <PreviewMarkdown text={item.title ? `**${item.title}**\n${item.text}` : item.text} />
           {item.button && (
             <a
               href={item.button.url || "#"}
