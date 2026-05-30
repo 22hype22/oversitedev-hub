@@ -559,7 +559,15 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
     return (
       <div className="space-y-2">
         <div className="space-y-1.5">
-          <Label className="text-xs">Text</Label>
+          <Label className="text-xs">Title</Label>
+          <Input
+            value={item.title}
+            onChange={(e) => onUpdate({ title: e.target.value } as Partial<V2Item>)}
+            placeholder="Optional bold title"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Markdown text</Label>
           <DiscordMarkdownTextarea
             value={item.text}
             onValueChange={(v) => onUpdate({ text: v } as Partial<V2Item>)}
