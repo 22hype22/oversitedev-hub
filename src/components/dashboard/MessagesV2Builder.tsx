@@ -54,6 +54,7 @@ type V2Text = { id: string; type: "text"; text: string };
 type V2Section = {
   id: string;
   type: "section";
+  title: string;
   text: string;
   thumbnailUrl: string;
   button: { label: string; url: string } | null;
@@ -129,6 +130,7 @@ const newItem = (type: V2Item["type"]): V2Item => {
       return {
         id: uid(),
         type,
+        title: "",
         text: "Section body text. Supports **markdown**.",
         thumbnailUrl: "",
         button: null,
@@ -557,7 +559,15 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
     return (
       <div className="space-y-2">
         <div className="space-y-1.5">
-          <Label className="text-xs">Text</Label>
+          <Label className="text-xs">Title</Label>
+          <Input
+            value={item.title}
+            onChange={(e) => onUpdate({ title: e.target.value } as Partial<V2Item>)}
+            placeholder="Optional bold title"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Markdown text</Label>
           <DiscordMarkdownTextarea
             value={item.text}
             onValueChange={(v) => onUpdate({ text: v } as Partial<V2Item>)}
@@ -779,7 +789,7 @@ function PreviewItem({ item }: { item: V2Item }) {
     return (
       <div className="flex gap-3 items-start">
         <div className="flex-1 min-w-0 space-y-1">
-          <PreviewMarkdown text={item.text} />
+          <PreviewMarkdown text={item.title ? `**${item.title}**\n${item.text}` : item.text} />
           {item.button && (
             <a
               href={item.button.url || "#"}
