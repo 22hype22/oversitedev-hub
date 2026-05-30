@@ -53,14 +53,23 @@ import { cn } from "@/lib/utils";
  */
 
 type V2Text = { id: string; type: "text"; text: string };
+type V2SectionButton =
+  | { label: string; url: string }
+  | { label: string; category: string };
 type V2Section = {
   id: string;
   type: "section";
   title: string;
   text: string;
   thumbnailUrl: string;
-  button: { label: string; url: string } | null;
+  button: V2SectionButton | null;
 };
+
+const CategoryNamesContext = createContext<string[]>([]);
+const isCategoryButton = (
+  b: V2SectionButton | null | undefined,
+): b is { label: string; category: string } =>
+  !!b && "category" in b;
 type V2Gallery = { id: string; type: "gallery"; images: string[] };
 type V2Separator = {
   id: string;
