@@ -620,34 +620,10 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             placeholder="https://…"
           />
         </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs">Button (optional)</Label>
-            <Switch
-              checked={!!item.button}
-              onCheckedChange={(c) =>
-                onUpdate({ button: c ? { label: "Click me", url: "https://example.com" } : null } as Partial<V2Item>)
-              }
-            />
-          </div>
-          {item.button && (
-            <div className="grid grid-cols-2 gap-2">
-              <Input
-                placeholder="Label"
-                value={item.button.label}
-                onChange={(e) =>
-                  onUpdate({ button: { ...item.button!, label: e.target.value } } as Partial<V2Item>)
-                }
-              />
-              <Input
-                placeholder="URL"
-                value={item.button.url}
-                onChange={(e) =>
-                  onUpdate({ button: { ...item.button!, url: e.target.value } } as Partial<V2Item>)
-                }
-              />
-            </div>
-          )}
+        <SectionButtonEditor
+          button={item.button}
+          onChange={(b) => onUpdate({ button: b } as Partial<V2Item>)}
+        />
         </div>
       </div>
     );
