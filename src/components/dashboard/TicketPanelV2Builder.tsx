@@ -198,11 +198,20 @@ export const TicketPanelV2Builder = forwardRef<
   };
   const [channel, setChannel] = useState<BotChannel | null>(null);
   const [items, setItems] = useState<V2Item[]>(
-    initialItems && initialItems.length > 0 ? initialItems : [newItem("text")],
+    initialItems && initialItems.length > 0
+      ? initialItems
+      : [
+          {
+            id: uid(),
+            type: "container",
+            accentColor: "#5865F2",
+            children: [newItem("text") as V2Leaf],
+          },
+        ],
   );
 
-  const addItem = (type: V2Item["type"]) =>
-    setItems((prev) => [...prev, newItem(type)]);
+  const addItem = (_type: V2Item["type"]) =>
+    setItems((prev) => [...prev, newItem("container")]);
 
   const updateItem = (id: string, patch: Partial<V2Item>) =>
     setItems((prev) =>
