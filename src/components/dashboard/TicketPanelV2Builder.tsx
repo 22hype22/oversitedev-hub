@@ -804,14 +804,20 @@ function PreviewItem({ item }: { item: V2Item }) {
         <div className="flex-1 min-w-0 space-y-1">
           <PreviewMarkdown text={item.title ? `**${item.title}**\n${item.text}` : item.text} />
           {item.button && (
-            <a
-              href={item.button.url || "#"}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center px-3 py-1.5 mt-1 text-xs font-medium rounded bg-[#4e5058] hover:bg-[#6d6f78] text-white"
-            >
-              {item.button.label || "Button"}
-            </a>
+            isCategoryButton(item.button) ? (
+              <span className="inline-flex items-center px-3 py-1.5 mt-1 text-xs font-medium rounded bg-[#4e5058] text-white">
+                {item.button.label || "Button"}
+              </span>
+            ) : (
+              <a
+                href={item.button.url || "#"}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center px-3 py-1.5 mt-1 text-xs font-medium rounded bg-[#4e5058] hover:bg-[#6d6f78] text-white"
+              >
+                {item.button.label || "Button"}
+              </a>
+            )
           )}
         </div>
         {item.thumbnailUrl && (
