@@ -4,6 +4,7 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,6 @@ import {
   TicketPanelBuilder,
   type TicketPanelBuilderHandle,
 } from "./TicketPanelBuilder";
-import { useRef } from "react";
 
 export type TicketEditorHandle = {
   /** No-op — editing is performed in the nested edit dialog. */
