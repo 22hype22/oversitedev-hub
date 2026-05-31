@@ -126,6 +126,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
+  const ticketEditorRef = useRef<TicketEditorHandle>(null);
 
   const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
   useEffect(() => {
