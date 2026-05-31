@@ -118,7 +118,7 @@ const PROTECTION_ADDON_IDS = [
 const SUPPORT_ADDON_IDS = [
   "ticket-message-customization",
   "staff-performance",
-  "ticket-logs",
+  
   "ticket-notes",
   "ticket-add-remove",
   "close-all-tickets",
