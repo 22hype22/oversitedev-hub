@@ -2719,8 +2719,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveStaffPerformance();
                   } else if (isTicketNotes) {
                     void saveTicketNotes();
-                  } else if (isTicketLogs) {
-                    void saveTicketLogs();
                   } else if (isTicketMembers) {
                     void saveTicketMembers();
                   } else if (isCloseAll) {
