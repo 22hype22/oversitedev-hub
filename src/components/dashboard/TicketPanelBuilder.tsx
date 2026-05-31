@@ -52,6 +52,13 @@ type Props = {
   botAvatarUrl?: string | null;
   variant?: Variant;
   engineVersion?: "v1" | "v2";
+  /**
+   * When provided, saving will additionally enqueue an `edit_ticket_panel`
+   * bot command targeting this Discord message so the worker can edit the
+   * existing panel in-place instead of (only) reapplying config. Used by
+   * the "Ticket Panel Edit" card.
+   */
+  editTarget?: { channel_id: string; message_id: string } | null;
 };
 
 
@@ -100,7 +107,7 @@ const COPY: Record<Variant, {
 };
 export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   function TicketPanelBuilder(
-    { botId, botName, botAvatarUrl, variant = "ticket", engineVersion = "v1" },
+    { botId, botName, botAvatarUrl, variant = "ticket", engineVersion = "v1", editTarget = null },
     ref,
   ) {
   const copy = COPY[variant];
@@ -231,6 +238,61 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [botId]);
+
+  // Hydrate the main panel config (tickets/reports) from bot_config when in
+  // edit-in-place mode, so the builder opens pre-filled with the current panel.
+  // Skipped if the user already has a localStorage draft.
+  const [v2InitialItems, setV2InitialItems] = useState<V2Item[] | undefined>(undefined);
+  useEffect(() => {
+    if (!botId || !editTarget) return;
+    if (hydratedFromDraftRef.current) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", feature)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      if (typeof cfg.panel_title === "string") setPanelTitle(cfg.panel_title);
+      if (typeof cfg.panel_description === "string") setPanelDescription(cfg.panel_description);
+      if (typeof cfg.color === "string") setEmbedColor(cfg.color);
+      if (typeof cfg.cooldown_minutes === "number") setCooldownMinutes(cfg.cooldown_minutes);
+      if (Array.isArray(cfg.categories) && cfg.categories.length > 0) {
+        const cats: Category[] = (cfg.categories as any[]).map((c) => {
+          if (typeof c === "string") {
+            const name = c;
+            const roles = (cfg.category_roles ?? {})[name] ?? [];
+            const opening = (cfg.category_messages ?? {})[name] ?? "";
+            return { id: uid(), name, roles: roles.map(String), openingMessage: String(opening) };
+          }
+          return {
+            id: uid(),
+            name: String(c.name ?? ""),
+            roles: Array.isArray(c.roles) ? c.roles.map(String) : [],
+            openingMessage: String(c.opening_message ?? ""),
+          };
+        });
+        setCategories(cats);
+      }
+      if (cfg.channel_id) {
+        setPanelChannel({
+          channel_id: String(cfg.channel_id),
+          channel_name: String(cfg.channel_name ?? cfg.channel_id),
+          channel_type: "text",
+        } as BotChannel);
+      }
+      if (Array.isArray(cfg.ticket_panel_v2)) {
+        setV2InitialItems(cfg.ticket_panel_v2 as V2Item[]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [botId, editTarget?.channel_id, editTarget?.message_id, feature]);
 
   // ---- Channel list (used for the log-channel dropdown) ----
   const { channels: allChannels } = useBotChannels(botId, guild?.guild_id);
@@ -385,21 +447,56 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       }
 
 
-      const { data: cmdData, error: cmdError } = await supabase.rpc(
-        "enqueue_apply_config" as any,
-        { _bot_id: botId, _feature: feature },
-      );
-      const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
-      if (cmdError) {
-        toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
-      } else if (cmdResult && cmdResult.ok === false) {
-        toast.warning(
-          `Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`,
-        );
+      // If we're editing an already-posted panel in place, enqueue a targeted
+      // edit_ticket_panel command instead of the broad apply_config (which the
+      // worker treats as "create / repost"). The worker reads the latest
+      // tickets config from bot_config and edits the specific message.
+      if (editTarget?.channel_id && editTarget?.message_id) {
+        const { data: orderRow } = await supabase
+          .from("bot_orders")
+          .select("user_id")
+          .eq("id", botId)
+          .maybeSingle();
+        const ownerId = orderRow?.user_id;
+        const { data: authData } = await supabase.auth.getUser();
+        const requesterId = authData.user?.id;
+        if (!ownerId || !requesterId) {
+          toast.warning("Saved, but could not enqueue panel edit (auth context missing).");
+        } else {
+          const { error: cmdInsertErr } = await supabase.from("bot_commands").insert({
+            bot_id: botId,
+            user_id: ownerId,
+            requested_by: requesterId,
+            action: "edit_ticket_panel",
+            payload: {
+              feature,
+              channel_id: editTarget.channel_id,
+              message_id: editTarget.message_id,
+            },
+          });
+          if (cmdInsertErr) {
+            toast.warning(`Saved, but failed to queue panel edit: ${cmdInsertErr.message}`);
+          } else {
+            toast.success("Panel update queued — the bot will edit the message shortly.");
+          }
+        }
       } else {
-        toast.success(
-          isReport ? "Report panel saved & applied" : "Ticket panel saved & applied",
+        const { data: cmdData, error: cmdError } = await supabase.rpc(
+          "enqueue_apply_config" as any,
+          { _bot_id: botId, _feature: feature },
         );
+        const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+        if (cmdError) {
+          toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+        } else if (cmdResult && cmdResult.ok === false) {
+          toast.warning(
+            `Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`,
+          );
+        } else {
+          toast.success(
+            isReport ? "Report panel saved & applied" : "Ticket panel saved & applied",
+          );
+        }
       }
       // Clear draft on successful save.
       if (draftKey) {
@@ -558,6 +655,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
               botName={botName}
               botAvatarUrl={botAvatarUrl}
               categoryNames={categories.map((c) => c.name.trim()).filter((n) => n.length > 0)}
+              initialItems={v2InitialItems}
             />
           </section>
         </>

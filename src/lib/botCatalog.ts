@@ -53,7 +53,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   "ticket-add-remove": "Add / Remove Members",
   "close-all-tickets": "Close All Tickets",
   "ticket-message-customization": "Post Ticket",
-  "ticket-editor": "Ticket Edit",
+  "ticket-editor": "Ticket Panel Edit",
   "priority-flagging": "Priority Ticket Flagging",
   "auto-close-inactive": "Auto-Close Inactive Tickets",
   "anonymous-reporting": "Anonymous Reporting",
