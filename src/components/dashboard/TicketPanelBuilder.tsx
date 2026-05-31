@@ -261,6 +261,34 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         return false;
       }
 
+      // Persist the ticket-logs settings alongside the panel (ticket variant only).
+      if (!isReport) {
+        const logsPayload = {
+          bot_id: botId,
+          feature: "ticket-logs",
+          config: {
+            log_channel_id: logChannelId || null,
+            log_ticket_opened: logTicketOpened,
+            log_ticket_closed: logTicketClosed,
+            log_ticket_claimed: logTicketClaimed,
+            include_attachments: logIncludeAttachments,
+          },
+          updated_at: new Date().toISOString(),
+        };
+        const { error: logsError } = await supabase
+          .from("bot_config")
+          .upsert(logsPayload, { onConflict: "bot_id,feature" });
+        if (logsError) {
+          toast.warning(`Panel saved, but logging settings failed: ${logsError.message}`);
+        } else {
+          await supabase.rpc("enqueue_apply_config" as any, {
+            _bot_id: botId,
+            _feature: "ticket-logs",
+          });
+        }
+      }
+
+
       const { data: cmdData, error: cmdError } = await supabase.rpc(
         "enqueue_apply_config" as any,
         { _bot_id: botId, _feature: feature },
