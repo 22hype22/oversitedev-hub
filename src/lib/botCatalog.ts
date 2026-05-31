@@ -188,7 +188,12 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
     "rules",
   ],
   // Support and Utilities bases should surface every configured section in the dashboard.
-  support: [...ADDON_IDS_BY_BASE.support, "ticket-editor", "messages"],
+  support: [
+    "ticket-message-customization",
+    "ticket-editor",
+    "messages",
+    ...ADDON_IDS_BY_BASE.support.filter((id) => id !== "ticket-message-customization"),
+  ],
   utilities: [...ADDON_IDS_BY_BASE.utilities, "messages"],
 };
 
