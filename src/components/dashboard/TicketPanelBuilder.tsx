@@ -392,21 +392,56 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       }
 
 
-      const { data: cmdData, error: cmdError } = await supabase.rpc(
-        "enqueue_apply_config" as any,
-        { _bot_id: botId, _feature: feature },
-      );
-      const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
-      if (cmdError) {
-        toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
-      } else if (cmdResult && cmdResult.ok === false) {
-        toast.warning(
-          `Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`,
-        );
+      // If we're editing an already-posted panel in place, enqueue a targeted
+      // edit_ticket_panel command instead of the broad apply_config (which the
+      // worker treats as "create / repost"). The worker reads the latest
+      // tickets config from bot_config and edits the specific message.
+      if (editTarget?.channel_id && editTarget?.message_id) {
+        const { data: orderRow } = await supabase
+          .from("bot_orders")
+          .select("user_id")
+          .eq("id", botId)
+          .maybeSingle();
+        const ownerId = orderRow?.user_id;
+        const { data: authData } = await supabase.auth.getUser();
+        const requesterId = authData.user?.id;
+        if (!ownerId || !requesterId) {
+          toast.warning("Saved, but could not enqueue panel edit (auth context missing).");
+        } else {
+          const { error: cmdInsertErr } = await supabase.from("bot_commands").insert({
+            bot_id: botId,
+            user_id: ownerId,
+            requested_by: requesterId,
+            action: "edit_ticket_panel",
+            payload: {
+              feature,
+              channel_id: editTarget.channel_id,
+              message_id: editTarget.message_id,
+            },
+          });
+          if (cmdInsertErr) {
+            toast.warning(`Saved, but failed to queue panel edit: ${cmdInsertErr.message}`);
+          } else {
+            toast.success("Panel update queued — the bot will edit the message shortly.");
+          }
+        }
       } else {
-        toast.success(
-          isReport ? "Report panel saved & applied" : "Ticket panel saved & applied",
+        const { data: cmdData, error: cmdError } = await supabase.rpc(
+          "enqueue_apply_config" as any,
+          { _bot_id: botId, _feature: feature },
         );
+        const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+        if (cmdError) {
+          toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+        } else if (cmdResult && cmdResult.ok === false) {
+          toast.warning(
+            `Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`,
+          );
+        } else {
+          toast.success(
+            isReport ? "Report panel saved & applied" : "Ticket panel saved & applied",
+          );
+        }
       }
       // Clear draft on successful save.
       if (draftKey) {
