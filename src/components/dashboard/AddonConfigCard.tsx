@@ -2514,6 +2514,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               engineVersion={engineVersion}
             />
 
+          ) : isTicketEditor ? (
+            <TicketEditor ref={ticketEditorRef} botId={botId} />
+
           ) : isChannelLockdown ? (
             <div className="space-y-5 py-2">
               {config.fields.map((f) => (
