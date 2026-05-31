@@ -158,6 +158,20 @@ export const supportBaseAddon: Addon = {
 
         openTickets.set(ticketKey, ticketChannel.id);
 
+        // Persist the new ticket so the dashboard's "Ticket Edit" list can show it.
+        await supabase.from("tickets").insert({
+          bot_id: ctx.botId,
+          guild_id: guild.id,
+          channel_id: ticketChannel.id,
+          channel_name: (ticketChannel as any).name ?? channelName,
+          category,
+          opener_user_id: member.id,
+          opener_username: member.user.username,
+          status: "open",
+        }).then(({ error }) => {
+          if (error) void ctx.log("warn", `tickets insert failed: ${error.message}`);
+        });
+
         // Ping roles
         const pingParts = [member.toString()];
         for (const roleName of allowedRoles) {
