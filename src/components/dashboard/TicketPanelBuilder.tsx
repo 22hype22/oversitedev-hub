@@ -138,9 +138,78 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   const [logTicketClaimed, setLogTicketClaimed] = useState<boolean>(true);
   const [logIncludeAttachments, setLogIncludeAttachments] = useState<boolean>(true);
 
+  // ---- Draft persistence (localStorage) ----
+  const draftKey = botId ? `ticket-settings-draft:${botId}:${variant}` : null;
+  const hydratedFromDraftRef = useRef(false);
+
+  // Hydrate from localStorage once on mount (must run before DB hydration so
+  // user drafts win over previously-saved configs).
+  useEffect(() => {
+    if (!draftKey) return;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const d = JSON.parse(raw) as Record<string, unknown>;
+      hydratedFromDraftRef.current = true;
+      if (typeof d.panelTitle === "string") setPanelTitle(d.panelTitle);
+      if (typeof d.panelDescription === "string") setPanelDescription(d.panelDescription);
+      if (typeof d.embedColor === "string") setEmbedColor(d.embedColor);
+      if (typeof d.cooldownMinutes === "number") setCooldownMinutes(d.cooldownMinutes);
+      if (Array.isArray(d.categories) && d.categories.length > 0) {
+        setCategories(d.categories as Category[]);
+      }
+      if (typeof d.logChannelId === "string") setLogChannelId(d.logChannelId);
+      if (typeof d.logTicketOpened === "boolean") setLogTicketOpened(d.logTicketOpened);
+      if (typeof d.logTicketClosed === "boolean") setLogTicketClosed(d.logTicketClosed);
+      if (typeof d.logTicketClaimed === "boolean") setLogTicketClaimed(d.logTicketClaimed);
+      if (typeof d.logIncludeAttachments === "boolean") {
+        setLogIncludeAttachments(d.logIncludeAttachments);
+      }
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
+
+  // Persist draft on every change.
+  useEffect(() => {
+    if (!draftKey) return;
+    const data = {
+      panelTitle,
+      panelDescription,
+      embedColor,
+      cooldownMinutes,
+      categories,
+      logChannelId,
+      logTicketOpened,
+      logTicketClosed,
+      logTicketClaimed,
+      logIncludeAttachments,
+    };
+    try {
+      localStorage.setItem(draftKey, JSON.stringify(data));
+    } catch {
+      /* ignore */
+    }
+  }, [
+    draftKey,
+    panelTitle,
+    panelDescription,
+    embedColor,
+    cooldownMinutes,
+    categories,
+    logChannelId,
+    logTicketOpened,
+    logTicketClosed,
+    logTicketClaimed,
+    logIncludeAttachments,
+  ]);
+
   // Hydrate ticket-logs config when bot is available (separate feature row).
+  // Skipped if a localStorage draft already populated these fields.
   useEffect(() => {
     if (!botId || isReport) return;
+    if (hydratedFromDraftRef.current) return;
     let cancelled = false;
     (async () => {
       const { data } = await supabase
@@ -163,7 +232,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [botId]);
 
-  // ---- Channel list (used for the log-channel dropdown + detecting deleted ticket channels) ----
+  // ---- Channel list (used for the log-channel dropdown) ----
   const { channels: allChannels } = useBotChannels(botId, guild?.guild_id);
   const textChannels = useMemo(
     () =>
@@ -176,77 +245,20 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     () => sortedChannelCategoryEntries(textChannels),
     [textChannels],
   );
-  const channelIdSet = useMemo(
-    () => new Set(allChannels.map((c) => c.channel_id)),
-    [allChannels],
-  );
 
-  // ---- Open tickets list ----
-  type OpenTicket = {
-    id: string;
-    channel_id: string;
-    channel_name: string;
-    category: string | null;
-    opener_username: string | null;
-    opener_user_id: string | null;
-  };
-  const [openTickets, setOpenTickets] = useState<OpenTicket[]>([]);
-  const [ticketsLoading, setTicketsLoading] = useState(false);
-  const [deletedCount, setDeletedCount] = useState(0);
-
-  const fetchOpenTickets = async () => {
-    if (!botId || !guild?.guild_id || isReport) return;
-    setTicketsLoading(true);
-    const { data, error } = await supabase
-      .from("tickets")
-      .select("id, channel_id, channel_name, category, opener_username, opener_user_id")
-      .eq("bot_id", botId)
-      .eq("guild_id", guild.guild_id)
-      .neq("status", "closed")
-      .order("created_at", { ascending: false });
-    setTicketsLoading(false);
-    if (error) {
-      toast.error(`Could not load tickets: ${error.message}`);
-      return;
-    }
-    setOpenTickets((data ?? []) as OpenTicket[]);
+  const resetToDefaults = () => {
+    setPanelTitle("");
+    setPanelDescription("");
+    setCooldownMinutes(10);
+    setEmbedColor("#5865F2");
+    setCategories([{ id: uid(), name: "", roles: [], openingMessage: "" }]);
+    setLogChannelId("");
+    setLogTicketOpened(true);
+    setLogTicketClosed(true);
+    setLogTicketClaimed(true);
+    setLogIncludeAttachments(true);
   };
 
-  useEffect(() => {
-    void fetchOpenTickets();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [botId, guild?.guild_id, isReport]);
-
-  // Auto-prune tickets whose Discord channel no longer exists. Only runs once
-  // the channel cache is populated to avoid clearing on first load.
-  useEffect(() => {
-    if (openTickets.length === 0 || allChannels.length === 0) return;
-    const missing = openTickets.filter((t) => !channelIdSet.has(t.channel_id));
-    if (missing.length === 0) {
-      setDeletedCount(0);
-      return;
-    }
-    setDeletedCount(missing.length);
-    setOpenTickets((prev) => prev.filter((t) => channelIdSet.has(t.channel_id)));
-    void supabase
-      .from("tickets")
-      .update({ status: "closed", closed_at: new Date().toISOString() })
-      .in("id", missing.map((m) => m.id));
-  }, [openTickets, channelIdSet, allChannels.length]);
-
-  const closeTicketFromDashboard = async (ticket: OpenTicket) => {
-    if (!botId) return;
-    const { error } = await supabase
-      .from("tickets")
-      .update({ status: "closed", closed_at: new Date().toISOString() })
-      .eq("id", ticket.id);
-    if (error) {
-      toast.error(`Failed to close: ${error.message}`);
-      return;
-    }
-    setOpenTickets((prev) => prev.filter((t) => t.id !== ticket.id));
-    toast.success(`Ticket #${ticket.channel_name} marked closed. The bot will delete the channel shortly.`);
-  };
 
 
 
