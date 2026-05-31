@@ -52,7 +52,8 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   "ticket-notes": "Ticket Notes",
   "ticket-add-remove": "Add / Remove Members",
   "close-all-tickets": "Close All Tickets",
-  "ticket-message-customization": "Ticket Message Customization",
+  "ticket-message-customization": "Post Ticket",
+  "ticket-editor": "Ticket Edit",
   "priority-flagging": "Priority Ticket Flagging",
   "auto-close-inactive": "Auto-Close Inactive Tickets",
   "anonymous-reporting": "Anonymous Reporting",
@@ -187,7 +188,7 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
     "rules",
   ],
   // Support and Utilities bases should surface every configured section in the dashboard.
-  support: [...ADDON_IDS_BY_BASE.support, "messages"],
+  support: [...ADDON_IDS_BY_BASE.support, "ticket-editor", "messages"],
   utilities: [...ADDON_IDS_BY_BASE.utilities, "messages"],
 };
 
