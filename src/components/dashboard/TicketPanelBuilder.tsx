@@ -544,27 +544,6 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
 
       {isV2 ? (
         <>
-          {/* Server + channel picker */}
-          {botId ? (
-            <GuildChannelPicker
-              botId={botId}
-              guildId={guild?.guild_id ?? null}
-              channelId={panelChannel?.channel_id ?? null}
-              onGuildChange={setGuild}
-              onChannelChange={setPanelChannel}
-              guildLabel="Server to post the panel in"
-              channelLabel={copy.channelLabel}
-            />
-          ) : (
-            <div className="space-y-2">
-              <Label>{copy.channelLabel}</Label>
-              <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-                <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <span>Server &amp; channel picker will appear here once your bot is online.</span>
-              </div>
-            </div>
-          )}
-
           <section className="space-y-4">
             <div>
               <h3 className="text-sm font-semibold text-foreground">Panel Message</h3>
@@ -587,25 +566,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
 
           {/* LEFT: all form questions */}
           <div className="space-y-6 min-w-0">
-            {botId ? (
-              <GuildChannelPicker
-                botId={botId}
-                guildId={guild?.guild_id ?? null}
-                channelId={panelChannel?.channel_id ?? null}
-                onGuildChange={setGuild}
-                onChannelChange={setPanelChannel}
-                guildLabel="Server to post the panel in"
-                channelLabel={copy.channelLabel}
-              />
-            ) : (
-              <div className="space-y-2">
-                <Label>{copy.channelLabel}</Label>
-                <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-                  <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                  <span>Server &amp; channel picker will appear here once your bot is online.</span>
-                </div>
-              </div>
-            )}
+
 
             <section className="space-y-4">
               <div>
