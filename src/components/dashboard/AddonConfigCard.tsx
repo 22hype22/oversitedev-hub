@@ -2610,13 +2610,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               </span>
             ) : <span />}
             <div className="flex gap-2">
-              {(isTicketPanel || isTicketEditor) && (
+              {isTicketPanel && (
                 <Button
                   variant="ghost"
-                  onClick={() => {
-                    if (isTicketPanel) ticketBuilderRef.current?.clear();
-                    else ticketEditorRef.current?.clear();
-                  }}
+                  onClick={() => ticketBuilderRef.current?.clear()}
                   data-readonly-allow
                 >
                   Clear
