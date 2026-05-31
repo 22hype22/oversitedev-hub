@@ -911,8 +911,8 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
   },
 
   "ticket-editor": {
-    title: "Ticket Edit",
-    summary: "View, edit, and close currently open tickets.",
+    title: "Ticket Panel Edit",
+    summary: "Edit the contents of ticket panels you've already posted.",
     icon: ClipboardList,
     fields: [],
   },
