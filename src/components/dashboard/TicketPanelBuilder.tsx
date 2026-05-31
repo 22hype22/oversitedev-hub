@@ -43,6 +43,7 @@ type Variant = "ticket" | "report";
 
 export type TicketPanelBuilderHandle = {
   save: () => Promise<boolean>;
+  clear: () => void;
 };
 
 type Props = {
