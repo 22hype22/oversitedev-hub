@@ -239,6 +239,61 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [botId]);
 
+  // Hydrate the main panel config (tickets/reports) from bot_config when in
+  // edit-in-place mode, so the builder opens pre-filled with the current panel.
+  // Skipped if the user already has a localStorage draft.
+  const [v2InitialItems, setV2InitialItems] = useState<V2Item[] | undefined>(undefined);
+  useEffect(() => {
+    if (!botId || !editTarget) return;
+    if (hydratedFromDraftRef.current) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", feature)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      if (typeof cfg.panel_title === "string") setPanelTitle(cfg.panel_title);
+      if (typeof cfg.panel_description === "string") setPanelDescription(cfg.panel_description);
+      if (typeof cfg.color === "string") setEmbedColor(cfg.color);
+      if (typeof cfg.cooldown_minutes === "number") setCooldownMinutes(cfg.cooldown_minutes);
+      if (Array.isArray(cfg.categories) && cfg.categories.length > 0) {
+        const cats: Category[] = (cfg.categories as any[]).map((c) => {
+          if (typeof c === "string") {
+            const name = c;
+            const roles = (cfg.category_roles ?? {})[name] ?? [];
+            const opening = (cfg.category_messages ?? {})[name] ?? "";
+            return { id: uid(), name, roles: roles.map(String), openingMessage: String(opening) };
+          }
+          return {
+            id: uid(),
+            name: String(c.name ?? ""),
+            roles: Array.isArray(c.roles) ? c.roles.map(String) : [],
+            openingMessage: String(c.opening_message ?? ""),
+          };
+        });
+        setCategories(cats);
+      }
+      if (cfg.channel_id) {
+        setPanelChannel({
+          channel_id: String(cfg.channel_id),
+          channel_name: String(cfg.channel_name ?? cfg.channel_id),
+          channel_type: "text",
+        } as BotChannel);
+      }
+      if (Array.isArray(cfg.ticket_panel_v2)) {
+        setV2InitialItems(cfg.ticket_panel_v2 as V2Item[]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [botId, editTarget?.channel_id, editTarget?.message_id, feature]);
+
   // ---- Channel list (used for the log-channel dropdown) ----
   const { channels: allChannels } = useBotChannels(botId, guild?.guild_id);
   const textChannels = useMemo(
