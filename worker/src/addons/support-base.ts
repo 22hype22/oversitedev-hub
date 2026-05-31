@@ -223,6 +223,7 @@ export const supportBaseAddon: Addon = {
 
         await interaction.update({ components: [row] });
         await (channel as any).send({ embeds: [new EmbedBuilder().setDescription(`🙋 ${member.toString()} has claimed this ticket.`).setColor(0x57f287)] });
+        await supabase.from("tickets").update({ claimed_by: member.id }).eq("channel_id", channel.id);
       }
 
       // Close button
@@ -233,6 +234,13 @@ export const supportBaseAddon: Addon = {
           return;
         }
         await interaction.reply({ embeds: [new EmbedBuilder().setDescription("🔒 This ticket will be deleted in 5 seconds...").setColor(0xffa500)] });
+        const closeChannelId = interaction.channel?.id;
+        if (closeChannelId) {
+          await supabase
+            .from("tickets")
+            .update({ status: "closed", closed_at: new Date().toISOString() })
+            .eq("channel_id", closeChannelId);
+        }
         setTimeout(async () => {
           await interaction.channel?.delete().catch(() => {});
         }, 5000);
