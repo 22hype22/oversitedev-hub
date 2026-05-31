@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+
 import { Plus, Trash2, Info, Ticket, Hash } from "lucide-react";
 import { GuildChannelPicker } from "./GuildChannelPicker";
 import { RoleMultiSelect } from "./RoleMultiSelect";
