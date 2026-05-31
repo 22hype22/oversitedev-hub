@@ -16,6 +16,7 @@ import {
   ChannelType,
 } from "discord.js";
 import type { Addon, AddonContext } from "./index.js";
+import { supabase } from "../supabase.js";
 
 // ── In-memory stores ──
 const ticketCategories = new Map<string, { categories: string[]; roles: Record<string, string[]> }>();
@@ -157,6 +158,20 @@ export const supportBaseAddon: Addon = {
 
         openTickets.set(ticketKey, ticketChannel.id);
 
+        // Persist the new ticket so the dashboard's "Ticket Edit" list can show it.
+        await supabase.from("tickets").insert({
+          bot_id: ctx.botId,
+          guild_id: guild.id,
+          channel_id: ticketChannel.id,
+          channel_name: (ticketChannel as any).name ?? channelName,
+          category,
+          opener_user_id: member.id,
+          opener_username: member.user.username,
+          status: "open",
+        }).then(({ error }) => {
+          if (error) void ctx.log("warn", `tickets insert failed: ${error.message}`);
+        });
+
         // Ping roles
         const pingParts = [member.toString()];
         for (const roleName of allowedRoles) {
@@ -208,6 +223,7 @@ export const supportBaseAddon: Addon = {
 
         await interaction.update({ components: [row] });
         await (channel as any).send({ embeds: [new EmbedBuilder().setDescription(`🙋 ${member.toString()} has claimed this ticket.`).setColor(0x57f287)] });
+        await supabase.from("tickets").update({ claimed_by: member.id }).eq("channel_id", channel.id);
       }
 
       // Close button
@@ -218,6 +234,13 @@ export const supportBaseAddon: Addon = {
           return;
         }
         await interaction.reply({ embeds: [new EmbedBuilder().setDescription("🔒 This ticket will be deleted in 5 seconds...").setColor(0xffa500)] });
+        const closeChannelId = interaction.channel?.id;
+        if (closeChannelId) {
+          await supabase
+            .from("tickets")
+            .update({ status: "closed", closed_at: new Date().toISOString() })
+            .eq("channel_id", closeChannelId);
+        }
         setTimeout(async () => {
           await interaction.channel?.delete().catch(() => {});
         }, 5000);
@@ -231,6 +254,13 @@ export const supportBaseAddon: Addon = {
           return;
         }
         await interaction.reply({ embeds: [new EmbedBuilder().setDescription("🗑️ Deleting...").setColor(0xed4245)] });
+        const delChannelId = interaction.channel?.id;
+        if (delChannelId) {
+          await supabase
+            .from("tickets")
+            .update({ status: "closed", closed_at: new Date().toISOString() })
+            .eq("channel_id", delChannelId);
+        }
         setTimeout(async () => {
           await interaction.channel?.delete().catch(() => {});
         }, 2000);

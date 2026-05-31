@@ -2,6 +2,7 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -9,10 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Info, Ticket } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Plus, Trash2, Info, Ticket, Hash, RefreshCw, X, Edit3 } from "lucide-react";
 import { GuildChannelPicker } from "./GuildChannelPicker";
 import { RoleMultiSelect } from "./RoleMultiSelect";
 import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
+import { useBotChannels, sortedChannelCategoryEntries } from "@/hooks/useGuildChannels";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -21,6 +24,7 @@ import {
   type TicketPanelV2BuilderHandle,
   type V2Item,
 } from "./TicketPanelV2Builder";
+
 
 type Category = {
   id: string;
@@ -126,8 +130,125 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     { id: uid(), name: "", roles: [], openingMessage: "" },
   ]);
 
-  // Intentionally do NOT hydrate from bot_config — every time the dialog
-  // opens, the form starts blank so previously-sent text doesn't reappear.
+  // ---- Ticket Logging (formerly a separate "Ticket Logs" addon) ----
+  const [logChannelId, setLogChannelId] = useState<string>("");
+  const [logTicketOpened, setLogTicketOpened] = useState<boolean>(true);
+  const [logTicketClosed, setLogTicketClosed] = useState<boolean>(true);
+  const [logTicketClaimed, setLogTicketClaimed] = useState<boolean>(true);
+  const [logIncludeAttachments, setLogIncludeAttachments] = useState<boolean>(true);
+
+  // Hydrate ticket-logs config when bot is available (separate feature row).
+  useEffect(() => {
+    if (!botId || isReport) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", "ticket-logs")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setLogChannelId(String(cfg.log_channel_id ?? ""));
+      setLogTicketOpened(cfg.log_ticket_opened !== false);
+      setLogTicketClosed(cfg.log_ticket_closed !== false);
+      setLogTicketClaimed(cfg.log_ticket_claimed !== false);
+      setLogIncludeAttachments(cfg.include_attachments !== false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [botId]);
+
+  // ---- Channel list (used for the log-channel dropdown + detecting deleted ticket channels) ----
+  const { channels: allChannels } = useBotChannels(botId, guild?.guild_id);
+  const textChannels = useMemo(
+    () =>
+      allChannels.filter(
+        (c) => c.channel_type === "text" || c.channel_type === "announcement",
+      ),
+    [allChannels],
+  );
+  const channelGroups = useMemo(
+    () => sortedChannelCategoryEntries(textChannels),
+    [textChannels],
+  );
+  const channelIdSet = useMemo(
+    () => new Set(allChannels.map((c) => c.channel_id)),
+    [allChannels],
+  );
+
+  // ---- Open tickets list ----
+  type OpenTicket = {
+    id: string;
+    channel_id: string;
+    channel_name: string;
+    category: string | null;
+    opener_username: string | null;
+    opener_user_id: string | null;
+  };
+  const [openTickets, setOpenTickets] = useState<OpenTicket[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const [deletedCount, setDeletedCount] = useState(0);
+
+  const fetchOpenTickets = async () => {
+    if (!botId || !guild?.guild_id || isReport) return;
+    setTicketsLoading(true);
+    const { data, error } = await supabase
+      .from("tickets")
+      .select("id, channel_id, channel_name, category, opener_username, opener_user_id")
+      .eq("bot_id", botId)
+      .eq("guild_id", guild.guild_id)
+      .neq("status", "closed")
+      .order("created_at", { ascending: false });
+    setTicketsLoading(false);
+    if (error) {
+      toast.error(`Could not load tickets: ${error.message}`);
+      return;
+    }
+    setOpenTickets((data ?? []) as OpenTicket[]);
+  };
+
+  useEffect(() => {
+    void fetchOpenTickets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [botId, guild?.guild_id, isReport]);
+
+  // Auto-prune tickets whose Discord channel no longer exists. Only runs once
+  // the channel cache is populated to avoid clearing on first load.
+  useEffect(() => {
+    if (openTickets.length === 0 || allChannels.length === 0) return;
+    const missing = openTickets.filter((t) => !channelIdSet.has(t.channel_id));
+    if (missing.length === 0) {
+      setDeletedCount(0);
+      return;
+    }
+    setDeletedCount(missing.length);
+    setOpenTickets((prev) => prev.filter((t) => channelIdSet.has(t.channel_id)));
+    void supabase
+      .from("tickets")
+      .update({ status: "closed", closed_at: new Date().toISOString() })
+      .in("id", missing.map((m) => m.id));
+  }, [openTickets, channelIdSet, allChannels.length]);
+
+  const closeTicketFromDashboard = async (ticket: OpenTicket) => {
+    if (!botId) return;
+    const { error } = await supabase
+      .from("tickets")
+      .update({ status: "closed", closed_at: new Date().toISOString() })
+      .eq("id", ticket.id);
+    if (error) {
+      toast.error(`Failed to close: ${error.message}`);
+      return;
+    }
+    setOpenTickets((prev) => prev.filter((t) => t.id !== ticket.id));
+    toast.success(`Ticket #${ticket.channel_name} marked closed. The bot will delete the channel shortly.`);
+  };
+
+
+
 
   const updateCategory = (id: string, patch: Partial<Category>) =>
     setCategories((prev) =>
@@ -223,6 +344,34 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         return false;
       }
 
+      // Persist the ticket-logs settings alongside the panel (ticket variant only).
+      if (!isReport) {
+        const logsPayload = {
+          bot_id: botId,
+          feature: "ticket-logs",
+          config: {
+            log_channel_id: logChannelId || null,
+            log_ticket_opened: logTicketOpened,
+            log_ticket_closed: logTicketClosed,
+            log_ticket_claimed: logTicketClaimed,
+            include_attachments: logIncludeAttachments,
+          },
+          updated_at: new Date().toISOString(),
+        };
+        const { error: logsError } = await supabase
+          .from("bot_config")
+          .upsert(logsPayload, { onConflict: "bot_id,feature" });
+        if (logsError) {
+          toast.warning(`Panel saved, but logging settings failed: ${logsError.message}`);
+        } else {
+          await supabase.rpc("enqueue_apply_config" as any, {
+            _bot_id: botId,
+            _feature: "ticket-logs",
+          });
+        }
+      }
+
+
       const { data: cmdData, error: cmdError } = await supabase.rpc(
         "enqueue_apply_config" as any,
         { _bot_id: botId, _feature: feature },
@@ -305,6 +454,164 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           )}
         </span>
       </div>
+
+      {/* ── Ticket Logging (only for the ticket variant) ─────────────────── */}
+      {!isReport && (
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Ticket Logging</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Where transcripts and event logs are posted when tickets are
+              opened, claimed, or closed.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm">Log channel</Label>
+            <label className="relative block">
+              <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <select
+                value={logChannelId}
+                onChange={(e) => setLogChannelId(e.target.value)}
+                disabled={!guild?.guild_id || textChannels.length === 0}
+                className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="">
+                  {!guild?.guild_id
+                    ? "Select a server first"
+                    : textChannels.length === 0
+                      ? "No channels cached — refresh from the panel picker"
+                      : "Select a log channel…"}
+                </option>
+                {channelGroups.map((group) => (
+                  <optgroup key={group.key} label={group.label}>
+                    {group.channels.map((c) => (
+                      <option key={c.channel_id} value={c.channel_id}>
+                        {c.channel_name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-card/40 px-3 py-2.5">
+              <span className="text-sm">Log ticket opened</span>
+              <Switch checked={logTicketOpened} onCheckedChange={setLogTicketOpened} />
+            </label>
+            <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-card/40 px-3 py-2.5">
+              <span className="text-sm">Log ticket closed</span>
+              <Switch checked={logTicketClosed} onCheckedChange={setLogTicketClosed} />
+            </label>
+            <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-card/40 px-3 py-2.5">
+              <span className="text-sm">Log ticket claimed</span>
+              <Switch checked={logTicketClaimed} onCheckedChange={setLogTicketClaimed} />
+            </label>
+            <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-card/40 px-3 py-2.5">
+              <span className="text-sm">Include attachments in transcript</span>
+              <Switch
+                checked={logIncludeAttachments}
+                onCheckedChange={setLogIncludeAttachments}
+              />
+            </label>
+          </div>
+        </section>
+      )}
+
+      {/* ── Ticket Edit (live list of currently open tickets) ────────────── */}
+      {!isReport && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Ticket Edit</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Currently open tickets for this bot. Tickets whose Discord
+                channel no longer exists are removed automatically.
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-8 px-2 text-xs gap-1.5"
+              onClick={fetchOpenTickets}
+              disabled={ticketsLoading || !guild?.guild_id}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${ticketsLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
+
+          {deletedCount > 0 && (
+            <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              Removed {deletedCount} ticket{deletedCount === 1 ? "" : "s"} whose channel was deleted in Discord.
+            </div>
+          )}
+
+          {!guild?.guild_id ? (
+            <div className="rounded-md border border-border bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
+              Select a server to view its open tickets.
+            </div>
+          ) : openTickets.length === 0 ? (
+            <div className="rounded-md border border-border bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
+              {ticketsLoading ? "Loading tickets…" : "No open tickets right now."}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {openTickets.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between gap-3 rounded-md border border-border bg-card/40 px-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-foreground truncate">
+                      #{t.channel_name}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {t.category ?? "Uncategorised"}
+                      {t.opener_username ? ` · opened by ${t.opener_username}` : ""}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5"
+                      onClick={() => {
+                        const el = document.getElementById(
+                          `ticket-categories-section`,
+                        );
+                        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        toast.info(
+                          `Edit the "${t.category ?? "—"}" category below to change its opening message.`,
+                        );
+                      }}
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 gap-1.5 text-muted-foreground hover:text-destructive"
+                      onClick={() => closeTicketFromDashboard(t)}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+
 
       {isV2 ? (
         <>
@@ -459,7 +766,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       <div className="border-t border-border" />
 
       {/* Categories */}
-      <section className="space-y-4">
+      <section id="ticket-categories-section" className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-foreground">

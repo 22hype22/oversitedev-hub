@@ -835,27 +835,6 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
-  "ticket-logs": {
-    title: "Ticket Logs",
-    summary: "Save full transcripts of every closed ticket.",
-    icon: FileText,
-    fields: [
-      channel("logChannel", "Transcript log channel"),
-      {
-        key: "format",
-        label: "Transcript format",
-        type: "select",
-        defaultValue: "html",
-        options: [
-          { value: "html", label: "HTML file" },
-          { value: "txt", label: "Plain text" },
-          { value: "embed", label: "Discord embed" },
-        ],
-      },
-      toggle("dmUser", "DM the transcript to the user", false),
-      toggle("includeAttachments", "Include attachments"),
-    ],
-  },
 
   "ticket-notes": {
     title: "Ticket Notes",
@@ -897,8 +876,8 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
   },
 
   "ticket-message-customization": {
-    title: "Ticket Message Customization",
-    summary: "Customize the panel, opening, and closing messages.",
+    title: "Ticket Settings",
+    summary: "Logging, panel customization, and live ticket management.",
     icon: MessageSquare,
     fields: [
       ...embedHeaderFields(),
