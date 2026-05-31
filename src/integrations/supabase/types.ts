@@ -2456,6 +2456,51 @@ export type Database = {
         }
         Relationships: []
       }
+      tickets: {
+        Row: {
+          bot_id: string
+          category: string | null
+          channel_id: string
+          channel_name: string
+          claimed_by: string | null
+          closed_at: string | null
+          created_at: string
+          guild_id: string
+          id: string
+          opener_user_id: string | null
+          opener_username: string | null
+          status: string
+        }
+        Insert: {
+          bot_id: string
+          category?: string | null
+          channel_id: string
+          channel_name: string
+          claimed_by?: string | null
+          closed_at?: string | null
+          created_at?: string
+          guild_id: string
+          id?: string
+          opener_user_id?: string | null
+          opener_username?: string | null
+          status?: string
+        }
+        Update: {
+          bot_id?: string
+          category?: string | null
+          channel_id?: string
+          channel_name?: string
+          claimed_by?: string | null
+          closed_at?: string | null
+          created_at?: string
+          guild_id?: string
+          id?: string
+          opener_user_id?: string | null
+          opener_username?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       user_extra_server_slots: {
         Row: {
           created_at: string
