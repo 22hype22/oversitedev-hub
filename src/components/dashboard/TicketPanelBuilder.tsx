@@ -455,6 +455,164 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         </span>
       </div>
 
+      {/* ── Ticket Logging (only for the ticket variant) ─────────────────── */}
+      {!isReport && (
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Ticket Logging</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Where transcripts and event logs are posted when tickets are
+              opened, claimed, or closed.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm">Log channel</Label>
+            <label className="relative block">
+              <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <select
+                value={logChannelId}
+                onChange={(e) => setLogChannelId(e.target.value)}
+                disabled={!guild?.guild_id || textChannels.length === 0}
+                className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="">
+                  {!guild?.guild_id
+                    ? "Select a server first"
+                    : textChannels.length === 0
+                      ? "No channels cached — refresh from the panel picker"
+                      : "Select a log channel…"}
+                </option>
+                {channelGroups.map((group) => (
+                  <optgroup key={group.key} label={group.label}>
+                    {group.channels.map((c) => (
+                      <option key={c.channel_id} value={c.channel_id}>
+                        {c.channel_name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-card/40 px-3 py-2.5">
+              <span className="text-sm">Log ticket opened</span>
+              <Switch checked={logTicketOpened} onCheckedChange={setLogTicketOpened} />
+            </label>
+            <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-card/40 px-3 py-2.5">
+              <span className="text-sm">Log ticket closed</span>
+              <Switch checked={logTicketClosed} onCheckedChange={setLogTicketClosed} />
+            </label>
+            <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-card/40 px-3 py-2.5">
+              <span className="text-sm">Log ticket claimed</span>
+              <Switch checked={logTicketClaimed} onCheckedChange={setLogTicketClaimed} />
+            </label>
+            <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-card/40 px-3 py-2.5">
+              <span className="text-sm">Include attachments in transcript</span>
+              <Switch
+                checked={logIncludeAttachments}
+                onCheckedChange={setLogIncludeAttachments}
+              />
+            </label>
+          </div>
+        </section>
+      )}
+
+      {/* ── Ticket Edit (live list of currently open tickets) ────────────── */}
+      {!isReport && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Ticket Edit</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Currently open tickets for this bot. Tickets whose Discord
+                channel no longer exists are removed automatically.
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-8 px-2 text-xs gap-1.5"
+              onClick={fetchOpenTickets}
+              disabled={ticketsLoading || !guild?.guild_id}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${ticketsLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
+
+          {deletedCount > 0 && (
+            <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              Removed {deletedCount} ticket{deletedCount === 1 ? "" : "s"} whose channel was deleted in Discord.
+            </div>
+          )}
+
+          {!guild?.guild_id ? (
+            <div className="rounded-md border border-border bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
+              Select a server to view its open tickets.
+            </div>
+          ) : openTickets.length === 0 ? (
+            <div className="rounded-md border border-border bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
+              {ticketsLoading ? "Loading tickets…" : "No open tickets right now."}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {openTickets.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between gap-3 rounded-md border border-border bg-card/40 px-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-foreground truncate">
+                      #{t.channel_name}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {t.category ?? "Uncategorised"}
+                      {t.opener_username ? ` · opened by ${t.opener_username}` : ""}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5"
+                      onClick={() => {
+                        const el = document.getElementById(
+                          `ticket-categories-section`,
+                        );
+                        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        toast.info(
+                          `Edit the "${t.category ?? "—"}" category below to change its opening message.`,
+                        );
+                      }}
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 gap-1.5 text-muted-foreground hover:text-destructive"
+                      onClick={() => closeTicketFromDashboard(t)}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+
+
       {isV2 ? (
         <>
           {/* Server + channel picker */}
