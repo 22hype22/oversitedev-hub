@@ -16,6 +16,7 @@ import {
   ChannelType,
 } from "discord.js";
 import type { Addon, AddonContext } from "./index.js";
+import { supabase } from "../supabase.js";
 
 // ── In-memory stores ──
 const ticketCategories = new Map<string, { categories: string[]; roles: Record<string, string[]> }>();
