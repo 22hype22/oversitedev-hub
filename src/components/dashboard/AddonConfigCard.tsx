@@ -2652,6 +2652,16 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     }
                     return;
                   }
+                  if (isTicketEditor) {
+                    setSaving(true);
+                    try {
+                      const ok = await ticketEditorRef.current?.save();
+                      if (ok) setOpen(false);
+                    } finally {
+                      setSaving(false);
+                    }
+                    return;
+                  }
                   if (isVerification) {
                     void saveVerification();
                   } else if (isAdvancedLogging) {
