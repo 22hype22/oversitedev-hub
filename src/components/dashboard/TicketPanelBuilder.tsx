@@ -162,9 +162,92 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [botId]);
 
-  // Intentionally do NOT hydrate the panel form from bot_config — every time
-  // the dialog opens, the panel/categories start blank so previously-sent
-  // text doesn't reappear.
+  // ---- Channel list (used for the log-channel dropdown + detecting deleted ticket channels) ----
+  const { channels: allChannels } = useBotChannels(botId, guild?.guild_id);
+  const textChannels = useMemo(
+    () =>
+      allChannels.filter(
+        (c) => c.channel_type === "text" || c.channel_type === "announcement",
+      ),
+    [allChannels],
+  );
+  const channelGroups = useMemo(
+    () => sortedChannelCategoryEntries(textChannels),
+    [textChannels],
+  );
+  const channelIdSet = useMemo(
+    () => new Set(allChannels.map((c) => c.channel_id)),
+    [allChannels],
+  );
+
+  // ---- Open tickets list ----
+  type OpenTicket = {
+    id: string;
+    channel_id: string;
+    channel_name: string;
+    category: string | null;
+    opener_username: string | null;
+    opener_user_id: string | null;
+  };
+  const [openTickets, setOpenTickets] = useState<OpenTicket[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const [deletedCount, setDeletedCount] = useState(0);
+
+  const fetchOpenTickets = async () => {
+    if (!botId || !guild?.guild_id || isReport) return;
+    setTicketsLoading(true);
+    const { data, error } = await supabase
+      .from("tickets")
+      .select("id, channel_id, channel_name, category, opener_username, opener_user_id")
+      .eq("bot_id", botId)
+      .eq("guild_id", guild.guild_id)
+      .neq("status", "closed")
+      .order("created_at", { ascending: false });
+    setTicketsLoading(false);
+    if (error) {
+      toast.error(`Could not load tickets: ${error.message}`);
+      return;
+    }
+    setOpenTickets((data ?? []) as OpenTicket[]);
+  };
+
+  useEffect(() => {
+    void fetchOpenTickets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [botId, guild?.guild_id, isReport]);
+
+  // Auto-prune tickets whose Discord channel no longer exists. Only runs once
+  // the channel cache is populated to avoid clearing on first load.
+  useEffect(() => {
+    if (openTickets.length === 0 || allChannels.length === 0) return;
+    const missing = openTickets.filter((t) => !channelIdSet.has(t.channel_id));
+    if (missing.length === 0) {
+      setDeletedCount(0);
+      return;
+    }
+    setDeletedCount(missing.length);
+    setOpenTickets((prev) => prev.filter((t) => channelIdSet.has(t.channel_id)));
+    void supabase
+      .from("tickets")
+      .update({ status: "closed", closed_at: new Date().toISOString() })
+      .in("id", missing.map((m) => m.id));
+  }, [openTickets, channelIdSet, allChannels.length]);
+
+  const closeTicketFromDashboard = async (ticket: OpenTicket) => {
+    if (!botId) return;
+    const { error } = await supabase
+      .from("tickets")
+      .update({ status: "closed", closed_at: new Date().toISOString() })
+      .eq("id", ticket.id);
+    if (error) {
+      toast.error(`Failed to close: ${error.message}`);
+      return;
+    }
+    setOpenTickets((prev) => prev.filter((t) => t.id !== ticket.id));
+    toast.success(`Ticket #${ticket.channel_name} marked closed. The bot will delete the channel shortly.`);
+  };
+
+
 
 
   const updateCategory = (id: string, patch: Partial<Category>) =>
