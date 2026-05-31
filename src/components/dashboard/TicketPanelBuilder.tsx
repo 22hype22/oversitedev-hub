@@ -401,7 +401,18 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           isReport ? "Report panel saved & applied" : "Ticket panel saved & applied",
         );
       }
+      // Clear draft on successful save.
+      if (draftKey) {
+        try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+      }
       return true;
+    },
+    clear: () => {
+      resetToDefaults();
+      if (draftKey) {
+        try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+      }
+      toast.info("Form reset");
     },
   }));
 
