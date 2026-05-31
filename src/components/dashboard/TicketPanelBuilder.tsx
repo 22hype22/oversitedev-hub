@@ -130,8 +130,42 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     { id: uid(), name: "", roles: [], openingMessage: "" },
   ]);
 
-  // Intentionally do NOT hydrate from bot_config — every time the dialog
-  // opens, the form starts blank so previously-sent text doesn't reappear.
+  // ---- Ticket Logging (formerly a separate "Ticket Logs" addon) ----
+  const [logChannelId, setLogChannelId] = useState<string>("");
+  const [logTicketOpened, setLogTicketOpened] = useState<boolean>(true);
+  const [logTicketClosed, setLogTicketClosed] = useState<boolean>(true);
+  const [logTicketClaimed, setLogTicketClaimed] = useState<boolean>(true);
+  const [logIncludeAttachments, setLogIncludeAttachments] = useState<boolean>(true);
+
+  // Hydrate ticket-logs config when bot is available (separate feature row).
+  useEffect(() => {
+    if (!botId || isReport) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", "ticket-logs")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setLogChannelId(String(cfg.log_channel_id ?? ""));
+      setLogTicketOpened(cfg.log_ticket_opened !== false);
+      setLogTicketClosed(cfg.log_ticket_closed !== false);
+      setLogTicketClaimed(cfg.log_ticket_claimed !== false);
+      setLogIncludeAttachments(cfg.include_attachments !== false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [botId]);
+
+  // Intentionally do NOT hydrate the panel form from bot_config — every time
+  // the dialog opens, the panel/categories start blank so previously-sent
+  // text doesn't reappear.
+
 
   const updateCategory = (id: string, patch: Partial<Category>) =>
     setCategories((prev) =>
