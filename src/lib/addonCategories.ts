@@ -33,7 +33,7 @@ export const PROTECTION_ADDON_IDS = [
 export const SUPPORT_ADDON_IDS = [
   "ticket-message-customization",
   "staff-performance",
-  "ticket-logs",
+  
   "ticket-notes",
   "ticket-add-remove",
   "close-all-tickets",
