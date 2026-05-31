@@ -254,6 +254,13 @@ export const supportBaseAddon: Addon = {
           return;
         }
         await interaction.reply({ embeds: [new EmbedBuilder().setDescription("🗑️ Deleting...").setColor(0xed4245)] });
+        const delChannelId = interaction.channel?.id;
+        if (delChannelId) {
+          await supabase
+            .from("tickets")
+            .update({ status: "closed", closed_at: new Date().toISOString() })
+            .eq("channel_id", delChannelId);
+        }
         setTimeout(async () => {
           await interaction.channel?.delete().catch(() => {});
         }, 2000);
