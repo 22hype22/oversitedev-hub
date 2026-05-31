@@ -479,70 +479,63 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         </span>
       </div>
 
-      {/* ── Ticket Logging (only for the ticket variant) ─────────────────── */}
-      {!isReport && (
-        <section className="space-y-4">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Ticket Logging</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Where transcripts and event logs are posted when tickets are
-              opened, claimed, or closed.
-            </p>
+      {/* ── Server + Panel channel (shared across V1/V2) ───────────────── */}
+      {botId ? (
+        <GuildChannelPicker
+          botId={botId}
+          guildId={guild?.guild_id ?? null}
+          channelId={panelChannel?.channel_id ?? null}
+          onGuildChange={setGuild}
+          onChannelChange={setPanelChannel}
+          guildLabel="Server to post the panel in"
+          channelLabel={copy.channelLabel}
+        />
+      ) : (
+        <div className="space-y-2">
+          <Label>{copy.channelLabel}</Label>
+          <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>Server &amp; channel picker will appear here once your bot is online.</span>
           </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm">Log channel</Label>
-            <label className="relative block">
-              <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <select
-                value={logChannelId}
-                onChange={(e) => setLogChannelId(e.target.value)}
-                disabled={!guild?.guild_id || textChannels.length === 0}
-                className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option value="">
-                  {!guild?.guild_id
-                    ? "Select a server first"
-                    : textChannels.length === 0
-                      ? "No channels cached — refresh from the panel picker"
-                      : "Select a log channel…"}
-                </option>
-                {channelGroups.map((group) => (
-                  <optgroup key={group.key} label={group.label}>
-                    {group.channels.map((c) => (
-                      <option key={c.channel_id} value={c.channel_id}>
-                        {c.channel_name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-card/40 px-3 py-2.5">
-              <span className="text-sm">Log ticket opened</span>
-              <Switch checked={logTicketOpened} onCheckedChange={setLogTicketOpened} />
-            </label>
-            <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-card/40 px-3 py-2.5">
-              <span className="text-sm">Log ticket closed</span>
-              <Switch checked={logTicketClosed} onCheckedChange={setLogTicketClosed} />
-            </label>
-            <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-card/40 px-3 py-2.5">
-              <span className="text-sm">Log ticket claimed</span>
-              <Switch checked={logTicketClaimed} onCheckedChange={setLogTicketClaimed} />
-            </label>
-            <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-card/40 px-3 py-2.5">
-              <span className="text-sm">Include attachments in transcript</span>
-              <Switch
-                checked={logIncludeAttachments}
-                onCheckedChange={setLogIncludeAttachments}
-              />
-            </label>
-          </div>
-        </section>
+        </div>
       )}
+
+      {/* ── Channel log (ticket variant only) ──────────────────────────── */}
+      {!isReport && (
+        <div className="space-y-2">
+          <Label className="text-sm">Channel log</Label>
+          <p className="text-xs text-muted-foreground">
+            Where transcripts and event logs are posted when tickets are opened, claimed, or closed.
+          </p>
+          <label className="relative block">
+            <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <select
+              value={logChannelId}
+              onChange={(e) => setLogChannelId(e.target.value)}
+              disabled={!guild?.guild_id || textChannels.length === 0}
+              className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">
+                {!guild?.guild_id
+                  ? "Select a server first"
+                  : textChannels.length === 0
+                    ? "No channels cached — refresh from the panel picker"
+                    : "Select a log channel…"}
+              </option>
+              {channelGroups.map((group) => (
+                <optgroup key={group.key} label={group.label}>
+                  {group.channels.map((c) => (
+                    <option key={c.channel_id} value={c.channel_id}>
+                      {c.channel_name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+
 
 
 
