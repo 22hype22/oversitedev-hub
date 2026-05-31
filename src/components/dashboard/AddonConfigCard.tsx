@@ -2610,6 +2610,18 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               </span>
             ) : <span />}
             <div className="flex gap-2">
+              {(isTicketPanel || isTicketEditor) && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    if (isTicketPanel) ticketBuilderRef.current?.clear();
+                    else ticketEditorRef.current?.clear();
+                  }}
+                  data-readonly-allow
+                >
+                  Clear
+                </Button>
+              )}
               <Button variant="outline" onClick={() => setOpen(false)} data-readonly-allow>
                 Cancel
               </Button>
