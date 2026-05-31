@@ -108,7 +108,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isChannelLockdown = addonId === "channel-lockdown";
   const isBanTools = addonId === "ban-tools";
   const isStaffPerformance = addonId === "staff-performance";
-  const isTicketLogs = addonId === "ticket-logs";
+  
   const isTicketNotes = addonId === "ticket-notes";
   const isTicketMembers = addonId === "ticket-add-remove";
   const isCloseAll = addonId === "close-all-tickets";
