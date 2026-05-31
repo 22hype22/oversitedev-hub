@@ -47,6 +47,7 @@ import { getAddonLabel } from "@/lib/botCatalog";
 import { SayCommandBuilder, type SayCommandBuilderHandle } from "./SayCommandBuilder";
 import { MessagesV2Builder, type MessagesV2BuilderHandle } from "./MessagesV2Builder";
 import { TicketPanelBuilder, type TicketPanelBuilderHandle } from "./TicketPanelBuilder";
+import { TicketEditor, type TicketEditorHandle } from "./TicketEditor";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildChannels";
 import { useBotRoles } from "@/hooks/useBotRoles";
@@ -90,6 +91,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isSayCommand = addonId === "messages";
   const isRules = addonId === "rules";
   const isTicketPanel = addonId === "ticket-message-customization";
+  const isTicketEditor = addonId === "ticket-editor";
   // removed: anonymous-reporting card discontinued
   const isVerification = addonId === "verification-system";
   const isAdvancedLogging = addonId === "advanced-logging";
@@ -124,6 +126,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
+  const ticketEditorRef = useRef<TicketEditorHandle>(null);
 
   const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
   useEffect(() => {
@@ -2511,6 +2514,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               engineVersion={engineVersion}
             />
 
+          ) : isTicketEditor ? (
+            <TicketEditor ref={ticketEditorRef} botId={botId} />
+
           ) : isChannelLockdown ? (
             <div className="space-y-5 py-2">
               {config.fields.map((f) => (
@@ -2604,6 +2610,18 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               </span>
             ) : <span />}
             <div className="flex gap-2">
+              {(isTicketPanel || isTicketEditor) && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    if (isTicketPanel) ticketBuilderRef.current?.clear();
+                    else ticketEditorRef.current?.clear();
+                  }}
+                  data-readonly-allow
+                >
+                  Clear
+                </Button>
+              )}
               <Button variant="outline" onClick={() => setOpen(false)} data-readonly-allow>
                 Cancel
               </Button>
@@ -2628,6 +2646,16 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     setSaving(true);
                     try {
                       const ok = await ticketBuilderRef.current?.save();
+                      if (ok) setOpen(false);
+                    } finally {
+                      setSaving(false);
+                    }
+                    return;
+                  }
+                  if (isTicketEditor) {
+                    setSaving(true);
+                    try {
+                      const ok = await ticketEditorRef.current?.save();
                       if (ok) setOpen(false);
                     } finally {
                       setSaving(false);

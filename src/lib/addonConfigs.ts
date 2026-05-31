@@ -877,7 +877,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "ticket-message-customization": {
     title: "Ticket Settings",
-    summary: "Logging, panel customization, and live ticket management.",
+    summary: "Panel channel, panel message, categories, and logging.",
     icon: MessageSquare,
     fields: [
       ...embedHeaderFields(),
@@ -908,6 +908,13 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       { key: "embedColor", label: "Embed accent color (hex)", type: "text", placeholder: "#5865F2" },
       ...embedFooterFields(),
     ],
+  },
+
+  "ticket-editor": {
+    title: "Ticket Editor",
+    summary: "View, edit, and close currently open tickets.",
+    icon: ClipboardList,
+    fields: [],
   },
 
   "priority-flagging": {
