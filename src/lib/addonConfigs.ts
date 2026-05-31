@@ -876,7 +876,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
   },
 
   "ticket-message-customization": {
-    title: "Ticket Settings",
+    title: "Post Ticket",
     summary: "Panel channel, panel message, categories, and logging.",
     icon: MessageSquare,
     fields: [
@@ -911,11 +911,12 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
   },
 
   "ticket-editor": {
-    title: "Ticket Editor",
+    title: "Ticket Edit",
     summary: "View, edit, and close currently open tickets.",
     icon: ClipboardList,
     fields: [],
   },
+
 
   "priority-flagging": {
     title: "Priority Ticket Flagging",
