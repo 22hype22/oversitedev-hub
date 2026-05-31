@@ -2515,7 +2515,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
             />
 
           ) : isTicketEditor ? (
-            <TicketEditor ref={ticketEditorRef} botId={botId} />
+            <TicketEditor
+              ref={ticketEditorRef}
+              botId={botId}
+              botName={botName}
+              botAvatarUrl={botAvatarUrl}
+              engineVersion={engineVersion}
+            />
+
+
 
           ) : isChannelLockdown ? (
             <div className="space-y-5 py-2">
