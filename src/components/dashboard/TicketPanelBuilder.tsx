@@ -409,7 +409,18 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         updated_at: new Date().toISOString(),
       };
 
-
+      // Debug: log exact payload being saved to bot_config so we can verify
+      // channel_id and categories are present in the config object.
+      console.log("[TicketPanelBuilder] Saving bot_config payload:", payload);
+      console.log("[TicketPanelBuilder] config.channel_id:", payload.config.channel_id);
+      console.log("[TicketPanelBuilder] config.categories:", payload.config.categories);
+      console.log("[TicketPanelBuilder] panelChannel state:", panelChannel);
+      if (!payload.config.channel_id) {
+        console.warn("[TicketPanelBuilder] channel_id is MISSING — no panel channel selected.");
+      }
+      if (!payload.config.categories || (Array.isArray(payload.config.categories) && payload.config.categories.length === 0)) {
+        console.warn("[TicketPanelBuilder] categories is MISSING or empty.");
+      }
 
       const { error } = await supabase
         .from("bot_config")
