@@ -910,6 +910,13 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "ticket-editor": {
+    title: "Ticket Editor",
+    summary: "View, edit, and close currently open tickets.",
+    icon: ClipboardList,
+    fields: [],
+  },
+
   "priority-flagging": {
     title: "Priority Ticket Flagging",
     summary: "Mark tickets as low / normal / high / urgent.",
