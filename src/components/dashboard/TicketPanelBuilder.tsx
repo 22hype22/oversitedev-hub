@@ -766,7 +766,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       <div className="border-t border-border" />
 
       {/* Categories */}
-      <section className="space-y-4">
+      <section id="ticket-categories-section" className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-foreground">
