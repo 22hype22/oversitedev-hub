@@ -182,6 +182,14 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         return false;
       }
 
+      const categoryNames = cleanedCategories.map((c) => c.name);
+      const categoryMessages: Record<string, string> = {};
+      const categoryRoles: Record<string, string[]> = {};
+      for (const c of cleanedCategories) {
+        categoryMessages[c.name] = c.opening_message;
+        categoryRoles[c.name] = c.roles;
+      }
+
       const payload = {
         bot_id: botId,
         feature,
@@ -196,8 +204,11 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           panel_description: isV2 ? null : panelDescription.trim(),
           color: embedColor,
           cooldown_minutes: isReport ? cooldownMinutes : null,
-          categories: cleanedCategories,
-          ticket_panel_v2: isV2 ? v2Items : null, components_v2: null,
+          categories: isV2 ? categoryNames : cleanedCategories,
+          category_messages: isV2 ? categoryMessages : null,
+          category_roles: isV2 ? categoryRoles : null,
+          ticket_panel_v2: isV2 ? v2Items : null,
+          components_v2: null,
         },
         updated_at: new Date().toISOString(),
       };
