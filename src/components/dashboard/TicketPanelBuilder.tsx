@@ -52,6 +52,13 @@ type Props = {
   botAvatarUrl?: string | null;
   variant?: Variant;
   engineVersion?: "v1" | "v2";
+  /**
+   * When provided, saving will additionally enqueue an `edit_ticket_panel`
+   * bot command targeting this Discord message so the worker can edit the
+   * existing panel in-place instead of (only) reapplying config. Used by
+   * the "Ticket Panel Edit" card.
+   */
+  editTarget?: { channel_id: string; message_id: string } | null;
 };
 
 
@@ -100,7 +107,7 @@ const COPY: Record<Variant, {
 };
 export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   function TicketPanelBuilder(
-    { botId, botName, botAvatarUrl, variant = "ticket", engineVersion = "v1" },
+    { botId, botName, botAvatarUrl, variant = "ticket", engineVersion = "v1", editTarget = null },
     ref,
   ) {
   const copy = COPY[variant];
