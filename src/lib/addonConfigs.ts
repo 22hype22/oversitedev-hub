@@ -876,8 +876,8 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
   },
 
   "ticket-message-customization": {
-    title: "Ticket Message Customization",
-    summary: "Customize the panel, opening, and closing messages.",
+    title: "Ticket Settings",
+    summary: "Logging, panel customization, and live ticket management.",
     icon: MessageSquare,
     fields: [
       ...embedHeaderFields(),
