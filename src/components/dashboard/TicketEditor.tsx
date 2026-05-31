@@ -168,7 +168,7 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
           if (!patch || (patch.category == null && patch.channel_name == null)) {
             continue;
           }
-          const update: Record<string, unknown> = {};
+          const update: { category?: string; channel_name?: string } = {};
           if (patch.category != null) update.category = patch.category;
           if (patch.channel_name != null) update.channel_name = patch.channel_name;
           const { error } = await supabase
