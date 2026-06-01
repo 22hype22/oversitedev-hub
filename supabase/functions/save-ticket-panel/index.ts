@@ -90,9 +90,10 @@ Deno.serve(async (req) => {
         channel_name: body.channel_name ?? null,
         posted_at: new Date().toISOString(),
       };
-      // Replace any existing panel for the same channel, then append the new one.
+      // Replace any existing panel with the same message_id, then append the new one.
+      // Dedupe by message_id (not channel_id) so multiple panels can coexist in one channel.
       nextGuildPanels = [
-        ...guildPanels.filter((p) => p && p.channel_id !== body.channel_id),
+        ...guildPanels.filter((p) => p && p.message_id !== body.message_id),
         entry,
       ];
     }
