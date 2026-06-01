@@ -19,14 +19,12 @@ import { Edit3, Hash, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
-import { useBotChannels } from "@/hooks/useGuildChannels";
 import {
   TicketPanelBuilder,
   type TicketPanelBuilderHandle,
 } from "./TicketPanelBuilder";
 
 export type TicketEditorHandle = {
-  /** No-op — editing is performed in the nested edit dialog. */
   save: () => Promise<boolean>;
   clear: () => void;
 };
@@ -59,6 +57,31 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
     const innerBuilderRef = useRef<TicketPanelBuilderHandle>(null);
     const [savingEdit, setSavingEdit] = useState(false);
 
+    // Fetch fresh Discord channel list for cleanup cross-reference. Returns
+    // a Set of currently-existing channel_ids, or null if the lookup failed
+    // (in which case we skip cleanup rather than mass-delete by mistake).
+    const fetchLiveChannelIds = useCallback(async (): Promise<Set<string> | null> => {
+      if (!botId || !guildId) return null;
+      try {
+        const { data, error } = await supabase.functions.invoke("bot-list-channels", {
+          body: { bot_id: botId, guild_id: guildId },
+        });
+        if (error || !data?.ok) {
+          console.warn("[TicketEditor] bot-list-channels failed, skipping cleanup", error ?? data);
+          return null;
+        }
+        const { data: rows } = await supabase
+          .from("bot_channel_cache")
+          .select("channel_id")
+          .eq("bot_id", botId)
+          .eq("guild_id", guildId);
+        return new Set((rows ?? []).map((r) => String(r.channel_id)));
+      } catch (e) {
+        console.warn("[TicketEditor] bot-list-channels threw", e);
+        return null;
+      }
+    }, [botId, guildId]);
+
     const fetchPanels = useCallback(async () => {
       if (!botId) return;
       setLoading(true);
@@ -68,8 +91,8 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
         .eq("bot_id", botId)
         .eq("feature", "ticket-panels")
         .maybeSingle();
-      setLoading(false);
       if (error) {
+        setLoading(false);
         toast.error(`Could not load ticket panels: ${error.message}`);
         return;
       }
@@ -81,7 +104,7 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
       } else if (guildId && Array.isArray(postedPanels[guildId])) {
         raw = postedPanels[guildId];
       }
-      const cleaned: PostedPanel[] = raw
+      let cleaned: PostedPanel[] = raw
         .filter((p: any) => p && p.channel_id && p.message_id)
         .map((p: any) => ({
           channel_id: String(p.channel_id),
@@ -89,27 +112,70 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
           channel_name: p.channel_name ? String(p.channel_name) : undefined,
           posted_at: p.posted_at ? String(p.posted_at) : undefined,
         }));
-      setPanels(cleaned);
-    }, [botId, guildId]);
 
-    const { channels: allChannels } = useBotChannels(botId, guildId ?? undefined);
-    const channelById = useMemo(() => {
-      const m = new Map<string, string>();
-      for (const c of allChannels) m.set(c.channel_id, c.channel_name);
-      return m;
-    }, [allChannels]);
+      // Auto-cleanup: cross-reference against fresh Discord channel list.
+      const live = await fetchLiveChannelIds();
+      if (live && guildId) {
+        const stale = cleaned.filter((p) => !live.has(p.channel_id));
+        if (stale.length > 0) {
+          console.log(
+            `[TicketEditor] Pruning ${stale.length} panel(s) for deleted channels:`,
+            stale.map((p) => `${p.channel_id} (msg ${p.message_id})`),
+          );
+          await Promise.all(
+            stale.map((p) =>
+              supabase.functions
+                .invoke("save-ticket-panel", {
+                  body: {
+                    bot_id: botId,
+                    guild_id: guildId,
+                    channel_id: p.channel_id,
+                    message_id: p.message_id,
+                    delete: true,
+                  },
+                })
+                .then(({ error: e }) => {
+                  if (e) console.warn("[TicketEditor] prune failed", p, e);
+                  else console.log("[TicketEditor] pruned panel", p);
+                }),
+            ),
+          );
+          cleaned = cleaned.filter((p) => live.has(p.channel_id));
+        }
+      }
+
+      setPanels(cleaned);
+      setLoading(false);
+    }, [botId, guildId, fetchLiveChannelIds]);
+
+    // Map channel_id -> channel_name from the cache (refreshed by cleanup).
+    const [channelNames, setChannelNames] = useState<Map<string, string>>(new Map());
+    useEffect(() => {
+      if (!botId || !guildId) return;
+      let cancelled = false;
+      void supabase
+        .from("bot_channel_cache")
+        .select("channel_id, channel_name")
+        .eq("bot_id", botId)
+        .eq("guild_id", guildId)
+        .then(({ data }) => {
+          if (cancelled || !data) return;
+          const m = new Map<string, string>();
+          for (const c of data) m.set(String(c.channel_id), String(c.channel_name));
+          setChannelNames(m);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [botId, guildId, panels]);
 
     useEffect(() => {
       void fetchPanels();
     }, [fetchPanels]);
 
-    const visiblePanels = panels;
-
     useImperativeHandle(ref, () => ({
       save: async () => true,
-      clear: () => {
-        /* nothing to clear here — drafts live in the inner edit dialog */
-      },
+      clear: () => {},
     }));
 
     return (
@@ -137,7 +203,7 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
           <div className="rounded-md border border-border bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
             Select a server to view its posted ticket panels.
           </div>
-        ) : visiblePanels.length === 0 ? (
+        ) : panels.length === 0 ? (
           <div className="rounded-md border border-border bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
             {loading
               ? "Loading panels…"
@@ -145,8 +211,8 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
           </div>
         ) : (
           <div className="space-y-2">
-            {visiblePanels.map((p) => {
-              const name = p.channel_name ?? channelById.get(p.channel_id) ?? p.channel_id;
+            {panels.map((p) => {
+              const name = channelNames.get(p.channel_id) ?? p.channel_name ?? p.channel_id;
               return (
                 <div
                   key={`${p.channel_id}:${p.message_id}`}
@@ -189,7 +255,9 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
                 Edit ticket panel
                 {editing
                   ? ` · #${
-                      editing.channel_name ?? channelById.get(editing.channel_id) ?? editing.channel_id
+                      channelNames.get(editing.channel_id) ??
+                      editing.channel_name ??
+                      editing.channel_id
                     }`
                   : ""}
               </DialogTitle>
@@ -209,25 +277,37 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
               />
             )}
             <DialogFooter className="gap-2">
-              <Button
-                variant="ghost"
-                onClick={() => innerBuilderRef.current?.clear()}
-              >
-                Clear
-              </Button>
               <Button variant="outline" onClick={() => setEditing(null)}>
                 Cancel
               </Button>
               <Button
                 disabled={savingEdit}
                 onClick={async () => {
+                  if (!editing || !botId || !guildId) return;
                   setSavingEdit(true);
                   try {
                     const ok = await innerBuilderRef.current?.save();
-                    if (ok) {
-                      setEditing(null);
-                      await fetchPanels();
+                    if (!ok) return;
+                    // Refresh the posted_panels entry (updates posted_at /
+                    // channel_name) via the edge function.
+                    const liveName = channelNames.get(editing.channel_id);
+                    const { error: spErr } = await supabase.functions.invoke(
+                      "save-ticket-panel",
+                      {
+                        body: {
+                          bot_id: botId,
+                          guild_id: guildId,
+                          channel_id: editing.channel_id,
+                          message_id: editing.message_id,
+                          channel_name: liveName ?? editing.channel_name ?? null,
+                        },
+                      },
+                    );
+                    if (spErr) {
+                      console.warn("[TicketEditor] save-ticket-panel refresh failed", spErr);
                     }
+                    setEditing(null);
+                    await fetchPanels();
                   } finally {
                     setSavingEdit(false);
                   }
