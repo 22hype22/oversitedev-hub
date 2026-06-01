@@ -227,6 +227,17 @@ export const TicketPanelV2Builder = forwardRef<
         ],
   );
 
+  // Notify parent of items changes (skip the very first synchronous emission to
+  // avoid clobbering parent-side hydrated state with the empty default).
+  const firstItemsEmit = useRef(true);
+  useEffect(() => {
+    if (firstItemsEmit.current) {
+      firstItemsEmit.current = false;
+      return;
+    }
+    onItemsChange?.(items);
+  }, [items, onItemsChange]);
+
   const addItem = (_type: V2Item["type"]) =>
     setItems((prev) => [...prev, newItem("container")]);
 
