@@ -7,6 +7,8 @@ interface Payload {
   message_id: string;
   channel_id: string;
   channel_name?: string;
+  /** When true, remove this panel from posted_panels[guild_id] instead of upserting. */
+  delete?: boolean;
 }
 
 function isStr(v: unknown): v is string {
