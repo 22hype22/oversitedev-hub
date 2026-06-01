@@ -732,15 +732,23 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
                 What members see when they open the panel.
               </p>
             </div>
-            <TicketPanelV2Builder
-              ref={v2Ref}
-              embedded
-              botId={botId}
-              botName={botName}
-              botAvatarUrl={botAvatarUrl}
-              categoryNames={categories.map((c) => c.name.trim()).filter((n) => n.length > 0)}
-              initialItems={v2InitialItems}
-            />
+            {hydrated ? (
+              <TicketPanelV2Builder
+                key={v2BuilderKey}
+                ref={v2Ref}
+                embedded
+                botId={botId}
+                botName={botName}
+                botAvatarUrl={botAvatarUrl}
+                categoryNames={categories.map((c) => c.name.trim()).filter((n) => n.length > 0)}
+                initialItems={v2Items ?? undefined}
+                onItemsChange={setV2Items}
+              />
+            ) : (
+              <div className="rounded-md border border-border bg-muted/30 px-3 py-6 text-xs text-muted-foreground text-center">
+                Loading panel…
+              </div>
+            )}
           </section>
         </>
       ) : (
