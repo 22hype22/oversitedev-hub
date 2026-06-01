@@ -429,7 +429,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         if (!ownerId || !requesterId) {
           toast.warning("Saved, but could not enqueue panel edit (auth context missing).");
         } else {
-          const { error: cmdInsertErr } = await supabase.from("bot_commands").insert({
+          const commandPayload = {
             bot_id: botId,
             user_id: ownerId,
             requested_by: requesterId,
@@ -439,7 +439,9 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
               message_id: editTarget.message_id,
               config: payload.config,
             },
-          });
+          };
+          console.log("[TicketPanelBuilder] Enqueuing bot_commands:", commandPayload);
+          const { error: cmdInsertErr } = await supabase.from("bot_commands").insert(commandPayload);
           if (cmdInsertErr) {
             toast.warning(`Saved, but failed to queue panel edit: ${cmdInsertErr.message}`);
           } else {
