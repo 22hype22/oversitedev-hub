@@ -582,10 +582,25 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           );
         }
       }
-      // Clear draft on successful save.
+      // Clear draft on successful save & refresh baseline so a subsequent
+      // Clear reverts to the just-saved state.
       if (draftKey) {
         try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
       }
+      baselineRef.current = {
+        panelTitle,
+        panelDescription,
+        embedColor,
+        cooldownMinutes,
+        categories,
+        panelChannel,
+        v2Items: isV2 ? (v2Items ?? (v2Ref.current?.getItems() ?? null)) : null,
+        logChannelId,
+        logTicketOpened,
+        logTicketClosed,
+        logTicketClaimed,
+        logIncludeAttachments,
+      };
       return true;
     },
     clear: () => {
