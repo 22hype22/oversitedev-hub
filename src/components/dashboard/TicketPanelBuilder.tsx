@@ -161,6 +161,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   // Set to true once we've finished loading both DB + draft, so the V2 builder
   // can mount with the correct initialItems.
   const [hydrated, setHydrated] = useState(false);
+  const savingResetRef = useRef(false);
   // Snapshot of the last DB-saved state, so the Clear button can restore it.
   const baselineRef = useRef<{
     panelTitle: string;
@@ -359,6 +360,11 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         }) === JSON.stringify(data)
       : false;
     try {
+      if (savingResetRef.current) {
+        localStorage.removeItem(draftKey);
+        if (matchesBaseline) savingResetRef.current = false;
+        return;
+      }
       if (matchesBaseline) {
         localStorage.removeItem(draftKey);
       } else {
