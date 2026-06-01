@@ -431,9 +431,9 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
             requested_by: requesterId,
             action: "edit_ticket_panel",
             payload: {
-              feature,
               channel_id: editTarget.channel_id,
               message_id: editTarget.message_id,
+              config: payload.config,
             },
           });
           if (cmdInsertErr) {
