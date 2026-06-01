@@ -44,6 +44,18 @@ type Variant = "ticket" | "report";
 export type TicketPanelBuilderHandle = {
   save: () => Promise<boolean>;
   clear: () => void;
+  /**
+   * Validate the form and return the exact `bot_config` payload that would
+   * be persisted (without actually writing to the DB or enqueueing anything).
+   * Returns null if validation fails. Used by the Ticket Panel Edit dialog
+   * so it can run its own self-contained save + edit_ticket_panel enqueue.
+   */
+  buildPayload: () => {
+    bot_id: string;
+    feature: string;
+    config: Record<string, any>;
+    updated_at: string;
+  } | null;
 };
 
 type Props = {
@@ -292,87 +304,89 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       prev.length === 1 ? prev : prev.filter((c) => c.id !== id),
     );
 
+  // Pure: validates form and returns the bot_config payload, or null on
+  // validation failure (after showing a toast). No DB writes here.
+  const buildPayloadInternal = (): {
+    bot_id: string;
+    feature: string;
+    config: Record<string, any>;
+    updated_at: string;
+  } | null => {
+    if (!botId) {
+      toast.error("Bot is not ready yet");
+      return null;
+    }
+
+    let v2Items: V2Item[] | null = null;
+    if (isV2) {
+      v2Items = v2Ref.current?.getItems() ?? [];
+      if (v2Items.length === 0) {
+        toast.error("Add at least one component to the panel message");
+        return null;
+      }
+    } else {
+      if (!panelTitle.trim()) {
+        toast.error("Panel title is required");
+        return null;
+      }
+      if (!panelDescription.trim()) {
+        toast.error("Panel description is required");
+        return null;
+      }
+    }
+
+    const cleanedCategories = categories
+      .map((c) => ({
+        name: c.name.trim(),
+        roles: c.roles.filter((r) => r && r.length > 0),
+        opening_message: c.openingMessage.trim(),
+      }))
+      .filter((c) => c.name.length > 0);
+    if (cleanedCategories.length === 0) {
+      toast.error("Add at least one category");
+      return null;
+    }
+
+    const categoryNames = cleanedCategories.map((c) => c.name);
+    const categoryMessages: Record<string, string> = {};
+    const categoryRoles: Record<string, string[]> = {};
+    for (const c of cleanedCategories) {
+      categoryMessages[c.name] = c.opening_message;
+      categoryRoles[c.name] = c.roles;
+    }
+
+    return {
+      bot_id: botId,
+      feature,
+      config: {
+        variant,
+        engine_version: engineVersion,
+        guild_id: guild?.guild_id ?? null,
+        guild_name: guild?.guild_name ?? null,
+        channel_id: editTarget?.channel_id ?? panelChannel?.channel_id ?? null,
+        channel_name: panelChannel?.channel_name ?? null,
+        message_id: editTarget?.message_id ?? null,
+        panel_title: isV2 ? null : panelTitle.trim(),
+        panel_description: isV2 ? null : panelDescription.trim(),
+        color: embedColor,
+        cooldown_minutes: isReport ? cooldownMinutes : null,
+        categories: isV2 ? categoryNames : cleanedCategories,
+        category_messages: isV2 ? categoryMessages : null,
+        category_roles: isV2 ? categoryRoles : null,
+        ticket_panel_v2: isV2 ? v2Items : null,
+        components_v2: null,
+      },
+      updated_at: new Date().toISOString(),
+    };
+  };
+
   useImperativeHandle(ref, () => ({
+    buildPayload: () => buildPayloadInternal(),
     save: async () => {
-      if (!botId) {
-        toast.error("Bot is not ready yet");
-        return false;
-      }
+      const payload = buildPayloadInternal();
+      if (!payload) return false;
 
-      let v2Items: V2Item[] | null = null;
-      if (isV2) {
-        v2Items = v2Ref.current?.getItems() ?? [];
-        if (v2Items.length === 0) {
-          toast.error("Add at least one component to the panel message");
-          return false;
-        }
-      } else {
-        if (!panelTitle.trim()) {
-          toast.error("Panel title is required");
-          return false;
-        }
-        if (!panelDescription.trim()) {
-          toast.error("Panel description is required");
-          return false;
-        }
-      }
-
-      const cleanedCategories = categories
-        .map((c) => ({
-          name: c.name.trim(),
-          roles: c.roles.filter((r) => r && r.length > 0),
-          opening_message: c.openingMessage.trim(),
-        }))
-        .filter((c) => c.name.length > 0);
-      if (cleanedCategories.length === 0) {
-        toast.error("Add at least one category");
-        return false;
-      }
-
-      const categoryNames = cleanedCategories.map((c) => c.name);
-      const categoryMessages: Record<string, string> = {};
-      const categoryRoles: Record<string, string[]> = {};
-      for (const c of cleanedCategories) {
-        categoryMessages[c.name] = c.opening_message;
-        categoryRoles[c.name] = c.roles;
-      }
-
-      const payload = {
-        bot_id: botId,
-        feature,
-        config: {
-          variant,
-          engine_version: engineVersion,
-          guild_id: guild?.guild_id ?? null,
-          guild_name: guild?.guild_name ?? null,
-          channel_id: editTarget?.channel_id ?? panelChannel?.channel_id ?? null,
-          channel_name: panelChannel?.channel_name ?? null,
-          message_id: editTarget?.message_id ?? null,
-          panel_title: isV2 ? null : panelTitle.trim(),
-          panel_description: isV2 ? null : panelDescription.trim(),
-          color: embedColor,
-          cooldown_minutes: isReport ? cooldownMinutes : null,
-          categories: isV2 ? categoryNames : cleanedCategories,
-          category_messages: isV2 ? categoryMessages : null,
-          category_roles: isV2 ? categoryRoles : null,
-          ticket_panel_v2: isV2 ? v2Items : null,
-          components_v2: null,
-        },
-        updated_at: new Date().toISOString(),
-      };
-
-      // Debug: log exact payload being saved to bot_config so we can verify
-      // channel_id and categories are present in the config object.
       console.log("[TicketPanelBuilder] Saving bot_config payload:", payload);
-      console.log("[TicketPanelBuilder] config.channel_id:", payload.config.channel_id);
-      console.log("[TicketPanelBuilder] config.categories:", payload.config.categories);
-      console.log("[TicketPanelBuilder] panelChannel state:", panelChannel);
-      if (!payload.config.channel_id) {
-        console.warn("[TicketPanelBuilder] channel_id is MISSING — no panel channel selected.");
-      }
-      if (!payload.config.categories || (Array.isArray(payload.config.categories) && payload.config.categories.length === 0)) {
-        console.warn("[TicketPanelBuilder] categories is MISSING or empty.");
-      }
 
       const { error } = await supabase
         .from("bot_config")
@@ -388,7 +402,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       // a stray apply_config alongside it.
       if (!isReport) {
         const logsPayload = {
-          bot_id: botId,
+          bot_id: botId!,
           feature: "ticket-logs",
           config: {
             log_channel_id: logChannelId || null,
@@ -412,11 +426,8 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         }
       }
 
-
       // If we're editing an already-posted panel in place, enqueue a targeted
-      // edit_ticket_panel command instead of the broad apply_config (which the
-      // worker treats as "create / repost"). The worker reads the latest
-      // tickets config from bot_config and edits the specific message.
+      // edit_ticket_panel command instead of the broad apply_config.
       if (editTarget?.channel_id && editTarget?.message_id) {
         const { data: orderRow } = await supabase
           .from("bot_orders")
@@ -430,7 +441,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           toast.warning("Saved, but could not enqueue panel edit (auth context missing).");
         } else {
           const commandPayload = {
-            bot_id: botId,
+            bot_id: botId!,
             user_id: ownerId,
             requested_by: requesterId,
             action: "edit_ticket_panel",
