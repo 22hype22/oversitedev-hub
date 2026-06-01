@@ -46,11 +46,12 @@ type Props = {
   botName?: string;
   botAvatarUrl?: string | null;
   engineVersion?: "v1" | "v2";
+  open?: boolean;
 };
 
 export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
   function TicketEditor(
-    { botId, botName = "Bot", botAvatarUrl = null, engineVersion = "v1" },
+    { botId, botName = "Bot", botAvatarUrl = null, engineVersion = "v1", open = true },
     ref,
   ) {
     const { guild } = useActiveGuild();
@@ -124,8 +125,9 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
 
     // Pull panels once we know the bot+guild. Re-runs on guild change.
     useEffect(() => {
+      if (!open) return;
       void fetchPanels();
-    }, [fetchPanels]);
+    }, [fetchPanels, open]);
 
     // Call the save-ticket-panel edge function with delete:true to remove an
     // entry from bot_config.config.posted_panels[guildId].
@@ -167,7 +169,7 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
     // directly instead of trusting the hook's cached state.
     const prunedKeysRef = useRef<Set<string>>(new Set());
     useEffect(() => {
-      if (!botId || !guildId || !botOnline) return;
+      if (!open || !botId || !guildId || !botOnline) return;
       if (panels.length === 0) return;
       let cancelled = false;
       (async () => {
@@ -212,13 +214,13 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
       return () => {
         cancelled = true;
       };
-    }, [panels, botId, guildId, botOnline, deletePanel]);
+    }, [panels, botId, guildId, botOnline, open, deletePanel]);
 
     // Reset the per-session prune memo when bot/guild changes so a re-open
     // re-evaluates everything against the latest channel list.
     useEffect(() => {
       prunedKeysRef.current = new Set();
-    }, [botId, guildId]);
+    }, [botId, guildId, open]);
 
 
     // posted_panels is keyed by guild_id, so panels in state already match the
