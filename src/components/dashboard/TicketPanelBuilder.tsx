@@ -587,14 +587,30 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       if (draftKey) {
         try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
       }
+      const isEditingExisting = !!(editTarget?.channel_id && editTarget?.message_id);
+      // For new-panel saves (Ticket Settings card), reset the V2 container and
+      // categories so the form is empty for the next panel. The draft only
+      // persists when the user accidentally closes without saving.
+      const freshCategories: Category[] = [
+        { id: uid(), name: "", roles: [], openingMessage: "" },
+      ];
+      const nextCategories = isEditingExisting ? categories : freshCategories;
+      const nextV2Items = isEditingExisting
+        ? (isV2 ? (v2Items ?? (v2Ref.current?.getItems() ?? null)) : null)
+        : null;
+      if (!isEditingExisting) {
+        setCategories(freshCategories);
+        setV2Items(null);
+        setV2BuilderKey((k) => k + 1);
+      }
       baselineRef.current = {
         panelTitle,
         panelDescription,
         embedColor,
         cooldownMinutes,
-        categories,
+        categories: nextCategories,
         panelChannel,
-        v2Items: isV2 ? (v2Items ?? (v2Ref.current?.getItems() ?? null)) : null,
+        v2Items: nextV2Items,
         logChannelId,
         logTicketOpened,
         logTicketClosed,
