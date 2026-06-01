@@ -66,7 +66,7 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
         .from("bot_config")
         .select("config")
         .eq("bot_id", botId)
-        .eq("feature", "tickets")
+        .eq("feature", "ticket-panels")
         .maybeSingle();
       setLoading(false);
       if (error) {
