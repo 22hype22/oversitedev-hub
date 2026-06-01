@@ -145,6 +145,15 @@ export function TicketEditorCard({
     } else if (guildId && Array.isArray(postedPanels[guildId])) {
       raw = postedPanels[guildId];
     }
+    const { data: ticketsRow } = await supabase
+      .from("bot_config")
+      .select("config")
+      .eq("bot_id", botId)
+      .eq("feature", "tickets")
+      .maybeSingle();
+    const ticketsCfg = (ticketsRow?.config ?? {}) as Record<string, any>;
+    const panelTitle = extractPanelTitle(ticketsCfg.ticket_panel_v2);
+
     let cleaned: PostedPanel[] = raw
       .filter((p: any) => p && p.channel_id && p.message_id)
       .map((p: any) => ({
@@ -152,6 +161,7 @@ export function TicketEditorCard({
         message_id: String(p.message_id),
         channel_name: p.channel_name ? String(p.channel_name) : undefined,
         posted_at: p.posted_at ? String(p.posted_at) : undefined,
+        panel_title: panelTitle,
       }));
 
     const live = await fetchLiveChannelIds();
