@@ -190,6 +190,8 @@ export type TicketPanelV2BuilderProps = {
   embedded?: boolean;
   /** Optional initial items for embedded mode. */
   initialItems?: V2Item[];
+  /** Called whenever the internal items state changes (used for parent-side persistence). */
+  onItemsChange?: (items: V2Item[]) => void;
   /** Extra preview content rendered after the user's components (e.g. a forced Open Ticket button). */
   previewExtras?: React.ReactNode;
   /** Optional banner shown above the editor stack (e.g. "Open Ticket button is added automatically"). */
