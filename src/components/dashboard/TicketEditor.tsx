@@ -20,7 +20,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { useBotChannels } from "@/hooks/useGuildChannels";
-import { useBotHealth } from "@/hooks/useBotHealth";
 import {
   TicketPanelBuilder,
   type TicketPanelBuilderHandle,
@@ -117,12 +116,6 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
       return m;
     }, [allChannels]);
 
-    // Bot online status — we only treat a missing channel as "deleted" when
-    // the bot is online. Otherwise an offline bot would look like every
-    // channel is gone and we'd wipe the whole list.
-    const { health } = useBotHealth(botId ?? null);
-    const botOnline = health?.effective_status === "online";
-
     // Pull panels once we know the bot+guild. Re-runs on guild change.
     useEffect(() => {
       if (!open) return;
@@ -169,7 +162,7 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
     // directly instead of trusting the hook's cached state.
     const prunedKeysRef = useRef<Set<string>>(new Set());
     useEffect(() => {
-      if (!open || !botId || !guildId || !botOnline) return;
+      if (!open || !botId || !guildId) return;
       if (panels.length === 0) return;
       let cancelled = false;
       (async () => {
@@ -214,7 +207,7 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
       return () => {
         cancelled = true;
       };
-    }, [panels, botId, guildId, botOnline, open, deletePanel]);
+    }, [panels, botId, guildId, open, deletePanel]);
 
     // Reset the per-session prune memo when bot/guild changes so a re-open
     // re-evaluates everything against the latest channel list.
