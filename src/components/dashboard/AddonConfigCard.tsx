@@ -2652,7 +2652,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     setSaving(true);
                     try {
                       const ok = await ticketBuilderRef.current?.save();
-                      if (ok) setOpen(false);
+                      if (ok) {
+                        setOpen(false);
+                        window.dispatchEvent(new CustomEvent("ticket-panels-changed"));
+                      }
                     } finally {
                       setSaving(false);
                     }
