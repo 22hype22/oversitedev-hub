@@ -145,135 +145,21 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   const [logTicketClaimed, setLogTicketClaimed] = useState<boolean>(true);
   const [logIncludeAttachments, setLogIncludeAttachments] = useState<boolean>(true);
 
-  // ---- Hydration + draft persistence (localStorage) ----
-  // Draft key is scoped per (bot, variant, edit target) so the Edit dialog and
-  // the Settings card each get their own draft slot.
-  const draftKey = botId
-    ? `ticket-settings-draft:${botId}:${variant}${
-        editTarget ? `:edit:${editTarget.channel_id}:${editTarget.message_id}` : ""
-      }`
-    : null;
-
-  // Items for the V2 builder live in the parent so we can persist them.
+  // Items for the V2 builder live in the parent.
   const [v2Items, setV2Items] = useState<V2Item[] | null>(null);
   // Bumped to force-remount V2Builder with fresh initialItems (used by Clear).
   const [v2BuilderKey, setV2BuilderKey] = useState(0);
-  // Set to true once we've finished loading both DB + draft, so the V2 builder
+  // Set to true once we've finished loading from the DB, so the V2 builder
   // can mount with the correct initialItems.
   const [hydrated, setHydrated] = useState(false);
-  const savingResetRef = useRef(false);
-  // Snapshot of the last DB-saved state, so the Clear button can restore it.
-  const baselineRef = useRef<{
-    panelTitle: string;
-    panelDescription: string;
-    embedColor: string;
-    cooldownMinutes: number;
-    categories: Category[];
-    panelChannel: BotChannel | null;
-    v2Items: V2Item[] | null;
-    logChannelId: string;
-    logTicketOpened: boolean;
-    logTicketClosed: boolean;
-    logTicketClaimed: boolean;
-    logIncludeAttachments: boolean;
-  } | null>(null);
 
-  const applySnapshot = (s: NonNullable<typeof baselineRef.current>) => {
-    setPanelTitle(s.panelTitle);
-    setPanelDescription(s.panelDescription);
-    setEmbedColor(s.embedColor);
-    setCooldownMinutes(s.cooldownMinutes);
-    setCategories(
-      s.categories.length > 0
-        ? s.categories
-        : [{ id: uid(), name: "", roles: [], openingMessage: "" }],
-    );
-    setPanelChannel(s.panelChannel);
-    setV2Items(s.v2Items);
-    setLogChannelId(s.logChannelId);
-    setLogTicketOpened(s.logTicketOpened);
-    setLogTicketClosed(s.logTicketClosed);
-    setLogTicketClaimed(s.logTicketClaimed);
-    setLogIncludeAttachments(s.logIncludeAttachments);
-  };
-
-  const loadSavedSnapshot = async (): Promise<NonNullable<typeof baselineRef.current>> => {
-    const { data: panelRow } = await supabase
-      .from("bot_config")
-      .select("config")
-      .eq("bot_id", botId)
-      .eq("feature", feature)
-      .maybeSingle();
-    const cfg = (panelRow?.config ?? {}) as Record<string, any>;
-
-    const baseCategories: Category[] = Array.isArray(cfg.categories)
-      ? (cfg.categories as any[]).map((c) => {
-          if (typeof c === "string") {
-            const name = c;
-            const roles = (cfg.category_roles ?? {})[name] ?? [];
-            const opening = (cfg.category_messages ?? {})[name] ?? "";
-            return {
-              id: uid(),
-              name,
-              roles: roles.map(String),
-              openingMessage: String(opening),
-            };
-          }
-          return {
-            id: uid(),
-            name: String(c.name ?? ""),
-            roles: Array.isArray(c.roles) ? c.roles.map(String) : [],
-            openingMessage: String(c.opening_message ?? ""),
-          };
-        })
-      : [];
-
-    let logsCfg: Record<string, any> = {};
-    if (!isReport) {
-      const { data: logsRow } = await supabase
-        .from("bot_config")
-        .select("config")
-        .eq("bot_id", botId)
-        .eq("feature", "ticket-logs")
-        .maybeSingle();
-      logsCfg = (logsRow?.config ?? {}) as Record<string, any>;
-    }
-
-    return {
-      panelTitle: typeof cfg.panel_title === "string" ? cfg.panel_title : "",
-      panelDescription:
-        typeof cfg.panel_description === "string" ? cfg.panel_description : "",
-      embedColor: typeof cfg.color === "string" ? cfg.color : "#5865F2",
-      cooldownMinutes:
-        typeof cfg.cooldown_minutes === "number" ? cfg.cooldown_minutes : 10,
-      categories: baseCategories,
-      panelChannel: cfg.channel_id
-        ? ({
-            channel_id: String(cfg.channel_id),
-            channel_name: String(cfg.channel_name ?? cfg.channel_id),
-            channel_type: "text",
-          } as BotChannel)
-        : null,
-      v2Items: Array.isArray(cfg.ticket_panel_v2)
-        ? (cfg.ticket_panel_v2 as V2Item[])
-        : null,
-      logChannelId: String(logsCfg.log_channel_id ?? ""),
-      logTicketOpened: logsCfg.log_ticket_opened !== false,
-      logTicketClosed: logsCfg.log_ticket_closed !== false,
-      logTicketClaimed: logsCfg.log_ticket_claimed !== false,
-      logIncludeAttachments: logsCfg.include_attachments !== false,
-    };
-  };
-
-  // Full hydration: DB baseline first, then layer the localStorage draft on
-  // top so unsaved user edits survive a dialog close / page reload.
+  // Hydrate from DB so the editor pre-fills with the existing config.
   useEffect(() => {
     if (!botId) return;
     let cancelled = false;
     (async () => {
       setHydrated(false);
 
-      // 1. Fetch panel config (tickets / reports).
       const { data: panelRow } = await supabase
         .from("bot_config")
         .select("config")
@@ -282,7 +168,6 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         .maybeSingle();
       const cfg = (panelRow?.config ?? {}) as Record<string, any>;
 
-      // 2. Build baseline from cfg.
       const baseCategories: Category[] = Array.isArray(cfg.categories)
         ? (cfg.categories as any[]).map((c) => {
             if (typeof c === "string") {
@@ -316,73 +201,40 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         logsCfg = (logsRow?.config ?? {}) as Record<string, any>;
       }
 
-      const baseline: NonNullable<typeof baselineRef.current> = {
-        panelTitle: typeof cfg.panel_title === "string" ? cfg.panel_title : "",
-        panelDescription:
-          typeof cfg.panel_description === "string" ? cfg.panel_description : "",
-        embedColor: typeof cfg.color === "string" ? cfg.color : "#5865F2",
-        cooldownMinutes:
-          typeof cfg.cooldown_minutes === "number" ? cfg.cooldown_minutes : 10,
-        categories: baseCategories,
-        panelChannel: cfg.channel_id
+      if (cancelled) return;
+
+      setPanelTitle(typeof cfg.panel_title === "string" ? cfg.panel_title : "");
+      setPanelDescription(
+        typeof cfg.panel_description === "string" ? cfg.panel_description : "",
+      );
+      setEmbedColor(typeof cfg.color === "string" ? cfg.color : "#5865F2");
+      setCooldownMinutes(
+        typeof cfg.cooldown_minutes === "number" ? cfg.cooldown_minutes : 10,
+      );
+      setCategories(
+        baseCategories.length > 0
+          ? baseCategories
+          : [{ id: uid(), name: "", roles: [], openingMessage: "" }],
+      );
+      setPanelChannel(
+        cfg.channel_id
           ? ({
               channel_id: String(cfg.channel_id),
               channel_name: String(cfg.channel_name ?? cfg.channel_id),
               channel_type: "text",
             } as BotChannel)
           : null,
-        v2Items: Array.isArray(cfg.ticket_panel_v2)
-          ? (cfg.ticket_panel_v2 as V2Item[])
-          : null,
-        logChannelId: String(logsCfg.log_channel_id ?? ""),
-        logTicketOpened: logsCfg.log_ticket_opened !== false,
-        logTicketClosed: logsCfg.log_ticket_closed !== false,
-        logTicketClaimed: logsCfg.log_ticket_claimed !== false,
-        logIncludeAttachments: logsCfg.include_attachments !== false,
-      };
-      if (cancelled) return;
-      baselineRef.current = baseline;
-      applySnapshot(baseline);
+      );
+      setV2Items(
+        Array.isArray(cfg.ticket_panel_v2) ? (cfg.ticket_panel_v2 as V2Item[]) : null,
+      );
+      setLogChannelId(String(logsCfg.log_channel_id ?? ""));
+      setLogTicketOpened(logsCfg.log_ticket_opened !== false);
+      setLogTicketClosed(logsCfg.log_ticket_closed !== false);
+      setLogTicketClaimed(logsCfg.log_ticket_claimed !== false);
+      setLogIncludeAttachments(logsCfg.include_attachments !== false);
 
-      // 3. Overlay draft.
-      if (draftKey) {
-        try {
-          const raw = localStorage.getItem(draftKey);
-          if (raw) {
-            const d = JSON.parse(raw) as Record<string, any>;
-            if (typeof d.panelTitle === "string") setPanelTitle(d.panelTitle);
-            if (typeof d.panelDescription === "string")
-              setPanelDescription(d.panelDescription);
-            if (typeof d.embedColor === "string") setEmbedColor(d.embedColor);
-            if (typeof d.cooldownMinutes === "number")
-              setCooldownMinutes(d.cooldownMinutes);
-            if (Array.isArray(d.categories) && d.categories.length > 0) {
-              setCategories(d.categories as Category[]);
-            }
-            if (d.panelChannel && typeof d.panelChannel.channel_id === "string") {
-              setPanelChannel({
-                channel_id: String(d.panelChannel.channel_id),
-                channel_name: String(d.panelChannel.channel_name ?? d.panelChannel.channel_id),
-                channel_type: "text",
-              } as BotChannel);
-            }
-            if (Array.isArray(d.v2Items)) setV2Items(d.v2Items as V2Item[]);
-            if (typeof d.logChannelId === "string") setLogChannelId(d.logChannelId);
-            if (typeof d.logTicketOpened === "boolean")
-              setLogTicketOpened(d.logTicketOpened);
-            if (typeof d.logTicketClosed === "boolean")
-              setLogTicketClosed(d.logTicketClosed);
-            if (typeof d.logTicketClaimed === "boolean")
-              setLogTicketClaimed(d.logTicketClaimed);
-            if (typeof d.logIncludeAttachments === "boolean")
-              setLogIncludeAttachments(d.logIncludeAttachments);
-          }
-        } catch {
-          /* ignore */
-        }
-      }
-
-      if (!cancelled) setHydrated(true);
+      setHydrated(true);
     })();
     return () => {
       cancelled = true;
@@ -390,73 +242,6 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [botId, feature, editTarget?.channel_id, editTarget?.message_id]);
 
-  // Persist draft on every change — only after hydration completes, to avoid
-  // overwriting it with the initial empty defaults. Skip writing when the
-  // current state matches the saved baseline (i.e. nothing unsaved), and
-  // clear any stale draft in that case so reopening the card loads from DB.
-  useEffect(() => {
-    if (!draftKey || !hydrated) return;
-    const data = {
-      panelTitle,
-      panelDescription,
-      embedColor,
-      cooldownMinutes,
-      categories,
-      panelChannel: panelChannel
-        ? {
-            channel_id: panelChannel.channel_id,
-            channel_name: panelChannel.channel_name,
-          }
-        : null,
-      v2Items,
-      logChannelId,
-      logTicketOpened,
-      logTicketClosed,
-      logTicketClaimed,
-      logIncludeAttachments,
-    };
-    const baseline = baselineRef.current;
-    const matchesBaseline = baseline
-      ? JSON.stringify({
-          ...baseline,
-          panelChannel: baseline.panelChannel
-            ? {
-                channel_id: baseline.panelChannel.channel_id,
-                channel_name: baseline.panelChannel.channel_name,
-              }
-            : null,
-        }) === JSON.stringify(data)
-      : false;
-    try {
-      if (savingResetRef.current) {
-        localStorage.removeItem(draftKey);
-        if (matchesBaseline) savingResetRef.current = false;
-        return;
-      }
-      if (matchesBaseline) {
-        localStorage.removeItem(draftKey);
-      } else {
-        localStorage.setItem(draftKey, JSON.stringify(data));
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [
-    draftKey,
-    hydrated,
-    panelTitle,
-    panelDescription,
-    embedColor,
-    cooldownMinutes,
-    categories,
-    panelChannel,
-    v2Items,
-    logChannelId,
-    logTicketOpened,
-    logTicketClosed,
-    logTicketClaimed,
-    logIncludeAttachments,
-  ]);
 
 
 
