@@ -589,11 +589,17 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       return true;
     },
     clear: () => {
-      resetToDefaults();
       if (draftKey) {
         try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
       }
-      toast.info("Form reset");
+      if (baselineRef.current) {
+        applySnapshot(baselineRef.current);
+        setV2BuilderKey((k) => k + 1);
+        toast.info("Reverted to last saved settings");
+      } else {
+        resetToDefaults();
+        toast.info("Form reset");
+      }
     },
   }));
 
