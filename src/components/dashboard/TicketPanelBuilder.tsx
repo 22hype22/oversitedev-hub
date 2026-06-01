@@ -382,6 +382,9 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       }
 
       // Persist the ticket-logs settings alongside the panel (ticket variant only).
+      // On the edit path we only want a single targeted edit_ticket_panel
+      // command — skip the ticket-logs apply_config enqueue to avoid sending
+      // a stray apply_config alongside it.
       if (!isReport) {
         const logsPayload = {
           bot_id: botId,
@@ -400,7 +403,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           .upsert(logsPayload, { onConflict: "bot_id,feature" });
         if (logsError) {
           toast.warning(`Panel saved, but logging settings failed: ${logsError.message}`);
-        } else {
+        } else if (!editTarget?.message_id) {
           await supabase.rpc("enqueue_apply_config" as any, {
             _bot_id: botId,
             _feature: "ticket-logs",
