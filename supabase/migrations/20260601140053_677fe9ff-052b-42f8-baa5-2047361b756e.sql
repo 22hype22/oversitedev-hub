@@ -1,0 +1,2 @@
+ALTER TABLE bot_commands DROP CONSTRAINT IF EXISTS bot_commands_action_check;
+ALTER TABLE bot_commands ADD CONSTRAINT bot_commands_action_check CHECK (action IN ('apply_config', 'post_message', 'set_status', 'send_dm', 'send_channel_message', 'start_giveaway', 'setup_stats', 'edit_ticket_panel', 'bio_update_request', 'list_channels', 'list_guilds', 'list_roles', 'restart', 'shutdown', 'start', 'stop', 'update'));
