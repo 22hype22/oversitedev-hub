@@ -177,6 +177,15 @@ export function TicketEditorCard({
     if (open) void fetchPanels();
   }, [open, fetchPanels]);
 
+  // Refresh when another component signals a panel was posted/saved.
+  useEffect(() => {
+    const handler = () => {
+      void fetchPanels();
+    };
+    window.addEventListener("ticket-panels-changed", handler);
+    return () => window.removeEventListener("ticket-panels-changed", handler);
+  }, [fetchPanels]);
+
   const performEditSave = useCallback(async () => {
     if (!editing || !botId || !guildId) return;
     setSavingEdit(true);
