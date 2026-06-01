@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Edit3, Hash, RefreshCw, Trash2 } from "lucide-react";
+import { Edit3, Hash, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
@@ -56,7 +56,6 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
     const [panels, setPanels] = useState<PostedPanel[]>([]);
     const [loading, setLoading] = useState(false);
     const [editing, setEditing] = useState<PostedPanel | null>(null);
-    const [deletingKey, setDeletingKey] = useState<string | null>(null);
     const innerBuilderRef = useRef<TicketPanelBuilderHandle>(null);
     const [savingEdit, setSavingEdit] = useState(false);
 
@@ -251,25 +250,6 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
                     >
                       <Edit3 className="h-3.5 w-3.5" />
                       Edit
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 px-2 text-muted-foreground hover:text-destructive"
-                      disabled={deletingKey === `${p.channel_id}:${p.message_id}`}
-                      onClick={async () => {
-                        const key = `${p.channel_id}:${p.message_id}`;
-                        setDeletingKey(key);
-                        try {
-                          await deletePanel(p);
-                        } finally {
-                          setDeletingKey(null);
-                        }
-                      }}
-                      aria-label="Remove panel"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
