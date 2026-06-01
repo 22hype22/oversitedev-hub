@@ -20,7 +20,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { useBotChannels } from "@/hooks/useGuildChannels";
-import { useBotHealth } from "@/hooks/useBotHealth";
 import {
   TicketPanelBuilder,
   type TicketPanelBuilderHandle,
@@ -46,11 +45,12 @@ type Props = {
   botName?: string;
   botAvatarUrl?: string | null;
   engineVersion?: "v1" | "v2";
+  open?: boolean;
 };
 
 export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
   function TicketEditor(
-    { botId, botName = "Bot", botAvatarUrl = null, engineVersion = "v1" },
+    { botId, botName = "Bot", botAvatarUrl = null, engineVersion = "v1", open = true },
     ref,
   ) {
     const { guild } = useActiveGuild();
@@ -108,8 +108,6 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
     // Resolve channel names from cache + ability to force a fresh fetch.
     const {
       channels: allChannels,
-      loading: channelsLoading,
-      refreshing: channelsRefreshing,
       refreshFromDiscord: refreshChannelsFromDiscord,
     } = useBotChannels(botId, guildId ?? undefined);
     const channelById = useMemo(() => {
@@ -118,27 +116,11 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
       return m;
     }, [allChannels]);
 
-    // Bot online status — we only treat a missing channel as "deleted" when
-    // the bot is online. Otherwise an offline bot would look like every
-    // channel is gone and we'd wipe the whole list.
-    const { health } = useBotHealth(botId ?? null);
-    const botOnline = health?.effective_status === "online";
-
-    // Force a fresh channel fetch from Discord every time the card loads,
-    // so deleted channels actually fall out of the cache (the worker
-    // heartbeat doesn't always remove them eagerly). Tied to bot+guild so it
-    // also runs when the user switches servers / reopens the card.
-    useEffect(() => {
-      if (!botId || !guildId) return;
-      void refreshChannelsFromDiscord();
-      // We want this on each (bot, guild) entry, not on every render.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [botId, guildId]);
-
     // Pull panels once we know the bot+guild. Re-runs on guild change.
     useEffect(() => {
+      if (!open) return;
       void fetchPanels();
-    }, [fetchPanels]);
+    }, [fetchPanels, open]);
 
     // Call the save-ticket-panel edge function with delete:true to remove an
     // entry from bot_config.config.posted_panels[guildId].
@@ -175,43 +157,63 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
       [botId, guildId],
     );
 
-    // Auto-prune: once we have a fresh channel list AND the bot is online,
-    // drop any panel whose channel_id is no longer in the cache. Gated on
-    // botOnline so an offline bot doesn't cause every panel to be wiped.
+    // Auto-prune every time the card opens / panel list loads: fetch the live
+    // Discord channel list through the bot, then read bot_channel_cache
+    // directly instead of trusting the hook's cached state.
     const prunedKeysRef = useRef<Set<string>>(new Set());
     useEffect(() => {
-      if (!botId || !guildId) return;
-      if (!botOnline) return;
-      // Wait until we've actually loaded / refreshed the channel cache so
-      // we're comparing against the latest view of the server.
-      if (channelsLoading || channelsRefreshing) return;
+      if (!open || !botId || !guildId) return;
       if (panels.length === 0) return;
-      const stale = panels.filter((p) => {
-        const key = `${p.channel_id}:${p.message_id}`;
-        if (prunedKeysRef.current.has(key)) return false;
-        return !channelById.has(p.channel_id);
-      });
-      if (stale.length === 0) return;
-      for (const p of stale) {
-        prunedKeysRef.current.add(`${p.channel_id}:${p.message_id}`);
-        void deletePanel(p, { silent: true });
-      }
-    }, [
-      channelById,
-      panels,
-      botId,
-      guildId,
-      botOnline,
-      channelsLoading,
-      channelsRefreshing,
-      deletePanel,
-    ]);
+      let cancelled = false;
+      (async () => {
+        const { data, error } = await supabase.functions.invoke("bot-list-channels", {
+          body: { bot_id: botId, guild_id: guildId },
+        });
+        if (cancelled) return;
+        if (error || (data as any)?.error) {
+          console.warn("[TicketEditor] Skipping panel prune; fresh channel fetch failed", {
+            error: error?.message ?? (data as any)?.error,
+          });
+          return;
+        }
+
+        const { data: rows, error: cacheError } = await supabase
+          .from("bot_channel_cache")
+          .select("channel_id")
+          .eq("bot_id", botId)
+          .eq("guild_id", guildId);
+        if (cancelled) return;
+        if (cacheError) {
+          console.warn("[TicketEditor] Skipping panel prune; channel query failed", cacheError);
+          return;
+        }
+
+        const liveChannelIds = new Set((rows ?? []).map((row) => String(row.channel_id)));
+        const stale = panels.filter((p) => {
+          const key = `${p.channel_id}:${p.message_id}`;
+          return !prunedKeysRef.current.has(key) && !liveChannelIds.has(p.channel_id);
+        });
+        for (const p of stale) {
+          prunedKeysRef.current.add(`${p.channel_id}:${p.message_id}`);
+          console.log("[TicketEditor] Pruning stale ticket panel", {
+            botId,
+            guildId,
+            channel_id: p.channel_id,
+            message_id: p.message_id,
+          });
+          void deletePanel(p, { silent: true });
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [panels, botId, guildId, open, deletePanel]);
 
     // Reset the per-session prune memo when bot/guild changes so a re-open
     // re-evaluates everything against the latest channel list.
     useEffect(() => {
       prunedKeysRef.current = new Set();
-    }, [botId, guildId]);
+    }, [botId, guildId, open]);
 
 
     // posted_panels is keyed by guild_id, so panels in state already match the

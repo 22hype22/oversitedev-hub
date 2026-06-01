@@ -161,6 +161,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   // Set to true once we've finished loading both DB + draft, so the V2 builder
   // can mount with the correct initialItems.
   const [hydrated, setHydrated] = useState(false);
+  const savingResetRef = useRef(false);
   // Snapshot of the last DB-saved state, so the Clear button can restore it.
   const baselineRef = useRef<{
     panelTitle: string;
@@ -194,6 +195,74 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     setLogTicketClosed(s.logTicketClosed);
     setLogTicketClaimed(s.logTicketClaimed);
     setLogIncludeAttachments(s.logIncludeAttachments);
+  };
+
+  const loadSavedSnapshot = async (): Promise<NonNullable<typeof baselineRef.current>> => {
+    const { data: panelRow } = await supabase
+      .from("bot_config")
+      .select("config")
+      .eq("bot_id", botId)
+      .eq("feature", feature)
+      .maybeSingle();
+    const cfg = (panelRow?.config ?? {}) as Record<string, any>;
+
+    const baseCategories: Category[] = Array.isArray(cfg.categories)
+      ? (cfg.categories as any[]).map((c) => {
+          if (typeof c === "string") {
+            const name = c;
+            const roles = (cfg.category_roles ?? {})[name] ?? [];
+            const opening = (cfg.category_messages ?? {})[name] ?? "";
+            return {
+              id: uid(),
+              name,
+              roles: roles.map(String),
+              openingMessage: String(opening),
+            };
+          }
+          return {
+            id: uid(),
+            name: String(c.name ?? ""),
+            roles: Array.isArray(c.roles) ? c.roles.map(String) : [],
+            openingMessage: String(c.opening_message ?? ""),
+          };
+        })
+      : [];
+
+    let logsCfg: Record<string, any> = {};
+    if (!isReport) {
+      const { data: logsRow } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", "ticket-logs")
+        .maybeSingle();
+      logsCfg = (logsRow?.config ?? {}) as Record<string, any>;
+    }
+
+    return {
+      panelTitle: typeof cfg.panel_title === "string" ? cfg.panel_title : "",
+      panelDescription:
+        typeof cfg.panel_description === "string" ? cfg.panel_description : "",
+      embedColor: typeof cfg.color === "string" ? cfg.color : "#5865F2",
+      cooldownMinutes:
+        typeof cfg.cooldown_minutes === "number" ? cfg.cooldown_minutes : 10,
+      categories: baseCategories,
+      panelChannel: cfg.channel_id
+        ? ({
+            channel_id: String(cfg.channel_id),
+            channel_name: String(cfg.channel_name ?? cfg.channel_id),
+            channel_type: "text",
+          } as BotChannel)
+        : null,
+      v2Items: Array.isArray(cfg.ticket_panel_v2)
+        ? (cfg.ticket_panel_v2 as V2Item[])
+        : null,
+      logChannelId: String(logsCfg.log_channel_id ?? ""),
+      logTicketOpened: logsCfg.log_ticket_opened !== false,
+      logTicketClosed: logsCfg.log_ticket_closed !== false,
+      logTicketClaimed: logsCfg.log_ticket_claimed !== false,
+      logIncludeAttachments: logsCfg.include_attachments !== false,
+    };
   };
 
   // Full hydration: DB baseline first, then layer the localStorage draft on
@@ -359,6 +428,11 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         }) === JSON.stringify(data)
       : false;
     try {
+      if (savingResetRef.current) {
+        localStorage.removeItem(draftKey);
+        if (matchesBaseline) savingResetRef.current = false;
+        return;
+      }
       if (matchesBaseline) {
         localStorage.removeItem(draftKey);
       } else {
@@ -606,36 +680,15 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       if (draftKey) {
         try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
       }
+      savingResetRef.current = true;
       const isEditingExisting = !!(editTarget?.channel_id && editTarget?.message_id);
-      // For new-panel saves (Ticket Settings card), reset the V2 container and
-      // categories so the form is empty for the next panel. The draft only
-      // persists when the user accidentally closes without saving.
-      const freshCategories: Category[] = [
-        { id: uid(), name: "", roles: [], openingMessage: "" },
-      ];
-      const nextCategories = isEditingExisting ? categories : freshCategories;
-      const nextV2Items = isEditingExisting
-        ? (isV2 ? (v2Items ?? (v2Ref.current?.getItems() ?? null)) : null)
-        : null;
-      if (!isEditingExisting) {
-        setCategories(freshCategories);
-        setV2Items(null);
-        setV2BuilderKey((k) => k + 1);
+      const savedSnapshot = await loadSavedSnapshot();
+      baselineRef.current = savedSnapshot;
+      applySnapshot(savedSnapshot);
+      setV2BuilderKey((k) => k + 1);
+      if (draftKey) {
+        try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
       }
-      baselineRef.current = {
-        panelTitle,
-        panelDescription,
-        embedColor,
-        cooldownMinutes,
-        categories: nextCategories,
-        panelChannel,
-        v2Items: nextV2Items,
-        logChannelId,
-        logTicketOpened,
-        logTicketClosed,
-        logTicketClaimed,
-        logIncludeAttachments,
-      };
       return true;
     },
     clear: () => {
