@@ -56,7 +56,6 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
     const [panels, setPanels] = useState<PostedPanel[]>([]);
     const [loading, setLoading] = useState(false);
     const [editing, setEditing] = useState<PostedPanel | null>(null);
-    const [deletingKey, setDeletingKey] = useState<string | null>(null);
     const innerBuilderRef = useRef<TicketPanelBuilderHandle>(null);
     const [savingEdit, setSavingEdit] = useState(false);
 
