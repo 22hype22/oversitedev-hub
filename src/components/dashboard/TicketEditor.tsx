@@ -74,7 +74,23 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
         return;
       }
       const cfg = (data?.config ?? {}) as Record<string, any>;
-      const raw = Array.isArray(cfg.posted_panels) ? cfg.posted_panels : [];
+      const postedPanels = cfg.posted_panels ?? {};
+      // posted_panels is keyed by guild_id: { [guildId]: PostedPanel[] }.
+      // Older configs may have stored a flat array — keep that as fallback.
+      let raw: any[] = [];
+      if (Array.isArray(postedPanels)) {
+        raw = postedPanels;
+      } else if (guildId && Array.isArray(postedPanels[guildId])) {
+        raw = postedPanels[guildId];
+      }
+      console.log("[TicketEditor] posted_panels lookup", {
+        botId,
+        guildId,
+        hasConfig: !!data,
+        postedPanelsShape: Array.isArray(postedPanels) ? "array" : typeof postedPanels,
+        keys: postedPanels && !Array.isArray(postedPanels) ? Object.keys(postedPanels) : undefined,
+        matched: raw.length,
+      });
       const cleaned: PostedPanel[] = raw
         .filter((p: any) => p && p.channel_id && p.message_id)
         .map((p: any) => ({
@@ -84,7 +100,7 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
           posted_at: p.posted_at ? String(p.posted_at) : undefined,
         }));
       setPanels(cleaned);
-    }, [botId]);
+    }, [botId, guildId]);
 
     useEffect(() => {
       void fetchPanels();
