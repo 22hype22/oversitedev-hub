@@ -108,8 +108,6 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
     // Resolve channel names from cache + ability to force a fresh fetch.
     const {
       channels: allChannels,
-      loading: channelsLoading,
-      refreshing: channelsRefreshing,
       refreshFromDiscord: refreshChannelsFromDiscord,
     } = useBotChannels(botId, guildId ?? undefined);
     const channelById = useMemo(() => {
