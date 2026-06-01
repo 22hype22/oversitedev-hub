@@ -105,17 +105,40 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
       setPanels(cleaned);
     }, [botId, guildId]);
 
-    useEffect(() => {
-      void fetchPanels();
-    }, [fetchPanels]);
-
-    // Resolve channel names from cache.
-    const { channels: allChannels } = useBotChannels(botId, guildId ?? undefined);
+    // Resolve channel names from cache + ability to force a fresh fetch.
+    const {
+      channels: allChannels,
+      loading: channelsLoading,
+      refreshing: channelsRefreshing,
+      refreshFromDiscord: refreshChannelsFromDiscord,
+    } = useBotChannels(botId, guildId ?? undefined);
     const channelById = useMemo(() => {
       const m = new Map<string, string>();
       for (const c of allChannels) m.set(c.channel_id, c.channel_name);
       return m;
     }, [allChannels]);
+
+    // Bot online status — we only treat a missing channel as "deleted" when
+    // the bot is online. Otherwise an offline bot would look like every
+    // channel is gone and we'd wipe the whole list.
+    const { health } = useBotHealth(botId ?? null);
+    const botOnline = health?.effective_status === "online";
+
+    // Force a fresh channel fetch from Discord every time the card loads,
+    // so deleted channels actually fall out of the cache (the worker
+    // heartbeat doesn't always remove them eagerly). Tied to bot+guild so it
+    // also runs when the user switches servers / reopens the card.
+    useEffect(() => {
+      if (!botId || !guildId) return;
+      void refreshChannelsFromDiscord();
+      // We want this on each (bot, guild) entry, not on every render.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [botId, guildId]);
+
+    // Pull panels once we know the bot+guild. Re-runs on guild change.
+    useEffect(() => {
+      void fetchPanels();
+    }, [fetchPanels]);
 
     // Call the save-ticket-panel edge function with delete:true to remove an
     // entry from bot_config.config.posted_panels[guildId].
@@ -152,13 +175,16 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
       [botId, guildId],
     );
 
-    // Auto-prune: when the bot's channel list loads, drop any panel whose
-    // channel_id is no longer present (deleted in Discord), and clean it up
-    // in Supabase so it doesn't reappear on refresh.
+    // Auto-prune: once we have a fresh channel list AND the bot is online,
+    // drop any panel whose channel_id is no longer in the cache. Gated on
+    // botOnline so an offline bot doesn't cause every panel to be wiped.
     const prunedKeysRef = useRef<Set<string>>(new Set());
     useEffect(() => {
       if (!botId || !guildId) return;
-      if (allChannels.length === 0) return; // channels not loaded yet
+      if (!botOnline) return;
+      // Wait until we've actually loaded / refreshed the channel cache so
+      // we're comparing against the latest view of the server.
+      if (channelsLoading || channelsRefreshing) return;
       if (panels.length === 0) return;
       const stale = panels.filter((p) => {
         const key = `${p.channel_id}:${p.message_id}`;
@@ -170,7 +196,23 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
         prunedKeysRef.current.add(`${p.channel_id}:${p.message_id}`);
         void deletePanel(p, { silent: true });
       }
-    }, [allChannels, channelById, panels, botId, guildId, deletePanel]);
+    }, [
+      channelById,
+      panels,
+      botId,
+      guildId,
+      botOnline,
+      channelsLoading,
+      channelsRefreshing,
+      deletePanel,
+    ]);
+
+    // Reset the per-session prune memo when bot/guild changes so a re-open
+    // re-evaluates everything against the latest channel list.
+    useEffect(() => {
+      prunedKeysRef.current = new Set();
+    }, [botId, guildId]);
+
 
     // posted_panels is keyed by guild_id, so panels in state already match the
     // active guild — no extra filtering needed.
