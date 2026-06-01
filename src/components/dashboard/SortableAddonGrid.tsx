@@ -22,6 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 const AddonConfigCard = lazy(() =>
   import("./AddonConfigCard").then((m) => ({ default: m.AddonConfigCard })),
 );
+import { TicketEditorCard } from "./TicketEditorCard";
 import { useBotAddonStates } from "@/hooks/useBotAddonStates";
 
 /**
