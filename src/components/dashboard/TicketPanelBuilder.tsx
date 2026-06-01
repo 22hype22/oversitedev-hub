@@ -460,36 +460,15 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           );
         }
       }
-      // Clear draft on successful save & refresh baseline so a subsequent
-      // Clear reverts to the just-saved state.
-      if (draftKey) {
-        try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
-      }
-      savingResetRef.current = true;
-      const isEditingExisting = !!(editTarget?.channel_id && editTarget?.message_id);
-      const savedSnapshot = await loadSavedSnapshot();
-      baselineRef.current = savedSnapshot;
-      applySnapshot(savedSnapshot);
-      setV2BuilderKey((k) => k + 1);
-      if (draftKey) {
-        try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
-      }
       return true;
     },
     clear: () => {
-      if (draftKey) {
-        try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
-      }
-      if (baselineRef.current) {
-        applySnapshot(baselineRef.current);
-        setV2BuilderKey((k) => k + 1);
-        toast.info("Reverted to last saved settings");
-      } else {
-        resetToDefaults();
-        toast.info("Form reset");
-      }
+      resetToDefaults();
+      setV2BuilderKey((k) => k + 1);
+      toast.info("Form reset");
     },
   }));
+
 
   // ---- V1 preview helpers ----
   const previewTitle = panelTitle.trim() || copy.panelTitlePlaceholder.replace(/^e\.g\. /, "");
