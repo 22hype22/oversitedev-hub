@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ ok: true, panel: entry }),
+      JSON.stringify({ ok: true, deleted: body.delete === true, panel: entry }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
