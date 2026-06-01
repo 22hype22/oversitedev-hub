@@ -386,22 +386,24 @@ export function TicketEditorCard({
             ) : (
               <div className="space-y-2">
                 {panels.map((p) => {
-                  const name =
+                  const channel =
                     channelNames.get(p.channel_id) ??
                     p.channel_name ??
                     p.channel_id;
+                  const displayTitle = p.panel_title?.trim() || channel;
+                  const hasTitle = !!p.panel_title?.trim();
                   return (
                     <div
                       key={`${p.channel_id}:${p.message_id}`}
                       className="rounded-md border border-border bg-card/40 px-3 py-2.5 flex items-center justify-between gap-3"
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 text-sm font-medium text-foreground truncate">
-                          <Hash className="h-3.5 w-3.5 text-muted-foreground" />
-                          {name}
+                        <div className="text-sm font-medium text-foreground truncate">
+                          {displayTitle}
                         </div>
-                        <div className="text-[11px] text-muted-foreground truncate">
-                          Message {p.message_id}
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground truncate">
+                          {hasTitle && <Hash className="h-3 w-3" />}
+                          {hasTitle ? channel : `Message ${p.message_id}`}
                           {p.posted_at
                             ? ` · posted ${new Date(p.posted_at).toLocaleString()}`
                             : ""}
