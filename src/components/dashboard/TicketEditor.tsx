@@ -25,8 +25,6 @@ import {
   type TicketPanelBuilderHandle,
 } from "./TicketPanelBuilder";
 
-
-
 export type TicketEditorHandle = {
   /** No-op — editing is performed in the nested edit dialog. */
   save: () => Promise<boolean>;
@@ -45,12 +43,11 @@ type Props = {
   botName?: string;
   botAvatarUrl?: string | null;
   engineVersion?: "v1" | "v2";
-  open?: boolean;
 };
 
 export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
   function TicketEditor(
-    { botId, botName = "Bot", botAvatarUrl = null, engineVersion = "v1", open = true },
+    { botId, botName = "Bot", botAvatarUrl = null, engineVersion = "v1" },
     ref,
   ) {
     const { guild } = useActiveGuild();
@@ -78,22 +75,12 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
       }
       const cfg = (data?.config ?? {}) as Record<string, any>;
       const postedPanels = cfg.posted_panels ?? {};
-      // posted_panels is keyed by guild_id: { [guildId]: PostedPanel[] }.
-      // Older configs may have stored a flat array — keep that as fallback.
       let raw: any[] = [];
       if (Array.isArray(postedPanels)) {
         raw = postedPanels;
       } else if (guildId && Array.isArray(postedPanels[guildId])) {
         raw = postedPanels[guildId];
       }
-      console.log("[TicketEditor] posted_panels lookup", {
-        botId,
-        guildId,
-        hasConfig: !!data,
-        postedPanelsShape: Array.isArray(postedPanels) ? "array" : typeof postedPanels,
-        keys: postedPanels && !Array.isArray(postedPanels) ? Object.keys(postedPanels) : undefined,
-        matched: raw.length,
-      });
       const cleaned: PostedPanel[] = raw
         .filter((p: any) => p && p.channel_id && p.message_id)
         .map((p: any) => ({
@@ -105,120 +92,17 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
       setPanels(cleaned);
     }, [botId, guildId]);
 
-    // Resolve channel names from cache + ability to force a fresh fetch.
-    const {
-      channels: allChannels,
-      refreshFromDiscord: refreshChannelsFromDiscord,
-    } = useBotChannels(botId, guildId ?? undefined);
+    const { channels: allChannels } = useBotChannels(botId, guildId ?? undefined);
     const channelById = useMemo(() => {
       const m = new Map<string, string>();
       for (const c of allChannels) m.set(c.channel_id, c.channel_name);
       return m;
     }, [allChannels]);
 
-    // Pull panels once we know the bot+guild. Re-runs on guild change.
     useEffect(() => {
-      if (!open) return;
       void fetchPanels();
-    }, [fetchPanels, open]);
+    }, [fetchPanels]);
 
-    // Call the save-ticket-panel edge function with delete:true to remove an
-    // entry from bot_config.config.posted_panels[guildId].
-    const deletePanel = useCallback(
-      async (p: PostedPanel, opts?: { silent?: boolean }) => {
-        if (!botId || !guildId) return false;
-        const { data, error } = await supabase.functions.invoke("save-ticket-panel", {
-          body: {
-            bot_id: botId,
-            guild_id: guildId,
-            message_id: p.message_id,
-            channel_id: p.channel_id,
-            delete: true,
-          },
-        });
-        if (error || (data as any)?.error) {
-          if (!opts?.silent) {
-            toast.error(
-              `Failed to remove panel: ${
-                error?.message ?? (data as any)?.error ?? "unknown error"
-              }`,
-            );
-          }
-          return false;
-        }
-        setPanels((prev) =>
-          prev.filter(
-            (x) => !(x.channel_id === p.channel_id && x.message_id === p.message_id),
-          ),
-        );
-        if (!opts?.silent) toast.success("Panel removed.");
-        return true;
-      },
-      [botId, guildId],
-    );
-
-    // Auto-prune every time the card opens / panel list loads: fetch the live
-    // Discord channel list through the bot, then read bot_channel_cache
-    // directly instead of trusting the hook's cached state.
-    const prunedKeysRef = useRef<Set<string>>(new Set());
-    useEffect(() => {
-      if (!open || !botId || !guildId) return;
-      if (panels.length === 0) return;
-      let cancelled = false;
-      (async () => {
-        const { data, error } = await supabase.functions.invoke("bot-list-channels", {
-          body: { bot_id: botId, guild_id: guildId },
-        });
-        if (cancelled) return;
-        if (error || (data as any)?.error) {
-          console.warn("[TicketEditor] Skipping panel prune; fresh channel fetch failed", {
-            error: error?.message ?? (data as any)?.error,
-          });
-          return;
-        }
-
-        const { data: rows, error: cacheError } = await supabase
-          .from("bot_channel_cache")
-          .select("channel_id")
-          .eq("bot_id", botId)
-          .eq("guild_id", guildId);
-        if (cancelled) return;
-        if (cacheError) {
-          console.warn("[TicketEditor] Skipping panel prune; channel query failed", cacheError);
-          return;
-        }
-
-        const liveChannelIds = new Set((rows ?? []).map((row) => String(row.channel_id)));
-        const stale = panels.filter((p) => {
-          const key = `${p.channel_id}:${p.message_id}`;
-          return !prunedKeysRef.current.has(key) && !liveChannelIds.has(p.channel_id);
-        });
-        for (const p of stale) {
-          prunedKeysRef.current.add(`${p.channel_id}:${p.message_id}`);
-          console.log("[TicketEditor] Pruning stale ticket panel", {
-            botId,
-            guildId,
-            channel_id: p.channel_id,
-            message_id: p.message_id,
-          });
-          void deletePanel(p, { silent: true });
-        }
-      })();
-      return () => {
-        cancelled = true;
-      };
-    }, [panels, botId, guildId, open, deletePanel]);
-
-    // Reset the per-session prune memo when bot/guild changes so a re-open
-    // re-evaluates everything against the latest channel list.
-    useEffect(() => {
-      prunedKeysRef.current = new Set();
-    }, [botId, guildId, open]);
-
-
-    // posted_panels is keyed by guild_id, so panels in state already match the
-    // active guild — no extra filtering needed.
-    const matchesActiveGuild = true;
     const visiblePanels = panels;
 
     useImperativeHandle(ref, () => ({
@@ -241,14 +125,8 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
             size="sm"
             variant="ghost"
             className="h-8 px-2 text-xs gap-1.5"
-            onClick={() => {
-              // Re-evaluate prune decisions against the freshest data.
-              prunedKeysRef.current = new Set();
-              void refreshChannelsFromDiscord();
-              void fetchPanels();
-            }}
+            onClick={() => void fetchPanels()}
             disabled={loading || !botId}
-
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh
@@ -258,13 +136,6 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
         {!guildId ? (
           <div className="rounded-md border border-border bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
             Select a server to view its posted ticket panels.
-          </div>
-        ) : !matchesActiveGuild ? (
-          <div className="rounded-md border border-border bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
-            No ticket panels have been posted in this server. Switch to the
-            server where you posted the panel, or post a new one from the
-            <span className="font-medium text-foreground"> Post Ticket </span>
-            card.
           </div>
         ) : visiblePanels.length === 0 ? (
           <div className="rounded-md border border-border bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
