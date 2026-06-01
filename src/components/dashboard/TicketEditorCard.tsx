@@ -30,7 +30,39 @@ type PostedPanel = {
   message_id: string;
   channel_name?: string;
   posted_at?: string;
+  panel_title?: string;
 };
+
+function extractPanelTitle(ticketPanelV2: unknown): string | undefined {
+  if (!Array.isArray(ticketPanelV2)) return undefined;
+  // Pass 1: first component with a non-empty `title` field
+  const findTitle = (nodes: any[]): string | undefined => {
+    for (const n of nodes) {
+      if (!n || typeof n !== "object") continue;
+      const t = typeof n.title === "string" ? n.title.trim() : "";
+      if (t) return t;
+      if (Array.isArray(n.children)) {
+        const f = findTitle(n.children);
+        if (f) return f;
+      }
+    }
+    return undefined;
+  };
+  // Pass 2: first non-empty text content
+  const findText = (nodes: any[]): string | undefined => {
+    for (const n of nodes) {
+      if (!n || typeof n !== "object") continue;
+      const t = typeof n.text === "string" ? n.text.trim() : "";
+      if (t) return t.split("\n")[0].slice(0, 80);
+      if (Array.isArray(n.children)) {
+        const f = findText(n.children);
+        if (f) return f;
+      }
+    }
+    return undefined;
+  };
+  return findTitle(ticketPanelV2 as any[]) ?? findText(ticketPanelV2 as any[]);
+}
 
 type Props = {
   botId?: string;
