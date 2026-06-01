@@ -132,17 +132,26 @@ function SortableCard({
       {...dragProps}
     >
       <Suspense fallback={<div className="h-24 rounded-xl border border-border/40 bg-card/40 animate-pulse" />}>
-        <AddonConfigCard
-          addonId={id}
-          botId={botId}
-          botName={botName}
-          botAvatarUrl={botAvatarUrl}
-          engineVersion={engineVersion}
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          enabled={enabled}
-          onToggleEnabled={onToggleEnabled}
-        />
+        {id === "ticket-editor" ? (
+          <TicketEditorCard
+            botId={botId}
+            botName={botName}
+            botAvatarUrl={botAvatarUrl}
+            engineVersion={engineVersion}
+          />
+        ) : (
+          <AddonConfigCard
+            addonId={id}
+            botId={botId}
+            botName={botName}
+            botAvatarUrl={botAvatarUrl}
+            engineVersion={engineVersion}
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            enabled={enabled}
+            onToggleEnabled={onToggleEnabled}
+          />
+        )}
       </Suspense>
     </div>
   );
