@@ -115,6 +115,61 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
       return m;
     }, [allChannels]);
 
+    // Call the save-ticket-panel edge function with delete:true to remove an
+    // entry from bot_config.config.posted_panels[guildId].
+    const deletePanel = useCallback(
+      async (p: PostedPanel, opts?: { silent?: boolean }) => {
+        if (!botId || !guildId) return false;
+        const { data, error } = await supabase.functions.invoke("save-ticket-panel", {
+          body: {
+            bot_id: botId,
+            guild_id: guildId,
+            message_id: p.message_id,
+            channel_id: p.channel_id,
+            delete: true,
+          },
+        });
+        if (error || (data as any)?.error) {
+          if (!opts?.silent) {
+            toast.error(
+              `Failed to remove panel: ${
+                error?.message ?? (data as any)?.error ?? "unknown error"
+              }`,
+            );
+          }
+          return false;
+        }
+        setPanels((prev) =>
+          prev.filter(
+            (x) => !(x.channel_id === p.channel_id && x.message_id === p.message_id),
+          ),
+        );
+        if (!opts?.silent) toast.success("Panel removed.");
+        return true;
+      },
+      [botId, guildId],
+    );
+
+    // Auto-prune: when the bot's channel list loads, drop any panel whose
+    // channel_id is no longer present (deleted in Discord), and clean it up
+    // in Supabase so it doesn't reappear on refresh.
+    const prunedKeysRef = useRef<Set<string>>(new Set());
+    useEffect(() => {
+      if (!botId || !guildId) return;
+      if (allChannels.length === 0) return; // channels not loaded yet
+      if (panels.length === 0) return;
+      const stale = panels.filter((p) => {
+        const key = `${p.channel_id}:${p.message_id}`;
+        if (prunedKeysRef.current.has(key)) return false;
+        return !channelById.has(p.channel_id);
+      });
+      if (stale.length === 0) return;
+      for (const p of stale) {
+        prunedKeysRef.current.add(`${p.channel_id}:${p.message_id}`);
+        void deletePanel(p, { silent: true });
+      }
+    }, [allChannels, channelById, panels, botId, guildId, deletePanel]);
+
     // posted_panels is keyed by guild_id, so panels in state already match the
     // active guild — no extra filtering needed.
     const matchesActiveGuild = true;
