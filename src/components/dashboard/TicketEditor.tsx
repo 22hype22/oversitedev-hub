@@ -54,8 +54,13 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
     const [panels, setPanels] = useState<PostedPanel[]>([]);
     const [loading, setLoading] = useState(false);
     const [editing, setEditing] = useState<PostedPanel | null>(null);
+    const editingRef = useRef<PostedPanel | null>(null);
+    useEffect(() => {
+      editingRef.current = editing;
+    }, [editing]);
     const innerBuilderRef = useRef<TicketPanelBuilderHandle>(null);
     const [savingEdit, setSavingEdit] = useState(false);
+    const channelNamesRef = useRef<Map<string, string>>(new Map());
 
     // Fetch fresh Discord channel list for cleanup cross-reference. Returns
     // a Set of currently-existing channel_ids, or null if the lookup failed
