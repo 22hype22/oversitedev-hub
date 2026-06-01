@@ -2,8 +2,10 @@ import {
   createContext,
   forwardRef,
   useContext,
+  useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -188,6 +190,8 @@ export type TicketPanelV2BuilderProps = {
   embedded?: boolean;
   /** Optional initial items for embedded mode. */
   initialItems?: V2Item[];
+  /** Called whenever the internal items state changes (used for parent-side persistence). */
+  onItemsChange?: (items: V2Item[]) => void;
   /** Extra preview content rendered after the user's components (e.g. a forced Open Ticket button). */
   previewExtras?: React.ReactNode;
   /** Optional banner shown above the editor stack (e.g. "Open Ticket button is added automatically"). */
@@ -200,7 +204,7 @@ export const TicketPanelV2Builder = forwardRef<
   TicketPanelV2BuilderHandle,
   TicketPanelV2BuilderProps
 >(function TicketPanelV2Builder(
-  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [] },
+  { botId, botName, botAvatarUrl, embedded = false, initialItems, onItemsChange, previewExtras, editorNotice, categoryNames = [] },
   ref,
 ) {
   const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
@@ -222,6 +226,17 @@ export const TicketPanelV2Builder = forwardRef<
           },
         ],
   );
+
+  // Notify parent of items changes (skip the very first synchronous emission to
+  // avoid clobbering parent-side hydrated state with the empty default).
+  const firstItemsEmit = useRef(true);
+  useEffect(() => {
+    if (firstItemsEmit.current) {
+      firstItemsEmit.current = false;
+      return;
+    }
+    onItemsChange?.(items);
+  }, [items, onItemsChange]);
 
   const addItem = (_type: V2Item["type"]) =>
     setItems((prev) => [...prev, newItem("container")]);
