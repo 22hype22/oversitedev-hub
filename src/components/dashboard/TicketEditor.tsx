@@ -239,8 +239,14 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
             size="sm"
             variant="ghost"
             className="h-8 px-2 text-xs gap-1.5"
-            onClick={fetchPanels}
+            onClick={() => {
+              // Re-evaluate prune decisions against the freshest data.
+              prunedKeysRef.current = new Set();
+              void refreshChannelsFromDiscord();
+              void fetchPanels();
+            }}
             disabled={loading || !botId}
+
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh
