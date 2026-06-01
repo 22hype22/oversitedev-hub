@@ -241,16 +241,37 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
                         : ""}
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-8 gap-1.5"
-                    onClick={() => setEditing(p)}
-                  >
-                    <Edit3 className="h-3.5 w-3.5" />
-                    Edit
-                  </Button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5"
+                      onClick={() => setEditing(p)}
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-2 text-muted-foreground hover:text-destructive"
+                      disabled={deletingKey === `${p.channel_id}:${p.message_id}`}
+                      onClick={async () => {
+                        const key = `${p.channel_id}:${p.message_id}`;
+                        setDeletingKey(key);
+                        try {
+                          await deletePanel(p);
+                        } finally {
+                          setDeletingKey(null);
+                        }
+                      }}
+                      aria-label="Remove panel"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               );
             })}
