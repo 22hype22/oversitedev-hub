@@ -26,8 +26,7 @@ import {
   type TicketPanelBuilderHandle,
 } from "./TicketPanelBuilder";
 
-  type TicketPanelBuilderHandle,
-} from "./TicketPanelBuilder";
+
 
 export type TicketEditorHandle = {
   /** No-op — editing is performed in the nested edit dialog. */
