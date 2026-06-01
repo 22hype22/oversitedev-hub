@@ -54,8 +54,13 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
     const [panels, setPanels] = useState<PostedPanel[]>([]);
     const [loading, setLoading] = useState(false);
     const [editing, setEditing] = useState<PostedPanel | null>(null);
+    const editingRef = useRef<PostedPanel | null>(null);
+    useEffect(() => {
+      editingRef.current = editing;
+    }, [editing]);
     const innerBuilderRef = useRef<TicketPanelBuilderHandle>(null);
     const [savingEdit, setSavingEdit] = useState(false);
+    const channelNamesRef = useRef<Map<string, string>>(new Map());
 
     // Fetch fresh Discord channel list for cleanup cross-reference. Returns
     // a Set of currently-existing channel_ids, or null if the lookup failed
@@ -163,6 +168,7 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
           const m = new Map<string, string>();
           for (const c of data) m.set(String(c.channel_id), String(c.channel_name));
           setChannelNames(m);
+          channelNamesRef.current = m;
         });
       return () => {
         cancelled = true;
@@ -173,8 +179,107 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
       void fetchPanels();
     }, [fetchPanels]);
 
+    const performEditSave = useCallback(async (): Promise<boolean> => {
+      const target = editingRef.current;
+      if (!target || !botId || !guildId) {
+        console.log("[TicketEditor] performEditSave skipped — no editing target", {
+          hasTarget: !!target,
+          botId,
+          guildId,
+        });
+        return true; // nothing to save, allow outer dialog to close
+      }
+      setSavingEdit(true);
+      try {
+        const payload = innerBuilderRef.current?.buildPayload();
+        console.log("[TicketEditor] performEditSave invoked", {
+          editing: target,
+          hasBuilder: !!innerBuilderRef.current,
+          payload,
+        });
+        if (!payload) return false;
+
+        const { error: cfgErr } = await supabase
+          .from("bot_config")
+          .upsert(payload, { onConflict: "bot_id,feature" });
+        if (cfgErr) {
+          toast.error(`Save failed: ${cfgErr.message}`);
+          return false;
+        }
+
+        const { data: orderRow } = await supabase
+          .from("bot_orders")
+          .select("user_id")
+          .eq("id", botId)
+          .maybeSingle();
+        const ownerId = orderRow?.user_id;
+        const { data: authData } = await supabase.auth.getUser();
+        const requesterId = authData.user?.id;
+        if (!ownerId || !requesterId) {
+          toast.warning(
+            "Saved, but could not enqueue panel edit (auth context missing).",
+          );
+        } else {
+          const commandPayload = {
+            bot_id: botId,
+            user_id: ownerId,
+            requested_by: requesterId,
+            action: "edit_ticket_panel",
+            payload: {
+              channel_id: target.channel_id,
+              message_id: target.message_id,
+              config: (payload as any).config,
+            },
+          };
+          console.log(
+            "[TicketEditor] Enqueuing bot_commands edit_ticket_panel:",
+            commandPayload,
+          );
+          const { error: cmdErr } = await supabase
+            .from("bot_commands")
+            .insert(commandPayload);
+          if (cmdErr) {
+            toast.warning(
+              `Saved, but failed to queue panel edit: ${cmdErr.message}`,
+            );
+          } else {
+            toast.success(
+              "Panel update queued — the bot will edit the message shortly.",
+            );
+          }
+        }
+
+        const liveName = channelNamesRef.current.get(target.channel_id);
+        const { error: spErr } = await supabase.functions.invoke(
+          "save-ticket-panel",
+          {
+            body: {
+              bot_id: botId,
+              guild_id: guildId,
+              channel_id: target.channel_id,
+              message_id: target.message_id,
+              channel_name: liveName ?? target.channel_name ?? null,
+            },
+          },
+        );
+        if (spErr) {
+          console.warn("[TicketEditor] save-ticket-panel refresh failed", spErr);
+        }
+        setEditing(null);
+        await fetchPanels();
+        return false; // keep the outer addon dialog open after edit
+      } finally {
+        setSavingEdit(false);
+      }
+    }, [botId, guildId, fetchPanels]);
+
     useImperativeHandle(ref, () => ({
-      save: async () => true,
+      save: async () => {
+        console.log("[TicketEditor] ref.save() called", {
+          hasEditing: !!editingRef.current,
+        });
+        return await performEditSave();
+      },
       clear: () => {},
     }));
 
@@ -282,97 +387,9 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
               </Button>
               <Button
                 disabled={savingEdit}
-                onClick={async () => {
-                  if (!editing || !botId || !guildId) return;
-                  setSavingEdit(true);
-                  try {
-                    // 1) Build the config payload from the inner builder
-                    //    (validates the form, no DB writes).
-                    const payload = innerBuilderRef.current?.buildPayload();
-                    console.log("[TicketEditor] Edit dialog Save clicked", {
-                      editing,
-                      hasBuilder: !!innerBuilderRef.current,
-                      payload,
-                    });
-                    if (!payload) {
-                      setSavingEdit(false);
-                      return;
-                    }
-
-                    // 2) Persist the updated ticket panel config to bot_config.
-                    const { error: cfgErr } = await supabase
-                      .from("bot_config")
-                      .upsert(payload, { onConflict: "bot_id,feature" });
-                    if (cfgErr) {
-                      toast.error(`Save failed: ${cfgErr.message}`);
-                      return;
-                    }
-
-                    // 3) Separately enqueue an edit_ticket_panel bot command.
-                    const { data: orderRow } = await supabase
-                      .from("bot_orders")
-                      .select("user_id")
-                      .eq("id", botId)
-                      .maybeSingle();
-                    const ownerId = orderRow?.user_id;
-                    const { data: authData } = await supabase.auth.getUser();
-                    const requesterId = authData.user?.id;
-                    if (!ownerId || !requesterId) {
-                      toast.warning(
-                        "Saved, but could not enqueue panel edit (auth context missing).",
-                      );
-                    } else {
-                      const commandPayload = {
-                        bot_id: botId,
-                        user_id: ownerId,
-                        requested_by: requesterId,
-                        action: "edit_ticket_panel",
-                        payload: {
-                          channel_id: editing.channel_id,
-                          message_id: editing.message_id,
-                          config: payload.config,
-                        },
-                      };
-                      console.log(
-                        "[TicketEditor] Enqueuing bot_commands edit_ticket_panel:",
-                        commandPayload,
-                      );
-                      const { error: cmdErr } = await supabase
-                        .from("bot_commands")
-                        .insert(commandPayload);
-                      if (cmdErr) {
-                        toast.warning(
-                          `Saved, but failed to queue panel edit: ${cmdErr.message}`,
-                        );
-                      } else {
-                        toast.success(
-                          "Panel update queued — the bot will edit the message shortly.",
-                        );
-                      }
-                    }
-
-                    // 4) Refresh posted_panels entry (touch posted_at / channel_name).
-                    const liveName = channelNames.get(editing.channel_id);
-                    const { error: spErr } = await supabase.functions.invoke(
-                      "save-ticket-panel",
-                      {
-                        body: {
-                          bot_id: botId,
-                          guild_id: guildId,
-                          channel_id: editing.channel_id,
-                          message_id: editing.message_id,
-                          channel_name: liveName ?? editing.channel_name ?? null,
-                        },
-                      },
-                    );
-                    if (spErr) {
-                      console.warn("[TicketEditor] save-ticket-panel refresh failed", spErr);
-                    }
-                    setEditing(null);
-                    await fetchPanels();
-                  } finally {
-                    setSavingEdit(false);
-                  }
+                onClick={() => {
+                  console.log("[TicketEditor] Inner Save clicked");
+                  void performEditSave();
                 }}
               >
                 {savingEdit ? "Saving…" : "Save changes"}
