@@ -2521,8 +2521,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               botName={botName}
               botAvatarUrl={botAvatarUrl}
               engineVersion={engineVersion}
-              open={open}
             />
+
 
 
 
