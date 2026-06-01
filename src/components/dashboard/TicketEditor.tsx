@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Edit3, Hash, RefreshCw } from "lucide-react";
+import { Edit3, Hash, RefreshCw, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
@@ -56,6 +56,7 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
     const [panels, setPanels] = useState<PostedPanel[]>([]);
     const [loading, setLoading] = useState(false);
     const [editing, setEditing] = useState<PostedPanel | null>(null);
+    const [deletingKey, setDeletingKey] = useState<string | null>(null);
     const innerBuilderRef = useRef<TicketPanelBuilderHandle>(null);
     const [savingEdit, setSavingEdit] = useState(false);
 
@@ -113,6 +114,61 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
       for (const c of allChannels) m.set(c.channel_id, c.channel_name);
       return m;
     }, [allChannels]);
+
+    // Call the save-ticket-panel edge function with delete:true to remove an
+    // entry from bot_config.config.posted_panels[guildId].
+    const deletePanel = useCallback(
+      async (p: PostedPanel, opts?: { silent?: boolean }) => {
+        if (!botId || !guildId) return false;
+        const { data, error } = await supabase.functions.invoke("save-ticket-panel", {
+          body: {
+            bot_id: botId,
+            guild_id: guildId,
+            message_id: p.message_id,
+            channel_id: p.channel_id,
+            delete: true,
+          },
+        });
+        if (error || (data as any)?.error) {
+          if (!opts?.silent) {
+            toast.error(
+              `Failed to remove panel: ${
+                error?.message ?? (data as any)?.error ?? "unknown error"
+              }`,
+            );
+          }
+          return false;
+        }
+        setPanels((prev) =>
+          prev.filter(
+            (x) => !(x.channel_id === p.channel_id && x.message_id === p.message_id),
+          ),
+        );
+        if (!opts?.silent) toast.success("Panel removed.");
+        return true;
+      },
+      [botId, guildId],
+    );
+
+    // Auto-prune: when the bot's channel list loads, drop any panel whose
+    // channel_id is no longer present (deleted in Discord), and clean it up
+    // in Supabase so it doesn't reappear on refresh.
+    const prunedKeysRef = useRef<Set<string>>(new Set());
+    useEffect(() => {
+      if (!botId || !guildId) return;
+      if (allChannels.length === 0) return; // channels not loaded yet
+      if (panels.length === 0) return;
+      const stale = panels.filter((p) => {
+        const key = `${p.channel_id}:${p.message_id}`;
+        if (prunedKeysRef.current.has(key)) return false;
+        return !channelById.has(p.channel_id);
+      });
+      if (stale.length === 0) return;
+      for (const p of stale) {
+        prunedKeysRef.current.add(`${p.channel_id}:${p.message_id}`);
+        void deletePanel(p, { silent: true });
+      }
+    }, [allChannels, channelById, panels, botId, guildId, deletePanel]);
 
     // posted_panels is keyed by guild_id, so panels in state already match the
     // active guild — no extra filtering needed.
@@ -185,16 +241,37 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
                         : ""}
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-8 gap-1.5"
-                    onClick={() => setEditing(p)}
-                  >
-                    <Edit3 className="h-3.5 w-3.5" />
-                    Edit
-                  </Button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5"
+                      onClick={() => setEditing(p)}
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-2 text-muted-foreground hover:text-destructive"
+                      disabled={deletingKey === `${p.channel_id}:${p.message_id}`}
+                      onClick={async () => {
+                        const key = `${p.channel_id}:${p.message_id}`;
+                        setDeletingKey(key);
+                        try {
+                          await deletePanel(p);
+                        } finally {
+                          setDeletingKey(null);
+                        }
+                      }}
+                      aria-label="Remove panel"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               );
             })}

@@ -7,6 +7,8 @@ interface Payload {
   message_id: string;
   channel_id: string;
   channel_name?: string;
+  /** When true, remove this panel from posted_panels[guild_id] instead of upserting. */
+  delete?: boolean;
 }
 
 function isStr(v: unknown): v is string {
@@ -69,20 +71,31 @@ Deno.serve(async (req) => {
       ? postedPanels[body.guild_id]
       : [];
 
-    const entry = {
-      channel_id: body.channel_id,
-      message_id: body.message_id,
-      channel_name: body.channel_name ?? null,
-      posted_at: new Date().toISOString(),
-    };
+    let nextGuildPanels: any[];
+    let entry: Record<string, any> | null = null;
 
-    // Replace any existing panel for the same channel, then append the new one.
-    const nextGuildPanels = [
-      ...guildPanels.filter(
-        (p) => p && p.channel_id !== body.channel_id,
-      ),
-      entry,
-    ];
+    if (body.delete === true) {
+      // Remove any panel matching this message_id (or channel_id as fallback).
+      nextGuildPanels = guildPanels.filter(
+        (p) =>
+          p &&
+          p.message_id !== body.message_id &&
+          // also drop legacy entries that only matched by channel
+          !(p.message_id == null && p.channel_id === body.channel_id),
+      );
+    } else {
+      entry = {
+        channel_id: body.channel_id,
+        message_id: body.message_id,
+        channel_name: body.channel_name ?? null,
+        posted_at: new Date().toISOString(),
+      };
+      // Replace any existing panel for the same channel, then append the new one.
+      nextGuildPanels = [
+        ...guildPanels.filter((p) => p && p.channel_id !== body.channel_id),
+        entry,
+      ];
+    }
 
     const nextConfig = {
       ...config,
@@ -114,7 +127,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ ok: true, panel: entry }),
+      JSON.stringify({ ok: true, deleted: body.delete === true, panel: entry }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
