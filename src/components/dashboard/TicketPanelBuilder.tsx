@@ -44,6 +44,18 @@ type Variant = "ticket" | "report";
 export type TicketPanelBuilderHandle = {
   save: () => Promise<boolean>;
   clear: () => void;
+  /**
+   * Validate the form and return the exact `bot_config` payload that would
+   * be persisted (without actually writing to the DB or enqueueing anything).
+   * Returns null if validation fails. Used by the Ticket Panel Edit dialog
+   * so it can run its own self-contained save + edit_ticket_panel enqueue.
+   */
+  buildPayload: () => {
+    bot_id: string;
+    feature: string;
+    config: Record<string, any>;
+    updated_at: string;
+  } | null;
 };
 
 type Props = {
