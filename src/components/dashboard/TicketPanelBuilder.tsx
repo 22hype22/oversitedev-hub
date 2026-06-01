@@ -322,7 +322,9 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   }, [botId, feature, editTarget?.channel_id, editTarget?.message_id]);
 
   // Persist draft on every change — only after hydration completes, to avoid
-  // overwriting it with the initial empty defaults.
+  // overwriting it with the initial empty defaults. Skip writing when the
+  // current state matches the saved baseline (i.e. nothing unsaved), and
+  // clear any stale draft in that case so reopening the card loads from DB.
   useEffect(() => {
     if (!draftKey || !hydrated) return;
     const data = {
@@ -344,8 +346,24 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       logTicketClaimed,
       logIncludeAttachments,
     };
+    const baseline = baselineRef.current;
+    const matchesBaseline = baseline
+      ? JSON.stringify({
+          ...baseline,
+          panelChannel: baseline.panelChannel
+            ? {
+                channel_id: baseline.panelChannel.channel_id,
+                channel_name: baseline.panelChannel.channel_name,
+              }
+            : null,
+        }) === JSON.stringify(data)
+      : false;
     try {
-      localStorage.setItem(draftKey, JSON.stringify(data));
+      if (matchesBaseline) {
+        localStorage.removeItem(draftKey);
+      } else {
+        localStorage.setItem(draftKey, JSON.stringify(data));
+      }
     } catch {
       /* ignore */
     }
@@ -365,6 +383,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     logTicketClaimed,
     logIncludeAttachments,
   ]);
+
 
 
   // ---- Channel list (used for the log-channel dropdown) ----
