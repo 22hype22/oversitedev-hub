@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Edit3, Hash, RefreshCw, Trash2 } from "lucide-react";
+import { Edit3, Hash, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
