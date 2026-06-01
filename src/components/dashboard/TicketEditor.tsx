@@ -168,6 +168,7 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
           const m = new Map<string, string>();
           for (const c of data) m.set(String(c.channel_id), String(c.channel_name));
           setChannelNames(m);
+          channelNamesRef.current = m;
         });
       return () => {
         cancelled = true;
