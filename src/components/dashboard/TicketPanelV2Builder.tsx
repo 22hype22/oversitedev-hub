@@ -204,7 +204,7 @@ export const TicketPanelV2Builder = forwardRef<
   TicketPanelV2BuilderHandle,
   TicketPanelV2BuilderProps
 >(function TicketPanelV2Builder(
-  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [] },
+  { botId, botName, botAvatarUrl, embedded = false, initialItems, onItemsChange, previewExtras, editorNotice, categoryNames = [] },
   ref,
 ) {
   const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
