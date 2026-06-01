@@ -32,6 +32,7 @@ import { SortableAddonGrid } from "@/components/dashboard/SortableAddonGrid";
 const AddonConfigCard = lazy(() =>
   import("@/components/dashboard/AddonConfigCard").then((m) => ({ default: m.AddonConfigCard })),
 );
+import { TicketEditorCard } from "@/components/dashboard/TicketEditorCard";
 import { GiveawayLaunchCard } from "@/components/dashboard/GiveawayLaunchCard";
 import { FixesBar } from "@/components/dashboard/FixesBar";
 import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
