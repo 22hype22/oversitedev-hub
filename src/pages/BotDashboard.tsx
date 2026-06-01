@@ -32,6 +32,7 @@ import { SortableAddonGrid } from "@/components/dashboard/SortableAddonGrid";
 const AddonConfigCard = lazy(() =>
   import("@/components/dashboard/AddonConfigCard").then((m) => ({ default: m.AddonConfigCard })),
 );
+import { TicketEditorCard } from "@/components/dashboard/TicketEditorCard";
 import { GiveawayLaunchCard } from "@/components/dashboard/GiveawayLaunchCard";
 import { FixesBar } from "@/components/dashboard/FixesBar";
 import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
@@ -945,13 +946,22 @@ const BotSection = ({
                           }`}
                         >
                           <Suspense fallback={<div className="h-24 rounded-xl border border-border/40 bg-card/40 animate-pulse" />}>
-                            <AddonConfigCard
-                              addonId={id}
-                              botId={bot.id}
-                              botName={bot.bot_name}
-                              botAvatarUrl={bot.icon_url}
-                              engineVersion={bot.engine_version}
-                            />
+                            {id === "ticket-editor" ? (
+                              <TicketEditorCard
+                                botId={bot.id}
+                                botName={bot.bot_name}
+                                botAvatarUrl={bot.icon_url}
+                                engineVersion={bot.engine_version}
+                              />
+                            ) : (
+                              <AddonConfigCard
+                                addonId={id}
+                                botId={bot.id}
+                                botName={bot.bot_name}
+                                botAvatarUrl={bot.icon_url}
+                                engineVersion={bot.engine_version}
+                              />
+                            )}
 
                           </Suspense>
                           {id === "giveaway-system" && (
