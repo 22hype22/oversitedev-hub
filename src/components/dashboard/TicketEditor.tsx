@@ -74,7 +74,23 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
         return;
       }
       const cfg = (data?.config ?? {}) as Record<string, any>;
-      const raw = Array.isArray(cfg.posted_panels) ? cfg.posted_panels : [];
+      const postedPanels = cfg.posted_panels ?? {};
+      // posted_panels is keyed by guild_id: { [guildId]: PostedPanel[] }.
+      // Older configs may have stored a flat array — keep that as fallback.
+      let raw: any[] = [];
+      if (Array.isArray(postedPanels)) {
+        raw = postedPanels;
+      } else if (guildId && Array.isArray(postedPanels[guildId])) {
+        raw = postedPanels[guildId];
+      }
+      console.log("[TicketEditor] posted_panels lookup", {
+        botId,
+        guildId,
+        hasConfig: !!data,
+        postedPanelsShape: Array.isArray(postedPanels) ? "array" : typeof postedPanels,
+        keys: postedPanels && !Array.isArray(postedPanels) ? Object.keys(postedPanels) : undefined,
+        matched: raw.length,
+      });
       const cleaned: PostedPanel[] = raw
         .filter((p: any) => p && p.channel_id && p.message_id)
         .map((p: any) => ({
@@ -84,7 +100,7 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
           posted_at: p.posted_at ? String(p.posted_at) : undefined,
         }));
       setPanels(cleaned);
-    }, [botId]);
+    }, [botId, guildId]);
 
     useEffect(() => {
       void fetchPanels();
@@ -98,32 +114,10 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
       return m;
     }, [allChannels]);
 
-    // If config was saved against a different guild than the one selected,
-    // we don't have a way to filter (posted_panels don't carry a guild_id
-    // today). Use the saved config guild_id when present.
-    const [configGuildId, setConfigGuildId] = useState<string | null>(null);
-    useEffect(() => {
-      if (!botId) return;
-      let cancelled = false;
-      (async () => {
-        const { data } = await supabase
-          .from("bot_config")
-          .select("config")
-          .eq("bot_id", botId)
-          .eq("feature", "tickets")
-          .maybeSingle();
-        if (cancelled) return;
-        const cfg = (data?.config ?? {}) as Record<string, any>;
-        setConfigGuildId(cfg.guild_id ? String(cfg.guild_id) : null);
-      })();
-      return () => {
-        cancelled = true;
-      };
-    }, [botId]);
-
-    const matchesActiveGuild =
-      !guildId || !configGuildId || configGuildId === guildId;
-    const visiblePanels = matchesActiveGuild ? panels : [];
+    // posted_panels is keyed by guild_id, so panels in state already match the
+    // active guild — no extra filtering needed.
+    const matchesActiveGuild = true;
+    const visiblePanels = panels;
 
     useImperativeHandle(ref, () => ({
       save: async () => true,
