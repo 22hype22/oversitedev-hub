@@ -2659,9 +2659,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     return;
                   }
                   if (isTicketEditor) {
+                    console.log("[AddonConfigCard] TicketEditor ref:", ticketEditorRef.current);
                     setSaving(true);
                     try {
                       const ok = await ticketEditorRef.current?.save();
+                      console.log("[AddonConfigCard] ticketEditorRef.save() returned:", ok);
                       if (ok) setOpen(false);
                     } finally {
                       setSaving(false);
