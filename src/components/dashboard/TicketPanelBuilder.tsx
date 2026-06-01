@@ -197,6 +197,74 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     setLogIncludeAttachments(s.logIncludeAttachments);
   };
 
+  const loadSavedSnapshot = async (): Promise<NonNullable<typeof baselineRef.current>> => {
+    const { data: panelRow } = await supabase
+      .from("bot_config")
+      .select("config")
+      .eq("bot_id", botId)
+      .eq("feature", feature)
+      .maybeSingle();
+    const cfg = (panelRow?.config ?? {}) as Record<string, any>;
+
+    const baseCategories: Category[] = Array.isArray(cfg.categories)
+      ? (cfg.categories as any[]).map((c) => {
+          if (typeof c === "string") {
+            const name = c;
+            const roles = (cfg.category_roles ?? {})[name] ?? [];
+            const opening = (cfg.category_messages ?? {})[name] ?? "";
+            return {
+              id: uid(),
+              name,
+              roles: roles.map(String),
+              openingMessage: String(opening),
+            };
+          }
+          return {
+            id: uid(),
+            name: String(c.name ?? ""),
+            roles: Array.isArray(c.roles) ? c.roles.map(String) : [],
+            openingMessage: String(c.opening_message ?? ""),
+          };
+        })
+      : [];
+
+    let logsCfg: Record<string, any> = {};
+    if (!isReport) {
+      const { data: logsRow } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", "ticket-logs")
+        .maybeSingle();
+      logsCfg = (logsRow?.config ?? {}) as Record<string, any>;
+    }
+
+    return {
+      panelTitle: typeof cfg.panel_title === "string" ? cfg.panel_title : "",
+      panelDescription:
+        typeof cfg.panel_description === "string" ? cfg.panel_description : "",
+      embedColor: typeof cfg.color === "string" ? cfg.color : "#5865F2",
+      cooldownMinutes:
+        typeof cfg.cooldown_minutes === "number" ? cfg.cooldown_minutes : 10,
+      categories: baseCategories,
+      panelChannel: cfg.channel_id
+        ? ({
+            channel_id: String(cfg.channel_id),
+            channel_name: String(cfg.channel_name ?? cfg.channel_id),
+            channel_type: "text",
+          } as BotChannel)
+        : null,
+      v2Items: Array.isArray(cfg.ticket_panel_v2)
+        ? (cfg.ticket_panel_v2 as V2Item[])
+        : null,
+      logChannelId: String(logsCfg.log_channel_id ?? ""),
+      logTicketOpened: logsCfg.log_ticket_opened !== false,
+      logTicketClosed: logsCfg.log_ticket_closed !== false,
+      logTicketClaimed: logsCfg.log_ticket_claimed !== false,
+      logIncludeAttachments: logsCfg.include_attachments !== false,
+    };
+  };
+
   // Full hydration: DB baseline first, then layer the localStorage draft on
   // top so unsaved user edits survive a dialog close / page reload.
   useEffect(() => {
