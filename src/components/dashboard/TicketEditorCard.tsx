@@ -30,7 +30,39 @@ type PostedPanel = {
   message_id: string;
   channel_name?: string;
   posted_at?: string;
+  panel_title?: string;
 };
+
+function extractPanelTitle(ticketPanelV2: unknown): string | undefined {
+  if (!Array.isArray(ticketPanelV2)) return undefined;
+  // Pass 1: first component with a non-empty `title` field
+  const findTitle = (nodes: any[]): string | undefined => {
+    for (const n of nodes) {
+      if (!n || typeof n !== "object") continue;
+      const t = typeof n.title === "string" ? n.title.trim() : "";
+      if (t) return t;
+      if (Array.isArray(n.children)) {
+        const f = findTitle(n.children);
+        if (f) return f;
+      }
+    }
+    return undefined;
+  };
+  // Pass 2: first non-empty text content
+  const findText = (nodes: any[]): string | undefined => {
+    for (const n of nodes) {
+      if (!n || typeof n !== "object") continue;
+      const t = typeof n.text === "string" ? n.text.trim() : "";
+      if (t) return t.split("\n")[0].slice(0, 80);
+      if (Array.isArray(n.children)) {
+        const f = findText(n.children);
+        if (f) return f;
+      }
+    }
+    return undefined;
+  };
+  return findTitle(ticketPanelV2 as any[]) ?? findText(ticketPanelV2 as any[]);
+}
 
 type Props = {
   botId?: string;
@@ -113,6 +145,15 @@ export function TicketEditorCard({
     } else if (guildId && Array.isArray(postedPanels[guildId])) {
       raw = postedPanels[guildId];
     }
+    const { data: ticketsRow } = await supabase
+      .from("bot_config")
+      .select("config")
+      .eq("bot_id", botId)
+      .eq("feature", "tickets")
+      .maybeSingle();
+    const ticketsCfg = (ticketsRow?.config ?? {}) as Record<string, any>;
+    const panelTitle = extractPanelTitle(ticketsCfg.ticket_panel_v2);
+
     let cleaned: PostedPanel[] = raw
       .filter((p: any) => p && p.channel_id && p.message_id)
       .map((p: any) => ({
@@ -120,6 +161,7 @@ export function TicketEditorCard({
         message_id: String(p.message_id),
         channel_name: p.channel_name ? String(p.channel_name) : undefined,
         posted_at: p.posted_at ? String(p.posted_at) : undefined,
+        panel_title: panelTitle,
       }));
 
     const live = await fetchLiveChannelIds();
@@ -344,22 +386,24 @@ export function TicketEditorCard({
             ) : (
               <div className="space-y-2">
                 {panels.map((p) => {
-                  const name =
+                  const channel =
                     channelNames.get(p.channel_id) ??
                     p.channel_name ??
                     p.channel_id;
+                  const displayTitle = p.panel_title?.trim() || channel;
+                  const hasTitle = !!p.panel_title?.trim();
                   return (
                     <div
                       key={`${p.channel_id}:${p.message_id}`}
                       className="rounded-md border border-border bg-card/40 px-3 py-2.5 flex items-center justify-between gap-3"
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 text-sm font-medium text-foreground truncate">
-                          <Hash className="h-3.5 w-3.5 text-muted-foreground" />
-                          {name}
+                        <div className="text-sm font-medium text-foreground truncate">
+                          {displayTitle}
                         </div>
-                        <div className="text-[11px] text-muted-foreground truncate">
-                          Message {p.message_id}
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground truncate">
+                          {hasTitle && <Hash className="h-3 w-3" />}
+                          {hasTitle ? channel : `Message ${p.message_id}`}
                           {p.posted_at
                             ? ` · posted ${new Date(p.posted_at).toLocaleString()}`
                             : ""}
