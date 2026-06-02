@@ -71,6 +71,13 @@ Deno.serve(async (req) => {
       ? postedPanels[body.guild_id]
       : [];
 
+    console.log(
+      `[save-ticket-panel] BEFORE bot=${body.bot_id} guild=${body.guild_id} ` +
+        `action=${body.delete === true ? "delete" : "upsert"} ` +
+        `message_id=${body.message_id} channel_id=${body.channel_id} ` +
+        `existing_count=${guildPanels.length} existing=${JSON.stringify(guildPanels)}`,
+    );
+
     let nextGuildPanels: any[];
     let entry: Record<string, any> | null = null;
 
@@ -97,6 +104,11 @@ Deno.serve(async (req) => {
         entry,
       ];
     }
+
+    console.log(
+      `[save-ticket-panel] AFTER bot=${body.bot_id} guild=${body.guild_id} ` +
+        `next_count=${nextGuildPanels.length} next=${JSON.stringify(nextGuildPanels)}`,
+    );
 
     const nextConfig = {
       ...config,
