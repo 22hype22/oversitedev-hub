@@ -255,6 +255,15 @@ export function TicketEditorCard({
     if (open) void fetchPanels();
   }, [open, fetchPanels]);
 
+  // Auto-refresh every 30 s while the dialog is open.
+  useEffect(() => {
+    if (!open) return;
+    const id = setInterval(() => {
+      void fetchPanels();
+    }, 30_000);
+    return () => clearInterval(id);
+  }, [open, fetchPanels]);
+
   // Refresh when another component signals a panel was posted/saved.
   useEffect(() => {
     const handler = () => {
