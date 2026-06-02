@@ -165,6 +165,24 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   // can mount with the correct initialItems.
   const [hydrated, setHydrated] = useState(false);
 
+  // ── Draft persistence (Post Ticket card only — editTarget is null) ──
+  // Persist unsaved edits to localStorage so the user can close the dialog
+  // and come back without losing changes. On successful save we clear the
+  // draft so the form re-hydrates cleanly from the DB next time.
+  const draftKey =
+    botId && !editTarget?.message_id
+      ? `oversite:ticket-panel-draft:${botId}:${feature}`
+      : null;
+
+  const clearDraft = () => {
+    if (!draftKey) return;
+    try {
+      localStorage.removeItem(draftKey);
+    } catch {
+      /* ignore */
+    }
+  };
+
   // Hydrate from DB so the editor pre-fills with the existing config.
   useEffect(() => {
     if (!botId) return;
@@ -215,36 +233,104 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
 
       if (cancelled) return;
 
-      setPanelTitle(typeof cfg.panel_title === "string" ? cfg.panel_title : "");
-      setPanelDescription(
-        typeof cfg.panel_description === "string" ? cfg.panel_description : "",
-      );
-      setEmbedColor(typeof cfg.color === "string" ? cfg.color : "#5865F2");
-      setCooldownMinutes(
-        typeof cfg.cooldown_minutes === "number" ? cfg.cooldown_minutes : 10,
-      );
-      setCategories(
+      // Defaults from DB.
+      let nextPanelTitle =
+        typeof cfg.panel_title === "string" ? cfg.panel_title : "";
+      let nextPanelDescription =
+        typeof cfg.panel_description === "string" ? cfg.panel_description : "";
+      let nextEmbedColor =
+        typeof cfg.color === "string" ? cfg.color : "#5865F2";
+      let nextCooldown =
+        typeof cfg.cooldown_minutes === "number" ? cfg.cooldown_minutes : 10;
+      let nextCategories: Category[] =
         baseCategories.length > 0
           ? baseCategories
-          : [{ id: uid(), name: "", roles: [], openingMessage: "" }],
-      );
-      setPanelChannel(
-        cfg.channel_id
-          ? ({
-              channel_id: String(cfg.channel_id),
-              channel_name: String(cfg.channel_name ?? cfg.channel_id),
-              channel_type: "text",
-            } as BotChannel)
-          : null,
-      );
-      setV2Items(
-        Array.isArray(cfg.ticket_panel_v2) ? (cfg.ticket_panel_v2 as V2Item[]) : null,
-      );
-      setLogChannelId(String(logsCfg.log_channel_id ?? ""));
-      setLogTicketOpened(logsCfg.log_ticket_opened !== false);
-      setLogTicketClosed(logsCfg.log_ticket_closed !== false);
-      setLogTicketClaimed(logsCfg.log_ticket_claimed !== false);
-      setLogIncludeAttachments(logsCfg.include_attachments !== false);
+          : [{ id: uid(), name: "", roles: [], openingMessage: "" }];
+      let nextPanelChannel: BotChannel | null = cfg.channel_id
+        ? ({
+            channel_id: String(cfg.channel_id),
+            channel_name: String(cfg.channel_name ?? cfg.channel_id),
+            channel_type: "text",
+          } as BotChannel)
+        : null;
+      let nextV2Items: V2Item[] | null = Array.isArray(cfg.ticket_panel_v2)
+        ? (cfg.ticket_panel_v2 as V2Item[])
+        : null;
+      let nextLogChannelId = String(logsCfg.log_channel_id ?? "");
+      let nextLogTicketOpened = logsCfg.log_ticket_opened !== false;
+      let nextLogTicketClosed = logsCfg.log_ticket_closed !== false;
+      let nextLogTicketClaimed = logsCfg.log_ticket_claimed !== false;
+      let nextLogIncludeAttachments = logsCfg.include_attachments !== false;
+
+      // Overlay localStorage draft (Post Ticket card only) on top of DB state.
+      if (draftKey) {
+        try {
+          const raw = localStorage.getItem(draftKey);
+          if (raw) {
+            const d = JSON.parse(raw) as Record<string, any>;
+            if (typeof d.panelTitle === "string") nextPanelTitle = d.panelTitle;
+            if (typeof d.panelDescription === "string")
+              nextPanelDescription = d.panelDescription;
+            if (typeof d.embedColor === "string")
+              nextEmbedColor = d.embedColor;
+            if (typeof d.cooldownMinutes === "number")
+              nextCooldown = d.cooldownMinutes;
+            if (Array.isArray(d.categories)) {
+              nextCategories = (d.categories as any[]).map((c) => ({
+                id: typeof c.id === "string" ? c.id : uid(),
+                name: String(c.name ?? ""),
+                roles: Array.isArray(c.roles) ? c.roles.map(String) : [],
+                openingMessage: String(c.openingMessage ?? ""),
+              }));
+              if (nextCategories.length === 0)
+                nextCategories = [
+                  { id: uid(), name: "", roles: [], openingMessage: "" },
+                ];
+            }
+            if (d.panelChannel === null) nextPanelChannel = null;
+            else if (d.panelChannel && typeof d.panelChannel === "object") {
+              nextPanelChannel = {
+                channel_id: String(d.panelChannel.channel_id ?? ""),
+                channel_name: String(
+                  d.panelChannel.channel_name ??
+                    d.panelChannel.channel_id ??
+                    "",
+                ),
+                channel_type: "text",
+              } as BotChannel;
+            }
+            if (Array.isArray(d.v2Items)) nextV2Items = d.v2Items as V2Item[];
+            if (typeof d.logChannelId === "string")
+              nextLogChannelId = d.logChannelId;
+            if (typeof d.logTicketOpened === "boolean")
+              nextLogTicketOpened = d.logTicketOpened;
+            if (typeof d.logTicketClosed === "boolean")
+              nextLogTicketClosed = d.logTicketClosed;
+            if (typeof d.logTicketClaimed === "boolean")
+              nextLogTicketClaimed = d.logTicketClaimed;
+            if (typeof d.logIncludeAttachments === "boolean")
+              nextLogIncludeAttachments = d.logIncludeAttachments;
+          }
+        } catch (e) {
+          console.warn("[TicketPanelBuilder] failed to read draft", e);
+        }
+      }
+
+      setPanelTitle(nextPanelTitle);
+      setPanelDescription(nextPanelDescription);
+      setEmbedColor(nextEmbedColor);
+      setCooldownMinutes(nextCooldown);
+      setCategories(nextCategories);
+      setPanelChannel(nextPanelChannel);
+      setV2Items(nextV2Items);
+      setLogChannelId(nextLogChannelId);
+      setLogTicketOpened(nextLogTicketOpened);
+      setLogTicketClosed(nextLogTicketClosed);
+      setLogTicketClaimed(nextLogTicketClaimed);
+      setLogIncludeAttachments(nextLogIncludeAttachments);
+      // Force the V2 builder to remount with the (possibly draft-overlaid)
+      // initialItems so it doesn't keep its previous internal state.
+      setV2BuilderKey((k) => k + 1);
 
       setHydrated(true);
     })();
@@ -253,6 +339,50 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [botId, feature, editTarget?.channel_id, editTarget?.message_id]);
+
+  // Persist draft to localStorage whenever the form changes (after hydration).
+  useEffect(() => {
+    if (!hydrated || !draftKey) return;
+    try {
+      const draft = {
+        panelTitle,
+        panelDescription,
+        embedColor,
+        cooldownMinutes,
+        categories,
+        panelChannel: panelChannel
+          ? {
+              channel_id: panelChannel.channel_id,
+              channel_name: panelChannel.channel_name,
+            }
+          : null,
+        v2Items,
+        logChannelId,
+        logTicketOpened,
+        logTicketClosed,
+        logTicketClaimed,
+        logIncludeAttachments,
+      };
+      localStorage.setItem(draftKey, JSON.stringify(draft));
+    } catch (e) {
+      console.warn("[TicketPanelBuilder] failed to write draft", e);
+    }
+  }, [
+    hydrated,
+    draftKey,
+    panelTitle,
+    panelDescription,
+    embedColor,
+    cooldownMinutes,
+    categories,
+    panelChannel,
+    v2Items,
+    logChannelId,
+    logTicketOpened,
+    logTicketClosed,
+    logTicketClaimed,
+    logIncludeAttachments,
+  ]);
 
 
 
@@ -477,6 +607,9 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           );
         }
       }
+      // Save succeeded — drop the unsaved-changes draft so the form
+      // re-hydrates from the freshly saved DB state next time it opens.
+      clearDraft();
       return true;
     },
     clear: () => {
