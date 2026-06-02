@@ -164,6 +164,14 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   // Set to true once we've finished loading from the DB, so the V2 builder
   // can mount with the correct initialItems.
   const [hydrated, setHydrated] = useState(false);
+  // Bumped after a successful save to force the hydration effect to re-run
+  // against a fresh DB read, so the next open shows the just-saved state
+  // instead of any stale cached values.
+  const [reloadKey, setReloadKey] = useState(0);
+  // Snapshot of the last-saved form values. Used so that the next hydration
+  // (or reopen) treats the just-saved values — not the previous DB baseline —
+  // as the authoritative starting point.
+  const baselineRef = useRef<Record<string, any> | null>(null);
 
   // ── Draft persistence (Post Ticket card only — editTarget is null) ──
   // Persist unsaved edits to localStorage so the user can close the dialog
@@ -338,7 +346,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [botId, feature, editTarget?.channel_id, editTarget?.message_id]);
+  }, [botId, feature, editTarget?.channel_id, editTarget?.message_id, reloadKey]);
 
   // Persist draft to localStorage whenever the form changes (after hydration).
   useEffect(() => {
@@ -623,6 +631,17 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       // Save succeeded — drop the unsaved-changes draft so the form
       // re-hydrates from the freshly saved DB state next time it opens.
       clearDraft();
+      // Snapshot the just-saved form state as the new baseline so any
+      // subsequent re-hydration starts from the freshly persisted values.
+      baselineRef.current = {
+        ...payload.config,
+        savedAt: Date.now(),
+      };
+      console.log("[PostTicket] Baseline updated to saved state", baselineRef.current);
+      // Force the hydration effect to re-run against a fresh DB read on the
+      // next render / reopen, dropping any cached in-memory state.
+      setHydrated(false);
+      setReloadKey((k) => k + 1);
       return true;
     },
     clear: () => {
