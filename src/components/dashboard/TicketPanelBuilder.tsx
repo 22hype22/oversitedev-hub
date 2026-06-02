@@ -607,6 +607,9 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           );
         }
       }
+      // Save succeeded — drop the unsaved-changes draft so the form
+      // re-hydrates from the freshly saved DB state next time it opens.
+      clearDraft();
       return true;
     },
     clear: () => {
