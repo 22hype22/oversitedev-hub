@@ -250,19 +250,29 @@ export function TicketEditorCard({
     };
   }, [botId, guildId, panels, open]);
 
+  // Keep a ref to the latest fetchPanels so the interval never calls a stale
+  // closure even if botId/guildId/deps change while the dialog is open.
+  const fetchPanelsRef = useRef(fetchPanels);
+  useEffect(() => {
+    fetchPanelsRef.current = fetchPanels;
+  }, [fetchPanels]);
+
   // Load panels whenever the outer dialog opens.
   useEffect(() => {
-    if (open) void fetchPanels();
-  }, [open, fetchPanels]);
+    if (open) void fetchPanelsRef.current();
+  }, [open]);
 
-  // Auto-refresh every 30 s while the dialog is open.
+  // Auto-refresh every 30 s while the dialog is open. Always calls the latest
+  // fetchPanels via ref, which re-queries bot_config from Supabase directly
+  // (no cached state — see fetchPanels above).
   useEffect(() => {
     if (!open) return;
     const id = setInterval(() => {
-      void fetchPanels();
+      console.log("[TicketEditorCard] 30s auto-refresh → re-fetching bot_config");
+      void fetchPanelsRef.current();
     }, 30_000);
     return () => clearInterval(id);
-  }, [open, fetchPanels]);
+  }, [open]);
 
   // Refresh when another component signals a panel was posted/saved.
   useEffect(() => {
