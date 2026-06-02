@@ -346,7 +346,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [botId, feature, editTarget?.channel_id, editTarget?.message_id]);
+  }, [botId, feature, editTarget?.channel_id, editTarget?.message_id, reloadKey]);
 
   // Persist draft to localStorage whenever the form changes (after hydration).
   useEffect(() => {
