@@ -165,29 +165,65 @@ export function TicketEditorCard({
       }));
 
     const live = await fetchLiveChannelIds();
+    const pruneEntry = async (p: PostedPanel) => {
+      const { error: e } = await supabase.functions.invoke("save-ticket-panel", {
+        body: {
+          bot_id: botId,
+          guild_id: guildId,
+          channel_id: p.channel_id,
+          message_id: p.message_id,
+          delete: true,
+        },
+      });
+      if (e) console.warn("[TicketEditorCard] prune failed", p, e);
+    };
+
     if (live && guildId) {
-      const stale = cleaned.filter((p) => !live.has(p.channel_id));
-      if (stale.length > 0) {
-        await Promise.all(
-          stale.map((p) =>
-            supabase.functions
-              .invoke("save-ticket-panel", {
-                body: {
-                  bot_id: botId,
-                  guild_id: guildId,
-                  channel_id: p.channel_id,
-                  message_id: p.message_id,
-                  delete: true,
-                },
-              })
-              .then(({ error: e }) => {
-                if (e) console.warn("[TicketEditorCard] prune failed", p, e);
-              }),
-          ),
-        );
+      const staleChannel = cleaned.filter((p) => !live.has(p.channel_id));
+      if (staleChannel.length > 0) {
+        await Promise.all(staleChannel.map(pruneEntry));
         cleaned = cleaned.filter((p) => live.has(p.channel_id));
       }
     }
+
+    // Per-message existence check via bot token.
+    if (guildId && cleaned.length > 0) {
+      const checks = await Promise.all(
+        cleaned.map(async (p) => {
+          try {
+            const { data: r, error: e } = await supabase.functions.invoke(
+              "bot-check-message",
+              {
+                body: {
+                  bot_id: botId,
+                  channel_id: p.channel_id,
+                  message_id: p.message_id,
+                },
+              },
+            );
+            if (e || !r?.ok) {
+              console.warn("[TicketEditorCard] message check failed", p, e ?? r);
+              return { p, exists: true }; // fail-open: don't prune on transient errors
+            }
+            return { p, exists: !!r.exists };
+          } catch (err) {
+            console.warn("[TicketEditorCard] message check threw", p, err);
+            return { p, exists: true };
+          }
+        }),
+      );
+      const missing = checks.filter((c) => !c.exists).map((c) => c.p);
+      if (missing.length > 0) {
+        await Promise.all(missing.map(pruneEntry));
+        const missingKeys = new Set(
+          missing.map((m) => `${m.channel_id}:${m.message_id}`),
+        );
+        cleaned = cleaned.filter(
+          (p) => !missingKeys.has(`${p.channel_id}:${p.message_id}`),
+        );
+      }
+    }
+
 
     setPanels(cleaned);
     setLoading(false);
