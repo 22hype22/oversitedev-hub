@@ -631,6 +631,17 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       // Save succeeded — drop the unsaved-changes draft so the form
       // re-hydrates from the freshly saved DB state next time it opens.
       clearDraft();
+      // Snapshot the just-saved form state as the new baseline so any
+      // subsequent re-hydration starts from the freshly persisted values.
+      baselineRef.current = {
+        ...payload.config,
+        savedAt: Date.now(),
+      };
+      console.log("[PostTicket] Baseline updated to saved state", baselineRef.current);
+      // Force the hydration effect to re-run against a fresh DB read on the
+      // next render / reopen, dropping any cached in-memory state.
+      setHydrated(false);
+      setReloadKey((k) => k + 1);
       return true;
     },
     clear: () => {
