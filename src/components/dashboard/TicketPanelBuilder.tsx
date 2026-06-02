@@ -526,6 +526,19 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         return false;
       }
 
+      // Clear the unsaved-changes draft immediately after the save API call
+      // succeeds, BEFORE the dialog closes / any other state updates fire.
+      // This guarantees the next open re-hydrates from the freshly saved DB
+      // state instead of the stale draft.
+      if (draftKey) {
+        try {
+          localStorage.removeItem(draftKey);
+          console.log("[PostTicket] Draft cleared", { draftKey });
+        } catch (e) {
+          console.warn("[PostTicket] Draft clear failed", e);
+        }
+      }
+
       // Persist the ticket-logs settings alongside the panel (ticket variant only).
       // On the edit path we only want a single targeted edit_ticket_panel
       // command — skip the ticket-logs apply_config enqueue to avoid sending
