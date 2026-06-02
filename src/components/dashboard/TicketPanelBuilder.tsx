@@ -205,6 +205,12 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         .eq("feature", feature)
         .maybeSingle();
       const cfg = (panelRow?.config ?? {}) as Record<string, any>;
+      console.log("[PostTicket] hydration DB read:", {
+        botId,
+        feature,
+        reloadKey,
+        config: cfg,
+      });
 
       const baseCategories: Category[] = Array.isArray(cfg.categories)
         ? (cfg.categories as any[]).map((c) => {
@@ -637,11 +643,26 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         ...payload.config,
         savedAt: Date.now(),
       };
-      console.log("[PostTicket] Baseline updated to saved state", baselineRef.current);
-      // Force the hydration effect to re-run against a fresh DB read on the
-      // next render / reopen, dropping any cached in-memory state.
+      console.log("[PostTicket] baseline after save:", baselineRef.current);
+      // Hard reset of the V2 builder: snapshot the just-saved items, clear
+      // them to force a full unmount, then on the next tick set them back
+      // and bump the remount key so the builder rebuilds its internal state
+      // from the freshly-saved data instead of any cached editor state.
+      const savedV2Items = Array.isArray(payload.config?.ticket_panel_v2)
+        ? (payload.config.ticket_panel_v2 as V2Item[])
+        : null;
+      console.log("[PostTicket] Forcing V2 builder unmount/remount", {
+        itemCount: savedV2Items?.length ?? 0,
+      });
       setHydrated(false);
-      setReloadKey((k) => k + 1);
+      setV2Items(null);
+      setTimeout(() => {
+        setV2Items(savedV2Items);
+        setV2BuilderKey((k) => k + 1);
+        setHydrated(true);
+        setReloadKey((k) => k + 1);
+        console.log("[PostTicket] V2 builder remounted with saved items");
+      }, 0);
       return true;
     },
     clear: () => {
