@@ -261,6 +261,10 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           .eq("bot_id", botId)
           .eq("feature", "ticket-logs")
           .maybeSingle();
+        if (cancelled || myReloadKey !== reloadKeyRef.current) {
+          console.log("[PostTicket] hydration logs read DISCARDED (stale)");
+          return;
+        }
         logsCfg = (logsRow?.config ?? {}) as Record<string, any>;
       }
 
