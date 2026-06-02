@@ -168,6 +168,13 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   // against a fresh DB read, so the next open shows the just-saved state
   // instead of any stale cached values.
   const [reloadKey, setReloadKey] = useState(0);
+  // Mirror of reloadKey kept in a ref so the in-flight hydration effect can
+  // compare its captured key against the current value when the async fetch
+  // resolves, and discard stale results from older runs.
+  const reloadKeyRef = useRef(0);
+  useEffect(() => {
+    reloadKeyRef.current = reloadKey;
+  }, [reloadKey]);
   // Snapshot of the last-saved form values. Used so that the next hydration
   // (or reopen) treats the just-saved values — not the previous DB baseline —
   // as the authoritative starting point.
@@ -198,17 +205,29 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     (async () => {
       setHydrated(false);
 
+      // Capture the reloadKey at fetch start; if a newer hydration run has
+      // been kicked off by the time this resolves, discard the stale result.
+      const myReloadKey = reloadKey;
+
       const { data: panelRow } = await supabase
         .from("bot_config")
         .select("config")
         .eq("bot_id", botId)
         .eq("feature", feature)
         .maybeSingle();
+      if (cancelled) return;
+      if (myReloadKey !== reloadKeyRef.current) {
+        console.log("[PostTicket] hydration DB read DISCARDED (stale)", {
+          myReloadKey,
+          currentReloadKey: reloadKeyRef.current,
+        });
+        return;
+      }
       const cfg = (panelRow?.config ?? {}) as Record<string, any>;
       console.log("[PostTicket] hydration DB read:", {
         botId,
         feature,
-        reloadKey,
+        reloadKey: myReloadKey,
         config: cfg,
       });
 
@@ -242,6 +261,10 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           .eq("bot_id", botId)
           .eq("feature", "ticket-logs")
           .maybeSingle();
+        if (cancelled || myReloadKey !== reloadKeyRef.current) {
+          console.log("[PostTicket] hydration logs read DISCARDED (stale)");
+          return;
+        }
         logsCfg = (logsRow?.config ?? {}) as Record<string, any>;
       }
 
