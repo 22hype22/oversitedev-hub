@@ -39,6 +39,7 @@ import {
   Box,
   MousePointerClick,
   Info,
+  ChevronsUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { GuildChannelPicker } from "./GuildChannelPicker";
@@ -89,13 +90,20 @@ type V2ButtonRow = {
     style: "primary" | "secondary" | "success" | "danger" | "link";
   }[];
 };
+type V2SelectMenuOption = { label: string; value: string; description: string };
+type V2SelectMenu = {
+  id: string;
+  type: "select_menu";
+  placeholder: string;
+  options: V2SelectMenuOption[];
+};
 type V2Container = {
   id: string;
   type: "container";
   accentColor: string;
   children: V2Leaf[];
 };
-type V2Leaf = V2Text | V2Section | V2Gallery | V2Separator | V2ButtonRow;
+type V2Leaf = V2Text | V2Section | V2Gallery | V2Separator | V2ButtonRow | V2SelectMenu;
 export type V2Item = V2Leaf | V2Container;
 
 const uid = () => crypto.randomUUID();
@@ -160,6 +168,13 @@ const newItem = (type: V2Item["type"]): V2Item => {
           { id: uid(), label: "Click me", url: "https://example.com", style: "link" },
         ],
       };
+    case "select_menu":
+      return {
+        id: uid(),
+        type,
+        placeholder: "Choose an option…",
+        options: [{ label: "Option 1", value: "option_1", description: "" }],
+      };
     case "container":
       return { id: uid(), type, accentColor: "#5865F2", children: [] };
   }
@@ -172,6 +187,7 @@ const ADD_OPTIONS: { type: V2Item["type"]; label: string; Icon: React.ComponentT
   { type: "separator", label: "Add Separator", Icon: Minus },
   { type: "container", label: "Add Container", Icon: Box },
   { type: "buttonRow", label: "Add Button Row", Icon: MousePointerClick },
+  { type: "select_menu", label: "Add Select Menu", Icon: ChevronsUpDown },
 ];
 
 const LEAF_OPTIONS = ADD_OPTIONS.filter((o) => o.type !== "container");
@@ -588,6 +604,7 @@ function labelFor(t: V2Item["type"]): string {
     case "separator": return "Separator";
     case "container": return "Container";
     case "buttonRow": return "Button Row";
+    case "select_menu": return "Select Menu";
   }
 }
 
@@ -803,6 +820,85 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
       </div>
     );
   }
+  if (item.type === "select_menu") {
+    const options = item.options;
+    return (
+      <div className="space-y-2">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Placeholder</Label>
+          <Input
+            value={item.placeholder}
+            onChange={(e) => onUpdate({ placeholder: e.target.value } as Partial<V2Item>)}
+            placeholder="Choose an option…"
+          />
+        </div>
+        <Label className="text-xs">Options (up to 25)</Label>
+        {options.map((o, i) => (
+          <div key={i} className="rounded border border-border bg-background/50 p-2 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-medium text-muted-foreground">Option {i + 1}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-destructive hover:text-destructive"
+                onClick={() => onUpdate({ options: options.filter((_, j) => j !== i) } as Partial<V2Item>)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              <Input
+                placeholder="Label"
+                value={o.label}
+                onChange={(e) => {
+                  const next = options.slice();
+                  next[i] = { ...o, label: e.target.value };
+                  onUpdate({ options: next } as Partial<V2Item>);
+                }}
+              />
+              <Input
+                placeholder="Value"
+                value={o.value}
+                onChange={(e) => {
+                  const next = options.slice();
+                  next[i] = { ...o, value: e.target.value };
+                  onUpdate({ options: next } as Partial<V2Item>);
+                }}
+              />
+            </div>
+            <Input
+              placeholder="Description (optional)"
+              value={o.description}
+              onChange={(e) => {
+                const next = options.slice();
+                next[i] = { ...o, description: e.target.value };
+                onUpdate({ options: next } as Partial<V2Item>);
+              }}
+            />
+          </div>
+        ))}
+        {options.length < 25 && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              onUpdate({
+                options: [
+                  ...options,
+                  { label: `Option ${options.length + 1}`, value: `option_${options.length + 1}`, description: "" },
+                ],
+              } as Partial<V2Item>)
+            }
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Add option
+          </Button>
+        )}
+      </div>
+    );
+  }
   return null;
 }
 
@@ -1005,6 +1101,16 @@ function PreviewItem({ item }: { item: V2Item }) {
         ) : (
           item.children.map((c) => <PreviewItem key={c.id} item={c} />)
         )}
+      </div>
+    );
+  }
+  if (item.type === "select_menu") {
+    return (
+      <div className="w-full">
+        <div className="flex items-center justify-between rounded bg-[#1e1f22] border border-[#1e1f22] px-3 py-2 text-sm text-[#949ba4]">
+          <span className="truncate">{item.placeholder || "Choose an option…"}</span>
+          <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-70" />
+        </div>
       </div>
     );
   }
