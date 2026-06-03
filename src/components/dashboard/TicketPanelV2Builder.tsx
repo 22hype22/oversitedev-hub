@@ -58,7 +58,8 @@ import { cn } from "@/lib/utils";
 type V2Text = { id: string; type: "text"; text: string };
 type V2SectionButton =
   | { label: string; url: string }
-  | { label: string; category: string };
+  | { label: string; category: string }
+  | { label: string; channel_id: string };
 type V2Section = {
   id: string;
   type: "section";
@@ -69,10 +70,15 @@ type V2Section = {
 };
 
 const CategoryNamesContext = createContext<string[]>([]);
+const ChannelsContext = createContext<BotChannel[]>([]);
 const isCategoryButton = (
   b: V2SectionButton | null | undefined,
 ): b is { label: string; category: string } =>
   !!b && "category" in b;
+const isChannelButton = (
+  b: V2SectionButton | null | undefined,
+): b is { label: string; channel_id: string } =>
+  !!b && "channel_id" in b;
 type V2Gallery = { id: string; type: "gallery"; images: string[] };
 type V2Separator = {
   id: string;
@@ -83,7 +89,8 @@ type V2Separator = {
 type V2ButtonStyle = "primary" | "secondary" | "success" | "danger" | "link";
 type V2ButtonRowButton =
   | { id: string; label: string; url: string; style?: V2ButtonStyle }
-  | { id: string; label: string; category: string; style?: V2ButtonStyle };
+  | { id: string; label: string; category: string; style?: V2ButtonStyle }
+  | { id: string; label: string; channel_id: string; style?: V2ButtonStyle };
 type V2ButtonRow = {
   id: string;
   type: "buttonRow";
@@ -91,7 +98,8 @@ type V2ButtonRow = {
 };
 type V2SelectMenuOption =
   | { label: string; description?: string; url: string }
-  | { label: string; description?: string; category: string };
+  | { label: string; description?: string; category: string }
+  | { label: string; description?: string; channel_id: string };
 type V2SelectMenu = {
   id: string;
   type: "select_menu";
@@ -101,9 +109,16 @@ type V2SelectMenu = {
 const isCategoryButton2 = (
   b: V2ButtonRowButton,
 ): b is { id: string; label: string; category: string; style?: V2ButtonStyle } => "category" in b;
+const isChannelButton2 = (
+  b: V2ButtonRowButton,
+): b is { id: string; label: string; channel_id: string; style?: V2ButtonStyle } => "channel_id" in b;
 const isCategoryOption = (
   o: V2SelectMenuOption,
 ): o is { label: string; description?: string; category: string } => "category" in o;
+const isChannelOption = (
+  o: V2SelectMenuOption,
+): o is { label: string; description?: string; channel_id: string } => "channel_id" in o;
+
 
 const BUTTON_STYLE_OPTIONS: { value: V2ButtonStyle; label: string }[] = [
   { value: "primary", label: "Purple" },
