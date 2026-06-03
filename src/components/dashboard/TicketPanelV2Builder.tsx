@@ -269,6 +269,9 @@ export const TicketPanelV2Builder = forwardRef<
     if (g) setActiveGuild(g);
   };
   const [channel, setChannel] = useState<BotChannel | null>(null);
+  const effectiveGuildId = guild?.guild_id ?? activeGuild?.guild_id ?? undefined;
+  const { channels: guildChannels } = useBotChannels(botId, effectiveGuildId);
+
   const [items, setItems] = useState<V2Item[]>(
     initialItems && initialItems.length > 0
       ? initialItems
