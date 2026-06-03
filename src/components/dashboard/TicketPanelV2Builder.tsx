@@ -604,6 +604,7 @@ function labelFor(t: V2Item["type"]): string {
     case "separator": return "Separator";
     case "container": return "Container";
     case "buttonRow": return "Button Row";
+    case "select_menu": return "Select Menu";
   }
 }
 
