@@ -77,13 +77,20 @@ type V2ButtonRow = {
     style: "primary" | "secondary" | "success" | "danger" | "link";
   }[];
 };
+type V2SelectMenuOption = { label: string; value: string; description: string };
+type V2SelectMenu = {
+  id: string;
+  type: "select_menu";
+  placeholder: string;
+  options: V2SelectMenuOption[];
+};
 type V2Container = {
   id: string;
   type: "container";
   accentColor: string;
   children: V2Leaf[];
 };
-type V2Leaf = V2Text | V2Section | V2Gallery | V2Separator | V2ButtonRow;
+type V2Leaf = V2Text | V2Section | V2Gallery | V2Separator | V2ButtonRow | V2SelectMenu;
 export type V2Item = V2Leaf | V2Container;
 
 const uid = () => crypto.randomUUID();
