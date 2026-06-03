@@ -80,9 +80,10 @@ type V2Separator = {
   divider: boolean;
   spacing: "small" | "large";
 };
+type V2ButtonStyle = "primary" | "secondary" | "success" | "danger" | "link";
 type V2ButtonRowButton =
-  | { id: string; label: string; url: string }
-  | { id: string; label: string; category: string };
+  | { id: string; label: string; url: string; style?: V2ButtonStyle }
+  | { id: string; label: string; category: string; style?: V2ButtonStyle };
 type V2ButtonRow = {
   id: string;
   type: "buttonRow";
@@ -99,10 +100,27 @@ type V2SelectMenu = {
 };
 const isCategoryButton2 = (
   b: V2ButtonRowButton,
-): b is { id: string; label: string; category: string } => "category" in b;
+): b is { id: string; label: string; category: string; style?: V2ButtonStyle } => "category" in b;
 const isCategoryOption = (
   o: V2SelectMenuOption,
 ): o is { label: string; description?: string; category: string } => "category" in o;
+
+const BUTTON_STYLE_OPTIONS: { value: V2ButtonStyle; label: string }[] = [
+  { value: "primary", label: "Primary" },
+  { value: "secondary", label: "Secondary" },
+  { value: "success", label: "Success" },
+  { value: "danger", label: "Danger" },
+  { value: "link", label: "Link" },
+];
+
+const BUTTON_STYLE_PREVIEW: Record<V2ButtonStyle, string> = {
+  primary: "bg-[#5865F2] hover:bg-[#4752C4] text-white",
+  secondary: "bg-[#4e5058] hover:bg-[#6d6f78] text-white",
+  success: "bg-[#248046] hover:bg-[#1a6334] text-white",
+  danger: "bg-[#da373c] hover:bg-[#a12d32] text-white",
+  link: "bg-[#4e5058] hover:bg-[#6d6f78] text-white",
+};
+
 type V2Container = {
   id: string;
   type: "container";
