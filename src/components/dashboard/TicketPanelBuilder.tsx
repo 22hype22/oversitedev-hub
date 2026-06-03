@@ -658,35 +658,42 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           );
         }
       }
-      // Save succeeded — drop the unsaved-changes draft so the form
-      // re-hydrates from the freshly saved DB state next time it opens.
+      // Save succeeded — drop the unsaved-changes draft.
       clearDraft();
-      // Snapshot the just-saved form state as the new baseline so any
-      // subsequent re-hydration starts from the freshly persisted values.
-      baselineRef.current = {
-        ...payload.config,
-        savedAt: Date.now(),
-      };
-      console.log("[PostTicket] baseline after save:", baselineRef.current);
-      // Hard reset of the V2 builder: snapshot the just-saved items, clear
-      // them to force a full unmount, then on the next tick set them back
-      // and bump the remount key so the builder rebuilds its internal state
-      // from the freshly-saved data instead of any cached editor state.
-      const savedV2Items = Array.isArray(payload.config?.ticket_panel_v2)
-        ? (payload.config.ticket_panel_v2 as V2Item[])
-        : null;
-      console.log("[PostTicket] Forcing V2 builder unmount/remount", {
-        itemCount: savedV2Items?.length ?? 0,
-      });
-      setHydrated(false);
-      setV2Items(null);
-      setTimeout(() => {
-        setV2Items(savedV2Items);
-        setV2BuilderKey((k) => k + 1);
-        setHydrated(true);
-        setReloadKey((k) => k + 1);
-        console.log("[PostTicket] V2 builder remounted with saved items");
-      }, 0);
+
+      // On the Post Ticket card (non-edit flow): fully reset the form to its
+      // default empty state so the user sees a blank panel ready to build a
+      // new one. Do NOT restore the just-saved values.
+      if (!editTarget?.message_id) {
+        console.log("[PostTicket] Resetting form to blank defaults after save");
+        baselineRef.current = null;
+        resetToDefaults();
+        setHydrated(false);
+        setV2Items(null);
+        setTimeout(() => {
+          setV2Items([]);
+          setV2BuilderKey((k) => k + 1);
+          setHydrated(true);
+        }, 0);
+      } else {
+        // Edit-existing-panel flow keeps the prior behaviour: re-baseline to
+        // the just-saved config so reopening shows the persisted state.
+        baselineRef.current = {
+          ...payload.config,
+          savedAt: Date.now(),
+        };
+        const savedV2Items = Array.isArray(payload.config?.ticket_panel_v2)
+          ? (payload.config.ticket_panel_v2 as V2Item[])
+          : null;
+        setHydrated(false);
+        setV2Items(null);
+        setTimeout(() => {
+          setV2Items(savedV2Items);
+          setV2BuilderKey((k) => k + 1);
+          setHydrated(true);
+          setReloadKey((k) => k + 1);
+        }, 0);
+      }
       return true;
     },
     clear: () => {
