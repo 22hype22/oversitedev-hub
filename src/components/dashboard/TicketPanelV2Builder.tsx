@@ -1180,11 +1180,12 @@ function PreviewItem({ item }: { item: V2Item }) {
   if (item.type === "buttonRow") {
     return (
       <div className="flex flex-wrap gap-2">
-        {item.buttons.map((b) =>
-          isCategoryButton2(b) ? (
+        {item.buttons.map((b) => {
+          const styleClass = BUTTON_STYLE_PREVIEW[b.style ?? "primary"];
+          return isCategoryButton2(b) ? (
             <span
               key={b.id}
-              className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded bg-[#4e5058] text-white"
+              className={cn("inline-flex items-center px-3 py-1.5 text-xs font-medium rounded", styleClass)}
             >
               {b.label || "Button"}
             </span>
@@ -1194,13 +1195,14 @@ function PreviewItem({ item }: { item: V2Item }) {
               href={b.url || "#"}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded bg-[#4e5058] hover:bg-[#6d6f78] text-white"
+              className={cn("inline-flex items-center px-3 py-1.5 text-xs font-medium rounded", styleClass)}
             >
               {b.label || "Button"}
             </a>
-          ),
-        )}
+          );
+        })}
       </div>
+
     );
   }
   if (item.type === "container") {
