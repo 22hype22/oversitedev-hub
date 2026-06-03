@@ -1263,6 +1263,10 @@ function PreviewItem({ item }: { item: V2Item }) {
               <span className="inline-flex items-center px-3 py-1.5 mt-1 text-xs font-medium rounded bg-[#4e5058] text-white">
                 {item.button.label || "Button"}
               </span>
+            ) : isChannelButton(item.button) ? (
+              <span className="inline-flex items-center px-3 py-1.5 mt-1 text-xs font-medium rounded bg-[#4e5058] text-white">
+                {item.button.label || "Button"}
+              </span>
             ) : (
               <a
                 href={item.button.url || "#"}
@@ -1274,6 +1278,7 @@ function PreviewItem({ item }: { item: V2Item }) {
               </a>
             )
           )}
+
         </div>
         {item.thumbnailUrl && (
           <img
