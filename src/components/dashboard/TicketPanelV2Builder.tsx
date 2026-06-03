@@ -1319,7 +1319,7 @@ function PreviewItem({ item }: { item: V2Item }) {
       <div className="flex flex-wrap gap-2">
         {item.buttons.map((b) => {
           const styleClass = BUTTON_STYLE_PREVIEW[b.style ?? "primary"];
-          return isCategoryButton2(b) ? (
+          return isCategoryButton2(b) || isChannelButton2(b) ? (
             <span
               key={b.id}
               className={cn("inline-flex items-center px-3 py-1.5 text-xs font-medium rounded", styleClass)}
@@ -1337,6 +1337,7 @@ function PreviewItem({ item }: { item: V2Item }) {
               {b.label || "Button"}
             </a>
           );
+
         })}
       </div>
 
