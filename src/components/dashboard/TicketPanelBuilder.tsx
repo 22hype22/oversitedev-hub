@@ -439,6 +439,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   );
 
   const resetToDefaults = () => {
+    setPanelChannel(null);
     setPanelTitle("");
     setPanelDescription("");
     setCooldownMinutes(10);
