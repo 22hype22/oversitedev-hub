@@ -106,10 +106,10 @@ const isCategoryOption = (
 ): o is { label: string; description?: string; category: string } => "category" in o;
 
 const BUTTON_STYLE_OPTIONS: { value: V2ButtonStyle; label: string }[] = [
-  { value: "primary", label: "Primary" },
-  { value: "secondary", label: "Secondary" },
-  { value: "success", label: "Success" },
-  { value: "danger", label: "Danger" },
+  { value: "primary", label: "Blurple" },
+  { value: "secondary", label: "Grey" },
+  { value: "success", label: "Green" },
+  { value: "danger", label: "Red" },
   { value: "link", label: "Link" },
 ];
 

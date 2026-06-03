@@ -485,6 +485,11 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       return null;
     }
 
+    if (!editTarget && !panelChannel?.channel_id) {
+      toast.error("Pick a channel to post the panel in");
+      return null;
+    }
+
     let v2Items: V2Item[] | null = null;
     if (isV2) {
       v2Items = v2Ref.current?.getItems() ?? [];
