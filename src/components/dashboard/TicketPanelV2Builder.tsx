@@ -110,7 +110,6 @@ const BUTTON_STYLE_OPTIONS: { value: V2ButtonStyle; label: string }[] = [
   { value: "secondary", label: "Grey" },
   { value: "success", label: "Green" },
   { value: "danger", label: "Red" },
-  { value: "link", label: "Link" },
 ];
 
 const BUTTON_STYLE_PREVIEW: Record<V2ButtonStyle, string> = {
