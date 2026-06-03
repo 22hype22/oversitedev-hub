@@ -969,6 +969,16 @@ function PreviewItem({ item }: { item: V2Item }) {
       </div>
     );
   }
+  if (item.type === "select_menu") {
+    return (
+      <div className="w-full">
+        <div className="flex items-center justify-between rounded bg-[#1e1f22] border border-[#1e1f22] px-3 py-2 text-sm text-[#949ba4]">
+          <span className="truncate">{item.placeholder || "Choose an option…"}</span>
+          <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-70" />
+        </div>
+      </div>
+    );
+  }
   return null;
 }
 
