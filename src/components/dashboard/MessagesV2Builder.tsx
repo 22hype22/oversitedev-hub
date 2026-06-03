@@ -155,6 +155,13 @@ const newItem = (type: V2Item["type"]): V2Item => {
           { id: uid(), label: "Click me", url: "https://example.com", style: "link" },
         ],
       };
+    case "select_menu":
+      return {
+        id: uid(),
+        type,
+        placeholder: "Choose an option…",
+        options: [{ label: "Option 1", value: "option_1", description: "" }],
+      };
     case "container":
       return { id: uid(), type, accentColor: "#5865F2", children: [] };
   }
@@ -167,6 +174,7 @@ const ADD_OPTIONS: { type: V2Item["type"]; label: string; Icon: React.ComponentT
   { type: "separator", label: "Add Separator", Icon: Minus },
   { type: "container", label: "Add Container", Icon: Box },
   { type: "buttonRow", label: "Add Button Row", Icon: MousePointerClick },
+  { type: "select_menu", label: "Add Select Menu", Icon: ChevronsUpDown },
 ];
 
 const LEAF_OPTIONS = ADD_OPTIONS.filter((o) => o.type !== "container");
