@@ -189,9 +189,10 @@ const newItem = (type: V2Item["type"]): V2Item => {
         id: uid(),
         type,
         buttons: [
-          { id: uid(), label: "Click me", url: "https://example.com" },
+          { id: uid(), label: "Click me", url: "https://example.com", style: "primary" },
         ],
       };
+
     case "select_menu":
       return {
         id: uid(),
