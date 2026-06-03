@@ -855,7 +855,6 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
   }
   if (item.type === "select_menu") {
     const options = item.options;
-    const categoryNames = useContext(CategoryNamesContext);
     const channels = useContext(ChannelsContext);
     return (
       <div className="space-y-3">
@@ -869,11 +868,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
         </div>
         <Label className="text-xs">Options (up to 25)</Label>
         {options.map((o, i) => {
-          const mode: "link" | "category" | "channel" = isCategoryOption(o)
-            ? "category"
-            : isChannelOption(o)
-              ? "channel"
-              : "link";
+          const mode: "link" | "channel" = isChannelOption(o) ? "channel" : "link";
           const update = (next: V2SelectMenuOption) => {
             const list = options.slice();
             list[i] = next;
@@ -901,15 +896,6 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     />
                     Channel
                   </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="radio"
-                      name={`opt-mode-${i}`}
-                      checked={mode === "category"}
-                      onChange={() => update({ label: o.label, category: categoryNames[0] ?? "" })}
-                    />
-                    Category
-                  </label>
                 </div>
                 <Button
                   type="button"
@@ -928,11 +914,9 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                   onChange={(e) => {
                     const lbl = e.target.value;
                     update(
-                      isCategoryOption(o)
-                        ? { label: lbl, category: o.category }
-                        : isChannelOption(o)
-                          ? { label: lbl, channel_id: o.channel_id }
-                          : { label: lbl, url: o.url },
+                      isChannelOption(o)
+                        ? { label: lbl, channel_id: o.channel_id }
+                        : { label: lbl, url: (o as { url: string }).url },
                     );
                   }}
                 />
@@ -942,7 +926,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     value={(o as { url: string }).url}
                     onChange={(e) => update({ label: o.label, url: e.target.value })}
                   />
-                ) : mode === "channel" ? (
+                ) : (
                   <Select
                     value={(o as { channel_id: string }).channel_id || ""}
                     onValueChange={(v) => update({ label: o.label, channel_id: v })}
@@ -953,20 +937,6 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     <SelectContent>
                       {channels.map((c) => (
                         <SelectItem key={c.channel_id} value={c.channel_id}>#{c.channel_name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Select
-                    value={(o as { category: string }).category || ""}
-                    onValueChange={(v) => update({ label: o.label, category: v })}
-                  >
-                    <SelectTrigger className="h-9 text-xs">
-                      <SelectValue placeholder={categoryNames.length === 0 ? "No categories yet" : "Pick a category"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categoryNames.map((n) => (
-                        <SelectItem key={n} value={n}>{n}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
