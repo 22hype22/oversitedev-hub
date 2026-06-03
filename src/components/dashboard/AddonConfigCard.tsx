@@ -2510,6 +2510,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
             </div>
           ) : isTicketPanel ? (
             <TicketPanelBuilder
+              key={`ticket-builder-${ticketBuilderRemountKey}`}
               ref={ticketBuilderRef}
               botId={botId}
               botName={botName}
