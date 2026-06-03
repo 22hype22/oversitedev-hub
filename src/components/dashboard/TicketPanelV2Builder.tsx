@@ -39,6 +39,7 @@ import {
   Box,
   MousePointerClick,
   Info,
+  ChevronsUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { GuildChannelPicker } from "./GuildChannelPicker";
