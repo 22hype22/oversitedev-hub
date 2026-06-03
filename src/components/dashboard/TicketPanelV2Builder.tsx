@@ -80,23 +80,29 @@ type V2Separator = {
   divider: boolean;
   spacing: "small" | "large";
 };
+type V2ButtonRowButton =
+  | { id: string; label: string; url: string }
+  | { id: string; label: string; category: string };
 type V2ButtonRow = {
   id: string;
   type: "buttonRow";
-  buttons: {
-    id: string;
-    label: string;
-    url: string;
-    style: "primary" | "secondary" | "success" | "danger" | "link";
-  }[];
+  buttons: V2ButtonRowButton[];
 };
-type V2SelectMenuOption = { label: string; value: string; description: string };
+type V2SelectMenuOption =
+  | { label: string; description?: string; url: string }
+  | { label: string; description?: string; category: string };
 type V2SelectMenu = {
   id: string;
   type: "select_menu";
   placeholder: string;
   options: V2SelectMenuOption[];
 };
+const isCategoryButton2 = (
+  b: V2ButtonRowButton,
+): b is { id: string; label: string; category: string } => "category" in b;
+const isCategoryOption = (
+  o: V2SelectMenuOption,
+): o is { label: string; description?: string; category: string } => "category" in o;
 type V2Container = {
   id: string;
   type: "container";
@@ -165,7 +171,7 @@ const newItem = (type: V2Item["type"]): V2Item => {
         id: uid(),
         type,
         buttons: [
-          { id: uid(), label: "Click me", url: "https://example.com", style: "link" },
+          { id: uid(), label: "Click me", url: "https://example.com" },
         ],
       };
     case "select_menu":
@@ -173,7 +179,7 @@ const newItem = (type: V2Item["type"]): V2Item => {
         id: uid(),
         type,
         placeholder: "Choose an option…",
-        options: [{ label: "Option 1", value: "option_1", description: "" }],
+        options: [{ label: "Option 1", url: "" }],
       };
     case "container":
       return { id: uid(), type, accentColor: "#5865F2", children: [] };
