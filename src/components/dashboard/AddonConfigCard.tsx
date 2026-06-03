@@ -210,7 +210,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const targetServerName = guild?.guild_name ?? guild?.guild_id ?? botName;
   const [internalOpen, setInternalOpen] = useState(false);
   const open = openProp ?? internalOpen;
+  const [ticketBuilderRemountKey, setTicketBuilderRemountKey] = useState(0);
   const setOpen = (v: boolean) => {
+    // Force a full remount of TicketPanelBuilder on every open so its state is
+    // guaranteed fresh from the DB (no stale draft / cached form values).
+    if (v) setTicketBuilderRemountKey((k) => k + 1);
     if (onOpenChange) onOpenChange(v);
     else setInternalOpen(v);
   };
