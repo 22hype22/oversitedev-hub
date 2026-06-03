@@ -795,11 +795,16 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
   if (item.type === "buttonRow") {
     const buttons = item.buttons;
     const categoryNames = useContext(CategoryNamesContext);
+    const channels = useContext(ChannelsContext);
     return (
       <div className="space-y-3">
         <Label className="text-xs">Buttons (up to 5)</Label>
         {buttons.map((b, i) => {
-          const mode: "link" | "category" = isCategoryButton2(b) ? "category" : "link";
+          const mode: "link" | "category" | "channel" = isCategoryButton2(b)
+            ? "category"
+            : isChannelButton2(b)
+              ? "channel"
+              : "link";
           const style: V2ButtonStyle = b.style ?? "primary";
           const update = (next: V2ButtonRowButton) => {
             const list = buttons.slice();
@@ -828,17 +833,29 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     />
                     Category
                   </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`btn-mode-${b.id}`}
+                      checked={mode === "channel"}
+                      onChange={() => update({ id: b.id, label: b.label, channel_id: channels[0]?.channel_id ?? "", style })}
+                    />
+                    Channel
+                  </label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Select
                     value={style}
-                    onValueChange={(v) =>
+                    onValueChange={(v) => {
+                      const s = v as V2ButtonStyle;
                       update(
                         isCategoryButton2(b)
-                          ? { id: b.id, label: b.label, category: b.category, style: v as V2ButtonStyle }
-                          : { id: b.id, label: b.label, url: b.url, style: v as V2ButtonStyle },
-                      )
-                    }
+                          ? { id: b.id, label: b.label, category: b.category, style: s }
+                          : isChannelButton2(b)
+                            ? { id: b.id, label: b.label, channel_id: b.channel_id, style: s }
+                            : { id: b.id, label: b.label, url: b.url, style: s },
+                      );
+                    }}
                   >
                     <SelectTrigger className="h-7 w-[110px] text-xs">
                       <SelectValue />
@@ -864,13 +881,16 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                 <Input
                   placeholder="Label"
                   value={b.label}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const lbl = e.target.value;
                     update(
                       isCategoryButton2(b)
-                        ? { id: b.id, label: e.target.value, category: b.category, style }
-                        : { id: b.id, label: e.target.value, url: b.url, style },
-                    )
-                  }
+                        ? { id: b.id, label: lbl, category: b.category, style }
+                        : isChannelButton2(b)
+                          ? { id: b.id, label: lbl, channel_id: b.channel_id, style }
+                          : { id: b.id, label: lbl, url: b.url, style },
+                    );
+                  }}
                 />
                 {mode === "link" ? (
                   <Input
@@ -878,7 +898,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     value={(b as { url: string }).url}
                     onChange={(e) => update({ id: b.id, label: b.label, url: e.target.value, style })}
                   />
-                ) : (
+                ) : mode === "category" ? (
                   <Select
                     value={(b as { category: string }).category || ""}
                     onValueChange={(v) => update({ id: b.id, label: b.label, category: v, style })}
@@ -892,11 +912,26 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       ))}
                     </SelectContent>
                   </Select>
+                ) : (
+                  <Select
+                    value={(b as { channel_id: string }).channel_id || ""}
+                    onValueChange={(v) => update({ id: b.id, label: b.label, channel_id: v, style })}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder={channels.length === 0 ? "No channels cached" : "Pick a channel"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {channels.map((c) => (
+                        <SelectItem key={c.channel_id} value={c.channel_id}>#{c.channel_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
             </div>
           );
         })}
+
         {buttons.length < 5 && (
           <Button
             type="button"
