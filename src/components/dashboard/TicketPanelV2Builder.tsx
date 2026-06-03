@@ -957,6 +957,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
   if (item.type === "select_menu") {
     const options = item.options;
     const categoryNames = useContext(CategoryNamesContext);
+    const channels = useContext(ChannelsContext);
     return (
       <div className="space-y-3">
         <div className="space-y-1.5">
@@ -969,7 +970,11 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
         </div>
         <Label className="text-xs">Options (up to 25)</Label>
         {options.map((o, i) => {
-          const mode: "link" | "category" = isCategoryOption(o) ? "category" : "link";
+          const mode: "link" | "category" | "channel" = isCategoryOption(o)
+            ? "category"
+            : isChannelOption(o)
+              ? "channel"
+              : "link";
           const update = (next: V2SelectMenuOption) => {
             const list = options.slice();
             list[i] = next;
@@ -997,6 +1002,15 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     />
                     Category
                   </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`opt-mode-${i}`}
+                      checked={mode === "channel"}
+                      onChange={() => update({ label: o.label, channel_id: channels[0]?.channel_id ?? "" })}
+                    />
+                    Channel
+                  </label>
                 </div>
                 <Button
                   type="button"
@@ -1012,13 +1026,16 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                 <Input
                   placeholder="Label"
                   value={o.label}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const lbl = e.target.value;
                     update(
                       isCategoryOption(o)
-                        ? { label: e.target.value, category: o.category }
-                        : { label: e.target.value, url: o.url },
-                    )
-                  }
+                        ? { label: lbl, category: o.category }
+                        : isChannelOption(o)
+                          ? { label: lbl, channel_id: o.channel_id }
+                          : { label: lbl, url: o.url },
+                    );
+                  }}
                 />
                 {mode === "link" ? (
                   <Input
@@ -1026,7 +1043,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     value={(o as { url: string }).url}
                     onChange={(e) => update({ label: o.label, url: e.target.value })}
                   />
-                ) : (
+                ) : mode === "category" ? (
                   <Select
                     value={(o as { category: string }).category || ""}
                     onValueChange={(v) => update({ label: o.label, category: v })}
@@ -1040,11 +1057,26 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       ))}
                     </SelectContent>
                   </Select>
+                ) : (
+                  <Select
+                    value={(o as { channel_id: string }).channel_id || ""}
+                    onValueChange={(v) => update({ label: o.label, channel_id: v })}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder={channels.length === 0 ? "No channels cached" : "Pick a channel"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {channels.map((c) => (
+                        <SelectItem key={c.channel_id} value={c.channel_id}>#{c.channel_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
             </div>
           );
         })}
+
         {options.length < 25 && (
           <Button
             type="button"
