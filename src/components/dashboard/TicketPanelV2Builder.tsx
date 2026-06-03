@@ -498,7 +498,9 @@ export const TicketPanelV2Builder = forwardRef<
         </div>
       </div>
     </div>
+    </ChannelsContext.Provider>
     </CategoryNamesContext.Provider>
+
   );
 });
 
