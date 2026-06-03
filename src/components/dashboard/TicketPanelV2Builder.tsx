@@ -754,40 +754,87 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
   }
   if (item.type === "buttonRow") {
     const buttons = item.buttons;
+    const categoryNames = useContext(CategoryNamesContext);
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
         <Label className="text-xs">Buttons (up to 5)</Label>
-        {buttons.map((b, i) => (
-          <div key={b.id} className="grid grid-cols-[1fr,1fr,auto] gap-1.5 items-center">
-            <Input
-              placeholder="Label"
-              value={b.label}
-              onChange={(e) => {
-                const next = buttons.slice();
-                next[i] = { ...b, label: e.target.value };
-                onUpdate({ buttons: next } as Partial<V2Item>);
-              }}
-            />
-            <Input
-              placeholder="URL"
-              value={b.url}
-              onChange={(e) => {
-                const next = buttons.slice();
-                next[i] = { ...b, url: e.target.value };
-                onUpdate({ buttons: next } as Partial<V2Item>);
-              }}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-destructive hover:text-destructive"
-              onClick={() => onUpdate({ buttons: buttons.filter((_, j) => j !== i) } as Partial<V2Item>)}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        ))}
+        {buttons.map((b, i) => {
+          const mode: "link" | "category" = isCategoryButton2(b) ? "category" : "link";
+          const update = (next: V2ButtonRowButton) => {
+            const list = buttons.slice();
+            list[i] = next;
+            onUpdate({ buttons: list } as Partial<V2Item>);
+          };
+          return (
+            <div key={b.id} className="space-y-2 rounded border border-border bg-background/40 p-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 text-xs">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`btn-mode-${b.id}`}
+                      checked={mode === "link"}
+                      onChange={() => update({ id: b.id, label: b.label, url: "" })}
+                    />
+                    Link
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`btn-mode-${b.id}`}
+                      checked={mode === "category"}
+                      onChange={() => update({ id: b.id, label: b.label, category: categoryNames[0] ?? "" })}
+                    />
+                    Category
+                  </label>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-destructive hover:text-destructive"
+                  onClick={() => onUpdate({ buttons: buttons.filter((_, j) => j !== i) } as Partial<V2Item>)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="Label"
+                  value={b.label}
+                  onChange={(e) =>
+                    update(
+                      isCategoryButton2(b)
+                        ? { id: b.id, label: e.target.value, category: b.category }
+                        : { id: b.id, label: e.target.value, url: b.url },
+                    )
+                  }
+                />
+                {mode === "link" ? (
+                  <Input
+                    placeholder="URL"
+                    value={(b as { url: string }).url}
+                    onChange={(e) => update({ id: b.id, label: b.label, url: e.target.value })}
+                  />
+                ) : (
+                  <Select
+                    value={(b as { category: string }).category || ""}
+                    onValueChange={(v) => update({ id: b.id, label: b.label, category: v })}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder={categoryNames.length === 0 ? "No categories yet" : "Pick a category"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoryNames.map((n) => (
+                        <SelectItem key={n} value={n}>{n}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
+          );
+        })}
         {buttons.length < 5 && (
           <Button
             type="button"
@@ -797,7 +844,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
               onUpdate({
                 buttons: [
                   ...buttons,
-                  { id: uid(), label: "Button", url: "", style: "link" },
+                  { id: uid(), label: "Button", url: "" },
                 ],
               } as Partial<V2Item>)
             }
@@ -811,8 +858,9 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
   }
   if (item.type === "select_menu") {
     const options = item.options;
+    const categoryNames = useContext(CategoryNamesContext);
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
         <div className="space-y-1.5">
           <Label className="text-xs">Placeholder</Label>
           <Input
@@ -822,37 +870,83 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
           />
         </div>
         <Label className="text-xs">Options (up to 25)</Label>
-        {options.map((o, i) => (
-          <div key={i} className="grid grid-cols-[1fr,1fr,auto] gap-1.5 items-center">
-            <Input
-              placeholder="Label"
-              value={o.label}
-              onChange={(e) => {
-                const next = options.slice();
-                next[i] = { ...o, label: e.target.value };
-                onUpdate({ options: next } as Partial<V2Item>);
-              }}
-            />
-            <Input
-              placeholder="Value"
-              value={o.value}
-              onChange={(e) => {
-                const next = options.slice();
-                next[i] = { ...o, value: e.target.value };
-                onUpdate({ options: next } as Partial<V2Item>);
-              }}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-destructive hover:text-destructive"
-              onClick={() => onUpdate({ options: options.filter((_, j) => j !== i) } as Partial<V2Item>)}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        ))}
+        {options.map((o, i) => {
+          const mode: "link" | "category" = isCategoryOption(o) ? "category" : "link";
+          const update = (next: V2SelectMenuOption) => {
+            const list = options.slice();
+            list[i] = next;
+            onUpdate({ options: list } as Partial<V2Item>);
+          };
+          return (
+            <div key={i} className="space-y-2 rounded border border-border bg-background/40 p-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 text-xs">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`opt-mode-${i}`}
+                      checked={mode === "link"}
+                      onChange={() => update({ label: o.label, url: "" })}
+                    />
+                    Link
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`opt-mode-${i}`}
+                      checked={mode === "category"}
+                      onChange={() => update({ label: o.label, category: categoryNames[0] ?? "" })}
+                    />
+                    Category
+                  </label>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-destructive hover:text-destructive"
+                  onClick={() => onUpdate({ options: options.filter((_, j) => j !== i) } as Partial<V2Item>)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="Label"
+                  value={o.label}
+                  onChange={(e) =>
+                    update(
+                      isCategoryOption(o)
+                        ? { label: e.target.value, category: o.category }
+                        : { label: e.target.value, url: o.url },
+                    )
+                  }
+                />
+                {mode === "link" ? (
+                  <Input
+                    placeholder="URL"
+                    value={(o as { url: string }).url}
+                    onChange={(e) => update({ label: o.label, url: e.target.value })}
+                  />
+                ) : (
+                  <Select
+                    value={(o as { category: string }).category || ""}
+                    onValueChange={(v) => update({ label: o.label, category: v })}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder={categoryNames.length === 0 ? "No categories yet" : "Pick a category"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoryNames.map((n) => (
+                        <SelectItem key={n} value={n}>{n}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
+          );
+        })}
         {options.length < 25 && (
           <Button
             type="button"
@@ -862,7 +956,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
               onUpdate({
                 options: [
                   ...options,
-                  { label: `Option ${options.length + 1}`, value: `option_${options.length + 1}`, description: "" },
+                  { label: `Option ${options.length + 1}`, url: "" },
                 ],
               } as Partial<V2Item>)
             }
@@ -1044,24 +1138,26 @@ function PreviewItem({ item }: { item: V2Item }) {
   if (item.type === "buttonRow") {
     return (
       <div className="flex flex-wrap gap-2">
-        {item.buttons.map((b) => (
-          <a
-            key={b.id}
-            href={b.url || "#"}
-            target="_blank"
-            rel="noreferrer"
-            className={cn(
-              "inline-flex items-center px-3 py-1.5 text-xs font-medium rounded text-white",
-              b.style === "primary" && "bg-[#5865F2] hover:bg-[#4752c4]",
-              b.style === "secondary" && "bg-[#4e5058] hover:bg-[#6d6f78]",
-              b.style === "success" && "bg-[#248046] hover:bg-[#1a6334]",
-              b.style === "danger" && "bg-[#da373c] hover:bg-[#a12828]",
-              b.style === "link" && "bg-[#4e5058] hover:bg-[#6d6f78]",
-            )}
-          >
-            {b.label || "Button"}
-          </a>
-        ))}
+        {item.buttons.map((b) =>
+          isCategoryButton2(b) ? (
+            <span
+              key={b.id}
+              className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded bg-[#4e5058] text-white"
+            >
+              {b.label || "Button"}
+            </span>
+          ) : (
+            <a
+              key={b.id}
+              href={b.url || "#"}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded bg-[#4e5058] hover:bg-[#6d6f78] text-white"
+            >
+              {b.label || "Button"}
+            </a>
+          ),
+        )}
       </div>
     );
   }
