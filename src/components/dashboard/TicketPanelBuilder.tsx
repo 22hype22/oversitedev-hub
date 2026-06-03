@@ -556,6 +556,29 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
 
       console.log("[TicketPanelBuilder] Saving bot_config payload:", payload);
 
+      // Debug: log every Button Row component being saved so we can verify the
+      // exact JSON shape (type value + fields) being sent to the bot.
+      try {
+        const v2 = (payload.config as any)?.ticket_panel_v2;
+        if (Array.isArray(v2)) {
+          const walk = (nodes: any[], path: string) => {
+            nodes.forEach((node, idx) => {
+              if (!node || typeof node !== "object") return;
+              if (node.type === "buttonRow") {
+                console.log(
+                  `[TicketPanelBuilder] ButtonRow @ ${path}[${idx}] type="${node.type}" =>`,
+                  JSON.stringify(node, null, 2),
+                );
+              }
+              if (Array.isArray(node.children)) walk(node.children, `${path}[${idx}].children`);
+            });
+          };
+          walk(v2, "ticket_panel_v2");
+        }
+      } catch (e) {
+        console.warn("[TicketPanelBuilder] ButtonRow debug log failed", e);
+      }
+
       const { error } = await supabase
         .from("bot_config")
         .upsert(payload, { onConflict: "bot_id,feature" });
