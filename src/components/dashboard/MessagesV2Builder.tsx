@@ -754,11 +754,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
       <div className="space-y-3">
         <Label className="text-xs">Buttons (up to 5)</Label>
         {buttons.map((b, i) => {
-          const mode: "link" | "category" | "channel" = isCategoryButton2(b)
-            ? "category"
-            : isChannelButton2(b)
-              ? "channel"
-              : "link";
+          const mode: "link" | "channel" = isChannelButton2(b) ? "channel" : "link";
           const style: V2ButtonStyle = b.style ?? "link";
           const update = (next: V2ButtonRowButton) => {
             const list = buttons.slice();
