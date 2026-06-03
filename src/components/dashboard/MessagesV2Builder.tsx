@@ -724,7 +724,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
       <div className="space-y-2">
         <Label className="text-xs">Buttons (up to 5)</Label>
         {buttons.map((b, i) => (
-          <div key={b.id} className="grid grid-cols-[1fr,1fr,auto,auto] gap-1.5 items-center">
+          <div key={b.id} className="grid grid-cols-[1fr,1fr,auto] gap-1.5 items-center">
             <Input
               placeholder="Label"
               value={b.label}
@@ -743,23 +743,6 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                 onUpdate({ buttons: next } as Partial<V2Item>);
               }}
             />
-            <Select
-              value={b.style}
-              onValueChange={(v) => {
-                const next = buttons.slice();
-                next[i] = { ...b, style: v as typeof b.style };
-                onUpdate({ buttons: next } as Partial<V2Item>);
-              }}
-            >
-              <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="primary">Primary</SelectItem>
-                <SelectItem value="secondary">Secondary</SelectItem>
-                <SelectItem value="success">Success</SelectItem>
-                <SelectItem value="danger">Danger</SelectItem>
-                <SelectItem value="link">Link</SelectItem>
-              </SelectContent>
-            </Select>
             <Button
               type="button"
               variant="ghost"
@@ -780,7 +763,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
               onUpdate({
                 buttons: [
                   ...buttons,
-                  { id: uid(), label: "Button", url: "", style: "secondary" },
+                  { id: uid(), label: "Button", url: "", style: "link" },
                 ],
               } as Partial<V2Item>)
             }
@@ -806,48 +789,34 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
         </div>
         <Label className="text-xs">Options (up to 25)</Label>
         {options.map((o, i) => (
-          <div key={i} className="rounded border border-border bg-background/50 p-2 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-medium text-muted-foreground">Option {i + 1}</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-destructive hover:text-destructive"
-                onClick={() => onUpdate({ options: options.filter((_, j) => j !== i) } as Partial<V2Item>)}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              <Input
-                placeholder="Label"
-                value={o.label}
-                onChange={(e) => {
-                  const next = options.slice();
-                  next[i] = { ...o, label: e.target.value };
-                  onUpdate({ options: next } as Partial<V2Item>);
-                }}
-              />
-              <Input
-                placeholder="Value"
-                value={o.value}
-                onChange={(e) => {
-                  const next = options.slice();
-                  next[i] = { ...o, value: e.target.value };
-                  onUpdate({ options: next } as Partial<V2Item>);
-                }}
-              />
-            </div>
+          <div key={i} className="grid grid-cols-[1fr,1fr,auto] gap-1.5 items-center">
             <Input
-              placeholder="Description (optional)"
-              value={o.description}
+              placeholder="Label"
+              value={o.label}
               onChange={(e) => {
                 const next = options.slice();
-                next[i] = { ...o, description: e.target.value };
+                next[i] = { ...o, label: e.target.value };
                 onUpdate({ options: next } as Partial<V2Item>);
               }}
             />
+            <Input
+              placeholder="Value"
+              value={o.value}
+              onChange={(e) => {
+                const next = options.slice();
+                next[i] = { ...o, value: e.target.value };
+                onUpdate({ options: next } as Partial<V2Item>);
+              }}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive"
+              onClick={() => onUpdate({ options: options.filter((_, j) => j !== i) } as Partial<V2Item>)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
           </div>
         ))}
         {options.length < 25 && (
