@@ -1112,7 +1112,12 @@ function SectionButtonEditor({
   onChange: (b: V2SectionButton | null) => void;
 }) {
   const categoryNames = useContext(CategoryNamesContext);
-  const mode: "link" | "category" = isCategoryButton(button) ? "category" : "link";
+  const channels = useContext(ChannelsContext);
+  const mode: "link" | "category" | "channel" = isCategoryButton(button)
+    ? "category"
+    : isChannelButton(button)
+      ? "channel"
+      : "link";
 
   return (
     <div className="space-y-1.5">
@@ -1150,6 +1155,17 @@ function SectionButtonEditor({
               />
               Category
             </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="radio"
+                name={`section-btn-mode-${Math.random()}`}
+                checked={mode === "channel"}
+                onChange={() =>
+                  onChange({ label: button.label, channel_id: channels[0]?.channel_id ?? "" })
+                }
+              />
+              Channel
+            </label>
           </div>
           {mode === "link" ? (
             <div className="grid grid-cols-2 gap-2">
@@ -1168,7 +1184,7 @@ function SectionButtonEditor({
                 }
               />
             </div>
-          ) : (
+          ) : mode === "category" ? (
             <div className="grid grid-cols-2 gap-2">
               <Input
                 placeholder="Label"
@@ -1195,12 +1211,40 @@ function SectionButtonEditor({
                 </SelectContent>
               </Select>
             </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                placeholder="Label"
+                value={button.label}
+                onChange={(e) =>
+                  onChange({ ...(button as { label: string; channel_id: string }), label: e.target.value })
+                }
+              />
+              <Select
+                value={(button as { label: string; channel_id: string }).channel_id || ""}
+                onValueChange={(v) =>
+                  onChange({ ...(button as { label: string; channel_id: string }), channel_id: v })
+                }
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder={channels.length === 0 ? "No channels cached" : "Pick a channel"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {channels.map((c) => (
+                    <SelectItem key={c.channel_id} value={c.channel_id}>
+                      #{c.channel_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
         </div>
       )}
     </div>
   );
 }
+
 
 // ============================================================
 // Preview
