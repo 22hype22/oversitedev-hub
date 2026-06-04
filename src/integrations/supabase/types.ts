@@ -3257,6 +3257,16 @@ export type Database = {
             }
             Returns: Json
           }
+      runtime_award_user_xp: {
+        Args: {
+          _bot_id: string
+          _guild_id: string
+          _token: string
+          _user_id: string
+          _xp_amount?: number
+        }
+        Returns: Json
+      }
       runtime_claim_build_job: {
         Args: { _token: string; _worker_id: string }
         Returns: Json

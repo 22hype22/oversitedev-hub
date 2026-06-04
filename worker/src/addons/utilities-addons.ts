@@ -10,6 +10,7 @@ import {
   ButtonStyle,
 } from "discord.js";
 import type { Addon, AddonContext } from "./index.js";
+import { supabase, WORKER_TOKEN_VALUE } from "../supabase.js";
 
 // ── Roblox Verification ──
 export const robloxVerificationAddon: Addon = {
@@ -343,9 +344,9 @@ export const streamNotificationsAddon: Addon = {
 };
 
 // ── Leveling System ──
-const xpData = new Map<string, { xp: number; level: number }>(); // userId -> stats
 const XP_PER_MESSAGE = 15;
-const XP_PER_LEVEL = (level: number) => level * 100;
+const XP_COOLDOWN_MS = 60_000; // 1 message per minute counts for XP
+const cooldowns = new Map<string, number>(); // `${guildId}:${userId}` -> last awarded ts
 
 export const levelingAddon: Addon = {
   id: "leveling",
@@ -367,28 +368,38 @@ export const levelingAddon: Addon = {
   ],
   async register(ctx: AddonContext) {
     const levelRoles = new Map<number, string>(); // level -> roleId
-    const { client } = ctx;
+    const { client, botId } = ctx;
 
     client.on(Events.MessageCreate, async (message) => {
       if (message.author.bot || !message.guild) return;
-      const key = message.author.id;
-      const data = xpData.get(key) ?? { xp: 0, level: 0 };
-      data.xp += XP_PER_MESSAGE;
+      const cdKey = `${message.guild.id}:${message.author.id}`;
+      const now = Date.now();
+      const last = cooldowns.get(cdKey) ?? 0;
+      if (now - last < XP_COOLDOWN_MS) return;
+      cooldowns.set(cdKey, now);
 
-      const xpNeeded = XP_PER_LEVEL(data.level + 1);
-      if (data.xp >= xpNeeded) {
-        data.level++;
-        data.xp = 0;
-        await message.channel.send({ embeds: [new EmbedBuilder().setDescription(`🎉 ${message.author.toString()} leveled up to **Level ${data.level}**!`).setColor(0xffd700)] }).catch(() => {});
-
-        // Check role rewards
-        const roleId = levelRoles.get(data.level);
+      const { data, error } = await supabase.rpc("runtime_award_user_xp" as any, {
+        _token: WORKER_TOKEN_VALUE,
+        _bot_id: botId,
+        _guild_id: message.guild.id,
+        _user_id: message.author.id,
+        _xp_amount: XP_PER_MESSAGE,
+      });
+      if (error) {
+        await ctx.log("error", `award_user_xp failed: ${error.message}`);
+        return;
+      }
+      const result = data as { xp: number; level: number; leveled_up: boolean } | null;
+      if (result?.leveled_up) {
+        await message.channel
+          .send({ embeds: [new EmbedBuilder().setDescription(`🎉 ${message.author.toString()} leveled up to **Level ${result.level}**!`).setColor(0xffd700)] })
+          .catch(() => {});
+        const roleId = levelRoles.get(result.level);
         if (roleId) {
           const role = message.guild.roles.cache.get(roleId);
           if (role) await (message.member as GuildMember).roles.add(role).catch(() => {});
         }
       }
-      xpData.set(key, data);
     });
 
     (ctx as any)._levelRoles = levelRoles;
@@ -396,16 +407,25 @@ export const levelingAddon: Addon = {
   },
   async onCommand(interaction, ctx) {
     const levelRoles: Map<number, string> = (ctx as any)._levelRoles ?? new Map();
+    const { botId } = ctx;
 
     if (interaction.commandName === "level") {
       const target = (interaction.options.getMember("member") ?? interaction.member) as GuildMember;
-      const data = xpData.get(target.id) ?? { xp: 0, level: 0 };
-      const xpNeeded = XP_PER_LEVEL(data.level + 1);
+      const { data } = await (supabase as any)
+        .from("user_xp")
+        .select("xp, level")
+        .eq("bot_id", botId)
+        .eq("guild_id", interaction.guild!.id)
+        .eq("user_id", target.id)
+        .maybeSingle();
+      const xp = data?.xp ?? 0;
+      const level = data?.level ?? 0;
+      const xpNeeded = (level + 1) * 100;
       const embed = new EmbedBuilder()
         .setTitle(`${target.user.username}'s Level`)
         .addFields(
-          { name: "Level", value: `${data.level}` },
-          { name: "XP", value: `${data.xp} / ${xpNeeded}` },
+          { name: "Level", value: `${level}` },
+          { name: "XP", value: `${xp} / ${xpNeeded}` },
         )
         .setColor(0xffd700)
         .setThumbnail(target.user.displayAvatarURL());
@@ -413,13 +433,20 @@ export const levelingAddon: Addon = {
     }
 
     if (interaction.commandName === "leaderboard") {
-      const sorted = [...xpData.entries()].sort((a, b) => b[1].level - a[1].level || b[1].xp - a[1].xp).slice(0, 10);
+      const { data: rows } = await (supabase as any)
+        .from("user_xp")
+        .select("user_id, xp, level")
+        .eq("bot_id", botId)
+        .eq("guild_id", interaction.guild!.id)
+        .order("level", { ascending: false })
+        .order("xp", { ascending: false })
+        .limit(10);
       const embed = new EmbedBuilder().setTitle("🏆 XP Leaderboard").setColor(0xffd700);
-      for (const [userId, data] of sorted) {
-        const member = interaction.guild!.members.cache.get(userId);
-        embed.addFields({ name: member?.user.tag ?? userId, value: `Level ${data.level} — ${data.xp} XP` });
+      for (const row of (rows ?? []) as { user_id: string; xp: number; level: number }[]) {
+        const member = interaction.guild!.members.cache.get(row.user_id);
+        embed.addFields({ name: member?.user.tag ?? row.user_id, value: `Level ${row.level} — ${row.xp} XP` });
       }
-      if (sorted.length === 0) embed.setDescription("No data yet.");
+      if (!rows || rows.length === 0) embed.setDescription("No data yet.");
       await interaction.reply({ embeds: [embed] });
     }
 
