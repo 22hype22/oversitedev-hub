@@ -10,6 +10,7 @@ import {
   ButtonStyle,
 } from "discord.js";
 import type { Addon, AddonContext } from "./index.js";
+import { supabase, WORKER_TOKEN_VALUE } from "../supabase.js";
 
 // ── Roblox Verification ──
 export const robloxVerificationAddon: Addon = {
