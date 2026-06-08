@@ -301,14 +301,18 @@ export const autoRadioAddon: Addon = {
 
       await playNext(guild.id, ctx);
 
+      const label = GENRE_LABELS[genre] ?? genre;
       const embed = new EmbedBuilder()
-        .setTitle(`🎵 ${genre} Radio Started`)
-        .setDescription(`Now playing the greatest **${genre}** songs of all time — forever!`)
+        .setTitle(`🎵 ${label} Radio Started`)
+        .setDescription(`Now playing the greatest **${label}** songs of all time — forever!`)
         .setColor(0x5865f2);
 
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder().setCustomId("radio_skip").setLabel("⏭ Skip").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("radio_stop").setLabel("⏹ Stop").setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId("radio_playpause").setEmoji("⏯️").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("radio_skip").setEmoji("⏭️").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("radio_stop").setEmoji("⏹️").setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId("radio_vol_down").setEmoji("🔉").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("radio_vol_up").setEmoji("🔊").setStyle(ButtonStyle.Secondary),
       );
 
       await interaction.editReply({ embeds: [embed], components: [row] });
