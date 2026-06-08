@@ -1012,6 +1012,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         type: "select",
         defaultValue: "lofi",
         options: [
+          { value: "all", label: "All" },
           { value: "lofi", label: "Lo-fi" },
           { value: "pop", label: "Pop" },
           { value: "rock", label: "Rock" },
