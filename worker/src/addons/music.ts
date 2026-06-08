@@ -335,10 +335,25 @@ export const autoRadioAddon: Addon = {
       const guild = interaction.guild;
       if (!guild) return;
 
+      if (interaction.customId === "radio_playpause") {
+        const player = players.get(guild.id);
+        if (!player) {
+          await interaction.reply({ content: "❌ Nothing playing.", ephemeral: true });
+          return;
+        }
+        if (player.state.status === AudioPlayerStatus.Paused) {
+          player.unpause();
+          await interaction.reply({ content: "▶️ Resumed.", ephemeral: true });
+        } else {
+          player.pause();
+          await interaction.reply({ content: "⏸️ Paused.", ephemeral: true });
+        }
+      }
+
       if (interaction.customId === "radio_skip") {
         const player = players.get(guild.id);
         if (player) player.stop();
-        await interaction.reply({ content: "⏭ Skipped!", ephemeral: true });
+        await interaction.reply({ content: "⏭️ Skipped!", ephemeral: true });
       }
 
       if (interaction.customId === "radio_stop") {
@@ -346,7 +361,11 @@ export const autoRadioAddon: Addon = {
         queues.set(guild.id, []);
         const player = players.get(guild.id);
         if (player) player.stop();
-        await interaction.reply({ content: "⏹ Radio stopped.", ephemeral: true });
+        await interaction.reply({ content: "⏹️ Radio stopped.", ephemeral: true });
+      }
+
+      if (interaction.customId === "radio_vol_down" || interaction.customId === "radio_vol_up") {
+        await interaction.reply({ content: "🔊 Volume control coming soon.", ephemeral: true });
       }
     });
 
