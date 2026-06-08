@@ -31,7 +31,34 @@ const queues = new Map<string, QueueEntry[]>();
 const players = new Map<string, ReturnType<typeof createAudioPlayer>>();
 const autoRadioGenres = new Map<string, string>(); // guildId -> genre
 
-const RADIO_GENRES = ["lofi", "pop", "rock", "edm", "hiphop", "classical", "jazz", "country"];
+const RADIO_GENRES = [
+  "pop",
+  "country",
+  "classical",
+  "jazz",
+  "world",
+  "rockalternative",
+  "rnbhiphop",
+  "latin",
+  "dance",
+  "christian",
+  "gospel",
+];
+
+const GENRE_LABELS: Record<string, string> = {
+  pop: "Pop",
+  country: "Country",
+  classical: "Classical",
+  jazz: "Jazz",
+  world: "World",
+  rockalternative: "Rock & Alternative",
+  rnbhiphop: "R&B / Hip-Hop",
+  latin: "Latin",
+  dance: "Dance",
+  christian: "Christian",
+  gospel: "Gospel",
+  all: "All Genres",
+};
 
 const GENRE_QUERIES = [
   "greatest {genre} songs of all time",
@@ -274,14 +301,18 @@ export const autoRadioAddon: Addon = {
 
       await playNext(guild.id, ctx);
 
+      const label = GENRE_LABELS[genre] ?? genre;
       const embed = new EmbedBuilder()
-        .setTitle(`🎵 ${genre} Radio Started`)
-        .setDescription(`Now playing the greatest **${genre}** songs of all time — forever!`)
+        .setTitle(`🎵 ${label} Radio Started`)
+        .setDescription(`Now playing the greatest **${label}** songs of all time — forever!`)
         .setColor(0x5865f2);
 
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder().setCustomId("radio_skip").setLabel("⏭ Skip").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("radio_stop").setLabel("⏹ Stop").setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId("radio_playpause").setEmoji("⏯️").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("radio_skip").setEmoji("⏭️").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("radio_stop").setEmoji("⏹️").setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId("radio_vol_down").setEmoji("🔉").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("radio_vol_up").setEmoji("🔊").setStyle(ButtonStyle.Secondary),
       );
 
       await interaction.editReply({ embeds: [embed], components: [row] });
@@ -304,10 +335,25 @@ export const autoRadioAddon: Addon = {
       const guild = interaction.guild;
       if (!guild) return;
 
+      if (interaction.customId === "radio_playpause") {
+        const player = players.get(guild.id);
+        if (!player) {
+          await interaction.reply({ content: "❌ Nothing playing.", ephemeral: true });
+          return;
+        }
+        if (player.state.status === AudioPlayerStatus.Paused) {
+          player.unpause();
+          await interaction.reply({ content: "▶️ Resumed.", ephemeral: true });
+        } else {
+          player.pause();
+          await interaction.reply({ content: "⏸️ Paused.", ephemeral: true });
+        }
+      }
+
       if (interaction.customId === "radio_skip") {
         const player = players.get(guild.id);
         if (player) player.stop();
-        await interaction.reply({ content: "⏭ Skipped!", ephemeral: true });
+        await interaction.reply({ content: "⏭️ Skipped!", ephemeral: true });
       }
 
       if (interaction.customId === "radio_stop") {
@@ -315,7 +361,11 @@ export const autoRadioAddon: Addon = {
         queues.set(guild.id, []);
         const player = players.get(guild.id);
         if (player) player.stop();
-        await interaction.reply({ content: "⏹ Radio stopped.", ephemeral: true });
+        await interaction.reply({ content: "⏹️ Radio stopped.", ephemeral: true });
+      }
+
+      if (interaction.customId === "radio_vol_down" || interaction.customId === "radio_vol_up") {
+        await interaction.reply({ content: "🔊 Volume control coming soon.", ephemeral: true });
       }
     });
 
