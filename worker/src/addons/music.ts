@@ -31,6 +31,8 @@ const queues = new Map<string, QueueEntry[]>();
 const players = new Map<string, ReturnType<typeof createAudioPlayer>>();
 const autoRadioGenres = new Map<string, string>(); // guildId -> genre
 
+const RADIO_GENRES = ["lofi", "pop", "rock", "edm", "hiphop", "classical", "jazz", "country"];
+
 const GENRE_QUERIES = [
   "greatest {genre} songs of all time",
   "best {genre} hits ever",
@@ -38,6 +40,14 @@ const GENRE_QUERIES = [
   "most popular {genre} songs",
   "classic {genre} songs",
 ];
+
+function resolveGenre(guildId: string): string {
+  const stored = autoRadioGenres.get(guildId);
+  if (!stored || stored === "all") {
+    return RADIO_GENRES[Math.floor(Math.random() * RADIO_GENRES.length)];
+  }
+  return stored;
+}
 
 async function searchYouTube(query: string): Promise<{ title: string; url: string } | null> {
   try {
@@ -57,8 +67,8 @@ async function playNext(guildId: string, ctx: AddonContext) {
 
   if (queue.length === 0) {
     // Check if auto radio is active
-    const genre = autoRadioGenres.get(guildId);
-    if (genre) {
+    const genre = resolveGenre(guildId);
+    if (autoRadioGenres.has(guildId)) {
       const query = GENRE_QUERIES[Math.floor(Math.random() * GENRE_QUERIES.length)].replace("{genre}", genre);
       const result = await searchYouTube(query);
       if (result) queue.push({ ...result, requestedBy: "Auto Radio" });
