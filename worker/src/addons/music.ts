@@ -67,8 +67,8 @@ async function playNext(guildId: string, ctx: AddonContext) {
 
   if (queue.length === 0) {
     // Check if auto radio is active
-    const genre = autoRadioGenres.get(guildId);
-    if (genre) {
+    const genre = resolveGenre(guildId);
+    if (autoRadioGenres.has(guildId)) {
       const query = GENRE_QUERIES[Math.floor(Math.random() * GENRE_QUERIES.length)].replace("{genre}", genre);
       const result = await searchYouTube(query);
       if (result) queue.push({ ...result, requestedBy: "Auto Radio" });
