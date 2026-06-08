@@ -31,7 +31,34 @@ const queues = new Map<string, QueueEntry[]>();
 const players = new Map<string, ReturnType<typeof createAudioPlayer>>();
 const autoRadioGenres = new Map<string, string>(); // guildId -> genre
 
-const RADIO_GENRES = ["lofi", "pop", "rock", "edm", "hiphop", "classical", "jazz", "country"];
+const RADIO_GENRES = [
+  "pop",
+  "country",
+  "classical",
+  "jazz",
+  "world",
+  "rockalternative",
+  "rnbhiphop",
+  "latin",
+  "dance",
+  "christian",
+  "gospel",
+];
+
+const GENRE_LABELS: Record<string, string> = {
+  pop: "Pop",
+  country: "Country",
+  classical: "Classical",
+  jazz: "Jazz",
+  world: "World",
+  rockalternative: "Rock & Alternative",
+  rnbhiphop: "R&B / Hip-Hop",
+  latin: "Latin",
+  dance: "Dance",
+  christian: "Christian",
+  gospel: "Gospel",
+  all: "All Genres",
+};
 
 const GENRE_QUERIES = [
   "greatest {genre} songs of all time",
