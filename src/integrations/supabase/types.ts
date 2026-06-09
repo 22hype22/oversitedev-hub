@@ -1758,6 +1758,30 @@ export type Database = {
         }
         Relationships: []
       }
+      liked_songs: {
+        Row: {
+          bot_id: string
+          created_at: string
+          id: number
+          track_title: string
+          user_id: string
+        }
+        Insert: {
+          bot_id: string
+          created_at?: string
+          id?: never
+          track_title: string
+          user_id: string
+        }
+        Update: {
+          bot_id?: string
+          created_at?: string
+          id?: never
+          track_title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notification_rate_limits: {
         Row: {
           bucket_start: string
