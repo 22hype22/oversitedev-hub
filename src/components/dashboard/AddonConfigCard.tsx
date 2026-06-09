@@ -117,6 +117,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isPriorityFlagging = addonId === "priority-flagging";
   const isAutoCloseInactive = addonId === "auto-close-inactive";
   const isAutoRadio = addonId === "auto-radio";
+  const isMusicAddon = addonId === "music-addon";
   const isStarboard = addonId === "starboard";
   const isGiveaway = addonId === "giveaway-system";
   const isRecurringMessages = addonId === "recurring-messages";
