@@ -2780,6 +2780,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveAutoCloseInactive();
                   } else if (isAutoRadio) {
                     void saveAutoRadio();
+                  } else if (isMusicAddon) {
+                    void saveMusicAddon();
                   } else if (isGiveaway) {
                     void saveGiveaway();
                   } else if (isStarboard) {
