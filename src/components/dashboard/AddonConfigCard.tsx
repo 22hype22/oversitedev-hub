@@ -1486,7 +1486,62 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     setOpen(false);
   };
 
-  // ---------- giveaway ----------
+  // ---------- music-addon ----------
+  useEffect(() => {
+    if (!isMusicAddon || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "music-addon")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        dj_role_ids: Array.isArray(cfg.dj_role_ids) ? cfg.dj_role_ids.map(String) : [],
+        everyone_can_queue: cfg.everyone_can_queue ?? false,
+        max_queue_length: typeof cfg.max_queue_length === "number" ? cfg.max_queue_length : 100,
+        default_volume: typeof cfg.default_volume === "number" ? cfg.default_volume : 50,
+        auto_leave: cfg.auto_leave ?? false,
+        now_playing_v2: cfg.now_playing_v2 ?? false,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isMusicAddon, open, botId]);
+
+  const saveMusicAddon = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "music-addon",
+      config: {
+        dj_role_ids: Array.isArray(values.dj_role_ids) ? values.dj_role_ids.map(String) : [],
+        everyone_can_queue: !!values.everyone_can_queue,
+        max_queue_length: Number(values.max_queue_length ?? 100),
+        default_volume: Number(values.default_volume ?? 50),
+        auto_leave: !!values.auto_leave,
+        now_playing_v2: !!values.now_playing_v2,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "music-addon",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Music settings saved & applied");
+    setOpen(false);
+  };
+
   useEffect(() => {
     if (!isGiveaway || !open || !botId) return;
     let cancelled = false;
