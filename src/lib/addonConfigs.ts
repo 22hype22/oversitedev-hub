@@ -997,6 +997,12 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         defaultValue: 50,
       },
       toggle("auto_leave", "Auto-leave when voice channel is empty"),
+      toggle(
+        "now_playing_v2",
+        "Modern Now Playing UI",
+        false,
+        "Use Discord's new card-style Now Playing layout with built-in controls instead of the classic embed.",
+      ),
     ],
   },
 
