@@ -1782,6 +1782,42 @@ export type Database = {
         }
         Relationships: []
       }
+      music_resume: {
+        Row: {
+          bot_id: string
+          channel_id: string
+          genre: string | null
+          guild_id: string
+          id: number
+          position_ms: number
+          track_title: string | null
+          track_uri: string | null
+          updated_at: string
+        }
+        Insert: {
+          bot_id: string
+          channel_id: string
+          genre?: string | null
+          guild_id: string
+          id?: never
+          position_ms?: number
+          track_title?: string | null
+          track_uri?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bot_id?: string
+          channel_id?: string
+          genre?: string | null
+          guild_id?: string
+          id?: never
+          position_ms?: number
+          track_title?: string | null
+          track_uri?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notification_rate_limits: {
         Row: {
           bucket_start: string
