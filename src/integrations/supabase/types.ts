@@ -1845,6 +1845,30 @@ export type Database = {
         }
         Relationships: []
       }
+      music_taste: {
+        Row: {
+          bot_id: string
+          guild_id: string
+          id: number
+          scores: Json
+          updated_at: string
+        }
+        Insert: {
+          bot_id: string
+          guild_id: string
+          id?: never
+          scores?: Json
+          updated_at?: string
+        }
+        Update: {
+          bot_id?: string
+          guild_id?: string
+          id?: never
+          scores?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notification_rate_limits: {
         Row: {
           bucket_start: string
