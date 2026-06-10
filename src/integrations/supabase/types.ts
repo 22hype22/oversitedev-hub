@@ -1782,6 +1782,33 @@ export type Database = {
         }
         Relationships: []
       }
+      music_bridge: {
+        Row: {
+          channel_id: string
+          guild_id: string
+          id: number
+          requested_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          channel_id: string
+          guild_id: string
+          id?: never
+          requested_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          channel_id?: string
+          guild_id?: string
+          id?: never
+          requested_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       music_resume: {
         Row: {
           bot_id: string
