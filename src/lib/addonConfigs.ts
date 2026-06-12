@@ -976,6 +976,15 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "post-system": {
+    title: "Post System",
+    summary: "Configurable post templates members can submit via /post.",
+    icon: FileText,
+    fields: [],
+  },
+
+
+
   // ─── Utilities add-ons ───────────────────────────────────────
   "music-addon": {
     title: "Music Add-On",
