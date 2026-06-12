@@ -2007,6 +2007,104 @@ export type Database = {
         }
         Relationships: []
       }
+      post_types: {
+        Row: {
+          bot_id: string
+          created_at: string
+          description: string | null
+          fields: Json
+          guild_id: string
+          id: string
+          name: string
+          target_channel_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          bot_id: string
+          created_at?: string
+          description?: string | null
+          fields?: Json
+          guild_id: string
+          id?: string
+          name: string
+          target_channel_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bot_id?: string
+          created_at?: string
+          description?: string | null
+          fields?: Json
+          guild_id?: string
+          id?: string
+          name?: string
+          target_channel_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_types_bot_id_fkey"
+            columns: ["bot_id"]
+            isOneToOne: false
+            referencedRelation: "bot_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      posts: {
+        Row: {
+          author_id: string
+          bot_id: string
+          channel_id: string | null
+          content: Json
+          created_at: string
+          guild_id: string
+          id: string
+          message_id: string | null
+          post_type_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          bot_id: string
+          channel_id?: string | null
+          content?: Json
+          created_at?: string
+          guild_id: string
+          id?: string
+          message_id?: string | null
+          post_type_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          bot_id?: string
+          channel_id?: string | null
+          content?: Json
+          created_at?: string
+          guild_id?: string
+          id?: string
+          message_id?: string | null
+          post_type_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posts_bot_id_fkey"
+            columns: ["bot_id"]
+            isOneToOne: false
+            referencedRelation: "bot_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_post_type_id_fkey"
+            columns: ["post_type_id"]
+            isOneToOne: false
+            referencedRelation: "post_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_catalog: {
         Row: {
           category: string
@@ -3441,6 +3539,10 @@ export type Database = {
         Returns: Json
       }
       runtime_music_op: {
+        Args: { p_op: string; p_payload: Json; p_token: string }
+        Returns: Json
+      }
+      runtime_post_op: {
         Args: { p_op: string; p_payload: Json; p_token: string }
         Returns: Json
       }
