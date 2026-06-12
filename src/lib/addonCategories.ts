@@ -41,6 +41,7 @@ export const SUPPORT_ADDON_IDS = [
   "priority-flagging",
   "auto-close-inactive",
   "anonymous-reporting",
+  "post-system",
   "messages",
 ] as const;
 
