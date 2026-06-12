@@ -2661,6 +2661,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               botName={botName}
               botAvatarUrl={botAvatarUrl ?? undefined}
             />
+          ) : isPostSystem ? (
+            <div className="py-2">
+              <PostTypesManager botId={botId} />
+            </div>
           ) : (
             <div className="space-y-5 py-2">
               {config.fields
