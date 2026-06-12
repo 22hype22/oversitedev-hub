@@ -110,6 +110,7 @@ export const BOT_ADDON_PRICES: Record<string, number> = {
   "priority-flagging": 0.99,
   "auto-close-inactive": 0.99,
   "anonymous-reporting": 0.99,
+  "post-system": 1.99,
 
   // Utilities
   "music-addon": 1.99,
