@@ -3440,6 +3440,10 @@ export type Database = {
         Args: { _bot_id: string; _token: string }
         Returns: Json
       }
+      runtime_music_op: {
+        Args: { p_op: string; p_payload: Json; p_token: string }
+        Returns: Json
+      }
       runtime_record_bot_metrics:
         | {
             Args: {
