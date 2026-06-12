@@ -147,8 +147,12 @@ const UTILITIES_ADDON_IDS = [
 // Branding combined card was removed per product decision).
 const SHARED_ADDON_IDS: string[] = [];
 
+// Owners can cancel/remove a bot from any pre-live state OR once it's live
+// ("paid"/"ready"). Cancelling flips the order to "cancelled", which hides it
+// from the dashboard (entitlements like the Web Dashboard add-on still survive
+// via ENTITLEMENT_STATUSES in useOwnedBots).
 const canCancelStatus = (status: string) =>
-  status === "draft" || status === "submitted";
+  status === "draft" || status === "submitted" || status === "paid" || status === "ready";
 
 /** Visual category metadata for grouped add-on config sections. */
 const ADDON_GROUPS: {
