@@ -57,6 +57,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   "priority-flagging": "Priority Ticket Flagging",
   "auto-close-inactive": "Auto-Close Inactive Tickets",
   "anonymous-reporting": "Anonymous Reporting",
+  "post-system": "Post System",
 
   // Utilities
   "music-addon": "Music Add-On",
@@ -109,6 +110,7 @@ export const BOT_ADDON_PRICES: Record<string, number> = {
   "priority-flagging": 0.99,
   "auto-close-inactive": 0.99,
   "anonymous-reporting": 0.99,
+  "post-system": 1.99,
 
   // Utilities
   "music-addon": 1.99,
@@ -152,6 +154,7 @@ const ADDON_IDS_BY_BASE: Record<string, string[]> = {
     "ticket-message-customization",
     "priority-flagging",
     "auto-close-inactive",
+    "post-system",
   ],
   utilities: [
     "music-addon",

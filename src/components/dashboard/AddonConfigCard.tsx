@@ -48,6 +48,7 @@ import { SayCommandBuilder, type SayCommandBuilderHandle } from "./SayCommandBui
 import { MessagesV2Builder, type MessagesV2BuilderHandle } from "./MessagesV2Builder";
 import { TicketPanelBuilder, type TicketPanelBuilderHandle } from "./TicketPanelBuilder";
 import { TicketEditor, type TicketEditorHandle } from "./TicketEditor";
+import { PostTypesManager } from "./PostTypesManager";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildChannels";
 import { useBotRoles } from "@/hooks/useBotRoles";
@@ -123,6 +124,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isRecurringMessages = addonId === "recurring-messages";
   const isRemindme = addonId === "remindme";
   const isServerStats = addonId === "server-stats-channels";
+  const isPostSystem = addonId === "post-system";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
@@ -2659,6 +2661,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               botName={botName}
               botAvatarUrl={botAvatarUrl ?? undefined}
             />
+          ) : isPostSystem ? (
+            <div className="py-2">
+              <PostTypesManager botId={botId} />
+            </div>
           ) : (
             <div className="space-y-5 py-2">
               {config.fields
@@ -2692,6 +2698,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               <Button variant="outline" onClick={() => setOpen(false)} data-readonly-allow>
                 Cancel
               </Button>
+              {!isPostSystem && (
               <Button
                 disabled={saving || !canEdit}
                 title={!canEdit ? `Your role (${role ?? "viewer"}) doesn't allow editing bot config` : undefined}
@@ -2809,6 +2816,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                         ? "Send message"
                         : "Save changes"}
               </Button>
+              )}
             </div>
           </DialogFooter>
         </DialogContent>
