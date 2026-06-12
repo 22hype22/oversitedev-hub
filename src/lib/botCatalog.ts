@@ -57,6 +57,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   "priority-flagging": "Priority Ticket Flagging",
   "auto-close-inactive": "Auto-Close Inactive Tickets",
   "anonymous-reporting": "Anonymous Reporting",
+  "post-system": "Post System",
 
   // Utilities
   "music-addon": "Music Add-On",
