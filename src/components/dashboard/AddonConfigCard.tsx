@@ -124,6 +124,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isRecurringMessages = addonId === "recurring-messages";
   const isRemindme = addonId === "remindme";
   const isServerStats = addonId === "server-stats-channels";
+  const isPostSystem = addonId === "post-system";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
