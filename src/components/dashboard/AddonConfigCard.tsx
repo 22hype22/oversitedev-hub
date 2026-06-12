@@ -2816,6 +2816,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                         ? "Send message"
                         : "Save changes"}
               </Button>
+              )}
             </div>
           </DialogFooter>
         </DialogContent>
