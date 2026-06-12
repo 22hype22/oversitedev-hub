@@ -2698,6 +2698,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               <Button variant="outline" onClick={() => setOpen(false)} data-readonly-allow>
                 Cancel
               </Button>
+              {!isPostSystem && (
               <Button
                 disabled={saving || !canEdit}
                 title={!canEdit ? `Your role (${role ?? "viewer"}) doesn't allow editing bot config` : undefined}
