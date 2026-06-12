@@ -48,6 +48,7 @@ import { SayCommandBuilder, type SayCommandBuilderHandle } from "./SayCommandBui
 import { MessagesV2Builder, type MessagesV2BuilderHandle } from "./MessagesV2Builder";
 import { TicketPanelBuilder, type TicketPanelBuilderHandle } from "./TicketPanelBuilder";
 import { TicketEditor, type TicketEditorHandle } from "./TicketEditor";
+import { PostTypesManager } from "./PostTypesManager";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildChannels";
 import { useBotRoles } from "@/hooks/useBotRoles";
