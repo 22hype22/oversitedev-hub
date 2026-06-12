@@ -86,7 +86,7 @@ export function PostTypesManager({ botId }: Props) {
       toast({ title: "Failed to load post types", description: error.message, variant: "destructive" });
       return;
     }
-    setRows((data ?? []) as PostType[]);
+    setRows(((data ?? []) as unknown) as PostType[]);
   }, [botId, guildId, toast]);
 
   useEffect(() => {
