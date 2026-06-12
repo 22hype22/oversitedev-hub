@@ -154,6 +154,7 @@ const ADDON_IDS_BY_BASE: Record<string, string[]> = {
     "ticket-message-customization",
     "priority-flagging",
     "auto-close-inactive",
+    "post-system",
   ],
   utilities: [
     "music-addon",
