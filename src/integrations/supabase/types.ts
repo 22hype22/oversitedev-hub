@@ -3351,6 +3351,7 @@ export type Database = {
         Args: { _code: string }
         Returns: undefined
       }
+      is_platform_staff: { Args: { _user_id: string }; Returns: boolean }
       is_portfolio_manager: { Args: never; Returns: boolean }
       is_super_admin:
         | { Args: never; Returns: boolean }
