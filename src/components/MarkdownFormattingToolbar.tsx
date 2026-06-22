@@ -310,23 +310,27 @@ export const MarkdownFormattingToolbar: React.FC = () => {
   }, [hide]);
 
   React.useEffect(() => {
+    // IMPORTANT: this toolbar must never observe `keydown`/`keyup`/`keypress`
+    // on inputs or textareas. Doing so risks accidentally swallowing plain
+    // character keys (notably Space) across every field on the dashboard.
+    // `selectionchange` already covers keyboard-driven selections
+    // (Shift+Arrow, Ctrl/Cmd+A, Home/End, …) so we can keep the toolbar in
+    // sync without touching any key events. The toolbar only acts on its
+    // own button `onMouseDown` handlers.
     const onSelect = () => update();
     const onMouseUp = () => update();
-    const onKeyUp = () => update();
     const onFocusOut = () => {
       if (!isMouseOverToolbar.current) hide();
     };
     const onScroll = () => { if (fieldRef.current) update(); };
     document.addEventListener("selectionchange", onSelect);
     document.addEventListener("mouseup", onMouseUp);
-    document.addEventListener("keyup", onKeyUp);
     document.addEventListener("focusout", onFocusOut);
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onScroll);
     return () => {
       document.removeEventListener("selectionchange", onSelect);
       document.removeEventListener("mouseup", onMouseUp);
-      document.removeEventListener("keyup", onKeyUp);
       document.removeEventListener("focusout", onFocusOut);
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", onScroll);
