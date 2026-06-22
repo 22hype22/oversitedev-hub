@@ -2683,7 +2683,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 ? "max-w-5xl max-h-[90vh] overflow-y-auto"
                 : isChannelLockdown
                   ? "max-w-3xl max-h-[90vh] overflow-y-auto"
-                  : isTicketPanel
+                  : isTicketPanel || isTicketLifecycleMessages
                     ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                     : "max-w-lg max-h-[85vh] overflow-y-auto",
             readOnly && "readonly-scope",
