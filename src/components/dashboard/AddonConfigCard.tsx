@@ -2840,6 +2840,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveBanTools();
                   } else if (isStaffPerformance) {
                     void saveStaffPerformance();
+                  } else if (isTicketLifecycleMessages) {
+                    void saveTicketLifecycleMessages();
                   } else if (isTicketNotes) {
                     void saveTicketNotes();
                   } else if (isTicketMembers) {
