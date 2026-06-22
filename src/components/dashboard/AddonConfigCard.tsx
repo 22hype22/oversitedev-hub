@@ -2407,13 +2407,23 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       return (
         <div className="space-y-2">
           <Label htmlFor={f.key}>{f.label}</Label>
-          <Textarea
-            id={f.key}
-            value={String(value ?? "")}
-            placeholder={f.placeholder}
-            onChange={(e) => setValue(f.key, e.target.value)}
-            rows={4}
-          />
+          {f.markdown ? (
+            <DiscordMarkdownTextarea
+              id={f.key}
+              value={String(value ?? "")}
+              placeholder={f.placeholder}
+              onValueChange={(v) => setValue(f.key, v)}
+              rows={3}
+            />
+          ) : (
+            <Textarea
+              id={f.key}
+              value={String(value ?? "")}
+              placeholder={f.placeholder}
+              onChange={(e) => setValue(f.key, e.target.value)}
+              rows={4}
+            />
+          )}
           {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
         </div>
       );
