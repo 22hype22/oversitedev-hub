@@ -77,6 +77,8 @@ export type AddonField = {
   options?: { value: string; label: string }[];
   /** For type: "channel" — restrict which channel_type values are selectable. */
   channelTypes?: string[];
+  /** For type: "textarea" — render with the Discord markdown formatting toolbar. */
+  markdown?: boolean;
   /** Optional: only render this field when the predicate returns true for current form values. */
   visibleIf?: (values: Record<string, string | number | boolean | string[]>) => boolean;
 };
