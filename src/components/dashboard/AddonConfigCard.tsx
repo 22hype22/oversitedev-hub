@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DiscordMarkdownTextarea } from "@/components/ui/discord-markdown-textarea";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -92,6 +93,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isSayCommand = addonId === "messages";
   const isRules = addonId === "rules";
   const isTicketPanel = addonId === "ticket-message-customization";
+  const isTicketLifecycleMessages = addonId === "ticket-lifecycle-messages";
   const isTicketEditor = addonId === "ticket-editor";
   // removed: anonymous-reporting card discontinued
   const isVerification = addonId === "verification-system";
@@ -1743,6 +1745,59 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     setOpen(false);
   };
 
+  // ---------- ticket-lifecycle-messages ----------
+  const LIFECYCLE_KEYS = ["claim_message", "close_message", "close_dm_message", "reopen_message", "priority_message"] as const;
+
+  useEffect(() => {
+    if (!isTicketLifecycleMessages || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "ticket-lifecycle-messages")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => {
+        const next = { ...prev };
+        for (const k of LIFECYCLE_KEYS) next[k] = typeof cfg[k] === "string" ? cfg[k] : "";
+        return next;
+      });
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isTicketLifecycleMessages, open, botId]);
+
+  const saveTicketLifecycleMessages = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const config: Record<string, string> = {};
+    for (const k of LIFECYCLE_KEYS) {
+      const v = values[k];
+      if (typeof v === "string" && v.trim().length > 0) config[k] = v;
+    }
+    const payload = {
+      bot_id: botId,
+      feature: "ticket-lifecycle-messages",
+      config,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "ticket-lifecycle-messages",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Ticket lifecycle messages saved & applied");
+    setOpen(false);
+  };
+
+
   useEffect(() => {
     if (!isTicketNotes || !open || !botId) return;
     let cancelled = false;
@@ -2405,13 +2460,23 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       return (
         <div className="space-y-2">
           <Label htmlFor={f.key}>{f.label}</Label>
-          <Textarea
-            id={f.key}
-            value={String(value ?? "")}
-            placeholder={f.placeholder}
-            onChange={(e) => setValue(f.key, e.target.value)}
-            rows={4}
-          />
+          {f.markdown ? (
+            <DiscordMarkdownTextarea
+              id={f.key}
+              value={String(value ?? "")}
+              placeholder={f.placeholder}
+              onValueChange={(v) => setValue(f.key, v)}
+              rows={3}
+            />
+          ) : (
+            <Textarea
+              id={f.key}
+              value={String(value ?? "")}
+              placeholder={f.placeholder}
+              onChange={(e) => setValue(f.key, e.target.value)}
+              rows={4}
+            />
+          )}
           {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
         </div>
       );
@@ -2775,6 +2840,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveBanTools();
                   } else if (isStaffPerformance) {
                     void saveStaffPerformance();
+                  } else if (isTicketLifecycleMessages) {
+                    void saveTicketLifecycleMessages();
                   } else if (isTicketNotes) {
                     void saveTicketNotes();
                   } else if (isTicketMembers) {

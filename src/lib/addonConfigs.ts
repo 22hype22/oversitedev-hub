@@ -77,6 +77,8 @@ export type AddonField = {
   options?: { value: string; label: string }[];
   /** For type: "channel" — restrict which channel_type values are selectable. */
   channelTypes?: string[];
+  /** For type: "textarea" — render with the Discord markdown formatting toolbar. */
+  markdown?: boolean;
   /** Optional: only render this field when the predicate returns true for current form values. */
   visibleIf?: (values: Record<string, string | number | boolean | string[]>) => boolean;
 };
@@ -907,6 +909,54 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       },
       { key: "embedColor", label: "Embed accent color (hex)", type: "text", placeholder: "#5865F2" },
       ...embedFooterFields(),
+    ],
+  },
+
+  "ticket-lifecycle-messages": {
+    title: "Ticket Lifecycle Messages",
+    summary: "Reword the bot's claim, close, reopen, and priority messages.",
+    icon: MessageSquare,
+    fields: [
+      {
+        key: "claim_message",
+        label: "Claim message",
+        type: "textarea",
+        markdown: true,
+        placeholder: "{staff} has claimed this ticket.",
+        help: "Posted when staff claims a ticket. Tokens: {user}, {staff}, {category}, {server}. Leave blank for default.",
+      },
+      {
+        key: "close_message",
+        label: "Close message (in channel)",
+        type: "textarea",
+        markdown: true,
+        placeholder: "This ticket has been closed.",
+        help: "Posted in the ticket channel when it closes. Tokens: {user}, {staff}, {category}, {server}. Leave blank for default.",
+      },
+      {
+        key: "close_dm_message",
+        label: "Close DM message",
+        type: "textarea",
+        markdown: true,
+        placeholder: "Your ticket has been closed — {category}. Here is your transcript.",
+        help: "DM'd to the ticket opener with their transcript. Tokens: {user}, {staff}, {category}, {server}. Leave blank for default.",
+      },
+      {
+        key: "reopen_message",
+        label: "Reopen message",
+        type: "textarea",
+        markdown: true,
+        placeholder: "This ticket has been reopened.",
+        help: "Posted when a ticket is reopened. Tokens: {user}, {staff}, {category}, {server}. Leave blank for default.",
+      },
+      {
+        key: "priority_message",
+        label: "Priority flag message",
+        type: "textarea",
+        markdown: true,
+        placeholder: "Ticket flagged as priority by {staff}.",
+        help: "Posted when a ticket is flagged as priority. Tokens: {user}, {staff}, {category}, {server}. Leave blank for default.",
+      },
     ],
   },
 
