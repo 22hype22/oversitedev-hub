@@ -2732,6 +2732,63 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               engineVersion={engineVersion}
             />
 
+          ) : isTicketLifecycleMessages ? (
+            <div className="space-y-4 py-2">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="flex-1 min-w-0">
+                  <Label className="mb-1.5 block">Lifecycle event</Label>
+                  <Select
+                    value={lifecycleEvent}
+                    onValueChange={(v) => switchLifecycleEvent(v as LifecycleKey)}
+                  >
+                    <SelectTrigger className="w-full sm:w-[360px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LIFECYCLE_KEYS.map((k) => (
+                        <SelectItem key={k} value={k}>
+                          {LIFECYCLE_LABELS[k]}
+                          {lifecycleEnabled[k] ? " • custom" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
+                  <Switch
+                    id="lifecycle-enabled"
+                    checked={lifecycleEnabled[lifecycleEvent]}
+                    onCheckedChange={(v) => {
+                      captureLifecycleCurrent();
+                      setLifecycleEnabled((prev) => ({ ...prev, [lifecycleEvent]: v }));
+                    }}
+                  />
+                  <Label htmlFor="lifecycle-enabled" className="cursor-pointer text-sm">
+                    Use custom message for this event
+                  </Label>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Build the message with the V2 component editor. Available tokens in any text:{" "}
+                <code className="rounded bg-muted px-1">{"{user}"}</code>{" "}
+                <code className="rounded bg-muted px-1">{"{staff}"}</code>{" "}
+                <code className="rounded bg-muted px-1">{"{category}"}</code>{" "}
+                <code className="rounded bg-muted px-1">{"{server}"}</code>. Disabled events fall back to the bot's built-in default.
+              </p>
+              <div className={cn(!lifecycleEnabled[lifecycleEvent] && "opacity-60 pointer-events-none")}>
+                <MessagesV2Builder
+                  key={`lifecycle-${lifecycleEvent}-${lifecycleMountKey}`}
+                  ref={lifecycleV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={lifecycleConfigs[lifecycleEvent] ?? []}
+                />
+              </div>
+            </div>
+
+
 
 
 
