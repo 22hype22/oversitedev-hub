@@ -912,6 +912,54 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "ticket-lifecycle-messages": {
+    title: "Ticket Lifecycle Messages",
+    summary: "Reword the bot's claim, close, reopen, and priority messages.",
+    icon: MessageSquare,
+    fields: [
+      {
+        key: "claim_message",
+        label: "Claim message",
+        type: "textarea",
+        markdown: true,
+        placeholder: "{staff} has claimed this ticket.",
+        help: "Posted when staff claims a ticket. Tokens: {user}, {staff}, {category}, {server}. Leave blank for default.",
+      },
+      {
+        key: "close_message",
+        label: "Close message (in channel)",
+        type: "textarea",
+        markdown: true,
+        placeholder: "This ticket has been closed.",
+        help: "Posted in the ticket channel when it closes. Tokens: {user}, {staff}, {category}, {server}. Leave blank for default.",
+      },
+      {
+        key: "close_dm_message",
+        label: "Close DM message",
+        type: "textarea",
+        markdown: true,
+        placeholder: "Your ticket has been closed — {category}. Here is your transcript.",
+        help: "DM'd to the ticket opener with their transcript. Tokens: {user}, {staff}, {category}, {server}. Leave blank for default.",
+      },
+      {
+        key: "reopen_message",
+        label: "Reopen message",
+        type: "textarea",
+        markdown: true,
+        placeholder: "This ticket has been reopened.",
+        help: "Posted when a ticket is reopened. Tokens: {user}, {staff}, {category}, {server}. Leave blank for default.",
+      },
+      {
+        key: "priority_message",
+        label: "Priority flag message",
+        type: "textarea",
+        markdown: true,
+        placeholder: "Ticket flagged as priority by {staff}.",
+        help: "Posted when a ticket is flagged as priority. Tokens: {user}, {staff}, {category}, {server}. Leave blank for default.",
+      },
+    ],
+  },
+
   "ticket-editor": {
     title: "Ticket Panel Edit",
     summary: "Edit the contents of ticket panels you've already posted.",
