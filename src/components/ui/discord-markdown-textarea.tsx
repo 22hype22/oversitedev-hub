@@ -353,7 +353,6 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
             onChange?.(e);
           }}
           onSelect={updateToolbar}
-          onKeyUp={updateToolbar}
           onMouseUp={updateToolbar}
           onBlur={() => {
             // Toolbar uses onMouseDown preventDefault so clicks don't blur.
