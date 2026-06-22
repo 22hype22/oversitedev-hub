@@ -46,7 +46,7 @@ import { cn } from "@/lib/utils";
 import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
 import { getAddonLabel } from "@/lib/botCatalog";
 import { SayCommandBuilder, type SayCommandBuilderHandle } from "./SayCommandBuilder";
-import { MessagesV2Builder, type MessagesV2BuilderHandle } from "./MessagesV2Builder";
+import { MessagesV2Builder, normalizeV2Items, type MessagesV2BuilderHandle, type V2Item } from "./MessagesV2Builder";
 import { TicketPanelBuilder, type TicketPanelBuilderHandle } from "./TicketPanelBuilder";
 import { TicketEditor, type TicketEditorHandle } from "./TicketEditor";
 import { PostTypesManager } from "./PostTypesManager";
@@ -1745,8 +1745,39 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     setOpen(false);
   };
 
-  // ---------- ticket-lifecycle-messages ----------
-  const LIFECYCLE_KEYS = ["claim_message", "close_message", "close_dm_message", "reopen_message", "priority_message"] as const;
+  // ---------- ticket-lifecycle-messages (V2 builder per event) ----------
+  const LIFECYCLE_KEYS = [
+    "claim_message",
+    "close_message",
+    "close_dm_message",
+    "reopen_message",
+    "priority_message",
+  ] as const;
+  type LifecycleKey = typeof LIFECYCLE_KEYS[number];
+  const LIFECYCLE_LABELS: Record<LifecycleKey, string> = {
+    claim_message: "Claim message",
+    close_message: "Close message (in ticket channel)",
+    close_dm_message: "Close DM (sent to ticket opener)",
+    reopen_message: "Reopen message",
+    priority_message: "Priority flag message",
+  };
+  const lifecycleV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [lifecycleEvent, setLifecycleEvent] = useState<LifecycleKey>("claim_message");
+  const [lifecycleConfigs, setLifecycleConfigs] = useState<Record<LifecycleKey, V2Item[]>>({
+    claim_message: [],
+    close_message: [],
+    close_dm_message: [],
+    reopen_message: [],
+    priority_message: [],
+  });
+  const [lifecycleEnabled, setLifecycleEnabled] = useState<Record<LifecycleKey, boolean>>({
+    claim_message: false,
+    close_message: false,
+    close_dm_message: false,
+    reopen_message: false,
+    priority_message: false,
+  });
+  const [lifecycleMountKey, setLifecycleMountKey] = useState(0);
 
   useEffect(() => {
     if (!isTicketLifecycleMessages || !open || !botId) return;
@@ -1758,25 +1789,70 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         .eq("bot_id", botId)
         .eq("feature", "ticket-lifecycle-messages")
         .maybeSingle();
-      if (cancelled || !data) return;
-      const cfg = (data.config ?? {}) as Record<string, any>;
-      setValues((prev) => {
-        const next = { ...prev };
-        for (const k of LIFECYCLE_KEYS) next[k] = typeof cfg[k] === "string" ? cfg[k] : "";
-        return next;
-      });
-      setAppliedAt((data as any).applied_at ?? null);
+      if (cancelled) return;
+      const cfg = ((data?.config ?? {}) as Record<string, any>) || {};
+      const nextConfigs: Record<LifecycleKey, V2Item[]> = {
+        claim_message: [],
+        close_message: [],
+        close_dm_message: [],
+        reopen_message: [],
+        priority_message: [],
+      };
+      const nextEnabled: Record<LifecycleKey, boolean> = {
+        claim_message: false,
+        close_message: false,
+        close_dm_message: false,
+        reopen_message: false,
+        priority_message: false,
+      };
+      for (const k of LIFECYCLE_KEYS) {
+        const entry = cfg[k];
+        if (entry && entry.v2 === true && Array.isArray(entry.components)) {
+          nextConfigs[k] = entry.components as V2Item[];
+          nextEnabled[k] = true;
+        }
+      }
+      setLifecycleConfigs(nextConfigs);
+      setLifecycleEnabled(nextEnabled);
+      setLifecycleEvent("claim_message");
+      setLifecycleMountKey((k) => k + 1);
+      setAppliedAt((data as any)?.applied_at ?? null);
     })();
     return () => { cancelled = true; };
   }, [isTicketLifecycleMessages, open, botId]);
 
+  const captureLifecycleCurrent = () => {
+    const current = lifecycleV2Ref.current?.getItems();
+    if (!current) return;
+    setLifecycleConfigs((prev) => ({ ...prev, [lifecycleEvent]: current }));
+  };
+
+  const switchLifecycleEvent = (next: LifecycleKey) => {
+    if (next === lifecycleEvent) return;
+    const current = lifecycleV2Ref.current?.getItems();
+    setLifecycleConfigs((prev) => ({
+      ...prev,
+      [lifecycleEvent]: current ?? prev[lifecycleEvent],
+    }));
+    setLifecycleEvent(next);
+    setLifecycleMountKey((k) => k + 1);
+  };
+
   const saveTicketLifecycleMessages = async () => {
     if (!botId) return toast.error("Missing bot id.");
+    // Snapshot the currently-edited event before serializing.
+    const liveItems = lifecycleV2Ref.current?.getItems();
+    const merged: Record<LifecycleKey, V2Item[]> = {
+      ...lifecycleConfigs,
+      [lifecycleEvent]: liveItems ?? lifecycleConfigs[lifecycleEvent],
+    };
     setSaving(true);
-    const config: Record<string, string> = {};
+    const config: Record<string, { v2: true; components: V2Item[] }> = {};
     for (const k of LIFECYCLE_KEYS) {
-      const v = values[k];
-      if (typeof v === "string" && v.trim().length > 0) config[k] = v;
+      if (!lifecycleEnabled[k]) continue;
+      const items = merged[k] ?? [];
+      if (items.length === 0) continue;
+      config[k] = { v2: true, components: normalizeV2Items(items) };
     }
     const payload = {
       bot_id: botId,
@@ -1784,18 +1860,23 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       config,
       updated_at: new Date().toISOString(),
     };
-    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
     setSaving(false);
     if (error) return toast.error(`Save failed: ${error.message}`);
     const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
-      _bot_id: botId, _feature: "ticket-lifecycle-messages",
+      _bot_id: botId,
+      _feature: "ticket-lifecycle-messages",
     });
     const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
-    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else if (cmdResult && cmdResult.ok === false)
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Ticket lifecycle messages saved & applied");
     setOpen(false);
   };
+
 
 
   useEffect(() => {
@@ -2602,7 +2683,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 ? "max-w-5xl max-h-[90vh] overflow-y-auto"
                 : isChannelLockdown
                   ? "max-w-3xl max-h-[90vh] overflow-y-auto"
-                  : isTicketPanel
+                  : isTicketPanel || isTicketLifecycleMessages
                     ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                     : "max-w-lg max-h-[85vh] overflow-y-auto",
             readOnly && "readonly-scope",
@@ -2650,6 +2731,63 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               botAvatarUrl={botAvatarUrl}
               engineVersion={engineVersion}
             />
+
+          ) : isTicketLifecycleMessages ? (
+            <div className="space-y-4 py-2">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="flex-1 min-w-0">
+                  <Label className="mb-1.5 block">Lifecycle event</Label>
+                  <Select
+                    value={lifecycleEvent}
+                    onValueChange={(v) => switchLifecycleEvent(v as LifecycleKey)}
+                  >
+                    <SelectTrigger className="w-full sm:w-[360px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LIFECYCLE_KEYS.map((k) => (
+                        <SelectItem key={k} value={k}>
+                          {LIFECYCLE_LABELS[k]}
+                          {lifecycleEnabled[k] ? " • custom" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
+                  <Switch
+                    id="lifecycle-enabled"
+                    checked={lifecycleEnabled[lifecycleEvent]}
+                    onCheckedChange={(v) => {
+                      captureLifecycleCurrent();
+                      setLifecycleEnabled((prev) => ({ ...prev, [lifecycleEvent]: v }));
+                    }}
+                  />
+                  <Label htmlFor="lifecycle-enabled" className="cursor-pointer text-sm">
+                    Use custom message for this event
+                  </Label>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Build the message with the V2 component editor. Available tokens in any text:{" "}
+                <code className="rounded bg-muted px-1">{"{user}"}</code>{" "}
+                <code className="rounded bg-muted px-1">{"{staff}"}</code>{" "}
+                <code className="rounded bg-muted px-1">{"{category}"}</code>{" "}
+                <code className="rounded bg-muted px-1">{"{server}"}</code>. Disabled events fall back to the bot's built-in default.
+              </p>
+              <div className={cn(!lifecycleEnabled[lifecycleEvent] && "opacity-60 pointer-events-none")}>
+                <MessagesV2Builder
+                  key={`lifecycle-${lifecycleEvent}-${lifecycleMountKey}`}
+                  ref={lifecycleV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={lifecycleConfigs[lifecycleEvent] ?? []}
+                />
+              </div>
+            </div>
+
 
 
 
