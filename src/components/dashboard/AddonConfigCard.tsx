@@ -1745,8 +1745,39 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     setOpen(false);
   };
 
-  // ---------- ticket-lifecycle-messages ----------
-  const LIFECYCLE_KEYS = ["claim_message", "close_message", "close_dm_message", "reopen_message", "priority_message"] as const;
+  // ---------- ticket-lifecycle-messages (V2 builder per event) ----------
+  const LIFECYCLE_KEYS = [
+    "claim_message",
+    "close_message",
+    "close_dm_message",
+    "reopen_message",
+    "priority_message",
+  ] as const;
+  type LifecycleKey = typeof LIFECYCLE_KEYS[number];
+  const LIFECYCLE_LABELS: Record<LifecycleKey, string> = {
+    claim_message: "Claim message",
+    close_message: "Close message (in ticket channel)",
+    close_dm_message: "Close DM (sent to ticket opener)",
+    reopen_message: "Reopen message",
+    priority_message: "Priority flag message",
+  };
+  const lifecycleV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [lifecycleEvent, setLifecycleEvent] = useState<LifecycleKey>("claim_message");
+  const [lifecycleConfigs, setLifecycleConfigs] = useState<Record<LifecycleKey, V2Item[]>>({
+    claim_message: [],
+    close_message: [],
+    close_dm_message: [],
+    reopen_message: [],
+    priority_message: [],
+  });
+  const [lifecycleEnabled, setLifecycleEnabled] = useState<Record<LifecycleKey, boolean>>({
+    claim_message: false,
+    close_message: false,
+    close_dm_message: false,
+    reopen_message: false,
+    priority_message: false,
+  });
+  const [lifecycleMountKey, setLifecycleMountKey] = useState(0);
 
   useEffect(() => {
     if (!isTicketLifecycleMessages || !open || !botId) return;
@@ -1758,25 +1789,70 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         .eq("bot_id", botId)
         .eq("feature", "ticket-lifecycle-messages")
         .maybeSingle();
-      if (cancelled || !data) return;
-      const cfg = (data.config ?? {}) as Record<string, any>;
-      setValues((prev) => {
-        const next = { ...prev };
-        for (const k of LIFECYCLE_KEYS) next[k] = typeof cfg[k] === "string" ? cfg[k] : "";
-        return next;
-      });
-      setAppliedAt((data as any).applied_at ?? null);
+      if (cancelled) return;
+      const cfg = ((data?.config ?? {}) as Record<string, any>) || {};
+      const nextConfigs: Record<LifecycleKey, V2Item[]> = {
+        claim_message: [],
+        close_message: [],
+        close_dm_message: [],
+        reopen_message: [],
+        priority_message: [],
+      };
+      const nextEnabled: Record<LifecycleKey, boolean> = {
+        claim_message: false,
+        close_message: false,
+        close_dm_message: false,
+        reopen_message: false,
+        priority_message: false,
+      };
+      for (const k of LIFECYCLE_KEYS) {
+        const entry = cfg[k];
+        if (entry && entry.v2 === true && Array.isArray(entry.components)) {
+          nextConfigs[k] = entry.components as V2Item[];
+          nextEnabled[k] = true;
+        }
+      }
+      setLifecycleConfigs(nextConfigs);
+      setLifecycleEnabled(nextEnabled);
+      setLifecycleEvent("claim_message");
+      setLifecycleMountKey((k) => k + 1);
+      setAppliedAt((data as any)?.applied_at ?? null);
     })();
     return () => { cancelled = true; };
   }, [isTicketLifecycleMessages, open, botId]);
 
+  const captureLifecycleCurrent = () => {
+    const current = lifecycleV2Ref.current?.getItems();
+    if (!current) return;
+    setLifecycleConfigs((prev) => ({ ...prev, [lifecycleEvent]: current }));
+  };
+
+  const switchLifecycleEvent = (next: LifecycleKey) => {
+    if (next === lifecycleEvent) return;
+    const current = lifecycleV2Ref.current?.getItems();
+    setLifecycleConfigs((prev) => ({
+      ...prev,
+      [lifecycleEvent]: current ?? prev[lifecycleEvent],
+    }));
+    setLifecycleEvent(next);
+    setLifecycleMountKey((k) => k + 1);
+  };
+
   const saveTicketLifecycleMessages = async () => {
     if (!botId) return toast.error("Missing bot id.");
+    // Snapshot the currently-edited event before serializing.
+    const liveItems = lifecycleV2Ref.current?.getItems();
+    const merged: Record<LifecycleKey, V2Item[]> = {
+      ...lifecycleConfigs,
+      [lifecycleEvent]: liveItems ?? lifecycleConfigs[lifecycleEvent],
+    };
     setSaving(true);
-    const config: Record<string, string> = {};
+    const config: Record<string, { v2: true; components: V2Item[] }> = {};
     for (const k of LIFECYCLE_KEYS) {
-      const v = values[k];
-      if (typeof v === "string" && v.trim().length > 0) config[k] = v;
+      if (!lifecycleEnabled[k]) continue;
+      const items = merged[k] ?? [];
+      if (items.length === 0) continue;
+      config[k] = { v2: true, components: normalizeV2Items(items) };
     }
     const payload = {
       bot_id: botId,
@@ -1784,18 +1860,23 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       config,
       updated_at: new Date().toISOString(),
     };
-    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
     setSaving(false);
     if (error) return toast.error(`Save failed: ${error.message}`);
     const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
-      _bot_id: botId, _feature: "ticket-lifecycle-messages",
+      _bot_id: botId,
+      _feature: "ticket-lifecycle-messages",
     });
     const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
-    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else if (cmdResult && cmdResult.ok === false)
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Ticket lifecycle messages saved & applied");
     setOpen(false);
   };
+
 
 
   useEffect(() => {
