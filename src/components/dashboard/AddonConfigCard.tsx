@@ -93,6 +93,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isSayCommand = addonId === "messages";
   const isRules = addonId === "rules";
   const isTicketPanel = addonId === "ticket-message-customization";
+  const isTicketLifecycleMessages = addonId === "ticket-lifecycle-messages";
   const isTicketEditor = addonId === "ticket-editor";
   // removed: anonymous-reporting card discontinued
   const isVerification = addonId === "verification-system";
