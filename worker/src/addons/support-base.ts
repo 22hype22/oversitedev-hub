@@ -384,7 +384,49 @@ export const supportBaseAddon: Addon = {
           .addOptions(options)
       );
 
-      await interaction.channel!.send({ embeds: [embed], components: [row] });
+      const sent = await interaction.channel!.send({ embeds: [embed], components: [row] });
+
+      // Persist into bot_config.posted_panels so the dashboard "Edit ticket panel"
+      // view can list every panel posted in this guild (not just dashboard-posted).
+      try {
+        const { data: existing } = await supabase
+          .from("bot_config")
+          .select("id, config")
+          .eq("bot_id", ctx.botId)
+          .eq("feature", "ticket-panels")
+          .maybeSingle();
+        const config: Record<string, any> = (existing?.config as any) ?? {};
+        const postedPanels: Record<string, any[]> = (config.posted_panels as any) ?? {};
+        const guildPanels = Array.isArray(postedPanels[guild.id]) ? postedPanels[guild.id] : [];
+        const channelName = (interaction.channel as any)?.name ?? null;
+        const entry = {
+          channel_id: interaction.channelId,
+          message_id: sent.id,
+          channel_name: channelName,
+          posted_at: new Date().toISOString(),
+        };
+        const next = [
+          ...guildPanels.filter((p: any) => p && p.message_id !== sent.id),
+          entry,
+        ];
+        const nextConfig = {
+          ...config,
+          posted_panels: { ...postedPanels, [guild.id]: next },
+        };
+        const upsertRow: Record<string, any> = {
+          bot_id: ctx.botId,
+          feature: "ticket-panels",
+          config: nextConfig,
+        };
+        if (existing?.id) upsertRow.id = existing.id;
+        const { error: upErr } = await supabase
+          .from("bot_config")
+          .upsert(upsertRow, { onConflict: "bot_id,feature" });
+        if (upErr) void ctx.log("warn", `posted_panels upsert failed: ${upErr.message}`);
+      } catch (e) {
+        void ctx.log("warn", `posted_panels persist threw: ${(e as Error).message}`);
+      }
+
       await interaction.reply({ embeds: [successEmbed("Ticket Panel Created", `Panel posted in <#${interaction.channelId}>`)], ephemeral: true });
     }
 
