@@ -233,13 +233,118 @@ export const supportBaseAddon: Addon = {
           await interaction.reply({ embeds: [errorEmbed("No Permission", "Only staff can close tickets.")], ephemeral: true });
           return;
         }
-        await interaction.reply({ embeds: [new EmbedBuilder().setDescription("🔒 This ticket will be deleted in 5 seconds...").setColor(0xffa500)] });
-        const closeChannelId = interaction.channel?.id;
-        if (closeChannelId) {
+        const channel = interaction.channel as TextChannel;
+        const closeChannelId = channel?.id;
+        if (!closeChannelId) return;
+
+        // Resolve per-category close behavior from bot_config "tickets".
+        let categoryName: string | null = null;
+        let openerId: string | null = null;
+        try {
+          const { data: tRow } = await supabase
+            .from("tickets")
+            .select("category, opener_user_id")
+            .eq("channel_id", closeChannelId)
+            .maybeSingle();
+          categoryName = (tRow as any)?.category ?? null;
+          openerId = (tRow as any)?.opener_user_id ?? null;
+        } catch { /* ignore */ }
+        if (!categoryName && channel.topic) {
+          const m = channel.topic.match(/category:([^|]+)/);
+          if (m) categoryName = m[1].trim();
+        }
+        if (!openerId && channel.topic) {
+          const m = channel.topic.match(/opener:(\d+)/);
+          if (m) openerId = m[1];
+        }
+
+        let closeAction: "delete" | "archive" = "delete";
+        let archiveCategoryId: string | null = null;
+        try {
+          const { data: cfgRow } = await supabase
+            .from("bot_config")
+            .select("config")
+            .eq("bot_id", ctx.botId)
+            .eq("feature", "tickets")
+            .maybeSingle();
+          const cfg = ((cfgRow as any)?.config ?? {}) as Record<string, any>;
+          const cats = Array.isArray(cfg.categories) ? cfg.categories : [];
+          let entry: any = null;
+          if (categoryName) {
+            entry = cats.find(
+              (c: any) => c && typeof c === "object" && String(c.name ?? "").toLowerCase() === categoryName!.toLowerCase(),
+            );
+            if (!entry && cfg.category_close && typeof cfg.category_close === "object") {
+              entry = cfg.category_close[categoryName];
+            }
+          }
+          if (entry) {
+            if (entry.close_action === "archive") closeAction = "archive";
+            if (typeof entry.archive_category_id === "string" && entry.archive_category_id) {
+              archiveCategoryId = entry.archive_category_id;
+            }
+          }
+        } catch (e) {
+          void ctx.log("warn", `close: bot_config read failed: ${(e as Error).message}`);
+        }
+
+        if (closeAction === "archive" && archiveCategoryId) {
+          // Compute next CLOSED-#### number for this archive category.
+          const siblings = guild.channels.cache.filter(
+            (c) => c.parentId === archiveCategoryId && /^closed-\d+$/i.test(c.name ?? ""),
+          );
+          let maxN = 0;
+          for (const c of siblings.values()) {
+            const m = (c.name ?? "").match(/^closed-(\d+)$/i);
+            if (m) maxN = Math.max(maxN, parseInt(m[1], 10));
+          }
+          const nextN = String(maxN + 1).padStart(4, "0");
+          const newName = `closed-${nextN}`;
+
+          await interaction.reply({ embeds: [new EmbedBuilder().setDescription(`🗄️ Archiving this ticket as **${newName}**…`).setColor(0xffa500)] });
+
+          try {
+            // Lock the opener out of viewing/sending.
+            if (openerId) {
+              await channel.permissionOverwrites.edit(openerId, {
+                ViewChannel: false,
+                SendMessages: false,
+              }).catch(() => {});
+            }
+            await channel.edit({
+              name: newName,
+              parent: archiveCategoryId,
+              lockPermissions: false,
+            });
+          } catch (e) {
+            void ctx.log("warn", `archive close failed: ${(e as Error).message}`);
+            await channel.send({ embeds: [errorEmbed("Archive failed", "Could not move/rename the ticket. Check bot permissions and the archive category.")] }).catch(() => {});
+          }
+
           await supabase
             .from("tickets")
-            .update({ status: "closed", closed_at: new Date().toISOString() })
+            .update({
+              status: "closed",
+              closed_at: new Date().toISOString(),
+              channel_name: newName,
+            })
             .eq("channel_id", closeChannelId);
+
+          // Remove the in-memory open-ticket reservation so the user can open another.
+          if (openerId && categoryName) {
+            openTickets.delete(`${openerId}-${categoryName}`);
+          }
+          return;
+        }
+
+        // Default: delete after 5s.
+        await interaction.reply({ embeds: [new EmbedBuilder().setDescription("🔒 This ticket will be deleted in 5 seconds...").setColor(0xffa500)] });
+        await supabase
+          .from("tickets")
+          .update({ status: "closed", closed_at: new Date().toISOString() })
+          .eq("channel_id", closeChannelId);
+        if (openerId && categoryName) {
+          openTickets.delete(`${openerId}-${categoryName}`);
         }
         setTimeout(async () => {
           await interaction.channel?.delete().catch(() => {});
