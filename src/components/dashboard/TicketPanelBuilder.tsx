@@ -236,24 +236,42 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         config: cfg,
       });
 
+      const closeMap: Record<string, any> = (cfg.category_close ?? {}) as Record<string, any>;
+      const readClose = (entry: any, name: string) => {
+        const fromEntry = entry && typeof entry === "object" ? entry : {};
+        const fromMap = closeMap[name] ?? {};
+        const action: CloseAction =
+          fromEntry.close_action === "archive" || fromMap.close_action === "archive"
+            ? "archive"
+            : "delete";
+        const archive =
+          (typeof fromEntry.archive_category_id === "string" && fromEntry.archive_category_id) ||
+          (typeof fromMap.archive_category_id === "string" && fromMap.archive_category_id) ||
+          null;
+        return { closeAction: action, archiveCategoryId: archive };
+      };
       const baseCategories: Category[] = Array.isArray(cfg.categories)
         ? (cfg.categories as any[]).map((c) => {
             if (typeof c === "string") {
               const name = c;
               const roles = (cfg.category_roles ?? {})[name] ?? [];
               const opening = (cfg.category_messages ?? {})[name] ?? "";
+              const close = readClose(null, name);
               return {
                 id: uid(),
                 name,
                 roles: roles.map(String),
                 openingMessage: String(opening),
+                ...close,
               };
             }
+            const name = String(c.name ?? "");
             return {
               id: uid(),
-              name: String(c.name ?? ""),
+              name,
               roles: Array.isArray(c.roles) ? c.roles.map(String) : [],
               openingMessage: String(c.opening_message ?? ""),
+              ...readClose(c, name),
             };
           })
         : [];
