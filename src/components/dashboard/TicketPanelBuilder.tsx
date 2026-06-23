@@ -371,6 +371,69 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       setV2BuilderKey((k) => k + 1);
 
       setHydrated(true);
+
+      // For backfilled / externally-posted panels, the dashboard's saved
+      // builder state usually doesn't match what's actually live in the
+      // channel. Fetch the real Discord message and overlay its layout so
+      // the editor shows what's posted instead of the global default.
+      if (editTarget?.channel_id && editTarget?.message_id) {
+        try {
+          const { data: msgRes, error: msgErr } =
+            await supabase.functions.invoke("bot-fetch-message", {
+              body: {
+                bot_id: botId,
+                channel_id: editTarget.channel_id,
+                message_id: editTarget.message_id,
+              },
+            });
+          if (cancelled || myReloadKey !== reloadKeyRef.current) return;
+          if (msgErr || !msgRes?.ok || !msgRes.message) {
+            console.warn(
+              "[TicketPanelBuilder] live message fetch failed; using saved state",
+              msgErr ?? msgRes,
+            );
+          } else {
+            const recon = discordMessageToPanel(msgRes.message);
+            console.log("[TicketPanelBuilder] reconstructed live panel", recon);
+            // Only overwrite the visible message-shape fields. Leave
+            // cooldown, log settings, and the category role/opening-message
+            // mappings as-is (they can't come from the message JSON).
+            if (recon.isV2Message) {
+              setV2Items(recon.v2Items);
+            } else {
+              setPanelTitle(recon.panelTitle);
+              setPanelDescription(recon.panelDescription);
+              setEmbedColor(recon.embedColor);
+              setV2Items(recon.v2Items);
+              if (recon.categories && recon.categories.length > 0) {
+                // Merge: preserve existing roles/openingMessage when the
+                // category name matches one already configured.
+                setCategories((prev) => {
+                  const byName = new Map(
+                    prev.map((c) => [c.name.trim().toLowerCase(), c]),
+                  );
+                  return recon.categories!.map((c) => {
+                    const existing = byName.get(c.name.trim().toLowerCase());
+                    return existing
+                      ? { ...c, roles: existing.roles, openingMessage: existing.openingMessage }
+                      : c;
+                  });
+                });
+              }
+            }
+            setV2BuilderKey((k) => k + 1);
+            if (recon.unrecoverable.length > 0) {
+              toast.info(
+                "Loaded panel from Discord. Some fields can't be recovered:\n• " +
+                  recon.unrecoverable.join("\n• "),
+                { duration: 8000 },
+              );
+            }
+          }
+        } catch (e) {
+          console.warn("[TicketPanelBuilder] live message overlay threw", e);
+        }
+      }
     })();
     return () => {
       cancelled = true;
