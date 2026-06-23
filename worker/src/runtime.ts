@@ -309,14 +309,15 @@ export class BotRuntime {
         position?: number;
       }>;
       const channelById = new Map(channels.map((c) => [c.id, c]));
-      const TEXTUAL = new Set<number>([
+      const CACHED = new Set<number>([
         ChannelType.GuildText,
         ChannelType.GuildAnnouncement,
         ChannelType.GuildForum,
         ChannelType.GuildVoice,
+        ChannelType.GuildCategory,
       ]);
       const entries = channels
-        .filter((c) => TEXTUAL.has(c.type))
+        .filter((c) => CACHED.has(c.type))
         .map((c) => {
           const parent = c.parent_id ? channelById.get(c.parent_id) : null;
           const channelType =
@@ -324,6 +325,7 @@ export class BotRuntime {
             : c.type === ChannelType.GuildAnnouncement ? "announcement"
             : c.type === ChannelType.GuildForum ? "forum"
             : c.type === ChannelType.GuildVoice ? "voice"
+            : c.type === ChannelType.GuildCategory ? "category"
             : "text";
 
           return {
