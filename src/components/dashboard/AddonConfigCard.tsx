@@ -1761,10 +1761,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const [lifecycleEvent, setLifecycleEvent] = useState<LifecycleKey>("claim_message");
   const [lifecycleConfigs, setLifecycleConfigs] = useState<Record<LifecycleKey, V2Item[]>>({
     claim_message: [],
-    close_message: [],
-    close_dm_message: [],
-    reopen_message: [],
     priority_message: [],
+    close_message: [],
   });
   const [lifecycleMountKey, setLifecycleMountKey] = useState(0);
 
