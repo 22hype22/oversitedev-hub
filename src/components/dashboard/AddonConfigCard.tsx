@@ -1770,13 +1770,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     reopen_message: [],
     priority_message: [],
   });
-  const [lifecycleEnabled, setLifecycleEnabled] = useState<Record<LifecycleKey, boolean>>({
-    claim_message: false,
-    close_message: false,
-    close_dm_message: false,
-    reopen_message: false,
-    priority_message: false,
-  });
   const [lifecycleMountKey, setLifecycleMountKey] = useState(0);
 
   useEffect(() => {
