@@ -413,15 +413,15 @@ export const supportBaseAddon: Addon = {
           ...config,
           posted_panels: { ...postedPanels, [guild.id]: next },
         };
-        const row: Record<string, any> = {
+        const upsertRow: Record<string, any> = {
           bot_id: ctx.botId,
           feature: "ticket-panels",
           config: nextConfig,
         };
-        if (existing?.id) row.id = existing.id;
+        if (existing?.id) upsertRow.id = existing.id;
         const { error: upErr } = await supabase
           .from("bot_config")
-          .upsert(row, { onConflict: "bot_id,feature" });
+          .upsert(upsertRow, { onConflict: "bot_id,feature" });
         if (upErr) void ctx.log("warn", `posted_panels upsert failed: ${upErr.message}`);
       } catch (e) {
         void ctx.log("warn", `posted_panels persist threw: ${(e as Error).message}`);
