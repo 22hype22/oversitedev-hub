@@ -1748,27 +1748,21 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   // ---------- ticket-lifecycle-messages (V2 builder per event) ----------
   const LIFECYCLE_KEYS = [
     "claim_message",
-    "close_message",
-    "close_dm_message",
-    "reopen_message",
     "priority_message",
+    "close_message",
   ] as const;
   type LifecycleKey = typeof LIFECYCLE_KEYS[number];
   const LIFECYCLE_LABELS: Record<LifecycleKey, string> = {
     claim_message: "Claim message",
-    close_message: "Close message (in ticket channel)",
-    close_dm_message: "Close DM (sent to ticket opener)",
-    reopen_message: "Reopen message",
-    priority_message: "Priority flag message",
+    priority_message: "Priority message",
+    close_message: "Close message",
   };
   const lifecycleV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [lifecycleEvent, setLifecycleEvent] = useState<LifecycleKey>("claim_message");
   const [lifecycleConfigs, setLifecycleConfigs] = useState<Record<LifecycleKey, V2Item[]>>({
     claim_message: [],
-    close_message: [],
-    close_dm_message: [],
-    reopen_message: [],
     priority_message: [],
+    close_message: [],
   });
   const [lifecycleMountKey, setLifecycleMountKey] = useState(0);
 
@@ -1786,10 +1780,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       const cfg = ((data?.config ?? {}) as Record<string, any>) || {};
       const nextConfigs: Record<LifecycleKey, V2Item[]> = {
         claim_message: [],
-        close_message: [],
-        close_dm_message: [],
-        reopen_message: [],
         priority_message: [],
+        close_message: [],
       };
       for (const k of LIFECYCLE_KEYS) {
         const entry = cfg[k];
