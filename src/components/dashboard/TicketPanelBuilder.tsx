@@ -10,6 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { Plus, Trash2, Info, Ticket, Hash } from "lucide-react";
 import { GuildChannelPicker } from "./GuildChannelPicker";
@@ -27,11 +35,15 @@ import {
 import { discordMessageToPanel } from "@/lib/discordMessageToPanel";
 
 
+type CloseAction = "delete" | "archive";
+
 type Category = {
   id: string;
   name: string;
   roles: string[];
   openingMessage: string;
+  closeAction: CloseAction;
+  archiveCategoryId: string | null;
 };
 
 
@@ -148,7 +160,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   const [cooldownMinutes, setCooldownMinutes] = useState<number>(10);
   const [embedColor, setEmbedColor] = useState("#5865F2");
   const [categories, setCategories] = useState<Category[]>([
-    { id: uid(), name: "", roles: [], openingMessage: "" },
+    { id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null },
   ]);
 
   // ---- Ticket Logging (formerly a separate "Ticket Logs" addon) ----
@@ -232,24 +244,42 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         config: cfg,
       });
 
+      const closeMap: Record<string, any> = (cfg.category_close ?? {}) as Record<string, any>;
+      const readClose = (entry: any, name: string) => {
+        const fromEntry = entry && typeof entry === "object" ? entry : {};
+        const fromMap = closeMap[name] ?? {};
+        const action: CloseAction =
+          fromEntry.close_action === "archive" || fromMap.close_action === "archive"
+            ? "archive"
+            : "delete";
+        const archive =
+          (typeof fromEntry.archive_category_id === "string" && fromEntry.archive_category_id) ||
+          (typeof fromMap.archive_category_id === "string" && fromMap.archive_category_id) ||
+          null;
+        return { closeAction: action, archiveCategoryId: archive };
+      };
       const baseCategories: Category[] = Array.isArray(cfg.categories)
         ? (cfg.categories as any[]).map((c) => {
             if (typeof c === "string") {
               const name = c;
               const roles = (cfg.category_roles ?? {})[name] ?? [];
               const opening = (cfg.category_messages ?? {})[name] ?? "";
+              const close = readClose(null, name);
               return {
                 id: uid(),
                 name,
                 roles: roles.map(String),
                 openingMessage: String(opening),
+                ...close,
               };
             }
+            const name = String(c.name ?? "");
             return {
               id: uid(),
-              name: String(c.name ?? ""),
+              name,
               roles: Array.isArray(c.roles) ? c.roles.map(String) : [],
               openingMessage: String(c.opening_message ?? ""),
+              ...readClose(c, name),
             };
           })
         : [];
@@ -283,7 +313,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       let nextCategories: Category[] =
         baseCategories.length > 0
           ? baseCategories
-          : [{ id: uid(), name: "", roles: [], openingMessage: "" }];
+          : [{ id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null }];
       let nextPanelChannel: BotChannel | null = cfg.channel_id
         ? ({
             channel_id: String(cfg.channel_id),
@@ -319,10 +349,15 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
                 name: String(c.name ?? ""),
                 roles: Array.isArray(c.roles) ? c.roles.map(String) : [],
                 openingMessage: String(c.openingMessage ?? ""),
+                closeAction: c.closeAction === "archive" ? "archive" : "delete",
+                archiveCategoryId:
+                  typeof c.archiveCategoryId === "string" && c.archiveCategoryId
+                    ? c.archiveCategoryId
+                    : null,
               }));
               if (nextCategories.length === 0)
                 nextCategories = [
-                  { id: uid(), name: "", roles: [], openingMessage: "" },
+                  { id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null },
                 ];
             }
             if (d.panelChannel === null) nextPanelChannel = null;
@@ -414,9 +449,24 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
                   );
                   return recon.categories!.map((c) => {
                     const existing = byName.get(c.name.trim().toLowerCase());
+                    const base: Category = {
+                      id: uid(),
+                      name: c.name,
+                      roles: [],
+                      openingMessage: "",
+                      closeAction: "delete",
+                      archiveCategoryId: null,
+                      ...c,
+                    };
                     return existing
-                      ? { ...c, roles: existing.roles, openingMessage: existing.openingMessage }
-                      : c;
+                      ? {
+                          ...base,
+                          roles: existing.roles,
+                          openingMessage: existing.openingMessage,
+                          closeAction: existing.closeAction,
+                          archiveCategoryId: existing.archiveCategoryId,
+                        }
+                      : base;
                   });
                 });
               }
@@ -501,6 +551,13 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     () => sortedChannelCategoryEntries(textChannels),
     [textChannels],
   );
+  const discordCategories = useMemo(
+    () =>
+      allChannels
+        .filter((c) => c.channel_type === "category")
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0)),
+    [allChannels],
+  );
 
   const resetToDefaults = () => {
     setPanelChannel(null);
@@ -508,7 +565,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     setPanelDescription("");
     setCooldownMinutes(10);
     setEmbedColor("#5865F2");
-    setCategories([{ id: uid(), name: "", roles: [], openingMessage: "" }]);
+    setCategories([{ id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null }]);
     setLogChannelId("");
     setLogTicketOpened(true);
     setLogTicketClosed(true);
@@ -528,7 +585,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   const addCategory = () =>
     setCategories((prev) => [
       ...prev,
-      { id: uid(), name: "", roles: [], openingMessage: "" },
+      { id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null },
     ]);
 
   const removeCategory = (id: string) =>
@@ -573,23 +630,40 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     }
 
     const cleanedCategories = categories
-      .map((c) => ({
-        name: c.name.trim(),
-        roles: c.roles.filter((r) => r && r.length > 0),
-        opening_message: c.openingMessage.trim(),
-      }))
+      .map((c) => {
+        const closeAction: CloseAction = c.closeAction === "archive" ? "archive" : "delete";
+        const archiveId = closeAction === "archive" && c.archiveCategoryId ? c.archiveCategoryId : null;
+        return {
+          name: c.name.trim(),
+          roles: c.roles.filter((r) => r && r.length > 0),
+          opening_message: c.openingMessage.trim(),
+          close_action: closeAction,
+          archive_category_id: archiveId,
+        };
+      })
       .filter((c) => c.name.length > 0);
     if (cleanedCategories.length === 0) {
       toast.error("Add at least one category");
       return null;
     }
+    for (const c of cleanedCategories) {
+      if (c.close_action === "archive" && !c.archive_category_id) {
+        toast.error(`Pick an archive category for "${c.name}" (or switch its close behavior to Delete).`);
+        return null;
+      }
+    }
 
     const categoryNames = cleanedCategories.map((c) => c.name);
     const categoryMessages: Record<string, string> = {};
     const categoryRoles: Record<string, string[]> = {};
+    const categoryClose: Record<string, { close_action: CloseAction; archive_category_id: string | null }> = {};
     for (const c of cleanedCategories) {
       categoryMessages[c.name] = c.opening_message;
       categoryRoles[c.name] = c.roles;
+      categoryClose[c.name] = {
+        close_action: c.close_action,
+        archive_category_id: c.archive_category_id,
+      };
     }
 
     return {
@@ -610,6 +684,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         categories: isV2 ? categoryNames : cleanedCategories,
         category_messages: isV2 ? categoryMessages : null,
         category_roles: isV2 ? categoryRoles : null,
+        category_close: categoryClose,
         ticket_panel_v2: isV2 ? v2Items : null,
         components_v2: null,
       },
@@ -1119,6 +1194,77 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
                   rows={3}
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm">When this ticket is closed</Label>
+                <RadioGroup
+                  value={cat.closeAction}
+                  onValueChange={(v) =>
+                    updateCategory(cat.id, {
+                      closeAction: v === "archive" ? "archive" : "delete",
+                    })
+                  }
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+                >
+                  <label
+                    htmlFor={`cat-close-delete-${cat.id}`}
+                    className="flex items-start gap-2 rounded-md border border-border bg-background/40 p-3 cursor-pointer hover:bg-background/70"
+                  >
+                    <RadioGroupItem id={`cat-close-delete-${cat.id}`} value="delete" className="mt-0.5" />
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-medium">Delete the channel</div>
+                      <div className="text-xs text-muted-foreground">
+                        The ticket channel is removed 5 seconds after closing.
+                      </div>
+                    </div>
+                  </label>
+                  <label
+                    htmlFor={`cat-close-archive-${cat.id}`}
+                    className="flex items-start gap-2 rounded-md border border-border bg-background/40 p-3 cursor-pointer hover:bg-background/70"
+                  >
+                    <RadioGroupItem id={`cat-close-archive-${cat.id}`} value="archive" className="mt-0.5" />
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-medium">
+                        Archive (rename to <code>closed-0001</code> + move)
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Keeps history. Channels are renumbered per archive category.
+                      </div>
+                    </div>
+                  </label>
+                </RadioGroup>
+
+                {cat.closeAction === "archive" && (
+                  <div className="space-y-1.5 pt-1">
+                    <Label className="text-xs text-muted-foreground">
+                      Archive into Discord category
+                    </Label>
+                    <Select
+                      value={cat.archiveCategoryId ?? ""}
+                      onValueChange={(v) =>
+                        updateCategory(cat.id, { archiveCategoryId: v || null })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            discordCategories.length === 0
+                              ? "No Discord categories cached — refresh the channel list"
+                              : "Select a category…"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {discordCategories.map((c) => (
+                          <SelectItem key={c.channel_id} value={c.channel_id}>
+                            {c.channel_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -1126,4 +1272,5 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     </div>
   );
 });
+
 
