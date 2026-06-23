@@ -27,11 +27,15 @@ import {
 import { discordMessageToPanel } from "@/lib/discordMessageToPanel";
 
 
+type CloseAction = "delete" | "archive";
+
 type Category = {
   id: string;
   name: string;
   roles: string[];
   openingMessage: string;
+  closeAction: CloseAction;
+  archiveCategoryId: string | null;
 };
 
 
