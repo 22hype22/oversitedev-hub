@@ -24,6 +24,7 @@ import {
   type TicketPanelV2BuilderHandle,
   type V2Item,
 } from "./TicketPanelV2Builder";
+import { discordMessageToPanel } from "@/lib/discordMessageToPanel";
 
 
 type Category = {
