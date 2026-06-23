@@ -91,6 +91,7 @@ export function TicketEditorCard({
   const [open, setOpen] = useState(false);
   const [panels, setPanels] = useState<PostedPanel[]>([]);
   const [loading, setLoading] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const [editing, setEditing] = useState<PostedPanel | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const innerBuilderRef = useRef<TicketPanelBuilderHandle>(null);
