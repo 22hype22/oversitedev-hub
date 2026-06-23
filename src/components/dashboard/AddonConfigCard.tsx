@@ -1780,10 +1780,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       const cfg = ((data?.config ?? {}) as Record<string, any>) || {};
       const nextConfigs: Record<LifecycleKey, V2Item[]> = {
         claim_message: [],
-        close_message: [],
-        close_dm_message: [],
-        reopen_message: [],
         priority_message: [],
+        close_message: [],
       };
       for (const k of LIFECYCLE_KEYS) {
         const entry = cfg[k];
