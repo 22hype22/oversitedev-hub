@@ -551,6 +551,13 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     () => sortedChannelCategoryEntries(textChannels),
     [textChannels],
   );
+  const discordCategories = useMemo(
+    () =>
+      allChannels
+        .filter((c) => c.channel_type === "category")
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0)),
+    [allChannels],
+  );
 
   const resetToDefaults = () => {
     setPanelChannel(null);
