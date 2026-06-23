@@ -341,10 +341,15 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
                 name: String(c.name ?? ""),
                 roles: Array.isArray(c.roles) ? c.roles.map(String) : [],
                 openingMessage: String(c.openingMessage ?? ""),
+                closeAction: c.closeAction === "archive" ? "archive" : "delete",
+                archiveCategoryId:
+                  typeof c.archiveCategoryId === "string" && c.archiveCategoryId
+                    ? c.archiveCategoryId
+                    : null,
               }));
               if (nextCategories.length === 0)
                 nextCategories = [
-                  { id: uid(), name: "", roles: [], openingMessage: "" },
+                  { id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null },
                 ];
             }
             if (d.panelChannel === null) nextPanelChannel = null;
