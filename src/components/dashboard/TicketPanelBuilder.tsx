@@ -441,9 +441,24 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
                   );
                   return recon.categories!.map((c) => {
                     const existing = byName.get(c.name.trim().toLowerCase());
+                    const base: Category = {
+                      id: uid(),
+                      name: c.name,
+                      roles: [],
+                      openingMessage: "",
+                      closeAction: "delete",
+                      archiveCategoryId: null,
+                      ...c,
+                    };
                     return existing
-                      ? { ...c, roles: existing.roles, openingMessage: existing.openingMessage }
-                      : c;
+                      ? {
+                          ...base,
+                          roles: existing.roles,
+                          openingMessage: existing.openingMessage,
+                          closeAction: existing.closeAction,
+                          archiveCategoryId: existing.archiveCategoryId,
+                        }
+                      : base;
                   });
                 });
               }
