@@ -414,7 +414,44 @@ export function TicketEditorCard({
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-end gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-8 px-2 text-xs gap-1.5"
+                onClick={async () => {
+                  if (!botId || !guildId) return;
+                  setBackfilling(true);
+                  try {
+                    const { data, error } = await supabase.functions.invoke(
+                      "backfill-ticket-panels",
+                      { body: { bot_id: botId, guild_id: guildId } },
+                    );
+                    if (error || !data?.ok) {
+                      toast.error(
+                        `Backfill failed: ${error?.message ?? data?.error ?? "unknown"}`,
+                      );
+                    } else {
+                      toast.success(
+                        data.added > 0
+                          ? `Backfilled ${data.added} panel${data.added === 1 ? "" : "s"} (${data.total_after} total).`
+                          : `No new panels found (${data.total_after} already tracked).`,
+                      );
+                      await fetchPanels();
+                    }
+                  } finally {
+                    setBackfilling(false);
+                  }
+                }}
+                disabled={backfilling || loading || !botId || !guildId}
+                title="Scan the server for ticket panels the bot has posted and add any missing ones."
+              >
+                <DownloadCloud
+                  className={`h-3.5 w-3.5 ${backfilling ? "animate-pulse" : ""}`}
+                />
+                {backfilling ? "Scanning…" : "Backfill"}
+              </Button>
               <Button
                 type="button"
                 size="sm"
@@ -429,6 +466,7 @@ export function TicketEditorCard({
                 Refresh
               </Button>
             </div>
+
 
             {!guildId ? (
               <div className="rounded-md border border-border bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
