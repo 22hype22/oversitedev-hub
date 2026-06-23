@@ -305,7 +305,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       let nextCategories: Category[] =
         baseCategories.length > 0
           ? baseCategories
-          : [{ id: uid(), name: "", roles: [], openingMessage: "" }];
+          : [{ id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null }];
       let nextPanelChannel: BotChannel | null = cfg.channel_id
         ? ({
             channel_id: String(cfg.channel_id),
