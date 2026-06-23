@@ -355,15 +355,16 @@ export class BotRuntime {
     if (!g) throw new Error(`Bot is not in guild ${guildId}`);
 
     const channels = await g.channels.fetch();
-    const TEXTUAL = new Set<number>([
+    const CACHED = new Set<number>([
       ChannelType.GuildText,
       ChannelType.GuildAnnouncement,
       ChannelType.GuildForum,
       ChannelType.GuildVoice,
+      ChannelType.GuildCategory,
     ]);
 
     const entries = [...channels.values()]
-      .filter((c): c is NonNullable<typeof c> => c !== null && TEXTUAL.has(c.type))
+      .filter((c): c is NonNullable<typeof c> => c !== null && CACHED.has(c.type))
       .map((c) => {
         const anyC = c as any;
         const parent = anyC.parent ?? null;
@@ -372,6 +373,7 @@ export class BotRuntime {
           : c.type === ChannelType.GuildAnnouncement ? "announcement"
           : c.type === ChannelType.GuildForum ? "forum"
           : c.type === ChannelType.GuildVoice ? "voice"
+          : c.type === ChannelType.GuildCategory ? "category"
           : "text";
 
         const ownPos: number = anyC.rawPosition ?? anyC.position ?? 0;
