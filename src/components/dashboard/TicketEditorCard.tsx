@@ -259,10 +259,43 @@ export function TicketEditorCard({
     fetchPanelsRef.current = fetchPanels;
   }, [fetchPanels]);
 
-  // Load panels whenever the outer dialog opens.
+  // Load panels whenever the outer dialog opens. Also auto-run a Discord
+  // backfill scan once per (bot, guild) per session so panels posted before
+  // posted_panels sync existed get discovered without requiring a manual click.
+  const autoBackfilledRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (open) void fetchPanelsRef.current();
-  }, [open]);
+    if (!open) return;
+    if (!botId || !guildId) {
+      void fetchPanelsRef.current();
+      return;
+    }
+    const key = `${botId}:${guildId}`;
+    if (autoBackfilledRef.current.has(key)) {
+      void fetchPanelsRef.current();
+      return;
+    }
+    autoBackfilledRef.current.add(key);
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke(
+          "backfill-ticket-panels",
+          { body: { bot_id: botId, guild_id: guildId } },
+        );
+        if (error || !data?.ok) {
+          console.warn("[TicketEditorCard] auto-backfill failed", error ?? data);
+        } else if (data.added > 0) {
+          console.log(
+            `[TicketEditorCard] auto-backfill added ${data.added} panel(s)`,
+          );
+        }
+      } catch (e) {
+        console.warn("[TicketEditorCard] auto-backfill threw", e);
+      } finally {
+        void fetchPanelsRef.current();
+      }
+    })();
+  }, [open, botId, guildId]);
+
 
   // Auto-refresh every 30 s while the dialog is open. Always calls the latest
   // fetchPanels via ref, which re-queries bot_config from Supabase directly
