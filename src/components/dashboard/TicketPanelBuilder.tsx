@@ -550,7 +550,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     setPanelDescription("");
     setCooldownMinutes(10);
     setEmbedColor("#5865F2");
-    setCategories([{ id: uid(), name: "", roles: [], openingMessage: "" }]);
+    setCategories([{ id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null }]);
     setLogChannelId("");
     setLogTicketOpened(true);
     setLogTicketClosed(true);
