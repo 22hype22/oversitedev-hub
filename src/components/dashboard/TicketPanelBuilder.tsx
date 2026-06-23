@@ -1194,6 +1194,77 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
                   rows={3}
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm">When this ticket is closed</Label>
+                <RadioGroup
+                  value={cat.closeAction}
+                  onValueChange={(v) =>
+                    updateCategory(cat.id, {
+                      closeAction: v === "archive" ? "archive" : "delete",
+                    })
+                  }
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+                >
+                  <label
+                    htmlFor={`cat-close-delete-${cat.id}`}
+                    className="flex items-start gap-2 rounded-md border border-border bg-background/40 p-3 cursor-pointer hover:bg-background/70"
+                  >
+                    <RadioGroupItem id={`cat-close-delete-${cat.id}`} value="delete" className="mt-0.5" />
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-medium">Delete the channel</div>
+                      <div className="text-xs text-muted-foreground">
+                        The ticket channel is removed 5 seconds after closing.
+                      </div>
+                    </div>
+                  </label>
+                  <label
+                    htmlFor={`cat-close-archive-${cat.id}`}
+                    className="flex items-start gap-2 rounded-md border border-border bg-background/40 p-3 cursor-pointer hover:bg-background/70"
+                  >
+                    <RadioGroupItem id={`cat-close-archive-${cat.id}`} value="archive" className="mt-0.5" />
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-medium">
+                        Archive (rename to <code>closed-0001</code> + move)
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Keeps history. Channels are renumbered per archive category.
+                      </div>
+                    </div>
+                  </label>
+                </RadioGroup>
+
+                {cat.closeAction === "archive" && (
+                  <div className="space-y-1.5 pt-1">
+                    <Label className="text-xs text-muted-foreground">
+                      Archive into Discord category
+                    </Label>
+                    <Select
+                      value={cat.archiveCategoryId ?? ""}
+                      onValueChange={(v) =>
+                        updateCategory(cat.id, { archiveCategoryId: v || null })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            discordCategories.length === 0
+                              ? "No Discord categories cached — refresh the channel list"
+                              : "Select a category…"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {discordCategories.map((c) => (
+                          <SelectItem key={c.channel_id} value={c.channel_id}>
+                            {c.channel_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -1201,4 +1272,5 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     </div>
   );
 });
+
 
