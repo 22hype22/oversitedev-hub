@@ -615,23 +615,40 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     }
 
     const cleanedCategories = categories
-      .map((c) => ({
-        name: c.name.trim(),
-        roles: c.roles.filter((r) => r && r.length > 0),
-        opening_message: c.openingMessage.trim(),
-      }))
+      .map((c) => {
+        const closeAction: CloseAction = c.closeAction === "archive" ? "archive" : "delete";
+        const archiveId = closeAction === "archive" && c.archiveCategoryId ? c.archiveCategoryId : null;
+        return {
+          name: c.name.trim(),
+          roles: c.roles.filter((r) => r && r.length > 0),
+          opening_message: c.openingMessage.trim(),
+          close_action: closeAction,
+          archive_category_id: archiveId,
+        };
+      })
       .filter((c) => c.name.length > 0);
     if (cleanedCategories.length === 0) {
       toast.error("Add at least one category");
       return null;
     }
+    for (const c of cleanedCategories) {
+      if (c.close_action === "archive" && !c.archive_category_id) {
+        toast.error(`Pick an archive category for "${c.name}" (or switch its close behavior to Delete).`);
+        return null;
+      }
+    }
 
     const categoryNames = cleanedCategories.map((c) => c.name);
     const categoryMessages: Record<string, string> = {};
     const categoryRoles: Record<string, string[]> = {};
+    const categoryClose: Record<string, { close_action: CloseAction; archive_category_id: string | null }> = {};
     for (const c of cleanedCategories) {
       categoryMessages[c.name] = c.opening_message;
       categoryRoles[c.name] = c.roles;
+      categoryClose[c.name] = {
+        close_action: c.close_action,
+        archive_category_id: c.archive_category_id,
+      };
     }
 
     return {
@@ -652,6 +669,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         categories: isV2 ? categoryNames : cleanedCategories,
         category_messages: isV2 ? categoryMessages : null,
         category_roles: isV2 ? categoryRoles : null,
+        category_close: categoryClose,
         ticket_panel_v2: isV2 ? v2Items : null,
         components_v2: null,
       },
