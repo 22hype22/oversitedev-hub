@@ -1791,22 +1791,13 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         reopen_message: [],
         priority_message: [],
       };
-      const nextEnabled: Record<LifecycleKey, boolean> = {
-        claim_message: false,
-        close_message: false,
-        close_dm_message: false,
-        reopen_message: false,
-        priority_message: false,
-      };
       for (const k of LIFECYCLE_KEYS) {
         const entry = cfg[k];
         if (entry && entry.v2 === true && Array.isArray(entry.components)) {
           nextConfigs[k] = entry.components as V2Item[];
-          nextEnabled[k] = true;
         }
       }
       setLifecycleConfigs(nextConfigs);
-      setLifecycleEnabled(nextEnabled);
       setLifecycleEvent("claim_message");
       setLifecycleMountKey((k) => k + 1);
       setAppliedAt((data as any)?.applied_at ?? null);
@@ -1842,7 +1833,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     setSaving(true);
     const config: Record<string, { v2: true; components: V2Item[] }> = {};
     for (const k of LIFECYCLE_KEYS) {
-      if (!lifecycleEnabled[k]) continue;
       const items = merged[k] ?? [];
       if (items.length === 0) continue;
       config[k] = { v2: true, components: normalizeV2Items(items) };
@@ -2741,24 +2731,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                       {LIFECYCLE_KEYS.map((k) => (
                         <SelectItem key={k} value={k}>
                           {LIFECYCLE_LABELS[k]}
-                          {lifecycleEnabled[k] ? " • custom" : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
-                  <Switch
-                    id="lifecycle-enabled"
-                    checked={lifecycleEnabled[lifecycleEvent]}
-                    onCheckedChange={(v) => {
-                      captureLifecycleCurrent();
-                      setLifecycleEnabled((prev) => ({ ...prev, [lifecycleEvent]: v }));
-                    }}
-                  />
-                  <Label htmlFor="lifecycle-enabled" className="cursor-pointer text-sm">
-                    Use custom message for this event
-                  </Label>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -2766,19 +2742,18 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 <code className="rounded bg-muted px-1">{"{user}"}</code>{" "}
                 <code className="rounded bg-muted px-1">{"{staff}"}</code>{" "}
                 <code className="rounded bg-muted px-1">{"{category}"}</code>{" "}
-                <code className="rounded bg-muted px-1">{"{server}"}</code>. Disabled events fall back to the bot's built-in default.
+                <code className="rounded bg-muted px-1">{"{server}"}</code>{" "}
+                <code className="rounded bg-muted px-1">{"{ticket}"}</code>. Leave blank to use the bot's built-in default.
               </p>
-              <div className={cn(!lifecycleEnabled[lifecycleEvent] && "opacity-60 pointer-events-none")}>
-                <MessagesV2Builder
-                  key={`lifecycle-${lifecycleEvent}-${lifecycleMountKey}`}
-                  ref={lifecycleV2Ref}
-                  embedded
-                  botId={botId}
-                  botName={botName}
-                  botAvatarUrl={botAvatarUrl}
-                  initialItems={lifecycleConfigs[lifecycleEvent] ?? []}
-                />
-              </div>
+              <MessagesV2Builder
+                key={`lifecycle-${lifecycleEvent}-${lifecycleMountKey}`}
+                ref={lifecycleV2Ref}
+                embedded
+                botId={botId}
+                botName={botName}
+                botAvatarUrl={botAvatarUrl}
+                initialItems={lifecycleConfigs[lifecycleEvent] ?? []}
+              />
             </div>
 
 
