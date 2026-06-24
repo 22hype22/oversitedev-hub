@@ -243,13 +243,16 @@ export type MessagesV2BuilderProps = {
   editorNotice?: React.ReactNode;
   /** Names of ticket categories — populates the Category dropdown in Button Row / Select Menu. */
   categoryNames?: string[];
+  /** When true, hides the built-in live preview pane (parent supplies its own). */
+  hidePreview?: boolean;
 };
 
 export const MessagesV2Builder = forwardRef<
   MessagesV2BuilderHandle,
   MessagesV2BuilderProps
 >(function MessagesV2Builder(
-  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [] },
+  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [], hidePreview = false },
+
   ref,
 ) {
   const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
