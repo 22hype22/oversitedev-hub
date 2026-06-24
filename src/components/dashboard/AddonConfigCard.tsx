@@ -2667,12 +2667,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isSayCommand || isRules || isGiveaway || isVerification || isRemindme
-                ? "max-w-5xl max-h-[90vh] overflow-y-auto"
-                : isChannelLockdown
-                  ? "max-w-3xl max-h-[90vh] overflow-y-auto"
-                  : isTicketPanel || isTicketLifecycleMessages
-                    ? "max-w-6xl max-h-[90vh] overflow-y-auto"
+              : isTicketPanel || isTicketLifecycleMessages || isVerification
+                ? "max-w-6xl max-h-[90vh] overflow-y-auto"
+                : isSayCommand || isRules || isGiveaway || isRemindme
+                  ? "max-w-5xl max-h-[90vh] overflow-y-auto"
+                  : isChannelLockdown
+                    ? "max-w-3xl max-h-[90vh] overflow-y-auto"
                     : "max-w-lg max-h-[85vh] overflow-y-auto",
             readOnly && "readonly-scope",
           )}
