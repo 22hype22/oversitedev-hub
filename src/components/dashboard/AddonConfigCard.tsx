@@ -797,7 +797,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         suspicious_join_max_per_minute: Number(values.suspicious_join_max_per_minute ?? 5),
         vpn_block_enabled: !!values.vpn_block_enabled,
         vpn_block_iphub_key: String(values.vpn_block_iphub_key ?? ""),
-        message_v2: v2Components.length > 0 ? { v2: true as const, components: v2Components } : null,
+        components: v2Components,
       },
       updated_at: new Date().toISOString(),
     };
