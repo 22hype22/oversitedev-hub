@@ -132,6 +132,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
   const ticketEditorRef = useRef<TicketEditorHandle>(null);
+  const verifyV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [verifyV2Items, setVerifyV2Items] = useState<V2Item[]>([]);
+  const [verifyV2MountKey, setVerifyV2MountKey] = useState(0);
 
   const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
   useEffect(() => {
