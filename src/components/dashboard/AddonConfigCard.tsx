@@ -340,12 +340,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         vpn_block_enabled: !!cfg.vpn_block_enabled,
         vpn_block_iphub_key: cfg.vpn_block_iphub_key ?? "",
       }));
-      const v2 = (cfg as any).message_v2;
-      if (v2 && v2.v2 === true && Array.isArray(v2.components)) {
-        setVerifyV2Items(v2.components as V2Item[]);
-      } else {
-        setVerifyV2Items([]);
-      }
+      const components = Array.isArray((cfg as any).components)
+        ? ((cfg as any).components as V2Item[])
+        : (cfg as any).message_v2 && Array.isArray((cfg as any).message_v2.components)
+          ? ((cfg as any).message_v2.components as V2Item[])
+          : [];
+      setVerifyV2Items(components);
       setVerifyV2MountKey((k) => k + 1);
       setAppliedAt((data as any).applied_at ?? null);
     })();
