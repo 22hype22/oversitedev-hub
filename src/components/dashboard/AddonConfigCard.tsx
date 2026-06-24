@@ -2827,6 +2827,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               botName={botName}
               botAvatarUrl={botAvatarUrl ?? undefined}
               botId={botId}
+              v2BuilderRef={verifyV2Ref}
+              v2InitialItems={verifyV2Items}
+              v2MountKey={verifyV2MountKey}
             />
           ) : isRemindme ? (
             <RemindmeForm
