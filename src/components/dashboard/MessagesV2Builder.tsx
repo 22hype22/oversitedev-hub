@@ -429,6 +429,7 @@ export const MessagesV2Builder = forwardRef<
       </div>
 
       {/* Preview */}
+      {hidePreview ? null : (
       <div className="rounded-lg border border-border bg-[#313338] p-4 text-white min-h-[300px]">
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-full bg-muted overflow-hidden shrink-0">
@@ -455,6 +456,8 @@ export const MessagesV2Builder = forwardRef<
           </div>
         </div>
       </div>
+      )}
+
     </div>
     </ChannelsContext.Provider>
     </CategoryNamesContext.Provider>
