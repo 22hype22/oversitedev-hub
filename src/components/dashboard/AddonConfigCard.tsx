@@ -761,6 +761,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       toast.error("Missing bot id.");
       return;
     }
+    const liveV2 = verifyV2Ref.current?.getItems() ?? verifyV2Items;
+    const v2Components = normalizeV2Items(liveV2 ?? []);
     setSaving(true);
     const payload = {
       bot_id: botId,
