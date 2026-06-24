@@ -132,6 +132,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
   const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
   const ticketEditorRef = useRef<TicketEditorHandle>(null);
+  const verifyV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [verifyV2Items, setVerifyV2Items] = useState<V2Item[]>([]);
+  const [verifyV2MountKey, setVerifyV2MountKey] = useState(0);
 
   const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
   useEffect(() => {
@@ -337,6 +340,13 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         vpn_block_enabled: !!cfg.vpn_block_enabled,
         vpn_block_iphub_key: cfg.vpn_block_iphub_key ?? "",
       }));
+      const v2 = (cfg as any).message_v2;
+      if (v2 && v2.v2 === true && Array.isArray(v2.components)) {
+        setVerifyV2Items(v2.components as V2Item[]);
+      } else {
+        setVerifyV2Items([]);
+      }
+      setVerifyV2MountKey((k) => k + 1);
       setAppliedAt((data as any).applied_at ?? null);
     })();
     return () => {
@@ -751,6 +761,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       toast.error("Missing bot id.");
       return;
     }
+    const liveV2 = verifyV2Ref.current?.getItems() ?? verifyV2Items;
+    const v2Components = normalizeV2Items(liveV2 ?? []);
     setSaving(true);
     const payload = {
       bot_id: botId,
@@ -785,6 +797,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         suspicious_join_max_per_minute: Number(values.suspicious_join_max_per_minute ?? 5),
         vpn_block_enabled: !!values.vpn_block_enabled,
         vpn_block_iphub_key: String(values.vpn_block_iphub_key ?? ""),
+        message_v2: v2Components.length > 0 ? { v2: true as const, components: v2Components } : null,
       },
       updated_at: new Date().toISOString(),
     };
@@ -2814,6 +2827,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               botName={botName}
               botAvatarUrl={botAvatarUrl ?? undefined}
               botId={botId}
+              v2BuilderRef={verifyV2Ref}
+              v2InitialItems={verifyV2Items}
+              v2MountKey={verifyV2MountKey}
             />
           ) : isRemindme ? (
             <RemindmeForm
@@ -3848,6 +3864,9 @@ function VerificationForm({
   botName,
   botAvatarUrl,
   botId,
+  v2BuilderRef,
+  v2InitialItems,
+  v2MountKey,
 }: {
   values: Record<string, any>;
   setValue: (k: string, v: string | number | boolean | string[]) => void;
@@ -3856,6 +3875,9 @@ function VerificationForm({
   botName: string;
   botAvatarUrl?: string;
   botId?: string;
+  v2BuilderRef: React.RefObject<MessagesV2BuilderHandle>;
+  v2InitialItems: V2Item[];
+  v2MountKey: number;
 }) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
@@ -3873,10 +3895,31 @@ function VerificationForm({
       <div className="space-y-5">
 
         {config.fields
+          .filter((f) => f.key !== "message" && f.key !== "embed_author" && f.key !== "embed_title" && f.key !== "embed_footer")
           .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
           .map((f) => (
             <div key={f.key}>{renderField(f)}</div>
           ))}
+
+        {/* V2 Verification message builder */}
+        <div className="space-y-2 rounded-md border border-border p-3">
+          <Label className="text-sm font-medium">Verification message</Label>
+          <p className="text-xs text-muted-foreground">
+            Build the verification message with containers, sections, text, buttons, images, separators, and select menus. Available tokens in any text:{" "}
+            <code className="rounded bg-muted px-1">{"{user}"}</code>{" "}
+            <code className="rounded bg-muted px-1">{"{server}"}</code>.
+          </p>
+          <MessagesV2Builder
+            key={`verify-v2-${v2MountKey}`}
+            ref={v2BuilderRef}
+            embedded
+            botId={botId}
+            botName={botName}
+            botAvatarUrl={botAvatarUrl}
+            initialItems={v2InitialItems}
+          />
+        </div>
+
 
         {/* Embed color */}
         <div className="space-y-2">
