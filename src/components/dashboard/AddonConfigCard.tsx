@@ -3864,6 +3864,9 @@ function VerificationForm({
   botName,
   botAvatarUrl,
   botId,
+  v2BuilderRef,
+  v2InitialItems,
+  v2MountKey,
 }: {
   values: Record<string, any>;
   setValue: (k: string, v: string | number | boolean | string[]) => void;
@@ -3872,6 +3875,9 @@ function VerificationForm({
   botName: string;
   botAvatarUrl?: string;
   botId?: string;
+  v2BuilderRef: React.RefObject<MessagesV2BuilderHandle>;
+  v2InitialItems: V2Item[];
+  v2MountKey: number;
 }) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
@@ -3889,10 +3895,31 @@ function VerificationForm({
       <div className="space-y-5">
 
         {config.fields
+          .filter((f) => f.key !== "message" && f.key !== "embed_author" && f.key !== "embed_title" && f.key !== "embed_footer")
           .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
           .map((f) => (
             <div key={f.key}>{renderField(f)}</div>
           ))}
+
+        {/* V2 Verification message builder */}
+        <div className="space-y-2 rounded-md border border-border p-3">
+          <Label className="text-sm font-medium">Verification message</Label>
+          <p className="text-xs text-muted-foreground">
+            Build the verification message with containers, sections, text, buttons, images, separators, and select menus. Available tokens in any text:{" "}
+            <code className="rounded bg-muted px-1">{"{user}"}</code>{" "}
+            <code className="rounded bg-muted px-1">{"{server}"}</code>.
+          </p>
+          <MessagesV2Builder
+            key={`verify-v2-${v2MountKey}`}
+            ref={v2BuilderRef}
+            embedded
+            botId={botId}
+            botName={botName}
+            botAvatarUrl={botAvatarUrl}
+            initialItems={v2InitialItems}
+          />
+        </div>
+
 
         {/* Embed color */}
         <div className="space-y-2">
