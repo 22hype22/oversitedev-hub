@@ -243,13 +243,16 @@ export type MessagesV2BuilderProps = {
   editorNotice?: React.ReactNode;
   /** Names of ticket categories — populates the Category dropdown in Button Row / Select Menu. */
   categoryNames?: string[];
+  /** When true, hides the built-in live preview pane (parent supplies its own). */
+  hidePreview?: boolean;
 };
 
 export const MessagesV2Builder = forwardRef<
   MessagesV2BuilderHandle,
   MessagesV2BuilderProps
 >(function MessagesV2Builder(
-  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [] },
+  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [], hidePreview = false },
+
   ref,
 ) {
   const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
@@ -379,7 +382,7 @@ export const MessagesV2Builder = forwardRef<
   return (
     <CategoryNamesContext.Provider value={categoryNames}>
     <ChannelsContext.Provider value={guildChannels}>
-    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(440px,500px)] gap-6">
+    <div className={hidePreview ? "grid grid-cols-1 gap-6" : "grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(440px,500px)] gap-6"}>
       {/* Editor */}
       <div className="space-y-3">
         {editorNotice}
@@ -426,6 +429,7 @@ export const MessagesV2Builder = forwardRef<
       </div>
 
       {/* Preview */}
+      {hidePreview ? null : (
       <div className="rounded-lg border border-border bg-[#313338] p-4 text-white min-h-[300px]">
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-full bg-muted overflow-hidden shrink-0">
@@ -452,6 +456,8 @@ export const MessagesV2Builder = forwardRef<
           </div>
         </div>
       </div>
+      )}
+
     </div>
     </ChannelsContext.Provider>
     </CategoryNamesContext.Provider>

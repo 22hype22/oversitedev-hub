@@ -3913,11 +3913,13 @@ function VerificationForm({
             key={`verify-v2-${v2MountKey}`}
             ref={v2BuilderRef}
             embedded
+            hidePreview
             botId={botId}
             botName={botName}
             botAvatarUrl={botAvatarUrl}
             initialItems={v2InitialItems}
           />
+
         </div>
 
 
