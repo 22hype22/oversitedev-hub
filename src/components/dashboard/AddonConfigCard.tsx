@@ -340,12 +340,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         vpn_block_enabled: !!cfg.vpn_block_enabled,
         vpn_block_iphub_key: cfg.vpn_block_iphub_key ?? "",
       }));
-      const v2 = (cfg as any).message_v2;
-      if (v2 && v2.v2 === true && Array.isArray(v2.components)) {
-        setVerifyV2Items(v2.components as V2Item[]);
-      } else {
-        setVerifyV2Items([]);
-      }
+      const components = Array.isArray((cfg as any).components)
+        ? ((cfg as any).components as V2Item[])
+        : (cfg as any).message_v2 && Array.isArray((cfg as any).message_v2.components)
+          ? ((cfg as any).message_v2.components as V2Item[])
+          : [];
+      setVerifyV2Items(components);
       setVerifyV2MountKey((k) => k + 1);
       setAppliedAt((data as any).applied_at ?? null);
     })();
@@ -797,7 +797,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         suspicious_join_max_per_minute: Number(values.suspicious_join_max_per_minute ?? 5),
         vpn_block_enabled: !!values.vpn_block_enabled,
         vpn_block_iphub_key: String(values.vpn_block_iphub_key ?? ""),
-        message_v2: v2Components.length > 0 ? { v2: true as const, components: v2Components } : null,
+        components: v2Components,
       },
       updated_at: new Date().toISOString(),
     };
