@@ -58,6 +58,36 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Oversite marketing site — scoped editorial palette. These vars are
+        // only defined inside `.oversite-theme` (see index.css), so they never
+        // bleed into the dashboard. Near-black base, raised surfaces, hairline
+        // borders, off-white text, and a single restrained blue accent.
+        os: {
+          bg: "rgb(var(--os-bg) / <alpha-value>)",
+          surface: "rgb(var(--os-surface) / <alpha-value>)",
+          "surface-2": "rgb(var(--os-surface-2) / <alpha-value>)",
+          hairline: "rgb(var(--os-hairline) / <alpha-value>)",
+          heading: "rgb(var(--os-heading) / <alpha-value>)",
+          body: "rgb(var(--os-body) / <alpha-value>)",
+          faint: "rgb(var(--os-faint) / <alpha-value>)",
+          accent: "rgb(var(--os-accent) / <alpha-value>)",
+          "accent-ink": "rgb(var(--os-accent-ink) / <alpha-value>)",
+          "accent-deep": "rgb(var(--os-accent-deep) / <alpha-value>)",
+          "accent-onink": "rgb(var(--os-accent-onink) / <alpha-value>)",
+          "accent-soft": "var(--os-accent-soft)",
+          // dark-section palette (one Apple-style dark feature beat)
+          ink: "rgb(var(--os-ink) / <alpha-value>)",
+          "ink-2": "rgb(var(--os-ink-2) / <alpha-value>)",
+          "ink-line": "rgb(var(--os-ink-line) / <alpha-value>)",
+          "ink-heading": "rgb(var(--os-ink-heading) / <alpha-value>)",
+          "ink-body": "rgb(var(--os-ink-body) / <alpha-value>)",
+        },
+      },
+      fontFamily: {
+        display: ['"Bricolage Grotesque"', "system-ui", "sans-serif"],
+        body: ['"Space Grotesk"', "system-ui", "sans-serif"],
+        label: ['"Bricolage Grotesque"', "system-ui", "sans-serif"],
+        graffiti: ['"Permanent Marker"', "cursive"],
       },
       borderRadius: {
         lg: "var(--radius)",
