@@ -128,6 +128,90 @@
     --sidebar-accent: 270 60% 96%;
     --sidebar-ring: 270 75% 65%;
   }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Oversite marketing site theme — scoped.
+     Applied via `.oversite-theme` on the landing page root only. Keeping the
+     palette here (rather than as raw hex in components) satisfies the design
+     system rule while isolating it from the dashboard's light theme.
+     ───────────────────────────────────────────────────────────────────────── */
+  .oversite-theme {
+    /* Cold techwear: desaturated blue-grey monochrome, icy light accents.
+       Space-separated RGB channels so Tailwind's `/<alpha>` work. Hex noted. */
+    --os-bg: 41 48 56; /* #293038 cold slate */
+    --os-surface: 52 61 70; /* #343D46 */
+    --os-surface-2: 70 82 94; /* #46525E icy panel */
+    --os-hairline: 86 98 110; /* #56626E */
+    --os-heading: 232 238 243; /* #E8EEF3 icy white */
+    --os-body: 168 180 191; /* #A8B4BF cool grey */
+    --os-faint: 120 133 145; /* #788591 */
+    --os-accent: 201 219 230; /* #C9DBE6 icy light (light fills + highlights) */
+    --os-accent-ink: 30 36 43; /* #1E242B dark text on icy fills */
+    --os-accent-deep: 178 199 213; /* #B2C7D5 links/hover on dark */
+    --os-accent-onink: 201 219 230; /* same icy light */
+    --os-accent-soft: rgb(201 219 230 / 0.12);
+
+    /* darker cold panel (statement / footer) */
+    --os-ink: 32 38 45; /* #20262D */
+    --os-ink-2: 44 52 60; /* #2C343C */
+    --os-ink-line: 74 85 96; /* #4A5560 */
+    --os-ink-heading: 232 238 243;
+    --os-ink-body: 168 180 191;
+  }
+
+  /* gentle hover lift for product/inventory cards */
+  .os-lift { transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1), border-color 280ms ease, background-color 280ms ease; }
+  .os-lift:hover { transform: translateY(-4px); }
+
+  /* Nav search slides in from the right so the magnifier sweeps to the left. */
+  @keyframes nav-search-in {
+    0% { transform: translateX(100%); opacity: 0.5; }
+    100% { transform: translateX(0); opacity: 1; }
+  }
+
+  /* Inline nav search: the field's left edge sweeps from where the search
+     icon sat (near the right) leftward, stopping just past the wordmark — so
+     the magnifier appears to slide left while the field opens behind it. */
+  @keyframes nav-search-sweep {
+    0% { left: calc(100% - 8.5rem); opacity: 0; }
+    35% { opacity: 1; }
+    100% { left: 126px; opacity: 1; }
+  }
+
+  /* Animated film grain for the container backdrop — shifts the oversized noise
+     tile each frame so the CGI surfaces read as a filmic photo. */
+  @keyframes grain {
+    0% { transform: translate(0, 0); }
+    20% { transform: translate(-8%, 6%); }
+    40% { transform: translate(5%, -10%); }
+    60% { transform: translate(-6%, -6%); }
+    80% { transform: translate(8%, 8%); }
+    100% { transform: translate(0, 0); }
+  }
+
+  /* CRT/print grain-free faux barcode bars */
+  .os-barcode {
+    background-image: repeating-linear-gradient(
+      90deg,
+      rgb(var(--os-heading)) 0 1px, transparent 1px 3px,
+      rgb(var(--os-heading)) 3px 5px, transparent 5px 6px,
+      rgb(var(--os-heading)) 6px 9px, transparent 9px 12px
+    );
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .os-lift:hover { transform: none; }
+  }
+
+  /* In-page anchors clear the fixed marketing nav instead of hiding under it. */
+  .oversite-theme :where(section[id]) {
+    scroll-margin-top: 80px;
+  }
+
+  /* Tasteful text selection on the marketing site. */
+  .oversite-theme ::selection {
+    background: var(--os-accent-soft);
+    color: rgb(var(--os-heading));
+  }
 }
 
 @layer base {
@@ -153,6 +237,95 @@
     font-family: 'Manrope', system-ui, sans-serif;
     letter-spacing: -0.02em;
     font-weight: 700;
+  }
+
+  /* Smoother anchor jumps (respects reduced-motion via the query below). */
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
+
+  /* ── Custom scrollbar ──────────────────────────────────────────────
+     Cold-slate track, icy thumb. Token-driven so it stays on-brand. */
+  :root {
+    --scrollbar-thumb: 96 110 124;        /* cool slate */
+    --scrollbar-thumb-hover: 201 219 230; /* icy light accent */
+  }
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--scrollbar-thumb) / 0.6) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--scrollbar-thumb) / 0.55);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--scrollbar-thumb-hover) / 0.75);
+  }
+
+  /* ── Full-page snap mode (landing only) ────────────────────────────
+     Hide the scrollbar entirely and snap between full-screen pages. */
+  html.snap-pages {
+    scroll-snap-type: y proximity;
+    scrollbar-width: none;
+    /* Let the wheel/trackpad drive scrolling natively. With the global
+       `scroll-behavior: smooth`, a single tick animates and then the snap
+       re-animates to the next page — which feels like a second, ghost
+       scroll. Programmatic jumps (the dot rail) pass behavior:"smooth"
+       explicitly, so they stay smooth regardless of this. */
+    scroll-behavior: auto;
+  }
+  html.snap-pages::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
+  /* Route-change progress — a slim icy bar that sweeps across the top on
+     navigation. Deliberately minimal (no spinner) to stay on-brand. */
+  .route-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 2px;
+    z-index: 100;
+    border-radius: 0 2px 2px 0;
+    background: linear-gradient(90deg, rgb(201 219 230 / 0) 0%, rgb(201 219 230 / 0.85) 55%, rgb(201 219 230) 100%);
+    box-shadow: 0 0 14px rgb(201 219 230 / 0.7);
+    animation: route-progress 680ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  @keyframes route-progress {
+    0% { width: 0; opacity: 1; }
+    65% { width: 78%; opacity: 1; }
+    100% { width: 100%; opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .route-progress { animation: none; opacity: 0; }
+  }
+
+  /* Process page: entrance zoom-in as the tab loads. */
+  @keyframes proc-zoom {
+    from { transform: scale(1.16); }
+    to { transform: scale(1); }
+  }
+
+  /* Process page hides the native scrollbar in favour of the dot rail. */
+  html.proc-hide-scroll {
+    scrollbar-width: none;
+  }
+  html.proc-hide-scroll::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
   }
 }
 
