@@ -67,7 +67,6 @@ const App = () => {
           <PreferencesProvider>
             <ScrollToTop />
             <AutoTranslator />
-            <SignupPromoDialog />
             <MarkdownFormattingToolbar />
             <Suspense fallback={null}>
               <Routes>
