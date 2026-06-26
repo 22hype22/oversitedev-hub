@@ -1,10 +1,9 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { SplashScreen } from "@/components/SplashScreen";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { SuspensionBanner } from "@/components/SuspensionBanner";
 import { PreferencesProvider } from "@/hooks/usePreferences";
@@ -45,16 +44,6 @@ const queryClient = new QueryClient({
 });
 
 const App = () => {
-  const [showSplash, setShowSplash] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return !sessionStorage.getItem("oversite-splash-seen");
-  });
-
-  const handleSplashDone = () => {
-    sessionStorage.setItem("oversite-splash-seen", "1");
-    setShowSplash(false);
-  };
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -62,7 +51,6 @@ const App = () => {
         <Sonner />
         <PaymentTestModeBanner />
         <SuspensionBanner />
-        {showSplash && <SplashScreen onDone={handleSplashDone} />}
         <BrowserRouter>
           <PreferencesProvider>
             <ScrollToTop />
