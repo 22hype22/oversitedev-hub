@@ -148,19 +148,19 @@ function Spotlight({ bot, flip }: { bot: Bot; flip?: boolean }) {
   return (
     <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-14">
       <div className={cn(flip && "lg:order-2")}>
-        <h3 className="font-display text-[clamp(2.4rem,5.5vw,4rem)] font-bold leading-[0.92] tracking-[-0.02em] text-os-heading [text-shadow:0_2px_28px_rgb(var(--os-ink)/0.85)]">
+        <h3 className="font-display text-[clamp(2.4rem,5.5vw,4rem)] font-bold leading-[0.92] tracking-[-0.02em] text-os-heading [text-shadow:0_2px_6px_rgb(var(--os-ink)/0.9),0_4px_32px_rgb(var(--os-ink)/0.85)]">
           {bot.name}
           {bot.comingSoon && (
             <span className="ml-3 align-middle font-label text-[11px] font-bold uppercase tracking-[0.18em] text-os-accent">Soon</span>
           )}
         </h3>
-        <p className="mt-4 max-w-[46ch] font-body text-[15.5px] leading-relaxed text-os-body [text-shadow:0_1px_16px_rgb(var(--os-ink)/0.85)]">
+        <p className="mt-4 max-w-[46ch] font-body text-[15.5px] leading-relaxed text-os-heading [text-shadow:0_1px_2px_rgb(var(--os-ink)/0.95),0_2px_22px_rgb(var(--os-ink)/0.9)]">
           {bot.line}
         </p>
 
         <ul className="mt-7 grid max-w-[460px] grid-cols-2 gap-x-6 gap-y-3">
           {bot.features.map((f) => (
-            <li key={f} className="flex items-center gap-2.5 font-label text-[11px] uppercase tracking-[0.12em] text-os-body [text-shadow:0_1px_12px_rgb(var(--os-ink)/0.85)]">
+            <li key={f} className="flex items-center gap-2.5 font-label text-[11px] uppercase tracking-[0.12em] text-os-heading [text-shadow:0_1px_2px_rgb(var(--os-ink)/0.95),0_1px_16px_rgb(var(--os-ink)/0.92)]">
               <Check size={14} strokeWidth={2.5} className="flex-none text-os-accent" aria-hidden />
               {f}
             </li>
@@ -174,7 +174,7 @@ function Spotlight({ bot, flip }: { bot: Bot; flip?: boolean }) {
         ) : (
           <Link
             to="/bots"
-            className="group mt-9 inline-flex items-center gap-2.5 border border-os-accent/70 px-7 py-3.5 font-label text-[12px] font-bold uppercase tracking-[0.14em] text-os-accent transition hover:bg-os-accent hover:text-os-accent-ink"
+            className="group mt-9 inline-flex items-center gap-2.5 border border-os-heading/55 px-7 py-3.5 font-label text-[12px] font-bold uppercase tracking-[0.14em] text-os-heading [text-shadow:0_1px_2px_rgb(var(--os-ink)/0.95),0_1px_16px_rgb(var(--os-ink)/0.9)] transition hover:bg-os-heading hover:text-os-accent-ink"
           >
             Explore {bot.name}
             <ArrowRight size={15} className="transition-transform duration-200 group-hover:translate-x-1" aria-hidden />
@@ -194,10 +194,10 @@ export function BotWalkthrough() {
     <section id="inventory" className="mt-28 pb-24 pt-24 md:mt-40 md:pb-32 md:pt-28">
       <Container>
         <Reveal className="flex flex-col items-start gap-4">
-          <h2 className="max-w-[16ch] font-display text-[40px] font-bold leading-[0.92] tracking-[-0.02em] text-os-heading [text-shadow:0_2px_28px_rgb(var(--os-ink)/0.8)] sm:text-[64px]">
+          <h2 className="max-w-[16ch] font-display text-[40px] font-bold leading-[0.92] tracking-[-0.02em] text-os-heading [text-shadow:0_2px_6px_rgb(var(--os-ink)/0.9),0_4px_32px_rgb(var(--os-ink)/0.85)] sm:text-[64px]">
             Your fleet, one command
           </h2>
-          <p className="max-w-[54ch] font-body text-[15px] leading-relaxed text-os-body [text-shadow:0_1px_16px_rgb(var(--os-ink)/0.85)]">
+          <p className="max-w-[54ch] font-body text-[15px] leading-relaxed text-os-heading [text-shadow:0_1px_2px_rgb(var(--os-ink)/0.95),0_2px_22px_rgb(var(--os-ink)/0.9)]">
             Run one bot, mix two, or grab the All-in-One Pack to bundle every base.
             Each one deploys in minutes from a single dashboard.
           </p>
