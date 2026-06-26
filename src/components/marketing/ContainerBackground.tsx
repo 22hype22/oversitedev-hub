@@ -7,11 +7,18 @@ import containers from "@/assets/containers.webp";
  * the very bottom of the photo shows once you reach the bottom. Sits behind all
  * content with a cold-slate scrim so headings/body stay readable. Scoped inside
  * `.oversite-theme` so it reads the `--os-bg` token for the scrim.
+ *
+ * On a fresh session it also plays the launch pan: the view starts on the
+ * bottom of the photo and glides up to the top, then hands off to the normal
+ * scroll-driven pan (see Index.tsx, which staggers the nav + content to build
+ * in after this pan).
  */
 // How dark the page can get at the very bottom of the scroll. The hero
 // (p≈0) stays clear so the photo reads; by the time you're into the content
 // the bright snow is dimmed enough for text to sit comfortably on top.
 const MAX_DIM = 0.68;
+// Duration of the launch pan from the bottom of the photo up to the top.
+const INTRO_PAN_MS = 1400;
 
 export function ContainerBackground() {
   const imgRef = useRef<HTMLImageElement>(null);
@@ -40,15 +47,60 @@ export function ContainerBackground() {
       if (!raf) raf = requestAnimationFrame(update);
     };
 
-    if (img.complete) update();
-    img.addEventListener("load", update);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    const startScrollSync = () => {
+      if (img.complete) update();
+      img.addEventListener("load", update);
+      window.addEventListener("scroll", onScroll, { passive: true });
+      window.addEventListener("resize", onScroll);
+    };
+
+    // Only play the launch pan once per session — same flag Index.tsx uses.
+    let introActive = false;
+    try {
+      introActive = !sessionStorage.getItem("oversite-intro-seen");
+    } catch {
+      introActive = false;
+    }
+
+    let introTimer = 0;
+    if (!introActive) {
+      startScrollSync();
+      return () => {
+        img.removeEventListener("load", update);
+        window.removeEventListener("scroll", onScroll);
+        window.removeEventListener("resize", onScroll);
+        if (raf) cancelAnimationFrame(raf);
+      };
+    }
+
+    // Launch pan: snap to the bottom of the photo, then glide up to the top.
+    const runPan = () => {
+      const overflow = Math.max(0, img.offsetHeight - window.innerHeight);
+      img.style.transition = "none";
+      img.style.transform = `translate3d(0, ${(-overflow).toFixed(1)}px, 0)`;
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          img.style.transition = `transform ${INTRO_PAN_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`;
+          img.style.transform = "translate3d(0, 0, 0)";
+        }),
+      );
+    };
+    if (img.complete) runPan();
+    else img.addEventListener("load", runPan, { once: true });
+
+    // Once the pan finishes, drop the transition and hand off to scroll-sync.
+    introTimer = window.setTimeout(() => {
+      img.style.transition = "none";
+      startScrollSync();
+    }, INTRO_PAN_MS + 120);
+
     return () => {
       img.removeEventListener("load", update);
+      img.removeEventListener("load", runPan);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
       if (raf) cancelAnimationFrame(raf);
+      if (introTimer) window.clearTimeout(introTimer);
     };
   }, []);
 
