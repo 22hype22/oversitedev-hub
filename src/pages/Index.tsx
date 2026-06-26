@@ -26,29 +26,32 @@ import { PageNav } from "@/components/marketing/PageNav";
 // who prefer reduced motion. Driven by a class on the page root + a scoped
 // <style> block so the whole effect lives in this one file.
 const INTRO_KEY = "oversite-intro-seen";
-const INTRO_MS = 2500;
+const INTRO_MS = 2900;
 
+// Staged launch: the backdrop pans up (handled in ContainerBackground, ~1.4s),
+// THEN the nav drops in, THEN the content builds in — so the timings below are
+// delayed to fire after the pan rather than alongside it.
 const INTRO_CSS = `
   html.os-intro-lock, html.os-intro-lock body { overflow: hidden !important; }
 
   /* Start state: backdrop only. Content sits low and hidden, the nav is lifted
      above the top edge, the page-dots are faded out. */
-  .oversite-theme.os-intro main { opacity: 0; transform: translateY(7vh); will-change: transform, opacity; }
+  .oversite-theme.os-intro main { opacity: 0; transform: translateY(6vh); will-change: transform, opacity; }
   .oversite-theme.os-intro header { opacity: 0; transform: translateY(-120%); }
   .oversite-theme.os-intro [data-os-pagenav] { opacity: 0; }
 
-  /* Reveal: content rises and fades up; the nav drops down a beat later; the
-     dots fade in last. */
-  .oversite-theme.os-intro.os-intro-go main {
-    opacity: 1; transform: translateY(0);
-    transition: opacity 1.6s ease-out, transform 1.9s cubic-bezier(0.16, 1, 0.3, 1);
-  }
+  /* Reveal (after the pan): nav drops down, then the content builds in, then
+     the page-dots fade in last. */
   .oversite-theme.os-intro.os-intro-go header {
     opacity: 1; transform: translateY(0);
-    transition: transform 0.85s cubic-bezier(0.16, 1, 0.3, 1) 1.25s, opacity 0.6s ease 1.25s;
+    transition: transform 0.85s cubic-bezier(0.16, 1, 0.3, 1) 1.35s, opacity 0.6s ease 1.35s;
+  }
+  .oversite-theme.os-intro.os-intro-go main {
+    opacity: 1; transform: translateY(0);
+    transition: opacity 1.1s ease-out 1.7s, transform 1.2s cubic-bezier(0.16, 1, 0.3, 1) 1.7s;
   }
   .oversite-theme.os-intro.os-intro-go [data-os-pagenav] {
-    opacity: 1; transition: opacity 0.7s ease 1.75s;
+    opacity: 1; transition: opacity 0.7s ease 2.1s;
   }
 `;
 
