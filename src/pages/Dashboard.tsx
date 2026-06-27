@@ -432,9 +432,9 @@ const Dashboard = () => {
 
         {/* LEGAL */}
         <div className="mt-10 flex flex-wrap justify-center gap-x-7 gap-y-2 border-t border-os-hairline/15 pt-6">
-          <Link to="/terms" className="text-[12.5px] text-os-faint transition-colors hover:text-os-heading">Privacy Policy</Link>
-          <Link to="/terms" className="text-[12.5px] text-os-faint transition-colors hover:text-os-heading">Terms of Use</Link>
-          <Link to="/terms" className="text-[12.5px] text-os-faint transition-colors hover:text-os-heading">Sales &amp; Refunds</Link>
+          <Link to="/terms#privacy" className="text-[12.5px] text-os-faint transition-colors hover:text-os-heading">Privacy Policy</Link>
+          <Link to="/terms#terms" className="text-[12.5px] text-os-faint transition-colors hover:text-os-heading">Terms of Use</Link>
+          <Link to="/terms#refunds" className="text-[12.5px] text-os-faint transition-colors hover:text-os-heading">Sales &amp; Refunds</Link>
         </div>
         <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[11px] text-os-faint">
           <Check size={12} className="text-os-accent" /> © Oversite. All rights reserved.
