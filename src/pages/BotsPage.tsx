@@ -129,7 +129,7 @@ const BotsPage = () => (
 
     <main className="relative z-10">
       {/* hero */}
-      <section data-page="0" className="flex min-h-[88svh] items-center px-5 pt-28 md:px-8">
+      <section className="flex min-h-[88svh] items-center px-5 pt-28 md:px-8">
         <Container>
           <Reveal className="flex max-w-[64ch] flex-col items-start gap-5">
             <Mono className={`text-os-accent ${SHADOW}`}>The Oversite fleet</Mono>
@@ -149,7 +149,7 @@ const BotsPage = () => (
       </section>
 
       {/* fleet — alternating spotlights */}
-      <section id="fleet" data-page="1" className="px-5 py-10 md:px-8">
+      <section id="fleet" data-page="0" className="px-5 py-10 md:px-8">
         <Container className="space-y-24 md:space-y-32">
           {BOTS.map((bot, i) => (
             <BotSpotlight key={bot.id} bot={bot} flip={i % 2 === 1} />
@@ -158,7 +158,7 @@ const BotsPage = () => (
       </section>
 
       {/* all-in-one callout */}
-      <section data-page="2" className="px-5 py-16 md:px-8">
+      <section className="px-5 py-16 md:px-8">
         <Container>
           <Reveal className="relative overflow-hidden rounded-[26px] border border-os-accent/30 bg-os-ink/70 p-8 backdrop-blur-sm sm:p-12">
             <div aria-hidden className="pointer-events-none absolute -top-20 right-0 h-56 w-[26rem] max-w-[70%] rounded-full bg-os-accent/12 blur-3xl" />
@@ -183,7 +183,7 @@ const BotsPage = () => (
       </section>
 
       {/* the builder — real purchase flow, re-themed */}
-      <section data-page="3" className="px-5 pb-24 md:px-8">
+      <section data-page="1" className="px-5 pb-24 md:px-8">
         <Container>
           <BotForge />
         </Container>
