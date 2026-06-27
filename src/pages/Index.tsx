@@ -26,11 +26,12 @@ import { PageNav } from "@/components/marketing/PageNav";
 // who prefer reduced motion. Driven by a class on the page root + a scoped
 // <style> block so the whole effect lives in this one file.
 const INTRO_KEY = "oversite-intro-seen";
-const INTRO_MS = 2900;
+const INTRO_MS = 3100;
 
-// Staged launch: the backdrop pans up (handled in ContainerBackground, ~1.4s),
-// THEN the nav drops in, THEN the content builds in — so the timings below are
-// delayed to fire after the pan rather than alongside it.
+// Staged launch: the backdrop pans up (handled in ContainerBackground, ~1.9s),
+// THEN the nav drops in, THEN the content builds in — the delays below are
+// clustered right at the end of the pan so things appear quickly once it
+// reaches the top.
 const INTRO_CSS = `
   html.os-intro-lock, html.os-intro-lock body { overflow: hidden !important; }
 
@@ -44,14 +45,14 @@ const INTRO_CSS = `
      the page-dots fade in last. */
   .oversite-theme.os-intro.os-intro-go header {
     opacity: 1; transform: translateY(0);
-    transition: transform 0.85s cubic-bezier(0.16, 1, 0.3, 1) 1.35s, opacity 0.6s ease 1.35s;
+    transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) 1.7s, opacity 0.55s ease 1.7s;
   }
   .oversite-theme.os-intro.os-intro-go main {
     opacity: 1; transform: translateY(0);
-    transition: opacity 1.1s ease-out 1.7s, transform 1.2s cubic-bezier(0.16, 1, 0.3, 1) 1.7s;
+    transition: opacity 1s ease-out 1.85s, transform 1.1s cubic-bezier(0.16, 1, 0.3, 1) 1.85s;
   }
   .oversite-theme.os-intro.os-intro-go [data-os-pagenav] {
-    opacity: 1; transition: opacity 0.7s ease 2.1s;
+    opacity: 1; transition: opacity 0.65s ease 2s;
   }
 `;
 
