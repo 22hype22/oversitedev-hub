@@ -321,14 +321,6 @@ const Auth = () => {
                 <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={FIELD} placeholder="you@email.com" />
               </div>
 
-              {mode === "signup" && (
-                <p className="rounded-lg border border-os-hairline/40 bg-os-bg/40 px-3.5 py-2.5 text-[12px] leading-relaxed text-os-faint">
-                  Your Discord links automatically when you use{" "}
-                  <span className="text-os-heading">Continue with Discord</span> above — or connect it
-                  later in Settings. A linked Discord is required before you can purchase a bot.
-                </p>
-              )}
-
               <div>
                 <label htmlFor="password" className={FIELD_LABEL}>Password</label>
                 <input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className={FIELD} placeholder="••••••••" />
@@ -349,6 +341,14 @@ const Auth = () => {
                 {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
                 {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
               </button>
+
+              {mode === "signup" && (
+                <p className="text-[12px] leading-relaxed text-os-faint">
+                  Your Discord links automatically when you use{" "}
+                  <span className="text-os-heading">Continue with Discord</span> above — or connect it
+                  later in Settings. A linked Discord is required before you can purchase a bot.
+                </p>
+              )}
             </form>
 
             <div className="mt-6 flex items-center justify-between gap-3">
