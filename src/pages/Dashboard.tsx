@@ -1,1427 +1,447 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
-import { useTheme } from "@/hooks/useTheme";
-import {
-  usePreferences,
-  CURRENCY_LABELS,
-  LANGUAGE_LABELS,
-  TIMEZONES,
-  type Currency,
-  type Language,
-  type ContactMethod,
-} from "@/hooks/usePreferences";
-import { supabase } from "@/integrations/supabase/client";
-import { BotNotificationsCard } from "@/components/dashboard/BotNotificationsCard";
-import { Navbar } from "@/components/site/Navbar";
-import { Footer } from "@/components/site/Footer";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  LayoutDashboard,
-  ShoppingBag,
   Settings as SettingsIcon,
-  Shield,
-  Download,
   Mail,
-  KeyRound,
-  Trash2,
-  ExternalLink,
-  Sun,
-  Moon,
-  Bell,
-  Globe,
-  Clock,
-  MessagesSquare,
+  Lock,
   CreditCard,
-  Sparkles,
-  ArrowUpCircle,
-  Bot,
-  XCircle,
+  Link2,
+  Bell,
+  ShieldAlert,
+  Loader2,
+  Check,
 } from "lucide-react";
-import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
-import { RobuxPurchaseDialog, type RobuxPurchaseProduct } from "@/components/RobuxPurchaseDialog";
-import { UpgradeNotice } from "@/components/UpgradeNotice";
-import { compareVersions } from "@/lib/utils";
-import { getStripeEnvironment } from "@/lib/stripe";
-import { useMarketingSuspended } from "@/hooks/useMarketingSuspended";
-import { HostingPastDueBanner } from "@/components/dashboard/HostingPastDueBanner";
-import { useHostingSubscriptionSync } from "@/hooks/useHostingSubscriptionSync";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { SiteNav } from "@/components/marketing/SiteNav";
 
-type Purchase = {
-  id: string;
-  product_id: string | null;
-  product_name: string;
-  amount_cents: number;
-  currency: string;
-  status: string;
-  created_at: string;
-  file_url: string | null;
-  file_name: string | null;
-  environment: string;
-  version: string | null;
-  source?: "stripe" | "gamepass";
-  // Resolved client-side
-  latest_version?: string | null;
-  upgrade_price?: number | null;
-  upgrade_price_robux?: number | null;
-  upgrade_gamepass_url?: string | null;
+/**
+ * Account Settings — the page the account menu's "Settings" link points to
+ * (route: /dashboard). Dark oversite theme. Wires the parts that run on the
+ * existing Supabase: profile, email, password, connections, notification
+ * preferences and sign-out. Payment methods open Stripe's billing portal
+ * (needs Stripe connected to this project to function).
+ */
+
+type NotifPrefs = {
+  service: boolean;
+  security: boolean;
+  billing: boolean;
+  support: boolean;
+  weekly: boolean;
+};
+const DEFAULT_PREFS: NotifPrefs = {
+  service: true,
+  security: true,
+  billing: true,
+  support: true,
+  weekly: false,
 };
 
-type Membership = {
-  status: string;
-  current_period_end: string | null;
-  cancel_at_period_end: boolean;
-} | null;
+const CARD = "rounded-[18px] border border-os-hairline/30 bg-os-surface/40 overflow-hidden";
+const FIELD =
+  "w-full rounded-[10px] border border-os-hairline/50 bg-os-bg/60 px-3.5 py-2.5 text-[14px] text-os-heading placeholder:text-os-faint outline-none transition focus:border-os-accent/70";
+const LABEL = "mb-1.5 block font-label text-[11px] uppercase tracking-[0.12em] text-os-faint";
+const BTN_PRIMARY =
+  "inline-flex items-center justify-center gap-2 rounded-[9px] bg-os-accent px-4 py-2.5 text-[13px] font-bold text-os-accent-ink transition hover:brightness-95 disabled:opacity-50";
+const BTN_GHOST =
+  "inline-flex items-center justify-center gap-2 rounded-[9px] border border-os-hairline/40 px-4 py-2.5 text-[13px] font-bold text-os-heading transition hover:bg-os-heading/[0.06] disabled:opacity-50";
 
-type Profile = {
-  id?: string;
-  roblox_username: string;
-  discord_username: string;
-};
+function SectionHead({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div className="px-6 pt-5">
+      <h2 className="text-[15px] font-bold text-os-heading">{title}</h2>
+      <p className="mt-0.5 text-[12.5px] text-os-faint">{desc}</p>
+    </div>
+  );
+}
 
-export default function Dashboard() {
-  const { user, loading } = useAuth();
+function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={() => onChange(!on)}
+      className={`relative h-6 w-[42px] flex-none rounded-full transition ${on ? "bg-os-accent" : "bg-os-hairline/60"}`}
+    >
+      <span
+        className={`absolute top-[3px] h-[18px] w-[18px] rounded-full transition-all ${on ? "left-[21px] bg-os-accent-ink" : "left-[3px] bg-[#cfd8df]"}`}
+      />
+    </button>
+  );
+}
+
+const Dashboard = () => {
   const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
-  const { prefs, setPrefs, formatPrice, formatDate } = usePreferences();
-  const { suspended } = useMarketingSuspended();
-  useHostingSubscriptionSync();
+  const { user, loading } = useAuth();
 
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [purchasesLoading, setPurchasesLoading] = useState(true);
-
-  type BotOrder = {
-    id: string;
-    bot_name: string;
-    base: string;
-    addons: string[] | null;
-    monthly_hosting: boolean;
-    status: string;
-    total_amount: number | string;
-    currency: string;
-    created_at: string;
-    submitted_at: string | null;
-  };
-  type BotJob = {
-    order_id: string;
-    status: string;
-    delivery_url: string | null;
-    error_message: string | null;
-  };
-  const [botOrders, setBotOrders] = useState<BotOrder[]>([]);
-  const [botJobs, setBotJobs] = useState<Record<string, BotJob>>({});
-  const [botOrdersLoading, setBotOrdersLoading] = useState(true);
-  const [cancelTarget, setCancelTarget] = useState<BotOrder | null>(null);
-  const [cancelling, setCancelling] = useState(false);
-
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [robloxUsername, setRobloxUsername] = useState("");
   const [discordUsername, setDiscordUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
 
-  const [emailUpdating, setEmailUpdating] = useState(false);
   const [newEmail, setNewEmail] = useState("");
+  const [emailBusy, setEmailBusy] = useState(false);
 
-  const [passwordUpdating, setPasswordUpdating] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
 
-  const [portalLoading, setPortalLoading] = useState(false);
+  const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_PREFS);
+  const [prefsBusy, setPrefsBusy] = useState(false);
 
-  // Membership + upgrade state
-  const [membership, setMembership] = useState<Membership>(null);
-  const [membershipCheckoutItems, setMembershipCheckoutItems] = useState<
-    CheckoutItem[] | null
-  >(null);
-  const [upgradeCheckout, setUpgradeCheckout] = useState<CheckoutItem[] | null>(null);
-  const [upgradeRobux, setUpgradeRobux] = useState<
-    | (RobuxPurchaseProduct & { parentPurchaseId: string; upgradeMode: true })
-    | null
-  >(null);
-  const [robuxUpgradePromptOpen, setRobuxUpgradePromptOpen] = useState(false);
+  const [identities, setIdentities] = useState<string[]>([]);
+  const [portalBusy, setPortalBusy] = useState(false);
+  const [signOutBusy, setSignOutBusy] = useState(false);
 
+  const initials = useMemo(() => {
+    const base = displayName || user?.email || "?";
+    return base.trim().charAt(0).toUpperCase();
+  }, [displayName, user?.email]);
+
+  // Gate: bounce to /auth if not signed in.
   useEffect(() => {
-    if (!loading && !user) navigate("/auth");
-  }, [user, loading, navigate]);
+    if (!loading && !user) navigate("/auth", { replace: true });
+  }, [loading, user, navigate]);
 
-  const loadPurchases = useCallback(async () => {
+  // Load profile + notification prefs + linked identities.
+  useEffect(() => {
     if (!user) return;
-    setPurchasesLoading(true);
-    const filters = [`user_id.eq.${user.id}`];
-    if (user.email) filters.push(`email.eq.${user.email.toLowerCase()}`);
-
-    const stripeReq = supabase
-      .from("purchases")
-      .select(
-        "id,product_id,product_name,amount_cents,currency,status,created_at,file_url,file_name,environment,version",
-      )
-      .or(filters.join(","))
-      .eq("status", "paid")
-      .order("created_at", { ascending: false });
-
-    const profileReq = supabase
-      .from("profiles")
-      .select("roblox_username")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    const [{ data: stripeData, error }, { data: profile }] = await Promise.all([
-      stripeReq,
-      profileReq,
-    ]);
-
-    if (error) {
-      toast.error("Couldn't load your purchases");
-      setPurchasesLoading(false);
-      return;
-    }
-
-    const stripeRows = ((stripeData as Purchase[]) ?? []).map((row) => ({
-      ...row,
-      source: "stripe" as const,
-    }));
-
-    let gamepassRows: Purchase[] = [];
-    if (profile?.roblox_username) {
-      const { data: pendingRows } = await supabase
-        .from("pending_purchases")
-        .select("id,product_id,created_at,version")
-        .eq("status", "fulfilled")
-        .ilike("roblox_username", profile.roblox_username)
-        .order("fulfilled_at", { ascending: false });
-
-      const pendingProductIds = Array.from(
-        new Set(((pendingRows as any[]) ?? []).map((r) => r.product_id).filter(Boolean)),
-      );
-
-      let pendingProductMap = new Map<string, any>();
-      if (pendingProductIds.length > 0) {
-        const { data: pendingProducts } = await (supabase as any)
-          .from("product_catalog")
-          .select("id,name")
-          .in("id", pendingProductIds);
-        pendingProductMap = new Map((pendingProducts ?? []).map((p: any) => [p.id, p]));
-      }
-
-      gamepassRows = ((pendingRows as any[]) ?? [])
-        .filter((row) => !!row.product_id)
-        .map((row) => ({
-          id: row.id,
-          product_id: row.product_id,
-          product_name: pendingProductMap.get(row.product_id)?.name ?? "Product",
-          amount_cents: 0,
-          currency: "robux",
-          status: "paid",
-          created_at: row.created_at,
-          file_url: null,
-          file_name: null,
-          environment: "live",
-          version: row.version ?? null,
-          source: "gamepass" as const,
-        }));
-    }
-
-    const rows = [...stripeRows, ...gamepassRows].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    );
-
-    const productIds = Array.from(
-      new Set(rows.map((r) => r.product_id).filter((x): x is string => !!x)),
-    );
-    let productMap = new Map<string, any>();
-    if (productIds.length > 0) {
-      const { data: prods } = await (supabase as any)
-        .from("product_catalog")
-        .select(
-          "id,current_version,price,price_robux,gamepass_url,upgrade_price,upgrade_price_robux,upgrade_gamepass_url",
-        )
-        .in("id", productIds);
-      productMap = new Map((prods || []).map((p: any) => [p.id, p]));
-    }
-    const enriched: Purchase[] = rows.map((r) => {
-      const p = r.product_id ? productMap.get(r.product_id) : null;
-      const fallbackPrice =
-        p?.upgrade_price && Number(p.upgrade_price) > 0
-          ? Number(p.upgrade_price)
-          : p?.price != null
-          ? Number(p.price)
-          : null;
-      return {
-        ...r,
-        latest_version: p?.current_version ?? null,
-        upgrade_price: fallbackPrice,
-        upgrade_price_robux: p?.upgrade_price_robux ?? p?.price_robux ?? null,
-        upgrade_gamepass_url: p?.upgrade_gamepass_url ?? p?.gamepass_url ?? null,
-      };
-    });
-    setPurchases(enriched);
-    setPurchasesLoading(false);
-  }, [user]);
-
-  const loadMembership = async () => {
-    if (!user) return;
-    const env = getStripeEnvironment();
-    const { data } = await supabase
-      .from("subscriptions")
-      .select("status,current_period_end,cancel_at_period_end")
-      .eq("user_id", user.id)
-      .eq("environment", env)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    setMembership((data as Membership) ?? null);
-  };
-
-  const loadBotOrders = useCallback(async () => {
-    if (!user) return;
-    setBotOrdersLoading(true);
-    const [{ data: orders, error }, { data: jobs }] = await Promise.all([
-      (supabase as any)
-        .from("bot_orders")
-        .select("id,bot_name,base,addons,monthly_hosting,status,total_amount,currency,created_at,submitted_at")
+    let active = true;
+    (async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("discord_username, display_name, notification_preferences")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false }),
-      (supabase as any)
-        .from("bot_build_jobs")
-        .select("order_id,status,delivery_url,error_message")
-        .eq("user_id", user.id),
-    ]);
-    if (error) {
-      toast.error("Couldn't load your bot orders");
-      setBotOrdersLoading(false);
-      return;
-    }
-    setBotOrders(((orders as BotOrder[]) ?? []).filter((o) => o.status !== "cancelled"));
-    const jobMap: Record<string, BotJob> = {};
-    ((jobs as BotJob[]) ?? []).forEach((j) => {
-      jobMap[j.order_id] = j;
-    });
-    setBotJobs(jobMap);
-    setBotOrdersLoading(false);
-  }, [user]);
-
-  // Self-serve cancel: only allowed while the order is still draft or
-  // submitted (i.e. work hasn't started). Once paid, the customer must
-  // contact support so we can refund + stop any in-flight build job.
-  const canCancelOrder = (status: string) =>
-    status === "draft" || status === "submitted";
-
-  const cancelOrder = async (order: BotOrder) => {
-    if (!user) return;
-    if (!canCancelOrder(order.status)) {
-      toast.error("This order can no longer be cancelled — please contact support.");
-      return;
-    }
-    setCancelling(true);
-    const { error } = await (supabase as any)
-      .from("bot_orders")
-      .update({ status: "cancelled" })
-      .eq("id", order.id)
-      .eq("user_id", user.id);
-    setCancelling(false);
-    if (error) {
-      toast.error("Couldn't cancel — " + error.message);
-      return;
-    }
-    toast.success(`Cancelled "${order.bot_name}"`);
-    setCancelTarget(null);
-    loadBotOrders();
-  };
-
-  const isMemberActive = (() => {
-    if (!membership) return false;
-    const periodEnd = membership.current_period_end
-      ? new Date(membership.current_period_end).getTime()
-      : null;
-    const future = !periodEnd || periodEnd > Date.now();
-    return (
-      (["active", "trialing", "past_due"].includes(membership.status) && future) ||
-      (membership.status === "canceled" && !!periodEnd && periodEnd > Date.now())
-    );
-  })();
-
-  const handleDownload = async (p: Purchase) => {
-    if (suspended) {
-      toast.error("Downloads are temporarily unavailable while Oversite Marketing is suspended.");
-      return;
-    }
-    // Members get the latest version of every product. Otherwise serve
-    // the exact version they paid for.
-    const targetVersion =
-      isMemberActive && p.latest_version ? p.latest_version : p.version;
-
-    let path: string | null = null;
-    if (targetVersion && p.product_id) {
-      const { data: vRow } = await supabase
-        .from("product_versions")
-        .select("file_url")
-        .eq("product_id", p.product_id)
-        .eq("version", targetVersion)
-        .order("created_at", { ascending: false })
-        .limit(1)
         .maybeSingle();
-      if (vRow?.file_url) path = vRow.file_url as string;
-    }
-    if (!path && p.file_url) {
-      path = p.file_url;
-      const marker = "/product-files/";
-      const idx = path.indexOf(marker);
-      if (idx !== -1) path = path.slice(idx + marker.length);
-    }
-    if (!path) {
-      toast.error("No file is available for this purchase");
-      return;
-    }
-    const { data, error } = await supabase.storage
-      .from("product-files")
-      .createSignedUrl(path, 60 * 10);
-    if (error || !data?.signedUrl) {
-      toast.error("Couldn't generate download link");
-      return;
-    }
-    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
-  };
-
-  const startUpgradeStripe = (p: Purchase) => {
-    if (!p.product_id || !p.upgrade_price || !p.latest_version) return;
-    setUpgradeCheckout([
-      {
-        productId: p.product_id,
-        productName: `${p.product_name} — Upgrade to ${p.latest_version}`,
-        amountCents: Math.round(Number(p.upgrade_price) * 100),
-        currency: "usd",
-        quantity: 1,
-        purchaseType: "upgrade",
-        parentPurchaseId: p.id,
-        upgradeToVersion: p.latest_version,
-      },
-    ]);
-  };
-
-  const startUpgradeRobux = (_p: Purchase) => {
-    setRobuxUpgradePromptOpen(true);
-  };
-
-  // Tab-gated loading: the dashboard has 4 tabs but used to fetch
-  // everything (purchases + pending_purchases + product_catalog +
-  // membership + bot orders + build jobs + profile + realtime sub)
-  // on mount. That added up to ~7+ Supabase round-trips before the
-  // first paint. We now only seed the email field eagerly and let
-  // each tab fetch its own data the first time it's opened.
-  const [activeTab, setActiveTab] = useState("purchases");
-  const loadedTabsRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (!user) return;
-    setNewEmail(user.email ?? "");
-  }, [user]);
-
-  const loadProfile = useCallback(async () => {
-    if (!user) return;
-    setProfileLoading(true);
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id,roblox_username,discord_username")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (error) {
-      toast.error("Couldn't load your profile");
-    } else if (data) {
-      setProfile(data as Profile);
-      setRobloxUsername(data.roblox_username ?? "");
-      setDiscordUsername(data.discord_username ?? "");
-    }
-    setProfileLoading(false);
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    if (loadedTabsRef.current.has(activeTab)) return;
-    loadedTabsRef.current.add(activeTab);
-
-    if (activeTab === "purchases") {
-      loadPurchases();
-      loadMembership();
-    } else if (activeTab === "bots") {
-      loadBotOrders();
-    } else if (activeTab === "settings") {
-      loadProfile();
-    }
-  }, [activeTab, user, loadPurchases, loadBotOrders, loadProfile]);
-
-  // Realtime subscription is only useful while the Purchases tab is
-  // visible — defer it until that tab is opened. Avoids spinning up
-  // a channel + listener on initial mount for users who don't care.
-  useEffect(() => {
-    if (!user) return;
-    if (activeTab !== "purchases") return;
-
-    const channel = supabase
-      .channel(`dashboard-purchases-${user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "pending_purchases" },
-        () => loadPurchases(),
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "profiles", filter: `user_id=eq.${user.id}` },
-        () => loadPurchases(),
-      )
-      .subscribe();
-
-    const onFocus = () => loadPurchases();
-    window.addEventListener("focus", onFocus);
-
+      if (!active) return;
+      if (profile) {
+        setDiscordUsername((profile as any).discord_username ?? "");
+        setDisplayName((profile as any).display_name ?? "");
+        const p = (profile as any).notification_preferences;
+        if (p && typeof p === "object") setPrefs({ ...DEFAULT_PREFS, ...p });
+      }
+      try {
+        const { data } = await supabase.auth.getUserIdentities();
+        if (active && data?.identities) {
+          setIdentities(data.identities.map((i) => i.provider));
+        }
+      } catch {
+        /* identities API unavailable — leave empty */
+      }
+    })();
     return () => {
-      supabase.removeChannel(channel);
-      window.removeEventListener("focus", onFocus);
+      active = false;
     };
-  }, [user, activeTab, loadPurchases]);
+  }, [user]);
 
   const saveProfile = async () => {
     if (!user) return;
-    if (!robloxUsername.trim() || !discordUsername.trim()) {
-      toast.error("Both usernames are required");
-      return;
-    }
-    if (robloxUsername.length > 50 || discordUsername.length > 50) {
-      toast.error("Usernames must be 50 characters or less");
-      return;
-    }
     setSavingProfile(true);
     const payload = {
       user_id: user.id,
-      roblox_username: robloxUsername.trim(),
+      display_name: displayName.trim() || null,
       discord_username: discordUsername.trim(),
     };
-    const { error } = profile?.id
-      ? await supabase.from("profiles").update(payload).eq("user_id", user.id)
-      : await supabase.from("profiles").insert(payload);
+    const { error } = await supabase
+      .from("profiles")
+      .upsert(payload, { onConflict: "user_id" });
     setSavingProfile(false);
-    if (error) {
-      toast.error(error.message || "Failed to save profile");
-      return;
-    }
-    toast.success("Profile updated");
-    setProfile({ ...payload, id: profile?.id });
+    if (error) return toast.error(error.message || "Couldn't save profile");
+    toast.success("Profile saved");
   };
 
   const updateEmail = async () => {
     if (!newEmail || newEmail === user?.email) return;
-    setEmailUpdating(true);
+    setEmailBusy(true);
     const { error } = await supabase.auth.updateUser({ email: newEmail.trim() });
-    setEmailUpdating(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    toast.success("Confirmation sent — check both your old and new email");
+    setEmailBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Confirmation sent — check both your old and new inbox");
+    setNewEmail("");
   };
 
   const updatePassword = async () => {
-    if (newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      toast.error("Passwords don't match");
-      return;
-    }
-    setPasswordUpdating(true);
+    if (newPassword.length < 6) return toast.error("Password must be at least 6 characters");
+    if (newPassword !== confirmPassword) return toast.error("Passwords don't match");
+    setPwBusy(true);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
-    setPasswordUpdating(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
+    setPwBusy(false);
+    if (error) return toast.error(error.message);
     toast.success("Password updated");
     setNewPassword("");
     setConfirmPassword("");
   };
 
-  const openCustomerPortal = async () => {
-    setPortalLoading(true);
+  const savePrefs = async (next: NotifPrefs) => {
+    setPrefs(next);
+    if (!user) return;
+    setPrefsBusy(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ notification_preferences: next })
+      .eq("user_id", user.id);
+    setPrefsBusy(false);
+    if (error) toast.error("Couldn't save notification preferences");
+  };
+
+  const connect = async (provider: "discord" | "google") => {
+    try {
+      const { error } = await (supabase.auth as any).linkIdentity({
+        provider,
+        options: { redirectTo: `${window.location.origin}/dashboard` },
+      });
+      if (error) throw error;
+    } catch (e: any) {
+      toast.error(e?.message || "Couldn't start linking. Manual linking may be disabled.");
+    }
+  };
+
+  const openPortal = async () => {
+    setPortalBusy(true);
     const { data, error } = await supabase.functions.invoke("customer-portal", {
       body: { returnUrl: window.location.origin + "/dashboard" },
     });
-    setPortalLoading(false);
-    if (error || !data?.url) {
-      toast.error(
-        "Couldn't open the payment portal. You may not have any saved payment methods yet.",
-      );
-      return;
+    setPortalBusy(false);
+    if (error || !(data as any)?.url) {
+      return toast.error("Couldn't open billing. You may not have a payment method yet.");
     }
-    window.location.href = data.url as string;
+    window.location.href = (data as any).url as string;
+  };
+
+  const signOutEverywhere = async () => {
+    setSignOutBusy(true);
+    await supabase.auth.signOut({ scope: "global" });
+    navigate("/", { replace: true });
   };
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
-        Loading...
+      <div className="grid min-h-screen place-items-center bg-os-bg text-os-faint">
+        <Loader2 className="h-6 w-6 animate-spin" />
       </div>
     );
   }
 
-  // Purchases list is already filtered to paid rows in loadPurchases.
+  const NOTIF_ROWS: { key: keyof NotifPrefs; name: string; desc: string }[] = [
+    { key: "service", name: "Bot & service alerts", desc: "Downtime, deploys, important status" },
+    { key: "security", name: "Account & security", desc: "Logins, email / password changes" },
+    { key: "billing", name: "Billing & payments", desc: "Receipts, renewals, failed charges" },
+    { key: "support", name: "Support replies", desc: "Responses to your tickets" },
+    { key: "weekly", name: "Weekly summary", desc: "Usage & performance digest" },
+  ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <main className="container mx-auto pt-24 pb-16 px-4 max-w-5xl">
-        <HostingPastDueBanner />
-        <div className="flex items-center gap-3 mb-8">
-          <div className="h-11 w-11 rounded-md bg-primary/10 text-primary inline-flex items-center justify-center">
-            <LayoutDashboard size={22} />
-          </div>
+    <div className="oversite-theme min-h-screen bg-os-bg font-body text-os-body antialiased">
+      <SiteNav />
+      <main className="mx-auto w-full max-w-[880px] px-5 pb-24 pt-28">
+        <div className="flex items-center gap-3">
+          <span className="grid h-9 w-9 place-items-center rounded-full bg-os-accent/15 text-os-accent">
+            <SettingsIcon size={18} />
+          </span>
           <div>
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-              Dashboard
-            </h1>
-            <p className="text-sm text-muted-foreground">{user.email}</p>
+            <h1 className="text-[30px] font-extrabold tracking-[-0.02em] text-os-heading">Settings</h1>
+            <p className="text-[13px] text-os-faint">Manage your account, billing, security and notifications.</p>
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-4 w-full max-w-2xl">
-            <TabsTrigger value="purchases">
-              <ShoppingBag size={14} className="mr-1.5" />
-              Purchases
-            </TabsTrigger>
-            <TabsTrigger value="bots">
-              <Bot size={14} className="mr-1.5" />
-              Bot Orders
-            </TabsTrigger>
-            <TabsTrigger value="settings">
-              <SettingsIcon size={14} className="mr-1.5" />
-              Settings
-            </TabsTrigger>
-            <TabsTrigger value="privacy">
-              <Shield size={14} className="mr-1.5" />
-              Privacy
-            </TabsTrigger>
-          </TabsList>
+        {/* PROFILE */}
+        <div className={`mt-6 ${CARD}`}>
+          <SectionHead title="Profile" desc="How you show up across the dashboard." />
+          <div className="space-y-4 px-6 py-5">
+            <div className="flex items-center gap-4">
+              <div className="grid h-[60px] w-[60px] place-items-center rounded-full border border-os-hairline/30 bg-gradient-to-br from-os-surface-2 to-os-surface text-[22px] font-extrabold text-os-heading">
+                {initials}
+              </div>
+              <div>
+                <button type="button" onClick={() => toast("Avatar upload is coming soon")} className={BTN_GHOST}>
+                  Upload avatar
+                </button>
+                <p className="mt-1.5 text-[12px] text-os-faint">PNG or JPG, up to 2&nbsp;MB</p>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className={LABEL}>Display name</label>
+                <input className={FIELD} value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your name" />
+              </div>
+              <div>
+                <label className={LABEL}>Discord username</label>
+                <input className={FIELD} value={discordUsername} onChange={(e) => setDiscordUsername(e.target.value)} placeholder="username" />
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end border-t border-os-hairline/20 bg-os-bg/30 px-6 py-3.5">
+            <button onClick={saveProfile} disabled={savingProfile} className={BTN_PRIMARY}>
+              {savingProfile && <Loader2 size={14} className="animate-spin" />} Save profile
+            </button>
+          </div>
+        </div>
 
-          {/* PURCHASES */}
-          <TabsContent value="purchases" className="space-y-4">
-            {/* Membership card */}
-            <Card className="p-6 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
-              <div className="flex items-start justify-between gap-4 flex-wrap">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Sparkles size={16} className="text-primary" />
-                    <h2 className="font-semibold">Oversite Pro</h2>
-                    {isMemberActive ? (
-                      <Badge className="text-[10px]">
-                        {membership?.cancel_at_period_end ? "Ending soon" : "Active"}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-[10px]">
-                        Not active
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {isMemberActive
-                      ? `You get the latest version of every product you've purchased — automatically. ${
-                          membership?.current_period_end
-                            ? `${
-                                membership?.cancel_at_period_end ? "Ends" : "Renews"
-                              } ${formatDate(membership.current_period_end)}.`
-                            : ""
-                        }`
-                      : "$9/month — instantly unlock the newest version of every product you own. Cancel anytime."}
-                  </p>
+        {/* EMAIL */}
+        <div className={`mt-5 ${CARD}`}>
+          <SectionHead title="Email" desc="Used for sign-in and important account notices." />
+          <div className="space-y-4 px-6 py-5">
+            <div>
+              <label className={LABEL}>Current email</label>
+              <input className={`${FIELD} opacity-60`} value={user.email ?? ""} disabled />
+            </div>
+            <div>
+              <label className={LABEL}>New email</label>
+              <input className={FIELD} type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="you@example.com" />
+            </div>
+          </div>
+          <div className="flex justify-end border-t border-os-hairline/20 bg-os-bg/30 px-6 py-3.5">
+            <button onClick={updateEmail} disabled={emailBusy} className={BTN_PRIMARY}>
+              {emailBusy ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />} Update email
+            </button>
+          </div>
+        </div>
+
+        {/* PASSWORD */}
+        <div className={`mt-5 ${CARD}`}>
+          <SectionHead title="Password" desc="Use a strong, unique password." />
+          <div className="space-y-4 px-6 py-5">
+            <div>
+              <label className={LABEL}>New password</label>
+              <input className={FIELD} type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
+            </div>
+            <div>
+              <label className={LABEL}>Confirm new password</label>
+              <input className={FIELD} type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" />
+            </div>
+          </div>
+          <div className="flex justify-end border-t border-os-hairline/20 bg-os-bg/30 px-6 py-3.5">
+            <button onClick={updatePassword} disabled={pwBusy} className={BTN_PRIMARY}>
+              {pwBusy ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />} Update password
+            </button>
+          </div>
+        </div>
+
+        {/* PAYMENT METHODS */}
+        <div className={`mt-5 ${CARD}`}>
+          <SectionHead title="Payment methods" desc="Cards used for bot hosting and renewals." />
+          <div className="px-6 py-5">
+            <div className="flex items-center justify-between gap-4 rounded-[12px] border border-os-hairline/30 bg-os-bg/40 px-4 py-4">
+              <div className="flex items-center gap-3">
+                <span className="grid h-9 w-9 place-items-center rounded-[10px] border border-os-hairline/40 bg-os-bg/60 text-os-accent">
+                  <CreditCard size={16} />
+                </span>
+                <div>
+                  <p className="text-[14px] font-semibold text-os-heading">Manage payment methods</p>
+                  <p className="text-[12px] text-os-faint">Add, remove or set a default card · view invoices</p>
                 </div>
-                <div className="flex gap-2">
-                  {isMemberActive ? (
-                    <Button
-                      onClick={openCustomerPortal}
-                      disabled={portalLoading}
-                      variant="outline"
-                      size="sm"
-                    >
-                      {portalLoading ? "Opening…" : "Manage"}
-                      <ExternalLink size={12} className="ml-1.5" />
-                    </Button>
+              </div>
+              <button onClick={openPortal} disabled={portalBusy} className={BTN_PRIMARY}>
+                {portalBusy && <Loader2 size={14} className="animate-spin" />} Open billing
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* CONNECTIONS */}
+        <div className={`mt-5 ${CARD}`}>
+          <SectionHead title="Connections" desc="Link accounts to sign in faster." />
+          <div className="px-6 py-2">
+            {(["discord", "google"] as const).map((p, i) => {
+              const linked = identities.includes(p);
+              return (
+                <div
+                  key={p}
+                  className={`flex items-center justify-between gap-4 py-4 ${i > 0 ? "border-t border-os-hairline/15" : ""}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-[38px] w-[38px] place-items-center rounded-[10px] border border-os-hairline/40 bg-os-bg/60 text-os-heading">
+                      <Link2 size={16} />
+                    </span>
+                    <div>
+                      <p className="text-[14px] font-semibold capitalize text-os-heading">{p}</p>
+                      <p className="text-[12px] text-os-faint">{linked ? "Connected" : "Not connected"}</p>
+                    </div>
+                  </div>
+                  {linked ? (
+                    <span className="rounded-full bg-[#78c88c]/15 px-3 py-1 font-label text-[10px] font-bold uppercase tracking-[0.1em] text-[#8fd3a3]">
+                      Connected
+                    </span>
                   ) : (
-                    <Button
-                      variant="hero"
-                      size="sm"
-                      disabled={suspended}
-                      onClick={() => {
-                        if (suspended) {
-                          toast.error("Memberships are temporarily unavailable while Oversite Marketing is suspended.");
-                          return;
-                        }
-                        setMembershipCheckoutItems([
-                          { priceId: "oversite_pro_monthly", quantity: 1 },
-                        ]);
-                      }}
-                    >
-                      <Sparkles size={14} className="mr-1.5" />
-                      {suspended ? "Unavailable" : "Subscribe"}
-                    </Button>
+                    <button onClick={() => connect(p)} className={BTN_GHOST}>Connect</button>
                   )}
                 </div>
-              </div>
-            </Card>
+              );
+            })}
+          </div>
+        </div>
 
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-                <div>
-                  <h2 className="font-semibold">Your purchases</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {purchases.length} total
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={loadPurchases} variant="outline" size="sm">
-                    Refresh
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <Link to="/products">Browse products</Link>
-                  </Button>
-                </div>
-              </div>
-
-              {purchasesLoading ? (
-                <p className="text-sm text-muted-foreground">Loading…</p>
-              ) : purchases.length === 0 ? (
-                <div className="text-center py-12 border border-dashed border-border rounded-lg">
-                  <ShoppingBag size={32} className="mx-auto text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground mb-4">
-                    No purchases yet.
-                  </p>
-                  <Button asChild variant="hero" size="sm">
-                    <Link to="/products">Shop now</Link>
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  {!isMemberActive && (
-                    <UpgradeNotice className="mb-4" />
-                  )}
-                  <ul className="divide-y divide-border">
-                    {purchases.map((p) => {
-                      const usd = p.amount_cents / 100;
-                      const hasNewer =
-                        !!p.latest_version &&
-                        !!p.version &&
-                        compareVersions(p.latest_version, p.version) > 0;
-                      const canStripeUpgrade =
-                        hasNewer && !!p.upgrade_price && p.upgrade_price > 0;
-                      const canRobuxUpgrade = hasNewer;
-                      const purchaseLabel =
-                        p.source === "gamepass"
-                          ? "Robux purchase"
-                          : formatPrice(usd);
-                      return (
-                        <li key={p.id} className="py-4 space-y-2">
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className="font-medium truncate">{p.product_name}</p>
-                                {p.version && (
-                                  <Badge variant="secondary" className="text-[10px] font-mono">
-                                    {p.version}
-                                  </Badge>
-                                )}
-                                {p.source === "gamepass" && (
-                                  <Badge variant="outline" className="text-[10px]">
-                                    robux
-                                  </Badge>
-                                )}
-                                {hasNewer && !isMemberActive && (
-                                  <Badge variant="outline" className="text-[10px] font-mono border-primary/40 text-primary">
-                                    ↑ {p.latest_version}
-                                  </Badge>
-                                )}
-                                {isMemberActive && hasNewer && (
-                                  <Badge className="text-[10px] font-mono">
-                                    Latest: {p.latest_version}
-                                  </Badge>
-                                )}
-                                {p.environment === "sandbox" && (
-                                  <Badge variant="outline" className="text-[10px]">
-                                    test
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {formatDate(p.created_at)} · {purchaseLabel}
-                              </p>
-                            </div>
-                          {(p.file_url || p.version) ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={suspended}
-                              title={suspended ? "Downloads paused while Oversite Marketing is suspended" : undefined}
-                              onClick={() => handleDownload(p)}
-                            >
-                              <Download size={14} className="mr-1.5" />
-                              {suspended ? "Paused" : "Download"}
-                            </Button>
-                          ) : null}
-                        </div>
-                        {hasNewer && !isMemberActive && (canStripeUpgrade || canRobuxUpgrade) && (
-                          <div className="flex flex-wrap items-center gap-2 pl-1">
-                            <span className="text-xs text-muted-foreground">
-                              Version Upgrade:
-                            </span>
-                            {canStripeUpgrade && (
-                              <span className="text-sm font-semibold">
-                                {formatPrice(Number(p.upgrade_price))}
-                              </span>
-                            )}
-                            {canRobuxUpgrade && p.upgrade_price_robux ? (
-                              <span className="text-xs text-muted-foreground">
-                                {canStripeUpgrade ? "or " : ""}R$ {p.upgrade_price_robux.toLocaleString()}
-                              </span>
-                            ) : null}
-                            <div className="flex gap-2 ml-auto">
-                              {canStripeUpgrade && (
-                                <Button
-                                  size="sm"
-                                  variant="hero"
-                                  onClick={() => startUpgradeStripe(p)}
-                                  aria-label={`Upgrade with card for ${formatPrice(Number(p.upgrade_price))}`}
-                                  title={`Upgrade with card · ${formatPrice(Number(p.upgrade_price))}`}
-                                >
-                                  <CreditCard size={14} />
-                                </Button>
-                              )}
-                              {canRobuxUpgrade && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => startUpgradeRobux(p)}
-                                  aria-label="Upgrade with Robux via support ticket"
-                                  title={p.upgrade_price_robux ? `Upgrade with Robux · R$ ${p.upgrade_price_robux.toLocaleString()} (via ticket)` : "Upgrade with Robux (via ticket)"}
-                                >
-                                  <span
-                                    aria-hidden
-                                    className="inline-flex h-3.5 w-3.5 items-center justify-center font-bold text-[10px] leading-none"
-                                  >
-                                    R$
-                                  </span>
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-                </>
-              )}
-            </Card>
-          </TabsContent>
-
-          {/* BOT ORDERS */}
-          <TabsContent value="bots" className="space-y-4">
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-                <div>
-                  <h2 className="font-semibold flex items-center gap-2">
-                    <Bot size={16} className="text-primary" />
-                    My Bot Orders
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    {botOrders.length} total
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={loadBotOrders} variant="outline" size="sm">
-                    Refresh
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <Link to="/bots">Build a bot</Link>
-                  </Button>
-                </div>
-              </div>
-
-              {botOrdersLoading ? (
-                <p className="text-sm text-muted-foreground">Loading…</p>
-              ) : botOrders.length === 0 ? (
-                <div className="text-center py-12 border border-dashed border-border rounded-lg">
-                  <Bot size={32} className="mx-auto text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground mb-4">
-                    No bot orders yet.
-                  </p>
-                  <Button asChild variant="hero" size="sm">
-                    <Link to="/bots#pick-base">Build your first bot</Link>
-                  </Button>
-                </div>
-              ) : (
-                <ul className="divide-y divide-border">
-                  {botOrders.map((o) => {
-                    const job = botJobs[o.id];
-                    const orderStatus = o.status;
-                    const jobStatus = job?.status;
-                    const statusColor: Record<string, string> = {
-                      draft: "bg-muted text-muted-foreground",
-                      submitted: "bg-amber-500/15 text-amber-600 border border-amber-500/30",
-                      paid: "bg-blue-500/15 text-blue-600 border border-blue-500/30",
-                      pending: "bg-amber-500/15 text-amber-600 border border-amber-500/30",
-                      claimed: "bg-blue-500/15 text-blue-600 border border-blue-500/30",
-                      building: "bg-blue-500/15 text-blue-600 border border-blue-500/30",
-                      ready: "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30",
-                      delivered: "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30",
-                      failed: "bg-destructive/15 text-destructive border border-destructive/30",
-                      cancelled: "bg-muted text-muted-foreground border border-border",
-                    };
-                    const total = Number(o.total_amount) || 0;
-                    return (
-                      <li key={o.id} className="py-4 space-y-2">
-                        <div className="flex items-start justify-between gap-4 flex-wrap">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-medium truncate">{o.bot_name}</p>
-                              <Badge
-                                variant="outline"
-                                className={`text-[10px] ${statusColor[orderStatus] ?? ""}`}
-                              >
-                                {orderStatus}
-                              </Badge>
-                              {jobStatus && (
-                                <Badge
-                                  variant="outline"
-                                  className={`text-[10px] ${statusColor[jobStatus] ?? ""}`}
-                                >
-                                  build: {jobStatus}
-                                </Badge>
-                              )}
-                              {o.monthly_hosting && (
-                                <Badge variant="secondary" className="text-[10px]">
-                                  hosted
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Base: {o.base}
-                              {o.addons && o.addons.length > 0
-                                ? ` · ${o.addons.length} add-on${o.addons.length === 1 ? "" : "s"}`
-                                : ""}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatDate(o.created_at)} · {formatPrice(total)}
-                            </p>
-                            {job?.error_message && (
-                              <p className="text-xs text-destructive mt-1">
-                                {job.error_message}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {job?.delivery_url && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                  window.open(job.delivery_url!, "_blank", "noopener,noreferrer")
-                                }
-                              >
-                                <Download size={14} className="mr-1.5" />
-                                Get bot
-                              </Button>
-                            )}
-                            {canCancelOrder(orderStatus) ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-                                onClick={() => setCancelTarget(o)}
-                              >
-                                <XCircle size={14} className="mr-1.5" />
-                                Cancel
-                              </Button>
-                            ) : orderStatus === "cancelled" ? null : (
-                              <span className="text-[11px] text-muted-foreground">
-                                Contact support to cancel
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </Card>
-          </TabsContent>
-
-          {/* Membership checkout dialog */}
-          <CheckoutDialog
-            open={!!membershipCheckoutItems}
-            onOpenChange={(o) => {
-              if (!o) {
-                setMembershipCheckoutItems(null);
-                loadMembership();
-              }
-            }}
-            items={membershipCheckoutItems ?? []}
-            customerEmail={user.email ?? undefined}
-          />
-
-          {/* Upgrade checkout dialog */}
-          <CheckoutDialog
-            open={!!upgradeCheckout}
-            onOpenChange={(o) => {
-              if (!o) {
-                setUpgradeCheckout(null);
-                loadPurchases();
-              }
-            }}
-            items={upgradeCheckout ?? []}
-            customerEmail={user.email ?? undefined}
-          />
-
-          {/* Upgrade Robux dialog */}
-          <RobuxPurchaseDialog
-            open={!!upgradeRobux}
-            onOpenChange={(o) => {
-              if (!o) {
-                setUpgradeRobux(null);
-                loadPurchases();
-              }
-            }}
-            product={upgradeRobux}
-          />
-
-          {/* Robux upgrade ticket prompt */}
-          <AlertDialog
-            open={robuxUpgradePromptOpen}
-            onOpenChange={setRobuxUpgradePromptOpen}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Upgrade with Robux</AlertDialogTitle>
-                <AlertDialogDescription asChild>
-                  <div className="space-y-3">
-                    <p>
-                      Robux version upgrades are handled manually. Please open a
-                      ticket in the{" "}
-                      <span className="font-medium">Oversite Marketplace</span>{" "}
-                      Discord and our team will set up your version upgrade gamepass.
-                    </p>
-                    <p className="text-xs font-mono rounded-md bg-muted px-3 py-2">
-                      .gg/oversitemarketplace ➜ Support ➜ Payment Support ➜ Version Upgrade
-                    </p>
-                  </div>
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Close</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => setRobuxUpgradePromptOpen(false)}
-                >
-                  Got it
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-
-          {/* Cancel bot order confirm */}
-          <AlertDialog
-            open={!!cancelTarget}
-            onOpenChange={(o) => !o && !cancelling && setCancelTarget(null)}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  Cancel "{cancelTarget?.bot_name}"?
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will cancel your bot order. You won't be charged, and it
-                  will disappear from your Bot Dashboard. You can always start a
-                  new build later.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={cancelling}>Keep order</AlertDialogCancel>
-                <AlertDialogAction
-                  disabled={cancelling}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (cancelTarget) cancelOrder(cancelTarget);
-                  }}
-                >
-                  {cancelling ? "Cancelling…" : "Yes, cancel it"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-
-          {/* SETTINGS */}
-          <TabsContent value="settings" className="space-y-4">
-            {/* Appearance */}
-            <Card className="p-6 space-y-4">
-              <div>
-                <h2 className="font-semibold">Appearance</h2>
-                <p className="text-sm text-muted-foreground">
-                  Choose how Oversite looks. Saved to this device.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 max-w-sm">
-                <button
-                  onClick={() => setTheme("light")}
-                  className={`group relative flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-smooth ${
-                    theme === "light"
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/40"
-                  }`}
-                  aria-pressed={theme === "light"}
-                >
-                  <Sun size={20} className="text-primary" />
-                  <span className="text-sm font-medium">Light</span>
-                </button>
-
-                <button
-                  onClick={() => setTheme("dark")}
-                  className={`group relative flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-smooth ${
-                    theme === "dark"
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/40"
-                  }`}
-                  aria-pressed={theme === "dark"}
-                >
-                  <Moon size={20} className="text-primary" />
-                  <span className="text-sm font-medium">Dark</span>
-                </button>
-              </div>
-            </Card>
-
-            {/* Notifications */}
-            <Card className="p-6 space-y-4">
-              <div>
-                <h2 className="font-semibold flex items-center gap-2">
-                  <Bell size={16} /> Notifications
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Choose where we reach out when there's an update or a new product drop.
-                </p>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="font-medium">Email notifications</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Sent to {user.email}.
-                  </p>
-                </div>
-                <Switch
-                  checked={prefs.notify_email}
-                  onCheckedChange={(v) => setPrefs({ notify_email: v })}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="font-medium">Discord notifications</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Our bot will DM your Discord when products drop.
-                  </p>
-                </div>
-                <Switch
-                  checked={prefs.notify_discord}
-                  onCheckedChange={(v) => setPrefs({ notify_discord: v })}
-                />
-              </div>
-            </Card>
-
-            {/* Bot notifications (Discord DMs) */}
-            <BotNotificationsCard />
-
-            {/* Localization: Currency / Language / Timezone */}
-            <Card className="p-6 space-y-4">
-              <div>
-                <h2 className="font-semibold flex items-center gap-2">
-                  <Globe size={16} /> Region & language
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Affects how prices, dates, and text appear on this device.
-                </p>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Default currency</Label>
-                  <Select
-                    value={prefs.preferred_currency}
-                    onValueChange={(v) => setPrefs({ preferred_currency: v as Currency })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(CURRENCY_LABELS).map(([code, label]) => (
-                        <SelectItem key={code} value={code}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Display only — checkout still charges in USD.
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Language</Label>
-                  <Select
-                    value={prefs.preferred_language}
-                    onValueChange={(v) => setPrefs({ preferred_language: v as Language })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(LANGUAGE_LABELS).map(([code, label]) => (
-                        <SelectItem key={code} value={code}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Affects number and date formatting.
-                  </p>
-                </div>
-
-                <div className="space-y-2 sm:col-span-2">
-                  <Label className="flex items-center gap-1.5">
-                    <Clock size={14} /> Time zone
-                  </Label>
-                  <Select
-                    value={prefs.timezone}
-                    onValueChange={(v) => setPrefs({ timezone: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIMEZONES.map((tz) => (
-                        <SelectItem key={tz} value={tz}>
-                          {tz}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </Card>
-
-            {/* Preferred contact */}
-            <Card className="p-6 space-y-4">
-              <div>
-                <h2 className="font-semibold flex items-center gap-2">
-                  <MessagesSquare size={16} /> Preferred contact method
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  How should we reach you for order questions or support?
-                </p>
-              </div>
-              <Select
-                value={prefs.preferred_contact}
-                onValueChange={(v) => setPrefs({ preferred_contact: v as ContactMethod })}
+        {/* NOTIFICATIONS */}
+        <div className={`mt-5 ${CARD}`}>
+          <SectionHead title="Notifications" desc="Choose what Oversite emails you about." />
+          <div className="px-6 py-2">
+            {NOTIF_ROWS.map((row, i) => (
+              <div
+                key={row.key}
+                className={`flex items-center justify-between gap-4 py-4 ${i > 0 ? "border-t border-os-hairline/15" : ""}`}
               >
-                <SelectTrigger className="max-w-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="discord">Discord</SelectItem>
-                </SelectContent>
-              </Select>
-            </Card>
-          </TabsContent>
-
-          {/* PRIVACY */}
-          <TabsContent value="privacy" className="space-y-4">
-            <Card className="p-6 space-y-4">
-              <div>
-                <h2 className="font-semibold flex items-center gap-2">
-                  <Shield size={16} /> Your information
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Update what you shared with us at sign-up. Only you can see this.
-                </p>
-              </div>
-
-              {profileLoading ? (
-                <p className="text-sm text-muted-foreground">Loading…</p>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="roblox">Roblox username</Label>
-                    <Input
-                      id="roblox"
-                      value={robloxUsername}
-                      onChange={(e) => setRobloxUsername(e.target.value)}
-                      maxLength={50}
-                      placeholder="YourRobloxName"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="discord">Discord username</Label>
-                    <Input
-                      id="discord"
-                      value={discordUsername}
-                      onChange={(e) => setDiscordUsername(e.target.value)}
-                      maxLength={50}
-                      placeholder="yourdiscordhandle"
-                    />
-                  </div>
-                  <Button onClick={saveProfile} disabled={savingProfile} size="sm">
-                    {savingProfile ? "Saving…" : "Save changes"}
-                  </Button>
-                </>
-              )}
-            </Card>
-
-            <Card className="p-6 space-y-4">
-              <div>
-                <h2 className="font-semibold flex items-center gap-2">
-                  <Mail size={16} /> Email address
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Used for login and order receipts.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  maxLength={255}
-                />
-              </div>
-              <Button
-                onClick={updateEmail}
-                disabled={emailUpdating || newEmail === user.email || !newEmail}
-                size="sm"
-              >
-                {emailUpdating ? "Sending…" : "Update email"}
-              </Button>
-            </Card>
-
-            <Card className="p-6 space-y-4">
-              <div>
-                <h2 className="font-semibold flex items-center gap-2">
-                  <KeyRound size={16} /> Change password
-                </h2>
-                <p className="text-sm text-muted-foreground">Use at least 6 characters.</p>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="new-password">New password</Label>
-                  <Input
-                    id="new-password"
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    minLength={6}
-                  />
+                <div>
+                  <p className="text-[14px] font-semibold text-os-heading">{row.name}</p>
+                  <p className="text-[12px] text-os-faint">{row.desc}</p>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-new-password">Confirm</Label>
-                  <Input
-                    id="confirm-new-password"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    minLength={6}
-                  />
-                </div>
+                <Toggle on={prefs[row.key]} onChange={(v) => savePrefs({ ...prefs, [row.key]: v })} />
               </div>
-              <Button
-                onClick={updatePassword}
-                disabled={passwordUpdating || !newPassword}
-                size="sm"
+            ))}
+          </div>
+          {prefsBusy && (
+            <div className="flex items-center gap-2 px-6 pb-4 text-[11px] text-os-faint">
+              <Loader2 size={12} className="animate-spin" /> Saving…
+            </div>
+          )}
+        </div>
+
+        {/* DANGER ZONE */}
+        <div className={`mt-5 rounded-[18px] border border-[#dc5a5a]/30 bg-os-surface/40 overflow-hidden`}>
+          <div className="px-6 pt-5">
+            <h2 className="flex items-center gap-2 text-[15px] font-bold text-[#e98b8b]">
+              <ShieldAlert size={16} /> Danger zone
+            </h2>
+            <p className="mt-0.5 text-[12.5px] text-os-faint">Irreversible actions.</p>
+          </div>
+          <div className="px-6 py-2">
+            <div className="flex items-center justify-between gap-4 py-4">
+              <div>
+                <p className="text-[14px] font-semibold text-os-heading">Sign out everywhere</p>
+                <p className="text-[12px] text-os-faint">End all active sessions on every device</p>
+              </div>
+              <button onClick={signOutEverywhere} disabled={signOutBusy} className={BTN_GHOST}>
+                {signOutBusy && <Loader2 size={14} className="animate-spin" />} Sign out all
+              </button>
+            </div>
+            <div className="flex items-center justify-between gap-4 border-t border-os-hairline/15 py-4">
+              <div>
+                <p className="text-[14px] font-semibold text-os-heading">Delete account</p>
+                <p className="text-[12px] text-os-faint">Permanently remove your account and data</p>
+              </div>
+              <button
+                onClick={() => toast("Account deletion isn't enabled yet — contact support to remove your account.")}
+                className="inline-flex items-center justify-center gap-2 rounded-[9px] border border-[#dc5a5a]/50 px-4 py-2.5 text-[13px] font-bold text-[#e98b8b] transition hover:bg-[#dc5a5a]/10"
               >
-                {passwordUpdating ? "Updating…" : "Update password"}
-              </Button>
-            </Card>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
 
-            {/* Payment methods */}
-            <Card className="p-6 space-y-4">
-              <div>
-                <h2 className="font-semibold flex items-center gap-2">
-                  <CreditCard size={16} /> Payment methods
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Manage saved cards, billing info, and view past invoices in our secure
-                  payment portal.
-                </p>
-              </div>
-              <Button onClick={openCustomerPortal} disabled={portalLoading} size="sm">
-                {portalLoading ? "Opening…" : "Open payment portal"}
-                <ExternalLink size={12} className="ml-1.5" />
-              </Button>
-            </Card>
-
-            <Card className="p-6 space-y-3">
-              <div>
-                <h2 className="font-semibold">Data & privacy</h2>
-                <p className="text-sm text-muted-foreground">
-                  We never sell, share, or spam. Your info is only used to fulfill your
-                  orders and provide support.
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Account ID: <span className="font-mono">{user.id.slice(0, 8)}…</span>
-                </p>
-              </div>
-            </Card>
-
-            <Card className="p-6 space-y-3">
-              <div>
-                <h2 className="font-semibold flex items-center gap-2">
-                  <Trash2 size={16} /> Delete account
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Want your account removed? Contact us and we'll handle it.
-                </p>
-              </div>
-              <Button asChild variant="outline" size="sm">
-                <Link to="/#contact">
-                  Contact support <ExternalLink size={12} className="ml-1.5" />
-                </Link>
-              </Button>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* LEGAL */}
+        <div className="mt-10 flex flex-wrap justify-center gap-x-7 gap-y-2 border-t border-os-hairline/15 pt-6">
+          <Link to="/terms" className="text-[12.5px] text-os-faint transition-colors hover:text-os-heading">Privacy Policy</Link>
+          <Link to="/terms" className="text-[12.5px] text-os-faint transition-colors hover:text-os-heading">Terms of Use</Link>
+          <Link to="/terms" className="text-[12.5px] text-os-faint transition-colors hover:text-os-heading">Sales &amp; Refunds</Link>
+        </div>
+        <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[11px] text-os-faint">
+          <Check size={12} className="text-os-accent" /> © Oversite. All rights reserved.
+        </p>
       </main>
-      <Footer />
     </div>
   );
-}
+};
+
+export default Dashboard;
