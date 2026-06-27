@@ -18,7 +18,7 @@ import containers from "@/assets/containers.webp";
 // the bright snow is dimmed enough for text to sit comfortably on top.
 const MAX_DIM = 0.68;
 // Duration of the launch pan from the bottom of the photo up to the top.
-const INTRO_PAN_MS = 1400;
+const INTRO_PAN_MS = 1900;
 
 export function ContainerBackground() {
   const imgRef = useRef<HTMLImageElement>(null);
