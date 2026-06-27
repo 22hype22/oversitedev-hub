@@ -5,6 +5,7 @@ import { Command } from "cmdk";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useBotNotifications } from "@/hooks/useBotNotifications";
 import { HelpLounge } from "./HelpLounge";
 
 const ICON_BTN =
@@ -18,11 +19,18 @@ const NAV_LINKS = [
 const NAV_HELP = { to: "#faq", label: "Help" };
 
 type Notif = { title: string; body: string; time: string; unread?: boolean };
-const NOTIFS: Notif[] = [
-  { title: "Welcome to Oversite", body: "Your dashboard is ready — connect a server to get started.", time: "Just now", unread: true },
-  { title: "ERLC tools — coming soon", body: "Emergency Response: Liberty County support is on the way.", time: "2d", unread: true },
-  { title: "Oversite Radio is live", body: "A 24/7 AI station now runs under the Utilities bot.", time: "1w" },
-];
+/** Compact relative time for the notification list (e.g. "Just now", "2h", "3d"). */
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "Just now";
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d`;
+  return `${Math.floor(d / 7)}w`;
+}
 
 type SearchItem = { label: string; to: string; kind: string; keywords?: string };
 const SEARCH_ITEMS: SearchItem[] = [
@@ -69,6 +77,11 @@ function NotifPanel({
         </div>
 
         <ul className="max-h-[60vh] overflow-y-auto py-1">
+          {notifs.length === 0 && (
+            <li className="px-4 py-8 text-center font-body text-[12.5px] text-os-faint">
+              You're all caught up — no notifications yet.
+            </li>
+          )}
           {notifs.map((n, i) => (
             <li key={n.title}>
               <button
@@ -173,11 +186,16 @@ export function SiteNav() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [notifs, setNotifs] = useState<Notif[]>(() => NOTIFS.map((n) => ({ ...n })));
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { user, isAdmin } = useAuth();
-  const unread = notifs.filter((n) => n.unread).length;
+  const { items: notifItems, unread, markAllRead, markRead } = useBotNotifications();
+  const notifs: Notif[] = notifItems.map((n) => ({
+    title: n.title,
+    body: n.body,
+    time: timeAgo(n.created_at),
+    unread: !n.read_at,
+  }));
   const inputRef = useRef<HTMLInputElement>(null);
 
   const signOut = async () => {
@@ -301,8 +319,11 @@ export function SiteNav() {
               {notifOpen && (
                 <NotifPanel
                   notifs={notifs}
-                  onMarkAll={() => setNotifs((ns) => ns.map((n) => ({ ...n, unread: false })))}
-                  onMarkOne={(idx) => setNotifs((ns) => ns.map((n, i) => (i === idx ? { ...n, unread: false } : n)))}
+                  onMarkAll={markAllRead}
+                  onMarkOne={(idx) => {
+                    const id = notifItems[idx]?.id;
+                    if (id) markRead(id);
+                  }}
                   onClose={() => setNotifOpen(false)}
                 />
               )}
