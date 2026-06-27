@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Search, Bell, CircleUser, LayoutDashboard, Receipt, LogOut, LogIn, UserPlus } from "lucide-react";
+import { Menu, X, Search, Bell, CircleUser, LayoutDashboard, Settings, ShieldCheck, LogOut, LogIn, UserPlus } from "lucide-react";
 import { Command } from "cmdk";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -105,50 +105,62 @@ function NotifPanel({
 
 function AccountMenu({
   email,
+  isAdmin,
   onSignOut,
   onClose,
 }: {
   email: string | null;
+  isAdmin: boolean;
   onSignOut: () => void;
   onClose: () => void;
 }) {
   return (
     <>
       <button aria-hidden tabIndex={-1} onClick={onClose} className="fixed inset-0 z-40 cursor-default" />
-      <div className="absolute right-0 top-[calc(100%+0.85rem)] z-50 w-[248px] overflow-hidden rounded-2xl border border-os-hairline/40 bg-os-bg shadow-[0_24px_60px_-22px_rgb(0_0_0/0.85)] motion-safe:animate-fade-in">
-        <span aria-hidden className="absolute -top-1.5 right-5 h-3 w-3 rotate-45 border-l border-t border-os-hairline/40 bg-os-bg" />
-        {email ? (
-          <>
-            <div className="border-b border-os-hairline/40 px-4 py-3">
-              <p className="font-label text-[10px] uppercase tracking-[0.18em] text-os-faint">Signed in as</p>
-              <p className="mt-1 truncate font-body text-[13px] text-os-heading">{email}</p>
-            </div>
+      {/* Centering lives on the wrapper so the inner panel's fade-in (which
+          animates translateY) never clobbers it. Falls back to right-aligned on
+          narrow screens so it can't run off the edge under the rightmost icon. */}
+      <div className="absolute left-1/2 top-[calc(100%+0.85rem)] z-50 -translate-x-1/2 max-[900px]:left-auto max-[900px]:right-0 max-[900px]:translate-x-0">
+        <div className="relative w-[248px] overflow-hidden rounded-2xl border border-os-hairline/40 bg-os-bg shadow-[0_24px_60px_-22px_rgb(0_0_0/0.85)] motion-safe:animate-fade-in">
+          <span aria-hidden className="absolute -top-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-l border-t border-os-hairline/40 bg-os-bg max-[900px]:left-auto max-[900px]:right-5 max-[900px]:translate-x-0" />
+          {email ? (
+            <>
+              <div className="border-b border-os-hairline/40 px-4 py-3">
+                <p className="font-label text-[10px] uppercase tracking-[0.18em] text-os-faint">Signed in as</p>
+                <p className="mt-1 truncate font-body text-[13px] text-os-heading">{email}</p>
+              </div>
+              <div className="py-1.5">
+                <Link to="/dashboard" onClick={onClose} className="flex items-center gap-3 px-4 py-2.5 font-body text-[13px] text-os-body transition-colors hover:bg-os-heading/[0.05] hover:text-os-heading">
+                  <Settings size={15} className="text-os-faint" aria-hidden /> Settings
+                </Link>
+                <Link to="/bot-dashboard" onClick={onClose} className="flex items-center gap-3 px-4 py-2.5 font-body text-[13px] text-os-body transition-colors hover:bg-os-heading/[0.05] hover:text-os-heading">
+                  <LayoutDashboard size={15} className="text-os-faint" aria-hidden /> Dashboard
+                </Link>
+                {isAdmin && (
+                  <Link to="/admin" onClick={onClose} className="flex items-center gap-3 px-4 py-2.5 font-body text-[13px] text-os-body transition-colors hover:bg-os-heading/[0.05] hover:text-os-heading">
+                    <ShieldCheck size={15} className="text-os-accent" aria-hidden /> Admin
+                  </Link>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={onSignOut}
+                className="flex w-full items-center gap-3 border-t border-os-hairline/40 px-4 py-3 text-left font-label text-[11px] font-bold uppercase tracking-[0.12em] text-os-accent transition-colors hover:bg-os-heading/[0.05]"
+              >
+                <LogOut size={15} aria-hidden /> Sign out
+              </button>
+            </>
+          ) : (
             <div className="py-1.5">
-              <Link to="/dashboard" onClick={onClose} className="flex items-center gap-3 px-4 py-2.5 font-body text-[13px] text-os-body transition-colors hover:bg-os-heading/[0.05] hover:text-os-heading">
-                <LayoutDashboard size={15} className="text-os-faint" aria-hidden /> Dashboard
+              <Link to="/auth" onClick={onClose} className="flex items-center gap-3 px-4 py-2.5 font-body text-[13px] text-os-body transition-colors hover:bg-os-heading/[0.05] hover:text-os-heading">
+                <LogIn size={15} className="text-os-faint" aria-hidden /> Sign in
               </Link>
-              <Link to="/bot-dashboard" onClick={onClose} className="flex items-center gap-3 px-4 py-2.5 font-body text-[13px] text-os-body transition-colors hover:bg-os-heading/[0.05] hover:text-os-heading">
-                <Receipt size={15} className="text-os-faint" aria-hidden /> Bot orders
+              <Link to="/auth?mode=signup" onClick={onClose} className="flex items-center gap-3 px-4 py-2.5 font-body text-[13px] text-os-body transition-colors hover:bg-os-heading/[0.05] hover:text-os-heading">
+                <UserPlus size={15} className="text-os-faint" aria-hidden /> Create account
               </Link>
             </div>
-            <button
-              type="button"
-              onClick={onSignOut}
-              className="flex w-full items-center gap-3 border-t border-os-hairline/40 px-4 py-3 text-left font-label text-[11px] font-bold uppercase tracking-[0.12em] text-os-accent transition-colors hover:bg-os-heading/[0.05]"
-            >
-              <LogOut size={15} aria-hidden /> Sign out
-            </button>
-          </>
-        ) : (
-          <div className="py-1.5">
-            <Link to="/auth" onClick={onClose} className="flex items-center gap-3 px-4 py-2.5 font-body text-[13px] text-os-body transition-colors hover:bg-os-heading/[0.05] hover:text-os-heading">
-              <LogIn size={15} className="text-os-faint" aria-hidden /> Sign in
-            </Link>
-            <Link to="/auth?mode=signup" onClick={onClose} className="flex items-center gap-3 px-4 py-2.5 font-body text-[13px] text-os-body transition-colors hover:bg-os-heading/[0.05] hover:text-os-heading">
-              <UserPlus size={15} className="text-os-faint" aria-hidden /> Create account
-            </Link>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </>
   );
@@ -164,7 +176,7 @@ export function SiteNav() {
   const [notifs, setNotifs] = useState<Notif[]>(() => NOTIFS.map((n) => ({ ...n })));
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const unread = notifs.filter((n) => n.unread).length;
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -307,7 +319,7 @@ export function SiteNav() {
                 {user && <span aria-hidden className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-os-accent ring-2 ring-os-bg" />}
               </button>
               {accountOpen && (
-                <AccountMenu email={user?.email ?? null} onSignOut={signOut} onClose={() => setAccountOpen(false)} />
+                <AccountMenu email={user?.email ?? null} isAdmin={isAdmin} onSignOut={signOut} onClose={() => setAccountOpen(false)} />
               )}
             </div>
           </div>
