@@ -1,143 +1,201 @@
-import { Navbar } from "@/components/site/Navbar";
-import { Footer } from "@/components/site/Footer";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { ShieldCheck, FileText, Receipt } from "lucide-react";
+import { SiteNav } from "@/components/marketing/SiteNav";
+import { SiteFooter } from "@/components/marketing/SiteFooter";
+import { cn } from "@/lib/utils";
 
-const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <section className="mb-8">
-    <h2 className="text-xl font-semibold mb-3 text-foreground">{title}</h2>
-    <div className="text-muted-foreground leading-relaxed space-y-3 text-sm">{children}</div>
-  </section>
-);
+/**
+ * Legal — Privacy Policy, Terms of Use and Sales & Refunds, tabbed. Route:
+ * /terms (also deep-linkable via #privacy / #terms / #refunds).
+ *
+ * NOTE: This is solid starting copy, not lawyer-reviewed. Confirm/adjust the
+ * bracketed items (support email, refund window, governing state) and consider
+ * a review via Termly/iubenda or counsel before relying on it.
+ */
+
+const SUPPORT = "support@oversite.shop"; // ← confirm your real support email
+const EFFECTIVE = "June 27, 2026";
+const STATE = "Minnesota, United States";
+
+type Section = { h: string; body: string[] };
+type Doc = { key: string; label: string; title: string; icon: typeof FileText; intro: string; sections: Section[] };
+
+const PRIVACY: Section[] = [
+  { h: "1. Overview", body: [
+    "This Privacy Policy explains how Oversite (\"Oversite\", \"we\", \"us\") collects, uses, and protects information when you use our website and services — managed Discord bots and related hosting (the \"Services\").",
+    "By using the Services you agree to the practices described here. If you don't agree, please don't use the Services.",
+  ]},
+  { h: "2. Information we collect", body: [
+    "Account information: your email address, password (stored only as a secure hash), display name, and Discord username. If you sign in with Discord or Google, we receive basic profile details from that provider.",
+    "Payment information: when you purchase, our payment processor (Stripe) collects and stores your card details. Oversite never sees or stores full card numbers — we only receive limited data such as the card brand and last four digits.",
+    "Service data: information needed to run your bots, such as the Discord servers, channels, and roles you connect, plus configuration you set in the dashboard. We also collect basic usage and diagnostic logs to operate and secure the Services.",
+  ]},
+  { h: "3. How we use information", body: [
+    "To create and manage your account, provide and deploy your bots, process payments and renewals, send service and account notices, respond to support requests, prevent abuse and fraud, and improve the Services.",
+    "We send account, billing, and service emails as part of providing the Services. You can manage optional notification categories in your account settings.",
+  ]},
+  { h: "4. How we share information", body: [
+    "We share information only with providers that help us run the Services: Stripe (payments), Discord and Google (sign-in and bot functionality), Supabase (database and authentication), and our hosting/infrastructure providers. These providers process data on our behalf.",
+    "We may disclose information if required by law, to enforce our terms, or to protect the rights, safety, and property of Oversite, our users, or others. We do not sell your personal information.",
+  ]},
+  { h: "5. Cookies & tracking", body: [
+    "We use cookies and similar technologies to keep you signed in, remember preferences, and understand how the site is used. You can control cookies through your browser, though some features may not work without them.",
+  ]},
+  { h: "6. Data security & retention", body: [
+    "We use reasonable technical and organizational measures to protect your information, including encryption in transit and access controls. No method of transmission or storage is 100% secure.",
+    "We keep information for as long as your account is active or as needed to provide the Services, comply with legal obligations, resolve disputes, and enforce agreements.",
+  ]},
+  { h: "7. Your rights", body: [
+    "Depending on where you live (including under GDPR and CCPA), you may have the right to access, correct, delete, or export your personal information, and to object to or restrict certain processing. To make a request, contact us at " + SUPPORT + ".",
+  ]},
+  { h: "8. Children", body: [
+    "The Services are not directed to children under 13 (or the minimum age required by Discord in your region). We do not knowingly collect personal information from children. If you believe a child has provided us information, contact us and we will delete it.",
+  ]},
+  { h: "9. Changes & contact", body: [
+    "We may update this policy from time to time. Material changes will be posted here with a new effective date. Questions? Email us at " + SUPPORT + ".",
+  ]},
+];
+
+const TERMS: Section[] = [
+  { h: "1. Acceptance of terms", body: [
+    "These Terms of Use (\"Terms\") govern your access to and use of Oversite's website and Services. By creating an account or using the Services, you agree to these Terms. If you don't agree, don't use the Services.",
+  ]},
+  { h: "2. Eligibility & accounts", body: [
+    "You must be at least 13 years old (or the minimum age Discord requires in your region) and able to form a binding contract. You're responsible for your account, for keeping your credentials secure, and for all activity under your account.",
+  ]},
+  { h: "3. The Services", body: [
+    "Oversite provides managed Discord bots and related hosting. We configure, deploy, and maintain bots based on the options you select. We may add, change, or discontinue features, and we may need to perform maintenance that temporarily affects availability.",
+  ]},
+  { h: "4. Acceptable use", body: [
+    "You agree not to use the Services to break the law, violate Discord's Terms of Service or Community Guidelines, infringe others' rights, distribute malware or spam, harass others, or interfere with or attempt to gain unauthorized access to the Services or other users' data.",
+    "You are responsible for how the bots are used in servers you control, and for ensuring your use complies with all applicable rules and laws.",
+  ]},
+  { h: "5. Fees & billing", body: [
+    "Paid Services are billed as described at checkout and in our Sales & Refunds policy. By purchasing, you authorize us and our payment processor to charge your selected payment method for the applicable fees, including recurring charges until you cancel.",
+  ]},
+  { h: "6. Intellectual property", body: [
+    "Oversite and its software, branding, and content are owned by Oversite and protected by law. We grant you a limited, non-exclusive, non-transferable right to use the Services. You retain ownership of the content and configuration you provide; you grant us the rights needed to operate the Services for you.",
+  ]},
+  { h: "7. Service availability — \"as is\"", body: [
+    "The Services are provided \"as is\" and \"as available\" without warranties of any kind, express or implied, including merchantability, fitness for a particular purpose, and non-infringement. We do not warrant that the Services will be uninterrupted, error-free, or that bots will always remain online, including due to factors outside our control such as Discord outages.",
+  ]},
+  { h: "8. Limitation of liability", body: [
+    "To the maximum extent permitted by law, Oversite will not be liable for any indirect, incidental, special, consequential, or punitive damages, or for lost profits, data, or goodwill. Our total liability for any claim relating to the Services will not exceed the amount you paid us in the three (3) months before the event giving rise to the claim.",
+  ]},
+  { h: "9. Indemnification", body: [
+    "You agree to indemnify and hold Oversite harmless from claims, damages, and expenses (including reasonable legal fees) arising from your use of the Services, your content, or your violation of these Terms or applicable law.",
+  ]},
+  { h: "10. Suspension & termination", body: [
+    "We may suspend or terminate your access if you violate these Terms, fail to pay, or create risk or legal exposure for us. You may stop using the Services at any time; certain provisions (such as fees owed, IP, disclaimers, and limitation of liability) survive termination.",
+  ]},
+  { h: "11. Governing law & changes", body: [
+    "These Terms are governed by the laws of " + STATE + ", without regard to conflict-of-laws rules. We may update these Terms; material changes will be posted here with a new effective date, and continued use means you accept them. Questions? Email " + SUPPORT + ".",
+  ]},
+];
+
+const REFUNDS: Section[] = [
+  { h: "1. Pricing & billing", body: [
+    "Prices are shown at checkout. Bot hosting may be offered as a one-time purchase or a recurring subscription, as indicated at the time of purchase. Recurring plans renew automatically at the then-current price until cancelled.",
+    "Payments are processed securely by Stripe. You authorize us to charge your selected payment method for all applicable fees, including renewals.",
+  ]},
+  { h: "2. Cancellations", body: [
+    "You can cancel a recurring plan at any time from your account or by contacting us. Cancellation stops future renewals; your bot remains active through the end of the current paid period, after which hosting ends.",
+  ]},
+  { h: "3. Refund policy", body: [
+    "Because the Services are digital and delivered/hosted on demand, all sales are generally final. As a courtesy, we may offer a refund if you request one within [7 days] of purchase AND your bot has not yet been deployed or substantially used. [Adjust this window and conditions to match the policy you want to offer.]",
+    "Refunds are not available for time already elapsed on a hosting period, for renewals you forgot to cancel, or where we've terminated your access for violating these terms.",
+  ]},
+  { h: "4. Failed payments", body: [
+    "If a renewal payment fails, we may retry the charge and may suspend or pause your bot until payment succeeds. Extended non-payment may result in termination of the Service and deletion of associated configuration.",
+  ]},
+  { h: "5. Chargebacks", body: [
+    "If you have a billing concern, please contact us first — we're happy to help. Filing a chargeback without contacting us may result in immediate suspension of your account while the dispute is reviewed.",
+  ]},
+  { h: "6. Contact", body: [
+    "For billing questions or refund requests, email " + SUPPORT + ".",
+  ]},
+];
+
+const DOCS: Doc[] = [
+  { key: "privacy", label: "Privacy Policy", title: "Privacy Policy", icon: ShieldCheck, intro: "How Oversite collects, uses and protects your information.", sections: PRIVACY },
+  { key: "terms", label: "Terms of Use", title: "Terms of Use", icon: FileText, intro: "The rules for using Oversite's website and services.", sections: TERMS },
+  { key: "refunds", label: "Sales & Refunds", title: "Sales & Refunds", icon: Receipt, intro: "Billing, cancellations and our refund policy.", sections: REFUNDS },
+];
 
 const Terms = () => {
+  const { hash } = useLocation();
+  const [active, setActive] = useState<string>("privacy");
+
+  useEffect(() => {
+    const key = hash.replace("#", "");
+    if (DOCS.some((d) => d.key === key)) setActive(key);
+  }, [hash]);
+
+  const doc = DOCS.find((d) => d.key === active) ?? DOCS[0];
+
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
-      <main className="flex-1 container mx-auto px-4 pt-28 pb-16 max-w-3xl">
-        <header className="mb-10">
-          <h1 className="text-4xl font-bold tracking-tight mb-2">Terms of Service</h1>
-          <p className="text-sm text-muted-foreground">
-            Oversite Marketplace · Effective date: April 26, 2026 · Governing law: Minnesota, United States
+    <div className="oversite-theme min-h-screen bg-os-bg font-body text-os-body antialiased">
+      <SiteNav />
+      <main className="mx-auto w-full max-w-[1000px] px-5 pb-24 pt-28">
+        <header>
+          <p className="font-label text-[11px] uppercase tracking-[0.2em] text-os-faint">Legal</p>
+          <h1 className="mt-2 text-[clamp(2rem,5vw,3rem)] font-extrabold tracking-[-0.02em] text-os-heading">
+            Policies &amp; terms
+          </h1>
+          <p className="mt-2 text-[13px] text-os-faint">
+            Effective {EFFECTIVE} · Governing law: {STATE}
           </p>
         </header>
 
-        <div className="rounded-lg border border-border bg-card/40 p-4 mb-8 text-sm text-muted-foreground">
-          <strong className="text-foreground">Important notice:</strong> Please read these terms carefully before using Oversite Marketplace. By accessing or purchasing from this website, you agree to be bound by these terms. If you do not agree, do not use this site.
+        <div className="mt-10 grid gap-8 lg:grid-cols-[220px_1fr]">
+          <nav className="flex gap-2 overflow-x-auto lg:sticky lg:top-28 lg:h-max lg:flex-col lg:overflow-visible">
+            {DOCS.map((d) => {
+              const Icon = d.icon;
+              const on = d.key === active;
+              return (
+                <button
+                  key={d.key}
+                  type="button"
+                  onClick={() => setActive(d.key)}
+                  className={cn(
+                    "flex flex-none items-center gap-2.5 rounded-[10px] border px-4 py-2.5 text-left text-[13px] font-semibold transition",
+                    on
+                      ? "border-os-accent/40 bg-os-accent/10 text-os-heading"
+                      : "border-os-hairline/30 text-os-body hover:border-os-hairline/50 hover:text-os-heading",
+                  )}
+                >
+                  <Icon size={15} className={on ? "text-os-accent" : "text-os-faint"} aria-hidden />
+                  {d.label}
+                </button>
+              );
+            })}
+          </nav>
+
+          <article className="rounded-[18px] border border-os-hairline/30 bg-os-surface/40 p-6 sm:p-9">
+            <h2 className="text-[24px] font-bold text-os-heading">{doc.title}</h2>
+            <p className="mt-1.5 text-[13.5px] text-os-faint">{doc.intro}</p>
+
+            <div className="mt-7 space-y-8">
+              {doc.sections.map((s) => (
+                <section key={s.h}>
+                  <h3 className="text-[15px] font-bold text-os-heading">{s.h}</h3>
+                  <div className="mt-2.5 space-y-3">
+                    {s.body.map((p, i) => (
+                      <p key={i} className="text-[13.5px] leading-relaxed text-os-body">{p}</p>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+
+            <p className="mt-9 rounded-[10px] border border-os-hairline/30 bg-os-bg/40 px-4 py-3 text-[12px] text-os-faint">
+              ⓘ Starting copy — review and adjust the bracketed items before launch.
+            </p>
+          </article>
         </div>
-
-        <Section title="1. About us">
-          <p>Oversite Marketplace ("Company," "we," "us," or "our") operates an e-commerce platform offering digital products and services. Our business is located in Minnesota, United States, and all transactions are subject to the laws of that state.</p>
-          <p>By using our website, placing an order, or creating an account, you ("Customer," "you," or "your") agree to these Terms of Service in full.</p>
-        </Section>
-
-        <Section title="2. Eligibility">
-          <p>You must be at least 13 years of age to use this website. If you are under 18, you must have the consent of a parent or legal guardian to make purchases. By using this site, you confirm that you meet these requirements.</p>
-          <p>We reserve the right to refuse service, terminate accounts, or cancel orders at our sole discretion, including but not limited to situations involving suspected fraud, abuse, or violation of these terms.</p>
-        </Section>
-
-        <Section title="3. Accounts">
-          <p>Certain features of our site may require you to create an account. When creating an account, you agree to provide accurate, current, and complete information. You are responsible for maintaining the confidentiality of your login credentials and for all activity that occurs under your account.</p>
-          <p>You must notify us immediately at support@oversite.shop if you suspect unauthorized access to your account. We are not liable for any loss or damage arising from your failure to protect your credentials.</p>
-          <p>We reserve the right to suspend or permanently terminate accounts that violate these terms, engage in fraudulent activity, or are inactive for an extended period, with or without prior notice.</p>
-        </Section>
-
-        <Section title="4. Products and digital goods">
-          <p>Oversite Marketplace sells digital products, including but not limited to software, licenses, downloadable files, templates, or access credentials. All product descriptions are provided in good faith, and we strive for accuracy; however, we do not warrant that descriptions are error-free or complete.</p>
-          <p>We reserve the right to modify, discontinue, or update any product at any time without prior notice. Product availability is not guaranteed.</p>
-          <p>Digital products are licensed, not sold. Purchase grants you a limited, non-exclusive, non-transferable license to use the product for your personal or commercial use (as specified per product), subject to the restrictions outlined in these terms.</p>
-        </Section>
-
-        <Section title="5. Pricing and payment">
-          <p>All prices are displayed in US Dollars (USD) and are subject to change at any time without notice. Prices listed at the time of purchase are the prices you will be charged.</p>
-          <p>We accept payment methods as listed at checkout. By providing payment information, you represent that you are authorized to use the payment method provided. All transactions are processed securely through third-party payment processors; we do not store your full payment details.</p>
-          <p>In the event of a pricing error, we reserve the right to cancel the order and issue a full refund. Applicable taxes may be added at checkout depending on your location.</p>
-        </Section>
-
-        <Section title="6. Refund and return policy">
-          <p>Because our products are digital in nature and are delivered electronically, all sales are generally <strong className="text-foreground">final and non-refundable</strong> once the digital product has been delivered, downloaded, or accessed.</p>
-          <p>Exceptions may be made at our sole discretion in cases where:</p>
-          <ul className="list-disc pl-6 space-y-1">
-            <li>The product was not delivered due to a technical error on our end.</li>
-            <li>The product is materially different from its description.</li>
-            <li>Duplicate charges occurred due to a payment processing error.</li>
-          </ul>
-          <p>To request a refund under an eligible exception, contact us within 7 days of purchase at support@oversite.shop with your order details. We will review requests and respond within 5 business days.</p>
-        </Section>
-
-        <Section title="7. Intellectual property">
-          <p>All content on this website — including but not limited to text, graphics, logos, icons, images, product files, and software — is the property of Oversite Marketplace or its content suppliers and is protected by United States and international intellectual property laws.</p>
-          <p>You may not reproduce, duplicate, copy, sell, resell, reverse engineer, redistribute, or exploit any portion of this website or its products without express written permission from us, except as permitted by applicable law.</p>
-          <p>Any unauthorized use of our intellectual property may result in termination of your account, legal action, or both.</p>
-        </Section>
-
-        <Section title="8. Prohibited conduct">
-          <p>When using Oversite Marketplace, you agree not to:</p>
-          <ul className="list-disc pl-6 space-y-1">
-            <li>Violate any applicable local, state, national, or international law or regulation.</li>
-            <li>Engage in fraudulent activity, including chargebacks filed in bad faith.</li>
-            <li>Attempt to gain unauthorized access to any part of our systems or another user's account.</li>
-            <li>Use automated bots, scrapers, or similar tools to access or extract data from our site.</li>
-            <li>Resell, redistribute, or sublicense digital products without express written authorization.</li>
-            <li>Upload or transmit malicious code, viruses, or any disruptive software.</li>
-            <li>Harass, abuse, or harm other users, our staff, or third parties through our platform.</li>
-            <li>Impersonate any person, business, or entity, including Oversite Marketplace or its staff.</li>
-          </ul>
-        </Section>
-
-        <Section title="9. Third-party links and services">
-          <p>Our website may contain links to third-party websites or services (including payment processors, delivery platforms, or external resources). These links are provided for convenience only. We do not endorse, control, or assume responsibility for the content, privacy policies, or practices of any third-party services.</p>
-          <p>Your interactions with third-party services are governed by their own terms and privacy policies. We strongly recommend reading them before providing any personal information.</p>
-        </Section>
-
-        <Section title="10. Disclaimer of warranties">
-          <p>This website and its products are provided on an "as is" and "as available" basis without any warranties of any kind, either express or implied, including but not limited to implied warranties of merchantability, fitness for a particular purpose, or non-infringement.</p>
-          <p>We do not warrant that the website will be uninterrupted, error-free, or free of viruses or other harmful components. You use the site at your own risk.</p>
-        </Section>
-
-        <Section title="11. Limitation of liability">
-          <p>To the fullest extent permitted by applicable law, Oversite Marketplace, its owners, employees, agents, and affiliates shall not be liable for any indirect, incidental, special, consequential, or punitive damages — including but not limited to loss of profits, data, use, or goodwill — arising out of or in connection with your use of this website or its products.</p>
-          <p>In no event shall our total cumulative liability to you exceed the greater of (a) the amount you paid to us in the 12 months preceding the claim, or (b) $50 USD.</p>
-        </Section>
-
-        <Section title="12. Indemnification">
-          <p>You agree to indemnify, defend, and hold harmless Oversite Marketplace and its owners, officers, employees, and agents from and against any claims, liabilities, damages, losses, and expenses — including reasonable attorney's fees — arising out of or in any way connected to your use of this website, your violation of these terms, or your violation of any rights of a third party.</p>
-        </Section>
-
-        <Section title="13. Privacy">
-          <p>Your use of Oversite Marketplace is also governed by our Privacy Policy, which is incorporated into these Terms of Service by reference. By using this site, you consent to the data practices described therein.</p>
-        </Section>
-
-        <Section title="14. Dispute resolution and governing law">
-          <p>These terms shall be governed by and construed in accordance with the laws of the State of Minnesota, United States, without regard to its conflict of law principles.</p>
-          <p>Any dispute arising from or relating to these terms or your use of this website shall first be attempted to be resolved informally by contacting us. If informal resolution fails, both parties agree to submit to binding arbitration in Minnesota, except that either party may seek injunctive or other equitable relief in a court of competent jurisdiction.</p>
-          <p>You waive any right to participate in class action lawsuits or class-wide arbitration against Oversite Marketplace.</p>
-        </Section>
-
-        <Section title="15. Changes to these terms">
-          <p>We reserve the right to update or modify these Terms of Service at any time. Changes will be effective immediately upon posting to this page with an updated effective date. Your continued use of the website following any changes constitutes your acceptance of the revised terms. We encourage you to review these terms periodically.</p>
-        </Section>
-
-        <Section title="16. Severability">
-          <p>If any provision of these Terms of Service is found to be unlawful, void, or unenforceable, that provision shall be deemed severable from these terms and shall not affect the validity or enforceability of the remaining provisions.</p>
-        </Section>
-
-        <Section title="17. Entire agreement">
-          <p>These Terms of Service, together with our Privacy Policy and any additional terms applicable to specific products or services, constitute the entire agreement between you and Oversite Marketplace with respect to your use of this website and supersede all prior agreements and understandings.</p>
-        </Section>
-
-        <Section title="18. Contact us">
-          <p>If you have any questions, concerns, or disputes regarding these Terms of Service, please contact us at:</p>
-          <p>
-            <strong className="text-foreground">Oversite Marketplace</strong><br />
-            Minnesota, United States<br />
-            Email: <a href="mailto:support@oversite.shop" className="text-primary hover:underline">support@oversite.shop</a>
-          </p>
-        </Section>
-
-        <p className="text-xs text-muted-foreground mt-12 pt-6 border-t border-border">
-          © 2026 Oversite Marketplace. All rights reserved. This document does not constitute legal advice. Consult a licensed attorney for legal guidance specific to your business.
-        </p>
       </main>
-      <Footer />
+      <SiteFooter />
     </div>
   );
 };
