@@ -77,7 +77,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
 
-  const [discordUsername, setDiscordUsername] = useState("");
+  const [preferredName, setPreferredName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -112,13 +112,13 @@ const Dashboard = () => {
     (async () => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("discord_username, display_name, notification_preferences")
+        .select("display_name, preferred_name, notification_preferences")
         .eq("user_id", user.id)
         .maybeSingle();
       if (!active) return;
       if (profile) {
-        setDiscordUsername((profile as any).discord_username ?? "");
         setDisplayName((profile as any).display_name ?? "");
+        setPreferredName((profile as any).preferred_name ?? "");
         const p = (profile as any).notification_preferences;
         if (p && typeof p === "object") setPrefs({ ...DEFAULT_PREFS, ...p });
       }
@@ -142,7 +142,7 @@ const Dashboard = () => {
     const payload = {
       user_id: user.id,
       display_name: displayName.trim() || null,
-      discord_username: discordUsername.trim(),
+      preferred_name: preferredName.trim() || null,
     };
     const { error } = await supabase
       .from("profiles")
@@ -263,12 +263,12 @@ const Dashboard = () => {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className={LABEL}>Display name</label>
-                <input className={FIELD} value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your name" />
+                <label className={LABEL}>Preferred name</label>
+                <input className={FIELD} value={preferredName} onChange={(e) => setPreferredName(e.target.value)} placeholder="What should we call you?" />
               </div>
               <div>
-                <label className={LABEL}>Discord username</label>
-                <input className={FIELD} value={discordUsername} onChange={(e) => setDiscordUsername(e.target.value)} placeholder="username" />
+                <label className={LABEL}>Display name</label>
+                <input className={FIELD} value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Shown across the dashboard" />
               </div>
             </div>
           </div>
