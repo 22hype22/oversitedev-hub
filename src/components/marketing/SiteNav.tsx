@@ -54,7 +54,10 @@ function NotifPanel({
   return (
     <>
       <button aria-hidden tabIndex={-1} onClick={onClose} className="fixed inset-0 z-40 cursor-default" />
-      <div className="absolute left-1/2 top-[calc(100%+0.85rem)] z-50 w-[330px] -translate-x-1/2 overflow-hidden rounded-2xl border border-os-hairline/40 bg-os-bg shadow-[0_24px_60px_-22px_rgb(0_0_0/0.85)] motion-safe:animate-fade-in">
+      {/* Wrapper holds the centering transform; the inner panel runs the
+          fade-in (which animates translateY) so the centering is never lost. */}
+      <div className="absolute left-1/2 top-[calc(100%+0.85rem)] z-50 -translate-x-1/2">
+        <div className="w-[330px] overflow-hidden rounded-2xl border border-os-hairline/40 bg-os-bg shadow-[0_24px_60px_-22px_rgb(0_0_0/0.85)] motion-safe:animate-fade-in">
         {/* caret pointing up to the bell */}
         <span aria-hidden className="absolute -top-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-l border-t border-os-hairline/40 bg-os-bg" />
 
@@ -94,6 +97,7 @@ function NotifPanel({
         >
           {unread === 0 ? "All caught up" : "Mark all as read"}
         </button>
+        </div>
       </div>
     </>
   );
