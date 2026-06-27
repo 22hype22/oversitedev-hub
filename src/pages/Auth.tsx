@@ -45,7 +45,6 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [discordUsername, setDiscordUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [oauthBusy, setOauthBusy] = useState<"discord" | "google" | null>(null);
 
@@ -183,7 +182,9 @@ const Auth = () => {
               // trigger expects the key to exist — send it empty so a profile is
               // still created on sign-up.
               roblox_username: "",
-              discord_username: discordUsername.trim(),
+              // Discord username comes from a real Discord link (OAuth), not a
+              // typed field. Stored empty here and filled when Discord is linked.
+              discord_username: "",
             },
           },
         });
@@ -321,10 +322,11 @@ const Auth = () => {
               </div>
 
               {mode === "signup" && (
-                <div>
-                  <label htmlFor="discord" className={FIELD_LABEL}>Discord username</label>
-                  <input id="discord" type="text" required maxLength={50} value={discordUsername} onChange={(e) => setDiscordUsername(e.target.value)} className={FIELD} placeholder="yourdiscordhandle" />
-                </div>
+                <p className="rounded-lg border border-os-hairline/40 bg-os-bg/40 px-3.5 py-2.5 text-[12px] leading-relaxed text-os-faint">
+                  Your Discord links automatically when you use{" "}
+                  <span className="text-os-heading">Continue with Discord</span> above — or connect it
+                  later in Settings. A linked Discord is required before you can purchase a bot.
+                </p>
               )}
 
               <div>
