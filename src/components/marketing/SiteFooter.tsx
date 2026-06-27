@@ -101,7 +101,6 @@ export function SiteFooter() {
               <li><FooterLink to="/terms" label="Privacy Policy" /></li>
               <li><FooterLink to="/terms" label="Terms of Use" /></li>
               <li><FooterLink to="/terms" label="Sales and Refunds" /></li>
-              <li><FooterLink to="/terms" label="Legal" /></li>
             </ul>
           </div>
         </div>
