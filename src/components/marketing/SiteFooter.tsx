@@ -98,9 +98,9 @@ export function SiteFooter() {
           <div>
             <Mono className="text-os-heading">Legal</Mono>
             <ul className="mt-4 space-y-2.5">
-              <li><FooterLink to="/terms" label="Privacy Policy" /></li>
-              <li><FooterLink to="/terms" label="Terms of Use" /></li>
-              <li><FooterLink to="/terms" label="Sales and Refunds" /></li>
+              <li><FooterLink to="/terms#privacy" label="Privacy Policy" /></li>
+              <li><FooterLink to="/terms#terms" label="Terms of Use" /></li>
+              <li><FooterLink to="/terms#refunds" label="Sales and Refunds" /></li>
             </ul>
           </div>
         </div>
