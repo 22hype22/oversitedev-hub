@@ -1651,6 +1651,7 @@ const BotDashboard = () => {
               </div>
             )}
             <div style={{ marginTop: isTeam ? "12px" : "auto" }} />
+            <div className="nav" onClick={() => navigate("/")}><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/><path d="M3 12h12"/><path d="M21 5v14"/></svg>Back to website</div>
             <div className="nav" onClick={signOut}><svg viewBox="0 0 24 24"><path d="M9 21H5V3h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</div>
           </aside>
 
