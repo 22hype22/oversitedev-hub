@@ -1442,9 +1442,10 @@ const BotDashboard = () => {
       {bgUrl && (
         <img aria-hidden alt="" src={bgUrl} className="fixed inset-0 z-0 h-full w-full object-cover" style={{ objectPosition: "center 20%" }} />
       )}
-      {/* light base scrim (peak stays visible on the welcome screen); extra dim fades in on enter */}
-      <div aria-hidden className="fixed inset-0 z-0 bg-gradient-to-b from-os-ink/25 via-os-ink/40 to-os-ink/65" />
-      <div aria-hidden className={`fixed inset-0 z-0 bg-os-ink/30 transition-opacity duration-[900ms] ${revealed ? "opacity-100" : "opacity-0"}`} />
+      {/* base scrim (peak stays visible on the welcome screen); extra dim fades in on enter.
+          Matches the preview: base ~42→74% + a ~62% dark overlay once in the dashboard. */}
+      <div aria-hidden className="fixed inset-0 z-0 bg-gradient-to-b from-os-ink/[0.42] via-os-ink/[0.6] to-os-ink/[0.74]" />
+      <div aria-hidden className={`fixed inset-0 z-0 bg-os-ink/[0.62] transition-opacity duration-[900ms] ${revealed ? "opacity-100" : "opacity-0"}`} />
 
       <div
         className={`relative z-10 flex min-h-screen transition-all duration-700 ${revealed ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"}`}
