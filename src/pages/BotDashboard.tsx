@@ -1481,6 +1481,9 @@ const BotDashboard = () => {
   useEffect(() => { if (instant) { const t = setTimeout(() => setInstant(false), 60); return () => clearTimeout(t); } }, []); // eslint-disable-line
   // lock page scroll while the welcome screen is up
   useEffect(() => { document.body.style.overflow = appOn ? "" : "hidden"; return () => { document.body.style.overflow = ""; }; }, [appOn]);
+  // Hide the native page scrollbar while the dashboard is mounted (same pattern
+  // the Process page uses). Removed on unmount so other pages keep theirs.
+  useEffect(() => { const r = document.documentElement; r.classList.add("dash-hide-scroll"); return () => { r.classList.remove("dash-hide-scroll"); }; }, []);
 
   // ---- tour ----
   const TOUR = useMemo(() => ([
