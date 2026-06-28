@@ -94,7 +94,7 @@ import {
   Home,
   Network,
 } from "lucide-react";
-import containers from "@/assets/containers.webp";
+import containers from "@/assets/dashboardBg"; // mountain backdrop inlined as a data URI (cache/serving-proof)
 import heroBg from "@/assets/hero-bg.jpg";
 import { useBotNotifications, type BotNotification } from "@/hooks/useBotNotifications";
 import { Input } from "@/components/ui/input";
@@ -1424,14 +1424,14 @@ const BotDashboard = () => {
 
   return (
     <div className="oversite-theme relative min-h-screen font-body text-os-body">
-      {/* ── layered backdrop: base color → mountain → dark scrim (root stays transparent) ── */}
-      <div aria-hidden className="fixed inset-0 -z-30 bg-os-bg" />
+      {/* ── full-bleed backdrop: base color → mountain (real img) → dark scrim, content above ── */}
+      <div aria-hidden className="fixed inset-0 z-0 bg-os-bg" />
       {bgUrl && (
-        <div aria-hidden className="fixed inset-0 -z-20 bg-cover" style={{ backgroundImage: `url(${bgUrl})`, backgroundPosition: "center 20%" }} />
+        <img aria-hidden alt="" src={bgUrl} className="fixed inset-0 z-0 h-full w-full object-cover" style={{ objectPosition: "center 20%" }} />
       )}
-      <div aria-hidden className="fixed inset-0 -z-10 bg-gradient-to-b from-os-ink/40 via-os-ink/60 to-os-ink/80" />
+      <div aria-hidden className="fixed inset-0 z-0 bg-gradient-to-b from-os-ink/40 via-os-ink/60 to-os-ink/80" />
 
-      <div className="flex min-h-screen">
+      <div className="relative z-10 flex min-h-screen">
         {/* ───────── Sidebar ───────── */}
         <aside data-tour="menu" className="hidden md:flex w-[236px] flex-none flex-col gap-1.5 p-3.5 sticky top-0 h-screen overflow-y-auto bg-os-ink-2/70 backdrop-blur-xl border-r border-os-hairline/30 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {/* profile */}
