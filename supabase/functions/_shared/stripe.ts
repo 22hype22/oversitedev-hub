@@ -15,25 +15,17 @@ export function getConnectionApiKey(env: StripeEnv): string {
     : getEnv("STRIPE_LIVE_API_KEY");
 }
 
-const GATEWAY_STRIPE_BASE = "https://connector-gateway.lovable.dev/stripe";
-
 export function createStripeClient(env: StripeEnv): Stripe {
-  const connectionApiKey = getConnectionApiKey(env);
-  const lovableApiKey = getEnv("LOVABLE_API_KEY");
-
-  return new Stripe(connectionApiKey, {
+  // Call Stripe's API directly with our own secret key. (Previously this was
+  // proxied through Lovable's connector gateway, which required a
+  // LOVABLE_API_KEY — removed so the payment stack doesn't depend on Lovable
+  // Cloud and keeps working after migrating to our own hosting.)
+  // STRIPE_{LIVE,SANDBOX}_API_KEY must be a real Stripe secret key (sk_live_…
+  // / sk_test_…) from our own Stripe account.
+  const apiKey = getConnectionApiKey(env);
+  return new Stripe(apiKey, {
     apiVersion: "2025-03-31.basil",
-    httpClient: Stripe.createFetchHttpClient((url: string | URL, init?: RequestInit) => {
-      const gatewayUrl = url.toString().replace("https://api.stripe.com", GATEWAY_STRIPE_BASE);
-      return fetch(gatewayUrl, {
-        ...init,
-        headers: {
-          ...Object.fromEntries(new Headers(init?.headers).entries()),
-          "X-Connection-Api-Key": connectionApiKey,
-          "Lovable-API-Key": lovableApiKey,
-        },
-      });
-    }),
+    httpClient: Stripe.createFetchHttpClient(),
   });
 }
 
