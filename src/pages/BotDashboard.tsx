@@ -1124,6 +1124,12 @@ const OSD_CSS = `.osd{font-family:var(--bodyf);color:var(--body);min-height:100v
 .osd .ann .post{width:100%;margin-top:12px;background:var(--panel);border:1px solid var(--hair);color:var(--heading);border-radius:9px;padding:8px;font-family:var(--bodyf);font-weight:600;font-size:11.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:.14s}
 .osd .ann .post:hover{background:var(--surface2)}
 .osd .ann .post svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none}
+.osd .annfloat{position:fixed;bottom:22px;right:22px;z-index:140;width:300px;max-width:calc(100vw - 36px);margin:0;box-shadow:0 18px 50px -12px rgba(0,0,0,.6);animation:osd-fade .3s ease}
+.osd .annfloat .x{position:absolute;top:10px;right:10px;height:22px;width:22px;border-radius:7px;border:1px solid var(--hair);background:var(--panel);color:var(--faint);display:grid;place-items:center;cursor:pointer;transition:.14s;padding:0}
+.osd .annfloat .x:hover{background:var(--surface2);color:var(--heading)}
+.osd .annfloat .x svg{width:12px;height:12px;stroke:currentColor;stroke-width:2;fill:none}
+.osd .annfloat .top .new{margin-right:26px}
+@media(max-width:760px){.osd .annfloat{left:14px;right:14px;width:auto}}
 .osd .main{flex:1;min-width:0;padding:24px 26px 50px}
 .osd .head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
 .osd .crumb{font-size:12px;color:var(--faint)}
@@ -1429,6 +1435,9 @@ const BotDashboard = () => {
   const [appOn, setAppOn] = useState(() => !!lsGet(LS.onboarded));
   const [instant, setInstant] = useState(() => !!lsGet(LS.onboarded));
   const [picked, setPicked] = useState<"solo" | "team" | null>(null);
+  // Floating announcement: shown each time the dashboard mounts. Dismiss hides
+  // it for this visit only — it deliberately returns on the next launch.
+  const [annOpen, setAnnOpen] = useState(true);
   const [bgKey, setBgKey] = useState<string>(() => lsGet(LS.bg) || "mountain");
   const bgUrl = BG_PRESETS.find((p) => p.key === bgKey)?.url ?? null;
   // profile name fallback: preferred name → display name → discord username → email
@@ -1594,6 +1603,17 @@ const BotDashboard = () => {
           </div>
         </div>
 
+        {/* FLOATING ANNOUNCEMENT — bottom-right, above dashboard UI. Returns each launch. */}
+        {isTeam && annOpen && (
+          <div className="ann annfloat">
+            <button className="x" aria-label="Dismiss" onClick={() => setAnnOpen(false)}><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+            <div className="top"><span className="ai"><svg viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1Z"/><path d="M16 9a3 3 0 0 1 0 6"/></svg></span><span className="lab">Announcements</span><span className="new">New</span></div>
+            <div className="msg"><div className="h">Welcome to the team</div><div className="b">Post updates here for everyone with dashboard access.</div></div>
+            <div className="meta"><span className="who"><span className="pa">O</span>Oversite Team</span><span className="dot">·</span><span>now</span></div>
+            <button className="post" onClick={() => go("team")}><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Post announcement</button>
+          </div>
+        )}
+
         {/* TOUR */}
         <div className={"tourask" + (tourAsk ? " show" : "")}>
           <div className="tt">Welcome in</div>
@@ -1642,15 +1662,7 @@ const BotDashboard = () => {
             {navItem("settings", <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1l-.4-2.5H9.6L9.2 6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L5 11a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 2.5h4.8l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6a7 7 0 0 0 .1-1Z"/></svg>, "Settings")}
             {navItem("support", <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 2.5"/><path d="M12 17h.01"/></svg>, "Support")}
 
-            {isTeam && (
-              <div className="ann">
-                <div className="top"><span className="ai"><svg viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1Z"/><path d="M16 9a3 3 0 0 1 0 6"/></svg></span><span className="lab">Announcements</span><span className="new">New</span></div>
-                <div className="msg"><div className="h">Welcome to the team</div><div className="b">Post updates here for everyone with dashboard access.</div></div>
-                <div className="meta"><span className="who"><span className="pa">O</span>Oversite Team</span><span className="dot">·</span><span>now</span></div>
-                <button className="post" onClick={() => go("team")}><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Post announcement</button>
-              </div>
-            )}
-            <div style={{ marginTop: isTeam ? "12px" : "auto" }} />
+            <div style={{ marginTop: "auto" }} />
             <div className="nav" onClick={() => navigate("/")}><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/><path d="M3 12h12"/><path d="M21 5v14"/></svg>Back to website</div>
             <div className="nav" onClick={signOut}><svg viewBox="0 0 24 24"><path d="M9 21H5V3h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</div>
           </aside>
