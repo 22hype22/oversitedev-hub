@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, useCallback, useLayoutEffect, useMemo } from "react";
 import { useBotHealth } from "@/hooks/useBotHealth";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -82,9 +82,21 @@ import {
   ChevronUp,
   Search,
   Loader2,
-  
-  
+  LayoutGrid,
+  Users,
+  CreditCard,
+  Activity as ActivityIcon,
+  Bell,
+  Image as ImageIcon,
+  Check,
+  ChevronRight,
+  Megaphone,
+  Home,
+  Network,
 } from "lucide-react";
+import containers from "@/assets/containers.webp";
+import heroBg from "@/assets/hero-bg.jpg";
+import { useBotNotifications, type BotNotification } from "@/hooks/useBotNotifications";
 import { Input } from "@/components/ui/input";
 import { HostingPastDueBanner } from "@/components/dashboard/HostingPastDueBanner";
 import { ReadOnlyBotScope } from "@/components/dashboard/ReadOnlyBotScope";
@@ -1018,89 +1030,320 @@ const BotSection = ({
 };
 
 
+// ============================================================================
+//  Dashboard shell — sidebar of bots + views over the mountain backdrop.
+//  The per-bot screen reuses <BotSection> (and every per-bot block) verbatim;
+//  everything else here is the navigation / design layer.
+// ============================================================================
+
+const BG_PRESETS: { key: string; label: string; url: string | null }[] = [
+  { key: "mountain", label: "Mountain", url: containers },
+  { key: "dusk", label: "Dusk", url: heroBg },
+  { key: "none", label: "None", url: null },
+];
+
+const LS = {
+  ws: "os_ws_mode",
+  onboarded: "os_onboarded",
+  tour: "os_tour_seen",
+  bg: "os_bg",
+  order: "os_bot_order",
+  groups: "os_groups",
+};
+const lsGet = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } };
+const lsDel = (k: string) => { try { localStorage.removeItem(k); } catch { /* ignore */ } };
+
+const timeAgo = (iso: string) => {
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24); return `${d}d ago`;
+};
+
+type TourStep = { sel: string; title: string; body: string; place: "right" | "left" | "top" | "bottom" };
+const TOUR_STEPS: TourStep[] = [
+  { sel: '[data-tour="menu"]', title: "Your menu", body: "Jump between your bots, groups, activity, billing and settings from here.", place: "right" },
+  { sel: '[data-tour="bots"]', title: "Your bots", body: "Every bot you own lives here — click one to open its full control panel.", place: "right" },
+  { sel: '[data-tour="add"]', title: "Add a bot", body: "Grow your fleet anytime — build and add a new bot.", place: "bottom" },
+  { sel: '[data-tour="bell"]', title: "Notifications", body: "Service alerts, billing, and team announcements land here.", place: "bottom" },
+  { sel: '[data-tour="settings-nav"]', title: "Make it yours", body: "Switch solo/team, change the background, and manage your account in Settings.", place: "right" },
+];
+
+/** Spotlight tour: dims the screen except the highlighted element, with a popover. */
+function TourGuide({ steps, onClose }: { steps: TourStep[]; onClose: () => void }) {
+  const [i, setI] = useState(0);
+  const ringRef = useRef<HTMLDivElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+
+  const place = useCallback(() => {
+    const step = steps[i];
+    if (!step) return;
+    const el = document.querySelector(step.sel) as HTMLElement | null;
+    const ring = ringRef.current, pop = popRef.current;
+    if (!el || !ring || !pop) return;
+    const b = el.getBoundingClientRect(), pad = 6;
+    ring.style.top = `${b.top - pad}px`;
+    ring.style.left = `${b.left - pad}px`;
+    ring.style.width = `${b.width + pad * 2}px`;
+    ring.style.height = `${b.height + pad * 2}px`;
+    const pw = pop.offsetWidth, ph = pop.offsetHeight, gap = 14, vw = window.innerWidth, vh = window.innerHeight;
+    let top: number, left: number;
+    if (step.place === "right") { left = b.right + gap; top = Math.max(b.top, 16); }
+    else if (step.place === "left") { left = b.left - gap - pw; top = b.top; }
+    else if (step.place === "top") { top = b.top - gap - ph; left = b.left + b.width / 2 - pw / 2; }
+    else { top = b.bottom + gap; left = b.left + b.width / 2 - pw / 2; }
+    left = Math.max(12, Math.min(left, vw - pw - 12));
+    top = Math.max(12, Math.min(top, vh - ph - 12));
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
+  }, [i, steps]);
+
+  useLayoutEffect(() => {
+    const step = steps[i];
+    if (!step) return;
+    const el = document.querySelector(step.sel) as HTMLElement | null;
+    if (el) {
+      const b = el.getBoundingClientRect();
+      if (b.top < 8 || b.bottom > window.innerHeight - 8) el.scrollIntoView({ block: "center" });
+    }
+    const raf = requestAnimationFrame(place);
+    return () => cancelAnimationFrame(raf);
+  }, [i, place, steps]);
+
+  useEffect(() => {
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [place]);
+
+  const step = steps[i];
+  if (!step) return null;
+  const last = i === steps.length - 1;
+  const ease = "cubic-bezier(.22,1,.36,1)";
+  return (
+    <>
+      <div className="fixed inset-0 z-[199]" />
+      <div
+        ref={ringRef}
+        className="fixed z-[200] rounded-[14px] border-2 border-os-accent pointer-events-none"
+        style={{ boxShadow: "0 0 0 9999px rgb(var(--os-ink) / 0.72)", transition: `top .42s ${ease}, left .42s ${ease}, width .42s ${ease}, height .42s ${ease}` }}
+      />
+      <div
+        ref={popRef}
+        className="fixed z-[201] max-w-[300px] rounded-[14px] border border-os-hairline/50 bg-os-surface/95 backdrop-blur-md p-4 shadow-2xl"
+        style={{ transition: `top .42s ${ease}, left .42s ${ease}` }}
+      >
+        <div className="font-display font-extrabold text-os-heading text-[14.5px]">{step.title}</div>
+        <div className="text-[12.5px] leading-relaxed text-os-body mt-1.5 mb-3.5">{step.body}</div>
+        <div className="flex items-center gap-2.5">
+          <span className="font-label text-[11px] text-os-faint">{i + 1} / {steps.length}</span>
+          <button className="ml-auto text-[11.5px] text-os-faint hover:text-os-heading" onClick={onClose}>Skip</button>
+          {i > 0 && (
+            <button className="rounded-[10px] border border-os-hairline px-3.5 py-2 text-[12.5px] font-semibold text-os-heading hover:bg-os-surface-2" onClick={() => setI(i - 1)}>Back</button>
+          )}
+          <button className="rounded-[10px] bg-os-accent px-3.5 py-2 text-[12.5px] font-semibold text-os-accent-ink hover:brightness-105" onClick={() => (last ? onClose() : setI(i + 1))}>
+            {last ? "Done" : "Next"}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** First-run owner screen: choose solo vs team over the mountain backdrop. */
+function OnboardingOverlay({ name, transfer, onChoose }: { name: string; transfer?: boolean; onChoose: (mode: "solo" | "team") => void }) {
+  const [picked, setPicked] = useState<"solo" | "team" | null>(null);
+  return (
+    <div className="fixed inset-0 z-[120] grid place-items-center p-6 bg-os-ink/30 backdrop-blur-[2px] overflow-y-auto">
+      <div className="w-full max-w-[560px] rounded-[22px] border border-os-hairline/40 bg-os-surface/80 backdrop-blur-xl p-9 text-center shadow-2xl">
+        <div className="font-display font-extrabold text-os-heading text-[18px]">
+          Oversite
+          <span className="block mt-1 font-label text-[10px] tracking-[0.2em] text-os-faint">BOT DASHBOARD</span>
+        </div>
+        <h1 className="font-display font-extrabold text-os-heading tracking-tight text-[clamp(24px,3.4vw,30px)] leading-tight mt-5">
+          {transfer ? "These bots are now yours" : `Let's get you set up, ${name}`}
+        </h1>
+        <p className="text-[13.5px] leading-relaxed text-os-body mt-3">
+          {transfer
+            ? "You're the new owner. Choose how you want to run them — you can change it anytime."
+            : "Your bots are ready. Choose how you want to run them — you can change it anytime."}
+        </p>
+        <div className="font-display font-bold text-[10.5px] tracking-[0.14em] uppercase text-os-faint mt-7 mb-3.5">How do you want to run them?</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-left">
+          {([
+            { id: "solo", icon: <Bot className="h-5 w-5" />, title: "Just me", desc: "Private — only you can see and manage the bots." },
+            { id: "team", icon: <Users className="h-5 w-5" />, title: "With my team", desc: "Invite people, assign roles, and post announcements." },
+          ] as const).map((o) => {
+            const sel = picked === o.id;
+            return (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => setPicked(o.id)}
+                className={`relative rounded-2xl border p-[18px] text-left transition-all ${sel ? "border-os-accent bg-os-accent/10" : "border-os-hairline/60 bg-os-ink/40 hover:-translate-y-0.5 hover:border-os-accent/50"}`}
+              >
+                <span className={`absolute top-3.5 right-3.5 grid h-[18px] w-[18px] place-items-center rounded-full border ${sel ? "border-os-accent bg-os-accent text-os-accent-ink" : "border-os-hairline"}`}>
+                  {sel && <Check className="h-2.5 w-2.5" strokeWidth={3} />}
+                </span>
+                <span className={`grid h-[42px] w-[42px] place-items-center rounded-xl mb-3 ${sel ? "bg-os-accent text-os-accent-ink" : "bg-os-ink/60 text-os-accent"}`}>{o.icon}</span>
+                <div className="font-display font-bold text-os-heading text-[15px]">{o.title}</div>
+                <div className="text-[11.5px] leading-snug text-os-faint mt-1.5">{o.desc}</div>
+              </button>
+            );
+          })}
+        </div>
+        <button
+          disabled={!picked}
+          onClick={() => picked && onChoose(picked)}
+          className="w-full mt-5 rounded-[13px] bg-os-accent py-3.5 font-semibold text-[14px] text-os-accent-ink transition disabled:opacity-40 enabled:hover:brightness-105"
+        >
+          Continue
+        </button>
+        <div className="text-[11.5px] text-os-faint mt-3.5">You can switch this anytime in Dashboard → Settings → Workspace.</div>
+      </div>
+    </div>
+  );
+}
+
+type Group = { id: string; name: string; botIds: string[] };
+
 const BotDashboard = () => {
   const { user, isAdmin, loading } = useAuth();
   const { dashboardBots, hasDashboardAccess, loading: botsLoading, reload } = useOwnedBots();
   useHostingSubscriptionSync();
   const { periods: freePeriods, reload: reloadFreePeriods } = useBotFreePeriods();
+  const { items: notifications, unread } = useBotNotifications();
   const navigate = useNavigate();
+
+  const [view, setView] = useState<string>("home");
+  const [botId, setBotId] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
   const [search, setSearch] = useState("");
 
-  // Find the best match: prefer a specific add-on, fall back to bot-level.
-  const { matchedBotId, matchedAddonId } = (() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return { matchedBotId: null as string | null, matchedAddonId: null as string | null };
-    for (const b of dashboardBots) {
-      const addonHit = b.addons?.find(
-        (a) =>
-          a.toLowerCase().includes(q) ||
-          getAddonLabel(a).toLowerCase().includes(q),
-      );
-      if (addonHit) return { matchedBotId: b.id, matchedAddonId: addonHit };
-    }
-    const botHit = dashboardBots.find(
-      (b) =>
-        b.bot_name?.toLowerCase().includes(q) ||
-        b.base?.toLowerCase().includes(q),
-    );
-    return { matchedBotId: botHit?.id ?? null, matchedAddonId: null };
-  })();
+  // ── Workspace / onboarding / tour / appearance (localStorage) ───────────────
+  const isOwner = useMemo(
+    () => dashboardBots.some((b) => !b.isDemo && !b.viaTeam && !b.viaSupport),
+    [dashboardBots],
+  );
+  const [wsMode, setWsMode] = useState<"solo" | "team">(() => (lsGet(LS.ws) === "team" ? "team" : "solo"));
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [welcomeTransfer, setWelcomeTransfer] = useState(false);
+  const [askTour, setAskTour] = useState(false);
+  const [tourOn, setTourOn] = useState(false);
+  const [bgKey, setBgKey] = useState<string>(() => lsGet(LS.bg) || "mountain");
+  const bgUrl = BG_PRESETS.find((p) => p.key === bgKey)?.url ?? null;
 
-  // Scroll to the matching add-on card (preferred) or bot section as the user types.
+  // First-run welcome (shown once). Falls through to the tour prompt afterwards.
   useEffect(() => {
-    if (!matchedBotId) return;
-    const t = setTimeout(() => {
-      const target =
-        (matchedAddonId &&
-          document.getElementById(`addon-card-${matchedBotId}-${matchedAddonId}`)) ||
-        document.getElementById(`bot-section-${matchedBotId}`);
-      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 250);
-    return () => clearTimeout(t);
-  }, [matchedBotId, matchedAddonId]);
+    if (loading || botsLoading || !user) return;
+    if (!lsGet(LS.onboarded)) { setShowWelcome(true); return; }
+    if (!lsGet(LS.tour)) {
+      const t = setTimeout(() => setAskTour(true), 900);
+      return () => clearTimeout(t);
+    }
+  }, [loading, botsLoading, user]);
 
+  const chooseMode = (mode: "solo" | "team") => {
+    setWsMode(mode);
+    lsSet(LS.ws, mode);
+    lsSet(LS.onboarded, "1");
+    setShowWelcome(false);
+    setWelcomeTransfer(false);
+    if (!lsGet(LS.tour)) setTimeout(() => setAskTour(true), 700);
+  };
+
+  // ── Bot ordering (drag to reorder in the grid) ──────────────────────────────
+  const botIdsKey = dashboardBots.map((b) => b.id).join(",");
+  const [order, setOrder] = useState<string[]>([]);
+  useEffect(() => {
+    let saved: string[] = [];
+    try { saved = JSON.parse(lsGet(LS.order) || "[]"); } catch { saved = []; }
+    const ids = dashboardBots.map((b) => b.id);
+    const merged = [...saved.filter((id) => ids.includes(id)), ...ids.filter((id) => !saved.includes(id))];
+    setOrder(merged);
+  }, [botIdsKey]);
+  useEffect(() => { if (order.length) lsSet(LS.order, JSON.stringify(order)); }, [order]);
+
+  const byId = useMemo(() => {
+    const m: Record<string, OwnedBot> = {};
+    dashboardBots.forEach((b) => { m[b.id] = b; });
+    return m;
+  }, [dashboardBots]);
+  const orderedBots = useMemo(() => order.map((id) => byId[id]).filter(Boolean) as OwnedBot[], [order, byId]);
+
+  const dragId = useRef<string | null>(null);
+  const onDragStart = (id: string) => { dragId.current = id; };
+  const onDragOver = (e: React.DragEvent, overId: string) => {
+    e.preventDefault();
+    const from = dragId.current;
+    if (!from || from === overId) return;
+    setOrder((prev) => {
+      const a = [...prev];
+      const fi = a.indexOf(from), oi = a.indexOf(overId);
+      if (fi < 0 || oi < 0) return prev;
+      a.splice(fi, 1); a.splice(oi, 0, from);
+      return a;
+    });
+  };
+  const onDragEnd = () => { dragId.current = null; };
+
+  // ── Groups (local-only preview until a backend table exists) ────────────────
+  const [groups, setGroups] = useState<Group[]>(() => { try { return JSON.parse(lsGet(LS.groups) || "[]"); } catch { return []; } });
+  useEffect(() => { lsSet(LS.groups, JSON.stringify(groups)); }, [groups]);
+  const addGroup = () => {
+    const name = window.prompt("Name this group (e.g. Community Server)");
+    if (!name?.trim()) return;
+    setGroups((g) => [...g, { id: `g_${Date.now()}`, name: name.trim(), botIds: [] }]);
+  };
+  const toggleBotInGroup = (gid: string, bid: string) => {
+    setGroups((gs) => gs.map((g) => g.id === gid
+      ? { ...g, botIds: g.botIds.includes(bid) ? g.botIds.filter((x) => x !== bid) : [...g.botIds, bid] }
+      : g));
+  };
+  const removeGroup = (gid: string) => setGroups((gs) => gs.filter((g) => g.id !== gid));
 
   const cancelOrder = async (bot: OwnedBot) => {
     if (!user) return;
     setCancelling(true);
     const { error } = await (supabase as any)
-      .from("bot_orders")
-      .update({ status: "cancelled" })
-      .eq("id", bot.id)
-      .eq("user_id", user.id);
+      .from("bot_orders").update({ status: "cancelled" }).eq("id", bot.id).eq("user_id", user.id);
     setCancelling(false);
-    if (error) {
-      toast.error("Couldn't cancel — " + error.message);
-      return;
-    }
+    if (error) { toast.error("Couldn't cancel — " + error.message); return; }
     toast.success(`Cancelled "${bot.bot_name}"`);
     setCancelTarget(null);
     reload();
   };
 
+  const openBot = (id: string) => { setBotId(id); setView("bot"); window.scrollTo({ top: 0 }); };
+  const go = (v: string) => { setView(v); window.scrollTo({ top: 0 }); };
+
+  const openPortal = async () => {
+    const { data, error } = await supabase.functions.invoke("customer-portal");
+    if (error) { toast.error("Couldn't open billing portal", { description: error.message }); return; }
+    const url = (data as { url?: string } | null)?.url;
+    if (url) window.location.href = url; else toast.error("No billing portal available yet.");
+  };
+
+  const signOut = async () => { await supabase.auth.signOut(); navigate("/auth", { replace: true }); };
+
   useEffect(() => {
     if (loading) return;
-    if (!user) {
-      navigate("/auth", { replace: true });
-    }
+    if (!user) navigate("/auth", { replace: true });
   }, [user, loading, navigate]);
 
   if (loading || botsLoading) {
-    return (
-      <div className="min-h-screen bg-background grid place-items-center text-muted-foreground">
-        Loading...
-      </div>
-    );
+    return <div className="min-h-screen bg-background grid place-items-center text-muted-foreground">Loading...</div>;
   }
-
   if (!user) return null;
 
   const hasAccess = isAdmin || hasDashboardAccess;
-
-  // No Web Dashboard add-on on any of their bots — show locked / explainer state.
   if (!hasAccess) {
     return (
       <div className="min-h-screen bg-background grid place-items-center px-4">
@@ -1110,193 +1353,457 @@ const BotDashboard = () => {
           </div>
           <h1 className="text-2xl font-bold">Web Dashboard not enabled</h1>
           <p className="text-muted-foreground">
-            The <span className="text-foreground font-medium">Web Dashboard</span>{" "}
-            add-on unlocks bot management from this site. Without it, you can
-            still configure your bot in Discord with{" "}
-            <code className="text-foreground bg-muted px-1.5 py-0.5 rounded text-sm">
-              /cmds
-            </code>
-            .
+            The <span className="text-foreground font-medium">Web Dashboard</span> add-on unlocks bot management from this site.
+            Without it, you can still configure your bot in Discord with{" "}
+            <code className="text-foreground bg-muted px-1.5 py-0.5 rounded text-sm">/cmds</code>.
           </p>
           <div className="flex gap-3 justify-center">
-            <Button asChild>
-              <Link to="/bots">
-                <Globe className="h-4 w-4 mr-2" />
-                Add Web Dashboard
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/">Back to site</Link>
-            </Button>
+            <Button asChild><Link to="/bots"><Globe className="h-4 w-4 mr-2" />Add Web Dashboard</Link></Button>
+            <Button variant="outline" asChild><Link to="/">Back to site</Link></Button>
           </div>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="container mx-auto px-4 py-10 max-w-7xl">
-        <div className="flex items-center gap-3 mb-8">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-smooth shrink-0"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to site
-          </Link>
+  const owned = dashboardBots.filter((b) => !b.isDemo);
+  const liveCount = owned.filter((b) => b.status === "live" || b.status === "ready").length;
+  const activeBot = botId ? byId[botId] : null;
+  const firstOwned = dashboardBots.find((b) => !b.isDemo && !b.viaTeam && !b.viaSupport);
+  const handle = user.email?.split("@")[0] ?? "you";
+  const initial = (user.email?.[0] ?? "U").toUpperCase();
 
-          {dashboardBots.length > 1 ? (
-            <div className="relative flex-1 max-w-md mx-auto">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/70 pointer-events-none" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onBlur={() => setSearch("")}
-                placeholder="Search your bots…"
-                className="pl-9 h-9 bg-card/60 border-primary/20 focus-visible:border-primary/50 focus-visible:ring-primary/20 shadow-sm"
-              />
+  const NAV_GROUPS: {
+    label: string;
+    items: { key: string; label: string; icon: React.ReactNode; teamOnly?: boolean; tour?: string; badge?: number }[];
+  }[] = [
+    { label: "Menu", items: [
+      { key: "home", label: "Dashboard", icon: <Home className="h-[17px] w-[17px]" /> },
+      { key: "bots", label: "My Bots", icon: <LayoutGrid className="h-[17px] w-[17px]" />, tour: "bots" },
+      { key: "groups", label: "Groups", icon: <Network className="h-[17px] w-[17px]" /> },
+      { key: "activity", label: "Activity", icon: <ActivityIcon className="h-[17px] w-[17px]" />, badge: unread },
+    ] },
+    { label: "Account", items: [
+      { key: "billing", label: "Billing", icon: <CreditCard className="h-[17px] w-[17px]" /> },
+      { key: "team", label: "Team", icon: <Users className="h-[17px] w-[17px]" />, teamOnly: true },
+    ] },
+    { label: "More", items: [
+      { key: "settings", label: "Settings", icon: <Settings className="h-[17px] w-[17px]" />, tour: "settings-nav" },
+      { key: "support", label: "Support", icon: <LifeBuoy className="h-[17px] w-[17px]" /> },
+    ] },
+  ];
+
+  const titleFor = (v: string): [string, string] => ({
+    home: ["Dashboard", `${owned.length} bot${owned.length === 1 ? "" : "s"} · ${liveCount} live`],
+    bots: ["My Bots", `${owned.length} bot${owned.length === 1 ? "" : "s"} in your fleet`],
+    groups: ["Groups", "Bundle bots and share access"],
+    activity: ["Activity", "Live event stream"],
+    billing: ["Billing", "Plan, invoices & payment"],
+    team: ["Team", "Manage who can access your bots"],
+    settings: ["Settings", "Account, workspace & appearance"],
+    support: ["Support", "We're here to help"],
+    bot: [activeBot?.bot_name ?? "Bot", "Bot control panel"],
+  }[v] ?? ["Dashboard", ""]);
+  const [pageTitle, pageSub] = titleFor(view);
+  const crumb = view === "bot" ? "My Bots" : pageTitle;
+
+  const botAvatar = (b: OwnedBot, size = "h-9 w-9") =>
+    b.icon_url ? (
+      <img src={b.icon_url} alt="" className={`${size} rounded-xl object-cover flex-none`} />
+    ) : (
+      <span className={`${size} grid place-items-center rounded-xl bg-os-ink/60 text-os-accent font-display font-extrabold flex-none`}>
+        {b.bot_name?.[0]?.toUpperCase() ?? "B"}
+      </span>
+    );
+  const statusDot = (b: OwnedBot) => {
+    const live = b.status === "live" || b.status === "ready";
+    return <span className={`inline-block h-1.5 w-1.5 rounded-full ${live ? "bg-emerald-400" : "bg-os-faint"}`} />;
+  };
+
+  const CARD = "rounded-2xl border border-os-hairline/40 bg-os-surface/70 backdrop-blur-md";
+
+  return (
+    <div className="oversite-theme relative min-h-screen font-body text-os-body">
+      {/* ── full-bleed backdrop: base color → mountain (real img) → dark scrim, content above ── */}
+      <div aria-hidden className="fixed inset-0 z-0 bg-os-bg" />
+      {bgUrl && (
+        <img aria-hidden alt="" src={bgUrl} className="fixed inset-0 z-0 h-full w-full object-cover" style={{ objectPosition: "center 20%" }} />
+      )}
+      <div aria-hidden className="fixed inset-0 z-0 bg-gradient-to-b from-os-ink/40 via-os-ink/60 to-os-ink/80" />
+
+      <div className="relative z-10 flex min-h-screen">
+        {/* ───────── Sidebar ───────── */}
+        <aside data-tour="menu" className="hidden md:flex w-[236px] flex-none flex-col gap-1.5 p-3.5 sticky top-0 h-screen overflow-y-auto bg-os-ink-2/70 backdrop-blur-xl border-r border-os-hairline/30 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* profile */}
+          <div className="flex items-center gap-2.5 px-2 pb-3.5 mb-1 border-b border-os-hairline/30">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-os-surface-2 text-os-heading font-display font-extrabold text-[15px]">{initial}</span>
+            <div className="min-w-0">
+              <div className="font-display font-bold text-os-heading text-[13.5px] flex items-center gap-1.5">
+                <span className="truncate">{handle}</span>
+                <span className="font-display text-[8px] font-extrabold tracking-[0.08em] text-os-accent-ink bg-os-accent rounded px-1.5 py-px">{isOwner ? "OWNER" : "TEAM"}</span>
+              </div>
+              <div className="text-[11px] text-os-faint truncate">{user.email}</div>
+            </div>
+          </div>
+
+          {NAV_GROUPS.map((grp) => {
+            const items = grp.items.filter((it) => !it.teamOnly || wsMode === "team");
+            if (items.length === 0) return null;
+            return (
+              <div key={grp.label}>
+                <div className="font-display text-[9.5px] font-bold tracking-[0.16em] uppercase text-os-faint px-2.5 pt-3 pb-1">{grp.label}</div>
+                {items.map((n) => (
+                  <button
+                    key={n.key}
+                    data-tour={n.tour}
+                    onClick={() => go(n.key)}
+                    className={`w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13.5px] transition ${view === n.key ? "bg-os-surface-2 text-os-heading font-semibold" : "text-os-body hover:bg-os-surface hover:text-os-heading"}`}
+                  >
+                    {n.icon}{n.label}
+                    {n.key === "activity" && (n.badge ?? 0) > 0 && (
+                      <span className="ml-auto rounded-md bg-os-accent px-1.5 text-[10px] font-bold text-os-accent-ink">{n.badge}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+
+          {wsMode === "team" ? (
+            <div className="mt-auto rounded-2xl border border-os-hairline/40 bg-os-surface/60 p-3.5">
+              <div className="flex items-center gap-2 mb-2.5">
+                <Megaphone className="h-3.5 w-3.5 text-os-accent" />
+                <span className="font-display text-[9.5px] font-bold tracking-[0.14em] uppercase text-os-heading">Announcements</span>
+              </div>
+              <div className="border-l-2 border-os-accent pl-2.5">
+                <div className="font-display font-bold text-os-heading text-[12.5px] leading-tight">Welcome to the team</div>
+                <div className="text-[11px] text-os-faint leading-snug mt-1">Post updates here for everyone with dashboard access.</div>
+              </div>
+              <button onClick={() => go("team")} className="mt-3 w-full rounded-lg border border-os-hairline bg-os-ink/50 py-2 text-[11.5px] font-semibold text-os-heading hover:bg-os-surface-2 flex items-center justify-center gap-1.5">
+                <Plus className="h-3 w-3" /> Manage team
+              </button>
             </div>
           ) : (
-            <div className="flex-1" />
+            <div className="mt-auto" />
           )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0"
-            onClick={async () => {
-              await supabase.auth.signOut();
-              navigate("/auth", { replace: true });
-            }}
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign out
-          </Button>
-        </div>
+          <button onClick={signOut} className="mt-3 flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13.5px] text-os-body hover:bg-os-surface hover:text-os-heading">
+            <LogOut className="h-[17px] w-[17px]" /> Sign out
+          </button>
+        </aside>
 
-        <div className="text-center mb-12">
-          <div className="text-primary text-xs font-semibold uppercase tracking-widest mb-2">
-            Bot Dashboard
-          </div>
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-            Manage <span className="text-gradient">Your Bots</span>
-          </h1>
-          <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
-            Each section below is one of your bots. Configure plugins,
-            settings, and behavior per bot.
-          </p>
-        </div>
-
-        <FixesBar />
-
-        <HostingPastDueBanner />
-
-        <div className="mb-8 space-y-6">
-          <RedeemFreeCodeBox
-            bots={dashboardBots}
-            onRedeemed={() => {
-              reloadFreePeriods();
-              reload();
-            }}
-          />
-        </div>
-
-        {dashboardBots.length === 0 && isAdmin ? (
-          <div className="max-w-md mx-auto text-center space-y-4 py-12">
-            <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 border border-primary/20 grid place-items-center">
-              <Terminal className="h-5 w-5 text-primary" />
-            </div>
-            <p className="text-muted-foreground">
-              You're viewing as admin but don't have any bots with the Web
-              Dashboard add-on yet.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-16">
-            {dashboardBots.map((bot) => {
-              const isMatch = matchedBotId === bot.id;
-              const isDimmed = !!matchedBotId && !isMatch;
-              // Only ring the whole bot when the match is bot-level (no specific add-on).
-              const showBotRing = isMatch && !matchedAddonId;
-              return (
-                <div
-                  key={bot.id}
-                  id={`bot-section-${bot.id}`}
-                  className={`scroll-mt-24 transition-opacity duration-300 ${
-                    isDimmed ? "opacity-40" : "opacity-100"
-                  } ${showBotRing ? "ring-2 ring-primary/40 rounded-2xl -m-2 p-2" : ""}`}
-                >
-                  <ReadOnlyBotScope
-                    botId={bot.id}
-                    ownerUserId={bot.ownerUserId}
-                    viaTeam={bot.viaTeam}
-                  >
-
-                    <BotSection
-                      bot={bot}
-                      allBots={dashboardBots}
-                      userId={user.id}
-                      ownerEmail={user.email}
-                      freePeriod={freePeriods[bot.id]}
-                      onCancel={setCancelTarget}
-                      onAddAddons={setAddonsTarget}
-                      searchQuery={search}
-                      highlightedAddonId={isMatch ? matchedAddonId : null}
-                      onReload={() => {
-                        reload();
-                        reloadFreePeriods();
-                      }}
-                    />
-                  </ReadOnlyBotScope>
-                </div>
-              );
-            })}
-            {search.trim() && !matchedBotId && (
-              <div className="text-center text-sm text-muted-foreground -mt-8">
-                No bots match "{search}".
+        {/* ───────── Main ───────── */}
+        <main className="flex-1 min-w-0 px-5 md:px-7 py-6 pb-16">
+          {/* header */}
+          <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
+            <div>
+              <div className="text-[12px] text-os-faint">
+                Oversite / <span className="text-os-heading font-medium">{crumb}</span>
+                {view === "bot" && <> / <span className="text-os-heading font-medium">{activeBot?.bot_name}</span></>}
               </div>
-            )}
-          </div>
-        )}
-
-        {/* One unified team panel for ALL of the viewer's owned bots. */}
-        {(() => {
-          const firstOwned = dashboardBots.find((b) => !b.isDemo && !b.viaTeam && !b.viaSupport);
-          if (!firstOwned || !user) return null;
-          return (
-            <div className="mt-10">
-              <TeamManagementHub
-                botId={firstOwned.id}
-                ownerUserId={user.id}
-                ownerEmail={user.email ?? null}
-              />
+              <h1 className="font-display font-extrabold text-os-heading tracking-tight text-[clamp(24px,3vw,34px)] leading-none mt-2">{pageTitle}</h1>
+              {pageSub && <div className="text-[12.5px] text-os-faint mt-2">{pageSub}</div>}
             </div>
-          );
-        })()}
+            <div className="flex items-center gap-2.5">
+              <div className="hidden sm:flex items-center gap-2 rounded-xl border border-os-hairline/50 bg-os-ink/50 px-3 py-2 text-[13px] text-os-faint">
+                <Search className="h-[15px] w-[15px]" />
+                <input
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); if (e.target.value) go("bots"); }}
+                  placeholder="Search bots…"
+                  className="bg-transparent outline-none placeholder:text-os-faint text-os-body w-[120px]"
+                />
+              </div>
+              <button data-tour="bell" onClick={() => go("activity")} className="relative grid h-10 w-10 place-items-center rounded-xl border border-os-hairline/50 bg-os-ink/50 text-os-body hover:text-os-heading">
+                <Bell className="h-[17px] w-[17px]" />
+                {unread > 0 && <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-os-accent" />}
+              </button>
+              <Link data-tour="add" to="/bots" className="inline-flex items-center gap-1.5 rounded-xl bg-os-accent px-5 py-2.5 text-[13px] font-semibold text-os-accent-ink hover:brightness-105 whitespace-nowrap">
+                <Plus className="h-4 w-4" />Add a bot
+              </Link>
+            </div>
+          </div>
 
+          <FixesBar />
+          <HostingPastDueBanner />
 
+          {/* ───────── Views ───────── */}
+          {view === "home" && (
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { k: "Bots", v: String(owned.length) },
+                  { k: "Live now", v: String(liveCount) },
+                  { k: "Unread alerts", v: String(unread) },
+                  { k: "Workspace", v: wsMode === "team" ? "Team" : "Solo" },
+                ].map((s) => (
+                  <div key={s.k} className={`${CARD} p-4`}>
+                    <div className="font-display text-[10px] tracking-[0.08em] uppercase text-os-faint">{s.k}</div>
+                    <div className="font-display font-extrabold text-os-heading text-[26px] mt-1.5">{s.v}</div>
+                  </div>
+                ))}
+              </div>
 
-        <NewOwnerBillingDialog
-          forceOpen={new URLSearchParams(window.location.search).get("team_transfer") === "accepted"}
-        />
+              <div className="grid lg:grid-cols-3 gap-5 items-start">
+                <div className={`${CARD} p-5 lg:col-span-2`}>
+                  <div className="flex items-center justify-between mb-3.5">
+                    <span className="font-display font-bold text-os-heading text-[14.5px]">Your bots</span>
+                    <button onClick={() => go("bots")} className="text-[12px] text-os-accent flex items-center gap-1">View all <ChevronRight className="h-3.5 w-3.5" /></button>
+                  </div>
+                  <div className="divide-y divide-os-hairline/30">
+                    {owned.slice(0, 5).map((b) => (
+                      <button key={b.id} onClick={() => openBot(b.id)} className="w-full flex items-center gap-3 py-2.5 text-left hover:opacity-90">
+                        {botAvatar(b)}
+                        <div className="min-w-0">
+                          <div className="font-display font-semibold text-os-heading text-[13.5px] truncate">{b.bot_name}</div>
+                          <div className="text-[11px] text-os-faint flex items-center gap-1.5">{statusDot(b)}{getStatusMeta(b.status).label}</div>
+                        </div>
+                        <ChevronRight className="ml-auto h-4 w-4 text-os-faint" />
+                      </button>
+                    ))}
+                    {owned.length === 0 && <div className="py-6 text-center text-[13px] text-os-faint">No bots yet — add one to get started.</div>}
+                  </div>
+                </div>
+
+                <div className={`${CARD} p-5`}>
+                  <div className="font-display font-bold text-os-heading text-[14.5px] mb-3.5">Recent activity</div>
+                  <div className="space-y-3">
+                    {notifications.slice(0, 5).map((n: BotNotification) => (
+                      <div key={n.id} className="flex gap-2.5">
+                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-os-accent flex-none" />
+                        <div className="min-w-0">
+                          <div className="text-[12.5px] text-os-heading font-medium truncate">{n.title}</div>
+                          <div className="text-[11px] text-os-faint">{timeAgo(n.created_at)}</div>
+                        </div>
+                      </div>
+                    ))}
+                    {notifications.length === 0 && <div className="text-[12.5px] text-os-faint">You're all caught up.</div>}
+                  </div>
+                </div>
+              </div>
+
+              <RedeemFreeCodeBox bots={dashboardBots} onRedeemed={() => { reloadFreePeriods(); reload(); }} />
+            </div>
+          )}
+
+          {view === "bots" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+              {orderedBots
+                .filter((b) => !b.isDemo && (!search.trim() || b.bot_name?.toLowerCase().includes(search.trim().toLowerCase())))
+                .map((b) => (
+                  <div
+                    key={b.id}
+                    draggable
+                    onDragStart={() => onDragStart(b.id)}
+                    onDragOver={(e) => onDragOver(e, b.id)}
+                    onDragEnd={onDragEnd}
+                    onClick={() => openBot(b.id)}
+                    className={`${CARD} p-[18px] flex flex-col min-h-[262px] cursor-grab active:cursor-grabbing hover:-translate-y-0.5 hover:border-os-accent/35 transition`}
+                  >
+                    {botAvatar(b, "h-[46px] w-[46px]")}
+                    <div className="font-display font-bold text-os-heading text-[16px] mt-3.5">{b.bot_name}</div>
+                    <div className="text-[11px] mt-1 flex items-center gap-1.5">{statusDot(b)}<span className="text-os-faint">{getStatusMeta(b.status).label}</span></div>
+                    <div className="flex flex-col gap-2 my-4">
+                      <div className="flex items-center justify-between rounded-[10px] border border-os-hairline/40 bg-os-ink/40 px-3 py-2">
+                        <span className="text-[11px] text-os-faint">Base</span>
+                        <span className="font-display font-bold text-os-heading text-[13px]">{BOT_BASE_LABELS[b.base] ?? b.base}</span>
+                      </div>
+                      <div className="flex items-center justify-between rounded-[10px] border border-os-hairline/40 bg-os-ink/40 px-3 py-2">
+                        <span className="text-[11px] text-os-faint">Add-ons</span>
+                        <span className="font-display font-bold text-os-heading text-[13px]">{b.addons.length}</span>
+                      </div>
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); openBot(b.id); }} className="mt-auto rounded-[11px] border border-os-hairline bg-os-ink/50 py-2.5 font-semibold text-[13px] text-os-heading hover:bg-os-surface-2">Open</button>
+                  </div>
+                ))}
+              <Link to="/bots" className="rounded-2xl border-[1.5px] border-dashed border-os-hairline grid place-items-center min-h-[262px] text-os-faint hover:border-os-accent hover:text-os-heading transition">
+                <div className="flex flex-col items-center gap-2.5"><Plus className="h-6 w-6" /><span className="text-[13px]">Add a bot</span></div>
+              </Link>
+            </div>
+          )}
+
+          {view === "bot" && activeBot && (
+            <div className="space-y-5">
+              <button onClick={() => go("bots")} className="inline-flex items-center gap-1.5 text-[12px] text-os-faint hover:text-os-heading">
+                <ArrowLeft className="h-3.5 w-3.5" /> Back to my bots
+              </button>
+              <ReadOnlyBotScope botId={activeBot.id} ownerUserId={activeBot.ownerUserId} viaTeam={activeBot.viaTeam}>
+                <BotSection
+                  bot={activeBot}
+                  allBots={dashboardBots}
+                  userId={user.id}
+                  ownerEmail={user.email}
+                  freePeriod={freePeriods[activeBot.id]}
+                  onCancel={setCancelTarget}
+                  onAddAddons={setAddonsTarget}
+                  searchQuery={search}
+                  highlightedAddonId={null}
+                  onReload={() => { reload(); reloadFreePeriods(); }}
+                />
+              </ReadOnlyBotScope>
+            </div>
+          )}
+
+          {view === "groups" && (
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                <Button onClick={addGroup} className="rounded-xl"><Plus className="h-4 w-4 mr-1.5" />New group</Button>
+              </div>
+              {groups.length === 0 && (
+                <div className={`${CARD} p-8 text-center text-[13px] text-os-faint`}>
+                  No groups yet. Bundle bots from a server together, then give a team access to just that bundle.
+                </div>
+              )}
+              {groups.map((g) => (
+                <div key={g.id} className={`${CARD} p-[18px]`}>
+                  <div className="flex items-center gap-3 border-b border-os-hairline/40 pb-3.5 mb-4">
+                    <span className="grid h-9 w-9 place-items-center rounded-lg bg-os-ink/60 text-os-accent"><Network className="h-4 w-4" /></span>
+                    <div>
+                      <div className="font-display font-bold text-os-heading text-[15px]">{g.name}</div>
+                      <div className="text-[11.5px] text-os-faint">{g.botIds.length} bot{g.botIds.length === 1 ? "" : "s"}</div>
+                    </div>
+                    <button onClick={() => removeGroup(g.id)} className="ml-auto text-[12px] text-os-faint hover:text-destructive">Remove</button>
+                  </div>
+                  <div className="font-display text-[10px] tracking-[0.12em] uppercase text-os-faint mb-2.5">Bots in this group</div>
+                  <div className="flex flex-wrap gap-2">
+                    {owned.map((b) => {
+                      const inG = g.botIds.includes(b.id);
+                      return (
+                        <button
+                          key={b.id}
+                          onClick={() => toggleBotInGroup(g.id, b.id)}
+                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px] transition ${inG ? "border-os-accent bg-os-accent/10 text-os-heading" : "border-os-hairline/60 border-dashed text-os-faint hover:text-os-heading"}`}
+                        >
+                          {inG ? <Check className="h-3.5 w-3.5 text-os-accent" /> : <Plus className="h-3.5 w-3.5" />}
+                          {b.bot_name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-4 text-[11.5px] text-os-faint">
+                    Team access for this group is managed from the <button onClick={() => go("team")} className="text-os-accent underline-offset-2 hover:underline">Team</button> panel.
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {view === "activity" && (
+            <div className={`${CARD} overflow-hidden`}>
+              {notifications.length === 0 && <div className="p-8 text-center text-[13px] text-os-faint">No activity yet.</div>}
+              {notifications.map((n: BotNotification) => (
+                <div key={n.id} className="flex gap-3 p-4 border-t border-os-hairline/30 first:border-t-0">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-os-accent flex-none" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] text-os-heading font-medium">{n.title}</div>
+                    {n.body && <div className="text-[12px] text-os-faint mt-0.5">{n.body}</div>}
+                  </div>
+                  <span className="font-label text-[11px] text-os-faint whitespace-nowrap">{timeAgo(n.created_at)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {view === "billing" && (
+            <div className={`${CARD} p-6 max-w-xl`}>
+              <div className="font-display font-bold text-os-heading text-[15px] mb-1">Billing &amp; payments</div>
+              <p className="text-[13px] text-os-faint mb-5">Manage your subscription, payment method, and invoices in the secure billing portal.</p>
+              <Button onClick={openPortal} className="rounded-xl"><CreditCard className="h-4 w-4 mr-1.5" />Open billing portal</Button>
+            </div>
+          )}
+
+          {view === "team" && firstOwned && (
+            <TeamManagementHub botId={firstOwned.id} ownerUserId={user.id} ownerEmail={user.email ?? null} />
+          )}
+          {view === "team" && !firstOwned && (
+            <div className={`${CARD} p-8 text-center text-[13px] text-os-faint`}>You need an owned bot to manage a team.</div>
+          )}
+
+          {view === "settings" && (
+            <div className="space-y-5 max-w-3xl">
+              <div className={`${CARD} p-[18px]`}>
+                <div className="font-display font-bold text-os-heading text-[14.5px] mb-1">Workspace</div>
+                <p className="text-[12.5px] text-os-faint mb-3.5">Switching to team unlocks members, roles, and announcements.</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {(["solo", "team"] as const).map((m) => (
+                    <button key={m} onClick={() => { setWsMode(m); lsSet(LS.ws, m); }} className={`rounded-xl border p-4 text-left transition ${wsMode === m ? "border-os-accent bg-os-accent/10" : "border-os-hairline bg-os-ink/40"}`}>
+                      <div className="font-display font-bold text-os-heading text-[14px] flex items-center justify-between">
+                        {m === "solo" ? "Just me" : "With my team"}
+                        <span className={`grid h-4 w-4 place-items-center rounded-full border ${wsMode === m ? "border-os-accent bg-os-accent text-os-accent-ink" : "border-os-hairline"}`}>{wsMode === m && <Check className="h-2.5 w-2.5" strokeWidth={3} />}</span>
+                      </div>
+                      <div className="text-[11.5px] text-os-faint mt-1.5">{m === "solo" ? "Private. Only you can manage the bots." : "Invite people, assign roles, broadcast announcements."}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className={`${CARD} p-[18px]`}>
+                <div className="font-display font-bold text-os-heading text-[14.5px] mb-1 flex items-center gap-2"><ImageIcon className="h-4 w-4 text-os-accent" />Appearance</div>
+                <p className="text-[12.5px] text-os-faint mb-3.5">Pick the dashboard background.</p>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {BG_PRESETS.map((p) => (
+                    <button
+                      key={p.key}
+                      onClick={() => { setBgKey(p.key); lsSet(LS.bg, p.key); }}
+                      className={`relative h-[78px] rounded-xl border-[1.5px] overflow-hidden bg-cover bg-center ${bgKey === p.key ? "border-os-accent" : "border-os-hairline"}`}
+                      style={p.url ? { backgroundImage: `url(${p.url})`, backgroundPosition: "center 22%" } : undefined}
+                    >
+                      {!p.url && <span className="absolute inset-0 bg-os-surface-2" />}
+                      {bgKey === p.key && <span className="absolute top-1.5 right-1.5 grid h-[18px] w-[18px] place-items-center rounded-full bg-os-accent text-os-accent-ink"><Check className="h-2.5 w-2.5" strokeWidth={3} /></span>}
+                      <span className="absolute inset-x-0 bottom-0 px-2 py-1 font-display text-[10.5px] font-bold text-os-heading bg-gradient-to-t from-os-ink/80 to-transparent">{p.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className={`${CARD} p-[18px]`}>
+                <div className="font-display font-bold text-os-heading text-[14.5px] mb-1">Replay onboarding</div>
+                <p className="text-[12.5px] text-os-faint mb-3.5">See the welcome and the guided tour again.</p>
+                <div className="flex gap-2.5 flex-wrap">
+                  <button onClick={() => { lsDel(LS.onboarded); setWelcomeTransfer(false); setShowWelcome(true); }} className="rounded-lg border border-os-hairline bg-os-ink/50 px-3.5 py-2 text-[12.5px] font-semibold text-os-heading hover:bg-os-surface-2">↺ Welcome screen</button>
+                  <button onClick={() => { lsDel(LS.tour); setTourOn(true); go("home"); }} className="rounded-lg border border-os-hairline bg-os-ink/50 px-3.5 py-2 text-[12.5px] font-semibold text-os-heading hover:bg-os-surface-2">↺ Dashboard tour</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {view === "support" && (
+            <div className="grid md:grid-cols-2 gap-5 max-w-3xl">
+              <div className={`${CARD} p-[18px]`}>
+                <div className="font-display font-bold text-os-heading text-[14.5px] mb-2">Contact us</div>
+                <p className="text-[12.5px] text-os-faint leading-relaxed mb-3.5">Email <span className="text-os-accent">support@oversite.shop</span> or open a ticket in our Discord. Include your bot ID for the fastest help.</p>
+                <button onClick={() => { lsDel(LS.tour); setTourOn(true); go("home"); }} className="w-full rounded-lg border border-os-hairline bg-os-ink/50 py-2.5 text-[12.5px] font-semibold text-os-heading hover:bg-os-surface-2">↺ Replay dashboard tour</button>
+              </div>
+              <div className={`${CARD} p-[18px]`}>
+                <RequestCustomFeatureCard />
+              </div>
+            </div>
+          )}
+        </main>
       </div>
 
-      <AlertDialog
-        open={!!cancelTarget}
-        onOpenChange={(o) => !o && !cancelling && setCancelTarget(null)}
-      >
+      <NewOwnerBillingDialog forceOpen={new URLSearchParams(window.location.search).get("team_transfer") === "accepted"} />
+
+      {showWelcome && <OnboardingOverlay name={handle} transfer={welcomeTransfer} onChoose={chooseMode} />}
+      {askTour && !tourOn && (
+        <div className="fixed bottom-5 right-5 z-[150] w-[300px] rounded-2xl border border-os-hairline/40 bg-os-surface/95 backdrop-blur-md p-[18px] shadow-2xl">
+          <div className="font-display font-extrabold text-os-heading text-[15px]">Welcome in</div>
+          <div className="text-[12.5px] text-os-body leading-relaxed mt-2 mb-3.5">Want a quick tour of your dashboard?</div>
+          <div className="flex gap-2.5">
+            <button onClick={() => { setAskTour(false); setTourOn(true); go("home"); }} className="flex-1 rounded-[10px] bg-os-accent py-2.5 text-[12.5px] font-bold text-os-accent-ink hover:brightness-105">Show me around</button>
+            <button onClick={() => { setAskTour(false); lsSet(LS.tour, "1"); }} className="rounded-[10px] border border-os-hairline px-3.5 py-2.5 text-[12.5px] font-bold text-os-heading hover:bg-os-surface-2">Maybe later</button>
+          </div>
+        </div>
+      )}
+      {tourOn && <TourGuide steps={TOUR_STEPS} onClose={() => { setTourOn(false); lsSet(LS.tour, "1"); }} />}
+
+      <AlertDialog open={!!cancelTarget} onOpenChange={(o) => !o && !cancelling && setCancelTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              Cancel subscription for "{cancelTarget?.bot_name}"?
-            </AlertDialogTitle>
+            <AlertDialogTitle>Cancel subscription for "{cancelTarget?.bot_name}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              This is a full shutdown for this bot — all recurring payments
-              and hosting stop, the bot goes offline, and it's removed from
-              your dashboard. Use this if you've shut your server down or
-              don't need this bot anymore. This can't be undone, but you can
-              always build a new bot later.
+              This is a full shutdown for this bot — all recurring payments and hosting stop, the bot goes offline,
+              and it's removed from your dashboard. This can't be undone, but you can always build a new bot later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1304,10 +1811,7 @@ const BotDashboard = () => {
             <AlertDialogAction
               disabled={cancelling}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={(e) => {
-                e.preventDefault();
-                if (cancelTarget) cancelOrder(cancelTarget);
-              }}
+              onClick={(e) => { e.preventDefault(); if (cancelTarget) cancelOrder(cancelTarget); }}
             >
               {cancelling ? "Cancelling…" : "Yes, cancel subscription"}
             </AlertDialogAction>
@@ -1315,11 +1819,7 @@ const BotDashboard = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AddAddonsDialog
-        bot={addonsTarget}
-        open={!!addonsTarget}
-        onOpenChange={(o) => !o && setAddonsTarget(null)}
-      />
+      <AddAddonsDialog bot={addonsTarget} open={!!addonsTarget} onOpenChange={(o) => !o && setAddonsTarget(null)} />
     </div>
   );
 };
