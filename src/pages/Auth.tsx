@@ -42,6 +42,8 @@ const Auth = () => {
   const [mode, setMode] = useState<"signin" | "signup">(
     params.get("mode") === "signup" ? "signup" : "signin",
   );
+  const [identifier, setIdentifier] = useState(""); // sign-in: email OR username
+  const [username, setUsername] = useState("");      // sign-up
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -158,6 +160,29 @@ const Auth = () => {
     // On success the browser redirects to the provider, then back to /auth.
   };
 
+  const forgotPassword = async () => {
+    let target = identifier.trim();
+    if (!target) {
+      toast({ title: "Enter your email first", description: "Type your email (or username) above, then tap Forgot password.", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    try {
+      if (!target.includes("@")) {
+        const { data, error } = await (supabase as any).rpc("email_for_username", { uname: target });
+        if (error || !data) throw new Error("Enter the email on your account to reset your password.");
+        target = data as string;
+      }
+      const { error } = await supabase.auth.resetPasswordForEmail(target, { redirectTo: `${window.location.origin}/auth` });
+      if (error) throw error;
+      toast({ title: "Reset link sent", description: "Check your email for a link to reset your password." });
+    } catch (err: any) {
+      toast({ title: "Couldn't send reset", description: err.message ?? "Try again.", variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (mode === "signup" && password !== confirmPassword) {
@@ -178,6 +203,8 @@ const Auth = () => {
           options: {
             emailRedirectTo,
             data: {
+              // Username chosen at sign-up — also used for "log in with username".
+              username: username.trim(),
               // roblox_username is no longer collected, but the profile-creation
               // trigger expects the key to exist — send it empty so a profile is
               // still created on sign-up.
@@ -194,7 +221,15 @@ const Auth = () => {
           description: "Confirm your email to finish creating your account — be sure to check your spam or junk folder if you don't see it. Your first two months free are waiting!",
         });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        // Sign in by email OR username.
+        let loginEmail = identifier.trim();
+        if (!loginEmail.includes("@")) {
+          const { data, error } = await (supabase as any).rpc("email_for_username", { uname: loginEmail });
+          if (error) throw new Error("Username sign-in isn't available yet — please use your email.");
+          if (!data) throw new Error("No account found with that username.");
+          loginEmail = data as string;
+        }
+        const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
         if (error) throw error;
         await runPostAuthActions();
         navigate(postAuthPath, { replace: true });
@@ -316,20 +351,34 @@ const Auth = () => {
             </div>
 
             <form onSubmit={onSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="email" className={FIELD_LABEL}>Email</label>
-                <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={FIELD} placeholder="you@email.com" />
-              </div>
+              {mode === "signup" && (
+                <div>
+                  <label htmlFor="username" className={FIELD_LABEL}>Username</label>
+                  <input id="username" type="text" required value={username} onChange={(e) => setUsername(e.target.value)} className={FIELD} placeholder="yourname" autoComplete="username" />
+                </div>
+              )}
+
+              {mode === "signin" ? (
+                <div>
+                  <label htmlFor="identifier" className={FIELD_LABEL}>Email or username</label>
+                  <input id="identifier" type="text" required value={identifier} onChange={(e) => setIdentifier(e.target.value)} className={FIELD} placeholder="you@email.com or username" autoComplete="username" />
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="email" className={FIELD_LABEL}>Email</label>
+                  <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={FIELD} placeholder="you@email.com" autoComplete="email" />
+                </div>
+              )}
 
               <div>
                 <label htmlFor="password" className={FIELD_LABEL}>Password</label>
-                <input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className={FIELD} placeholder="••••••••" />
+                <input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className={FIELD} placeholder="••••••••" autoComplete={mode === "signup" ? "new-password" : "current-password"} />
               </div>
 
               {mode === "signup" && (
                 <div>
                   <label htmlFor="confirm-password" className={FIELD_LABEL}>Confirm password</label>
-                  <input id="confirm-password" type="password" required minLength={6} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={FIELD} placeholder="••••••••" />
+                  <input id="confirm-password" type="password" required minLength={6} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={FIELD} placeholder="••••••••" autoComplete="new-password" />
                 </div>
               )}
 
@@ -366,6 +415,17 @@ const Auth = () => {
                 </span>
               )}
             </div>
+
+            {mode === "signin" && (
+              <button
+                type="button"
+                onClick={forgotPassword}
+                disabled={busyAny}
+                className="mt-3 font-label text-[11px] uppercase tracking-[0.12em] text-os-faint transition-colors hover:text-os-accent disabled:opacity-50"
+              >
+                Forgot your password?
+              </button>
+            )}
           </Reveal>
         </div>
       </div>
