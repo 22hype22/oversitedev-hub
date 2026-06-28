@@ -1108,28 +1108,34 @@ const OSD_CSS = `.osd{font-family:var(--bodyf);color:var(--body);min-height:100v
 .osd .nav svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.7;fill:none;flex:none}
 .osd .nav:hover{background:var(--surface);color:var(--heading)}
 .osd .nav.on{background:var(--surface2);color:var(--heading);font-weight:600}
-.osd .ann{margin-top:auto;border:1px solid var(--hair);border-radius:16px;background:linear-gradient(160deg,var(--surface),var(--panel));padding:14px;position:relative;overflow:hidden}
-.osd .ann .top{display:flex;align-items:center;gap:8px;margin-bottom:11px}
-.osd .ann .top .ai{height:26px;width:26px;border-radius:8px;background:rgba(203,178,119,.16);display:grid;place-items:center;color:var(--gold);flex:none}
-.osd .ann .top .ai svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.7;fill:none}
-.osd .ann .top .lab{font-family:var(--disp);font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--heading)}
-.osd .ann .top .new{margin-left:auto;font-family:var(--disp);font-size:8px;font-weight:800;letter-spacing:.06em;color:var(--accentink);background:var(--gold);border-radius:5px;padding:2px 6px}
-.osd .ann .msg{border-left:2px solid var(--gold);padding-left:10px}
-.osd .ann .msg .h{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:12.5px;line-height:1.25}
-.osd .ann .msg .b{font-size:11px;color:var(--faint);line-height:1.45;margin-top:4px}
-.osd .ann .meta{display:flex;align-items:center;gap:7px;margin-top:11px;font-size:10px;color:var(--faint)}
-.osd .ann .meta .who{display:flex;align-items:center;gap:6px;color:var(--body)}
-.osd .ann .meta .pa{height:18px;width:18px;border-radius:6px;background:linear-gradient(135deg,#46525E,#343D46);display:grid;place-items:center;color:var(--heading);font-family:var(--disp);font-weight:800;font-size:9px}
-.osd .ann .meta .dot{color:var(--faint)}
-.osd .ann .post{width:100%;margin-top:12px;background:var(--panel);border:1px solid var(--hair);color:var(--heading);border-radius:9px;padding:8px;font-family:var(--bodyf);font-weight:600;font-size:11.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:.14s}
-.osd .ann .post:hover{background:var(--surface2)}
-.osd .ann .post svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none}
-.osd .annfloat{position:fixed;bottom:22px;right:22px;z-index:140;width:300px;max-width:calc(100vw - 36px);margin:0;box-shadow:0 18px 50px -12px rgba(0,0,0,.6);animation:osd-fade .3s ease}
-.osd .annfloat .x{position:absolute;top:10px;right:10px;height:22px;width:22px;border-radius:7px;border:1px solid var(--hair);background:var(--panel);color:var(--faint);display:grid;place-items:center;cursor:pointer;transition:.14s;padding:0}
-.osd .annfloat .x:hover{background:var(--surface2);color:var(--heading)}
-.osd .annfloat .x svg{width:12px;height:12px;stroke:currentColor;stroke-width:2;fill:none}
-.osd .annfloat .top .new{margin-right:26px}
-@media(max-width:760px){.osd .annfloat{left:14px;right:14px;width:auto}}
+.osd .annc{position:fixed;bottom:22px;right:22px;z-index:140;width:330px;max-width:calc(100vw - 36px);border:1px solid var(--hair);border-radius:18px;background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 7%,var(--surface)),var(--panel));box-shadow:0 26px 64px -20px rgba(0,0,0,.75);overflow:hidden;animation:annc-in .42s cubic-bezier(.22,1,.36,1)}
+@keyframes annc-in{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+.osd .annc .bar{height:3px;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 25%,transparent))}
+.osd .annc .in{padding:15px 16px 14px}
+.osd .annc .hd{display:flex;align-items:center;gap:10px}
+.osd .annc .ic{height:34px;width:34px;border-radius:11px;flex:none;display:grid;place-items:center;background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 24%,transparent)}
+.osd .annc .ic svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none}
+.osd .annc .ht{min-width:0}
+.osd .annc .ht .t{font-family:var(--disp);font-weight:700;font-size:13px;color:var(--heading);display:flex;align-items:center;gap:7px;line-height:1.1}
+.osd .annc .ht .t .ndot{height:6px;width:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 24%,transparent);animation:annc-pulse 2.4s ease-in-out infinite}
+@keyframes annc-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.osd .annc .ht .s{font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:3px;letter-spacing:.02em;text-transform:uppercase}
+.osd .annc .x{margin-left:auto;height:27px;width:27px;border-radius:8px;flex:none;border:1px solid var(--hair);background:transparent;color:var(--faint);display:grid;place-items:center;cursor:pointer;transition:.15s;padding:0}
+.osd .annc .x:hover{background:var(--surface2);color:var(--heading);border-color:var(--surface2)}
+.osd .annc .x svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none}
+.osd .annc .bd{margin-top:14px}
+.osd .annc .bd .h{font-family:var(--disp);font-weight:700;font-size:14.5px;color:var(--heading);line-height:1.3;letter-spacing:-.01em}
+.osd .annc .bd .p{font-size:12px;color:var(--body);line-height:1.5;margin-top:5px}
+.osd .annc .ft{display:flex;align-items:center;gap:9px;margin-top:15px;padding-top:13px;border-top:1px solid var(--hair)}
+.osd .annc .by{display:flex;align-items:center;gap:8px;min-width:0}
+.osd .annc .av{height:26px;width:26px;border-radius:8px;flex:none;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 55%,#000));color:var(--accentink);font-family:var(--disp);font-weight:800;font-size:10.5px}
+.osd .annc .by .nm{font-size:11.5px;color:var(--heading);font-weight:600;line-height:1.15}
+.osd .annc .by .tm{font-size:10px;color:var(--faint);margin-top:1px}
+.osd .annc .act{margin-left:auto;flex:none;display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:var(--accentink);border:0;border-radius:9px;padding:7px 13px;font-family:var(--bodyf);font-weight:700;font-size:11.5px;cursor:pointer;transition:.15s}
+.osd .annc .act:hover{filter:brightness(1.07)}
+.osd .annc .act svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.2;fill:none;transition:transform .15s}
+.osd .annc .act:hover svg{transform:translateX(2px)}
+@media(max-width:760px){.osd .annc{left:14px;right:14px;width:auto}}
 .osd .main{flex:1;min-width:0;padding:24px 26px 50px}
 .osd .head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
 .osd .crumb{font-size:12px;color:var(--faint)}
@@ -1605,12 +1611,26 @@ const BotDashboard = () => {
 
         {/* FLOATING ANNOUNCEMENT — bottom-right, above dashboard UI. Returns each launch. */}
         {isTeam && annOpen && (
-          <div className="ann annfloat">
-            <button className="x" aria-label="Dismiss" onClick={() => setAnnOpen(false)}><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
-            <div className="top"><span className="ai"><svg viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1Z"/><path d="M16 9a3 3 0 0 1 0 6"/></svg></span><span className="lab">Announcements</span><span className="new">New</span></div>
-            <div className="msg"><div className="h">Welcome to the team</div><div className="b">Post updates here for everyone with dashboard access.</div></div>
-            <div className="meta"><span className="who"><span className="pa">O</span>Oversite Team</span><span className="dot">·</span><span>now</span></div>
-            <button className="post" onClick={() => go("team")}><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Post announcement</button>
+          <div className="annc">
+            <div className="bar" />
+            <div className="in">
+              <div className="hd">
+                <span className="ic"><svg viewBox="0 0 24 24"><path d="m3 11 14-6v14L3 13Z"/><path d="M7 19a2 2 0 0 1-4 0v-6"/><path d="M19 9a3 3 0 0 1 0 6"/></svg></span>
+                <div className="ht">
+                  <div className="t">Announcement <span className="ndot" /></div>
+                  <div className="s">From your team</div>
+                </div>
+                <button className="x" aria-label="Dismiss" onClick={() => setAnnOpen(false)}><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+              </div>
+              <div className="bd">
+                <div className="h">Welcome to the team</div>
+                <div className="p">Post updates here for everyone with dashboard access.</div>
+              </div>
+              <div className="ft">
+                <div className="by"><span className="av">O</span><div><div className="nm">Oversite Team</div><div className="tm">just now</div></div></div>
+                <button className="act" onClick={() => go("team")}>Post<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1663,7 +1683,7 @@ const BotDashboard = () => {
             {navItem("support", <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 2.5"/><path d="M12 17h.01"/></svg>, "Support")}
 
             <div style={{ marginTop: "auto" }} />
-            <div className="nav" onClick={() => navigate("/")}><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/><path d="M3 12h12"/><path d="M21 5v14"/></svg>Back to website</div>
+            <div className="nav" onClick={() => navigate("/")}><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14.5 14.5 0 0 0 0 18 14.5 14.5 0 0 0 0-18"/></svg>Back to website</div>
             <div className="nav" onClick={signOut}><svg viewBox="0 0 24 24"><path d="M9 21H5V3h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</div>
           </aside>
 
