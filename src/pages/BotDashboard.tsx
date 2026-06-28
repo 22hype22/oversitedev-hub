@@ -696,26 +696,30 @@ const BotSection = ({
       <details
         open={manageOpen}
         onToggle={(e) => setManageOpen((e.target as HTMLDetailsElement).open)}
-        className="group rounded-xl border border-border bg-card/30 overflow-hidden"
+        className="group rounded-2xl border border-border bg-card/40 overflow-hidden shadow-lg shadow-black/5 transition-smooth open:bg-card/50"
       >
-        <summary className="flex items-center justify-between gap-3 px-5 py-4 cursor-pointer list-none hover:bg-card/60 transition-smooth">
-          <div className="flex items-center gap-2 text-sm">
-            <Settings className="h-4 w-4 text-primary" />
-            <span className="font-medium">Manage this bot</span>
-            <span className="text-muted-foreground">
-              · banners, engine, secrets, controls, logs
-            </span>
+        <summary className="flex items-center justify-between gap-3 px-6 py-5 cursor-pointer list-none hover:bg-card/70 transition-smooth">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/25 grid place-items-center shrink-0">
+              <Settings className="h-4 w-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">Manage this bot</div>
+              <div className="text-xs text-muted-foreground truncate">
+                Banners, engine, secrets, controls, logs
+              </div>
+            </div>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary group-open:hidden">
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary group-open:hidden shrink-0">
             <ChevronDown className="h-3.5 w-3.5" />
             Expand
           </span>
-          <span className="hidden group-open:inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground">
+          <span className="hidden group-open:inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shrink-0">
             <ChevronUp className="h-3.5 w-3.5" />
             Collapse
           </span>
         </summary>
-        <div className="px-5 pb-5 pt-2 space-y-5 border-t border-border">
+        <div className="px-6 pb-6 pt-4 space-y-5 border-t border-border">
 
       {showPreorderBanner && (
         <Card className="p-4 bg-primary/5 border-primary/30">
@@ -885,27 +889,37 @@ const BotSection = ({
       <details
         open={addonsOpen && !isOffline && !hasNoServers}
         onToggle={(e) => setAddonsOpen((e.target as HTMLDetailsElement).open)}
-        className="group rounded-xl border border-border bg-card/30 overflow-hidden"
+        className="group rounded-2xl border border-border bg-card/40 overflow-hidden shadow-lg shadow-black/5 transition-smooth open:bg-card/50"
       >
-        <summary className="flex items-center justify-between gap-3 px-5 py-4 cursor-pointer list-none hover:bg-card/60 transition-smooth">
-          <div className="flex items-center gap-2 text-sm">
-            <Layers className="h-4 w-4 text-primary" />
-            <span className="font-medium">Add-on configuration</span>
-            <span className="text-muted-foreground">
-              · tickets, say command, protection, utilities
-              {totalConfigurable > 0 && ` · ${totalConfigurable} block${totalConfigurable === 1 ? "" : "s"}`}
-            </span>
+        <summary className="flex items-center justify-between gap-3 px-6 py-5 cursor-pointer list-none hover:bg-card/70 transition-smooth">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/25 grid place-items-center shrink-0">
+              <Layers className="h-4 w-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-foreground">Add-on configuration</span>
+                {totalConfigurable > 0 && (
+                  <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    {totalConfigurable} block{totalConfigurable === 1 ? "" : "s"}
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground truncate">
+                Tickets, say command, protection, utilities
+              </div>
+            </div>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary group-open:hidden">
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary group-open:hidden shrink-0">
             <ChevronDown className="h-3.5 w-3.5" />
             Expand
           </span>
-          <span className="hidden group-open:inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground">
+          <span className="hidden group-open:inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shrink-0">
             <ChevronUp className="h-3.5 w-3.5" />
             Collapse
           </span>
         </summary>
-        <div className="px-5 pb-5 pt-2 space-y-5 border-t border-border">
+        <div className="px-6 pb-6 pt-4 space-y-5 border-t border-border">
       {!bot.isDemo && <DashboardServerSelector botId={bot.id} />}
       <div className="space-y-10">
 
