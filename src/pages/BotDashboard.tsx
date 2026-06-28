@@ -1411,6 +1411,20 @@ const BotDashboard = () => {
   const [picked, setPicked] = useState<"solo" | "team" | null>(null);
   const [bgKey, setBgKey] = useState<string>(() => lsGet(LS.bg) || "mountain");
   const bgUrl = BG_PRESETS.find((p) => p.key === bgKey)?.url ?? null;
+  // profile name fallback: preferred name → display name → discord username → email
+  const [profile, setProfile] = useState<{ preferred_name?: string | null; display_name?: string | null; discord_username?: string | null }>({});
+  const [prefName, setPrefName] = useState("");
+  const [dispName, setDispName] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    (async () => {
+      const { data } = await (supabase as any).from("profiles").select("preferred_name, display_name, discord_username").eq("user_id", user.id).maybeSingle();
+      if (alive && data) { setProfile(data); setPrefName(data.preferred_name ?? ""); setDispName(data.display_name ?? ""); }
+    })();
+    return () => { alive = false; };
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [tableFilter, setTableFilter] = useState("all");
   const [listFilter, setListFilter] = useState("all");
   const [actTab, setActTab] = useState("All");
@@ -1484,6 +1498,15 @@ const BotDashboard = () => {
   const openBot = (id: string) => { setBotId(id); setView("bot"); window.scrollTo({ top: 0 }); };
   const go = (v: string) => { setView(v); window.scrollTo({ top: 0 }); };
   const openPortal = async () => { const { data, error } = await supabase.functions.invoke("customer-portal"); if (error) { toast.error("Couldn't open billing portal", { description: error.message }); return; } const url = (data as { url?: string } | null)?.url; if (url) window.location.href = url; else toast.error("No billing portal available yet."); };
+  const saveProfile = async () => {
+    if (!user) return;
+    setSavingProfile(true);
+    const { error } = await (supabase as any).from("profiles").upsert({ user_id: user.id, preferred_name: prefName.trim() || null, display_name: dispName.trim() || null }, { onConflict: "user_id" });
+    setSavingProfile(false);
+    if (error) { toast.error(error.message || "Couldn't save profile"); return; }
+    setProfile((p) => ({ ...p, preferred_name: prefName.trim() || null, display_name: dispName.trim() || null }));
+    toast.success("Profile saved");
+  };
   const signOut = async () => { await supabase.auth.signOut(); navigate("/auth", { replace: true }); };
   const cancelOrder = async (bot: OwnedBot) => { if (!user) return; setCancelling(true); const { error } = await (supabase as any).from("bot_orders").update({ status: "cancelled" }).eq("id", bot.id).eq("user_id", user.id); setCancelling(false); if (error) { toast.error("Couldn't cancel — " + error.message); return; } toast.success(`Cancelled "${bot.bot_name}"`); setCancelTarget(null); reload(); };
 
@@ -1505,7 +1528,12 @@ const BotDashboard = () => {
     );
   }
 
-  const handle = user.email?.split("@")[0] ?? "you";
+  const handle =
+    (profile.preferred_name && profile.preferred_name.trim()) ||
+    (profile.display_name && profile.display_name.trim()) ||
+    (profile.discord_username && profile.discord_username.trim()) ||
+    (user.email ? user.email.split("@")[0] : "") ||
+    "you";
   const initial = (user.email?.[0] ?? "U").toUpperCase();
   const liveCount = owned.filter(isLive).length;
   const activeBot = botId ? byId[botId] : null;
@@ -1811,7 +1839,7 @@ const BotDashboard = () => {
                 <button className="ghost"><svg viewBox="0 0 24 24" width="14" height="14" style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "6px", stroke: "currentColor", strokeWidth: 1.8, fill: "none" }}><path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Upload your own</button>
               </div>
               <div className="bgrid">
-                <div className="card"><div className="ch"><span className="ct">Profile</span></div><div className="form"><div className="field"><label>Preferred name</label><input defaultValue={handle} /></div><div className="field"><label>Display name</label><input defaultValue={handle} /></div><div className="field full"><label>Email</label><input defaultValue={user.email ?? ""} readOnly /></div></div><button className="cta" style={{ marginTop: "14px" }}>Save changes</button></div>
+                <div className="card"><div className="ch"><span className="ct">Profile</span></div><div className="form"><div className="field"><label>Preferred name</label><input value={prefName} onChange={(e) => setPrefName(e.target.value)} placeholder="What we'll call you" /></div><div className="field"><label>Display name</label><input value={dispName} onChange={(e) => setDispName(e.target.value)} placeholder="Public display name" /></div><div className="field full"><label>Email</label><input value={user.email ?? ""} readOnly /></div></div><button className="cta" style={{ marginTop: "14px" }} onClick={saveProfile} disabled={savingProfile}>{savingProfile ? "Saving…" : "Save changes"}</button></div>
                 <div className="card"><div className="ch"><span className="ct">Notifications</span></div><div className="togrow"><div><div className="tl">Service alerts</div><div className="td">Bot up/down events</div></div><label className="swt"><input type="checkbox" defaultChecked /><span className="tk" /></label></div><div className="togrow"><div><div className="tl">Billing</div><div className="td">Receipts and renewals</div></div><label className="swt"><input type="checkbox" defaultChecked /><span className="tk" /></label></div><div className="togrow"><div><div className="tl">Weekly digest</div><div className="td">Summary every Monday</div></div><label className="swt"><input type="checkbox" /><span className="tk" /></label></div></div>
               </div>
               <div className="card" style={{ marginTop: "16px" }}><div className="ch"><span className="ct">Tour</span></div><p style={{ fontSize: "12.5px", color: "var(--faint)", marginBottom: "14px" }}>Replay the guided dashboard tour.</p><button className="ghost" style={{ maxWidth: "240px" }} onClick={() => { lsDel(LS.tour); go("dashboard"); startTour(); }}>↺ Replay dashboard tour</button></div>
