@@ -1359,7 +1359,16 @@ const OSD_CSS = `.osd{font-family:var(--bodyf);color:var(--body);min-height:100v
 @media(max-width:760px){.osd .side{position:fixed;left:-260px;transition:.2s;z-index:50}.osd .main{padding:18px 14px 40px}.osd .left, .osd .form, .osd .feat, .osd .choices, .osd .gbody{grid-template-columns:1fr}.osd .head h1{font-size:24px}}
 @media(max-width:560px){.osd .botgrid{grid-template-columns:1fr}.osd .search{display:none}}`;
 
-const LS = { ws: "os_ws_mode", onboarded: "os_onboarded", tour: "os_tour_seen", bg: "os_bg", order: "os_bot_order", groups: "os_groups", accent: "os_accent" };
+const LS = { ws: "os_ws_mode", onboarded: "os_onboarded", tour: "os_tour_seen", bg: "os_bg", order: "os_bot_order", groups: "os_groups", accent: "os_accent", accentHex: "os_accent_hex" };
+
+// readable text color (dark/light) for an arbitrary accent hex
+const inkFor = (hex: string) => {
+  const m = (hex || "").replace("#", "");
+  const n = m.length === 3 ? m.split("").map((x) => x + x).join("") : m;
+  if (!/^[0-9a-fA-F]{6}$/.test(n)) return "#1E242B";
+  const r = parseInt(n.slice(0, 2), 16), g = parseInt(n.slice(2, 4), 16), b = parseInt(n.slice(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? "#1E242B" : "#E8EEF3";
+};
 
 // Primary (accent) color presets — recolor buttons, highlights, badges across the dashboard.
 const ACCENTS: { key: string; label: string; c: string; ink: string }[] = [
@@ -1425,7 +1434,11 @@ const BotDashboard = () => {
   // profile name fallback: preferred name → display name → discord username → email
   const [profile, setProfile] = useState<{ preferred_name?: string | null; display_name?: string | null; discord_username?: string | null }>({});
   const [accentKey, setAccentKey] = useState<string>(() => lsGet(LS.accent) || "icy");
-  const accent = ACCENTS.find((a) => a.key === accentKey) ?? ACCENTS[0];
+  const [customHex, setCustomHex] = useState<string>(() => lsGet(LS.accentHex) || "#C9DBE6");
+  const accent = accentKey === "custom"
+    ? { key: "custom", label: "Custom", c: customHex, ink: inkFor(customHex) }
+    : (ACCENTS.find((a) => a.key === accentKey) ?? ACCENTS[0]);
+  const applyCustom = (v: string) => { setCustomHex(v); setAccentKey("custom"); lsSet(LS.accent, "custom"); lsSet(LS.accentHex, v); };
   useEffect(() => {
     if (!user) return;
     let alive = true;
@@ -1839,11 +1852,17 @@ const BotDashboard = () => {
                 </div>
                 <button className="ghost"><svg viewBox="0 0 24 24" width="14" height="14" style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "6px", stroke: "currentColor", strokeWidth: 1.8, fill: "none" }}><path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Upload your own</button>
                 <div style={{ fontFamily: "var(--disp)", fontSize: "10px", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--faint)", margin: "20px 0 10px" }}>Primary color</div>
-                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
                   {ACCENTS.map((a) => (
                     <button key={a.key} title={a.label} onClick={() => { setAccentKey(a.key); lsSet(LS.accent, a.key); }}
                       style={{ height: "30px", width: "30px", borderRadius: "999px", background: a.c, cursor: "pointer", border: accentKey === a.key ? "2px solid var(--heading)" : "2px solid transparent", boxShadow: "0 0 0 1px var(--hair)" }} />
                   ))}
+                  {/* custom color: native picker swatch + hex field */}
+                  <label title="Pick a custom color" style={{ position: "relative", height: "30px", width: "30px", borderRadius: "999px", overflow: "hidden", cursor: "pointer", display: "inline-block", background: /^#[0-9a-fA-F]{6}$/.test(customHex) ? customHex : "var(--panel)", border: accentKey === "custom" ? "2px solid var(--heading)" : "2px dashed var(--hair)", boxShadow: "0 0 0 1px var(--hair)" }}>
+                    <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(customHex) ? customHex : "#C9DBE6"} onChange={(e) => applyCustom(e.target.value)} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }} />
+                  </label>
+                  <input value={customHex} onChange={(e) => { const v = e.target.value; setCustomHex(v); if (/^#[0-9a-fA-F]{6}$/.test(v)) applyCustom(v); }} placeholder="#C9DBE6" maxLength={7} spellCheck={false}
+                    style={{ background: "var(--panel)", border: "1px solid var(--hair)", borderRadius: "8px", padding: "7px 10px", color: "var(--heading)", fontFamily: "var(--mono)", fontSize: "12px", width: "104px", textTransform: "uppercase" }} />
                 </div>
               </div>
               <div className="card" style={{ marginTop: "16px" }}><div className="ch"><span className="ct">Tour</span></div><p style={{ fontSize: "12.5px", color: "var(--faint)", marginBottom: "14px" }}>Replay the guided dashboard tour.</p><button className="ghost" style={{ maxWidth: "240px" }} onClick={() => { lsDel(LS.tour); go("dashboard"); startTour(); }}>↺ Replay dashboard tour</button></div>
