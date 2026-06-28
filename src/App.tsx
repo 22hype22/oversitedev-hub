@@ -43,6 +43,19 @@ const queryClient = new QueryClient({
   },
 });
 
+// Shown while a lazy route chunk downloads. Without this, Suspense renders
+// nothing and the user sees a blank dark screen until the chunk arrives —
+// which on a cold cache (e.g. the heavy bot-dashboard chunk) reads as "stuck".
+const RouteFallback = () => (
+  <div className="min-h-screen bg-background grid place-items-center">
+    <div
+      aria-label="Loading"
+      role="status"
+      className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground/25 border-t-muted-foreground/80"
+    />
+  </div>
+);
+
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
@@ -56,7 +69,7 @@ const App = () => {
             <ScrollToTop />
             <AutoTranslator />
             <MarkdownFormattingToolbar />
-            <Suspense fallback={null}>
+            <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/process" element={<ProcessPage />} />
