@@ -21,12 +21,14 @@ Deno.serve(async (req) => {
   let role = ''
   let siteUrl = ''
   let botId = ''
+  let groupId = ''
   try {
     const body = await req.json()
     email = String(body.email ?? '').trim()
     role = String(body.role ?? '').trim()
     siteUrl = String(body.siteUrl ?? '').trim()
     botId = String(body.botId ?? body.bot_id ?? '').trim()
+    groupId = String(body.groupId ?? body.group_id ?? '').trim()
   } catch {
     return json({ ok: false, error: 'invalid body' }, 400)
   }
@@ -42,10 +44,13 @@ Deno.serve(async (req) => {
   if (userErr || !userResp.user) return json({ ok: false, error: 'not authenticated' }, 401)
   const inviterEmail = userResp.user.email ?? null
 
-  // If a botId is provided, scope the invite to that single bot (legacy).
+  // If a groupId is provided, scope the invite to that group's bots/team.
+  // Else if a botId is provided, scope the invite to that single bot (legacy).
   // Otherwise invite across every bot the caller owns so the dashboard team
   // stays unified across the owner's bots.
-  const { data: inviteResp, error: inviteErr } = botId
+  const { data: inviteResp, error: inviteErr } = groupId
+    ? await userClient.rpc('team_invite_member_group', { _email: email, _role: role, _group_id: groupId })
+    : botId
     ? await userClient.rpc('team_invite_member', { _email: email, _role: role, _bot_id: botId })
     : await userClient.rpc('team_invite_member_all_owner_bots', { _email: email, _role: role })
 
