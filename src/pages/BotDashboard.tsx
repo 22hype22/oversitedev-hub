@@ -1359,7 +1359,18 @@ const OSD_CSS = `.osd{font-family:var(--bodyf);color:var(--body);min-height:100v
 @media(max-width:760px){.osd .side{position:fixed;left:-260px;transition:.2s;z-index:50}.osd .main{padding:18px 14px 40px}.osd .left, .osd .form, .osd .feat, .osd .choices, .osd .gbody{grid-template-columns:1fr}.osd .head h1{font-size:24px}}
 @media(max-width:560px){.osd .botgrid{grid-template-columns:1fr}.osd .search{display:none}}`;
 
-const LS = { ws: "os_ws_mode", onboarded: "os_onboarded", tour: "os_tour_seen", bg: "os_bg", order: "os_bot_order", groups: "os_groups" };
+const LS = { ws: "os_ws_mode", onboarded: "os_onboarded", tour: "os_tour_seen", bg: "os_bg", order: "os_bot_order", groups: "os_groups", accent: "os_accent" };
+
+// Primary (accent) color presets — recolor buttons, highlights, badges across the dashboard.
+const ACCENTS: { key: string; label: string; c: string; ink: string }[] = [
+  { key: "icy", label: "Icy", c: "#C9DBE6", ink: "#1E242B" },
+  { key: "gold", label: "Gold", c: "#cbb277", ink: "#241e12" },
+  { key: "mint", label: "Mint", c: "#86d3a1", ink: "#10231a" },
+  { key: "sky", label: "Sky", c: "#8fbce8", ink: "#0f1f2b" },
+  { key: "lavender", label: "Lavender", c: "#b9a8e6", ink: "#1b1430" },
+  { key: "rose", label: "Rose", c: "#e6a8bf", ink: "#2b1019" },
+  { key: "coral", label: "Coral", c: "#e8a487", ink: "#2b1410" },
+];
 const lsGet = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const lsSet = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } };
 const lsDel = (k: string) => { try { localStorage.removeItem(k); } catch { /* ignore */ } };
@@ -1413,15 +1424,14 @@ const BotDashboard = () => {
   const bgUrl = BG_PRESETS.find((p) => p.key === bgKey)?.url ?? null;
   // profile name fallback: preferred name → display name → discord username → email
   const [profile, setProfile] = useState<{ preferred_name?: string | null; display_name?: string | null; discord_username?: string | null }>({});
-  const [prefName, setPrefName] = useState("");
-  const [dispName, setDispName] = useState("");
-  const [savingProfile, setSavingProfile] = useState(false);
+  const [accentKey, setAccentKey] = useState<string>(() => lsGet(LS.accent) || "icy");
+  const accent = ACCENTS.find((a) => a.key === accentKey) ?? ACCENTS[0];
   useEffect(() => {
     if (!user) return;
     let alive = true;
     (async () => {
       const { data } = await (supabase as any).from("profiles").select("preferred_name, display_name, discord_username").eq("user_id", user.id).maybeSingle();
-      if (alive && data) { setProfile(data); setPrefName(data.preferred_name ?? ""); setDispName(data.display_name ?? ""); }
+      if (alive && data) setProfile(data);
     })();
     return () => { alive = false; };
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1498,15 +1508,6 @@ const BotDashboard = () => {
   const openBot = (id: string) => { setBotId(id); setView("bot"); window.scrollTo({ top: 0 }); };
   const go = (v: string) => { setView(v); window.scrollTo({ top: 0 }); };
   const openPortal = async () => { const { data, error } = await supabase.functions.invoke("customer-portal"); if (error) { toast.error("Couldn't open billing portal", { description: error.message }); return; } const url = (data as { url?: string } | null)?.url; if (url) window.location.href = url; else toast.error("No billing portal available yet."); };
-  const saveProfile = async () => {
-    if (!user) return;
-    setSavingProfile(true);
-    const { error } = await (supabase as any).from("profiles").upsert({ user_id: user.id, preferred_name: prefName.trim() || null, display_name: dispName.trim() || null }, { onConflict: "user_id" });
-    setSavingProfile(false);
-    if (error) { toast.error(error.message || "Couldn't save profile"); return; }
-    setProfile((p) => ({ ...p, preferred_name: prefName.trim() || null, display_name: dispName.trim() || null }));
-    toast.success("Profile saved");
-  };
   const signOut = async () => { await supabase.auth.signOut(); navigate("/auth", { replace: true }); };
   const cancelOrder = async (bot: OwnedBot) => { if (!user) return; setCancelling(true); const { error } = await (supabase as any).from("bot_orders").update({ status: "cancelled" }).eq("id", bot.id).eq("user_id", user.id); setCancelling(false); if (error) { toast.error("Couldn't cancel — " + error.message); return; } toast.success(`Cancelled "${bot.bot_name}"`); setCancelTarget(null); reload(); };
 
@@ -1548,7 +1549,7 @@ const BotDashboard = () => {
   const filt = (f: string) => (b: OwnedBot) => f === "all" ? true : f === "online" ? isLive(b) : !isLive(b);
 
   return (
-    <div className={"osd" + (appOn ? " app" : "") + (instant ? " instant" : "")}>
+    <div className={"osd" + (appOn ? " app" : "") + (instant ? " instant" : "")} style={{ ["--accent" as any]: accent.c, ["--accentink" as any]: accent.ink }}>
       <style>{OSD_CSS}</style>
       {bgKey !== "none" && bgUrl && <div className="osd-bg" style={{ backgroundImage: `url(${bgUrl})` }} />}
       {bgKey === "none" && <div className="osd-bg" style={{ background: "#1b2026" }} />}
@@ -1837,10 +1838,13 @@ const BotDashboard = () => {
                   ))}
                 </div>
                 <button className="ghost"><svg viewBox="0 0 24 24" width="14" height="14" style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "6px", stroke: "currentColor", strokeWidth: 1.8, fill: "none" }}><path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Upload your own</button>
-              </div>
-              <div className="bgrid">
-                <div className="card"><div className="ch"><span className="ct">Profile</span></div><div className="form"><div className="field"><label>Preferred name</label><input value={prefName} onChange={(e) => setPrefName(e.target.value)} placeholder="What we'll call you" /></div><div className="field"><label>Display name</label><input value={dispName} onChange={(e) => setDispName(e.target.value)} placeholder="Public display name" /></div><div className="field full"><label>Email</label><input value={user.email ?? ""} readOnly /></div></div><button className="cta" style={{ marginTop: "14px" }} onClick={saveProfile} disabled={savingProfile}>{savingProfile ? "Saving…" : "Save changes"}</button></div>
-                <div className="card"><div className="ch"><span className="ct">Notifications</span></div><div className="togrow"><div><div className="tl">Service alerts</div><div className="td">Bot up/down events</div></div><label className="swt"><input type="checkbox" defaultChecked /><span className="tk" /></label></div><div className="togrow"><div><div className="tl">Billing</div><div className="td">Receipts and renewals</div></div><label className="swt"><input type="checkbox" defaultChecked /><span className="tk" /></label></div><div className="togrow"><div><div className="tl">Weekly digest</div><div className="td">Summary every Monday</div></div><label className="swt"><input type="checkbox" /><span className="tk" /></label></div></div>
+                <div style={{ fontFamily: "var(--disp)", fontSize: "10px", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--faint)", margin: "20px 0 10px" }}>Primary color</div>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                  {ACCENTS.map((a) => (
+                    <button key={a.key} title={a.label} onClick={() => { setAccentKey(a.key); lsSet(LS.accent, a.key); }}
+                      style={{ height: "30px", width: "30px", borderRadius: "999px", background: a.c, cursor: "pointer", border: accentKey === a.key ? "2px solid var(--heading)" : "2px solid transparent", boxShadow: "0 0 0 1px var(--hair)" }} />
+                  ))}
+                </div>
               </div>
               <div className="card" style={{ marginTop: "16px" }}><div className="ch"><span className="ct">Tour</span></div><p style={{ fontSize: "12.5px", color: "var(--faint)", marginBottom: "14px" }}>Replay the guided dashboard tour.</p><button className="ghost" style={{ maxWidth: "240px" }} onClick={() => { lsDel(LS.tour); go("dashboard"); startTour(); }}>↺ Replay dashboard tour</button></div>
             </div>
