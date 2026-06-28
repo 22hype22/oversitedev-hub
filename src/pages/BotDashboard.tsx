@@ -45,6 +45,7 @@ import { BotLogsPanel } from "@/components/dashboard/BotLogsPanel";
 import { BotServerSlotsCard } from "@/components/dashboard/BotServerSlotsCard";
 import { BotInviteLinkCard } from "@/components/dashboard/BotInviteLinkCard";
 import { TeamManagementHub } from "@/components/dashboard/team/TeamManagementHub";
+import { GroupTeamHub } from "@/components/dashboard/team/GroupTeamHub";
 import { NewOwnerBillingDialog } from "@/components/dashboard/team/NewOwnerBillingDialog";
 import { RequestCustomFeatureDialog } from "@/components/dashboard/RequestCustomFeatureDialog";
 import { ReportBugDialog } from "@/components/dashboard/ReportBugDialog";
@@ -1868,7 +1869,7 @@ const BotDashboard = () => {
             {/* TEAM */}
             <div className={"view" + (view === "team" ? " on" : "")}>
               {firstOwned ? (
-                <div style={{ position: "relative" }}><TeamManagementHub botId={firstOwned.id} ownerUserId={user.id} ownerEmail={user.email ?? null} /></div>
+                <div style={{ position: "relative" }}><GroupTeamHub ownerUserId={user.id} ownerEmail={user.email ?? null} /></div>
               ) : (<div className="ph2"><h2>Team</h2><p>You need an owned bot to manage a team.</p></div>)}
             </div>
 
