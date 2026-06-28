@@ -1159,11 +1159,14 @@ function TourGuide({ steps, onClose }: { steps: TourStep[]; onClose: () => void 
 }
 
 /** First-run owner screen: choose solo vs team over the mountain backdrop. */
-function OnboardingOverlay({ name, transfer, onChoose }: { name: string; transfer?: boolean; onChoose: (mode: "solo" | "team") => void }) {
+function OnboardingOverlay({ name, transfer, exiting, onChoose }: { name: string; transfer?: boolean; exiting?: boolean; onChoose: (mode: "solo" | "team") => void }) {
   const [picked, setPicked] = useState<"solo" | "team" | null>(null);
   return (
-    <div className="fixed inset-0 z-[120] grid place-items-center p-6 bg-os-ink/30 backdrop-blur-[2px] overflow-y-auto">
-      <div className="w-full max-w-[560px] rounded-[22px] border border-os-hairline/40 bg-os-surface/80 backdrop-blur-xl p-9 text-center shadow-2xl">
+    <div className={`fixed inset-0 z-[120] grid place-items-center p-6 overflow-y-auto transition-opacity duration-[600ms] ${exiting ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
+      <div
+        className={`w-full max-w-[560px] rounded-[22px] border border-os-hairline/40 bg-os-surface/85 backdrop-blur-xl p-9 text-center shadow-2xl transition-all duration-[600ms] ${exiting ? "-translate-y-3 scale-95" : "translate-y-0 scale-100"}`}
+        style={{ transitionTimingFunction: "cubic-bezier(.22,1,.36,1)" }}
+      >
         <div className="font-display font-extrabold text-os-heading text-[18px]">
           Oversite
           <span className="block mt-1 font-label text-[10px] tracking-[0.2em] text-os-faint">BOT DASHBOARD</span>
@@ -1236,30 +1239,34 @@ const BotDashboard = () => {
     [dashboardBots],
   );
   const [wsMode, setWsMode] = useState<"solo" | "team">(() => (lsGet(LS.ws) === "team" ? "team" : "solo"));
-  const [showWelcome, setShowWelcome] = useState(false);
+  // Welcome shows on first visit; computed synchronously so the dashboard can
+  // start hidden (no flash) and reveal via transition once a mode is chosen.
+  const [needsWelcome, setNeedsWelcome] = useState(() => !lsGet(LS.onboarded));
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
+  const [welcomeExiting, setWelcomeExiting] = useState(false);
   const [welcomeTransfer, setWelcomeTransfer] = useState(false);
   const [askTour, setAskTour] = useState(false);
   const [tourOn, setTourOn] = useState(false);
   const [bgKey, setBgKey] = useState<string>(() => lsGet(LS.bg) || "mountain");
   const bgUrl = BG_PRESETS.find((p) => p.key === bgKey)?.url ?? null;
 
-  // First-run welcome (shown once). Falls through to the tour prompt afterwards.
+  // If there's no welcome to show, offer the tour prompt instead (once).
   useEffect(() => {
     if (loading || botsLoading || !user) return;
-    if (!lsGet(LS.onboarded)) { setShowWelcome(true); return; }
-    if (!lsGet(LS.tour)) {
+    if (!needsWelcome && !lsGet(LS.tour)) {
       const t = setTimeout(() => setAskTour(true), 900);
       return () => clearTimeout(t);
     }
-  }, [loading, botsLoading, user]);
+  }, [loading, botsLoading, user, needsWelcome]);
 
   const chooseMode = (mode: "solo" | "team") => {
     setWsMode(mode);
     lsSet(LS.ws, mode);
     lsSet(LS.onboarded, "1");
-    setShowWelcome(false);
-    setWelcomeTransfer(false);
-    if (!lsGet(LS.tour)) setTimeout(() => setAskTour(true), 700);
+    // Reveal the dashboard (slide + dim) while the welcome card fades out, then unmount it.
+    setWelcomeExiting(true);
+    setTimeout(() => { setWelcomeDismissed(true); setWelcomeTransfer(false); }, 700);
+    if (!lsGet(LS.tour)) setTimeout(() => setAskTour(true), 1150);
   };
 
   // ── Bot ordering (drag to reorder in the grid) ──────────────────────────────
@@ -1424,6 +1431,9 @@ const BotDashboard = () => {
   };
 
   const CARD = "rounded-2xl border border-os-hairline/40 bg-os-surface/70 backdrop-blur-md";
+  // Welcome overlay mounted? Dashboard revealed (and backdrop dimmed)?
+  const welcomeMounted = needsWelcome && !welcomeDismissed;
+  const revealed = !welcomeMounted || welcomeExiting;
 
   return (
     <div className="oversite-theme relative min-h-screen font-body text-os-body">
@@ -1432,9 +1442,14 @@ const BotDashboard = () => {
       {bgUrl && (
         <img aria-hidden alt="" src={bgUrl} className="fixed inset-0 z-0 h-full w-full object-cover" style={{ objectPosition: "center 20%" }} />
       )}
-      <div aria-hidden className="fixed inset-0 z-0 bg-gradient-to-b from-os-ink/40 via-os-ink/60 to-os-ink/80" />
+      {/* light base scrim (peak stays visible on the welcome screen); extra dim fades in on enter */}
+      <div aria-hidden className="fixed inset-0 z-0 bg-gradient-to-b from-os-ink/25 via-os-ink/40 to-os-ink/65" />
+      <div aria-hidden className={`fixed inset-0 z-0 bg-os-ink/30 transition-opacity duration-[900ms] ${revealed ? "opacity-100" : "opacity-0"}`} />
 
-      <div className="relative z-10 flex min-h-screen">
+      <div
+        className={`relative z-10 flex min-h-screen transition-all duration-700 ${revealed ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"}`}
+        style={{ transitionTimingFunction: "cubic-bezier(.22,1,.36,1)" }}
+      >
         {/* ───────── Sidebar ───────── */}
         <aside data-tour="menu" className="hidden md:flex w-[236px] flex-none flex-col gap-1.5 p-3.5 sticky top-0 h-screen overflow-y-auto bg-os-ink-2/70 backdrop-blur-xl border-r border-os-hairline/30 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {/* profile */}
@@ -1763,7 +1778,7 @@ const BotDashboard = () => {
                 <div className="font-display font-bold text-os-heading text-[14.5px] mb-1">Replay onboarding</div>
                 <p className="text-[12.5px] text-os-faint mb-3.5">See the welcome and the guided tour again.</p>
                 <div className="flex gap-2.5 flex-wrap">
-                  <button onClick={() => { lsDel(LS.onboarded); setWelcomeTransfer(false); setShowWelcome(true); }} className="rounded-lg border border-os-hairline bg-os-ink/50 px-3.5 py-2 text-[12.5px] font-semibold text-os-heading hover:bg-os-surface-2">↺ Welcome screen</button>
+                  <button onClick={() => { lsDel(LS.onboarded); setWelcomeTransfer(false); setWelcomeExiting(false); setWelcomeDismissed(false); setNeedsWelcome(true); go("home"); }} className="rounded-lg border border-os-hairline bg-os-ink/50 px-3.5 py-2 text-[12.5px] font-semibold text-os-heading hover:bg-os-surface-2">↺ Welcome screen</button>
                   <button onClick={() => { lsDel(LS.tour); setTourOn(true); go("home"); }} className="rounded-lg border border-os-hairline bg-os-ink/50 px-3.5 py-2 text-[12.5px] font-semibold text-os-heading hover:bg-os-surface-2">↺ Dashboard tour</button>
                 </div>
               </div>
@@ -1787,7 +1802,7 @@ const BotDashboard = () => {
 
       <NewOwnerBillingDialog forceOpen={new URLSearchParams(window.location.search).get("team_transfer") === "accepted"} />
 
-      {showWelcome && <OnboardingOverlay name={handle} transfer={welcomeTransfer} onChoose={chooseMode} />}
+      {welcomeMounted && <OnboardingOverlay name={handle} transfer={welcomeTransfer} exiting={welcomeExiting} onChoose={chooseMode} />}
       {askTour && !tourOn && (
         <div className="fixed bottom-5 right-5 z-[150] w-[300px] rounded-2xl border border-os-hairline/40 bg-os-surface/95 backdrop-blur-md p-[18px] shadow-2xl">
           <div className="font-display font-extrabold text-os-heading text-[15px]">Welcome in</div>
