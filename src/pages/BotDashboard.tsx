@@ -1227,7 +1227,7 @@ const BotDashboard = () => {
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
   const [search, setSearch] = useState("");
 
-  // ── Workspace mode / onboarding / tour / appearance (localStorage) ──────────
+  // ── Workspace / onboarding / tour / appearance (localStorage) ───────────────
   const isOwner = useMemo(
     () => dashboardBots.some((b) => !b.isDemo && !b.viaTeam && !b.viaSupport),
     [dashboardBots],
@@ -1240,16 +1240,15 @@ const BotDashboard = () => {
   const [bgKey, setBgKey] = useState<string>(() => lsGet(LS.bg) || "mountain");
   const bgUrl = BG_PRESETS.find((p) => p.key === bgKey)?.url ?? null;
 
-  // Decide whether to show the first-run welcome (owner + not yet onboarded).
+  // First-run welcome (shown once). Falls through to the tour prompt afterwards.
   useEffect(() => {
     if (loading || botsLoading || !user) return;
-    if (isOwner && !lsGet(LS.onboarded)) {
-      setShowWelcome(true);
-    } else if (!lsGet(LS.tour)) {
+    if (!lsGet(LS.onboarded)) { setShowWelcome(true); return; }
+    if (!lsGet(LS.tour)) {
       const t = setTimeout(() => setAskTour(true), 900);
       return () => clearTimeout(t);
     }
-  }, [loading, botsLoading, user, isOwner]);
+  }, [loading, botsLoading, user]);
 
   const chooseMode = (mode: "solo" | "team") => {
     setWsMode(mode);
@@ -1260,7 +1259,7 @@ const BotDashboard = () => {
     if (!lsGet(LS.tour)) setTimeout(() => setAskTour(true), 700);
   };
 
-  // ── Bot ordering (drag to reorder) ──────────────────────────────────────────
+  // ── Bot ordering (drag to reorder in the grid) ──────────────────────────────
   const botIdsKey = dashboardBots.map((b) => b.id).join(",");
   const [order, setOrder] = useState<string[]>([]);
   useEffect(() => {
@@ -1371,20 +1370,31 @@ const BotDashboard = () => {
   const liveCount = owned.filter((b) => b.status === "live" || b.status === "ready").length;
   const activeBot = botId ? byId[botId] : null;
   const firstOwned = dashboardBots.find((b) => !b.isDemo && !b.viaTeam && !b.viaSupport);
+  const handle = user.email?.split("@")[0] ?? "you";
+  const initial = (user.email?.[0] ?? "U").toUpperCase();
 
-  const NAV: { key: string; label: string; icon: React.ReactNode; teamOnly?: boolean; tour?: string }[] = [
-    { key: "home", label: "Overview", icon: <Home className="h-[17px] w-[17px]" /> },
-    { key: "bots", label: "My Bots", icon: <LayoutGrid className="h-[17px] w-[17px]" /> },
-    { key: "groups", label: "Groups", icon: <Network className="h-[17px] w-[17px]" /> },
-    { key: "activity", label: "Activity", icon: <ActivityIcon className="h-[17px] w-[17px]" /> },
-    { key: "billing", label: "Billing", icon: <CreditCard className="h-[17px] w-[17px]" /> },
-    { key: "team", label: "Team", icon: <Users className="h-[17px] w-[17px]" />, teamOnly: true },
-    { key: "settings", label: "Settings", icon: <Settings className="h-[17px] w-[17px]" />, tour: "settings-nav" },
-    { key: "support", label: "Support", icon: <LifeBuoy className="h-[17px] w-[17px]" /> },
+  const NAV_GROUPS: {
+    label: string;
+    items: { key: string; label: string; icon: React.ReactNode; teamOnly?: boolean; tour?: string; badge?: number }[];
+  }[] = [
+    { label: "Menu", items: [
+      { key: "home", label: "Dashboard", icon: <Home className="h-[17px] w-[17px]" /> },
+      { key: "bots", label: "My Bots", icon: <LayoutGrid className="h-[17px] w-[17px]" />, tour: "bots" },
+      { key: "groups", label: "Groups", icon: <Network className="h-[17px] w-[17px]" /> },
+      { key: "activity", label: "Activity", icon: <ActivityIcon className="h-[17px] w-[17px]" />, badge: unread },
+    ] },
+    { label: "Account", items: [
+      { key: "billing", label: "Billing", icon: <CreditCard className="h-[17px] w-[17px]" /> },
+      { key: "team", label: "Team", icon: <Users className="h-[17px] w-[17px]" />, teamOnly: true },
+    ] },
+    { label: "More", items: [
+      { key: "settings", label: "Settings", icon: <Settings className="h-[17px] w-[17px]" />, tour: "settings-nav" },
+      { key: "support", label: "Support", icon: <LifeBuoy className="h-[17px] w-[17px]" /> },
+    ] },
   ];
 
   const titleFor = (v: string): [string, string] => ({
-    home: ["Overview", `${owned.length} bot${owned.length === 1 ? "" : "s"} · ${liveCount} live`],
+    home: ["Dashboard", `${owned.length} bot${owned.length === 1 ? "" : "s"} · ${liveCount} live`],
     bots: ["My Bots", `${owned.length} bot${owned.length === 1 ? "" : "s"} in your fleet`],
     groups: ["Groups", "Bundle bots and share access"],
     activity: ["Activity", "Live event stream"],
@@ -1395,12 +1405,13 @@ const BotDashboard = () => {
     bot: [activeBot?.bot_name ?? "Bot", "Bot control panel"],
   }[v] ?? ["Dashboard", ""]);
   const [pageTitle, pageSub] = titleFor(view);
+  const crumb = view === "bot" ? "My Bots" : pageTitle;
 
   const botAvatar = (b: OwnedBot, size = "h-9 w-9") =>
     b.icon_url ? (
-      <img src={b.icon_url} alt="" className={`${size} rounded-xl object-cover`} />
+      <img src={b.icon_url} alt="" className={`${size} rounded-xl object-cover flex-none`} />
     ) : (
-      <span className={`${size} grid place-items-center rounded-xl bg-os-ink/60 text-os-accent font-display font-extrabold`}>
+      <span className={`${size} grid place-items-center rounded-xl bg-os-ink/60 text-os-accent font-display font-extrabold flex-none`}>
         {b.bot_name?.[0]?.toUpperCase() ?? "B"}
       </span>
     );
@@ -1412,58 +1423,53 @@ const BotDashboard = () => {
   const CARD = "rounded-2xl border border-os-hairline/40 bg-os-surface/70 backdrop-blur-md";
 
   return (
-    <div className="oversite-theme relative min-h-screen text-os-body font-body bg-os-bg">
-      {/* backdrop */}
+    <div className="oversite-theme relative min-h-screen font-body text-os-body">
+      {/* ── layered backdrop: base color → mountain → dark scrim (root stays transparent) ── */}
+      <div aria-hidden className="fixed inset-0 -z-30 bg-os-bg" />
       {bgUrl && (
-        <div className="fixed inset-0 -z-20 bg-cover" style={{ backgroundImage: `url(${bgUrl})`, backgroundPosition: "center 20%" }} />
+        <div aria-hidden className="fixed inset-0 -z-20 bg-cover" style={{ backgroundImage: `url(${bgUrl})`, backgroundPosition: "center 20%" }} />
       )}
-      <div className="fixed inset-0 -z-10 bg-gradient-to-b from-os-ink/80 via-os-ink/90 to-os-ink/95" />
+      <div aria-hidden className="fixed inset-0 -z-10 bg-gradient-to-b from-os-ink/[0.74] via-os-ink/[0.86] to-os-ink/[0.95]" />
 
       <div className="flex min-h-screen">
         {/* ───────── Sidebar ───────── */}
-        <aside data-tour="menu" className="hidden md:flex w-[236px] flex-none flex-col gap-1.5 p-3.5 sticky top-0 h-screen overflow-y-auto bg-os-ink-2/70 backdrop-blur-xl border-r border-os-hairline/30 [scrollbar-width:none]">
-          <div className="px-2 pb-3.5 mb-1 border-b border-os-hairline/30">
-            <div className="font-display font-extrabold text-os-heading text-[15px] leading-none">Oversite</div>
-            <div className="font-label text-[9px] tracking-[0.18em] text-os-faint mt-1.5">BOT DASHBOARD</div>
+        <aside data-tour="menu" className="hidden md:flex w-[236px] flex-none flex-col gap-1.5 p-3.5 sticky top-0 h-screen overflow-y-auto bg-os-ink-2/70 backdrop-blur-xl border-r border-os-hairline/30 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* profile */}
+          <div className="flex items-center gap-2.5 px-2 pb-3.5 mb-1 border-b border-os-hairline/30">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-os-surface-2 text-os-heading font-display font-extrabold text-[15px]">{initial}</span>
+            <div className="min-w-0">
+              <div className="font-display font-bold text-os-heading text-[13.5px] flex items-center gap-1.5">
+                <span className="truncate">{handle}</span>
+                <span className="font-display text-[8px] font-extrabold tracking-[0.08em] text-os-accent-ink bg-os-accent rounded px-1.5 py-px">{isOwner ? "OWNER" : "TEAM"}</span>
+              </div>
+              <div className="text-[11px] text-os-faint truncate">{user.email}</div>
+            </div>
           </div>
 
-          <div className="font-display text-[9.5px] font-bold tracking-[0.16em] uppercase text-os-faint px-2.5 pt-1 pb-1">Menu</div>
-          {NAV.filter((n) => !n.teamOnly || wsMode === "team").map((n) => (
-            <button
-              key={n.key}
-              data-tour={n.tour}
-              onClick={() => go(n.key)}
-              className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13.5px] transition ${view === n.key ? "bg-os-surface-2 text-os-heading font-semibold" : "text-os-body hover:bg-os-surface hover:text-os-heading"}`}
-            >
-              {n.icon}{n.label}
-              {n.key === "activity" && unread > 0 && (
-                <span className="ml-auto rounded-md bg-os-accent px-1.5 text-[10px] font-bold text-os-accent-ink">{unread}</span>
-              )}
-            </button>
-          ))}
+          {NAV_GROUPS.map((grp) => {
+            const items = grp.items.filter((it) => !it.teamOnly || wsMode === "team");
+            if (items.length === 0) return null;
+            return (
+              <div key={grp.label}>
+                <div className="font-display text-[9.5px] font-bold tracking-[0.16em] uppercase text-os-faint px-2.5 pt-3 pb-1">{grp.label}</div>
+                {items.map((n) => (
+                  <button
+                    key={n.key}
+                    data-tour={n.tour}
+                    onClick={() => go(n.key)}
+                    className={`w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13.5px] transition ${view === n.key ? "bg-os-surface-2 text-os-heading font-semibold" : "text-os-body hover:bg-os-surface hover:text-os-heading"}`}
+                  >
+                    {n.icon}{n.label}
+                    {n.key === "activity" && (n.badge ?? 0) > 0 && (
+                      <span className="ml-auto rounded-md bg-os-accent px-1.5 text-[10px] font-bold text-os-accent-ink">{n.badge}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
 
-          <div data-tour="bots" className="font-display text-[9.5px] font-bold tracking-[0.16em] uppercase text-os-faint px-2.5 pt-3 pb-1">Your bots</div>
-          <div className="flex flex-col gap-1">
-            {orderedBots.filter((b) => !b.isDemo).map((b) => (
-              <button
-                key={b.id}
-                draggable
-                onDragStart={() => onDragStart(b.id)}
-                onDragOver={(e) => onDragOver(e, b.id)}
-                onDragEnd={onDragEnd}
-                onClick={() => openBot(b.id)}
-                title={b.bot_name}
-                className={`flex items-center gap-2.5 rounded-xl px-2 py-1.5 text-[13px] cursor-grab active:cursor-grabbing transition ${view === "bot" && botId === b.id ? "bg-os-surface-2 text-os-heading" : "text-os-body hover:bg-os-surface hover:text-os-heading"}`}
-              >
-                {botAvatar(b, "h-7 w-7")}
-                <span className="truncate">{b.bot_name}</span>
-                <span className="ml-auto">{statusDot(b)}</span>
-              </button>
-            ))}
-            {owned.length === 0 && <div className="px-2.5 py-2 text-[12px] text-os-faint">No bots yet.</div>}
-          </div>
-
-          {wsMode === "team" && (
+          {wsMode === "team" ? (
             <div className="mt-auto rounded-2xl border border-os-hairline/40 bg-os-surface/60 p-3.5">
               <div className="flex items-center gap-2 mb-2.5">
                 <Megaphone className="h-3.5 w-3.5 text-os-accent" />
@@ -1477,9 +1483,11 @@ const BotDashboard = () => {
                 <Plus className="h-3 w-3" /> Manage team
               </button>
             </div>
+          ) : (
+            <div className="mt-auto" />
           )}
 
-          <button onClick={signOut} className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13.5px] text-os-body hover:bg-os-surface hover:text-os-heading ${wsMode === "team" ? "mt-3" : "mt-auto"}`}>
+          <button onClick={signOut} className="mt-3 flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13.5px] text-os-body hover:bg-os-surface hover:text-os-heading">
             <LogOut className="h-[17px] w-[17px]" /> Sign out
           </button>
         </aside>
@@ -1490,7 +1498,8 @@ const BotDashboard = () => {
           <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
             <div>
               <div className="text-[12px] text-os-faint">
-                Oversite / <span className="text-os-heading font-medium">{pageTitle}</span>
+                Oversite / <span className="text-os-heading font-medium">{crumb}</span>
+                {view === "bot" && <> / <span className="text-os-heading font-medium">{activeBot?.bot_name}</span></>}
               </div>
               <h1 className="font-display font-extrabold text-os-heading tracking-tight text-[clamp(24px,3vw,34px)] leading-none mt-2">{pageTitle}</h1>
               {pageSub && <div className="text-[12.5px] text-os-faint mt-2">{pageSub}</div>}
@@ -1737,8 +1746,9 @@ const BotDashboard = () => {
                       key={p.key}
                       onClick={() => { setBgKey(p.key); lsSet(LS.bg, p.key); }}
                       className={`relative h-[78px] rounded-xl border-[1.5px] overflow-hidden bg-cover bg-center ${bgKey === p.key ? "border-os-accent" : "border-os-hairline"}`}
-                      style={p.url ? { backgroundImage: `url(${p.url})`, backgroundPosition: "center 22%" } : { backgroundImage: "repeating-linear-gradient(45deg, rgb(var(--os-surface-2)) 0 8px, rgb(var(--os-ink)) 8px 16px)" }}
+                      style={p.url ? { backgroundImage: `url(${p.url})`, backgroundPosition: "center 22%" } : undefined}
                     >
+                      {!p.url && <span className="absolute inset-0 bg-os-surface-2" />}
                       {bgKey === p.key && <span className="absolute top-1.5 right-1.5 grid h-[18px] w-[18px] place-items-center rounded-full bg-os-accent text-os-accent-ink"><Check className="h-2.5 w-2.5" strokeWidth={3} /></span>}
                       <span className="absolute inset-x-0 bottom-0 px-2 py-1 font-display text-[10.5px] font-bold text-os-heading bg-gradient-to-t from-os-ink/80 to-transparent">{p.label}</span>
                     </button>
@@ -1747,14 +1757,9 @@ const BotDashboard = () => {
               </div>
 
               <div className={`${CARD} p-[18px]`}>
-                <div className="font-display font-bold text-os-heading text-[14.5px] mb-1">Notifications</div>
-                <p className="text-[12.5px] text-os-faint">Configure Discord DM alerts (offline, errors, free-period) per bot inside each bot's panel.</p>
-              </div>
-
-              <div className={`${CARD} p-[18px]`}>
                 <div className="font-display font-bold text-os-heading text-[14.5px] mb-1">Replay onboarding</div>
                 <p className="text-[12.5px] text-os-faint mb-3.5">See the welcome and the guided tour again.</p>
-                <div className="flex gap-2.5">
+                <div className="flex gap-2.5 flex-wrap">
                   <button onClick={() => { lsDel(LS.onboarded); setWelcomeTransfer(false); setShowWelcome(true); }} className="rounded-lg border border-os-hairline bg-os-ink/50 px-3.5 py-2 text-[12.5px] font-semibold text-os-heading hover:bg-os-surface-2">↺ Welcome screen</button>
                   <button onClick={() => { lsDel(LS.tour); setTourOn(true); go("home"); }} className="rounded-lg border border-os-hairline bg-os-ink/50 px-3.5 py-2 text-[12.5px] font-semibold text-os-heading hover:bg-os-surface-2">↺ Dashboard tour</button>
                 </div>
@@ -1777,11 +1782,9 @@ const BotDashboard = () => {
         </main>
       </div>
 
-      {/* one team panel for new-owner billing dialog handoff */}
       <NewOwnerBillingDialog forceOpen={new URLSearchParams(window.location.search).get("team_transfer") === "accepted"} />
 
-      {/* onboarding + tour */}
-      {showWelcome && <OnboardingOverlay name={user.email?.split("@")[0] ?? "there"} transfer={welcomeTransfer} onChoose={chooseMode} />}
+      {showWelcome && <OnboardingOverlay name={handle} transfer={welcomeTransfer} onChoose={chooseMode} />}
       {askTour && !tourOn && (
         <div className="fixed bottom-5 right-5 z-[150] w-[300px] rounded-2xl border border-os-hairline/40 bg-os-surface/95 backdrop-blur-md p-[18px] shadow-2xl">
           <div className="font-display font-extrabold text-os-heading text-[15px]">Welcome in</div>
