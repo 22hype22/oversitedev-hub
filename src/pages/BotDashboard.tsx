@@ -41,6 +41,7 @@ import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
 import { BotControlsPanel } from "@/components/dashboard/BotControlsPanel";
 import { BotUsageMetricsPanel } from "@/components/dashboard/BotUsageMetricsPanel";
+import { BotLogsPanel } from "@/components/dashboard/BotLogsPanel";
 import { BotServerSlotsCard } from "@/components/dashboard/BotServerSlotsCard";
 import { BotInviteLinkCard } from "@/components/dashboard/BotInviteLinkCard";
 import { TeamManagementHub } from "@/components/dashboard/team/TeamManagementHub";
@@ -409,20 +410,6 @@ const BotSection = ({
     const t = setTimeout(() => setIsStarting(false), 90_000);
     return () => clearTimeout(t);
   }, [isStarting]);
-  // Debug: log health resolution per bot/viewer to diagnose team-member lockout issues.
-  useEffect(() => {
-    if (bot.isDemo) return;
-    // eslint-disable-next-line no-console
-    console.log("[BotHealth]", {
-      botId: bot.id,
-      viaTeam: bot.viaTeam,
-      viaSupport: bot.viaSupport,
-      ownerUserId: bot.ownerUserId,
-      loading: healthLoading,
-      health,
-      effective_status: health?.effective_status ?? null,
-    });
-  }, [bot.id, bot.isDemo, bot.viaTeam, bot.viaSupport, bot.ownerUserId, healthLoading, health]);
   // Offline lockout is based ONLY on actual runtime status. Loading or null
   // health (e.g., RPC error, first paint) must NOT trigger the lockout —
   // we only lock when we have confirmed effective_status === "offline".
@@ -884,6 +871,8 @@ const BotSection = ({
         {!bot.isDemo && <BotServerSlotsCard botId={bot.id} highlightBuy={highlightSlots} />}
 
         {!bot.isDemo && <BotUsageMetricsPanel botId={bot.id} />}
+
+        {!bot.isDemo && <BotLogsPanel botId={bot.id} />}
       </div>
 
         </div>
@@ -1549,9 +1538,9 @@ const BotDashboard = () => {
       <div className="min-h-screen bg-background grid place-items-center px-4">
         <div className="max-w-md text-center space-y-5">
           <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 border border-primary/20 grid place-items-center"><Lock className="h-5 w-5 text-primary" /></div>
-          <h1 className="text-2xl font-bold">Web Dashboard not enabled</h1>
-          <p className="text-muted-foreground">The <span className="text-foreground font-medium">Web Dashboard</span> add-on unlocks bot management from this site.</p>
-          <div className="flex gap-3 justify-center"><Button asChild><Link to="/bots"><Globe className="h-4 w-4 mr-2" />Add Web Dashboard</Link></Button><Button variant="outline" asChild><Link to="/">Back to site</Link></Button></div>
+          <h1 className="text-2xl font-bold">No bots yet</h1>
+          <p className="text-muted-foreground">Once you <span className="text-foreground font-medium">own a bot</span> — by buying one or having it transferred to you — it'll show up here to manage. Team members get access when an owner shares a bot with them.</p>
+          <div className="flex gap-3 justify-center"><Button asChild><Link to="/bots"><Globe className="h-4 w-4 mr-2" />Browse bots</Link></Button><Button variant="outline" asChild><Link to="/">Back to site</Link></Button></div>
         </div>
       </div>
     );
