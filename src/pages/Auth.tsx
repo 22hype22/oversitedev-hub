@@ -39,9 +39,14 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [params] = useSearchParams();
-  const [mode, setMode] = useState<"signin" | "signup">(
+  const [mode, setMode] = useState<"signin" | "signup" | "reset">(
     params.get("mode") === "signup" ? "signup" : "signin",
   );
+  const [resetStep, setResetStep] = useState<"request" | "verify">("request");
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newConfirm, setNewConfirm] = useState("");
   const [identifier, setIdentifier] = useState(""); // sign-in: email OR username
   const [username, setUsername] = useState("");      // sign-up
   const [email, setEmail] = useState("");
@@ -160,24 +165,56 @@ const Auth = () => {
     // On success the browser redirects to the provider, then back to /auth.
   };
 
-  const forgotPassword = async () => {
-    let target = identifier.trim();
+  // Switch into the multi-step reset flow (prefill email if one was typed).
+  const startReset = () => {
+    setMode("reset");
+    setResetStep("request");
+    if (identifier.includes("@")) setResetEmail(identifier.trim());
+  };
+
+  // Step 1 — send a 6-digit code to the account email.
+  const sendResetCode = async (e?: FormEvent) => {
+    if (e) e.preventDefault();
+    let target = resetEmail.trim();
     if (!target) {
-      toast({ title: "Enter your email first", description: "Type your email (or username) above, then tap Forgot password.", variant: "destructive" });
+      toast({ title: "Enter your email", description: "We'll send your reset code there.", variant: "destructive" });
+      return;
+    }
+    if (!target.includes("@")) {
+      const { data } = await (supabase as any).rpc("email_for_username", { uname: target });
+      if (data) { target = data as string; setResetEmail(target); }
+    }
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(target, { redirectTo: `${window.location.origin}/auth` });
+      if (error) throw error;
+      toast({ title: "Code sent", description: "Check your email for a 6-digit code — it expires in 15 minutes." });
+      setResetStep("verify");
+    } catch (err: any) {
+      toast({ title: "Couldn't send code", description: err.message ?? "Try again.", variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Step 2 — verify the code and set the new password.
+  const completeReset = async (e: FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== newConfirm) {
+      toast({ title: "Passwords don't match", description: "Please re-enter your new password.", variant: "destructive" });
       return;
     }
     setBusy(true);
     try {
-      if (!target.includes("@")) {
-        const { data, error } = await (supabase as any).rpc("email_for_username", { uname: target });
-        if (error || !data) throw new Error("Enter the email on your account to reset your password.");
-        target = data as string;
-      }
-      const { error } = await supabase.auth.resetPasswordForEmail(target, { redirectTo: `${window.location.origin}/auth` });
-      if (error) throw error;
-      toast({ title: "Reset link sent", description: "Check your email for a link to reset your password." });
+      const { error: vErr } = await supabase.auth.verifyOtp({ email: resetEmail.trim(), token: resetCode.trim(), type: "recovery" });
+      if (vErr) throw vErr;
+      const { error: uErr } = await supabase.auth.updateUser({ password: newPassword });
+      if (uErr) throw uErr;
+      toast({ title: "Password updated", description: "You're all set — signed in with your new password." });
+      await runPostAuthActions();
+      navigate(postAuthPath, { replace: true });
     } catch (err: any) {
-      toast({ title: "Couldn't send reset", description: err.message ?? "Try again.", variant: "destructive" });
+      toast({ title: "Couldn't reset", description: err.message ?? "Check the code and try again — it may have expired.", variant: "destructive" });
     } finally {
       setBusy(false);
     }
@@ -311,16 +348,79 @@ const Auth = () => {
               </div>
             )}
 
-            <Mono className="text-os-accent">{mode === "signin" ? "Welcome back" : "Join Oversite"}</Mono>
+            <Mono className="text-os-accent">{mode === "signin" ? "Welcome back" : mode === "reset" ? "Account recovery" : "Join Oversite"}</Mono>
             <h1 className="mt-3 font-display text-[clamp(2rem,5vw,2.8rem)] font-extrabold leading-[0.95] tracking-[-0.02em] text-os-heading">
-              {mode === "signin" ? "Sign in" : "Create your account"}
+              {mode === "signin" ? "Sign in" : mode === "reset" ? "Reset password" : "Create your account"}
             </h1>
             <p className="mt-3 font-body text-[15px] leading-relaxed text-os-body">
               {mode === "signin"
                 ? "Pick up right where you left off."
-                : "We'll never spam, sell, or share your info."}
+                : mode === "reset"
+                  ? resetStep === "request"
+                    ? "Enter your email and we'll send you a 6-digit code that expires in 15 minutes."
+                    : `We sent a code to ${resetEmail || "your email"}. Enter it below with your new password.`
+                  : "We'll never spam, sell, or share your info."}
             </p>
 
+            {mode === "reset" ? (
+              <>
+                {resetStep === "request" ? (
+                  <form onSubmit={sendResetCode} className="mt-7 space-y-4">
+                    <div>
+                      <label htmlFor="reset-email" className={FIELD_LABEL}>Email or username</label>
+                      <input id="reset-email" type="text" required value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} className={FIELD} placeholder="you@email.com or username" autoComplete="username" />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={busyAny}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-os-accent px-6 py-3.5 font-label text-[12px] font-bold uppercase tracking-[0.14em] text-os-accent-ink transition hover:brightness-105 active:translate-y-px disabled:pointer-events-none disabled:opacity-50"
+                    >
+                      {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                      {busy ? "Sending…" : "Send code"}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={completeReset} className="mt-7 space-y-4">
+                    <div>
+                      <label htmlFor="reset-code" className={FIELD_LABEL}>6-digit code</label>
+                      <input id="reset-code" type="text" inputMode="numeric" autoComplete="one-time-code" required value={resetCode} onChange={(e) => setResetCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))} className={`${FIELD} tracking-[0.4em]`} placeholder="000000" />
+                    </div>
+                    <div>
+                      <label htmlFor="new-password" className={FIELD_LABEL}>New password</label>
+                      <input id="new-password" type="password" required minLength={6} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={FIELD} placeholder="••••••••" autoComplete="new-password" />
+                    </div>
+                    <div>
+                      <label htmlFor="new-confirm" className={FIELD_LABEL}>Confirm new password</label>
+                      <input id="new-confirm" type="password" required minLength={6} value={newConfirm} onChange={(e) => setNewConfirm(e.target.value)} className={FIELD} placeholder="••••••••" autoComplete="new-password" />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={busyAny}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-os-accent px-6 py-3.5 font-label text-[12px] font-bold uppercase tracking-[0.14em] text-os-accent-ink transition hover:brightness-105 active:translate-y-px disabled:pointer-events-none disabled:opacity-50"
+                    >
+                      {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                      {busy ? "Resetting…" : "Reset password"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => sendResetCode()}
+                      disabled={busyAny}
+                      className="font-label text-[11px] uppercase tracking-[0.12em] text-os-faint transition-colors hover:text-os-accent disabled:opacity-50"
+                    >
+                      Didn't get it? Resend code
+                    </button>
+                  </form>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { setMode("signin"); setResetStep("request"); setResetCode(""); setNewPassword(""); setNewConfirm(""); }}
+                  className="mt-6 inline-flex items-center gap-1.5 font-label text-[11px] uppercase tracking-[0.12em] text-os-faint transition-colors hover:text-os-accent"
+                >
+                  <ArrowLeft size={13} aria-hidden /> Back to sign in
+                </button>
+              </>
+            ) : (
+            <>
             {/* Social */}
             <div className="mt-7 grid gap-2.5">
               <button
@@ -419,12 +519,14 @@ const Auth = () => {
             {mode === "signin" && (
               <button
                 type="button"
-                onClick={forgotPassword}
+                onClick={startReset}
                 disabled={busyAny}
                 className="mt-3 font-label text-[11px] uppercase tracking-[0.12em] text-os-faint transition-colors hover:text-os-accent disabled:opacity-50"
               >
                 Forgot your password?
               </button>
+            )}
+            </>
             )}
           </Reveal>
         </div>
