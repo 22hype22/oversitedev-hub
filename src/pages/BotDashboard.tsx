@@ -41,6 +41,7 @@ import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
 import { BotControlsPanel } from "@/components/dashboard/BotControlsPanel";
 import { BotUsageMetricsPanel } from "@/components/dashboard/BotUsageMetricsPanel";
+import { BotLogsPanel } from "@/components/dashboard/BotLogsPanel";
 import { BotServerSlotsCard } from "@/components/dashboard/BotServerSlotsCard";
 import { BotInviteLinkCard } from "@/components/dashboard/BotInviteLinkCard";
 import { TeamManagementHub } from "@/components/dashboard/team/TeamManagementHub";
@@ -94,9 +95,12 @@ import {
   Home,
   Network,
 } from "lucide-react";
-import containers from "@/assets/containers.webp";
 import heroBg from "@/assets/hero-bg.jpg";
 import { useBotNotifications, type BotNotification } from "@/hooks/useBotNotifications";
+
+// Mountain backdrop — imported as a real asset so it is a separately
+// cacheable file instead of a ~220KB base64 blob inside this JS chunk.
+import containers from "@/assets/containers.webp";
 import { Input } from "@/components/ui/input";
 import { HostingPastDueBanner } from "@/components/dashboard/HostingPastDueBanner";
 import { ReadOnlyBotScope } from "@/components/dashboard/ReadOnlyBotScope";
@@ -406,20 +410,6 @@ const BotSection = ({
     const t = setTimeout(() => setIsStarting(false), 90_000);
     return () => clearTimeout(t);
   }, [isStarting]);
-  // Debug: log health resolution per bot/viewer to diagnose team-member lockout issues.
-  useEffect(() => {
-    if (bot.isDemo) return;
-    // eslint-disable-next-line no-console
-    console.log("[BotHealth]", {
-      botId: bot.id,
-      viaTeam: bot.viaTeam,
-      viaSupport: bot.viaSupport,
-      ownerUserId: bot.ownerUserId,
-      loading: healthLoading,
-      health,
-      effective_status: health?.effective_status ?? null,
-    });
-  }, [bot.id, bot.isDemo, bot.viaTeam, bot.viaSupport, bot.ownerUserId, healthLoading, health]);
   // Offline lockout is based ONLY on actual runtime status. Loading or null
   // health (e.g., RPC error, first paint) must NOT trigger the lockout —
   // we only lock when we have confirmed effective_status === "offline".
@@ -881,6 +871,8 @@ const BotSection = ({
         {!bot.isDemo && <BotServerSlotsCard botId={bot.id} highlightBuy={highlightSlots} />}
 
         {!bot.isDemo && <BotUsageMetricsPanel botId={bot.id} />}
+
+        {!bot.isDemo && <BotLogsPanel botId={bot.id} />}
       </div>
 
         </div>
@@ -1031,10 +1023,367 @@ const BotSection = ({
 
 
 // ============================================================================
-//  Dashboard shell — sidebar of bots + views over the mountain backdrop.
-//  The per-bot screen reuses <BotSection> (and every per-bot block) verbatim;
-//  everything else here is the navigation / design layer.
+//  Dashboard — 1:1 port of the approved preview. The preview's exact (scoped)
+//  CSS lives in OSD_CSS; markup below mirrors the preview with live data.
+//  The per-bot configuration screen reuses the real <BotSection> block.
 // ============================================================================
+
+const OSD_CSS = `.osd{font-family:var(--bodyf);color:var(--body);min-height:100vh;position:relative;--bg:#21272e;--panel:#272e36;--surface:#2d353e;--surface2:#343d46;--hair:#3a434d;--heading:#E8EEF3;--body:#A8B4BF;--faint:#788591;--accent:#C9DBE6;--accentink:#1E242B;--ok:#86d3a1;--bad:#e98b8b;--gold:#cbb277;--disp:"Bricolage Grotesque",system-ui,sans-serif;--bodyf:"Space Grotesk",system-ui,sans-serif;--mono:"Space Mono",monospace}
+.osd-bg{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center 20%;background-repeat:no-repeat}
+.osd-scrim{position:fixed;inset:0;z-index:0;background:linear-gradient(180deg,rgba(18,22,27,.42),rgba(18,22,27,.6) 60%,rgba(18,22,27,.74))}
+.osd-dim{position:fixed;inset:0;z-index:0;background:rgba(14,18,23,.62);opacity:0;transition:opacity 1.1s ease}
+.osd.app .osd-dim{opacity:1}
+.osd.instant .osd-dim,.osd.instant .appwrap,.osd.instant .side{transition:none!important}
+.osd-stage{position:relative;z-index:10}
+.osd :root{--bg:#21272e;--panel:#272e36;--surface:#2d353e;--surface2:#343d46;--hair:#3a434d;
+        --heading:#E8EEF3;--body:#A8B4BF;--faint:#788591;--accent:#C9DBE6;--accentink:#1E242B;
+        --ok:#86d3a1;--bad:#e98b8b;--gold:#cbb277;
+        --disp:"Bricolage Grotesque",system-ui,sans-serif;--bodyf:"Space Grotesk",system-ui,sans-serif;--mono:"Space Mono",monospace}
+.osd *{box-sizing:border-box;margin:0;padding:0}
+.osd.instant::after, .osd.instant .appwrap, .osd.instant .side{transition:none!important}
+.osd .appwrap{display:flex;min-height:100vh;opacity:0;transform:translateY(16px);pointer-events:none;
+    transition:opacity .9s ease .18s,transform 1s cubic-bezier(.22,1,.36,1) .18s}
+.osd .appwrap.show{opacity:1;transform:none;pointer-events:auto}
+.osd a{color:inherit;text-decoration:none}
+.osd svg{display:block}
+.osd .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.osd .overlay{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;overflow-y:auto;
+    background:transparent;transition:opacity .65s ease,visibility .65s}
+.osd .overlay.hide{opacity:0;visibility:hidden;pointer-events:none}
+.osd .overlay.hide .wcard{transform:translateY(-16px) scale(.965);opacity:0}
+.osd .wcard{transition:transform .65s cubic-bezier(.22,1,.36,1),opacity .5s ease}
+.osd .wcard{width:100%;max-width:560px;border:1px solid rgba(168,180,191,.16);border-radius:22px;text-align:center;
+    background:linear-gradient(180deg,rgba(45,53,62,.74),rgba(39,46,54,.8));backdrop-filter:blur(18px);
+    padding:36px;box-shadow:0 44px 100px -44px rgba(0,0,0,.85)}
+.osd .wcard .wmark{font-family:var(--disp);font-weight:800;color:var(--heading);font-size:18px;letter-spacing:-.01em;margin-bottom:20px}
+.osd .wcard .wmark span{display:block;margin-top:5px;color:var(--faint);font-weight:700;font-size:10px;letter-spacing:.2em;text-transform:uppercase}
+.osd .wcard h1{font-family:var(--disp);font-weight:800;color:var(--heading);font-size:clamp(24px,3.4vw,30px);letter-spacing:-.022em;line-height:1.05}
+.osd .wcard .lead{font-size:13.5px;color:var(--body);line-height:1.55;margin-top:11px}
+.osd .wcard .lead b{color:var(--heading);font-weight:600}
+.osd .qlab{font-family:var(--disp);font-weight:700;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:26px 0 13px}
+.osd .choices{display:grid;grid-template-columns:1fr 1fr;gap:13px;text-align:left}
+.osd .choice{position:relative;border:1.5px solid var(--hair);border-radius:16px;background:rgba(32,38,45,.5);padding:18px;cursor:pointer;transition:.16s}
+.osd .choice:hover{border-color:color-mix(in srgb,var(--accent) 45%,transparent);transform:translateY(-2px)}
+.osd .choice.sel{border-color:var(--accent);background:rgba(201,219,230,.08)}
+.osd .choice .ci{height:42px;width:42px;border-radius:12px;background:var(--panel);display:grid;place-items:center;color:var(--accent);margin-bottom:12px;transition:.16s}
+.osd .choice.sel .ci{background:var(--accent);color:var(--accentink)}
+.osd .choice .ci svg{width:20px;height:20px;stroke:currentColor;stroke-width:1.7;fill:none}
+.osd .choice .ct2{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:15px}
+.osd .choice .cd{font-size:11.5px;color:var(--faint);line-height:1.45;margin-top:5px}
+.osd .choice .tick{position:absolute;top:14px;right:14px;height:18px;width:18px;border-radius:999px;border:1.5px solid var(--hair);display:grid;place-items:center;color:var(--accentink);transition:.16s}
+.osd .choice .tick svg{width:11px;height:11px;stroke:currentColor;stroke-width:3;fill:none;opacity:0}
+.osd .choice.sel .tick{background:var(--accent);border-color:var(--accent)}
+.osd .choice.sel .tick svg{opacity:1}
+.osd .wgo{width:100%;margin-top:20px;background:var(--accent);color:var(--accentink);border:0;border-radius:13px;padding:13px;font-family:var(--bodyf);font-weight:700;font-size:14px;cursor:pointer;transition:.15s;opacity:.45;pointer-events:none}
+.osd .wgo.ready{opacity:1;pointer-events:auto}
+.osd .wgo.ready:hover{filter:brightness(1.06)}
+.osd .wnote{font-size:11.5px;color:var(--faint);margin-top:14px}
+@media(max-width:520px){.osd .choices{grid-template-columns:1fr}.osd .wcard{padding:26px 20px}}
+.osd .side{width:236px;flex:none;display:flex;flex-direction:column;gap:6px;padding:18px 14px;
+        background:rgba(34,40,47,.66);backdrop-filter:blur(16px);border-right:1px solid rgba(168,180,191,.12);position:sticky;top:0;height:100vh;overflow-y:auto;
+        transform:translateX(-20px);transition:transform .95s cubic-bezier(.22,1,.36,1) .22s}
+.osd .appwrap.show .side{transform:none}
+.osd .side{scrollbar-width:none;-ms-overflow-style:none}
+.osd .side::-webkit-scrollbar{width:0;height:0;display:none}
+.osd .prof{display:flex;align-items:center;gap:10px;padding:8px 8px 14px;border-bottom:1px solid var(--hair);margin-bottom:8px}
+.osd .prof .av{height:38px;width:38px;border-radius:11px;background:linear-gradient(135deg,#46525E,#343D46);
+            display:grid;place-items:center;color:var(--heading);font-weight:800;font-family:var(--disp);font-size:15px;flex:none}
+.osd .prof .nm{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:13.5px;display:flex;align-items:center;gap:6px}
+.osd .prof .pro{font-family:var(--disp);font-size:8px;font-weight:800;letter-spacing:.08em;color:var(--accentink);background:var(--accent);border-radius:5px;padding:1px 5px}
+.osd .prof .h{font-size:11px;color:var(--faint);margin-top:1px}
+.osd .prof .ed{margin-left:auto;color:var(--faint);cursor:pointer}
+.osd .glab{font-family:var(--disp);font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:12px 10px 5px}
+.osd .nav{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:11px;color:var(--body);font-size:13.5px;cursor:pointer;transition:.14s}
+.osd .nav svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.7;fill:none;flex:none}
+.osd .nav:hover{background:var(--surface);color:var(--heading)}
+.osd .nav.on{background:var(--surface2);color:var(--heading);font-weight:600}
+.osd .annc{position:fixed;bottom:22px;right:22px;z-index:140;width:330px;max-width:calc(100vw - 36px);border:1px solid var(--hair);border-radius:18px;background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 7%,var(--surface)),var(--panel));box-shadow:0 26px 64px -20px rgba(0,0,0,.75);overflow:hidden;animation:annc-in .42s cubic-bezier(.22,1,.36,1)}
+@keyframes annc-in{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+.osd .annc .bar{height:3px;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 25%,transparent))}
+.osd .annc .in{padding:15px 16px 14px}
+.osd .annc .hd{display:flex;align-items:center;gap:10px}
+.osd .annc .ic{height:34px;width:34px;border-radius:11px;flex:none;display:grid;place-items:center;background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 24%,transparent)}
+.osd .annc .ic svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none}
+.osd .annc .ht{min-width:0}
+.osd .annc .ht .t{font-family:var(--disp);font-weight:700;font-size:13px;color:var(--heading);display:flex;align-items:center;gap:7px;line-height:1.1}
+.osd .annc .ht .t .ndot{height:6px;width:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 24%,transparent);animation:annc-pulse 2.4s ease-in-out infinite}
+@keyframes annc-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.osd .annc .ht .s{font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:3px;letter-spacing:.02em;text-transform:uppercase}
+.osd .annc .x{margin-left:auto;height:27px;width:27px;border-radius:8px;flex:none;border:1px solid var(--hair);background:transparent;color:var(--faint);display:grid;place-items:center;cursor:pointer;transition:.15s;padding:0}
+.osd .annc .x:hover{background:var(--surface2);color:var(--heading);border-color:var(--surface2)}
+.osd .annc .x svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none}
+.osd .annc .bd{margin-top:14px}
+.osd .annc .bd .h{font-family:var(--disp);font-weight:700;font-size:14.5px;color:var(--heading);line-height:1.3;letter-spacing:-.01em}
+.osd .annc .bd .p{font-size:12px;color:var(--body);line-height:1.5;margin-top:5px}
+.osd .annc .ft{display:flex;align-items:center;gap:9px;margin-top:15px;padding-top:13px;border-top:1px solid var(--hair)}
+.osd .annc .by{display:flex;align-items:center;gap:8px;min-width:0}
+.osd .annc .av{height:26px;width:26px;border-radius:8px;flex:none;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 55%,#000));color:var(--accentink);font-family:var(--disp);font-weight:800;font-size:10.5px}
+.osd .annc .by .nm{font-size:11.5px;color:var(--heading);font-weight:600;line-height:1.15}
+.osd .annc .by .tm{font-size:10px;color:var(--faint);margin-top:1px}
+.osd .annc .act{margin-left:auto;flex:none;display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:var(--accentink);border:0;border-radius:9px;padding:7px 13px;font-family:var(--bodyf);font-weight:700;font-size:11.5px;cursor:pointer;transition:.15s}
+.osd .annc .act:hover{filter:brightness(1.07)}
+.osd .annc .act svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.2;fill:none;transition:transform .15s}
+.osd .annc .act:hover svg{transform:translateX(2px)}
+@media(max-width:760px){.osd .annc{left:14px;right:14px;width:auto}}
+.osd .main{flex:1;min-width:0;padding:24px 26px 50px}
+.osd .head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.osd .crumb{font-size:12px;color:var(--faint)}
+.osd .crumb b{color:var(--heading);font-weight:600}
+.osd .head h1{font-family:var(--disp);font-size:clamp(26px,3.2vw,38px);color:var(--heading);letter-spacing:-.025em;margin-top:7px;line-height:1}
+.osd .head .sub{font-size:12.5px;color:var(--faint);margin-top:8px}
+.osd .head .sub b{color:var(--ok);font-weight:600}
+.osd .htools{display:flex;align-items:center;gap:11px}
+.osd .search{display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--hair);border-radius:11px;padding:9px 13px;color:var(--faint);font-size:13px;min-width:170px}
+.osd .search svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.8;fill:none}
+.osd .bell{height:40px;width:40px;border-radius:11px;background:var(--panel);border:1px solid var(--hair);display:grid;place-items:center;color:var(--body);cursor:pointer;position:relative}
+.osd .bell svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.7;fill:none}
+.osd .bell .d{position:absolute;top:9px;right:11px;height:6px;width:6px;border-radius:999px;background:var(--accent)}
+.osd .cta{background:var(--accent);color:var(--accentink);border:0;border-radius:11px;padding:11px 20px;font-family:var(--bodyf);font-weight:700;font-size:13px;cursor:pointer;transition:.15s;white-space:nowrap}
+.osd .cta:hover{filter:brightness(1.06)}
+.osd .view{display:none;animation:osd-fade .3s ease}
+.osd .view.on{display:block}
+@keyframes osd-fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.osd .grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;align-items:start}
+.osd .left{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.osd .right{display:flex;flex-direction:column;gap:16px}
+.osd .card{border:1px solid rgba(168,180,191,.14);border-radius:18px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);padding:18px}
+.osd .ch{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.osd .ct{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:14.5px}
+.osd .dots{color:var(--faint);cursor:pointer;font-size:18px;line-height:0}
+.osd .cust .ph{height:96px;border-radius:13px;background:
+     linear-gradient(90deg,transparent,rgba(168,180,191,.08) 40%,transparent),
+     repeating-linear-gradient(180deg,transparent 0 16px,rgba(168,180,191,.06) 16px 17px),var(--panel);
+     display:flex;align-items:center;justify-content:center;color:var(--faint);margin-bottom:16px}
+.osd .cust .ph svg{width:30px;height:30px;stroke:currentColor;stroke-width:1.5;fill:none;opacity:.5}
+.osd .cust h3{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:17px;margin-bottom:7px}
+.osd .cust p{font-size:12.5px;color:var(--faint);line-height:1.5;margin-bottom:16px}
+.osd .ghost{width:100%;background:var(--panel);border:1px solid var(--hair);color:var(--heading);border-radius:11px;padding:11px;font-family:var(--bodyf);font-weight:600;font-size:13px;cursor:pointer;transition:.15s}
+.osd .ghost:hover{background:var(--surface2)}
+.osd .leg{display:flex;gap:14px;font-size:11px;color:var(--faint)}
+.osd .leg span{display:inline-flex;align-items:center;gap:6px}
+.osd .leg i{height:8px;width:8px;border-radius:3px;display:inline-block}
+.osd .chart{display:flex;align-items:flex-end;gap:8px;height:120px;margin:6px 0 14px}
+.osd .chart .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
+.osd .chart .bars{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;gap:3px}
+.osd .chart .bar{width:7px;border-radius:3px;transition:height .3s}
+.osd .chart .bar.buy{background:var(--accent)}
+.osd .chart .bar.sell{background:var(--surface2)}
+.osd .chart .x{font-size:9.5px;color:var(--faint)}
+.osd .kpis{display:flex;align-items:center;gap:12px}
+.osd .kpis .big{font-family:var(--disp);font-size:30px;font-weight:800;color:var(--heading);letter-spacing:-.02em}
+.osd .kpis .big sup{font-size:15px;color:var(--faint);font-weight:600}
+.osd .updelta{font-size:11px;color:var(--ok);background:rgba(134,211,161,.12);border-radius:999px;padding:3px 9px;font-weight:700}
+.osd .kpis .vs{font-size:11px;color:var(--faint);margin-left:auto}
+.osd .tabs{display:flex;gap:5px;background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:4px;margin-bottom:14px;flex-wrap:wrap}
+.osd .tabs button{border:0;background:transparent;color:var(--faint);font-family:var(--bodyf);font-size:11.5px;font-weight:600;padding:6px 11px;border-radius:7px;cursor:pointer;transition:.14s}
+.osd .tabs button.on{background:var(--surface2);color:var(--heading)}
+.osd .tok{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--hair)}
+.osd .tok:last-child{border-bottom:0}
+.osd .tok .ic{height:34px;width:34px;border-radius:10px;background:var(--panel);display:grid;place-items:center;color:var(--accent);flex:none}
+.osd .tok .ic svg{width:16px;height:16px;stroke:currentColor;stroke-width:1.7;fill:none}
+.osd .tok .v{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:13.5px}
+.osd .tok .s{font-size:11px;color:var(--faint);margin-top:1px}
+.osd .tok .act{margin-left:auto;border:1px solid var(--hair);background:transparent;color:var(--heading);border-radius:9px;padding:7px 13px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:var(--bodyf);transition:.14s}
+.osd .tok .act:hover{background:var(--accent);color:var(--accentink);border-color:transparent}
+.osd .assets{grid-column:1 / -1}
+.osd .thead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.osd .seg{display:flex;gap:3px;background:var(--panel);border:1px solid var(--hair);border-radius:9px;padding:3px}
+.osd .seg button{border:0;background:transparent;color:var(--faint);font-family:var(--bodyf);font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer}
+.osd .seg button.on{background:var(--surface2);color:var(--heading)}
+.osd .tscroll{overflow-x:auto;margin:0 -4px}
+.osd table{width:100%;border-collapse:collapse;min-width:560px}
+.osd thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:600;padding:12px 14px;font-family:var(--disp)}
+.osd tbody td{padding:13px 14px;border-top:1px solid var(--hair);font-size:13px}
+.osd .coin{display:flex;align-items:center;gap:11px}
+.osd .coin .a{height:30px;width:30px;border-radius:9px;background:var(--panel);display:grid;place-items:center;color:var(--accent);flex:none}
+.osd .coin .a svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.8;fill:none}
+.osd .coin .nm{color:var(--heading);font-weight:600}
+.osd .coin .tk{font-size:11px;color:var(--faint)}
+.osd .dyn{font-family:var(--mono);font-size:12px;font-weight:700;border-radius:7px;padding:3px 8px}
+.osd .dyn.up{color:var(--ok);background:rgba(134,211,161,.12)}
+.osd .dyn.dn{color:var(--bad);background:rgba(233,139,139,.12)}
+.osd .trade{border:1px solid var(--hair);background:transparent;color:var(--heading);border-radius:9px;padding:6px 16px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:var(--bodyf);transition:.14s}
+.osd .trade:hover{background:var(--accent);color:var(--accentink);border-color:transparent}
+.osd .mhead{display:flex;align-items:flex-start;justify-content:space-between}
+.osd .mout{height:34px;width:34px;border-radius:10px;border:1px solid var(--hair);display:grid;place-items:center;color:var(--body);cursor:pointer}
+.osd .mout svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.8;fill:none}
+.osd .mname{font-family:var(--disp);font-weight:800;color:var(--heading);font-size:21px;margin-top:14px;display:flex;align-items:baseline;gap:7px}
+.osd .mname .x{font-size:12px;color:var(--faint);font-weight:600}
+.osd .mhot{font-size:11.5px;color:var(--faint);margin-top:3px}
+.osd .mrow{display:flex;justify-content:space-between;font-size:12.5px;padding:12px 0;border-bottom:1px solid var(--hair)}
+.osd .mrow .k{color:var(--faint)}
+.osd .mrow .v{color:var(--heading);font-family:var(--mono)}
+.osd .mbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.osd .ph2{margin-bottom:18px}
+.osd .ph2 h2{font-family:var(--disp);font-size:24px;color:var(--heading);letter-spacing:-.02em}
+.osd .ph2 p{font-size:12.5px;color:var(--faint);margin-top:5px}
+.osd .botgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.osd .bcard{border:1px solid rgba(168,180,191,.14);border-radius:16px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);padding:18px;cursor:pointer;transition:.16s;display:flex;flex-direction:column;min-height:262px}
+.osd .bcard:hover{border-color:color-mix(in srgb,var(--accent) 35%,transparent);transform:translateY(-2px)}
+.osd .bcard .a{height:46px;width:46px;border-radius:13px;background:var(--panel);display:grid;place-items:center;color:var(--accent);flex:none;margin-bottom:15px}
+.osd .bcard .a svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.7;fill:none}
+.osd .bcard .nm{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:16px}
+.osd .bcard .st{font-size:11px;margin-top:3px}
+.osd .bstats{display:flex;flex-direction:column;gap:8px;margin:16px 0}
+.osd .bstats .bx{display:flex;align-items:center;justify-content:space-between;background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:9px 12px}
+.osd .bstats .k{font-size:11px;color:var(--faint)}
+.osd .bstats .v{font-family:var(--disp);font-weight:800;color:var(--heading);font-size:15px}
+.osd .bcard .ghost{margin-top:auto}
+.osd .addbot{border:1.5px dashed var(--hair);border-radius:16px;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--faint);cursor:pointer;min-height:262px;transition:.16s}
+.osd .addbot:hover{border-color:var(--accent);color:var(--heading)}
+.osd .addbot svg{width:26px;height:26px;stroke:currentColor;stroke-width:1.6;fill:none}
+.osd .feed{border:1px solid rgba(168,180,191,.14);border-radius:16px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);overflow:hidden}
+.osd .fitem{display:flex;gap:13px;padding:14px 18px;border-top:1px solid var(--hair)}
+.osd .fitem:first-child{border-top:0}
+.osd .fitem .fi{height:32px;width:32px;border-radius:9px;display:grid;place-items:center;flex:none}
+.osd .fitem .fi svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.8;fill:none}
+.osd .fitem .ttl{color:var(--heading);font-size:13px;font-weight:600}
+.osd .fitem .meta{font-size:11px;color:var(--faint);margin-top:2px}
+.osd .fitem .tm{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
+.osd .bgrid{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;align-items:start}
+.osd .planrow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.osd .planname{font-family:var(--disp);font-weight:800;color:var(--heading);font-size:22px}
+.osd .pillok{font-size:11px;color:var(--ok);background:rgba(134,211,161,.12);border-radius:999px;padding:4px 11px;font-weight:700}
+.osd .pm{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--hair);border-radius:12px;padding:14px}
+.osd .pm .cc{height:34px;width:46px;border-radius:7px;background:linear-gradient(135deg,#46525E,#343D46);flex:none}
+.osd .pmno{font-family:var(--mono);color:var(--heading);font-size:13px}
+.osd .lvl{font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px}
+.osd .lvl.ok{color:var(--ok);background:rgba(134,211,161,.12)}
+.osd .lvl.warn{color:var(--gold);background:rgba(203,178,119,.14)}
+.osd .lvl.err{color:var(--bad);background:rgba(233,139,139,.12)}
+.osd .cfg{font-size:11px;color:var(--accent);cursor:pointer;font-weight:600}
+.osd .role{font-family:var(--mono);font-size:10px;font-weight:700;padding:3px 9px;border-radius:7px;color:var(--accent);background:rgba(201,219,230,.1)}
+.osd .role.admin{color:var(--gold);background:rgba(203,178,119,.13)}
+.osd .form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.osd .field label{display:block;font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;font-family:var(--disp);font-weight:600}
+.osd .field input{width:100%;background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:11px 13px;color:var(--heading);font-family:var(--bodyf);font-size:13px}
+.osd .field.full{grid-column:1 / -1}
+.osd .togrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-top:1px solid var(--hair)}
+.osd .togrow:first-child{border-top:0}
+.osd .togrow .tl{color:var(--heading);font-size:13px;font-weight:600}
+.osd .togrow .td{font-size:11.5px;color:var(--faint);margin-top:2px}
+.osd .modeopts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.osd .modeopt{border:1px solid var(--hair);border-radius:13px;background:var(--panel);padding:15px;cursor:pointer;transition:.15s}
+.osd .modeopt.on{border-color:var(--accent);background:rgba(201,219,230,.07)}
+.osd .modeopt .mt{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:14px;display:flex;align-items:center;justify-content:space-between}
+.osd .modeopt .check{height:16px;width:16px;border-radius:999px;border:1.5px solid var(--hair);display:grid;place-items:center;color:var(--accentink)}
+.osd .modeopt .check svg{width:10px;height:10px;stroke:currentColor;stroke-width:3;fill:none;opacity:0}
+.osd .modeopt.on .check{border-color:var(--accent);background:var(--accent)}
+.osd .modeopt.on .check svg{opacity:1}
+.osd .modeopt .md{font-size:11.5px;color:var(--faint);margin-top:6px;line-height:1.45}
+.osd .bgopts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.osd .bgopt{position:relative;height:78px;border-radius:12px;border:1.5px solid var(--hair);cursor:pointer;overflow:hidden;
+    background-image:var(--thumb,none);background-color:var(--panel);background-size:cover;background-position:center 22%;transition:.15s}
+.osd .bgopt:hover{border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.osd .bgopt.sel{border-color:var(--accent)}
+.osd .bgopt.none{background-image:repeating-linear-gradient(45deg,#2a323b 0 8px,#252c34 8px 16px)}
+.osd .bgopt .lbl{position:absolute;left:0;right:0;bottom:0;padding:6px 9px;font-family:var(--disp);font-size:10.5px;font-weight:700;color:var(--heading);background:linear-gradient(transparent,rgba(0,0,0,.65))}
+.osd .bgopt .tk2{position:absolute;top:7px;right:7px;height:18px;width:18px;border-radius:999px;background:var(--accent);display:grid;place-items:center;opacity:0;transition:.15s}
+.osd .bgopt.sel .tk2{opacity:1}
+.osd .bgopt .tk2 svg{width:11px;height:11px;stroke:var(--accentink);stroke-width:3;fill:none}
+.osd .swt{position:relative;width:40px;height:23px;flex:none}
+.osd .swt input{display:none}
+.osd .swt .tk{position:absolute;inset:0;border-radius:999px;background:var(--surface2);cursor:pointer;transition:.2s}
+.osd .swt .tk:before{content:"";position:absolute;height:17px;width:17px;left:3px;top:3px;border-radius:999px;background:#cfd8df;transition:.2s}
+.osd .swt input:checked + .tk{background:var(--accent)}
+.osd .swt input:checked + .tk:before{transform:translateX(17px);background:#1E242B}
+.osd .strip{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.osd .stat{border:1px solid rgba(168,180,191,.14);border-radius:14px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);padding:15px 16px}
+.osd .stat .k{font-family:var(--disp);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.osd .stat .v{font-family:var(--disp);font-size:23px;font-weight:800;color:var(--heading);margin-top:6px}
+.osd .stat .d{font-size:11px;color:var(--faint);margin-top:2px}
+.osd .feat{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.osd .fcard{border:1px solid rgba(168,180,191,.14);border-radius:14px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);padding:18px;display:flex;flex-direction:column;min-height:208px}
+.osd .fcard .fi{height:42px;width:42px;border-radius:12px;background:var(--panel);display:grid;place-items:center;color:var(--accent);flex:none;margin-bottom:13px}
+.osd .fcard .fi svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.7;fill:none}
+.osd .fcard .nm{font-family:var(--disp);font-size:14px;color:var(--heading);font-weight:700}
+.osd .fcard .ds{font-size:11.5px;color:var(--faint);margin-top:6px;line-height:1.45}
+.osd .fcard .re{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:9px;padding-top:14px}
+.osd .back{font-size:12px;color:var(--faint);cursor:pointer;margin-bottom:13px;display:inline-flex;gap:6px;align-items:center}
+.osd .back svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none}
+.osd .sech{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:15px;margin:24px 0 12px}
+.osd .bcard, .osd .fcard{cursor:grab}
+.osd .bcard:active, .osd .fcard:active{cursor:grabbing}
+.osd .dragging{opacity:.35;transform:scale(.98)!important}
+.osd .drophint{font-size:11px;color:var(--faint)}
+.osd .dragging-active .bcard:not(.dragging), .osd .dragging-active .fcard:not(.dragging){pointer-events:none}
+.osd .dragging-active .bcard:hover, .osd .dragging-active .fcard:hover{transform:none;border-color:rgba(168,180,191,.14);box-shadow:none}
+.osd .groups{display:flex;flex-direction:column;gap:16px}
+.osd .gcard{border:1px solid rgba(168,180,191,.14);border-radius:16px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);padding:18px}
+.osd .ghd{display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--hair);padding-bottom:14px;margin-bottom:16px}
+.osd .ghd .gi{height:36px;width:36px;border-radius:10px;background:var(--panel);display:grid;place-items:center;color:var(--accent);flex:none}
+.osd .ghd .gi svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.7;fill:none}
+.osd .gname{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:16px}
+.osd .gmeta{font-size:11.5px;color:var(--faint);margin-top:1px}
+.osd .ghd .dots{margin-left:auto}
+.osd .gbody{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.osd .gcl{font-family:var(--disp);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:11px}
+.osd .chips{display:flex;flex-wrap:wrap;gap:8px}
+.osd .chip{display:inline-flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--hair);border-radius:999px;padding:7px 12px;font-size:12.5px;color:var(--heading)}
+.osd .chip svg{width:14px;height:14px;stroke:var(--accent);stroke-width:1.8;fill:none}
+.osd .chip .x{color:var(--faint);cursor:pointer;font-size:13px;line-height:1;margin-left:1px}
+.osd .chip.add{cursor:pointer;color:var(--faint);border-style:dashed}
+.osd .chip.add:hover{color:var(--heading);border-color:var(--accent)}
+.osd .gmem{display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--hair);border-radius:999px;padding:5px 11px 5px 5px;font-size:12.5px;color:var(--heading)}
+.osd .gmem .pa{height:22px;width:22px;border-radius:7px;background:linear-gradient(135deg,#46525E,#343D46);display:grid;place-items:center;font-family:var(--disp);font-weight:800;font-size:9px;color:var(--heading)}
+.osd .tourask{position:fixed;bottom:22px;right:22px;z-index:150;max-width:300px;border:1px solid rgba(168,180,191,.16);border-radius:16px;
+    background:linear-gradient(180deg,rgba(46,54,63,.96),rgba(39,46,54,.98));backdrop-filter:blur(14px);padding:18px;
+    box-shadow:0 26px 64px -26px rgba(0,0,0,.85);opacity:0;transform:translateY(14px);pointer-events:none;transition:.45s cubic-bezier(.22,1,.36,1)}
+.osd .tourask.show{opacity:1;transform:none;pointer-events:auto}
+.osd .tourask .tt{font-family:var(--disp);font-weight:800;color:var(--heading);font-size:15px;display:flex;align-items:center;gap:8px}
+.osd .tourask .tb{font-size:12.5px;color:var(--body);line-height:1.5;margin:8px 0 14px}
+.osd .row{display:flex;gap:9px}
+.osd .btn-sm{border:1px solid var(--hair);background:transparent;color:var(--heading);border-radius:10px;padding:9px 14px;font-family:var(--bodyf);font-weight:700;font-size:12.5px;cursor:pointer;transition:.15s}
+.osd .btn-sm:hover{background:var(--surface2)}
+.osd .btn-pri{background:var(--accent);color:var(--accentink);border:0}
+.osd .btn-pri:hover{filter:brightness(1.06)}
+.osd .tourblock{position:fixed;inset:0;z-index:199;display:none}
+.osd .tourblock.on{display:block}
+.osd .tourring{position:fixed;z-index:200;border:2px solid var(--accent);border-radius:14px;box-shadow:0 0 0 9999px rgba(8,11,15,.72);
+    pointer-events:none;display:none;transition:top .42s cubic-bezier(.22,1,.36,1),left .42s cubic-bezier(.22,1,.36,1),width .42s cubic-bezier(.22,1,.36,1),height .42s cubic-bezier(.22,1,.36,1)}
+.osd .tourring.on{display:block}
+.osd .tourpop{position:fixed;z-index:201;max-width:300px;border:1px solid rgba(168,180,191,.16);border-radius:14px;
+    background:linear-gradient(180deg,rgba(46,54,63,.98),rgba(39,46,54,.99));backdrop-filter:blur(14px);padding:16px;
+    box-shadow:0 26px 64px -26px rgba(0,0,0,.9);display:none;
+    transition:top .42s cubic-bezier(.22,1,.36,1),left .42s cubic-bezier(.22,1,.36,1),opacity .25s ease}
+.osd .tourpop.on{display:block}
+.osd .tourring.notrans, .osd .tourpop.notrans{transition:none}
+.osd .tourpop .tt{font-family:var(--disp);font-weight:800;color:var(--heading);font-size:14.5px}
+.osd .tourpop .tb{font-size:12.5px;color:var(--body);line-height:1.5;margin:7px 0 14px}
+.osd .tourpop .nav{display:flex;align-items:center;gap:9px}
+.osd .tourpop .ct3{font-family:var(--mono);font-size:11px;color:var(--faint)}
+.osd .tourpop .skip{font-size:11.5px;color:var(--faint);cursor:pointer}
+.osd .tourpop .sp{margin-left:auto}
+@media(max-width:1180px){.osd .grid, .osd .bgrid{grid-template-columns:1fr}}
+@media(max-width:1180px){.osd .botgrid{grid-template-columns:repeat(3,1fr)}.osd .feat{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:980px){.osd .botgrid{grid-template-columns:repeat(2,1fr)}.osd .strip{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:760px){.osd .side{position:fixed;left:-260px;transition:.2s;z-index:50}.osd .main{padding:18px 14px 40px}.osd .left, .osd .form, .osd .feat, .osd .choices, .osd .gbody{grid-template-columns:1fr}.osd .head h1{font-size:24px}}
+@media(max-width:560px){.osd .botgrid{grid-template-columns:1fr}.osd .search{display:none}}`;
+
+const LS = { ws: "os_ws_mode", onboarded: "os_onboarded", tour: "os_tour_seen", bg: "os_bg", order: "os_bot_order", groups: "os_groups", accent: "os_accent", accentHex: "os_accent_hex" };
+
+// readable text color (dark/light) for an arbitrary accent hex
+const inkFor = (hex: string) => {
+  const m = (hex || "").replace("#", "");
+  const n = m.length === 3 ? m.split("").map((x) => x + x).join("") : m;
+  if (!/^[0-9a-fA-F]{6}$/.test(n)) return "#1E242B";
+  const r = parseInt(n.slice(0, 2), 16), g = parseInt(n.slice(2, 4), 16), b = parseInt(n.slice(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? "#1E242B" : "#E8EEF3";
+};
+
+// Primary (accent) color presets — recolor buttons, highlights, badges across the dashboard.
+const ACCENTS: { key: string; label: string; c: string; ink: string }[] = [
+  { key: "icy", label: "Icy", c: "#C9DBE6", ink: "#1E242B" },
+  { key: "gold", label: "Gold", c: "#cbb277", ink: "#241e12" },
+  { key: "mint", label: "Mint", c: "#86d3a1", ink: "#10231a" },
+  { key: "sky", label: "Sky", c: "#8fbce8", ink: "#0f1f2b" },
+  { key: "lavender", label: "Lavender", c: "#b9a8e6", ink: "#1b1430" },
+  { key: "rose", label: "Rose", c: "#e6a8bf", ink: "#2b1019" },
+  { key: "coral", label: "Coral", c: "#e8a487", ink: "#2b1410" },
+];
+const lsGet = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } };
+const lsDel = (k: string) => { try { localStorage.removeItem(k); } catch { /* ignore */ } };
 
 const BG_PRESETS: { key: string; label: string; url: string | null }[] = [
   { key: "mountain", label: "Mountain", url: containers },
@@ -1042,173 +1391,24 @@ const BG_PRESETS: { key: string; label: string; url: string | null }[] = [
   { key: "none", label: "None", url: null },
 ];
 
-const LS = {
-  ws: "os_ws_mode",
-  onboarded: "os_onboarded",
-  tour: "os_tour_seen",
-  bg: "os_bg",
-  order: "os_bot_order",
-  groups: "os_groups",
-};
-const lsGet = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
-const lsSet = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } };
-const lsDel = (k: string) => { try { localStorage.removeItem(k); } catch { /* ignore */ } };
-
-const timeAgo = (iso: string) => {
+const osTimeAgo = (iso: string) => {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return "just now";
-  const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24); return `${d}d ago`;
+  if (s < 60) return "now";
+  const m = Math.floor(s / 60); if (m < 60) return m + "m";
+  const h = Math.floor(m / 60); if (h < 24) return h + "h";
+  return Math.floor(h / 24) + "d";
 };
 
-type TourStep = { sel: string; title: string; body: string; place: "right" | "left" | "top" | "bottom" };
-const TOUR_STEPS: TourStep[] = [
-  { sel: '[data-tour="menu"]', title: "Your menu", body: "Jump between your bots, groups, activity, billing and settings from here.", place: "right" },
-  { sel: '[data-tour="bots"]', title: "Your bots", body: "Every bot you own lives here — click one to open its full control panel.", place: "right" },
-  { sel: '[data-tour="add"]', title: "Add a bot", body: "Grow your fleet anytime — build and add a new bot.", place: "bottom" },
-  { sel: '[data-tour="bell"]', title: "Notifications", body: "Service alerts, billing, and team announcements land here.", place: "bottom" },
-  { sel: '[data-tour="settings-nav"]', title: "Make it yours", body: "Switch solo/team, change the background, and manage your account in Settings.", place: "right" },
-];
+const IconShield = () => (<svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.5 7.5 8 9 4.5-1.5 8-4 8-9V6Z"/></svg>);
+const IconChat = () => (<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>);
+const IconGear = () => (<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>);
+const botSvg = (base: string) => base === "support" ? <IconChat /> : base === "utilities" ? <IconGear /> : <IconShield />;
+const isLive = (b: OwnedBot) => b.status === "live" || b.status === "ready";
+const stColor = (b: OwnedBot) => isLive(b) ? "var(--ok)" : (b.status === "submitted" || b.status === "paid" || b.status === "building") ? "var(--gold)" : "var(--faint)";
+const stWord = (b: OwnedBot) => isLive(b) ? "Online" : (b.status === "submitted" || b.status === "paid" || b.status === "building") ? "Building" : (getStatusMeta(b.status).label);
 
-/** Spotlight tour: dims the screen except the highlighted element, with a popover. */
-function TourGuide({ steps, onClose }: { steps: TourStep[]; onClose: () => void }) {
-  const [i, setI] = useState(0);
-  const ringRef = useRef<HTMLDivElement>(null);
-  const popRef = useRef<HTMLDivElement>(null);
-
-  const place = useCallback(() => {
-    const step = steps[i];
-    if (!step) return;
-    const el = document.querySelector(step.sel) as HTMLElement | null;
-    const ring = ringRef.current, pop = popRef.current;
-    if (!el || !ring || !pop) return;
-    const b = el.getBoundingClientRect(), pad = 6;
-    ring.style.top = `${b.top - pad}px`;
-    ring.style.left = `${b.left - pad}px`;
-    ring.style.width = `${b.width + pad * 2}px`;
-    ring.style.height = `${b.height + pad * 2}px`;
-    const pw = pop.offsetWidth, ph = pop.offsetHeight, gap = 14, vw = window.innerWidth, vh = window.innerHeight;
-    let top: number, left: number;
-    if (step.place === "right") { left = b.right + gap; top = Math.max(b.top, 16); }
-    else if (step.place === "left") { left = b.left - gap - pw; top = b.top; }
-    else if (step.place === "top") { top = b.top - gap - ph; left = b.left + b.width / 2 - pw / 2; }
-    else { top = b.bottom + gap; left = b.left + b.width / 2 - pw / 2; }
-    left = Math.max(12, Math.min(left, vw - pw - 12));
-    top = Math.max(12, Math.min(top, vh - ph - 12));
-    pop.style.left = `${left}px`;
-    pop.style.top = `${top}px`;
-  }, [i, steps]);
-
-  useLayoutEffect(() => {
-    const step = steps[i];
-    if (!step) return;
-    const el = document.querySelector(step.sel) as HTMLElement | null;
-    if (el) {
-      const b = el.getBoundingClientRect();
-      if (b.top < 8 || b.bottom > window.innerHeight - 8) el.scrollIntoView({ block: "center" });
-    }
-    const raf = requestAnimationFrame(place);
-    return () => cancelAnimationFrame(raf);
-  }, [i, place, steps]);
-
-  useEffect(() => {
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
-    return () => {
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
-    };
-  }, [place]);
-
-  const step = steps[i];
-  if (!step) return null;
-  const last = i === steps.length - 1;
-  const ease = "cubic-bezier(.22,1,.36,1)";
-  return (
-    <>
-      <div className="fixed inset-0 z-[199]" />
-      <div
-        ref={ringRef}
-        className="fixed z-[200] rounded-[14px] border-2 border-os-accent pointer-events-none"
-        style={{ boxShadow: "0 0 0 9999px rgb(var(--os-ink) / 0.72)", transition: `top .42s ${ease}, left .42s ${ease}, width .42s ${ease}, height .42s ${ease}` }}
-      />
-      <div
-        ref={popRef}
-        className="fixed z-[201] max-w-[300px] rounded-[14px] border border-os-hairline/50 bg-os-surface/95 backdrop-blur-md p-4 shadow-2xl"
-        style={{ transition: `top .42s ${ease}, left .42s ${ease}` }}
-      >
-        <div className="font-display font-extrabold text-os-heading text-[14.5px]">{step.title}</div>
-        <div className="text-[12.5px] leading-relaxed text-os-body mt-1.5 mb-3.5">{step.body}</div>
-        <div className="flex items-center gap-2.5">
-          <span className="font-label text-[11px] text-os-faint">{i + 1} / {steps.length}</span>
-          <button className="ml-auto text-[11.5px] text-os-faint hover:text-os-heading" onClick={onClose}>Skip</button>
-          {i > 0 && (
-            <button className="rounded-[10px] border border-os-hairline px-3.5 py-2 text-[12.5px] font-semibold text-os-heading hover:bg-os-surface-2" onClick={() => setI(i - 1)}>Back</button>
-          )}
-          <button className="rounded-[10px] bg-os-accent px-3.5 py-2 text-[12.5px] font-semibold text-os-accent-ink hover:brightness-105" onClick={() => (last ? onClose() : setI(i + 1))}>
-            {last ? "Done" : "Next"}
-          </button>
-        </div>
-      </div>
-    </>
-  );
-}
-
-/** First-run owner screen: choose solo vs team over the mountain backdrop. */
-function OnboardingOverlay({ name, transfer, onChoose }: { name: string; transfer?: boolean; onChoose: (mode: "solo" | "team") => void }) {
-  const [picked, setPicked] = useState<"solo" | "team" | null>(null);
-  return (
-    <div className="fixed inset-0 z-[120] grid place-items-center p-6 bg-os-ink/30 backdrop-blur-[2px] overflow-y-auto">
-      <div className="w-full max-w-[560px] rounded-[22px] border border-os-hairline/40 bg-os-surface/80 backdrop-blur-xl p-9 text-center shadow-2xl">
-        <div className="font-display font-extrabold text-os-heading text-[18px]">
-          Oversite
-          <span className="block mt-1 font-label text-[10px] tracking-[0.2em] text-os-faint">BOT DASHBOARD</span>
-        </div>
-        <h1 className="font-display font-extrabold text-os-heading tracking-tight text-[clamp(24px,3.4vw,30px)] leading-tight mt-5">
-          {transfer ? "These bots are now yours" : `Let's get you set up, ${name}`}
-        </h1>
-        <p className="text-[13.5px] leading-relaxed text-os-body mt-3">
-          {transfer
-            ? "You're the new owner. Choose how you want to run them — you can change it anytime."
-            : "Your bots are ready. Choose how you want to run them — you can change it anytime."}
-        </p>
-        <div className="font-display font-bold text-[10.5px] tracking-[0.14em] uppercase text-os-faint mt-7 mb-3.5">How do you want to run them?</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-left">
-          {([
-            { id: "solo", icon: <Bot className="h-5 w-5" />, title: "Just me", desc: "Private — only you can see and manage the bots." },
-            { id: "team", icon: <Users className="h-5 w-5" />, title: "With my team", desc: "Invite people, assign roles, and post announcements." },
-          ] as const).map((o) => {
-            const sel = picked === o.id;
-            return (
-              <button
-                key={o.id}
-                type="button"
-                onClick={() => setPicked(o.id)}
-                className={`relative rounded-2xl border p-[18px] text-left transition-all ${sel ? "border-os-accent bg-os-accent/10" : "border-os-hairline/60 bg-os-ink/40 hover:-translate-y-0.5 hover:border-os-accent/50"}`}
-              >
-                <span className={`absolute top-3.5 right-3.5 grid h-[18px] w-[18px] place-items-center rounded-full border ${sel ? "border-os-accent bg-os-accent text-os-accent-ink" : "border-os-hairline"}`}>
-                  {sel && <Check className="h-2.5 w-2.5" strokeWidth={3} />}
-                </span>
-                <span className={`grid h-[42px] w-[42px] place-items-center rounded-xl mb-3 ${sel ? "bg-os-accent text-os-accent-ink" : "bg-os-ink/60 text-os-accent"}`}>{o.icon}</span>
-                <div className="font-display font-bold text-os-heading text-[15px]">{o.title}</div>
-                <div className="text-[11.5px] leading-snug text-os-faint mt-1.5">{o.desc}</div>
-              </button>
-            );
-          })}
-        </div>
-        <button
-          disabled={!picked}
-          onClick={() => picked && onChoose(picked)}
-          className="w-full mt-5 rounded-[13px] bg-os-accent py-3.5 font-semibold text-[14px] text-os-accent-ink transition disabled:opacity-40 enabled:hover:brightness-105"
-        >
-          Continue
-        </button>
-        <div className="text-[11.5px] text-os-faint mt-3.5">You can switch this anytime in Dashboard → Settings → Workspace.</div>
-      </div>
-    </div>
-  );
-}
+const CHART = [[40,22],[55,30],[35,18],[70,40],[48,26],[80,44],[60,33]];
+const CDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
 type Group = { id: string; name: string; botIds: string[] };
 
@@ -1220,605 +1420,513 @@ const BotDashboard = () => {
   const { items: notifications, unread } = useBotNotifications();
   const navigate = useNavigate();
 
-  const [view, setView] = useState<string>("home");
+  const [view, setView] = useState("dashboard");
   const [botId, setBotId] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
-  const [search, setSearch] = useState("");
 
-  // ── Workspace / onboarding / tour / appearance (localStorage) ───────────────
-  const isOwner = useMemo(
-    () => dashboardBots.some((b) => !b.isDemo && !b.viaTeam && !b.viaSupport),
-    [dashboardBots],
-  );
   const [wsMode, setWsMode] = useState<"solo" | "team">(() => (lsGet(LS.ws) === "team" ? "team" : "solo"));
-  const [showWelcome, setShowWelcome] = useState(false);
-  const [welcomeTransfer, setWelcomeTransfer] = useState(false);
-  const [askTour, setAskTour] = useState(false);
-  const [tourOn, setTourOn] = useState(false);
+  const [appOn, setAppOn] = useState(() => !!lsGet(LS.onboarded));
+  const [instant, setInstant] = useState(() => !!lsGet(LS.onboarded));
+  const [picked, setPicked] = useState<"solo" | "team" | null>(null);
+  // Floating announcement: shown each time the dashboard mounts. Dismiss hides
+  // it for this visit only — it deliberately returns on the next launch.
+  const [annOpen, setAnnOpen] = useState(true);
   const [bgKey, setBgKey] = useState<string>(() => lsGet(LS.bg) || "mountain");
   const bgUrl = BG_PRESETS.find((p) => p.key === bgKey)?.url ?? null;
-
-  // First-run welcome (shown once). Falls through to the tour prompt afterwards.
+  // profile name fallback: preferred name → display name → discord username → email
+  const [profile, setProfile] = useState<{ preferred_name?: string | null; display_name?: string | null; discord_username?: string | null }>({});
+  const [accentKey, setAccentKey] = useState<string>(() => lsGet(LS.accent) || "icy");
+  const [customHex, setCustomHex] = useState<string>(() => lsGet(LS.accentHex) || "#C9DBE6");
+  const accent = accentKey === "custom"
+    ? { key: "custom", label: "Custom", c: customHex, ink: inkFor(customHex) }
+    : (ACCENTS.find((a) => a.key === accentKey) ?? ACCENTS[0]);
+  const applyCustom = (v: string) => { setCustomHex(v); setAccentKey("custom"); lsSet(LS.accent, "custom"); lsSet(LS.accentHex, v); };
   useEffect(() => {
-    if (loading || botsLoading || !user) return;
-    if (!lsGet(LS.onboarded)) { setShowWelcome(true); return; }
-    if (!lsGet(LS.tour)) {
-      const t = setTimeout(() => setAskTour(true), 900);
-      return () => clearTimeout(t);
-    }
-  }, [loading, botsLoading, user]);
+    if (!user) return;
+    let alive = true;
+    (async () => {
+      const { data } = await (supabase as any).from("profiles").select("preferred_name, display_name, discord_username").eq("user_id", user.id).maybeSingle();
+      if (alive && data) setProfile(data);
+    })();
+    return () => { alive = false; };
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [tableFilter, setTableFilter] = useState("all");
+  const [listFilter, setListFilter] = useState("all");
+  const [actTab, setActTab] = useState("All");
+  const [chartRange, setChartRange] = useState("1M");
 
-  const chooseMode = (mode: "solo" | "team") => {
-    setWsMode(mode);
-    lsSet(LS.ws, mode);
-    lsSet(LS.onboarded, "1");
-    setShowWelcome(false);
-    setWelcomeTransfer(false);
-    if (!lsGet(LS.tour)) setTimeout(() => setAskTour(true), 700);
-  };
+  // clear the no-animation flag after first paint
+  useEffect(() => { if (instant) { const t = setTimeout(() => setInstant(false), 60); return () => clearTimeout(t); } }, []); // eslint-disable-line
+  // lock page scroll while the welcome screen is up
+  useEffect(() => { document.body.style.overflow = appOn ? "" : "hidden"; return () => { document.body.style.overflow = ""; }; }, [appOn]);
 
-  // ── Bot ordering (drag to reorder in the grid) ──────────────────────────────
-  const botIdsKey = dashboardBots.map((b) => b.id).join(",");
+  // ---- tour ----
+  const TOUR = useMemo(() => ([
+    { sel: ".osd .side", title: "Your menu", body: "Jump between your bots, groups, activity, billing and settings from here.", place: "right" },
+    { sel: "#tour-bots", title: "Your bots", body: "Every bot you own lives here — click one to open its control panel.", place: "left" },
+    { sel: "#tour-activity", title: "Fleet activity", body: "A quick pulse of what your bots have been up to.", place: "top" },
+    { sel: "#tour-bell", title: "Notifications", body: "Service alerts, billing, and team announcements land here.", place: "bottom" },
+    { sel: "#tour-add", title: "Add a bot", body: "Grow your fleet anytime.", place: "bottom" },
+  ]), []);
+  const [tourAsk, setTourAsk] = useState(false);
+  const [tourOn, setTourOn] = useState(false);
+  const [ti, setTi] = useState(0);
+  const ringRef = useRef<HTMLDivElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const askTour = useCallback(() => { if (!lsGet(LS.tour)) setTimeout(() => setTourAsk(true), 850); }, []);
+  useEffect(() => { if (appOn && !lsGet(LS.tour)) askTour(); }, [appOn, askTour]);
+  const placeTour = useCallback(() => {
+    const step = TOUR[ti]; if (!step) return;
+    const el = document.querySelector(step.sel) as HTMLElement | null;
+    const ring = ringRef.current, pop = popRef.current;
+    if (!el || !ring || !pop) return;
+    const b = el.getBoundingClientRect(), pad = 6;
+    ring.style.top = (b.top - pad) + "px"; ring.style.left = (b.left - pad) + "px";
+    ring.style.width = (b.width + pad * 2) + "px"; ring.style.height = (b.height + pad * 2) + "px";
+    const pw = pop.offsetWidth, ph = pop.offsetHeight, gap = 14, vw = window.innerWidth, vh = window.innerHeight;
+    let top: number, left: number;
+    if (step.place === "right") { left = b.right + gap; top = Math.max(b.top, 16); }
+    else if (step.place === "left") { left = b.left - gap - pw; top = b.top; }
+    else if (step.place === "top") { top = b.top - gap - ph; left = b.left + b.width / 2 - pw / 2; }
+    else { top = b.bottom + gap; left = b.left + b.width / 2 - pw / 2; }
+    left = Math.max(12, Math.min(left, vw - pw - 12)); top = Math.max(12, Math.min(top, vh - ph - 12));
+    pop.style.left = left + "px"; pop.style.top = top + "px";
+  }, [ti, TOUR]);
+  useLayoutEffect(() => { if (!tourOn) return; const r = requestAnimationFrame(placeTour); return () => cancelAnimationFrame(r); }, [tourOn, ti, placeTour]);
+  useEffect(() => { if (!tourOn) return; const f = () => placeTour(); window.addEventListener("resize", f); window.addEventListener("scroll", f, true); return () => { window.removeEventListener("resize", f); window.removeEventListener("scroll", f, true); }; }, [tourOn, placeTour]);
+  const startTour = () => { setTourAsk(false); setTi(0); setView("dashboard"); setTourOn(true); };
+  const endTour = () => { setTourOn(false); lsSet(LS.tour, "1"); };
+
+  // ---- ordering / drag ----
+  const idsKey = dashboardBots.map((b) => b.id).join(",");
   const [order, setOrder] = useState<string[]>([]);
   useEffect(() => {
-    let saved: string[] = [];
-    try { saved = JSON.parse(lsGet(LS.order) || "[]"); } catch { saved = []; }
+    let saved: string[] = []; try { saved = JSON.parse(lsGet(LS.order) || "[]"); } catch { saved = []; }
     const ids = dashboardBots.map((b) => b.id);
-    const merged = [...saved.filter((id) => ids.includes(id)), ...ids.filter((id) => !saved.includes(id))];
-    setOrder(merged);
-  }, [botIdsKey]);
+    setOrder([...saved.filter((id) => ids.includes(id)), ...ids.filter((id) => !saved.includes(id))]);
+  }, [idsKey]);
   useEffect(() => { if (order.length) lsSet(LS.order, JSON.stringify(order)); }, [order]);
-
-  const byId = useMemo(() => {
-    const m: Record<string, OwnedBot> = {};
-    dashboardBots.forEach((b) => { m[b.id] = b; });
-    return m;
-  }, [dashboardBots]);
+  const byId = useMemo(() => { const m: Record<string, OwnedBot> = {}; dashboardBots.forEach((b) => { m[b.id] = b; }); return m; }, [dashboardBots]);
   const orderedBots = useMemo(() => order.map((id) => byId[id]).filter(Boolean) as OwnedBot[], [order, byId]);
-
+  const owned = orderedBots.filter((b) => !b.isDemo);
   const dragId = useRef<string | null>(null);
-  const onDragStart = (id: string) => { dragId.current = id; };
-  const onDragOver = (e: React.DragEvent, overId: string) => {
-    e.preventDefault();
-    const from = dragId.current;
-    if (!from || from === overId) return;
-    setOrder((prev) => {
-      const a = [...prev];
-      const fi = a.indexOf(from), oi = a.indexOf(overId);
-      if (fi < 0 || oi < 0) return prev;
-      a.splice(fi, 1); a.splice(oi, 0, from);
-      return a;
-    });
-  };
-  const onDragEnd = () => { dragId.current = null; };
+  const [dragActive, setDragActive] = useState(false);
+  const onDragStart = (id: string) => { dragId.current = id; setDragActive(true); };
+  const onDragOver = (e: React.DragEvent, overId: string) => { e.preventDefault(); const from = dragId.current; if (!from || from === overId) return; setOrder((p) => { const a = [...p]; const fi = a.indexOf(from), oi = a.indexOf(overId); if (fi < 0 || oi < 0) return p; a.splice(fi, 1); a.splice(oi, 0, from); return a; }); };
+  const onDragEnd = () => { dragId.current = null; setDragActive(false); };
 
-  // ── Groups (local-only preview until a backend table exists) ────────────────
+  // ---- groups (local) ----
   const [groups, setGroups] = useState<Group[]>(() => { try { return JSON.parse(lsGet(LS.groups) || "[]"); } catch { return []; } });
   useEffect(() => { lsSet(LS.groups, JSON.stringify(groups)); }, [groups]);
-  const addGroup = () => {
-    const name = window.prompt("Name this group (e.g. Community Server)");
-    if (!name?.trim()) return;
-    setGroups((g) => [...g, { id: `g_${Date.now()}`, name: name.trim(), botIds: [] }]);
-  };
-  const toggleBotInGroup = (gid: string, bid: string) => {
-    setGroups((gs) => gs.map((g) => g.id === gid
-      ? { ...g, botIds: g.botIds.includes(bid) ? g.botIds.filter((x) => x !== bid) : [...g.botIds, bid] }
-      : g));
-  };
-  const removeGroup = (gid: string) => setGroups((gs) => gs.filter((g) => g.id !== gid));
 
-  const cancelOrder = async (bot: OwnedBot) => {
-    if (!user) return;
-    setCancelling(true);
-    const { error } = await (supabase as any)
-      .from("bot_orders").update({ status: "cancelled" }).eq("id", bot.id).eq("user_id", user.id);
-    setCancelling(false);
-    if (error) { toast.error("Couldn't cancel — " + error.message); return; }
-    toast.success(`Cancelled "${bot.bot_name}"`);
-    setCancelTarget(null);
-    reload();
-  };
-
+  const chooseMode = (m: "solo" | "team") => { setWsMode(m); lsSet(LS.ws, m); lsSet(LS.onboarded, "1"); setAppOn(true); askTour(); };
   const openBot = (id: string) => { setBotId(id); setView("bot"); window.scrollTo({ top: 0 }); };
   const go = (v: string) => { setView(v); window.scrollTo({ top: 0 }); };
-
-  const openPortal = async () => {
-    const { data, error } = await supabase.functions.invoke("customer-portal");
-    if (error) { toast.error("Couldn't open billing portal", { description: error.message }); return; }
-    const url = (data as { url?: string } | null)?.url;
-    if (url) window.location.href = url; else toast.error("No billing portal available yet.");
-  };
-
+  const openPortal = async () => { const { data, error } = await supabase.functions.invoke("customer-portal"); if (error) { toast.error("Couldn't open billing portal", { description: error.message }); return; } const url = (data as { url?: string } | null)?.url; if (url) window.location.href = url; else toast.error("No billing portal available yet."); };
   const signOut = async () => { await supabase.auth.signOut(); navigate("/auth", { replace: true }); };
+  const cancelOrder = async (bot: OwnedBot) => { if (!user) return; setCancelling(true); const { error } = await (supabase as any).from("bot_orders").update({ status: "cancelled" }).eq("id", bot.id).eq("user_id", user.id); setCancelling(false); if (error) { toast.error("Couldn't cancel — " + error.message); return; } toast.success(`Cancelled "${bot.bot_name}"`); setCancelTarget(null); reload(); };
 
-  useEffect(() => {
-    if (loading) return;
-    if (!user) navigate("/auth", { replace: true });
-  }, [user, loading, navigate]);
+  useEffect(() => { if (loading) return; if (!user) navigate("/auth", { replace: true }); }, [user, loading, navigate]);
 
-  if (loading || botsLoading) {
-    return <div className="min-h-screen bg-background grid place-items-center text-muted-foreground">Loading...</div>;
-  }
+  if (loading || botsLoading) return <div className="min-h-screen bg-background grid place-items-center text-muted-foreground">Loading...</div>;
   if (!user) return null;
-
   const hasAccess = isAdmin || hasDashboardAccess;
   if (!hasAccess) {
     return (
       <div className="min-h-screen bg-background grid place-items-center px-4">
         <div className="max-w-md text-center space-y-5">
-          <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 border border-primary/20 grid place-items-center">
-            <Lock className="h-5 w-5 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold">Web Dashboard not enabled</h1>
-          <p className="text-muted-foreground">
-            The <span className="text-foreground font-medium">Web Dashboard</span> add-on unlocks bot management from this site.
-            Without it, you can still configure your bot in Discord with{" "}
-            <code className="text-foreground bg-muted px-1.5 py-0.5 rounded text-sm">/cmds</code>.
-          </p>
-          <div className="flex gap-3 justify-center">
-            <Button asChild><Link to="/bots"><Globe className="h-4 w-4 mr-2" />Add Web Dashboard</Link></Button>
-            <Button variant="outline" asChild><Link to="/">Back to site</Link></Button>
-          </div>
+          <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 border border-primary/20 grid place-items-center"><Lock className="h-5 w-5 text-primary" /></div>
+          <h1 className="text-2xl font-bold">No bots yet</h1>
+          <p className="text-muted-foreground">Once you <span className="text-foreground font-medium">own a bot</span> — by buying one or having it transferred to you — it'll show up here to manage. Team members get access when an owner shares a bot with them.</p>
+          <div className="flex gap-3 justify-center"><Button asChild><Link to="/bots"><Globe className="h-4 w-4 mr-2" />Browse bots</Link></Button><Button variant="outline" asChild><Link to="/">Back to site</Link></Button></div>
         </div>
       </div>
     );
   }
 
-  const owned = dashboardBots.filter((b) => !b.isDemo);
-  const liveCount = owned.filter((b) => b.status === "live" || b.status === "ready").length;
+  const handle =
+    (profile.preferred_name && profile.preferred_name.trim()) ||
+    (profile.display_name && profile.display_name.trim()) ||
+    (profile.discord_username && profile.discord_username.trim()) ||
+    (user.email ? user.email.split("@")[0] : "") ||
+    "you";
+  const initial = (user.email?.[0] ?? "U").toUpperCase();
+  const liveCount = owned.filter(isLive).length;
   const activeBot = botId ? byId[botId] : null;
   const firstOwned = dashboardBots.find((b) => !b.isDemo && !b.viaTeam && !b.viaSupport);
-  const handle = user.email?.split("@")[0] ?? "you";
-  const initial = (user.email?.[0] ?? "U").toUpperCase();
+  const spotlight = owned[0];
+  const isTeam = wsMode === "team";
 
-  const NAV_GROUPS: {
-    label: string;
-    items: { key: string; label: string; icon: React.ReactNode; teamOnly?: boolean; tour?: string; badge?: number }[];
-  }[] = [
-    { label: "Menu", items: [
-      { key: "home", label: "Dashboard", icon: <Home className="h-[17px] w-[17px]" /> },
-      { key: "bots", label: "My Bots", icon: <LayoutGrid className="h-[17px] w-[17px]" />, tour: "bots" },
-      { key: "groups", label: "Groups", icon: <Network className="h-[17px] w-[17px]" /> },
-      { key: "activity", label: "Activity", icon: <ActivityIcon className="h-[17px] w-[17px]" />, badge: unread },
-    ] },
-    { label: "Account", items: [
-      { key: "billing", label: "Billing", icon: <CreditCard className="h-[17px] w-[17px]" /> },
-      { key: "team", label: "Team", icon: <Users className="h-[17px] w-[17px]" />, teamOnly: true },
-    ] },
-    { label: "More", items: [
-      { key: "settings", label: "Settings", icon: <Settings className="h-[17px] w-[17px]" />, tour: "settings-nav" },
-      { key: "support", label: "Support", icon: <LifeBuoy className="h-[17px] w-[17px]" /> },
-    ] },
-  ];
+  const navItem = (v: string, icon: React.ReactNode, label: string, extraId?: string) => (
+    <div className={"nav" + (view === v ? " on" : "")} data-view={v} id={extraId} onClick={() => go(v)}>{icon}{label}</div>
+  );
 
-  const titleFor = (v: string): [string, string] => ({
-    home: ["Dashboard", `${owned.length} bot${owned.length === 1 ? "" : "s"} · ${liveCount} live`],
-    bots: ["My Bots", `${owned.length} bot${owned.length === 1 ? "" : "s"} in your fleet`],
-    groups: ["Groups", "Bundle bots and share access"],
-    activity: ["Activity", "Live event stream"],
-    billing: ["Billing", "Plan, invoices & payment"],
-    team: ["Team", "Manage who can access your bots"],
-    settings: ["Settings", "Account, workspace & appearance"],
-    support: ["Support", "We're here to help"],
-    bot: [activeBot?.bot_name ?? "Bot", "Bot control panel"],
-  }[v] ?? ["Dashboard", ""]);
-  const [pageTitle, pageSub] = titleFor(view);
-  const crumb = view === "bot" ? "My Bots" : pageTitle;
-
-  const botAvatar = (b: OwnedBot, size = "h-9 w-9") =>
-    b.icon_url ? (
-      <img src={b.icon_url} alt="" className={`${size} rounded-xl object-cover flex-none`} />
-    ) : (
-      <span className={`${size} grid place-items-center rounded-xl bg-os-ink/60 text-os-accent font-display font-extrabold flex-none`}>
-        {b.bot_name?.[0]?.toUpperCase() ?? "B"}
-      </span>
-    );
-  const statusDot = (b: OwnedBot) => {
-    const live = b.status === "live" || b.status === "ready";
-    return <span className={`inline-block h-1.5 w-1.5 rounded-full ${live ? "bg-emerald-400" : "bg-os-faint"}`} />;
-  };
-
-  const CARD = "rounded-2xl border border-os-hairline/40 bg-os-surface/70 backdrop-blur-md";
+  const filt = (f: string) => (b: OwnedBot) => f === "all" ? true : f === "online" ? isLive(b) : !isLive(b);
 
   return (
-    <div className="oversite-theme relative min-h-screen font-body text-os-body">
-      {/* ── full-bleed backdrop: base color → mountain (real img) → dark scrim, content above ── */}
-      <div aria-hidden className="fixed inset-0 z-0 bg-os-bg" />
-      {bgUrl && (
-        <img aria-hidden alt="" src={bgUrl} className="fixed inset-0 z-0 h-full w-full object-cover" style={{ objectPosition: "center 20%" }} />
-      )}
-      <div aria-hidden className="fixed inset-0 z-0 bg-gradient-to-b from-os-ink/40 via-os-ink/60 to-os-ink/80" />
+    <div className={"osd" + (appOn ? " app" : "") + (instant ? " instant" : "")} style={{ ["--accent" as any]: accent.c, ["--accentink" as any]: accent.ink }}>
+      <style>{OSD_CSS}</style>
+      {bgKey !== "none" && bgUrl && <div className="osd-bg" style={{ backgroundImage: `url(${bgUrl})` }} />}
+      {bgKey === "none" && <div className="osd-bg" style={{ background: "#1b2026" }} />}
+      <div className="osd-scrim" />
+      <div className="osd-dim" />
 
-      <div className="relative z-10 flex min-h-screen">
-        {/* ───────── Sidebar ───────── */}
-        <aside data-tour="menu" className="hidden md:flex w-[236px] flex-none flex-col gap-1.5 p-3.5 sticky top-0 h-screen overflow-y-auto bg-os-ink-2/70 backdrop-blur-xl border-r border-os-hairline/30 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {/* profile */}
-          <div className="flex items-center gap-2.5 px-2 pb-3.5 mb-1 border-b border-os-hairline/30">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-os-surface-2 text-os-heading font-display font-extrabold text-[15px]">{initial}</span>
-            <div className="min-w-0">
-              <div className="font-display font-bold text-os-heading text-[13.5px] flex items-center gap-1.5">
-                <span className="truncate">{handle}</span>
-                <span className="font-display text-[8px] font-extrabold tracking-[0.08em] text-os-accent-ink bg-os-accent rounded px-1.5 py-px">{isOwner ? "OWNER" : "TEAM"}</span>
+      <div className="osd-stage">
+        {/* ONBOARDING */}
+        <div className={"overlay" + (appOn ? " hide" : "")}>
+          <div className="wcard">
+            <div className="wmark">Oversite<span>Bot Dashboard</span></div>
+            <h1>Let&apos;s get you set up, {handle}</h1>
+            <div className="lead">Your bots are built and ready. Choose how you want to run them.</div>
+            <div className="qlab">How do you want to run them?</div>
+            <div className="choices">
+              <div className={"choice" + (picked === "solo" ? " sel" : "")} onClick={() => setPicked("solo")}>
+                <span className="tick"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-11"/></svg></span>
+                <div className="ci"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>
+                <div className="ct2">Just me</div><div className="cd">Private — only you can see and manage the bots.</div>
               </div>
-              <div className="text-[11px] text-os-faint truncate">{user.email}</div>
+              <div className={"choice" + (picked === "team" ? " sel" : "")} onClick={() => setPicked("team")}>
+                <span className="tick"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-11"/></svg></span>
+                <div className="ci"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9" r="2.6"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M15 20a5 5 0 0 1 6-4"/></svg></div>
+                <div className="ct2">With my team</div><div className="cd">Invite people, assign roles, and post announcements.</div>
+              </div>
+            </div>
+            <button className={"wgo" + (picked ? " ready" : "")} onClick={() => picked && chooseMode(picked)}>Continue</button>
+            <div className="wnote">You can switch this anytime in Dashboard → Settings → Workspace.</div>
+          </div>
+        </div>
+
+        {/* FLOATING ANNOUNCEMENT — bottom-right, above dashboard UI. Returns each launch. */}
+        {isTeam && annOpen && (
+          <div className="annc">
+            <div className="bar" />
+            <div className="in">
+              <div className="hd">
+                <span className="ic"><svg viewBox="0 0 24 24"><path d="m3 11 14-6v14L3 13Z"/><path d="M7 19a2 2 0 0 1-4 0v-6"/><path d="M19 9a3 3 0 0 1 0 6"/></svg></span>
+                <div className="ht">
+                  <div className="t">Announcement <span className="ndot" /></div>
+                  <div className="s">From your team</div>
+                </div>
+                <button className="x" aria-label="Dismiss" onClick={() => setAnnOpen(false)}><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+              </div>
+              <div className="bd">
+                <div className="h">Welcome to the team</div>
+                <div className="p">Post updates here for everyone with dashboard access.</div>
+              </div>
+              <div className="ft">
+                <div className="by"><span className="av">O</span><div><div className="nm">Oversite Team</div><div className="tm">just now</div></div></div>
+                <button className="act" onClick={() => go("team")}>Post<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+              </div>
             </div>
           </div>
+        )}
 
-          {NAV_GROUPS.map((grp) => {
-            const items = grp.items.filter((it) => !it.teamOnly || wsMode === "team");
-            if (items.length === 0) return null;
-            return (
-              <div key={grp.label}>
-                <div className="font-display text-[9.5px] font-bold tracking-[0.16em] uppercase text-os-faint px-2.5 pt-3 pb-1">{grp.label}</div>
-                {items.map((n) => (
-                  <button
-                    key={n.key}
-                    data-tour={n.tour}
-                    onClick={() => go(n.key)}
-                    className={`w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13.5px] transition ${view === n.key ? "bg-os-surface-2 text-os-heading font-semibold" : "text-os-body hover:bg-os-surface hover:text-os-heading"}`}
-                  >
-                    {n.icon}{n.label}
-                    {n.key === "activity" && (n.badge ?? 0) > 0 && (
-                      <span className="ml-auto rounded-md bg-os-accent px-1.5 text-[10px] font-bold text-os-accent-ink">{n.badge}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            );
-          })}
-
-          {wsMode === "team" ? (
-            <div className="mt-auto rounded-2xl border border-os-hairline/40 bg-os-surface/60 p-3.5">
-              <div className="flex items-center gap-2 mb-2.5">
-                <Megaphone className="h-3.5 w-3.5 text-os-accent" />
-                <span className="font-display text-[9.5px] font-bold tracking-[0.14em] uppercase text-os-heading">Announcements</span>
-              </div>
-              <div className="border-l-2 border-os-accent pl-2.5">
-                <div className="font-display font-bold text-os-heading text-[12.5px] leading-tight">Welcome to the team</div>
-                <div className="text-[11px] text-os-faint leading-snug mt-1">Post updates here for everyone with dashboard access.</div>
-              </div>
-              <button onClick={() => go("team")} className="mt-3 w-full rounded-lg border border-os-hairline bg-os-ink/50 py-2 text-[11.5px] font-semibold text-os-heading hover:bg-os-surface-2 flex items-center justify-center gap-1.5">
-                <Plus className="h-3 w-3" /> Manage team
-              </button>
-            </div>
-          ) : (
-            <div className="mt-auto" />
-          )}
-
-          <button onClick={signOut} className="mt-3 flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13.5px] text-os-body hover:bg-os-surface hover:text-os-heading">
-            <LogOut className="h-[17px] w-[17px]" /> Sign out
-          </button>
-        </aside>
-
-        {/* ───────── Main ───────── */}
-        <main className="flex-1 min-w-0 px-5 md:px-7 py-6 pb-16">
-          {/* header */}
-          <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
-            <div>
-              <div className="text-[12px] text-os-faint">
-                Oversite / <span className="text-os-heading font-medium">{crumb}</span>
-                {view === "bot" && <> / <span className="text-os-heading font-medium">{activeBot?.bot_name}</span></>}
-              </div>
-              <h1 className="font-display font-extrabold text-os-heading tracking-tight text-[clamp(24px,3vw,34px)] leading-none mt-2">{pageTitle}</h1>
-              {pageSub && <div className="text-[12.5px] text-os-faint mt-2">{pageSub}</div>}
-            </div>
-            <div className="flex items-center gap-2.5">
-              <div className="hidden sm:flex items-center gap-2 rounded-xl border border-os-hairline/50 bg-os-ink/50 px-3 py-2 text-[13px] text-os-faint">
-                <Search className="h-[15px] w-[15px]" />
-                <input
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); if (e.target.value) go("bots"); }}
-                  placeholder="Search bots…"
-                  className="bg-transparent outline-none placeholder:text-os-faint text-os-body w-[120px]"
-                />
-              </div>
-              <button data-tour="bell" onClick={() => go("activity")} className="relative grid h-10 w-10 place-items-center rounded-xl border border-os-hairline/50 bg-os-ink/50 text-os-body hover:text-os-heading">
-                <Bell className="h-[17px] w-[17px]" />
-                {unread > 0 && <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-os-accent" />}
-              </button>
-              <Link data-tour="add" to="/bots" className="inline-flex items-center gap-1.5 rounded-xl bg-os-accent px-5 py-2.5 text-[13px] font-semibold text-os-accent-ink hover:brightness-105 whitespace-nowrap">
-                <Plus className="h-4 w-4" />Add a bot
-              </Link>
-            </div>
+        {/* TOUR */}
+        <div className={"tourask" + (tourAsk ? " show" : "")}>
+          <div className="tt">Welcome in</div>
+          <div className="tb">Want a quick 30-second tour of your dashboard?</div>
+          <div className="row">
+            <button className="btn-sm btn-pri" style={{ flex: 1 }} onClick={startTour}>Show me around</button>
+            <button className="btn-sm" onClick={() => { setTourAsk(false); lsSet(LS.tour, "1"); }}>Maybe later</button>
           </div>
+        </div>
+        <div className={"tourblock" + (tourOn ? " on" : "")} />
+        <div className={"tourring" + (tourOn ? " on" : "")} ref={ringRef} />
+        <div className={"tourpop" + (tourOn ? " on" : "")} ref={popRef}>
+          <div className="tt">{TOUR[ti]?.title}</div>
+          <div className="tb">{TOUR[ti]?.body}</div>
+          <div className="nav">
+            <span className="ct3">{ti + 1} / {TOUR.length}</span>
+            <span className="skip sp" onClick={endTour}>Skip</span>
+            {ti > 0 && <button className="btn-sm" onClick={() => setTi(ti - 1)}>Back</button>}
+            <button className="btn-sm btn-pri" onClick={() => ti >= TOUR.length - 1 ? endTour() : setTi(ti + 1)}>{ti >= TOUR.length - 1 ? "Done" : "Next"}</button>
+          </div>
+        </div>
 
-          <FixesBar />
-          <HostingPastDueBanner />
-
-          {/* ───────── Views ───────── */}
-          {view === "home" && (
-            <div className="space-y-5">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { k: "Bots", v: String(owned.length) },
-                  { k: "Live now", v: String(liveCount) },
-                  { k: "Unread alerts", v: String(unread) },
-                  { k: "Workspace", v: wsMode === "team" ? "Team" : "Solo" },
-                ].map((s) => (
-                  <div key={s.k} className={`${CARD} p-4`}>
-                    <div className="font-display text-[10px] tracking-[0.08em] uppercase text-os-faint">{s.k}</div>
-                    <div className="font-display font-extrabold text-os-heading text-[26px] mt-1.5">{s.v}</div>
-                  </div>
-                ))}
+        {/* APP */}
+        <div className={"appwrap" + (appOn ? " show" : "")}>
+          <aside className="side">
+            <div className="prof">
+              <div className="av">{initial}</div>
+              <div>
+                <div className="nm">{handle} <span className="pro">{firstOwned ? "OWNER" : "TEAM"}</span></div>
+                <div className="h">{user.email}</div>
               </div>
-
-              <div className="grid lg:grid-cols-3 gap-5 items-start">
-                <div className={`${CARD} p-5 lg:col-span-2`}>
-                  <div className="flex items-center justify-between mb-3.5">
-                    <span className="font-display font-bold text-os-heading text-[14.5px]">Your bots</span>
-                    <button onClick={() => go("bots")} className="text-[12px] text-os-accent flex items-center gap-1">View all <ChevronRight className="h-3.5 w-3.5" /></button>
-                  </div>
-                  <div className="divide-y divide-os-hairline/30">
-                    {owned.slice(0, 5).map((b) => (
-                      <button key={b.id} onClick={() => openBot(b.id)} className="w-full flex items-center gap-3 py-2.5 text-left hover:opacity-90">
-                        {botAvatar(b)}
-                        <div className="min-w-0">
-                          <div className="font-display font-semibold text-os-heading text-[13.5px] truncate">{b.bot_name}</div>
-                          <div className="text-[11px] text-os-faint flex items-center gap-1.5">{statusDot(b)}{getStatusMeta(b.status).label}</div>
-                        </div>
-                        <ChevronRight className="ml-auto h-4 w-4 text-os-faint" />
-                      </button>
-                    ))}
-                    {owned.length === 0 && <div className="py-6 text-center text-[13px] text-os-faint">No bots yet — add one to get started.</div>}
-                  </div>
-                </div>
-
-                <div className={`${CARD} p-5`}>
-                  <div className="font-display font-bold text-os-heading text-[14.5px] mb-3.5">Recent activity</div>
-                  <div className="space-y-3">
-                    {notifications.slice(0, 5).map((n: BotNotification) => (
-                      <div key={n.id} className="flex gap-2.5">
-                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-os-accent flex-none" />
-                        <div className="min-w-0">
-                          <div className="text-[12.5px] text-os-heading font-medium truncate">{n.title}</div>
-                          <div className="text-[11px] text-os-faint">{timeAgo(n.created_at)}</div>
-                        </div>
-                      </div>
-                    ))}
-                    {notifications.length === 0 && <div className="text-[12.5px] text-os-faint">You're all caught up.</div>}
-                  </div>
-                </div>
-              </div>
-
-              <RedeemFreeCodeBox bots={dashboardBots} onRedeemed={() => { reloadFreePeriods(); reload(); }} />
+              <span className="ed" onClick={() => go("settings")}><svg width="14" height="14" viewBox="0 0 24 24" style={{ stroke: "currentColor", strokeWidth: 1.8, fill: "none" }}><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
             </div>
-          )}
 
-          {view === "bots" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
-              {orderedBots
-                .filter((b) => !b.isDemo && (!search.trim() || b.bot_name?.toLowerCase().includes(search.trim().toLowerCase())))
-                .map((b) => (
-                  <div
-                    key={b.id}
-                    draggable
-                    onDragStart={() => onDragStart(b.id)}
-                    onDragOver={(e) => onDragOver(e, b.id)}
-                    onDragEnd={onDragEnd}
-                    onClick={() => openBot(b.id)}
-                    className={`${CARD} p-[18px] flex flex-col min-h-[262px] cursor-grab active:cursor-grabbing hover:-translate-y-0.5 hover:border-os-accent/35 transition`}
-                  >
-                    {botAvatar(b, "h-[46px] w-[46px]")}
-                    <div className="font-display font-bold text-os-heading text-[16px] mt-3.5">{b.bot_name}</div>
-                    <div className="text-[11px] mt-1 flex items-center gap-1.5">{statusDot(b)}<span className="text-os-faint">{getStatusMeta(b.status).label}</span></div>
-                    <div className="flex flex-col gap-2 my-4">
-                      <div className="flex items-center justify-between rounded-[10px] border border-os-hairline/40 bg-os-ink/40 px-3 py-2">
-                        <span className="text-[11px] text-os-faint">Base</span>
-                        <span className="font-display font-bold text-os-heading text-[13px]">{BOT_BASE_LABELS[b.base] ?? b.base}</span>
+            <div className="glab">Menu</div>
+            {navItem("dashboard", <svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v9h14v-9"/></svg>, "Dashboard")}
+            {navItem("bots", <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>, "My Bots")}
+            {navItem("groups", <svg viewBox="0 0 24 24"><circle cx="7" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M2 19a5 5 0 0 1 10 0M12 19a5 5 0 0 1 10 0"/></svg>, "Groups")}
+            {navItem("activity", <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg>, "Activity")}
+
+            <div className="glab">Account</div>
+            {navItem("billing", <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>, "Billing")}
+            {isTeam && navItem("team", <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>, "Team")}
+
+            <div className="glab">More</div>
+            {navItem("settings", <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1l-.4-2.5H9.6L9.2 6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L5 11a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 2.5h4.8l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6a7 7 0 0 0 .1-1Z"/></svg>, "Settings")}
+            {navItem("support", <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 2.5"/><path d="M12 17h.01"/></svg>, "Support")}
+
+            <div style={{ marginTop: "auto" }} />
+            <div className="nav" onClick={() => navigate("/")}><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14.5 14.5 0 0 0 0 18 14.5 14.5 0 0 0 0-18"/></svg>Back to website</div>
+            <div className="nav" onClick={signOut}><svg viewBox="0 0 24 24"><path d="M9 21H5V3h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</div>
+          </aside>
+
+          <div className="main">
+            <div className="head">
+              <div>
+                <div className="crumb">Oversite / <b>{view === "bot" ? "My Bots" : view.charAt(0).toUpperCase() + view.slice(1)}</b>{view === "bot" && activeBot && <> / <b>{activeBot.bot_name}</b></>}</div>
+                <h1>{view === "dashboard" ? `Hey, ${handle}` : view === "bot" ? (activeBot?.bot_name ?? "Bot") : view === "bots" ? "My Bots" : view.charAt(0).toUpperCase() + view.slice(1)}</h1>
+                <div className="sub">{owned.length} bots · <b>{liveCount} live</b></div>
+              </div>
+              <div className="htools">
+                <label className="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Search</label>
+                <div className="bell" id="tour-bell" onClick={() => go("activity")}><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>{unread > 0 && <span className="d" />}</div>
+                <button className="cta" id="tour-add" onClick={() => go("bots")}>+ Add a bot</button>
+              </div>
+            </div>
+
+            {/* Hosting payment overdue — renders nothing unless past due. */}
+            <HostingPastDueBanner />
+
+            {/* Active known-issue notices — renders nothing when none are active. */}
+            <FixesBar />
+
+            {/* DASHBOARD */}
+            <div className={"view" + (view === "dashboard" ? " on" : "")}>
+              <div className="grid">
+                <div className="left">
+                  <div className="card cust">
+                    <div className="ch"><span className="ct">Setup</span><span className="dots">···</span></div>
+                    <div className="ph"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg></div>
+                    <h3>Almost there</h3>
+                    <p>{isTeam ? "Connect billing, invite your team, then set each bot's commands." : "Connect billing, then set each bot's commands."}</p>
+                    <button className="ghost" onClick={() => go("settings")}>Pick up where you left off</button>
+                  </div>
+
+                  <div className="card" id="tour-activity">
+                    <div className="ch"><div><span className="ct">Fleet activity</span><div style={{ fontSize: "11px", color: "var(--faint)", marginTop: "2px" }}>This week</div></div><span className="dots">···</span></div>
+                    <div className="leg"><span><i style={{ background: "var(--accent)" }} />Events</span><span><i style={{ background: "var(--surface2)" }} />Blocked</span></div>
+                    <div className="chart">{CHART.map((d, i) => (<div className="col" key={i}><div className="bars"><div className="bar buy" style={{ height: d[0] + "%" }} /><div className="bar sell" style={{ height: d[1] + "%" }} /></div><div className="x">{CDAYS[i]}</div></div>))}</div>
+                    <div className="kpis"><span className="big num">{owned.length ? "8.9" : "0"}<sup>%</sup></span><span className="updelta">▲ 2%</span><span className="vs">vs last week</span></div>
+                  </div>
+
+                  <div className="card assets">
+                    <div className="thead">
+                      <div className="tabs" style={{ margin: 0 }}>
+                        <button className={tableFilter === "all" ? "on" : ""} onClick={() => setTableFilter("all")}>All bots</button>
+                        <button className={tableFilter === "online" ? "on" : ""} onClick={() => setTableFilter("online")}>Online</button>
+                        <button className={tableFilter === "warn" ? "on" : ""} onClick={() => setTableFilter("warn")}>Needs attention</button>
                       </div>
-                      <div className="flex items-center justify-between rounded-[10px] border border-os-hairline/40 bg-os-ink/40 px-3 py-2">
-                        <span className="text-[11px] text-os-faint">Add-ons</span>
-                        <span className="font-display font-bold text-os-heading text-[13px]">{b.addons.length}</span>
-                      </div>
+                      <div className="seg"><button className="on">1D</button><button>2W</button><button>1M</button></div>
                     </div>
-                    <button onClick={(e) => { e.stopPropagation(); openBot(b.id); }} className="mt-auto rounded-[11px] border border-os-hairline bg-os-ink/50 py-2.5 font-semibold text-[13px] text-os-heading hover:bg-os-surface-2">Open</button>
+                    <div className="tscroll"><table>
+                      <thead><tr><th>Bot</th><th>Status</th><th>Base</th><th>Add-ons</th><th></th></tr></thead>
+                      <tbody>
+                        {owned.filter(filt(tableFilter)).map((b) => (
+                          <tr key={b.id} onClick={() => openBot(b.id)}>
+                            <td><div className="coin"><div className="a">{botSvg(b.base)}</div><div><div className="nm">{b.bot_name}</div><div className="tk">{BOT_BASE_LABELS[b.base] ?? b.base}</div></div></div></td>
+                            <td><span style={{ color: stColor(b) }}>● {stWord(b)}</span></td>
+                            <td className="num">{BOT_BASE_LABELS[b.base] ?? b.base}</td>
+                            <td className="num">{b.addons.length}</td>
+                            <td><button className="trade" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Manage</button></td>
+                          </tr>
+                        ))}
+                        {owned.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--faint)" }}>No bots yet.</td></tr>}
+                      </tbody>
+                    </table></div>
                   </div>
-                ))}
-              <Link to="/bots" className="rounded-2xl border-[1.5px] border-dashed border-os-hairline grid place-items-center min-h-[262px] text-os-faint hover:border-os-accent hover:text-os-heading transition">
-                <div className="flex flex-col items-center gap-2.5"><Plus className="h-6 w-6" /><span className="text-[13px]">Add a bot</span></div>
-              </Link>
-            </div>
-          )}
-
-          {view === "bot" && activeBot && (
-            <div className="space-y-5">
-              <button onClick={() => go("bots")} className="inline-flex items-center gap-1.5 text-[12px] text-os-faint hover:text-os-heading">
-                <ArrowLeft className="h-3.5 w-3.5" /> Back to my bots
-              </button>
-              <ReadOnlyBotScope botId={activeBot.id} ownerUserId={activeBot.ownerUserId} viaTeam={activeBot.viaTeam}>
-                <BotSection
-                  bot={activeBot}
-                  allBots={dashboardBots}
-                  userId={user.id}
-                  ownerEmail={user.email}
-                  freePeriod={freePeriods[activeBot.id]}
-                  onCancel={setCancelTarget}
-                  onAddAddons={setAddonsTarget}
-                  searchQuery={search}
-                  highlightedAddonId={null}
-                  onReload={() => { reload(); reloadFreePeriods(); }}
-                />
-              </ReadOnlyBotScope>
-            </div>
-          )}
-
-          {view === "groups" && (
-            <div className="space-y-4">
-              <div className="flex justify-end">
-                <Button onClick={addGroup} className="rounded-xl"><Plus className="h-4 w-4 mr-1.5" />New group</Button>
-              </div>
-              {groups.length === 0 && (
-                <div className={`${CARD} p-8 text-center text-[13px] text-os-faint`}>
-                  No groups yet. Bundle bots from a server together, then give a team access to just that bundle.
                 </div>
-              )}
-              {groups.map((g) => (
-                <div key={g.id} className={`${CARD} p-[18px]`}>
-                  <div className="flex items-center gap-3 border-b border-os-hairline/40 pb-3.5 mb-4">
-                    <span className="grid h-9 w-9 place-items-center rounded-lg bg-os-ink/60 text-os-accent"><Network className="h-4 w-4" /></span>
+
+                <div className="right">
+                  <div className="card" id="tour-bots">
+                    <div className="ch"><span className="ct">Your bots</span><span className="dots">···</span></div>
+                    <div className="tabs">
+                      <button className={listFilter === "all" ? "on" : ""} onClick={() => setListFilter("all")}>All</button>
+                      <button className={listFilter === "online" ? "on" : ""} onClick={() => setListFilter("online")}>Online</button>
+                      <button className={listFilter === "warn" ? "on" : ""} onClick={() => setListFilter("warn")}>Other</button>
+                    </div>
                     <div>
-                      <div className="font-display font-bold text-os-heading text-[15px]">{g.name}</div>
-                      <div className="text-[11.5px] text-os-faint">{g.botIds.length} bot{g.botIds.length === 1 ? "" : "s"}</div>
+                      {owned.filter(filt(listFilter)).map((b) => (
+                        <div className="tok" key={b.id} onClick={() => openBot(b.id)}>
+                          <div className="ic">{botSvg(b.base)}</div>
+                          <div><div className="v">{b.bot_name}</div><div className="s">{stWord(b).toLowerCase()}</div></div>
+                          <button className="act" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Open</button>
+                        </div>
+                      ))}
+                      {owned.length === 0 && <div className="tok"><div><div className="s">No bots yet.</div></div></div>}
                     </div>
-                    <button onClick={() => removeGroup(g.id)} className="ml-auto text-[12px] text-os-faint hover:text-destructive">Remove</button>
                   </div>
-                  <div className="font-display text-[10px] tracking-[0.12em] uppercase text-os-faint mb-2.5">Bots in this group</div>
-                  <div className="flex flex-wrap gap-2">
-                    {owned.map((b) => {
-                      const inG = g.botIds.includes(b.id);
-                      return (
-                        <button
-                          key={b.id}
-                          onClick={() => toggleBotInGroup(g.id, b.id)}
-                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px] transition ${inG ? "border-os-accent bg-os-accent/10 text-os-heading" : "border-os-hairline/60 border-dashed text-os-faint hover:text-os-heading"}`}
-                        >
-                          {inG ? <Check className="h-3.5 w-3.5 text-os-accent" /> : <Plus className="h-3.5 w-3.5" />}
-                          {b.bot_name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-4 text-[11.5px] text-os-faint">
-                    Team access for this group is managed from the <button onClick={() => go("team")} className="text-os-accent underline-offset-2 hover:underline">Team</button> panel.
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
 
-          {view === "activity" && (
-            <div className={`${CARD} overflow-hidden`}>
-              {notifications.length === 0 && <div className="p-8 text-center text-[13px] text-os-faint">No activity yet.</div>}
-              {notifications.map((n: BotNotification) => (
-                <div key={n.id} className="flex gap-3 p-4 border-t border-os-hairline/30 first:border-t-0">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-os-accent flex-none" />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[13px] text-os-heading font-medium">{n.title}</div>
-                    {n.body && <div className="text-[12px] text-os-faint mt-0.5">{n.body}</div>}
-                  </div>
-                  <span className="font-label text-[11px] text-os-faint whitespace-nowrap">{timeAgo(n.created_at)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {view === "billing" && (
-            <div className={`${CARD} p-6 max-w-xl`}>
-              <div className="font-display font-bold text-os-heading text-[15px] mb-1">Billing &amp; payments</div>
-              <p className="text-[13px] text-os-faint mb-5">Manage your subscription, payment method, and invoices in the secure billing portal.</p>
-              <Button onClick={openPortal} className="rounded-xl"><CreditCard className="h-4 w-4 mr-1.5" />Open billing portal</Button>
-            </div>
-          )}
-
-          {view === "team" && firstOwned && (
-            <TeamManagementHub botId={firstOwned.id} ownerUserId={user.id} ownerEmail={user.email ?? null} />
-          )}
-          {view === "team" && !firstOwned && (
-            <div className={`${CARD} p-8 text-center text-[13px] text-os-faint`}>You need an owned bot to manage a team.</div>
-          )}
-
-          {view === "settings" && (
-            <div className="space-y-5 max-w-3xl">
-              <div className={`${CARD} p-[18px]`}>
-                <div className="font-display font-bold text-os-heading text-[14.5px] mb-1">Workspace</div>
-                <p className="text-[12.5px] text-os-faint mb-3.5">Switching to team unlocks members, roles, and announcements.</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {(["solo", "team"] as const).map((m) => (
-                    <button key={m} onClick={() => { setWsMode(m); lsSet(LS.ws, m); }} className={`rounded-xl border p-4 text-left transition ${wsMode === m ? "border-os-accent bg-os-accent/10" : "border-os-hairline bg-os-ink/40"}`}>
-                      <div className="font-display font-bold text-os-heading text-[14px] flex items-center justify-between">
-                        {m === "solo" ? "Just me" : "With my team"}
-                        <span className={`grid h-4 w-4 place-items-center rounded-full border ${wsMode === m ? "border-os-accent bg-os-accent text-os-accent-ink" : "border-os-hairline"}`}>{wsMode === m && <Check className="h-2.5 w-2.5" strokeWidth={3} />}</span>
+                  {spotlight && (
+                    <div className="card">
+                      <div className="mhead"><div /><div className="mout" onClick={() => openBot(spotlight.id)}><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></div></div>
+                      <div className="mname">{spotlight.bot_name} <span className="x">{BOT_BASE_LABELS[spotlight.base] ?? spotlight.base}</span></div>
+                      <div className="mhot">Your fleet</div>
+                      <div style={{ marginTop: "14px" }}>
+                        <div className="mrow"><span className="k">Status</span><span className="v">{stWord(spotlight)}</span></div>
+                        <div className="mrow"><span className="k">Add-ons</span><span className="v">{spotlight.addons.length}</span></div>
+                        <div className="mrow" style={{ borderBottom: 0 }}><span className="k">Engine</span><span className="v">{spotlight.engine_version === "v2" ? "V2" : "V1"}</span></div>
                       </div>
-                      <div className="text-[11.5px] text-os-faint mt-1.5">{m === "solo" ? "Private. Only you can manage the bots." : "Invite people, assign roles, broadcast announcements."}</div>
-                    </button>
-                  ))}
+                      <div className="mbtns"><button className="ghost" onClick={() => openBot(spotlight.id)}>Configure</button><button className="cta" style={{ width: "100%" }} onClick={() => openBot(spotlight.id)}>Open bot</button></div>
+                    </div>
+                  )}
                 </div>
               </div>
+            </div>
 
-              <div className={`${CARD} p-[18px]`}>
-                <div className="font-display font-bold text-os-heading text-[14.5px] mb-1 flex items-center gap-2"><ImageIcon className="h-4 w-4 text-os-accent" />Appearance</div>
-                <p className="text-[12.5px] text-os-faint mb-3.5">Pick the dashboard background.</p>
-                <div className="grid grid-cols-3 gap-2.5">
+            {/* MY BOTS */}
+            <div className={"view" + (view === "bots" ? " on" : "")}>
+              <div className="ph2"><h2>My Bots</h2><p>{owned.length} bots in your fleet · <span className="drophint">drag to reorder</span></p></div>
+              <div className={"botgrid" + (dragActive ? " dragging-active" : "")}>
+                {owned.map((b) => (
+                  <div className="bcard" key={b.id} draggable onDragStart={() => onDragStart(b.id)} onDragOver={(e) => onDragOver(e, b.id)} onDragEnd={onDragEnd} onClick={() => openBot(b.id)}>
+                    <div className="a">{botSvg(b.base)}</div>
+                    <div className="nm">{b.bot_name}</div><div className="st" style={{ color: stColor(b) }}>● {stWord(b)}</div>
+                    <div className="bstats"><div className="bx"><span className="k">Base</span><span className="v num">{BOT_BASE_LABELS[b.base] ?? b.base}</span></div><div className="bx"><span className="k">Add-ons</span><span className="v num">{b.addons.length}</span></div></div>
+                    <button className="ghost" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Open</button>
+                  </div>
+                ))}
+                <Link to="/bots" className="addbot" style={{ textDecoration: "none" }}><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add a bot</Link>
+              </div>
+            </div>
+
+            {/* GROUPS */}
+            <div className={"view" + (view === "groups" ? " on" : "")}>
+              <div className="ph2" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "14px", flexWrap: "wrap" }}>
+                <div><h2>Groups</h2><p>Bundle bots from a server together, then give a team access to just that bundle.</p></div>
+                <button className="cta" onClick={() => { const n = window.prompt("Name this group"); if (n && n.trim()) setGroups((g) => [...g, { id: "g_" + Date.now(), name: n.trim(), botIds: [] }]); }}>+ New group</button>
+              </div>
+              <div className="groups">
+                {groups.length === 0 && <div className="card" style={{ textAlign: "center", color: "var(--faint)", fontSize: "13px" }}>No groups yet. Create one to bundle bots and share access.</div>}
+                {groups.map((g) => (
+                  <div className="gcard" key={g.id}>
+                    <div className="ghd"><div className="gi"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></div><div><div className="gname">{g.name}</div><div className="gmeta">{g.botIds.length} bots</div></div><span className="dots" style={{ cursor: "pointer" }} onClick={() => setGroups((gs) => gs.filter((x) => x.id !== g.id))}>×</span></div>
+                    <div className="gbody">
+                      <div>
+                        <div className="gcl">Bots in this group</div>
+                        <div className="chips">
+                          {owned.map((b) => { const inG = g.botIds.includes(b.id); return (<span className={"chip" + (inG ? "" : " add")} key={b.id} style={{ cursor: "pointer" }} onClick={() => setGroups((gs) => gs.map((x) => x.id === g.id ? { ...x, botIds: inG ? x.botIds.filter((y) => y !== b.id) : [...x.botIds, b.id] } : x))}>{inG ? botSvg(b.base) : null}{b.bot_name}{inG && <span className="x">×</span>}</span>); })}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="gcl">Team access</div>
+                        <div className="chips"><span className="chip add" onClick={() => go("team")}>+ Invite</span></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ACTIVITY */}
+            <div className={"view" + (view === "activity" ? " on" : "")}>
+              <div className="ph2"><h2>Activity</h2><p>Everything your bots have done, newest first.</p></div>
+              <div className="feed" style={{ marginTop: "6px" }}>
+                {notifications.length === 0 && <div className="fitem"><div><div className="ttl">No activity yet</div><div className="meta">Events from your bots will show up here.</div></div></div>}
+                {notifications.map((n: BotNotification) => (
+                  <div className="fitem" key={n.id}><div className="fi" style={{ color: "var(--accent)", background: "rgba(201,219,230,.1)" }}><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg></div><div><div className="ttl">{n.title}</div><div className="meta">{n.body}</div></div><div className="tm">{osTimeAgo(n.created_at)}</div></div>
+                ))}
+              </div>
+            </div>
+
+            {/* BILLING */}
+            <div className={"view" + (view === "billing" ? " on" : "")}>
+              <div className="ph2"><h2>Billing</h2><p>Plan, payment method, and invoices.</p></div>
+              <div className="bgrid">
+                <div>
+                  <div className="card" style={{ marginBottom: "16px" }}>
+                    <div className="planrow"><div><div className="ct">Current plan</div><div className="planname">{owned.length} bot{owned.length === 1 ? "" : "s"} · monthly</div></div><span className="pillok">Active</span></div>
+                    <div className="mrow"><span className="k">Bots</span><span className="v">{owned.length}</span></div>
+                    <div className="mrow" style={{ borderBottom: 0 }}><span className="k">Manage</span><span className="v">Stripe portal</span></div>
+                    <div className="mbtns"><button className="ghost" onClick={() => firstOwned && setCancelTarget(firstOwned)}>Cancel a bot</button><button className="cta" style={{ width: "100%" }} onClick={openPortal}>Manage in portal</button></div>
+                  </div>
+                  <div className="card"><div className="ch"><span className="ct">Invoices</span></div><p style={{ fontSize: "12.5px", color: "var(--faint)" }}>Your invoices and receipts live in the billing portal.</p></div>
+                </div>
+                <div className="card"><div className="ch"><span className="ct">Payment method</span></div><div className="pm"><div className="cc" /><div><div className="pmno">Managed in portal</div><div style={{ fontSize: "11px", color: "var(--faint)", marginTop: "2px" }}>Secure Stripe billing</div></div></div><button className="ghost" style={{ marginTop: "12px" }} onClick={openPortal}>Open portal</button></div>
+              </div>
+            </div>
+
+            {/* TEAM */}
+            <div className={"view" + (view === "team" ? " on" : "")}>
+              {firstOwned ? (
+                <div style={{ position: "relative" }}><TeamManagementHub botId={firstOwned.id} ownerUserId={user.id} ownerEmail={user.email ?? null} /></div>
+              ) : (<div className="ph2"><h2>Team</h2><p>You need an owned bot to manage a team.</p></div>)}
+            </div>
+
+            {/* SETTINGS */}
+            <div className={"view" + (view === "settings" ? " on" : "")}>
+              <div className="ph2"><h2>Settings</h2><p>Your account, workspace, and notifications.</p></div>
+              <div className="card" style={{ marginBottom: "16px" }}>
+                <div className="ch"><span className="ct">Workspace</span></div>
+                <p style={{ fontSize: "12.5px", color: "var(--faint)", marginBottom: "14px" }}>Choose how you run your fleet. Switching to team unlocks members, roles, and announcements.</p>
+                <div className="modeopts">
+                  <div className={"modeopt" + (wsMode === "solo" ? " on" : "")} onClick={() => { setWsMode("solo"); lsSet(LS.ws, "solo"); }}><div className="mt">Just me <span className="check"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-11"/></svg></span></div><div className="md">Private. Only you can see and manage the bots.</div></div>
+                  <div className={"modeopt" + (wsMode === "team" ? " on" : "")} onClick={() => { setWsMode("team"); lsSet(LS.ws, "team"); }}><div className="mt">With my team <span className="check"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-11"/></svg></span></div><div className="md">Invite people, assign roles, and broadcast announcements.</div></div>
+                </div>
+                <div style={{ marginTop: "14px" }}><span className="cfg" onClick={() => { lsDel(LS.onboarded); setPicked(null); setInstant(false); setAppOn(false); go("dashboard"); }}>↺ Replay welcome screen</span></div>
+              </div>
+              <div className="card" style={{ marginBottom: "16px" }}>
+                <div className="ch"><span className="ct">Appearance</span></div>
+                <p style={{ fontSize: "12.5px", color: "var(--faint)", marginBottom: "14px" }}>Pick the background image for your dashboard.</p>
+                <div className="bgopts">
                   {BG_PRESETS.map((p) => (
-                    <button
-                      key={p.key}
-                      onClick={() => { setBgKey(p.key); lsSet(LS.bg, p.key); }}
-                      className={`relative h-[78px] rounded-xl border-[1.5px] overflow-hidden bg-cover bg-center ${bgKey === p.key ? "border-os-accent" : "border-os-hairline"}`}
-                      style={p.url ? { backgroundImage: `url(${p.url})`, backgroundPosition: "center 22%" } : undefined}
-                    >
-                      {!p.url && <span className="absolute inset-0 bg-os-surface-2" />}
-                      {bgKey === p.key && <span className="absolute top-1.5 right-1.5 grid h-[18px] w-[18px] place-items-center rounded-full bg-os-accent text-os-accent-ink"><Check className="h-2.5 w-2.5" strokeWidth={3} /></span>}
-                      <span className="absolute inset-x-0 bottom-0 px-2 py-1 font-display text-[10.5px] font-bold text-os-heading bg-gradient-to-t from-os-ink/80 to-transparent">{p.label}</span>
-                    </button>
+                    <div className={"bgopt" + (p.key === "none" ? " none" : "") + (bgKey === p.key ? " sel" : "")} key={p.key} onClick={() => { setBgKey(p.key); lsSet(LS.bg, p.key); }} style={p.url ? { backgroundImage: `url(${p.url})` } : undefined}><span className="tk2"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-11"/></svg></span><span className="lbl">{p.label}</span></div>
                   ))}
                 </div>
-              </div>
-
-              <div className={`${CARD} p-[18px]`}>
-                <div className="font-display font-bold text-os-heading text-[14.5px] mb-1">Replay onboarding</div>
-                <p className="text-[12.5px] text-os-faint mb-3.5">See the welcome and the guided tour again.</p>
-                <div className="flex gap-2.5 flex-wrap">
-                  <button onClick={() => { lsDel(LS.onboarded); setWelcomeTransfer(false); setShowWelcome(true); }} className="rounded-lg border border-os-hairline bg-os-ink/50 px-3.5 py-2 text-[12.5px] font-semibold text-os-heading hover:bg-os-surface-2">↺ Welcome screen</button>
-                  <button onClick={() => { lsDel(LS.tour); setTourOn(true); go("home"); }} className="rounded-lg border border-os-hairline bg-os-ink/50 px-3.5 py-2 text-[12.5px] font-semibold text-os-heading hover:bg-os-surface-2">↺ Dashboard tour</button>
+                <button className="ghost"><svg viewBox="0 0 24 24" width="14" height="14" style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "6px", stroke: "currentColor", strokeWidth: 1.8, fill: "none" }}><path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Upload your own</button>
+                <div style={{ fontFamily: "var(--disp)", fontSize: "10px", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--faint)", margin: "20px 0 10px" }}>Primary color</div>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+                  {ACCENTS.map((a) => (
+                    <button key={a.key} title={a.label} onClick={() => { setAccentKey(a.key); lsSet(LS.accent, a.key); }}
+                      style={{ height: "30px", width: "30px", borderRadius: "999px", background: a.c, cursor: "pointer", border: accentKey === a.key ? "2px solid var(--heading)" : "2px solid transparent", boxShadow: "0 0 0 1px var(--hair)" }} />
+                  ))}
+                  {/* custom color: native picker swatch + hex field */}
+                  <label title="Pick a custom color" style={{ position: "relative", height: "30px", width: "30px", borderRadius: "999px", overflow: "hidden", cursor: "pointer", display: "inline-block", background: /^#[0-9a-fA-F]{6}$/.test(customHex) ? customHex : "var(--panel)", border: accentKey === "custom" ? "2px solid var(--heading)" : "2px dashed var(--hair)", boxShadow: "0 0 0 1px var(--hair)" }}>
+                    <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(customHex) ? customHex : "#C9DBE6"} onChange={(e) => applyCustom(e.target.value)} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }} />
+                  </label>
+                  <input value={customHex} onChange={(e) => { const v = e.target.value; setCustomHex(v); if (/^#[0-9a-fA-F]{6}$/.test(v)) applyCustom(v); }} placeholder="#C9DBE6" maxLength={7} spellCheck={false}
+                    style={{ background: "var(--panel)", border: "1px solid var(--hair)", borderRadius: "8px", padding: "7px 10px", color: "var(--heading)", fontFamily: "var(--mono)", fontSize: "12px", width: "104px", textTransform: "uppercase" }} />
                 </div>
               </div>
+              <div className="card" style={{ marginTop: "16px" }}><div className="ch"><span className="ct">Tour</span></div><p style={{ fontSize: "12.5px", color: "var(--faint)", marginBottom: "14px" }}>Replay the guided dashboard tour.</p><button className="ghost" style={{ maxWidth: "240px" }} onClick={() => { lsDel(LS.tour); go("dashboard"); startTour(); }}>↺ Replay dashboard tour</button></div>
             </div>
-          )}
 
-          {view === "support" && (
-            <div className="grid md:grid-cols-2 gap-5 max-w-3xl">
-              <div className={`${CARD} p-[18px]`}>
-                <div className="font-display font-bold text-os-heading text-[14.5px] mb-2">Contact us</div>
-                <p className="text-[12.5px] text-os-faint leading-relaxed mb-3.5">Email <span className="text-os-accent">support@oversite.shop</span> or open a ticket in our Discord. Include your bot ID for the fastest help.</p>
-                <button onClick={() => { lsDel(LS.tour); setTourOn(true); go("home"); }} className="w-full rounded-lg border border-os-hairline bg-os-ink/50 py-2.5 text-[12.5px] font-semibold text-os-heading hover:bg-os-surface-2">↺ Replay dashboard tour</button>
-              </div>
-              <div className={`${CARD} p-[18px]`}>
-                <RequestCustomFeatureCard />
+            {/* SUPPORT */}
+            <div className={"view" + (view === "support" ? " on" : "")}>
+              <div className="ph2"><h2>Support</h2><p>We usually reply within a few hours.</p></div>
+              <div className="bgrid">
+                <div className="card"><div className="ch"><span className="ct">Contact us</span></div><p style={{ fontSize: "12.5px", color: "var(--faint)", lineHeight: 1.5, marginBottom: "14px" }}>Email <span style={{ color: "var(--accent)" }}>support@oversite.shop</span> or open a ticket in our Discord.</p><div className="mbtns"><a className="ghost" href="mailto:support@oversite.shop" style={{ textDecoration: "none", textAlign: "center" }}>Email us</a><a className="cta" href="https://discord.gg/oversite" target="_blank" rel="noreferrer" style={{ width: "100%", textDecoration: "none", textAlign: "center" }}>Join Discord</a></div><button className="ghost" style={{ marginTop: "10px" }} onClick={() => { lsDel(LS.tour); go("dashboard"); startTour(); }}>↺ Replay dashboard tour</button></div>
+                <div className="card"><div className="ch"><span className="ct">Quick answers</span></div><div className="togrow" style={{ cursor: "pointer" }}><div className="tl">How do I add a bot to my server?</div><span className="dots">›</span></div><div className="togrow" style={{ cursor: "pointer" }}><div className="tl">Can I cancel anytime?</div><span className="dots">›</span></div><div className="togrow" style={{ cursor: "pointer" }}><div className="tl">How do refunds work?</div><span className="dots">›</span></div></div>
               </div>
             </div>
-          )}
-        </main>
+
+            {/* PER-BOT — real working blocks */}
+            <div className={"view" + (view === "bot" ? " on" : "")}>
+              {activeBot && (
+                <>
+                  <span className="back" onClick={() => go("bots")}><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg> Back to my bots</span>
+                  <ReadOnlyBotScope botId={activeBot.id} ownerUserId={activeBot.ownerUserId} viaTeam={activeBot.viaTeam}>
+                    <BotSection bot={activeBot} allBots={dashboardBots} userId={user.id} ownerEmail={user.email} freePeriod={freePeriods[activeBot.id]} onCancel={setCancelTarget} onAddAddons={setAddonsTarget} searchQuery="" highlightedAddonId={null} onReload={() => { reload(); reloadFreePeriods(); }} />
+                  </ReadOnlyBotScope>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       <NewOwnerBillingDialog forceOpen={new URLSearchParams(window.location.search).get("team_transfer") === "accepted"} />
-
-      {showWelcome && <OnboardingOverlay name={handle} transfer={welcomeTransfer} onChoose={chooseMode} />}
-      {askTour && !tourOn && (
-        <div className="fixed bottom-5 right-5 z-[150] w-[300px] rounded-2xl border border-os-hairline/40 bg-os-surface/95 backdrop-blur-md p-[18px] shadow-2xl">
-          <div className="font-display font-extrabold text-os-heading text-[15px]">Welcome in</div>
-          <div className="text-[12.5px] text-os-body leading-relaxed mt-2 mb-3.5">Want a quick tour of your dashboard?</div>
-          <div className="flex gap-2.5">
-            <button onClick={() => { setAskTour(false); setTourOn(true); go("home"); }} className="flex-1 rounded-[10px] bg-os-accent py-2.5 text-[12.5px] font-bold text-os-accent-ink hover:brightness-105">Show me around</button>
-            <button onClick={() => { setAskTour(false); lsSet(LS.tour, "1"); }} className="rounded-[10px] border border-os-hairline px-3.5 py-2.5 text-[12.5px] font-bold text-os-heading hover:bg-os-surface-2">Maybe later</button>
-          </div>
-        </div>
-      )}
-      {tourOn && <TourGuide steps={TOUR_STEPS} onClose={() => { setTourOn(false); lsSet(LS.tour, "1"); }} />}
-
       <AlertDialog open={!!cancelTarget} onOpenChange={(o) => !o && !cancelling && setCancelTarget(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancel subscription for "{cancelTarget?.bot_name}"?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This is a full shutdown for this bot — all recurring payments and hosting stop, the bot goes offline,
-              and it's removed from your dashboard. This can't be undone, but you can always build a new bot later.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancelling}>Keep subscription</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={cancelling}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={(e) => { e.preventDefault(); if (cancelTarget) cancelOrder(cancelTarget); }}
-            >
-              {cancelling ? "Cancelling…" : "Yes, cancel subscription"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle>Cancel subscription for "{cancelTarget?.bot_name}"?</AlertDialogTitle><AlertDialogDescription>This stops recurring payments and hosting, takes the bot offline, and removes it from your dashboard.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel disabled={cancelling}>Keep subscription</AlertDialogCancel><AlertDialogAction disabled={cancelling} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(e) => { e.preventDefault(); if (cancelTarget) cancelOrder(cancelTarget); }}>{cancelling ? "Cancelling…" : "Yes, cancel"}</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
       <AddAddonsDialog bot={addonsTarget} open={!!addonsTarget} onOpenChange={(o) => !o && setAddonsTarget(null)} />
     </div>
   );
