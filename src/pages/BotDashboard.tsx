@@ -1159,7 +1159,7 @@ function TourGuide({ steps, onClose }: { steps: TourStep[]; onClose: () => void 
 function OnboardingOverlay({ name, transfer, onChoose }: { name: string; transfer?: boolean; onChoose: (mode: "solo" | "team") => void }) {
   const [picked, setPicked] = useState<"solo" | "team" | null>(null);
   return (
-    <div className="fixed inset-0 z-[120] grid place-items-center p-6 bg-os-ink/55 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-[120] grid place-items-center p-6 bg-os-ink/30 backdrop-blur-[2px] overflow-y-auto">
       <div className="w-full max-w-[560px] rounded-[22px] border border-os-hairline/40 bg-os-surface/80 backdrop-blur-xl p-9 text-center shadow-2xl">
         <div className="font-display font-extrabold text-os-heading text-[18px]">
           Oversite
@@ -1429,7 +1429,7 @@ const BotDashboard = () => {
       {bgUrl && (
         <div aria-hidden className="fixed inset-0 -z-20 bg-cover" style={{ backgroundImage: `url(${bgUrl})`, backgroundPosition: "center 20%" }} />
       )}
-      <div aria-hidden className="fixed inset-0 -z-10 bg-gradient-to-b from-os-ink/[0.74] via-os-ink/[0.86] to-os-ink/[0.95]" />
+      <div aria-hidden className="fixed inset-0 -z-10 bg-gradient-to-b from-os-ink/40 via-os-ink/60 to-os-ink/80" />
 
       <div className="flex min-h-screen">
         {/* ───────── Sidebar ───────── */}
@@ -1518,9 +1518,9 @@ const BotDashboard = () => {
                 <Bell className="h-[17px] w-[17px]" />
                 {unread > 0 && <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-os-accent" />}
               </button>
-              <Button data-tour="add" asChild className="rounded-xl">
-                <Link to="/bots"><Plus className="h-4 w-4 mr-1.5" />Add a bot</Link>
-              </Button>
+              <Link data-tour="add" to="/bots" className="inline-flex items-center gap-1.5 rounded-xl bg-os-accent px-5 py-2.5 text-[13px] font-semibold text-os-accent-ink hover:brightness-105 whitespace-nowrap">
+                <Plus className="h-4 w-4" />Add a bot
+              </Link>
             </div>
           </div>
 
