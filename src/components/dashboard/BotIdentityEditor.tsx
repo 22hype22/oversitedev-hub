@@ -456,9 +456,9 @@ export const BotIdentityEditor = ({
   };
 
   return (
-    <Card className="overflow-hidden bg-card/60 border-border">
+    <Card className="overflow-hidden rounded-2xl bg-card/60 border-border shadow-lg shadow-black/5">
       {/* Banner */}
-      <div className="relative h-36 sm:h-44 w-full bg-gradient-to-br from-primary/20 via-primary/5 to-background border-b border-border">
+      <div className="relative h-36 sm:h-48 w-full bg-gradient-to-br from-primary/25 via-primary/5 to-background">
         {bot.banner_url ? (
           <img
             src={bot.banner_url}
@@ -467,12 +467,15 @@ export const BotIdentityEditor = ({
           />
         ) : (
           <div className="absolute inset-0 grid place-items-center text-muted-foreground">
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-2 text-xs font-medium">
               <ImageIcon className="h-4 w-4" />
               No banner uploaded
             </div>
           </div>
         )}
+
+        {/* Bottom fade so the avatar/name area reads cleanly over any banner */}
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-card via-card/70 to-transparent pointer-events-none" />
 
         {enableDiscordEdits && (
           <div className="absolute top-3 right-3">
@@ -482,7 +485,7 @@ export const BotIdentityEditor = ({
               variant="secondary"
               onClick={() => bannerInputRef.current?.click()}
               disabled={savingBanner}
-              className="backdrop-blur bg-background/70 hover:bg-background/90"
+              className="backdrop-blur bg-background/70 hover:bg-background/90 border border-border/60 shadow-sm"
             >
               {savingBanner ? (
                 <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
@@ -507,14 +510,14 @@ export const BotIdentityEditor = ({
       </div>
 
       {/* Icon + name row */}
-      <div className="px-5 pb-5 -mt-8">
-        <div className="flex items-start justify-between gap-3">
+      <div className="px-6 pb-6 -mt-12">
+        <div className="flex items-end justify-between gap-3">
         <div className="relative shrink-0 group">
-          <div className="h-20 w-20 rounded-2xl bg-primary/10 border-4 border-card ring-1 ring-border grid place-items-center overflow-hidden shadow-md">
+          <div className="h-24 w-24 rounded-2xl bg-primary/10 border-4 border-card ring-1 ring-border grid place-items-center overflow-hidden shadow-xl shadow-black/20">
             {bot.icon_url ? (
               <img src={bot.icon_url} alt={bot.bot_name} className="h-full w-full object-cover" />
             ) : (
-              <Bot className="h-8 w-8 text-primary" />
+              <Bot className="h-9 w-9 text-primary" />
             )}
           </div>
           {enableDiscordEdits && (
@@ -524,7 +527,7 @@ export const BotIdentityEditor = ({
                 onClick={() => avatarInputRef.current?.click()}
                 disabled={savingAvatar}
                 aria-label="Change avatar"
-                className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-primary text-primary-foreground border-2 border-card grid place-items-center shadow hover:bg-primary/90 transition-smooth disabled:opacity-60"
+                className="absolute -bottom-1.5 -right-1.5 h-8 w-8 rounded-full bg-primary text-primary-foreground border-2 border-card grid place-items-center shadow-md hover:bg-primary/90 transition-smooth disabled:opacity-60"
               >
                 {savingAvatar ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -547,11 +550,11 @@ export const BotIdentityEditor = ({
           )}
         </div>
           {actions && (
-            <div className="flex flex-wrap items-center gap-2 shrink-0 pt-10">{actions}</div>
+            <div className="flex flex-wrap items-center justify-end gap-2 shrink-0 pb-1.5">{actions}</div>
           )}
         </div>
 
-        <div className="mt-3 min-w-0">
+        <div className="mt-4 min-w-0">
             <div className="flex items-center gap-2 min-w-0">
               {editingName ? (
                 <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -597,22 +600,22 @@ export const BotIdentityEditor = ({
                 </div>
               ) : (
                 <>
-                  <h2 className="text-2xl font-bold tracking-tight truncate">{bot.bot_name}</h2>
+                  <h2 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">{bot.bot_name}</h2>
                   {enableDiscordEdits && (
                     <button
                       type="button"
                       onClick={() => setEditingName(true)}
-                      className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-smooth"
+                      className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-smooth"
                       aria-label="Edit name"
                     >
-                      <Pencil className="h-3.5 w-3.5" />
+                      <Pencil className="h-4 w-4" />
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={copyBotId}
                     title={`Bot ID: ${bot.id} — click to copy`}
-                    className="ml-1 inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted transition-smooth"
+                    className="ml-1 inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 font-mono text-[10px] tracking-wide text-muted-foreground hover:text-foreground hover:bg-muted transition-smooth"
                   >
                     #{shortBotId}
                     <Copy className="h-3 w-3" />
@@ -635,14 +638,14 @@ export const BotIdentityEditor = ({
                 <button
                   type="button"
                   onClick={() => setExpanded((v) => !v)}
-                  className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-smooth"
+                  className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-smooth"
                 >
                   {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                   {expanded ? "Hide bio & status" : "Edit bio & status"}
                 </button>
 
                 {expanded && (
-                  <div className="mt-3 space-y-3 rounded-lg border border-border bg-background/40 p-3">
+                  <div className="mt-3 space-y-4 rounded-xl border border-border bg-background/50 p-4">
                     <div className="space-y-1.5">
                       <Label htmlFor="bot-bio" className="text-xs flex items-center gap-1.5">
                         <Info className="h-3 w-3 text-primary" />
