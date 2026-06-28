@@ -1100,9 +1100,11 @@ const OSD_CSS = `.osd{font-family:var(--bodyf);color:var(--body);min-height:100v
 .osd .appwrap.show .side{transform:none}
 .osd .side{scrollbar-width:none;-ms-overflow-style:none}
 .osd .side::-webkit-scrollbar{width:0;height:0;display:none}
-/* Hide the chunky native page scrollbar while the dashboard is open (scroll still works). */
-html:has(.osd.app),body:has(.osd.app){scrollbar-width:none;-ms-overflow-style:none}
-html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar{width:0;height:0;display:none}
+/* Kill the custom scrollbar BAR everywhere in the dashboard (viewport + any inner
+   scroller). Overrides the global index.css scrollbar. Scrolling still works via
+   wheel/trackpad; any dot/indicator UI is unaffected. */
+html:has(.osd.app),body:has(.osd.app),.osd.app,.osd.app *{scrollbar-width:none !important;-ms-overflow-style:none !important}
+html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd.app::-webkit-scrollbar,.osd.app *::-webkit-scrollbar{width:0 !important;height:0 !important;display:none !important}
 .osd .prof{display:flex;align-items:center;gap:10px;padding:8px 8px 14px;border-bottom:1px solid var(--hair);margin-bottom:8px}
 .osd .prof .av{height:38px;width:38px;border-radius:11px;background:linear-gradient(135deg,#46525E,#343D46);
             display:grid;place-items:center;color:var(--heading);font-weight:800;font-family:var(--disp);font-size:15px;flex:none}
