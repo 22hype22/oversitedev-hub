@@ -107,7 +107,7 @@ function mapRow(row: any, opts: { viaSupport?: boolean; viaTeam?: boolean } = {}
  * tagged with `viaTeam: true`.
  */
 export function useOwnedBots() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const userId = user?.id ?? null;
   const [bots, setBots] = useState<OwnedBot[]>([]);
   const [supportBots, setSupportBots] = useState<OwnedBot[]>([]);
@@ -318,6 +318,7 @@ export function useOwnedBots() {
   // Team members and support-grant viewers should also have dashboard access
   // — they're managing the owner's bots on the owner's entitlement.
   const hasDashboardAccess =
+    isAdmin ||
     ownsDashboardAddon ||
     bots.some((b) => b.hasWebDashboard) ||
     teamBots.length > 0 ||
@@ -325,6 +326,9 @@ export function useOwnedBots() {
   // Support- and team-session bots are always visible regardless of the
   // viewer's own dashboard add-on status — they're seeing the OWNER's bots,
   // not their own, and the owner's entitlement is what unlocks them.
+  // Admins always see their own bots too: the dashboard page lets admins in
+  // (isAdmin || hasDashboardAccess), so the bot list must match — otherwise an
+  // admin without the Web Dashboard add-on gets in but sees an empty fleet.
   const dashboardBots = [
     ...(hasDashboardAccess ? bots : []),
     ...supportBots,
