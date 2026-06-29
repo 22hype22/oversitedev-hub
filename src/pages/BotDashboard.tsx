@@ -567,54 +567,64 @@ const BotSection = ({
       })
     : null;
 
+  const metaSep = <span className="text-muted-foreground/40">·</span>;
   const headerBadges = (
     <>
-      <Badge variant="outline" className={`text-xs gap-1.5 ${statusMeta.className}`}>
-        {statusMeta.loading && !bot.isDemo && <HexagonLoader size={12} />}
+      <span
+        className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${statusMeta.className}`}
+      >
+        {statusMeta.loading && !bot.isDemo && <HexagonLoader size={10} />}
         {statusMeta.label}
-      </Badge>
-      <Badge variant="secondary" className="text-xs">
-        {baseLabel}
-      </Badge>
+      </span>
+      {metaSep}
+      <span className="text-foreground/80">{baseLabel}</span>
       {!bot.isDemo && (
-        <Badge variant="outline" className="text-xs gap-1">
-          <Code2 className="h-3 w-3" />
-          Component {bot.engine_version === "v2" ? "V2" : "V1"}
-        </Badge>
+        <>
+          {metaSep}
+          <span className="inline-flex items-center gap-1">
+            <Code2 className="h-3 w-3" />
+            Component {bot.engine_version === "v2" ? "V2" : "V1"}
+          </span>
+        </>
       )}
       {bot.monthly_hosting && (
-        <Badge variant="outline" className="text-xs gap-1">
-          <Server className="h-3 w-3" />
-          Hosting
-        </Badge>
+        <>
+          {metaSep}
+          <span className="inline-flex items-center gap-1">
+            <Server className="h-3 w-3" />
+            Hosting
+          </span>
+        </>
       )}
       {freeActive && (
-        <Badge
-          variant="outline"
-          className="text-xs gap-1 bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-        >
-          <Gift className="h-3 w-3" />
-          Free until {freeUntilLabel}
-        </Badge>
+        <>
+          {metaSep}
+          <span className="inline-flex items-center gap-1 text-emerald-400">
+            <Gift className="h-3 w-3" />
+            Free until {freeUntilLabel}
+          </span>
+        </>
       )}
       {bot.isDemo && (
-        <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
-          Practice bot
-        </Badge>
+        <>
+          {metaSep}
+          <span className="text-primary">Practice bot</span>
+        </>
       )}
       {bot.viaSupport && (
-        <Badge
-          variant="outline"
-          className="text-xs gap-1 bg-amber-500/10 text-amber-400 border-amber-500/30"
-        >
-          <LifeBuoy className="h-3 w-3" />
-          Support session
-        </Badge>
+        <>
+          {metaSep}
+          <span className="inline-flex items-center gap-1 text-amber-400">
+            <LifeBuoy className="h-3 w-3" />
+            Support session
+          </span>
+        </>
       )}
       {!bot.isDemo && (
-        <div className="basis-full mt-1">
+        <>
+          {metaSep}
           <BotHealthBadge botId={bot.id} />
-        </div>
+        </>
       )}
     </>
   );
@@ -698,26 +708,17 @@ const BotSection = ({
         onToggle={(e) => setManageOpen((e.target as HTMLDetailsElement).open)}
         className="group rounded-2xl border border-border bg-card/40 overflow-hidden shadow-lg shadow-black/5 transition-smooth open:bg-card/50"
       >
-        <summary className="flex items-center justify-between gap-3 px-6 py-5 cursor-pointer list-none hover:bg-card/70 transition-smooth">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/25 grid place-items-center shrink-0">
-              <Settings className="h-4 w-4 text-primary" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground">Manage this bot</div>
-              <div className="text-xs text-muted-foreground truncate">
-                Banners, engine, secrets, controls, logs
-              </div>
+        <summary className="flex items-center gap-3 px-5 py-4 cursor-pointer list-none hover:bg-card/40 transition-smooth">
+          <span className="h-8 w-8 rounded-lg bg-muted/60 grid place-items-center shrink-0 text-primary">
+            <Settings className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-foreground">Manage this bot</div>
+            <div className="text-[11px] text-muted-foreground truncate">
+              Banners, engine, secrets, controls, logs
             </div>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary group-open:hidden shrink-0">
-            <ChevronDown className="h-3.5 w-3.5" />
-            Expand
-          </span>
-          <span className="hidden group-open:inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shrink-0">
-            <ChevronUp className="h-3.5 w-3.5" />
-            Collapse
-          </span>
+          <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform group-open:rotate-180 group-open:text-primary shrink-0" />
         </summary>
         <div className="px-6 pb-6 pt-4 space-y-5 border-t border-border">
 
@@ -891,33 +892,24 @@ const BotSection = ({
         onToggle={(e) => setAddonsOpen((e.target as HTMLDetailsElement).open)}
         className="group rounded-2xl border border-border bg-card/40 overflow-hidden shadow-lg shadow-black/5 transition-smooth open:bg-card/50"
       >
-        <summary className="flex items-center justify-between gap-3 px-6 py-5 cursor-pointer list-none hover:bg-card/70 transition-smooth">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/25 grid place-items-center shrink-0">
-              <Layers className="h-4 w-4 text-primary" />
+        <summary className="flex items-center gap-3 px-5 py-4 cursor-pointer list-none hover:bg-card/40 transition-smooth">
+          <span className="h-8 w-8 rounded-lg bg-muted/60 grid place-items-center shrink-0 text-primary">
+            <Layers className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-foreground">Add-on configuration</span>
+              {totalConfigurable > 0 && (
+                <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground shrink-0">
+                  {totalConfigurable} block{totalConfigurable === 1 ? "" : "s"}
+                </span>
+              )}
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-foreground">Add-on configuration</span>
-                {totalConfigurable > 0 && (
-                  <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                    {totalConfigurable} block{totalConfigurable === 1 ? "" : "s"}
-                  </span>
-                )}
-              </div>
-              <div className="text-xs text-muted-foreground truncate">
-                Tickets, say command, protection, utilities
-              </div>
+            <div className="text-[11px] text-muted-foreground truncate">
+              Tickets, say command, protection, utilities
             </div>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary group-open:hidden shrink-0">
-            <ChevronDown className="h-3.5 w-3.5" />
-            Expand
-          </span>
-          <span className="hidden group-open:inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shrink-0">
-            <ChevronUp className="h-3.5 w-3.5" />
-            Collapse
-          </span>
+          <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform group-open:rotate-180 group-open:text-primary shrink-0" />
         </summary>
         <div className="px-6 pb-6 pt-4 space-y-5 border-t border-border">
       {!bot.isDemo && <DashboardServerSelector botId={bot.id} />}
