@@ -40,7 +40,19 @@ const SupportIdeas = () => {
           contact: contact.trim(),
         },
       });
-      if (error) throw error;
+      if (error) {
+        // Surface the function's own error message (it's in the response body
+        // for non-2xx responses) instead of the generic wrapper text.
+        let msg = error.message;
+        try {
+          const ctx = (error as any).context;
+          const body = ctx && typeof ctx.json === "function" ? await ctx.json() : null;
+          if (body?.error) msg = body.error;
+        } catch {
+          /* keep msg */
+        }
+        throw new Error(msg);
+      }
       if (data && (data as any).ok === false) {
         throw new Error((data as any).error ?? "Couldn't send.");
       }
@@ -195,8 +207,8 @@ function OwnerSettings() {
       try {
         const { data, error } = await (supabase as any).rpc("feedback_get_settings");
         if (error) throw error;
-        setSupport(data?.support_webhook_url ?? "");
-        setIdea(data?.idea_webhook_url ?? "");
+        setSupport(data?.support_channel_id ?? "");
+        setIdea(data?.idea_channel_id ?? "");
       } catch {
         /* ignore */
       } finally {
@@ -232,8 +244,8 @@ function OwnerSettings() {
         </span>
       </div>
       <p className="text-xs text-muted-foreground mb-4">
-        Discord webhook URLs that submissions post to. In Discord: channel → Edit
-        Channel → Integrations → Webhooks → New Webhook → Copy Webhook URL.
+        Discord channel IDs the Oversite Utilities bot posts into. Enable Developer
+        Mode in Discord, then right-click a channel → Copy Channel ID.
       </p>
       {loading ? (
         <div className="text-sm text-muted-foreground">
@@ -243,23 +255,23 @@ function OwnerSettings() {
       ) : (
         <div className="space-y-3">
           <div className="space-y-2">
-            <Label htmlFor="cfg-support">Support webhook URL</Label>
+            <Label htmlFor="cfg-support">Support channel ID</Label>
             <Input
               id="cfg-support"
               value={support}
               onChange={(e) => setSupport(e.target.value)}
-              placeholder="https://discord.com/api/webhooks/…"
-              className="font-mono text-xs"
+              placeholder="e.g. 1504955457448444066"
+              className="font-mono"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="cfg-idea">Idea webhook URL</Label>
+            <Label htmlFor="cfg-idea">Idea channel ID</Label>
             <Input
               id="cfg-idea"
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
-              placeholder="https://discord.com/api/webhooks/…"
-              className="font-mono text-xs"
+              placeholder="e.g. 1503905197695569950"
+              className="font-mono"
             />
           </div>
           <div className="flex justify-end">
