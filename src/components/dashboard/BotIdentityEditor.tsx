@@ -17,6 +17,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +49,8 @@ type Props = {
   onUpdated: () => void;
   badges?: React.ReactNode;
   actions?: React.ReactNode;
+  /** Extra items rendered at the bottom of the header "⋯" menu (e.g. Cancel / Leave). */
+  menuItems?: React.ReactNode;
   /** When false, Discord-side edits (avatar/banner/username/bio/status) are hidden. */
   enableDiscordEdits?: boolean;
 };
@@ -57,6 +60,7 @@ export const BotIdentityEditor = ({
   onUpdated,
   badges,
   actions,
+  menuItems,
   enableDiscordEdits = true,
 }: Props) => {
   const { user } = useAuth();
@@ -618,6 +622,12 @@ export const BotIdentityEditor = ({
                   )}
                   Change banner
                 </DropdownMenuItem>
+              )}
+              {menuItems && (
+                <>
+                  <DropdownMenuSeparator />
+                  {menuItems}
+                </>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
