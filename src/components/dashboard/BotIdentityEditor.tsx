@@ -1,7 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { Bot, Pencil, Upload, Loader2, ChevronDown, ChevronUp, Activity, Check, X, AlertTriangle, Info, Copy, MoreVertical } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -466,18 +465,18 @@ export const BotIdentityEditor = ({
   };
 
   return (
-    <Card className="overflow-hidden rounded-2xl bg-card border-border shadow-lg shadow-black/5">
+    <div className="bid">
+      <style>{BID_CSS}</style>
+      <div className="card">
       {/* Compact header row */}
-      <div className="flex items-center gap-4 p-4 sm:p-5">
+      <div className="head">
         {/* Avatar (with inline edit) */}
-        <div className="relative shrink-0">
-          <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-muted border border-border grid place-items-center overflow-hidden">
+        <div className="avatar">
             {bot.icon_url ? (
-              <img src={bot.icon_url} alt={bot.bot_name} className="h-full w-full object-cover" />
+              <img src={bot.icon_url} alt={bot.bot_name} />
             ) : (
-              <Bot className="h-7 w-7 text-foreground/70" />
+              <Bot />
             )}
-          </div>
           {enableDiscordEdits && (
             <>
               <button
@@ -485,7 +484,7 @@ export const BotIdentityEditor = ({
                 onClick={() => avatarInputRef.current?.click()}
                 disabled={savingAvatar}
                 aria-label="Change avatar"
-                className="absolute -bottom-1.5 -right-1.5 h-7 w-7 rounded-full bg-primary text-primary-foreground border-2 border-card grid place-items-center shadow-md hover:bg-primary/90 transition-smooth disabled:opacity-60"
+                className="edit"
               >
                 {savingAvatar ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -509,8 +508,8 @@ export const BotIdentityEditor = ({
         </div>
 
         {/* Name + meta */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="hmid">
+          <div className="nrow">
             {editingName ? (
               <div className="flex items-center gap-1.5 min-w-0 flex-1">
                 <Input
@@ -555,36 +554,32 @@ export const BotIdentityEditor = ({
               </div>
             ) : (
               <>
-                <h2 className="text-xl sm:text-2xl font-bold tracking-tight truncate">{bot.bot_name}</h2>
+                <h1>{bot.bot_name}</h1>
                 {enableDiscordEdits && (
                   <button
                     type="button"
                     onClick={() => setEditingName(true)}
-                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-smooth shrink-0"
+                    className="pen"
                     aria-label="Edit name"
                   >
-                    <Pencil className="h-3.5 w-3.5" />
+                    <Pencil />
                   </button>
                 )}
               </>
             )}
           </div>
 
-          {badges && (
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-xs text-muted-foreground">
-              {badges}
-            </div>
-          )}
+          {badges && <div className="meta">{badges}</div>}
           {recentChange && (
-            <div className="mt-1.5 flex items-start gap-1.5 text-[11px] text-amber-300">
-              <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+            <div className="warn">
+              <AlertTriangle />
               <span>Discord limits username changes to 2 per hour.</span>
             </div>
           )}
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="hact">
           {actions}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -649,24 +644,18 @@ export const BotIdentityEditor = ({
 
       {/* Banner preview (only when one is set) */}
       {bot.banner_url && (
-        <div className="px-4 sm:px-5 -mt-1 pb-3">
-          <div className="relative h-20 w-full rounded-xl overflow-hidden border border-border">
-            <img
-              src={bot.banner_url}
-              alt={`${bot.bot_name} banner`}
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          </div>
+        <div className="bannerstrip">
+          <img src={bot.banner_url} alt={`${bot.bot_name} banner`} />
         </div>
       )}
 
       {/* Bio & status editor */}
       {enableDiscordEdits && (
-        <div className="px-4 sm:px-5 pb-4">
+        <div className="biorow">
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-smooth"
+            className="biotoggle"
           >
             {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             {expanded ? "Hide bio & status" : "Edit bio & status"}
@@ -759,6 +748,45 @@ export const BotIdentityEditor = ({
         </div>
       )}
 
-    </Card>
+      </div>
+    </div>
   );
 };
+
+const BID_CSS = `
+.bid{
+  --bpanel:#272e36;--bpanel2:#242b32;--bsurface:#2d353e;--bsurface2:#343d46;--bhair:#3a434d;
+  --bheading:#E8EEF3;--bbody:#A8B4BF;--bfaint:#788591;--baccent:#C9DBE6;--baccentink:#1E242B;
+  --bok:#86d3a1;--bgold:#cbb277;
+  --bdisp:"Bricolage Grotesque",system-ui,sans-serif;--bbodyf:"Space Grotesk",system-ui,sans-serif;--bmono:"Space Mono",monospace;
+}
+.bid .card{position:relative;background:linear-gradient(180deg,var(--bpanel),var(--bpanel2));border:1px solid var(--bhair);
+  border-radius:18px;box-shadow:0 24px 60px -32px rgba(0,0,0,.6);overflow:hidden}
+.bid .head{display:flex;align-items:center;gap:16px;padding:18px 20px;flex-wrap:wrap}
+.bid .avatar{position:relative;height:60px;width:60px;border-radius:16px;flex:none;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--baccent) 12%,transparent);border:1px solid var(--bhair);overflow:hidden}
+.bid .avatar>img{height:100%;width:100%;object-fit:cover}
+.bid .avatar>svg{width:28px;height:28px;stroke:var(--baccent);stroke-width:1.7;fill:none}
+.bid .avatar .edit{position:absolute;bottom:-6px;right:-6px;height:26px;width:26px;border-radius:50%;background:var(--baccent);
+  color:var(--baccentink);border:2px solid var(--bpanel);display:grid;place-items:center;cursor:pointer}
+.bid .avatar .edit:disabled{opacity:.6}
+.bid .avatar .edit svg{width:12px;height:12px;stroke:currentColor;stroke-width:2;fill:none}
+.bid .hmid{flex:1;min-width:0}
+.bid .nrow{display:flex;align-items:center;gap:8px;min-width:0}
+.bid .nrow h1{font-family:var(--bdisp);font-weight:800;font-size:22px;color:var(--bheading);margin:0;letter-spacing:-.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bid .nrow .pen{color:var(--bfaint);cursor:pointer;display:grid;place-items:center;padding:2px;background:none;border:0}
+.bid .nrow .pen:hover{color:var(--bbody)} .bid .nrow .pen svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.9;fill:none}
+.bid .meta{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--bfaint);flex-wrap:wrap;line-height:1.2}
+.bid .meta svg{width:13px;height:13px}
+.bid .warn{margin-top:8px;display:flex;align-items:flex-start;gap:6px;font-size:11px;color:var(--bgold)}
+.bid .warn svg{width:12px;height:12px;margin-top:2px;flex:none;stroke:currentColor;stroke-width:1.9;fill:none}
+.bid .hact{display:flex;align-items:center;gap:8px;flex:none;margin-left:auto}
+.bid .bannerstrip{margin:0 20px 14px;height:84px;border-radius:12px;overflow:hidden;border:1px solid var(--bhair)}
+.bid .bannerstrip img{height:100%;width:100%;object-fit:cover;display:block}
+.bid .biorow{padding:0 20px 18px}
+.bid .biotoggle{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--bhair);background:rgba(255,255,255,.02);
+  border-radius:9px;padding:7px 12px;font-family:var(--bbodyf);font-size:12px;font-weight:500;color:var(--bfaint);cursor:pointer}
+.bid .biotoggle:hover{background:var(--bsurface2);color:var(--bbody)}
+.bid .biotoggle svg{width:13px;height:13px;stroke:currentColor;stroke-width:1.9;fill:none}
+`;
