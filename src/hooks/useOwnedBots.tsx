@@ -13,6 +13,8 @@ export type OwnedBot = {
   icon_url: string | null;
   banner_url: string | null;
   base: string;
+  /** The group this bot belongs to (null when ungrouped). */
+  group_id: string | null;
   addons: string[];
   monthly_hosting: boolean;
   engine_version: "v1" | "v2";
@@ -72,6 +74,7 @@ function mapRow(row: any, opts: { viaSupport?: boolean; viaTeam?: boolean } = {}
     icon_url: row.icon_url,
     banner_url: row.banner_url,
     base: row.base,
+    group_id: row.group_id ?? null,
     addons: Array.isArray(row.addons) ? row.addons : [],
     monthly_hosting: !!row.monthly_hosting,
     engine_version: row.engine_version === "v2" ? "v2" : "v1",
@@ -141,7 +144,7 @@ export function useOwnedBots() {
     // they were originally purchased on.
     const { data: own, error: ownErr } = await (supabase as any)
       .from("bot_orders")
-      .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,paid_at,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status")
+      .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,group_id,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,paid_at,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status")
       .eq("user_id", userId)
       .order("created_at", { ascending: true });
 
@@ -310,25 +313,21 @@ export function useOwnedBots() {
     return () => clearInterval(id);
   }, [userId, reload, bots, supportBots, teamBots]);
 
-  // The Web Dashboard add-on is a one-time, account-wide unlock. Once any
-  // PAID bot order includes it, the user can manage ALL of their bots from
-  // the dashboard — current and future ones — even if that original order
-  // is later cancelled. We also fall back to checking visible bots in case
-  // the entitlement query hasn't loaded yet.
-  // Team members and support-grant viewers should also have dashboard access
-  // — they're managing the owner's bots on the owner's entitlement.
+  // Dashboard access follows OWNERSHIP, not a separate add-on: if you own a
+  // bot (bought it or had it transferred to you), you can manage it here.
+  // Owners can also grant access to others — those show up as team or
+  // support-grant bots. `bots` is already filtered to live (paid/ready)
+  // orders, so owning any one of them unlocks the dashboard. Admins always
+  // have access. (ownsDashboardAddon is kept for legacy entitlement reads but
+  // is no longer required for access.)
   const hasDashboardAccess =
     isAdmin ||
-    ownsDashboardAddon ||
-    bots.some((b) => b.hasWebDashboard) ||
+    bots.length > 0 ||
     teamBots.length > 0 ||
     supportBots.length > 0;
-  // Support- and team-session bots are always visible regardless of the
-  // viewer's own dashboard add-on status — they're seeing the OWNER's bots,
-  // not their own, and the owner's entitlement is what unlocks them.
-  // Admins always see their own bots too: the dashboard page lets admins in
-  // (isAdmin || hasDashboardAccess), so the bot list must match — otherwise an
-  // admin without the Web Dashboard add-on gets in but sees an empty fleet.
+  // Support- and team-session bots are always visible — they're the OWNER's
+  // bots shared with this viewer. Owned bots are visible whenever the viewer
+  // has access (which, per above, they do as soon as they own one).
   const dashboardBots = [
     ...(hasDashboardAccess ? bots : []),
     ...supportBots,
