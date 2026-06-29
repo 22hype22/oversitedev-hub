@@ -195,8 +195,8 @@ function OwnerSettings() {
       try {
         const { data, error } = await (supabase as any).rpc("feedback_get_settings");
         if (error) throw error;
-        setSupport(data?.support_channel_id ?? "");
-        setIdea(data?.idea_channel_id ?? "");
+        setSupport(data?.support_webhook_url ?? "");
+        setIdea(data?.idea_webhook_url ?? "");
       } catch {
         /* ignore */
       } finally {
@@ -232,8 +232,8 @@ function OwnerSettings() {
         </span>
       </div>
       <p className="text-xs text-muted-foreground mb-4">
-        Discord channel IDs that submissions post to. Enable Developer Mode in Discord,
-        right-click a channel → Copy Channel ID.
+        Discord webhook URLs that submissions post to. In Discord: channel → Edit
+        Channel → Integrations → Webhooks → New Webhook → Copy Webhook URL.
       </p>
       {loading ? (
         <div className="text-sm text-muted-foreground">
@@ -243,23 +243,23 @@ function OwnerSettings() {
       ) : (
         <div className="space-y-3">
           <div className="space-y-2">
-            <Label htmlFor="cfg-support">Support channel ID</Label>
+            <Label htmlFor="cfg-support">Support webhook URL</Label>
             <Input
               id="cfg-support"
               value={support}
               onChange={(e) => setSupport(e.target.value)}
-              placeholder="e.g. 1504955457448444066"
-              className="font-mono"
+              placeholder="https://discord.com/api/webhooks/…"
+              className="font-mono text-xs"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="cfg-idea">Idea channel ID</Label>
+            <Label htmlFor="cfg-idea">Idea webhook URL</Label>
             <Input
               id="cfg-idea"
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
-              placeholder="e.g. 1503905197695569950"
-              className="font-mono"
+              placeholder="https://discord.com/api/webhooks/…"
+              className="font-mono text-xs"
             />
           </div>
           <div className="flex justify-end">
