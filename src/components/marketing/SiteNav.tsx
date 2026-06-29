@@ -258,7 +258,7 @@ export function SiteNav() {
         <div
           className={cn(
             "relative flex h-14 items-center justify-between gap-2 rounded-full border pl-5 pr-2 transition-all duration-300",
-            "border-os-hairline/30 backdrop-blur-sm",
+            "border-transparent backdrop-blur-sm",
             "shadow-[0_12px_40px_-14px_rgb(0_0_0/0.6)]",
             searchOpen ? "bg-os-bg/95" : scrolled ? "bg-os-bg/55" : "bg-os-bg/35",
           )}
