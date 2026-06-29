@@ -466,16 +466,16 @@ export const BotIdentityEditor = ({
   };
 
   return (
-    <Card className="overflow-hidden rounded-2xl bg-card/60 border-border shadow-lg shadow-black/5">
+    <Card className="overflow-hidden rounded-2xl bg-card border-border shadow-lg shadow-black/5">
       {/* Compact header row */}
       <div className="flex items-center gap-4 p-4 sm:p-5">
         {/* Avatar (with inline edit) */}
         <div className="relative shrink-0">
-          <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-primary/10 border border-border ring-1 ring-border/50 grid place-items-center overflow-hidden">
+          <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-muted border border-border grid place-items-center overflow-hidden">
             {bot.icon_url ? (
               <img src={bot.icon_url} alt={bot.bot_name} className="h-full w-full object-cover" />
             ) : (
-              <Bot className="h-7 w-7 text-primary" />
+              <Bot className="h-7 w-7 text-foreground/70" />
             )}
           </div>
           {enableDiscordEdits && (
