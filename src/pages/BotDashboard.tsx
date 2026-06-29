@@ -44,7 +44,7 @@ import { BotUsageMetricsPanel } from "@/components/dashboard/BotUsageMetricsPane
 import { BotLogsPanel } from "@/components/dashboard/BotLogsPanel";
 import { BotServerSlotsCard } from "@/components/dashboard/BotServerSlotsCard";
 import { BotInviteLinkCard } from "@/components/dashboard/BotInviteLinkCard";
-import { TeamManagementHub } from "@/components/dashboard/team/TeamManagementHub";
+import { GroupTeamHub } from "@/components/dashboard/team/GroupTeamHub";
 import { NewOwnerBillingDialog } from "@/components/dashboard/team/NewOwnerBillingDialog";
 import { RequestCustomFeatureDialog } from "@/components/dashboard/RequestCustomFeatureDialog";
 import { ReportBugDialog } from "@/components/dashboard/ReportBugDialog";
@@ -696,26 +696,30 @@ const BotSection = ({
       <details
         open={manageOpen}
         onToggle={(e) => setManageOpen((e.target as HTMLDetailsElement).open)}
-        className="group rounded-xl border border-border bg-card/30 overflow-hidden"
+        className="group rounded-2xl border border-border bg-card/40 overflow-hidden shadow-lg shadow-black/5 transition-smooth open:bg-card/50"
       >
-        <summary className="flex items-center justify-between gap-3 px-5 py-4 cursor-pointer list-none hover:bg-card/60 transition-smooth">
-          <div className="flex items-center gap-2 text-sm">
-            <Settings className="h-4 w-4 text-primary" />
-            <span className="font-medium">Manage this bot</span>
-            <span className="text-muted-foreground">
-              · banners, engine, secrets, controls, logs
-            </span>
+        <summary className="flex items-center justify-between gap-3 px-6 py-5 cursor-pointer list-none hover:bg-card/70 transition-smooth">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/25 grid place-items-center shrink-0">
+              <Settings className="h-4 w-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">Manage this bot</div>
+              <div className="text-xs text-muted-foreground truncate">
+                Banners, engine, secrets, controls, logs
+              </div>
+            </div>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary group-open:hidden">
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary group-open:hidden shrink-0">
             <ChevronDown className="h-3.5 w-3.5" />
             Expand
           </span>
-          <span className="hidden group-open:inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground">
+          <span className="hidden group-open:inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shrink-0">
             <ChevronUp className="h-3.5 w-3.5" />
             Collapse
           </span>
         </summary>
-        <div className="px-5 pb-5 pt-2 space-y-5 border-t border-border">
+        <div className="px-6 pb-6 pt-4 space-y-5 border-t border-border">
 
       {showPreorderBanner && (
         <Card className="p-4 bg-primary/5 border-primary/30">
@@ -885,27 +889,37 @@ const BotSection = ({
       <details
         open={addonsOpen && !isOffline && !hasNoServers}
         onToggle={(e) => setAddonsOpen((e.target as HTMLDetailsElement).open)}
-        className="group rounded-xl border border-border bg-card/30 overflow-hidden"
+        className="group rounded-2xl border border-border bg-card/40 overflow-hidden shadow-lg shadow-black/5 transition-smooth open:bg-card/50"
       >
-        <summary className="flex items-center justify-between gap-3 px-5 py-4 cursor-pointer list-none hover:bg-card/60 transition-smooth">
-          <div className="flex items-center gap-2 text-sm">
-            <Layers className="h-4 w-4 text-primary" />
-            <span className="font-medium">Add-on configuration</span>
-            <span className="text-muted-foreground">
-              · tickets, say command, protection, utilities
-              {totalConfigurable > 0 && ` · ${totalConfigurable} block${totalConfigurable === 1 ? "" : "s"}`}
-            </span>
+        <summary className="flex items-center justify-between gap-3 px-6 py-5 cursor-pointer list-none hover:bg-card/70 transition-smooth">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/25 grid place-items-center shrink-0">
+              <Layers className="h-4 w-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-foreground">Add-on configuration</span>
+                {totalConfigurable > 0 && (
+                  <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    {totalConfigurable} block{totalConfigurable === 1 ? "" : "s"}
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground truncate">
+                Tickets, say command, protection, utilities
+              </div>
+            </div>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary group-open:hidden">
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary group-open:hidden shrink-0">
             <ChevronDown className="h-3.5 w-3.5" />
             Expand
           </span>
-          <span className="hidden group-open:inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground">
+          <span className="hidden group-open:inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shrink-0">
             <ChevronUp className="h-3.5 w-3.5" />
             Collapse
           </span>
         </summary>
-        <div className="px-5 pb-5 pt-2 space-y-5 border-t border-border">
+        <div className="px-6 pb-6 pt-4 space-y-5 border-t border-border">
       {!bot.isDemo && <DashboardServerSelector botId={bot.id} />}
       <div className="space-y-10">
 
@@ -1085,6 +1099,11 @@ const OSD_CSS = `.osd{font-family:var(--bodyf);color:var(--body);min-height:100v
 .osd .appwrap.show .side{transform:none}
 .osd .side{scrollbar-width:none;-ms-overflow-style:none}
 .osd .side::-webkit-scrollbar{width:0;height:0;display:none}
+/* Kill the custom scrollbar BAR everywhere in the dashboard (viewport + any inner
+   scroller). Overrides the global index.css scrollbar. Scrolling still works via
+   wheel/trackpad; any dot/indicator UI is unaffected. */
+html:has(.osd.app),body:has(.osd.app),.osd.app,.osd.app *{scrollbar-width:none !important;-ms-overflow-style:none !important}
+html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd.app::-webkit-scrollbar,.osd.app *::-webkit-scrollbar{width:0 !important;height:0 !important;display:none !important}
 .osd .prof{display:flex;align-items:center;gap:10px;padding:8px 8px 14px;border-bottom:1px solid var(--hair);margin-bottom:8px}
 .osd .prof .av{height:38px;width:38px;border-radius:11px;background:linear-gradient(135deg,#46525E,#343D46);
             display:grid;place-items:center;color:var(--heading);font-weight:800;font-family:var(--disp);font-size:15px;flex:none}
@@ -1461,6 +1480,9 @@ const BotDashboard = () => {
   useEffect(() => { if (instant) { const t = setTimeout(() => setInstant(false), 60); return () => clearTimeout(t); } }, []); // eslint-disable-line
   // lock page scroll while the welcome screen is up
   useEffect(() => { document.body.style.overflow = appOn ? "" : "hidden"; return () => { document.body.style.overflow = ""; }; }, [appOn]);
+  // Hide the native page scrollbar while the dashboard is mounted (same pattern
+  // the Process page uses). Removed on unmount so other pages keep theirs.
+  useEffect(() => { const r = document.documentElement; r.classList.add("dash-hide-scroll"); return () => { r.classList.remove("dash-hide-scroll"); }; }, []);
 
   // ---- tour ----
   const TOUR = useMemo(() => ([
@@ -1690,6 +1712,12 @@ const BotDashboard = () => {
               </div>
             </div>
 
+            {/* Hosting payment overdue — renders nothing unless past due. */}
+            <HostingPastDueBanner />
+
+            {/* Active known-issue notices — renders nothing when none are active. */}
+            <FixesBar />
+
             {/* DASHBOARD */}
             <div className={"view" + (view === "dashboard" ? " on" : "")}>
               <div className="grid">
@@ -1848,7 +1876,7 @@ const BotDashboard = () => {
             {/* TEAM */}
             <div className={"view" + (view === "team" ? " on" : "")}>
               {firstOwned ? (
-                <div style={{ position: "relative" }}><TeamManagementHub botId={firstOwned.id} ownerUserId={user.id} ownerEmail={user.email ?? null} /></div>
+                <div style={{ position: "relative" }}><GroupTeamHub ownerUserId={user.id} ownerEmail={user.email ?? null} /></div>
               ) : (<div className="ph2"><h2>Team</h2><p>You need an owned bot to manage a team.</p></div>)}
             </div>
 
