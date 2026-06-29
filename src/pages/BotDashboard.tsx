@@ -97,6 +97,25 @@ import {
   Network,
 } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
+
+const BOTSEC_CSS = `
+.botsec{background:linear-gradient(180deg,#272e36,#242b32);border:1px solid #3a434d;border-radius:16px;overflow:hidden;
+  box-shadow:0 24px 60px -32px rgba(0,0,0,.6)}
+.botsec>.bsum{display:flex;align-items:center;gap:13px;padding:16px 20px;cursor:pointer;list-style:none}
+.botsec>.bsum::-webkit-details-marker{display:none}
+.botsec>.bsum:hover{background:rgba(255,255,255,.014)}
+.botsec .bico{height:36px;width:36px;border-radius:10px;flex:none;display:grid;place-items:center;background:#2d353e;color:#C9DBE6}
+.botsec .bico svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.8;fill:none}
+.botsec .btx{flex:1;min-width:0}
+.botsec .btx .ba{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:700;font-size:14.5px;color:#E8EEF3;
+  display:flex;align-items:center;gap:8px}
+.botsec .btx .ba .ct{font-family:"Space Mono",monospace;font-size:10px;font-weight:400;color:#788591;border:1px solid #3a434d;
+  border-radius:20px;padding:1px 8px;flex:none}
+.botsec .btx .bb{font-size:11.5px;color:#788591;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.botsec .bchev{height:20px;width:20px;color:#788591;transition:transform .2s,color .2s;flex:none}
+.botsec[open] .bchev{transform:rotate(180deg);color:#C9DBE6}
+.botsec .bbody{border-top:1px solid #3a434d;padding:18px 20px}
+`;
 import { useBotNotifications, type BotNotification } from "@/hooks/useBotNotifications";
 
 // Mountain backdrop — imported as a real asset so it is a separately
@@ -691,6 +710,7 @@ const BotSection = ({
 
   const sectionInner = (
     <section className="space-y-5">
+      <style>{BOTSEC_CSS}</style>
       <BotIdentityEditor
         bot={bot}
         onUpdated={onReload}
@@ -712,21 +732,19 @@ const BotSection = ({
       <details
         open={manageOpen}
         onToggle={(e) => setManageOpen((e.target as HTMLDetailsElement).open)}
-        className="group rounded-2xl border border-border bg-card overflow-hidden shadow-lg shadow-black/5 transition-smooth"
+        className="botsec"
       >
-        <summary className="flex items-center gap-3 px-5 py-4 cursor-pointer list-none hover:bg-card/40 transition-smooth">
-          <span className="h-8 w-8 rounded-lg bg-muted/60 grid place-items-center shrink-0 text-foreground/70">
-            <Settings className="h-4 w-4" />
+        <summary className="bsum">
+          <span className="bico">
+            <Settings />
           </span>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-foreground">Manage this bot</div>
-            <div className="text-[11px] text-muted-foreground truncate">
-              Banners, engine, secrets, controls, logs
-            </div>
+          <div className="btx">
+            <div className="ba">Manage this bot</div>
+            <div className="bb">Banners, engine, secrets, controls, logs</div>
           </div>
-          <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform group-open:rotate-180 group-open:text-foreground shrink-0" />
+          <ChevronDown className="bchev" />
         </summary>
-        <div className="px-6 pb-6 pt-4 space-y-5 border-t border-border">
+        <div className="bbody space-y-5">
 
       {showPreorderBanner && (
         <Card className="p-4 bg-primary/5 border-primary/30">
@@ -896,28 +914,26 @@ const BotSection = ({
       <details
         open={addonsOpen && !isOffline && !hasNoServers}
         onToggle={(e) => setAddonsOpen((e.target as HTMLDetailsElement).open)}
-        className="group rounded-2xl border border-border bg-card overflow-hidden shadow-lg shadow-black/5 transition-smooth"
+        className="botsec"
       >
-        <summary className="flex items-center gap-3 px-5 py-4 cursor-pointer list-none hover:bg-card/40 transition-smooth">
-          <span className="h-8 w-8 rounded-lg bg-muted/60 grid place-items-center shrink-0 text-foreground/70">
-            <Layers className="h-4 w-4" />
+        <summary className="bsum">
+          <span className="bico">
+            <Layers />
           </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-foreground">Add-on configuration</span>
+          <div className="btx">
+            <div className="ba">
+              Add-on configuration
               {totalConfigurable > 0 && (
-                <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground shrink-0">
+                <span className="ct">
                   {totalConfigurable} block{totalConfigurable === 1 ? "" : "s"}
                 </span>
               )}
             </div>
-            <div className="text-[11px] text-muted-foreground truncate">
-              Tickets, say command, protection, utilities
-            </div>
+            <div className="bb">Tickets, say command, protection, utilities</div>
           </div>
-          <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform group-open:rotate-180 group-open:text-foreground shrink-0" />
+          <ChevronDown className="bchev" />
         </summary>
-        <div className="px-6 pb-6 pt-4 space-y-5 border-t border-border">
+        <div className="bbody space-y-5">
       {!bot.isDemo && <DashboardServerSelector botId={bot.id} />}
       <div className="space-y-10">
 
