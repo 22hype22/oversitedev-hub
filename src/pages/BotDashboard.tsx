@@ -1063,6 +1063,9 @@ const OSD_CSS = `.osd{font-family:var(--bodyf);color:var(--body);min-height:100v
 .osd.app .osd-dim{opacity:1}
 .osd.instant .osd-dim,.osd.instant .appwrap,.osd.instant .side{transition:none!important}
 .osd-stage{position:relative;z-index:10}
+/* Remap shadcn/Tailwind theme tokens to the muted palette for every inner
+   panel rendered inside the dashboard — visual only, no component changes. */
+.osd{--background:212 16% 15%;--foreground:206 33% 93%;--card:213 16% 18%;--card-foreground:206 33% 93%;--popover:213 16% 18%;--popover-foreground:206 33% 93%;--primary:202 40% 85%;--primary-foreground:213 18% 14%;--primary-glow:202 40% 85%;--secondary:212 16% 21%;--secondary-foreground:206 33% 93%;--muted:212 16% 21%;--muted-foreground:209 16% 70%;--accent-foreground:206 33% 93%;--border:213 14% 26%;--input:213 14% 26%;--ring:202 40% 85%}
 .osd :root{--bg:#21272e;--panel:#272e36;--surface:#2d353e;--surface2:#343d46;--hair:#3a434d;
         --heading:#E8EEF3;--body:#A8B4BF;--faint:#788591;--accent:#C9DBE6;--accentink:#1E242B;
         --ok:#86d3a1;--bad:#e98b8b;--gold:#cbb277;
