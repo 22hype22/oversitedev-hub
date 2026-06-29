@@ -712,10 +712,10 @@ const BotSection = ({
       <details
         open={manageOpen}
         onToggle={(e) => setManageOpen((e.target as HTMLDetailsElement).open)}
-        className="group rounded-2xl border border-border bg-card/40 overflow-hidden shadow-lg shadow-black/5 transition-smooth open:bg-card/50"
+        className="group rounded-2xl border border-border bg-card overflow-hidden shadow-lg shadow-black/5 transition-smooth"
       >
         <summary className="flex items-center gap-3 px-5 py-4 cursor-pointer list-none hover:bg-card/40 transition-smooth">
-          <span className="h-8 w-8 rounded-lg bg-muted/60 grid place-items-center shrink-0 text-primary">
+          <span className="h-8 w-8 rounded-lg bg-muted/60 grid place-items-center shrink-0 text-foreground/70">
             <Settings className="h-4 w-4" />
           </span>
           <div className="min-w-0 flex-1">
@@ -724,7 +724,7 @@ const BotSection = ({
               Banners, engine, secrets, controls, logs
             </div>
           </div>
-          <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform group-open:rotate-180 group-open:text-primary shrink-0" />
+          <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform group-open:rotate-180 group-open:text-foreground shrink-0" />
         </summary>
         <div className="px-6 pb-6 pt-4 space-y-5 border-t border-border">
 
@@ -896,10 +896,10 @@ const BotSection = ({
       <details
         open={addonsOpen && !isOffline && !hasNoServers}
         onToggle={(e) => setAddonsOpen((e.target as HTMLDetailsElement).open)}
-        className="group rounded-2xl border border-border bg-card/40 overflow-hidden shadow-lg shadow-black/5 transition-smooth open:bg-card/50"
+        className="group rounded-2xl border border-border bg-card overflow-hidden shadow-lg shadow-black/5 transition-smooth"
       >
         <summary className="flex items-center gap-3 px-5 py-4 cursor-pointer list-none hover:bg-card/40 transition-smooth">
-          <span className="h-8 w-8 rounded-lg bg-muted/60 grid place-items-center shrink-0 text-primary">
+          <span className="h-8 w-8 rounded-lg bg-muted/60 grid place-items-center shrink-0 text-foreground/70">
             <Layers className="h-4 w-4" />
           </span>
           <div className="min-w-0 flex-1">
@@ -915,7 +915,7 @@ const BotSection = ({
               Tickets, say command, protection, utilities
             </div>
           </div>
-          <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform group-open:rotate-180 group-open:text-primary shrink-0" />
+          <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform group-open:rotate-180 group-open:text-foreground shrink-0" />
         </summary>
         <div className="px-6 pb-6 pt-4 space-y-5 border-t border-border">
       {!bot.isDemo && <DashboardServerSelector botId={bot.id} />}
