@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { LifeBuoy, Lightbulb, Loader2, Send, Settings2 } from "lucide-react";
+import mountainBg from "@/assets/containers.webp";
 
 const OWNER_EMAIL = "everant00@gmail.com";
 
@@ -59,7 +60,13 @@ const SupportIdeas = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col">
+      <div
+        aria-hidden
+        className="fixed inset-0 -z-10 bg-cover bg-center"
+        style={{ backgroundImage: `url(${mountainBg})` }}
+      />
+      <div aria-hidden className="fixed inset-0 -z-10 bg-background/65" />
       <SiteNav />
       <main className="flex-1 container mx-auto px-4 pt-28 pb-16 max-w-2xl">
         <div className="mb-8">
@@ -98,7 +105,7 @@ const SupportIdeas = () => {
                   "text-left rounded-xl border p-4 transition-colors " +
                   (on
                     ? "border-primary bg-primary/5"
-                    : "border-border bg-card/40 hover:border-primary/40")
+                    : "border-border bg-card/80 hover:border-primary/40")
                 }
               >
                 <span
@@ -117,7 +124,7 @@ const SupportIdeas = () => {
         </div>
 
         {/* Form */}
-        <div className="rounded-xl border border-border bg-card/40 p-5 space-y-4">
+        <div className="rounded-xl border border-border bg-card/80 p-5 space-y-4">
           <div className="space-y-2">
             <Label htmlFor="fb-subject">Subject (optional)</Label>
             <Input
