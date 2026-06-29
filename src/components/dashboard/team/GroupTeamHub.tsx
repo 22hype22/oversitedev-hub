@@ -7,9 +7,9 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { useOwnedBots, type OwnedBot } from "@/hooks/useOwnedBots";
 import { BOT_BASE_LABELS } from "@/lib/botCatalog";
-import { SupportAccessManager } from "@/components/dashboard/SupportAccessManager";
 import { toast } from "sonner";
 
 type Props = {
@@ -150,6 +150,18 @@ const BotIcon = () => (
   <svg viewBox="0 0 24 24">
     <rect x="4" y="8" width="16" height="11" rx="3" />
     <path d="M12 8V4M9 13h.01M15 13h.01" />
+  </svg>
+);
+const CopyIcon = () => (
+  <svg viewBox="0 0 24 24">
+    <rect x="9" y="9" width="11" height="11" rx="2" />
+    <path d="M5 15V5a2 2 0 0 1 2-2h10" />
+  </svg>
+);
+const ClockIcon = () => (
+  <svg viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
   </svg>
 );
 
@@ -464,7 +476,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
                   Account-wide, and only ever for the Oversite team — never your
                   invited members.
                 </div>
-                <SupportAccessManager />
+                <GroupSupportAccess />
               </div>
             </>
           )}
@@ -1016,6 +1028,370 @@ function BotPickerModal(
   );
 }
 
+/* --------------------------- support access ------------------------------- */
+
+type SupportCode = {
+  id: string;
+  code: string;
+  expires_at: string;
+  notes: string | null;
+  revoked_at: string | null;
+  created_at: string;
+};
+type SupportGrant = {
+  id: string;
+  expires_at: string;
+  granted_at: string;
+  revoked_at: string | null;
+};
+
+const EXPIRY_OPTIONS = [
+  { hours: 1, label: "1 hour" },
+  { hours: 24, label: "24 hours" },
+  { hours: 24 * 7, label: "7 days" },
+  { hours: 24 * 30, label: "30 days" },
+  { hours: 0, label: "Never" },
+];
+
+const isNeverExpires = (iso: string | null | undefined) => {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  return !Number.isFinite(t) || t > Date.UTC(9000, 0, 1);
+};
+const formatExpiry = (iso: string | null | undefined) =>
+  isNeverExpires(iso) ? "Never" : iso ? new Date(iso).toLocaleString() : "soon";
+
+function GroupSupportAccess() {
+  const { user } = useAuth();
+  const [codes, setCodes] = useState<SupportCode[]>([]);
+  const [grants, setGrants] = useState<SupportGrant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [genOpen, setGenOpen] = useState(false);
+  const [newCode, setNewCode] = useState<string | null>(null);
+  const [newCodeExpires, setNewCodeExpires] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    const [codesRes, grantsRes] = await Promise.all([
+      (supabase as any)
+        .from("support_access_codes")
+        .select("*")
+        .eq("owner_user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      (supabase as any)
+        .from("support_access_grants")
+        .select("*")
+        .eq("owner_user_id", user.id)
+        .is("revoked_at", null)
+        .gt("expires_at", new Date().toISOString())
+        .order("granted_at", { ascending: false }),
+    ]);
+    setCodes((codesRes.data ?? []) as SupportCode[]);
+    setGrants((grantsRes.data ?? []) as SupportGrant[]);
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  const activeCodes = codes.filter(
+    (c) =>
+      !c.revoked_at &&
+      (isNeverExpires(c.expires_at) ||
+        new Date(c.expires_at).getTime() > Date.now()),
+  );
+
+  const create = async (hours: number, notes: string) => {
+    setCreating(true);
+    const { data, error } = await (supabase as any).rpc(
+      "create_support_access_code",
+      { _expires_in_hours: hours, _notes: notes || null },
+    );
+    setCreating(false);
+    if (error || !data?.ok) {
+      toast.error("Couldn't create code", {
+        description: error?.message ?? data?.error,
+      });
+      return;
+    }
+    setGenOpen(false);
+    setNewCode(data.code);
+    setNewCodeExpires(data.expires_at);
+    void reload();
+  };
+
+  const revokeGrant = async (id: string) => {
+    const { data, error } = await (supabase as any).rpc(
+      "revoke_support_access_grant",
+      { _grant_id: id },
+    );
+    if (error || !data?.ok) {
+      toast.error(error?.message ?? data?.error);
+      return;
+    }
+    toast.success("Access revoked");
+    void reload();
+  };
+
+  const revokeCode = async (id: string) => {
+    const { data, error } = await (supabase as any).rpc(
+      "revoke_support_access_code",
+      { _code_id: id },
+    );
+    if (error || !data?.ok) {
+      toast.error(error?.message ?? data?.error);
+      return;
+    }
+    toast.success("Code revoked");
+    void reload();
+  };
+
+  return (
+    <div>
+      <div className="sup">
+        <span className="si">
+          <ShieldIcon />
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h4>Grant temporary access</h4>
+          <p>
+            Generate a one-time code to let our support team into your dashboard
+            to troubleshoot. Revoke any time.
+          </p>
+          <div className="row2">
+            <button
+              className="btnp"
+              type="button"
+              onClick={() => setGenOpen(true)}
+            >
+              <PlusIcon />
+              Generate code
+            </button>
+          </div>
+
+          {grants.length > 0 && (
+            <div className="grantbanner">
+              {grants.map((g) => (
+                <div className="gline" key={g.id}>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="gt">Support team has dashboard access</div>
+                    <div className="gm">Expires {formatExpiry(g.expires_at)}</div>
+                  </div>
+                  <button
+                    className="resend"
+                    type="button"
+                    onClick={() => revokeGrant(g.id)}
+                  >
+                    Revoke
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {loading ? (
+            <div className="sectlbl" style={{ marginTop: 16 }}>
+              Loading…
+            </div>
+          ) : activeCodes.length === 0 ? (
+            grants.length === 0 && (
+              <div className="sectlbl" style={{ marginTop: 16 }}>
+                No active codes — generate one when you need help.
+              </div>
+            )
+          ) : (
+            <>
+              <div className="sectlbl">Unused codes</div>
+              <div className="codes">
+                {activeCodes.map((c) => (
+                  <div className="codeitem" key={c.id}>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="cv">{c.code}</div>
+                      <div className="cm">
+                        <ClockIcon />
+                        Expires {formatExpiry(c.expires_at)}
+                        {c.notes ? ` · ${c.notes}` : ""}
+                      </div>
+                    </div>
+                    <div className="cact">
+                      <button
+                        className="ib"
+                        type="button"
+                        title="Copy"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(c.code);
+                          toast.success("Code copied");
+                        }}
+                      >
+                        <CopyIcon />
+                      </button>
+                      <button
+                        className="ib del"
+                        type="button"
+                        title="Revoke"
+                        onClick={() => revokeCode(c.id)}
+                      >
+                        <XIcon />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <GenerateCodeModal
+        open={genOpen}
+        busy={creating}
+        onClose={() => setGenOpen(false)}
+        onCreate={create}
+      />
+
+      {newCode && (
+        <Portal>
+          <div className="gthm">
+            <style>{GTH_CSS}</style>
+            <div
+              className="scrim open"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setNewCode(null);
+                  setNewCodeExpires(null);
+                }
+              }}
+            >
+              <div className="modal">
+                <h3>Your support access code</h3>
+                <p className="ms">
+                  Share this code with our support team.{" "}
+                  {isNeverExpires(newCodeExpires)
+                    ? "It never expires unless you revoke it."
+                    : `It expires ${
+                        newCodeExpires
+                          ? new Date(newCodeExpires).toLocaleString()
+                          : "soon"
+                      }.`}
+                </p>
+                <div className="codebig">{newCode}</div>
+                <div className="mfoot">
+                  <button
+                    className="ghost"
+                    type="button"
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(newCode);
+                      toast.success("Copied to clipboard");
+                    }}
+                  >
+                    Copy code
+                  </button>
+                  <button
+                    className="btnp"
+                    type="button"
+                    onClick={() => {
+                      setNewCode(null);
+                      setNewCodeExpires(null);
+                    }}
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Portal>
+      )}
+    </div>
+  );
+}
+
+function GenerateCodeModal({
+  open,
+  busy,
+  onClose,
+  onCreate,
+}: {
+  open: boolean;
+  busy: boolean;
+  onClose: () => void;
+  onCreate: (hours: number, notes: string) => void | Promise<void>;
+}) {
+  const [hours, setHours] = useState("24");
+  const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setHours("24");
+      setNotes("");
+    }
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <Portal>
+      <div className="gthm">
+        <style>{GTH_CSS}</style>
+        <div
+          className="scrim open"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onClose();
+          }}
+        >
+          <div className="modal">
+            <h3>Generate support code</h3>
+            <p className="ms">
+              The code lets one Oversite admin into your bot dashboard
+              temporarily. They can read &amp; change your bot settings until the
+              code expires or you revoke it.
+            </p>
+            <label className="fl">Expires after</label>
+            <select
+              className="fi"
+              value={hours}
+              onChange={(e) => setHours(e.target.value)}
+            >
+              {EXPIRY_OPTIONS.map((o) => (
+                <option key={o.hours} value={String(o.hours)}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <label className="fl" style={{ marginTop: 16 }}>
+              Note (optional)
+            </label>
+            <textarea
+              className="fi"
+              value={notes}
+              maxLength={500}
+              placeholder="What do you need help with?"
+              onChange={(e) => setNotes(e.target.value)}
+            />
+            <div className="mfoot">
+              <button className="ghost" type="button" onClick={onClose}>
+                Cancel
+              </button>
+              <button
+                className="btnp"
+                type="button"
+                disabled={busy}
+                onClick={() => onCreate(Number.parseInt(hours, 10), notes.trim())}
+              >
+                {busy ? "Generating…" : "Generate"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Portal>
+  );
+}
+
 /* --------------------------------- portal --------------------------------- */
 
 function Portal({ children }: { children: React.ReactNode }) {
@@ -1136,6 +1512,25 @@ const GTH_CSS = `
 .gth .yes{color:var(--gok);display:inline-grid;place-items:center} .gth .yes svg{width:17px;height:17px;stroke:currentColor;stroke-width:2.4;fill:none}
 .gth .nope{color:#4a545d;display:inline-grid;place-items:center} .gth .nope svg{width:14px;height:14px;stroke:currentColor;stroke-width:2.4;fill:none}
 
+/* support access */
+.gth .sup{border:1px solid var(--ghair);border-radius:14px;background:rgba(45,53,62,.5);padding:20px;display:flex;gap:14px}
+.gth .sup .si{height:40px;width:40px;border-radius:12px;flex:none;display:grid;place-items:center;background:color-mix(in srgb,var(--gaccent) 12%,transparent);color:var(--gaccent)}
+.gth .sup .si svg{width:20px;height:20px;stroke:currentColor;stroke-width:1.7;fill:none}
+.gth .sup h4{font-family:var(--gdisp);font-weight:700;font-size:14px;color:var(--gheading);margin:0 0 4px}
+.gth .sup p{margin:0;font-size:12.5px;color:var(--gfaint);line-height:1.5}
+.gth .sup .row2{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
+.gth .sectlbl{font-family:var(--gdisp);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gfaint);margin:16px 0 8px}
+.gth .grantbanner{margin-top:14px;border:1px solid color-mix(in srgb,var(--ggold) 32%,var(--ghair));background:color-mix(in srgb,var(--ggold) 8%,transparent);border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:8px}
+.gth .grantbanner .gline{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.gth .grantbanner .gt{font-size:12.5px;font-weight:600;color:var(--gheading)}
+.gth .grantbanner .gm{font-size:11px;color:var(--gfaint);margin-top:1px}
+.gth .codes{display:flex;flex-direction:column;gap:8px}
+.gth .codeitem{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--ghair);background:var(--gbg);border-radius:10px;padding:10px 12px}
+.gth .codeitem .cv{font-family:var(--gmono);font-size:14px;font-weight:700;color:var(--gheading)}
+.gth .codeitem .cm{font-size:11px;color:var(--gfaint);margin-top:3px;display:flex;align-items:center;gap:6px}
+.gth .codeitem .cm svg{width:12px;height:12px;stroke:currentColor;stroke-width:2;fill:none}
+.gth .codeitem .cact{display:flex;gap:6px;flex:none}
+
 /* modal */
 .gthm .scrim{position:fixed;inset:0;background:rgba(10,13,17,.6);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:9000;padding:24px;font-family:var(--gbodyf)}
 .gthm .scrim.open{display:flex}
@@ -1152,6 +1547,9 @@ const GTH_CSS = `
 .gthm .fl .pickn{color:var(--gaccent);font-family:var(--gmono);letter-spacing:0}
 .gthm .fi{width:100%;background:var(--gbg);border:1px solid var(--ghair);border-radius:10px;padding:11px 13px;color:var(--gheading);font-family:var(--gbodyf);font-size:13.5px;outline:none}
 .gthm .fi:focus{border-color:color-mix(in srgb,var(--gaccent) 60%,var(--ghair))}
+.gthm select.fi{appearance:none;-webkit-appearance:none;cursor:pointer}
+.gthm textarea.fi{min-height:72px;resize:vertical}
+.gthm .codebig{border:1px solid var(--ghair);background:var(--gbg);border-radius:12px;padding:18px;text-align:center;font-family:var(--gmono);font-size:26px;font-weight:700;letter-spacing:.14em;color:var(--gheading);margin:4px 0 4px}
 .gthm .seg{display:flex;gap:6px;margin-top:8px}
 .gthm .seg div{flex:1;text-align:center;padding:9px;border-radius:9px;border:1px solid var(--ghair);background:var(--gbg);font-size:12px;font-weight:600;color:var(--gbody);cursor:pointer}
 .gthm .seg div.on{border-color:var(--gaccent);background:color-mix(in srgb,var(--gaccent) 12%,transparent);color:var(--gheading)}
