@@ -193,16 +193,21 @@ async function releaseCommandToPending(id: string, action: string) {
 // it for any bot whose runtime is started in-process — so addon toggles in
 // the dashboard can immediately tear down disabled listeners. If we don't
 // own a runtime for that bot_id we still release it to the external bot.
-const ALWAYS_EXTERNAL_ACTIONS = new Set(["post_message"]);
+const ALWAYS_EXTERNAL_ACTIONS = new Set<string>();
 // Actions that need a live Discord client. If this worker has no runtime
 // started for cmd.bot_id (e.g. the command targets the externally-hosted
 // support bot, which polls support-bot-api directly), release the command
 // back to pending so the owning bot can claim it instead of us timing out.
+//
+// post_message is here too: when we own the target bot's runtime we post via
+// that bot's client (e.g. feedback through the Oversite Utilities bot);
+// otherwise it falls back to pending for the external support bot.
 const RUNTIME_REQUIRED_ACTIONS = new Set([
   "list_roles",
   "list_channels",
   "list_guilds",
   "set_status",
+  "post_message",
 ]);
 
 
@@ -262,6 +267,12 @@ async function processCommand(cmd: Cmd) {
         // toggled on/off. Only reached when we own the runtime; bots owned
         // by external workers were released back to pending above.
         await runtime.refreshAddons();
+        break;
+      }
+      case "post_message": {
+        // Send a message/embed through this bot's client. Only reached when we
+        // own the runtime; otherwise released to pending above.
+        await runtime.postMessage(cmd.payload ?? {});
         break;
       }
 
