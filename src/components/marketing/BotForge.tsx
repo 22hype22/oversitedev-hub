@@ -21,7 +21,6 @@ import {
   Bell,
   Bot,
   Check,
-  Wand2,
   ArrowRight,
   Send,
   CreditCard,
@@ -939,10 +938,6 @@ export function BotForge() {
   return (
     <section id="build" className="mt-24 scroll-mt-24">
       <div className="max-w-3xl">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-os-accent/30 bg-os-accent/10 text-os-accent font-label text-[11px] uppercase tracking-[0.14em] font-bold mb-6">
-          <Wand2 size={14} />
-          Bot Builder
-        </div>
         <h2 className="font-display text-3xl md:text-5xl font-bold tracking-tight text-os-heading">
           Design your <span className="text-os-accent">dream bot.</span>
         </h2>
