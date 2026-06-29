@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -650,39 +651,43 @@ const BotSection = ({
     onReload();
   };
 
-  const headerActions = !bot.isDemo ? (
-    <>
-      {!bot.viaTeam && canEditBilling && (
-        <Button variant="outline" size="sm" onClick={() => onAddAddons(bot)}>
-          <Plus className="h-4 w-4 mr-1.5" />
-          Add add-ons
-        </Button>
-      )}
-      {!bot.viaTeam && cancellable && canEditBilling && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-          onClick={() => onCancel(bot)}
-        >
-          <XCircle className="h-4 w-4 mr-1.5" />
-          Cancel
-        </Button>
-      )}
-      {bot.viaTeam && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-          onClick={leaveBot}
-          disabled={leaving}
-        >
-          <LogOut className="h-4 w-4 mr-1.5" />
-          {leaving ? "Leaving…" : "Leave bot"}
-        </Button>
-      )}
-    </>
-  ) : null;
+  const headerActions =
+    !bot.isDemo && !bot.viaTeam && canEditBilling ? (
+      <Button variant="outline" size="sm" onClick={() => onAddAddons(bot)}>
+        <Plus className="h-4 w-4 mr-1.5" />
+        Add add-ons
+      </Button>
+    ) : null;
+
+  const showCancel = !bot.isDemo && !bot.viaTeam && cancellable && canEditBilling;
+  const showLeave = !bot.isDemo && bot.viaTeam;
+  const headerMenuItems =
+    showCancel || showLeave ? (
+      <>
+        {showCancel && (
+          <DropdownMenuItem
+            onSelect={() => onCancel(bot)}
+            className="gap-2 text-destructive focus:text-destructive"
+          >
+            <XCircle className="h-4 w-4" />
+            Cancel subscription
+          </DropdownMenuItem>
+        )}
+        {showLeave && (
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              leaveBot();
+            }}
+            disabled={leaving}
+            className="gap-2 text-destructive focus:text-destructive"
+          >
+            <LogOut className="h-4 w-4" />
+            {leaving ? "Leaving…" : "Leave bot"}
+          </DropdownMenuItem>
+        )}
+      </>
+    ) : null;
 
   const sectionInner = (
     <section className="space-y-5">
@@ -691,6 +696,7 @@ const BotSection = ({
         onUpdated={onReload}
         badges={headerBadges}
         actions={headerActions}
+        menuItems={headerMenuItems}
         enableDiscordEdits={!bot.isDemo && !isDeploying}
       />
 
