@@ -114,7 +114,10 @@ const BOTSEC_CSS = `
 .botsec .btx .bb{font-size:11.5px;color:#788591;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .botsec .bchev{height:20px;width:20px;color:#788591;transition:transform .2s,color .2s;flex:none}
 .botsec[open] .bchev{transform:rotate(180deg);color:#C9DBE6}
-.botsec .bbody{border-top:1px solid #3a434d;padding:18px 20px}
+.botsec .bbody{border-top:1px solid #3a434d;padding:12px 10px 14px}
+/* Flatten the inner panel wrappers so they don't read as cramped secondary
+   boxes inside the section; their inner tiles/content keep their own framing. */
+.botsec .bbody .bg-card\\/40{background-color:transparent;border-color:transparent;box-shadow:none}
 `;
 import { useBotNotifications, type BotNotification } from "@/hooks/useBotNotifications";
 
