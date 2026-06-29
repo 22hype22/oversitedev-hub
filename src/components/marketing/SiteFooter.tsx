@@ -19,6 +19,7 @@ const COLUMNS: { heading: string; links: LinkItem[] }[] = [
       { label: "Our Process", to: "/process" },
       { label: "Bots", to: "/bots" },
       { label: "Meet the Team", to: "/explore/team" },
+      { label: "Support & Ideas", to: "/support-ideas" },
       { label: "FAQ", to: "#faq" },
     ],
   },
