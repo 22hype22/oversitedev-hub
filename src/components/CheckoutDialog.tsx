@@ -2,6 +2,7 @@ import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getStripe, getStripeEnvironment } from "@/lib/stripe";
 import { supabase } from "@/integrations/supabase/client";
+import { track } from "@/lib/analytics";
 import { useCallback } from "react";
 
 export interface CheckoutItem {
@@ -30,6 +31,7 @@ interface CheckoutDialogProps {
 
 export function CheckoutDialog({ open, onOpenChange, items, customerEmail }: CheckoutDialogProps) {
   const fetchClientSecret = useCallback(async (): Promise<string> => {
+    track("checkout_reached");
     const { data, error } = await supabase.functions.invoke("create-checkout", {
       body: {
         items,
