@@ -1046,10 +1046,11 @@ function populateOverview(root: HTMLElement, d: any) {
 
   // ── KPI strip: [Live now, Bots sold, Revenue, Conversion] ──
   const kpis = ov.querySelectorAll(".kpis .kpi");
-  // Live now — needs tracking
+  const f = d.funnel || { visited: 0, builder: 0, checkout: 0, purchased: 0 };
+  // Live now
   if (kpis[0]) {
-    const v = q(kpis[0], ".val"); if (v) v.textContent = "—";
-    const s = q(kpis[0], ".sub"); if (s) s.textContent = "needs visitor tracking";
+    const v = q(kpis[0], ".val"); if (v) v.textContent = String(d.live_now ?? 0);
+    const s = q(kpis[0], ".sub"); if (s) s.textContent = "on the site right now";
   }
   // Bots sold
   if (kpis[1]) {
@@ -1072,10 +1073,11 @@ function populateOverview(root: HTMLElement, d: any) {
       }
     }
   }
-  // Conversion — needs tracking
+  // Conversion
   if (kpis[3]) {
-    const v = q(kpis[3], ".val"); if (v) v.textContent = "—";
-    const s = q(kpis[3], ".sub"); if (s) s.textContent = "needs funnel tracking";
+    const conv = f.visited > 0 ? (f.purchased / f.visited) * 100 : 0;
+    const v = q(kpis[3], ".val"); if (v) v.textContent = `${conv.toFixed(1)}%`;
+    const s = q(kpis[3], ".sub"); if (s) s.textContent = "visit → paid · 7d";
   }
 
   // ── cards by title ──
@@ -1111,11 +1113,58 @@ function populateOverview(root: HTMLElement, d: any) {
       }
     }
 
-    // Funnel + visitors chart need tracking — flag them so the demo numbers
-    // don't read as real.
-    if (title === "Checkout funnel" || title === "Visitors") {
+    if (title === "Checkout funnel") {
+      const cb = card.querySelector(".cb");
+      if (cb) {
+        const base = Math.max(f.visited, 1);
+        const pct = (n: number) => Math.round((n / base) * 100);
+        const steps: Array<[string, number]> = [
+          ["Visited the site", f.visited],
+          ["Started a bot build", f.builder],
+          ["Reached checkout", f.checkout],
+          ["Paid", f.purchased],
+        ];
+        let html = '<div class="funnel">';
+        steps.forEach(([label, n], i) => {
+          const w = n > 0 ? Math.max(pct(n), 6) : 0;
+          html += `<div class="fstep"><div class="flab"><span class="t">${label}</span><span class="n">${n.toLocaleString()}</span><span class="p">${pct(n)}%</span></div><div class="track"><i class="${i === 3 ? "dim" : ""}" style="width:${w}%"></i></div></div>`;
+        });
+        html += "</div>";
+        const dropped = Math.max(f.checkout - f.purchased, 0);
+        const rate = f.checkout > 0 ? Math.round((dropped / f.checkout) * 100) : 0;
+        html += `<div class="fdrop"><span class="x"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg></span><span><b>${dropped} reached checkout and didn't pay</b> — ${rate}% of checkouts</span></div>`;
+        const recent: Array<{ who: string; at: string }> = d.abandoned_recent || [];
+        html += `<div class="subhead">Recent abandons · last 24h</div>`;
+        html += recent.length
+          ? recent
+              .map(
+                (r) =>
+                  `<div class="lrow"><span class="nm">${escHtml(r.who)}</span><span class="sp" style="margin-left:9px">${timeAgo(r.at)}</span></div>`,
+              )
+              .join("")
+          : `<div class="subnote">None in the last 24h.</div>`;
+        cb.innerHTML = html;
+      }
+    }
+
+    if (title === "Visitors") {
+      const cb = card.querySelector(".cb");
+      const vis: Array<{ d: string; n: number }> = d.visitors_by_day || [];
+      if (cb) {
+        const maxv = Math.max(1, ...vis.map((v) => v.n));
+        const dow = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        let bars = '<div class="bars">';
+        vis.forEach((v, i) => {
+          const h = v.n > 0 ? Math.max(Math.round((v.n / maxv) * 100), 6) : 2;
+          const label = dow[new Date(v.d).getDay()] ?? "";
+          bars += `<div class="b${i === vis.length - 1 ? " hi" : ""}"><i style="height:${h}%"></i>${label}</div>`;
+        });
+        bars += "</div>";
+        cb.innerHTML = bars;
+      }
+      const total = vis.reduce((a, v) => a + (v.n || 0), 0);
       const mut = card.querySelector(".ch .mut") as HTMLElement | null;
-      if (mut) mut.textContent = "needs tracking";
+      if (mut) mut.textContent = `this week · ${total.toLocaleString()} total`;
     }
   });
 }
