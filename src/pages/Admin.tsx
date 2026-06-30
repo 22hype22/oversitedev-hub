@@ -132,6 +132,8 @@ const ADMIN_CSS = `.osadmin{
 .osadmin .ogrid{grid-template-columns:1fr}
 }
 .osadmin .scols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.osadmin .sfcols{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.osadmin .sfcol{display:flex;flex-direction:column;gap:16px;min-width:0}
 .osadmin .frm{display:flex;flex-direction:column;gap:12px}
 .osadmin .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .osadmin .lbl{display:block;font-family:var(--disp);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
@@ -178,7 +180,7 @@ const ADMIN_CSS = `.osadmin{
 .osadmin .chip.add{color:var(--faint);border-style:dashed}
 .osadmin .price{font-family:var(--mono);font-size:13px;color:var(--heading);font-weight:700}
 .osadmin .price.free{color:var(--ok)}
-@media(max-width:1050px){.osadmin .scols{grid-template-columns:1fr}
+@media(max-width:1050px){.osadmin .scols, .osadmin .sfcols{grid-template-columns:1fr}
 .osadmin .catform{grid-template-columns:1fr 1fr}
 }
 .osadmin .minis{display:flex;border:1px solid var(--line2);border-radius:12px;overflow:hidden;margin-bottom:15px}
@@ -427,104 +429,103 @@ const ADMIN_HTML = `<div class="osd app">
 
       <!-- ───── STOREFRONT ───── -->
       <div id="storefront-content" style="display:none">
-        <!-- Row 1: codes side by side, identical structure -->
-        <div class="scols">
-          <!-- Discount codes -->
-          <div class="card">
-            <div class="ch"><span class="eye">Promos</span><h3>Discount codes</h3></div>
-            <div class="cb">
-              <div class="row2">
-                <div><label class="lbl">Code</label><input class="in" data-sf="disc-code" placeholder="LAUNCH20"></div>
-                <div><label class="lbl">Amount</label><input class="in" data-sf="disc-amount" placeholder="20% or 5"></div>
-              </div>
-              <button class="btn" style="margin-top:12px" data-sf="disc-create"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Create code</button>
-              <div class="listcap">Active codes</div>
-              <div data-sf="disc-list"><div class="subnote">Loading…</div></div>
-            </div>
-          </div>
-
-          <!-- Free hosting codes -->
-          <div class="card">
-            <div class="ch"><span class="eye">Comp</span><h3>Free hosting codes</h3></div>
-            <div class="cb">
-              <div class="row2">
-                <div><label class="lbl">Months</label><input class="in" data-sf="free-months" placeholder="3"></div>
-                <div><label class="lbl">Max uses</label><input class="in" data-sf="free-uses" placeholder="1 (blank = ∞)"></div>
-              </div>
-              <button class="btn" style="margin-top:12px" data-sf="free-create"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Generate code</button>
-              <div class="listcap">Issued codes</div>
-              <div data-sf="free-list"><div class="subnote">Loading…</div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Row 2: billing override | combined announcements -->
-        <div class="scols" style="margin-top:16px;align-items:start">
-          <!-- Billing override -->
-          <div class="card">
-            <div class="ch"><span class="eye">Rotating · 15 min</span><h3>Billing override code</h3></div>
-            <div class="cb">
-              <div class="ovrcode" data-sf="ovr-code">····-····-····</div>
-              <div class="ovrrow">
-                <span class="timer">expires in <b data-sf="ovr-timer">--:--</b></span>
-                <span class="oacts">
-                  <button class="btn ghost sm" data-sf="ovr-refresh"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/></svg>Refresh</button>
-                  <button class="btn sm" data-sf="ovr-copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy</button>
-                </span>
-              </div>
-              <div class="subnote" style="margin-top:13px">Share with customers who paid off-platform to bypass the billing form. Auto-expires every 15 minutes — refresh to roll a new one.</div>
-            </div>
-          </div>
-
-          <!-- Announcements (combined: dashboards + server) -->
-          <div class="card">
-            <div class="ch"><span class="eye">Broadcast</span><h3>Announcements</h3></div>
-            <div class="cb">
-              <label class="lbl">Send to</label>
-              <div class="seg" id="dest">
-                <button class="on" data-dash="1" data-server="0">Dashboards</button>
-                <button data-dash="0" data-server="1">Discord server</button>
-                <button data-dash="1" data-server="1">Both</button>
-              </div>
-
-              <div id="dashfields" style="margin-top:12px">
-                <div class="row2" style="align-items:end">
-                  <div><label class="lbl">Type</label><div class="seg" id="ann-type"><button class="on">Note</button><button>Fix</button></div></div>
-                  <div><label class="lbl">Title</label><input class="in" data-sf="ann-title" placeholder="e.g. Scheduled maintenance"></div>
+        <!-- Two independent columns so cards flow without row-locked gaps. -->
+        <div class="sfcols">
+          <div class="sfcol">
+            <!-- Discount codes -->
+            <div class="card">
+              <div class="ch"><span class="eye">Promos</span><h3>Discount codes</h3></div>
+              <div class="cb">
+                <div class="row2">
+                  <div><label class="lbl">Code</label><input class="in" data-sf="disc-code" placeholder="LAUNCH20"></div>
+                  <div><label class="lbl">Amount</label><input class="in" data-sf="disc-amount" placeholder="20% or 5"></div>
                 </div>
+                <button class="btn" style="margin-top:12px" data-sf="disc-create"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Create code</button>
+                <div class="listcap">Active codes</div>
+                <div data-sf="disc-list"><div class="subnote">Loading…</div></div>
               </div>
+            </div>
 
-              <div id="serverfields" style="display:none;margin-top:12px">
-                <label class="lbl">Announcements channel ID</label>
-                <div class="redeem">
-                  <input class="in mono" data-sf="ann-channel" placeholder="right-click the channel → Copy Channel ID">
-                  <button class="btn ghost" data-sf="ann-channel-save">Save</button>
+            <!-- Billing override -->
+            <div class="card">
+              <div class="ch"><span class="eye">Rotating · 15 min</span><h3>Billing override code</h3></div>
+              <div class="cb">
+                <div class="ovrcode" data-sf="ovr-code">····-····-····</div>
+                <div class="ovrrow">
+                  <span class="timer">expires in <b data-sf="ovr-timer">--:--</b></span>
+                  <span class="oacts">
+                    <button class="btn ghost sm" data-sf="ovr-refresh"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/></svg>Refresh</button>
+                    <button class="btn sm" data-sf="ovr-copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy</button>
+                  </span>
                 </div>
+                <div class="subnote" style="margin-top:13px">Share with customers who paid off-platform to bypass the billing form. Auto-expires every 15 minutes — refresh to roll a new one.</div>
               </div>
+            </div>
 
-              <div style="margin-top:12px"><label class="lbl">Message</label><textarea class="in" data-sf="ann-msg" placeholder="What everyone should see."></textarea></div>
-              <button class="btn" style="margin-top:12px" data-sf="ann-publish"><svg viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>Publish</button>
-              <div class="subnote" style="margin-top:10px">Dashboards post instantly to everyone's dashboard. Discord-server posts go out through the Oversite Utilities bot.</div>
-
-              <div class="listcap">Live now</div>
-              <div data-sf="ann-list"><div class="subnote">Loading…</div></div>
+            <!-- Comp list: emails that never pay -->
+            <div class="card">
+              <div class="ch"><span class="eye">Comp</span><h3>Comp list</h3><span class="mut">emails that never pay</span></div>
+              <div class="cb">
+                <div class="catform" style="grid-template-columns:1.6fr 1.4fr auto">
+                  <div><label class="lbl">Email</label><input class="in" data-sf="comp-email" placeholder="person@example.com"></div>
+                  <div><label class="lbl">Note <span style="text-transform:none;letter-spacing:0">(optional)</span></label><input class="in" data-sf="comp-note" placeholder="e.g. partner, giveaway winner"></div>
+                  <button class="btn" data-sf="comp-add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+                </div>
+                <div class="subnote" style="margin-top:10px">Orders from these emails go through the whole build flow but are 100% off — no charge, hosting waived. Removing an email is forward-only: they keep existing bots; their next purchase charges normally.</div>
+                <div class="listcap">On the list</div>
+                <div data-sf="comp-list"><div class="subnote">Loading…</div></div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Comp list: emails that never pay (kept at the bottom) -->
-        <div class="scols" style="margin-top:16px">
-          <div class="card">
-            <div class="ch"><span class="eye">Comp</span><h3>Comp list</h3><span class="mut">emails that never pay</span></div>
-            <div class="cb">
-              <div class="catform" style="grid-template-columns:1.6fr 1.4fr auto">
-                <div><label class="lbl">Email</label><input class="in" data-sf="comp-email" placeholder="person@example.com"></div>
-                <div><label class="lbl">Note <span style="text-transform:none;letter-spacing:0">(optional)</span></label><input class="in" data-sf="comp-note" placeholder="e.g. partner, giveaway winner"></div>
-                <button class="btn" data-sf="comp-add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+          <div class="sfcol">
+            <!-- Free hosting codes -->
+            <div class="card">
+              <div class="ch"><span class="eye">Comp</span><h3>Free hosting codes</h3></div>
+              <div class="cb">
+                <div class="row2">
+                  <div><label class="lbl">Months</label><input class="in" data-sf="free-months" placeholder="3"></div>
+                  <div><label class="lbl">Max uses</label><input class="in" data-sf="free-uses" placeholder="1 (blank = ∞)"></div>
+                </div>
+                <button class="btn" style="margin-top:12px" data-sf="free-create"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Generate code</button>
+                <div class="listcap">Issued codes</div>
+                <div data-sf="free-list"><div class="subnote">Loading…</div></div>
               </div>
-              <div class="subnote" style="margin-top:10px">Orders from these emails go through the whole build flow but are 100% off — no charge, hosting waived. Removing an email is forward-only: they keep existing bots; their next purchase charges normally.</div>
-              <div class="listcap">On the list</div>
-              <div data-sf="comp-list"><div class="subnote">Loading…</div></div>
+            </div>
+
+            <!-- Announcements (combined: dashboards + server) -->
+            <div class="card">
+              <div class="ch"><span class="eye">Broadcast</span><h3>Announcements</h3></div>
+              <div class="cb">
+                <label class="lbl">Send to</label>
+                <div class="seg" id="dest">
+                  <button class="on" data-dash="1" data-server="0">Dashboards</button>
+                  <button data-dash="0" data-server="1">Discord server</button>
+                  <button data-dash="1" data-server="1">Both</button>
+                </div>
+
+                <div id="dashfields" style="margin-top:12px">
+                  <div class="row2" style="align-items:end">
+                    <div><label class="lbl">Type</label><div class="seg" id="ann-type"><button class="on">Note</button><button>Fix</button></div></div>
+                    <div><label class="lbl">Title</label><input class="in" data-sf="ann-title" placeholder="e.g. Scheduled maintenance"></div>
+                  </div>
+                </div>
+
+                <div id="serverfields" style="display:none;margin-top:12px">
+                  <label class="lbl">Announcements channel ID</label>
+                  <div class="redeem">
+                    <input class="in mono" data-sf="ann-channel" placeholder="right-click the channel → Copy Channel ID">
+                    <button class="btn ghost" data-sf="ann-channel-save">Save</button>
+                  </div>
+                </div>
+
+                <div style="margin-top:12px"><label class="lbl">Message</label><textarea class="in" data-sf="ann-msg" placeholder="What everyone should see."></textarea></div>
+                <button class="btn" style="margin-top:12px" data-sf="ann-publish"><svg viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>Publish</button>
+                <div class="subnote" style="margin-top:10px">Dashboards post instantly to everyone's dashboard. Discord-server posts go out through the Oversite Utilities bot.</div>
+
+                <div class="listcap">Live now</div>
+                <div data-sf="ann-list"><div class="subnote">Loading…</div></div>
+              </div>
             </div>
           </div>
         </div>
