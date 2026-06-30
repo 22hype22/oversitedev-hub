@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { track } from "@/lib/analytics";
 import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -267,6 +268,10 @@ const PACK_TABS: { id: string; label: string; icon: typeof Shield }[] = [
 ];
 
 export function BotForge() {
+  // Funnel: reaching the builder counts as "started a build".
+  useEffect(() => {
+    track("build_started");
+  }, []);
   const { user, isAdmin } = useAuth();
   const { hasDashboardAccess: dashboardAlreadyOwned } = useOwnedBots();
   const { isLive: salesLive } = useBotSalesMode();
