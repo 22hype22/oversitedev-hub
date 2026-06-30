@@ -34,12 +34,12 @@ const HAIR = "rgba(168,180,191,.18)";
 const HEADING = "#E8EEF3";
 const BODY = "#A8B4BF";
 const FAINT = "#788591";
-const SURFACE = "rgba(45,53,62,.78)";
 const DISMISS_KEY = "os_dismissed_fixes";
 
-/** Full-width sticky bar pinned to the top of the bot dashboard, listing the
- *  active fixes / notes admins post. Dismissible (remembered per browser) and
- *  expandable when there's more than one. Renders nothing when there are none. */
+/** Single notice bar above the bot-dashboard header, listing the active
+ *  fixes / notes admins post. Clicking the bar expands it downward (same
+ *  container) to reveal the full note bodies. Dismissible (remembered per
+ *  browser). Renders nothing when there are none. */
 export function FixesBar() {
   const [fixes, setFixes] = useState<Fix[] | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -89,93 +89,104 @@ export function FixesBar() {
   const canExpand = rest.length > 0 || !!latest.body;
 
   return (
-    <div className="sticky top-3 z-30 mb-5">
+    <div className="mb-8">
       <div
-        className="flex items-center gap-3 rounded-2xl border py-2.5 pl-3 pr-2 backdrop-blur-md"
+        className="overflow-hidden rounded-2xl border backdrop-blur-md"
         style={{
           background: "linear-gradient(180deg,rgba(46,54,63,.85),rgba(39,46,54,.9))",
           borderColor: HAIR,
         }}
       >
-        <span
-          className="shrink-0 rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em]"
-          style={{ background: m.tint, color: m.color, fontFamily: '"Bricolage Grotesque", sans-serif' }}
+        {/* Header row — single bar. Clicking anywhere on it toggles expand. */}
+        <div
+          className={`flex items-center gap-3 px-4 ${canExpand ? "cursor-pointer" : ""}`}
+          style={{ minHeight: 52 }}
+          onClick={canExpand ? () => setExpanded((v) => !v) : undefined}
         >
-          {m.label}
-        </span>
-        <span className="flex-1 truncate text-sm font-semibold" style={{ color: HEADING }}>
-          {latest.title}
-        </span>
-        {rest.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="shrink-0 rounded-md px-2 py-1 text-xs transition-colors hover:bg-white/5"
-            style={{ color: FAINT }}
+          <span
+            className="inline-flex shrink-0 items-center rounded-md px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.1em]"
+            style={{ background: m.tint, color: m.color, fontFamily: '"Bricolage Grotesque", sans-serif' }}
           >
-            +{rest.length} more
-          </button>
-        )}
-        {canExpand && (
+            {m.label}
+          </span>
+          <span className="flex-1 truncate text-sm font-semibold leading-none" style={{ color: HEADING }}>
+            {latest.title}
+          </span>
+          {rest.length > 0 && (
+            <span className="shrink-0 text-xs leading-none" style={{ color: FAINT }}>
+              +{rest.length} more
+            </span>
+          )}
+          {canExpand && (
+            <span
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-md"
+              style={{ color: FAINT }}
+              aria-hidden
+            >
+              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </span>
+          )}
           <button
             type="button"
-            onClick={() => setExpanded((v) => !v)}
+            onClick={(e) => {
+              e.stopPropagation();
+              dismissAll();
+            }}
             className="grid h-7 w-7 shrink-0 place-items-center rounded-md transition-colors hover:bg-white/5"
             style={{ color: FAINT }}
-            aria-label={expanded ? "Collapse" : "Expand"}
-            aria-expanded={expanded}
+            aria-label="Dismiss"
           >
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            <X className="h-4 w-4" />
           </button>
-        )}
-        <button
-          type="button"
-          onClick={dismissAll}
-          className="grid h-7 w-7 shrink-0 place-items-center rounded-md transition-colors hover:bg-white/5"
-          style={{ color: FAINT }}
-          aria-label="Dismiss"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
+        </div>
 
-      {expanded && (
-        <div
-          className="mt-2 rounded-2xl border px-4 py-1 backdrop-blur-md"
-          style={{ background: SURFACE, borderColor: HAIR }}
-        >
-          {visible.map((f, i) => {
-            const meta = getMeta(f.severity);
-            return (
-              <div
-                key={f.id}
-                className="py-3"
-                style={i > 0 ? { borderTop: "1px solid rgba(168,180,191,.10)" } : undefined}
-              >
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className="rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em]"
-                    style={{ background: meta.tint, color: meta.color, fontFamily: '"Bricolage Grotesque", sans-serif' }}
-                  >
-                    {meta.label}
-                  </span>
-                  <div className="text-sm font-semibold" style={{ color: HEADING }}>
-                    {f.title}
+        {/* Expanded body — grows the SAME container downward. The latest note's
+            label/title already show in the header above, so here we only add its
+            body + timestamp, then any other notes. */}
+        {expanded && (
+          <div className="px-4 pb-4" style={{ borderTop: `1px solid ${HAIR}` }}>
+            {latest.body && (
+              <p className="mt-3 whitespace-pre-wrap text-sm" style={{ color: BODY }}>
+                {latest.body}
+              </p>
+            )}
+            <div className="mt-2 text-[11px]" style={{ color: FAINT, fontFamily: '"Space Mono", monospace' }}>
+              {new Date(latest.created_at).toLocaleString()}
+            </div>
+
+            {rest.map((f) => {
+              const meta = getMeta(f.severity);
+              return (
+                <div
+                  key={f.id}
+                  className="mt-3 pt-3"
+                  style={{ borderTop: "1px solid rgba(168,180,191,.10)" }}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className="inline-flex items-center rounded px-2 py-0.5 text-[9px] font-bold uppercase leading-none tracking-[0.1em]"
+                      style={{ background: meta.tint, color: meta.color, fontFamily: '"Bricolage Grotesque", sans-serif' }}
+                    >
+                      {meta.label}
+                    </span>
+                    <div className="text-sm font-semibold" style={{ color: HEADING }}>
+                      {f.title}
+                    </div>
+                  </div>
+                  {f.body && (
+                    <p className="mt-1.5 whitespace-pre-wrap text-sm" style={{ color: BODY }}>
+                      {f.body}
+                    </p>
+                  )}
+                  <div className="mt-1.5 text-[11px]" style={{ color: FAINT, fontFamily: '"Space Mono", monospace' }}>
+                    {new Date(f.created_at).toLocaleString()}
                   </div>
                 </div>
-                {f.body && (
-                  <p className="mt-1.5 whitespace-pre-wrap text-sm" style={{ color: BODY }}>
-                    {f.body}
-                  </p>
-                )}
-                <div className="mt-1.5 text-[11px]" style={{ color: FAINT, fontFamily: '"Space Mono", monospace' }}>
-                  {new Date(f.created_at).toLocaleString()}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
