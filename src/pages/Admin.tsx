@@ -298,9 +298,9 @@ const ADMIN_HTML = `<div class="osd app">
       <div class="nav" data-sec="Logs &amp; History" data-sub="Bot orders, purchases, accounts, and admin actions"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Logs &amp; History</div>
 
       <div class="glab">Owner</div>
-      <div class="nav" data-sec="Super admin" data-sub="Manage who has admin access to the platform"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Super admin</div>
-      <div class="nav" data-sec="Captcha images" data-sub="Shared image pool for bots using image captcha"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5L5 20"/></svg>Captcha images</div>
-      <div class="nav danger" data-sec="Danger zone" data-sub="Destructive actions affecting the live store &amp; data"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg>Danger zone</div>
+      <div class="nav" data-sec="Super Admin" data-sub="Manage who has admin access to the platform"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Super Admin</div>
+      <div class="nav" data-sec="Captcha Images" data-sub="Shared image pool for bots using image captcha"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5L5 20"/></svg>Captcha Images</div>
+      <div class="nav danger" data-sec="Danger Zone" data-sub="Destructive actions affecting the live store &amp; data"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg>Danger Zone</div>
 
       <div style="margin-top:auto"></div>
       <div class="nav"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14.5 14.5 0 0 0 0 18 14.5 14.5 0 0 0 0-18"/></svg>Back to website</div>
@@ -314,9 +314,6 @@ const ADMIN_HTML = `<div class="osd app">
           <div class="crumb">Oversite / Admin / <b id="crumb">Overview</b></div>
           <h1 id="title">Overview</h1>
           <div class="sub" id="sub">At-a-glance health of the platform</div>
-        </div>
-        <div class="htools">
-          <label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Search</label>
         </div>
       </div>
 
@@ -683,25 +680,12 @@ const ADMIN_HTML = `<div class="osd app">
             <div class="cb">
               <label class="lbl">Add admin by email</label>
               <div class="redeem">
-                <input class="in" placeholder="person@example.com">
-                <button class="btn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Grant</button>
+                <input class="in" data-sa="email" placeholder="person@example.com">
+                <button class="btn" data-sa="grant"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Grant</button>
               </div>
 
               <div class="listcap">People</div>
-              <div class="adm" data-email="everant00@gmail.com" data-role="Owner · all access">
-                <div class="av">E</div>
-                <div><div class="em">everant00@gmail.com <span class="tag g">super</span></div><div class="ro">Owner · full access</div></div>
-              </div>
-              <div class="adm sel" data-email="everetth.inquiries@gmail.com" data-role="Admin">
-                <div class="av">E</div>
-                <div><div class="em">everetth.inquiries@gmail.com <span class="tag a">admin</span></div><div class="ro">Admin · limited</div></div>
-                <span class="ic x"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
-              </div>
-              <div class="adm" data-email="jordan@example.com" data-role="Admin">
-                <div class="av">J</div>
-                <div><div class="em">jordan@example.com <span class="tag a">admin</span></div><div class="ro">Admin · limited</div></div>
-                <span class="ic x"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
-              </div>
+              <div data-sa="list"><div class="subnote">Loading…</div></div>
             </div>
           </div>
 
@@ -717,8 +701,8 @@ const ADMIN_HTML = `<div class="osd app">
               <div class="permrow"><div><div class="pt">Bots &amp; Workers</div><div class="pd">Secrets, token pool, worker tokens</div></div><span class="sw"><i></i></span></div>
               <div class="permrow"><div><div class="pt">Support Access</div><div class="pd">Redeem codes, customer lookup</div></div><span class="sw on"><i></i></span></div>
               <div class="permrow"><div><div class="pt">Logs &amp; History</div><div class="pd">Orders, purchases, signups, audit</div></div><span class="sw on"><i></i></span></div>
-              <div class="permrow"><div><div class="pt">Super admin</div><div class="pd">Manage admins &amp; access — owner only</div></div><span class="sw lock"><i></i></span></div>
-              <div class="permrow"><div><div class="pt">Danger zone</div><div class="pd">Kill switches, reset — owner only</div></div><span class="sw lock"><i></i></span></div>
+              <div class="permrow"><div><div class="pt">Super Admin</div><div class="pd">Manage admins &amp; access — owner only</div></div><span class="sw lock"><i></i></span></div>
+              <div class="permrow"><div><div class="pt">Danger Zone</div><div class="pd">Kill switches, reset — owner only</div></div><span class="sw lock"><i></i></span></div>
 
               <button class="btn" style="margin-top:14px"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Save access</button>
             </div>
@@ -729,29 +713,23 @@ const ADMIN_HTML = `<div class="osd app">
       <!-- ───── CAPTCHA IMAGES ───── -->
       <div id="captcha-content" style="display:none">
         <div class="card">
-          <div class="ch"><span class="eye">Verification</span><h3>Captcha images</h3><span class="mut">shared pool for image-captcha bots</span></div>
+          <div class="ch"><span class="eye">Verification</span><h3>Captcha Images</h3><span class="mut">shared pool for image-captcha bots</span></div>
           <div class="cb">
             <div class="minis">
-              <div class="mini"><div class="l">Images</div><div class="v">24</div></div>
-              <div class="mini"><div class="l">Used by</div><div class="v">3 <span style="font-size:12px;color:var(--faint)">bots</span></div></div>
-              <div class="mini"><div class="l">Solved · 24h</div><div class="v">418</div></div>
+              <div class="mini"><div class="l">Images</div><div class="v" data-cap="count">—</div></div>
+              <div class="mini"><div class="l">Bucket</div><div class="v" style="font-size:13px">captcha-images</div></div>
+              <div class="mini"><div class="l">Format</div><div class="v" style="font-size:13px">PNG / JPG</div></div>
             </div>
 
-            <div class="drop">
+            <label class="drop" data-cap="drop" style="cursor:pointer;display:block">
+              <input type="file" data-cap="file" accept="image/png,image/jpeg" multiple style="display:none">
               <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
-              <div class="dt">Drag images here, or browse</div>
-              <div class="ds">PNG or JPG · you'll set the answer for each after upload</div>
-            </div>
+              <div class="dt">Click to browse images</div>
+              <div class="ds">PNG or JPG · you'll be asked for the answer (solution text) for each</div>
+            </label>
 
             <div class="listcap">Pool</div>
-            <div class="capgrid">
-              <div class="capcard"><div class="capimg"><span class="txt">7F3KQ</span></div><div class="capmeta"><span class="ans">7F3KQ</span><button class="del"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div></div>
-              <div class="capcard"><div class="capimg"><span class="txt">A92XP</span></div><div class="capmeta"><span class="ans">A92XP</span><button class="del"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div></div>
-              <div class="capcard"><div class="capimg"><span class="txt">M4T8B</span></div><div class="capmeta"><span class="ans">M4T8B</span><button class="del"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div></div>
-              <div class="capcard"><div class="capimg"><span class="txt">Z6WQ1</span></div><div class="capmeta"><span class="ans">Z6WQ1</span><button class="del"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div></div>
-              <div class="capcard"><div class="capimg"><span class="txt">K3RJ9</span></div><div class="capmeta"><span class="ans">K3RJ9</span><button class="del"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div></div>
-              <div class="capcard"><div class="capimg"><span class="txt">PX72C</span></div><div class="capmeta"><span class="ans">PX72C</span><button class="del"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div></div>
-            </div>
+            <div class="capgrid" data-cap="grid"><div class="subnote">Loading…</div></div>
             <div class="subnote" style="margin-top:13px">Only appears when a bot uses image-captcha verification. Answers are stored with each image so bots can check them.</div>
           </div>
         </div>
@@ -763,11 +741,11 @@ const ADMIN_HTML = `<div class="osd app">
         <div class="card" style="margin-bottom:16px">
           <div class="ch"><span class="eye">Storefront</span><h3>Market</h3><span class="mut">controls whether people can buy</span></div>
           <div class="cb">
-            <div class="lbl2">Market is active <span class="pill-live">accepting purchases</span></div>
+            <div class="lbl2" data-dz="market-state">Checking…</div>
             <div class="subnote" style="margin-top:6px">When off, customers can't place purchases or preorders — the store shows as closed. Requires your admin code.</div>
             <div class="confirm">
-              <input class="in mono" type="password" placeholder="enter admin code to change">
-              <button class="btn danger"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>Close market</button>
+              <input class="in mono" type="password" data-dz="market-code" placeholder="enter admin code to change">
+              <button class="btn danger" data-dz="market-btn"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>Close market</button>
             </div>
           </div>
         </div>
@@ -776,15 +754,18 @@ const ADMIN_HTML = `<div class="osd app">
         <div class="card">
           <div class="ch"><span class="eye">Emergency</span><h3>Stop all bots</h3><span class="mut">kill switch</span></div>
           <div class="cb">
-            <div class="statusline"><span class="pdot"></span> 37 bots online</div>
+            <div class="statusline"><span class="pdot"></span> <span data-dz="bot-count">…</span> bots live</div>
             <div class="subnote">
-              Takes <b style="color:var(--body)">every</b> bot offline immediately. They stay in their servers — nothing is removed or kicked — they just go down until you bring them back. Use only if something is seriously wrong. Requires your admin code.
+              Sends every live bot a stop command immediately. They stay in their servers — nothing is removed or kicked — they just go down until you bring them back. Use only if something is seriously wrong. Requires your admin code.
             </div>
             <div class="confirm">
-              <input class="in mono" type="password" placeholder="enter admin code to confirm">
-              <button class="btn danger big"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>Stop all bots</button>
+              <input class="in mono" type="password" data-dz="stop-code" placeholder="enter admin code to confirm">
+              <button class="btn danger big" data-dz="stop-btn"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>Stop all bots</button>
             </div>
-            <div class="subnote" style="margin-top:11px">After stopping, a <b style="color:var(--ok)">Bring all back online</b> button appears here to restore the fleet.</div>
+            <div class="confirm" style="margin-top:10px">
+              <input class="in mono" type="password" data-dz="start-code" placeholder="enter admin code to confirm">
+              <button class="btn" data-dz="start-btn"><svg viewBox="0 0 24 24"><path d="M5 3l14 9-14 9z"/></svg>Bring all back online</button>
+            </div>
           </div>
         </div>
       </div>
@@ -846,7 +827,7 @@ const ADMIN_JS = `// segmented toggles (generic: click sets .on within the group
       document.getElementById('crumb').innerHTML = sec;
       document.getElementById('title').innerHTML = sec;
       document.getElementById('sub').textContent = n.getAttribute('data-sub');
-      var map = { 'Overview': 'overview-content', 'Storefront': 'storefront-content', 'Bots & Workers': 'bots-content', 'Support Access': 'support-content', 'Logs & History': 'logs-content', 'Super admin': 'super-content', 'Captcha images': 'captcha-content', 'Danger zone': 'danger-content' };
+      var map = { 'Overview': 'overview-content', 'Storefront': 'storefront-content', 'Bots & Workers': 'bots-content', 'Support Access': 'support-content', 'Logs & History': 'logs-content', 'Super Admin': 'super-content', 'Captcha Images': 'captcha-content', 'Danger Zone': 'danger-content' };
       ['overview-content','storefront-content','bots-content','support-content','logs-content','super-content','captcha-content','danger-content'].forEach(function(id){
         var el = document.getElementById(id); if (el) el.style.display = 'none';
       });
@@ -951,6 +932,23 @@ const Admin = () => {
       /* leave placeholders */
     }
 
+    // Super Admin / Captcha Images / Danger Zone.
+    try {
+      wireSuper(root);
+    } catch {
+      /* leave placeholders */
+    }
+    try {
+      wireCaptcha(root);
+    } catch {
+      /* leave placeholders */
+    }
+    try {
+      wireDanger(root);
+    } catch {
+      /* leave placeholders */
+    }
+
     return () => {
       cancelled = true;
       disposeStorefront();
@@ -1025,6 +1023,8 @@ const CONFIRM_CSS = `
 .osadmin .osa-btn.ghost:hover{background:rgba(232,238,243,.06)}
 .osadmin .osa-btn.danger{background:#e08a8a;color:#2a1213}
 .osadmin .osa-btn.danger:hover{filter:brightness(1.06)}
+.osadmin .osa-more{display:block;width:100%;margin-top:10px;padding:8px 10px;border:1px solid var(--line2);background:rgba(33,39,46,.5);color:var(--body);border-radius:9px;font-family:var(--bodyf);font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
+.osadmin .osa-more:hover{background:rgba(232,238,243,.06);color:var(--heading)}
 `;
 
 // ── Overview data binding ──────────────────────────────────────────────
@@ -1047,6 +1047,38 @@ function escHtml(v: unknown): string {
 }
 function dollars(cents: number): string {
   return "$" + Math.round((cents || 0) / 100).toLocaleString();
+}
+
+// Render a list with a "Load more" tail: shows `pageSize` rows, then a button
+// that reveals the next page. `rows` is an array of row-HTML strings. Delegated
+// click handlers on the container keep working (rows stay inside it).
+function paginate(
+  container: HTMLElement | null,
+  rows: string[],
+  emptyHtml: string,
+  pageSize = 8,
+): void {
+  if (!container) return;
+  if (!rows.length) {
+    container.innerHTML = emptyHtml;
+    return;
+  }
+  let shown = pageSize;
+  const render = () => {
+    const more =
+      rows.length > shown
+        ? `<button type="button" class="osa-more" data-act="more">Load more (${rows.length - shown})</button>`
+        : "";
+    container.innerHTML = rows.slice(0, shown).join("") + more;
+    const b = container.querySelector('[data-act="more"]') as HTMLElement | null;
+    if (b)
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        shown += pageSize;
+        render();
+      });
+  };
+  render();
 }
 
 function populateOverview(root: HTMLElement, d: any) {
@@ -1203,16 +1235,13 @@ function wireStorefront(root: HTMLElement): () => void {
     const { data } = await sb.from("discount_codes").select("*").order("created_at", { ascending: false });
     if (!discList) return;
     const rows = (data || []) as any[];
-    discList.innerHTML = rows.length
-      ? rows
-          .map((c) => {
-            const amt = c.kind === "percent" ? `${c.value}% off` : `$${c.value} off`;
-            const uses = c.max_uses != null ? `${c.times_used || 0}/${c.max_uses} uses` : `${c.times_used || 0} uses`;
-            const tag = c.is_active ? '<span class="tag g">active</span>' : '<span class="tag n">off</span>';
-            return `<div class="crow" data-id="${c.id}"><div><div class="c">${escHtml(c.code)}</div><div class="meta">${amt} · ${uses}</div></div><span class="sp">${tag}<span class="ic" data-act="copy" data-v="${escHtml(c.code)}">${COPY_SVG}</span><span class="ic" data-act="del-disc">${X_SVG}</span></span></div>`;
-          })
-          .join("")
-      : '<div class="subnote">No codes yet.</div>';
+    const html = rows.map((c) => {
+      const amt = c.kind === "percent" ? `${c.value}% off` : `$${c.value} off`;
+      const uses = c.max_uses != null ? `${c.times_used || 0}/${c.max_uses} uses` : `${c.times_used || 0} uses`;
+      const tag = c.is_active ? '<span class="tag g">active</span>' : '<span class="tag n">off</span>';
+      return `<div class="crow" data-id="${c.id}"><div><div class="c">${escHtml(c.code)}</div><div class="meta">${amt} · ${uses}</div></div><span class="sp">${tag}<span class="ic" data-act="copy" data-v="${escHtml(c.code)}">${COPY_SVG}</span><span class="ic" data-act="del-disc">${X_SVG}</span></span></div>`;
+    });
+    paginate(discList, html, '<div class="subnote">No codes yet.</div>');
   }
   $('[data-sf="disc-create"]')?.addEventListener("click", async () => {
     const code = val('[data-sf="disc-code"]').trim().toUpperCase();
@@ -1254,15 +1283,12 @@ function wireStorefront(root: HTMLElement): () => void {
     const { data } = await sb.from("bot_free_period_codes").select("*").order("created_at", { ascending: false });
     if (!freeList) return;
     const rows = (data || []) as any[];
-    freeList.innerHTML = rows.length
-      ? rows
-          .map((c) => {
-            const uses = c.max_uses != null ? `${c.times_used || 0}/${c.max_uses} used` : `${c.times_used || 0} used`;
-            const tag = c.is_active ? '<span class="tag g">active</span>' : '<span class="tag n">off</span>';
-            return `<div class="crow" data-id="${c.id}"><div><div class="c">${escHtml(c.code)}</div><div class="meta">${c.months} mo · ${uses}</div></div><span class="sp">${tag}<span class="ic" data-act="copy" data-v="${escHtml(c.code)}">${COPY_SVG}</span><span class="ic" data-act="del-free">${X_SVG}</span></span></div>`;
-          })
-          .join("")
-      : '<div class="subnote">No codes yet.</div>';
+    const html = rows.map((c) => {
+      const uses = c.max_uses != null ? `${c.times_used || 0}/${c.max_uses} used` : `${c.times_used || 0} used`;
+      const tag = c.is_active ? '<span class="tag g">active</span>' : '<span class="tag n">off</span>';
+      return `<div class="crow" data-id="${c.id}"><div><div class="c">${escHtml(c.code)}</div><div class="meta">${c.months} mo · ${uses}</div></div><span class="sp">${tag}<span class="ic" data-act="copy" data-v="${escHtml(c.code)}">${COPY_SVG}</span><span class="ic" data-act="del-free">${X_SVG}</span></span></div>`;
+    });
+    paginate(freeList, html, '<div class="subnote">No codes yet.</div>');
   }
   $('[data-sf="free-create"]')?.addEventListener("click", async () => {
     const months = parseInt(val('[data-sf="free-months"]').trim(), 10);
@@ -1342,14 +1368,11 @@ function wireStorefront(root: HTMLElement): () => void {
       .limit(20);
     if (!annList) return;
     const rows = (data || []) as any[];
-    annList.innerHTML = rows.length
-      ? rows
-          .map(
-            (fx) =>
-              `<div class="crow" data-id="${fx.id}"><div class="nm" style="color:var(--heading);font-weight:600">${escHtml(fx.title)}</div><span class="sp"><span class="tag ${fx.severity === "fix" ? "g" : "a"}">${escHtml(fx.severity)}</span><span class="ic" data-act="del-fix">${X_SVG}</span></span></div>`,
-          )
-          .join("")
-      : '<div class="subnote">Nothing live.</div>';
+    const html = rows.map(
+      (fx) =>
+        `<div class="crow" data-id="${fx.id}"><div class="nm" style="color:var(--heading);font-weight:600">${escHtml(fx.title)}</div><span class="sp"><span class="tag ${fx.severity === "fix" ? "g" : "a"}">${escHtml(fx.severity)}</span><span class="ic" data-act="del-fix">${X_SVG}</span></span></div>`,
+    );
+    paginate(annList, html, '<div class="subnote">Nothing live.</div>');
   }
   // Announcements channel (for Discord-server posts) — show field for server/both, load + save.
   const serverFields = $("#serverfields") as HTMLElement | null;
@@ -1435,20 +1458,17 @@ function wireBots(root: HTMLElement): void {
       .order("created_at", { ascending: false });
     if (!wtList) return;
     const rows = (data || []) as any[];
-    wtList.innerHTML = rows.length
-      ? rows
-          .map((t) => {
-            const revoked = !!t.revoked_at;
-            const tag = revoked ? '<span class="tag n">revoked</span>' : '<span class="tag g">active</span>';
-            const last = revoked
-              ? ""
-              : `<span>Last used <span class="${t.last_used_at ? "last-ok" : "last-no"}">${t.last_used_at ? timeAgo(t.last_used_at) : "Never"}</span></span>`;
-            const del = revoked ? "" : `<span class="ic" data-act="revoke-wt">${TRASH_SVG}</span>`;
-            const scope = t.bot_id ? " · scoped" : "";
-            return `<div class="crow" data-id="${t.id}"><div><div class="c">${escHtml(t.name)} ${tag}</div><div class="meta mono">${escHtml(t.token_prefix)}…${scope}</div></div><span class="sp">${last}${del}</span></div>`;
-          })
-          .join("")
-      : '<div class="subnote">No tokens yet.</div>';
+    const html = rows.map((t) => {
+      const revoked = !!t.revoked_at;
+      const tag = revoked ? '<span class="tag n">revoked</span>' : '<span class="tag g">active</span>';
+      const last = revoked
+        ? ""
+        : `<span>Last used <span class="${t.last_used_at ? "last-ok" : "last-no"}">${t.last_used_at ? timeAgo(t.last_used_at) : "Never"}</span></span>`;
+      const del = revoked ? "" : `<span class="ic" data-act="revoke-wt">${TRASH_SVG}</span>`;
+      const scope = t.bot_id ? " · scoped" : "";
+      return `<div class="crow" data-id="${t.id}"><div><div class="c">${escHtml(t.name)} ${tag}</div><div class="meta mono">${escHtml(t.token_prefix)}…${scope}</div></div><span class="sp">${last}${del}</span></div>`;
+    });
+    paginate(wtList, html, '<div class="subnote">No tokens yet.</div>');
   }
   $('[data-bw="wt-create"]')?.addEventListener("click", async () => {
     const name = val('[data-bw="wt-name"]').trim();
@@ -1509,19 +1529,16 @@ function wireBots(root: HTMLElement): void {
     setMini('[data-bw="pool-assigned"]', count("assigned"));
     setMini('[data-bw="pool-retired"]', count("retired"));
     if (!poolList) return;
-    poolList.innerHTML = rows.length
-      ? rows
-          .map((p) => {
-            const tag =
-              p.status === "assigned"
-                ? '<span class="tag g">assigned</span>'
-                : p.status === "retired"
-                  ? '<span class="tag n">retired</span>'
-                  : '<span class="tag n">available</span>';
-            return `<div class="crow" data-id="${p.id}"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">${escHtml(p.bot_username)}</div><div class="meta mono">${escHtml(p.client_id)} · ••••${escHtml(p.token_last_four)}</div></div><span class="sp">${tag}<span class="ic" data-act="reveal-pool" title="Copy token">${EYE_SVG}</span><span class="ic" data-act="del-pool">${X_SVG}</span></span></div>`;
-          })
-          .join("")
-      : '<div class="subnote">Pool is empty.</div>';
+    const html = rows.map((p) => {
+      const tag =
+        p.status === "assigned"
+          ? '<span class="tag g">assigned</span>'
+          : p.status === "retired"
+            ? '<span class="tag n">retired</span>'
+            : '<span class="tag n">available</span>';
+      return `<div class="crow" data-id="${p.id}"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">${escHtml(p.bot_username)}</div><div class="meta mono">${escHtml(p.client_id)} · ••••${escHtml(p.token_last_four)}</div></div><span class="sp">${tag}<span class="ic" data-act="reveal-pool" title="Copy token">${EYE_SVG}</span><span class="ic" data-act="del-pool">${X_SVG}</span></span></div>`;
+    });
+    paginate(poolList, html, '<div class="subnote">Pool is empty.</div>');
   }
   $('[data-bw="pool-add"]')?.addEventListener("click", async () => {
     const u = val('[data-bw="pool-user"]').trim();
@@ -1575,16 +1592,13 @@ function wireBots(root: HTMLElement): void {
       .order("key", { ascending: true });
     if (!slotList) return;
     const rows = (data || []) as any[];
-    slotList.innerHTML = rows.length
-      ? rows
-          .map((s) => {
-            const tag = s.is_required
-              ? '<span class="tag a">required</span>'
-              : '<span class="tag n">optional</span>';
-            return `<div class="crow" data-id="${s.id}"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">${escHtml(s.label)}</div><div class="meta mono">${escHtml(s.key)} · ${escHtml(s.addon_id)}</div></div><span class="sp">${tag}<span class="ic" data-act="del-slot">${X_SVG}</span></span></div>`;
-          })
-          .join("")
-      : '<div class="subnote">No slots defined.</div>';
+    const html = rows.map((s) => {
+      const tag = s.is_required
+        ? '<span class="tag a">required</span>'
+        : '<span class="tag n">optional</span>';
+      return `<div class="crow" data-id="${s.id}"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">${escHtml(s.label)}</div><div class="meta mono">${escHtml(s.key)} · ${escHtml(s.addon_id)}</div></div><span class="sp">${tag}<span class="ic" data-act="del-slot">${X_SVG}</span></span></div>`;
+    });
+    paginate(slotList, html, '<div class="subnote">No slots defined.</div>');
   }
   $('[data-bw="slot-add"]')?.addEventListener("click", async () => {
     const key = val('[data-bw="slot-key"]').trim().toUpperCase();
@@ -1630,37 +1644,36 @@ function wireSupport(root: HTMLElement): () => void {
   const activeEl = $('[data-su="active"]');
   const recentEl = $('[data-su="recent"]');
   async function loadGrants() {
-    const { data: u } = await sb.auth.getUser();
-    const uid = u?.user?.id;
-    if (!uid) return;
+    // Team-wide: shows every admin's grants (admin RPC), not just the caller's.
+    const { data } = await sb.rpc("admin_all_support_grants");
+    if (!data?.ok) {
+      if (activeEl) activeEl.innerHTML = `<div class="subnote">${escHtml(data?.error || "Couldn't load sessions")}</div>`;
+      if (recentEl) recentEl.innerHTML = "";
+      return;
+    }
+    const me = data.me;
     const nowIso = new Date().toISOString();
-    const { data } = await sb
-      .from("support_access_grants")
-      .select("id, owner_user_id, granted_at, expires_at, revoked_at")
-      .eq("admin_user_id", uid)
-      .order("granted_at", { ascending: false })
-      .limit(25);
-    const rows = (data || []) as any[];
+    const rows = (data.grants || []) as any[];
     const active = rows.filter((g) => !g.revoked_at && g.expires_at > nowIso);
-    const recent = rows.filter((g) => g.revoked_at || g.expires_at <= nowIso).slice(0, 5);
-    if (activeEl)
-      activeEl.innerHTML = active.length
-        ? active
-            .map(
-              (g) =>
-                `<div class="crow" data-id="${g.id}" data-owner="${escHtml(g.owner_user_id)}"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">Owner ${escHtml(String(g.owner_user_id).slice(0, 8))}…</div><div class="meta">expires ${escHtml(new Date(g.expires_at).toLocaleString())}</div></div><span class="sp"><button class="btn ghost sm" data-act="open-grant">Open</button><span class="ic" data-act="release-grant" title="Only the owner can revoke">${X_SVG}</span></span></div>`,
-            )
-            .join("")
-        : '<div class="subnote">No active sessions.</div>';
-    if (recentEl)
-      recentEl.innerHTML = recent.length
-        ? recent
-            .map((g) => {
-              const ended = g.revoked_at ? "revoked" : "expired";
-              return `<div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">Owner ${escHtml(String(g.owner_user_id).slice(0, 8))}…</div><div class="meta">ended ${escHtml(timeAgo(g.revoked_at || g.expires_at))}</div></div><span class="sp"><span class="tag n">${ended}</span></span></div>`;
-            })
-            .join("")
-        : '<div class="subnote">Nothing recent.</div>';
+    const recent = rows.filter((g) => g.revoked_at || g.expires_at <= nowIso);
+    const who = (g: any) => escHtml(g.owner_email || `Owner ${String(g.owner_user_id).slice(0, 8)}…`);
+    const byAdmin = (g: any) =>
+      g.admin_user_id === me ? "" : ` · held by ${escHtml(g.admin_email || String(g.admin_user_id).slice(0, 8) + "…")}`;
+
+    const activeHtml = active.map((g) => {
+      const mine = g.admin_user_id === me;
+      const action = mine
+        ? `<button class="btn ghost sm" data-act="open-grant">Open</button><span class="ic" data-act="release-grant" title="Only the owner can revoke">${X_SVG}</span>`
+        : "";
+      return `<div class="crow" data-id="${g.id}" data-owner="${escHtml(g.owner_user_id)}"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">${who(g)}</div><div class="meta">expires ${escHtml(new Date(g.expires_at).toLocaleString())}${byAdmin(g)}</div></div><span class="sp">${action}</span></div>`;
+    });
+    paginate(activeEl, activeHtml, '<div class="subnote">No active sessions.</div>');
+
+    const recentHtml = recent.map((g) => {
+      const ended = g.revoked_at ? "revoked" : "expired";
+      return `<div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">${who(g)}</div><div class="meta">ended ${escHtml(timeAgo(g.revoked_at || g.expires_at))}${byAdmin(g)}</div></div><span class="sp"><span class="tag n">${ended}</span></span></div>`;
+    });
+    paginate(recentEl, recentHtml, '<div class="subnote">Nothing recent.</div>');
   }
   $('[data-su="redeem"]')?.addEventListener("click", async () => {
     const code = val('[data-su="code"]').trim().toUpperCase();
@@ -1788,14 +1801,11 @@ function wireLogs(root: HTMLElement): void {
           (o.email || "").toLowerCase().includes(q) ||
           (o.base || "").toLowerCase().includes(q),
       );
-    ordersEl.innerHTML = list.length
-      ? list
-          .map(
-            (o) =>
-              `<div class="tr" style="${ORDER_COLS}"><span class="mn" title="${escHtml(o.id)}">${escHtml(String(o.id).slice(0, 8))}</span><span class="c1">${escHtml(o.email || "—")}</span><span>${escHtml(o.base || "")}</span><span>${statusTag(o.status)}</span><span class="tm right">${escHtml(timeAgo(o.ts))}</span></div>`,
-          )
-          .join("")
-      : '<div class="subnote" style="padding-top:11px">No orders match.</div>';
+    const html = list.map(
+      (o) =>
+        `<div class="tr" style="${ORDER_COLS}"><span class="mn" title="${escHtml(o.id)}">${escHtml(String(o.id).slice(0, 8))}</span><span class="c1">${escHtml(o.email || "—")}</span><span>${escHtml(o.base || "")}</span><span>${statusTag(o.status)}</span><span class="tm right">${escHtml(timeAgo(o.ts))}</span></div>`,
+    );
+    paginate(ordersEl, html, '<div class="subnote" style="padding-top:11px">No orders match.</div>');
   }
 
   async function load() {
@@ -1811,39 +1821,27 @@ function wireLogs(root: HTMLElement): void {
     renderOrders();
 
     if (purchasesEl) {
-      const rows = (data.purchases || []) as any[];
-      purchasesEl.innerHTML = rows.length
-        ? rows
-            .map(
-              (p) =>
-                `<div class="tr" style="grid-template-columns:0.7fr 0.9fr 1.6fr 0.6fr"><span class="amt">$${escHtml(p.amount)}</span><span>Stripe</span><span class="c1">${escHtml(p.email || "—")}</span><span class="tm right">${escHtml(timeAgo(p.ts))}</span></div>`,
-            )
-            .join("")
-        : '<div class="subnote" style="padding-top:11px">No payments yet.</div>';
+      const html = ((data.purchases || []) as any[]).map(
+        (p) =>
+          `<div class="tr" style="grid-template-columns:0.7fr 0.9fr 1.6fr 0.6fr"><span class="amt">$${escHtml(p.amount)}</span><span>Stripe</span><span class="c1">${escHtml(p.email || "—")}</span><span class="tm right">${escHtml(timeAgo(p.ts))}</span></div>`,
+      );
+      paginate(purchasesEl, html, '<div class="subnote" style="padding-top:11px">No payments yet.</div>');
     }
 
     if (signupsEl) {
-      const rows = (data.signups || []) as any[];
-      signupsEl.innerHTML = rows.length
-        ? rows
-            .map(
-              (u) =>
-                `<div class="tr" style="grid-template-columns:1.8fr 0.8fr 0.6fr"><span class="c1">${escHtml(u.email || "—")}</span><span>${escHtml(cap(u.provider || "email"))}</span><span class="tm right">${escHtml(timeAgo(u.ts))}</span></div>`,
-            )
-            .join("")
-        : '<div class="subnote" style="padding-top:11px">No signups.</div>';
+      const html = ((data.signups || []) as any[]).map(
+        (u) =>
+          `<div class="tr" style="grid-template-columns:1.8fr 0.8fr 0.6fr"><span class="c1">${escHtml(u.email || "—")}</span><span>${escHtml(cap(u.provider || "email"))}</span><span class="tm right">${escHtml(timeAgo(u.ts))}</span></div>`,
+      );
+      paginate(signupsEl, html, '<div class="subnote" style="padding-top:11px">No signups.</div>');
     }
 
     if (auditEl) {
-      const rows = (data.audit || []) as any[];
-      auditEl.innerHTML = rows.length
-        ? rows
-            .map(
-              (a) =>
-                `<div class="tr" style="grid-template-columns:1.3fr 1.1fr 1.3fr 0.6fr"><span class="c1">${escHtml(a.action)}</span><span>${escHtml(a.admin || "—")}</span><span class="mn">${escHtml(a.target || "—")}</span><span class="tm right">${escHtml(timeAgo(a.ts))}</span></div>`,
-            )
-            .join("")
-        : '<div class="subnote" style="padding-top:11px">No actions yet.</div>';
+      const html = ((data.audit || []) as any[]).map(
+        (a) =>
+          `<div class="tr" style="grid-template-columns:1.3fr 1.1fr 1.3fr 0.6fr"><span class="c1">${escHtml(a.action)}</span><span>${escHtml(a.admin || "—")}</span><span class="mn">${escHtml(a.target || "—")}</span><span class="tm right">${escHtml(timeAgo(a.ts))}</span></div>`,
+      );
+      paginate(auditEl, html, '<div class="subnote" style="padding-top:11px">No actions yet.</div>');
     }
   }
 
@@ -1852,6 +1850,203 @@ function wireLogs(root: HTMLElement): void {
   $('[data-lg="orders-q"]')?.addEventListener("input", renderOrders);
 
   load();
+}
+
+// ── Super Admin data binding ───────────────────────────────────────────
+// Manage the admin allowlist. Adding/removing an email here grants/revokes the
+// 'admin' role via DB triggers. INSERT/DELETE require super-admin (RLS); the
+// last super admin is protected by a trigger. Super rows aren't deletable here.
+function wireSuper(root: HTMLElement): void {
+  const sb = supabase as any;
+  const $ = <T extends Element = HTMLElement>(sel: string) => root.querySelector(sel) as T | null;
+  const val = (sel: string) => ($(sel) as HTMLInputElement | null)?.value ?? "";
+  const setVal = (sel: string, v: string) => {
+    const el = $(sel) as HTMLInputElement | null;
+    if (el) el.value = v;
+  };
+  const listEl = $('[data-sa="list"]');
+  async function load() {
+    const { data, error } = await sb
+      .from("admin_allowlist")
+      .select("id, email, is_super, created_at")
+      .order("is_super", { ascending: false })
+      .order("created_at", { ascending: true });
+    if (!listEl) return;
+    if (error) {
+      listEl.innerHTML = `<div class="subnote">${escHtml(error.message)}</div>`;
+      return;
+    }
+    const html = ((data || []) as any[]).map((a) => {
+      const initial = String(a.email || "?").charAt(0).toUpperCase();
+      const badge = a.is_super ? '<span class="tag g">super</span>' : '<span class="tag a">admin</span>';
+      const ro = a.is_super ? "Owner · full access" : "Admin";
+      const del = a.is_super ? "" : `<span class="ic x" data-act="del-admin">${X_SVG}</span>`;
+      return `<div class="adm" data-id="${a.id}"><div class="av">${escHtml(initial)}</div><div><div class="em">${escHtml(a.email)} ${badge}</div><div class="ro">${ro}</div></div>${del}</div>`;
+    });
+    paginate(listEl, html, '<div class="subnote">No admins yet.</div>');
+  }
+  $('[data-sa="grant"]')?.addEventListener("click", async () => {
+    const email = val('[data-sa="email"]').trim().toLowerCase();
+    if (!email || !email.includes("@")) return toast.error("Enter a valid email");
+    const { error } = await sb.from("admin_allowlist").insert({ email });
+    if (error) return toast.error(error.message);
+    toast.success(`${email} granted admin`);
+    setVal('[data-sa="email"]', "");
+    load();
+  });
+  listEl?.addEventListener("click", async (e) => {
+    const x = (e.target as Element).closest('[data-act="del-admin"]');
+    if (!x) return;
+    const rowEl = x.closest(".adm");
+    const id = rowEl?.getAttribute("data-id");
+    const email = (rowEl?.querySelector(".em")?.textContent || "").trim().split(" ")[0];
+    if (!id || !confirm(`Remove admin access${email ? " for " + email : ""}?`)) return;
+    const { error } = await sb.from("admin_allowlist").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Admin removed");
+    load();
+  });
+  load();
+}
+
+// ── Captcha Images data binding ────────────────────────────────────────
+// Shared pool for image-captcha bots. Files go to the public "captcha-images"
+// storage bucket; the row stores the public URL + the answer (solution text).
+function wireCaptcha(root: HTMLElement): void {
+  const sb = supabase as any;
+  const $ = <T extends Element = HTMLElement>(sel: string) => root.querySelector(sel) as T | null;
+  const gridEl = $('[data-cap="grid"]');
+  const countEl = $('[data-cap="count"]');
+  const fileInput = $('[data-cap="file"]') as HTMLInputElement | null;
+  async function load() {
+    const { data, error } = await sb
+      .from("captcha_images")
+      .select("id, image_url, answer, created_at")
+      .order("created_at", { ascending: false });
+    if (countEl) countEl.textContent = String((data || []).length);
+    if (!gridEl) return;
+    if (error) {
+      gridEl.innerHTML = `<div class="subnote">${escHtml(error.message)}</div>`;
+      return;
+    }
+    const rows = (data || []) as any[];
+    gridEl.innerHTML = rows.length
+      ? rows
+          .map(
+            (c) =>
+              `<div class="capcard" data-id="${c.id}"><div class="capimg"><img src="${escHtml(c.image_url)}" alt="" style="width:100%;height:100%;object-fit:cover" /></div><div class="capmeta"><span class="ans">${escHtml(c.answer)}</span><button class="del" data-act="del-cap"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div></div>`,
+          )
+          .join("")
+      : '<div class="subnote">No images yet.</div>';
+  }
+  fileInput?.addEventListener("change", async () => {
+    const files = Array.from(fileInput.files || []);
+    if (!files.length) return;
+    let added = 0;
+    for (const file of files) {
+      const answer = (window.prompt(`Answer (solution text) for "${file.name}"`) || "").trim();
+      if (!answer) continue;
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "");
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safe}`;
+      const up = await sb.storage.from("captcha-images").upload(path, file, { upsert: false });
+      if (up.error) {
+        toast.error(up.error.message);
+        continue;
+      }
+      const { data: pub } = sb.storage.from("captcha-images").getPublicUrl(path);
+      const { error } = await sb.from("captcha_images").insert({ image_url: pub.publicUrl, answer });
+      if (error) {
+        toast.error(error.message);
+        continue;
+      }
+      added++;
+    }
+    fileInput.value = "";
+    if (added) toast.success(`Added ${added} image${added === 1 ? "" : "s"}`);
+    load();
+  });
+  gridEl?.addEventListener("click", async (e) => {
+    const btn = (e.target as Element).closest('[data-act="del-cap"]');
+    if (!btn) return;
+    const id = btn.closest(".capcard")?.getAttribute("data-id");
+    if (!id || !confirm("Delete this captcha image?")) return;
+    const { error } = await sb.from("captcha_images").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    load();
+  });
+  load();
+}
+
+// ── Danger Zone data binding ───────────────────────────────────────────
+// Market open/closed (app_settings.marketing_suspended) and the stop/start-all
+// kill switch (admin RPCs). The typed code is a client-side speed bump matching
+// the existing MarketingKillSwitch; the real gate is admin RLS on every write.
+function wireDanger(root: HTMLElement): void {
+  const sb = supabase as any;
+  const $ = <T extends Element = HTMLElement>(sel: string) => root.querySelector(sel) as T | null;
+  const val = (sel: string) => ($(sel) as HTMLInputElement | null)?.value ?? "";
+  const setVal = (sel: string, v: string) => {
+    const el = $(sel) as HTMLInputElement | null;
+    if (el) el.value = v;
+  };
+  const CODE = "Oversite19!";
+
+  const stateEl = $('[data-dz="market-state"]');
+  const marketBtn = $('[data-dz="market-btn"]') as HTMLButtonElement | null;
+  let suspended = false;
+  async function loadMarket() {
+    const { data } = await sb.from("app_settings").select("marketing_suspended").eq("id", 1).maybeSingle();
+    suspended = !!data?.marketing_suspended;
+    if (stateEl)
+      stateEl.innerHTML = suspended
+        ? 'Market is <b style="color:#e08a8a">closed</b> <span class="pill-live" style="background:rgba(230,138,138,.15);color:#e08a8a">not accepting purchases</span>'
+        : 'Market is active <span class="pill-live">accepting purchases</span>';
+    if (marketBtn) {
+      marketBtn.className = suspended ? "btn" : "btn danger";
+      marketBtn.innerHTML = suspended
+        ? '<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Open market'
+        : '<svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>Close market';
+    }
+  }
+  marketBtn?.addEventListener("click", async () => {
+    if (val('[data-dz="market-code"]') !== CODE) return toast.error("Wrong admin code");
+    const next = !suspended;
+    const { error } = await sb
+      .from("app_settings")
+      .update({ marketing_suspended: next, updated_at: new Date().toISOString() })
+      .eq("id", 1);
+    if (error) return toast.error(error.message);
+    setVal('[data-dz="market-code"]', "");
+    toast.success(next ? "Market closed" : "Market opened");
+    loadMarket();
+  });
+
+  const countEl = $('[data-dz="bot-count"]');
+  async function loadCount() {
+    const { count } = await sb
+      .from("bot_orders")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["ready", "live"]);
+    if (countEl) countEl.textContent = String(count ?? 0);
+  }
+  $('[data-dz="stop-btn"]')?.addEventListener("click", async () => {
+    if (val('[data-dz="stop-code"]') !== CODE) return toast.error("Wrong admin code");
+    if (!confirm("Send a STOP command to every live bot?")) return;
+    const { data, error } = await sb.rpc("admin_stop_all_bots");
+    if (error || !data?.ok) return toast.error(error?.message || data?.error || "Failed");
+    setVal('[data-dz="stop-code"]', "");
+    toast.success(`Stop sent to ${data.count} bot${data.count === 1 ? "" : "s"}`);
+  });
+  $('[data-dz="start-btn"]')?.addEventListener("click", async () => {
+    if (val('[data-dz="start-code"]') !== CODE) return toast.error("Wrong admin code");
+    const { data, error } = await sb.rpc("admin_start_all_bots");
+    if (error || !data?.ok) return toast.error(error?.message || data?.error || "Failed");
+    setVal('[data-dz="start-code"]', "");
+    toast.success(`Start sent to ${data.count} bot${data.count === 1 ? "" : "s"}`);
+  });
+
+  loadMarket();
+  loadCount();
 }
 
 export default Admin;
