@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMembership } from "@/hooks/useMembership";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
 import { DiscordJoinGate } from "@/components/checkout/DiscordJoinGate";
+import { track } from "@/lib/analytics";
 
 type PurchasedFile = {
   id: string;
@@ -46,6 +47,7 @@ export default function CheckoutReturn() {
           if (error) throw new Error(error.message);
           if (data?.error) throw new Error(data.error);
           setFiles(data?.files || []);
+          track("purchased", { session_id: sessionId });
         }
 
         // Resolve the bot order tied to this checkout (if any). For a charge
