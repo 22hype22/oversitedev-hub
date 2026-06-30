@@ -520,21 +520,20 @@ const ADMIN_HTML = `<div class="osd app">
           <div class="ch"><span class="eye">Auth</span><h3>Worker tokens</h3><span class="mut">the handshake every bot uses — treat like passwords</span></div>
           <div class="cb">
             <div class="catform" style="grid-template-columns:1.6fr 1.6fr 1fr auto">
-              <div><label class="lbl">Name</label><input class="in" placeholder="railway-prod"></div>
-              <div><label class="lbl">Bot ID <span style="text-transform:none;letter-spacing:0">(optional — restricts to one bot)</span></label><input class="in" placeholder="leave empty for all bots"></div>
-              <div><label class="lbl">Notes</label><input class="in" placeholder="optional"></div>
-              <button class="btn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Create</button>
+              <div><label class="lbl">Name</label><input class="in" data-bw="wt-name" placeholder="railway-prod"></div>
+              <div><label class="lbl">Bot ID <span style="text-transform:none;letter-spacing:0">(optional — restricts to one bot)</span></label><input class="in" data-bw="wt-bot" placeholder="leave empty for all bots"></div>
+              <div><label class="lbl">Notes</label><input class="in" data-bw="wt-notes" placeholder="optional"></div>
+              <button class="btn" data-bw="wt-create"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Create</button>
             </div>
 
-            <div class="reveal">
-              <span class="rc">wtk_live_9f3a8c21d4b7e0a6f2c5…</span>
+            <div class="reveal" data-bw="wt-reveal" style="display:none">
+              <span class="rc" data-bw="wt-reveal-code"></span>
               <span class="rl">⚠ copy now — shown once</span>
-              <span class="ic"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></span>
+              <span class="ic" data-bw="wt-reveal-copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></span>
             </div>
 
             <div class="listcap">Tokens</div>
-            <div class="crow"><div><div class="c">railway-prod <span class="tag g">active</span></div><div class="meta mono">wtk_9f3a…</div></div><span class="sp"><span>Last used <span class="last-ok">3s ago</span></span><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></span></span></div>
-            <div class="crow"><div><div class="c">old-project <span class="tag n">unused</span></div><div class="meta mono">wtk_2b71…</div></div><span class="sp"><span>Last used <span class="last-no">Never</span></span><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></span></span></div>
+            <div data-bw="wt-list"><div class="subnote">Loading…</div></div>
 
             <div class="wlegend">
               <span><span class="pdot"></span> recently used = bot is reaching <b style="color:var(--body)">this</b> project</span>
@@ -550,16 +549,15 @@ const ADMIN_HTML = `<div class="osd app">
             <div class="ch"><span class="eye">Discord tokens</span><h3>Token pool</h3></div>
             <div class="cb">
               <div class="minis">
-                <div class="mini"><div class="l">Available</div><div class="v">14</div></div>
-                <div class="mini"><div class="l">Assigned</div><div class="v">37</div></div>
-                <div class="mini"><div class="l">Retired</div><div class="v">3</div></div>
+                <div class="mini"><div class="l">Available</div><div class="v" data-bw="pool-available">—</div></div>
+                <div class="mini"><div class="l">Assigned</div><div class="v" data-bw="pool-assigned">—</div></div>
+                <div class="mini"><div class="l">Retired</div><div class="v" data-bw="pool-retired">—</div></div>
               </div>
-              <div class="row2"><div><label class="lbl">Bot username</label><input class="in" placeholder="MyBot#0001"></div><div><label class="lbl">Client ID</label><input class="in" placeholder="1304…"></div></div>
-              <div style="margin-top:10px"><label class="lbl">Token</label><input class="in mono" placeholder="paste bot token"></div>
-              <button class="btn" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add to pool</button>
+              <div class="row2"><div><label class="lbl">Bot username</label><input class="in" data-bw="pool-user" placeholder="MyBot#0001"></div><div><label class="lbl">Client ID</label><input class="in" data-bw="pool-client" placeholder="1304…"></div></div>
+              <div style="margin-top:10px"><label class="lbl">Token</label><input class="in mono" data-bw="pool-token" placeholder="paste bot token"></div>
+              <button class="btn" data-bw="pool-add" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add to pool</button>
               <div class="listcap">Pool</div>
-              <div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">ShieldBot#0007</div><div class="meta mono">1304… · ••••8f2a</div></div><span class="sp"><span class="tag n">available</span><span class="ic"><svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></span></span></div>
-              <div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">HelpBot#0042</div><div class="meta mono">1299… · ••••1c7d</div></div><span class="sp"><span class="tag g">assigned</span><span class="ic"><svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></span></span></div>
+              <div data-bw="pool-list"><div class="subnote">Loading…</div></div>
             </div>
           </div>
 
@@ -567,15 +565,14 @@ const ADMIN_HTML = `<div class="osd app">
           <div class="card">
             <div class="ch"><span class="eye">Config schema</span><h3>Bot secret slots</h3><span class="mut">fields bots ask for</span></div>
             <div class="cb">
-              <div class="row2"><div><label class="lbl">Key</label><input class="in mono" placeholder="WEBHOOK_URL"></div><div><label class="lbl">Label</label><input class="in" placeholder="Webhook URL"></div></div>
+              <div class="row2"><div><label class="lbl">Key</label><input class="in mono" data-bw="slot-key" placeholder="WEBHOOK_URL"></div><div><label class="lbl">Label</label><input class="in" data-bw="slot-label" placeholder="Webhook URL"></div></div>
               <div class="row2" style="margin-top:10px;align-items:end">
-                <div><label class="lbl">Addon</label><select class="in"><option>base</option><option>stats</option><option>giveaways</option></select></div>
-                <div><label class="lbl">Required</label><div class="seg"><button class="on">Required</button><button>Optional</button></div></div>
+                <div><label class="lbl">Addon</label><input class="in mono" data-bw="slot-addon" placeholder="base"></div>
+                <div><label class="lbl">Required</label><div class="seg" data-bw="slot-req"><button class="on" data-v="1">Required</button><button data-v="0">Optional</button></div></div>
               </div>
-              <button class="btn" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add slot</button>
+              <button class="btn" data-bw="slot-add" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add slot</button>
               <div class="listcap">Slots</div>
-              <div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">Discord token</div><div class="meta mono">DISCORD_TOKEN · base</div></div><span class="sp"><span class="tag a">required</span><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span></span></div>
-              <div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">Webhook URL</div><div class="meta mono">WEBHOOK_URL · base</div></div><span class="sp"><span class="tag n">optional</span><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span></span></div>
+              <div data-bw="slot-list"><div class="subnote">Loading…</div></div>
             </div>
           </div>
         </div>
@@ -958,6 +955,13 @@ const Admin = () => {
       /* leave placeholders */
     }
 
+    // Bots & Workers — wire worker tokens, token pool, and secret slots.
+    try {
+      wireBots(root);
+    } catch {
+      /* leave placeholders */
+    }
+
     return () => {
       cancelled = true;
       disposeStorefront();
@@ -1191,6 +1195,8 @@ function populateOverview(root: HTMLElement, d: any) {
 // override RPCs, and dashboard_fixes. Returns a disposer for the override timer.
 const COPY_SVG = `<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>`;
 const X_SVG = `<svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
+const EYE_SVG = `<svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const TRASH_SVG = `<svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>`;
 
 function wireStorefront(root: HTMLElement): () => void {
   const sb = supabase as any;
@@ -1414,6 +1420,207 @@ function wireStorefront(root: HTMLElement): () => void {
   loadFixes();
 
   return () => window.clearInterval(ovrTimer);
+}
+
+// ── Bots & Workers data binding ────────────────────────────────────────
+// Wires the injected Bots & Workers cards to the real admin-gated tables/RPCs:
+// worker_tokens (create/revoke), bot_token_pool (add/reveal/delete), and
+// bot_secret_slots (add/delete slot definitions). All reads go through the
+// admin RLS policies on those tables.
+function wireBots(root: HTMLElement): void {
+  const sb = supabase as any;
+  const $ = <T extends Element = HTMLElement>(sel: string) => root.querySelector(sel) as T | null;
+  const val = (sel: string) => ($(sel) as HTMLInputElement | null)?.value ?? "";
+  const setVal = (sel: string, v: string) => {
+    const el = $(sel) as HTMLInputElement | null;
+    if (el) el.value = v;
+  };
+
+  // ── Worker tokens ──
+  const wtList = $('[data-bw="wt-list"]');
+  async function loadWorkerTokens() {
+    const { data } = await sb
+      .from("worker_tokens")
+      .select("id, name, token_prefix, bot_id, last_used_at, revoked_at, created_at")
+      .order("created_at", { ascending: false });
+    if (!wtList) return;
+    const rows = (data || []) as any[];
+    wtList.innerHTML = rows.length
+      ? rows
+          .map((t) => {
+            const revoked = !!t.revoked_at;
+            const tag = revoked ? '<span class="tag n">revoked</span>' : '<span class="tag g">active</span>';
+            const last = revoked
+              ? ""
+              : `<span>Last used <span class="${t.last_used_at ? "last-ok" : "last-no"}">${t.last_used_at ? timeAgo(t.last_used_at) : "Never"}</span></span>`;
+            const del = revoked ? "" : `<span class="ic" data-act="revoke-wt">${TRASH_SVG}</span>`;
+            const scope = t.bot_id ? " · scoped" : "";
+            return `<div class="crow" data-id="${t.id}"><div><div class="c">${escHtml(t.name)} ${tag}</div><div class="meta mono">${escHtml(t.token_prefix)}…${scope}</div></div><span class="sp">${last}${del}</span></div>`;
+          })
+          .join("")
+      : '<div class="subnote">No tokens yet.</div>';
+  }
+  $('[data-bw="wt-create"]')?.addEventListener("click", async () => {
+    const name = val('[data-bw="wt-name"]').trim();
+    if (!name) return toast.error("Name is required");
+    const botRaw = val('[data-bw="wt-bot"]').trim();
+    const notes = val('[data-bw="wt-notes"]').trim();
+    const { data, error } = await sb.rpc("create_worker_token", {
+      _name: name,
+      _bot_id: botRaw || null,
+      _notes: notes || null,
+    });
+    if (error) return toast.error(error.message);
+    if (!data?.ok) return toast.error(data?.error || "Couldn't create token");
+    const rev = $('[data-bw="wt-reveal"]');
+    const code = $('[data-bw="wt-reveal-code"]');
+    if (code) code.textContent = data.token;
+    if (rev) (rev as HTMLElement).style.display = "flex";
+    toast.success("Token created — copy it now");
+    setVal('[data-bw="wt-name"]', "");
+    setVal('[data-bw="wt-bot"]', "");
+    setVal('[data-bw="wt-notes"]', "");
+    loadWorkerTokens();
+  });
+  $('[data-bw="wt-reveal-copy"]')?.addEventListener("click", () => {
+    const code = $('[data-bw="wt-reveal-code"]')?.textContent || "";
+    if (code) {
+      navigator.clipboard.writeText(code);
+      toast.success("Copied");
+    }
+  });
+  wtList?.addEventListener("click", async (e) => {
+    const ic = (e.target as Element).closest(".ic");
+    if (!ic || ic.getAttribute("data-act") !== "revoke-wt") return;
+    const id = ic.closest(".crow")?.getAttribute("data-id");
+    if (!id || !confirm("Revoke this token? Bots using it will stop authenticating.")) return;
+    const { data, error } = await sb.rpc("revoke_worker_token", { _id: id });
+    if (error) return toast.error(error.message);
+    if (!data?.ok) return toast.error(data?.error || "Couldn't revoke");
+    toast.success("Token revoked");
+    loadWorkerTokens();
+  });
+  loadWorkerTokens();
+
+  // ── Token pool ──
+  const poolList = $('[data-bw="pool-list"]');
+  async function loadPool() {
+    const { data } = await sb
+      .from("bot_token_pool")
+      .select("id, bot_username, client_id, token_last_four, status, created_at")
+      .order("created_at", { ascending: false });
+    const rows = (data || []) as any[];
+    const count = (s: string) => rows.filter((r) => r.status === s).length;
+    const setMini = (sel: string, n: number) => {
+      const el = $(sel);
+      if (el) el.textContent = String(n);
+    };
+    setMini('[data-bw="pool-available"]', count("available"));
+    setMini('[data-bw="pool-assigned"]', count("assigned"));
+    setMini('[data-bw="pool-retired"]', count("retired"));
+    if (!poolList) return;
+    poolList.innerHTML = rows.length
+      ? rows
+          .map((p) => {
+            const tag =
+              p.status === "assigned"
+                ? '<span class="tag g">assigned</span>'
+                : p.status === "retired"
+                  ? '<span class="tag n">retired</span>'
+                  : '<span class="tag n">available</span>';
+            return `<div class="crow" data-id="${p.id}"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">${escHtml(p.bot_username)}</div><div class="meta mono">${escHtml(p.client_id)} · ••••${escHtml(p.token_last_four)}</div></div><span class="sp">${tag}<span class="ic" data-act="reveal-pool" title="Copy token">${EYE_SVG}</span><span class="ic" data-act="del-pool">${X_SVG}</span></span></div>`;
+          })
+          .join("")
+      : '<div class="subnote">Pool is empty.</div>';
+  }
+  $('[data-bw="pool-add"]')?.addEventListener("click", async () => {
+    const u = val('[data-bw="pool-user"]').trim();
+    const c = val('[data-bw="pool-client"]').trim();
+    const t = val('[data-bw="pool-token"]').trim();
+    if (!u || !c || !t) return toast.error("Username, client ID, and token are all required");
+    const { data, error } = await sb.rpc("add_bot_token_to_pool", {
+      _bot_username: u,
+      _client_id: c,
+      _token: t,
+    });
+    if (error) return toast.error(error.message);
+    if (!data?.ok) return toast.error(data?.error || "Couldn't add token");
+    toast.success("Added to pool");
+    setVal('[data-bw="pool-user"]', "");
+    setVal('[data-bw="pool-client"]', "");
+    setVal('[data-bw="pool-token"]', "");
+    loadPool();
+  });
+  poolList?.addEventListener("click", async (e) => {
+    const ic = (e.target as Element).closest(".ic");
+    if (!ic) return;
+    const act = ic.getAttribute("data-act");
+    const id = ic.closest(".crow")?.getAttribute("data-id");
+    if (!id) return;
+    if (act === "reveal-pool") {
+      const { data, error } = await sb.rpc("reveal_bot_token_pool_entry", { _id: id });
+      if (error) return toast.error(error.message);
+      if (!data?.ok) return toast.error(data?.error || "Couldn't reveal");
+      navigator.clipboard.writeText(data.token);
+      toast.success("Token copied to clipboard");
+    } else if (act === "del-pool") {
+      if (!confirm("Delete this token from the pool?")) return;
+      const { data, error } = await sb.rpc("delete_bot_token_pool_entry", { _id: id });
+      if (error) return toast.error(error.message);
+      if (!data?.ok) return toast.error(data?.error || "Couldn't delete");
+      toast.success("Removed");
+      loadPool();
+    }
+  });
+  loadPool();
+
+  // ── Bot secret slots (config schema) ──
+  const slotList = $('[data-bw="slot-list"]');
+  async function loadSlots() {
+    const { data } = await sb
+      .from("bot_secret_slots")
+      .select("id, addon_id, key, label, is_required, sort_order")
+      .order("addon_id", { ascending: true })
+      .order("sort_order", { ascending: true })
+      .order("key", { ascending: true });
+    if (!slotList) return;
+    const rows = (data || []) as any[];
+    slotList.innerHTML = rows.length
+      ? rows
+          .map((s) => {
+            const tag = s.is_required
+              ? '<span class="tag a">required</span>'
+              : '<span class="tag n">optional</span>';
+            return `<div class="crow" data-id="${s.id}"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">${escHtml(s.label)}</div><div class="meta mono">${escHtml(s.key)} · ${escHtml(s.addon_id)}</div></div><span class="sp">${tag}<span class="ic" data-act="del-slot">${X_SVG}</span></span></div>`;
+          })
+          .join("")
+      : '<div class="subnote">No slots defined.</div>';
+  }
+  $('[data-bw="slot-add"]')?.addEventListener("click", async () => {
+    const key = val('[data-bw="slot-key"]').trim().toUpperCase();
+    const label = val('[data-bw="slot-label"]').trim();
+    const addon = (val('[data-bw="slot-addon"]').trim() || "base").toLowerCase();
+    const reqOn = $('[data-bw="slot-req"] button.on')?.getAttribute("data-v") === "1";
+    if (!key || !label) return toast.error("Key and label are required");
+    const { error } = await sb
+      .from("bot_secret_slots")
+      .insert({ addon_id: addon, key, label, is_required: reqOn, sort_order: 100 });
+    if (error) return toast.error(error.message);
+    toast.success(`Slot ${key} added`);
+    setVal('[data-bw="slot-key"]', "");
+    setVal('[data-bw="slot-label"]', "");
+    loadSlots();
+  });
+  slotList?.addEventListener("click", async (e) => {
+    const ic = (e.target as Element).closest(".ic");
+    if (!ic || ic.getAttribute("data-act") !== "del-slot") return;
+    const id = ic.closest(".crow")?.getAttribute("data-id");
+    if (!id || !confirm("Delete this slot definition? Bots will stop asking for this field.")) return;
+    const { error } = await sb.from("bot_secret_slots").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    loadSlots();
+  });
+  loadSlots();
 }
 
 export default Admin;
