@@ -750,21 +750,17 @@ const ADMIN_HTML = `<div class="osd app">
           </div>
         </div>
 
-        <!-- Emergency stop all bots -->
+        <!-- Emergency: activate / deactivate the whole fleet -->
         <div class="card">
-          <div class="ch"><span class="eye">Emergency</span><h3>Stop all bots</h3><span class="mut">kill switch</span></div>
+          <div class="ch"><span class="eye">Emergency</span><h3>Fleet power</h3><span class="mut">kill switch</span></div>
           <div class="cb">
-            <div class="statusline"><span class="pdot"></span> <span data-dz="bot-count">…</span> bots live</div>
-            <div class="subnote">
-              Sends every live bot a stop command immediately. They stay in their servers — nothing is removed or kicked — they just go down until you bring them back. Use only if something is seriously wrong. Requires your admin code.
+            <div class="statusline" data-dz="fleet-state"><span class="pdot"></span> Checking…</div>
+            <div class="subnote" data-dz="fleet-note">
+              Deactivating sends every live bot a stop command immediately. They stay in their servers — nothing is removed or kicked — they just go down until you reactivate them. Requires your admin code.
             </div>
             <div class="confirm">
-              <input class="in mono" type="password" data-dz="stop-code" placeholder="enter admin code to confirm">
-              <button class="btn danger big" data-dz="stop-btn"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>Stop all bots</button>
-            </div>
-            <div class="confirm" style="margin-top:10px">
-              <input class="in mono" type="password" data-dz="start-code" placeholder="enter admin code to confirm">
-              <button class="btn" data-dz="start-btn"><svg viewBox="0 0 24 24"><path d="M5 3l14 9-14 9z"/></svg>Bring all back online</button>
+              <input class="in mono" type="password" data-dz="fleet-code" placeholder="enter admin code to confirm">
+              <button class="btn danger big" data-dz="fleet-btn">Deactivate all bots</button>
             </div>
           </div>
         </div>
@@ -2127,32 +2123,41 @@ function wireDanger(root: HTMLElement): void {
     loadMarket();
   });
 
-  const countEl = $('[data-dz="bot-count"]');
-  async function loadCount() {
-    const { count } = await sb
-      .from("bot_orders")
-      .select("id", { count: "exact", head: true })
-      .in("status", ["ready", "live"]);
-    if (countEl) countEl.textContent = String(count ?? 0);
+  // Fleet power — one toggle backed by app_settings.bots_suspended.
+  const fleetStateEl = $('[data-dz="fleet-state"]');
+  const fleetBtn = $('[data-dz="fleet-btn"]') as HTMLButtonElement | null;
+  let botsSuspended = false;
+  async function loadFleet() {
+    const [{ data: settings }, { count }] = await Promise.all([
+      sb.from("app_settings").select("bots_suspended").eq("id", 1).maybeSingle(),
+      sb.from("bot_orders").select("id", { count: "exact", head: true }).in("status", ["ready", "live"]),
+    ]);
+    botsSuspended = !!settings?.bots_suspended;
+    const n = count ?? 0;
+    if (fleetStateEl)
+      fleetStateEl.innerHTML = botsSuspended
+        ? '<span class="d" style="height:8px;width:8px;border-radius:50%;background:#e08a8a;display:inline-block;margin-right:6px"></span> Fleet deactivated — bots stopped'
+        : `<span class="pdot"></span> ${n} bots live`;
+    if (fleetBtn) {
+      fleetBtn.className = botsSuspended ? "btn big" : "btn danger big";
+      fleetBtn.textContent = botsSuspended ? "Activate all bots" : "Deactivate all bots";
+    }
   }
-  $('[data-dz="stop-btn"]')?.addEventListener("click", async () => {
-    if (val('[data-dz="stop-code"]') !== CODE) return toast.error("Wrong admin code");
-    if (!confirm("Send a STOP command to every live bot?")) return;
-    const { data, error } = await sb.rpc("admin_stop_all_bots");
+  fleetBtn?.addEventListener("click", async () => {
+    if (val('[data-dz="fleet-code"]') !== CODE) return toast.error("Wrong admin code");
+    if (!botsSuspended && !confirm("Send a STOP command to every live bot?")) return;
+    const rpc = botsSuspended ? "admin_start_all_bots" : "admin_stop_all_bots";
+    const { data, error } = await sb.rpc(rpc);
     if (error || !data?.ok) return toast.error(error?.message || data?.error || "Failed");
-    setVal('[data-dz="stop-code"]', "");
-    toast.success(`Stop sent to ${data.count} bot${data.count === 1 ? "" : "s"}`);
-  });
-  $('[data-dz="start-btn"]')?.addEventListener("click", async () => {
-    if (val('[data-dz="start-code"]') !== CODE) return toast.error("Wrong admin code");
-    const { data, error } = await sb.rpc("admin_start_all_bots");
-    if (error || !data?.ok) return toast.error(error?.message || data?.error || "Failed");
-    setVal('[data-dz="start-code"]', "");
-    toast.success(`Start sent to ${data.count} bot${data.count === 1 ? "" : "s"}`);
+    setVal('[data-dz="fleet-code"]', "");
+    toast.success(
+      `${botsSuspended ? "Start" : "Stop"} sent to ${data.count} bot${data.count === 1 ? "" : "s"}`,
+    );
+    loadFleet();
   });
 
   loadMarket();
-  loadCount();
+  loadFleet();
 }
 
 export default Admin;
