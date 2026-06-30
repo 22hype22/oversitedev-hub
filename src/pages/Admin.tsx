@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import containers from "@/assets/containers.webp";
 
 /**
@@ -433,13 +434,12 @@ const ADMIN_HTML = `<div class="osd app">
             <div class="ch"><span class="eye">Promos</span><h3>Discount codes</h3></div>
             <div class="cb">
               <div class="row2">
-                <div><label class="lbl">Code</label><input class="in" placeholder="LAUNCH20"></div>
-                <div><label class="lbl">Amount</label><input class="in" placeholder="20%"></div>
+                <div><label class="lbl">Code</label><input class="in" data-sf="disc-code" placeholder="LAUNCH20"></div>
+                <div><label class="lbl">Amount</label><input class="in" data-sf="disc-amount" placeholder="20% or 5"></div>
               </div>
-              <button class="btn" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Create code</button>
+              <button class="btn" style="margin-top:12px" data-sf="disc-create"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Create code</button>
               <div class="listcap">Active codes</div>
-              <div class="crow"><div><div class="c">LAUNCH20</div><div class="meta">20% off · 41 uses</div></div><span class="sp"><span class="tag g">active</span><span class="ic"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></span></span></div>
-              <div class="crow"><div><div class="c">FRIEND10</div><div class="meta">10% off · 12 uses</div></div><span class="sp"><span class="tag n">expired</span><span class="ic"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></span></span></div>
+              <div data-sf="disc-list"><div class="subnote">Loading…</div></div>
             </div>
           </div>
 
@@ -448,13 +448,12 @@ const ADMIN_HTML = `<div class="osd app">
             <div class="ch"><span class="eye">Comp</span><h3>Free hosting codes</h3></div>
             <div class="cb">
               <div class="row2">
-                <div><label class="lbl">Duration</label><input class="in" placeholder="30 days"></div>
-                <div><label class="lbl">Uses</label><input class="in" placeholder="1"></div>
+                <div><label class="lbl">Months</label><input class="in" data-sf="free-months" placeholder="3"></div>
+                <div><label class="lbl">Max uses</label><input class="in" data-sf="free-uses" placeholder="1 (blank = ∞)"></div>
               </div>
-              <button class="btn" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Generate code</button>
+              <button class="btn" style="margin-top:12px" data-sf="free-create"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Generate code</button>
               <div class="listcap">Issued codes</div>
-              <div class="crow"><div><div class="c">FREE-9X2K-AA</div><div class="meta">30 days · unused</div></div><span class="sp"><span class="tag g">active</span><span class="ic"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></span></span></div>
-              <div class="crow"><div><div class="c">FREE-3M7P-Q2</div><div class="meta">14 days · redeemed</div></div><span class="sp"><span class="tag n">used</span><span class="ic"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></span></span></div>
+              <div data-sf="free-list"><div class="subnote">Loading…</div></div>
             </div>
           </div>
         </div>
@@ -465,15 +464,15 @@ const ADMIN_HTML = `<div class="osd app">
           <div class="card">
             <div class="ch"><span class="eye">Rotating · 15 min</span><h3>Billing override code</h3></div>
             <div class="cb">
-              <div class="ovrcode">OVR-7F3A-9C21</div>
+              <div class="ovrcode" data-sf="ovr-code">····-····-····</div>
               <div class="ovrrow">
-                <span class="timer">expires in <b>12:47</b></span>
+                <span class="timer">expires in <b data-sf="ovr-timer">--:--</b></span>
                 <span class="oacts">
-                  <button class="btn ghost sm"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/></svg>Refresh</button>
-                  <button class="btn sm"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy</button>
+                  <button class="btn ghost sm" data-sf="ovr-refresh"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/></svg>Refresh</button>
+                  <button class="btn sm" data-sf="ovr-copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy</button>
                 </span>
               </div>
-              <div class="subnote" style="margin-top:13px">Single-use override for billing. Auto-expires every 15 minutes — refresh to roll a new one.</div>
+              <div class="subnote" style="margin-top:13px">Share with customers who paid off-platform to bypass the billing form. Auto-expires every 15 minutes — refresh to roll a new one.</div>
             </div>
           </div>
 
@@ -490,18 +489,17 @@ const ADMIN_HTML = `<div class="osd app">
 
               <div id="dashfields" style="margin-top:12px">
                 <div class="row2" style="align-items:end">
-                  <div><label class="lbl">Type</label><div class="seg"><button class="on">Note</button><button>Fix</button></div></div>
-                  <div><label class="lbl">Title</label><input class="in" placeholder="e.g. Scheduled maintenance"></div>
+                  <div><label class="lbl">Type</label><div class="seg" id="ann-type"><button class="on">Note</button><button>Fix</button></div></div>
+                  <div><label class="lbl">Title</label><input class="in" data-sf="ann-title" placeholder="e.g. Scheduled maintenance"></div>
                 </div>
               </div>
 
-              <div style="margin-top:12px"><label class="lbl">Message</label><textarea class="in" placeholder="What everyone should see."></textarea></div>
-              <button class="btn" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>Publish</button>
-              <div class="subnote" style="margin-top:10px">Server posts go out through the Oversite Utilities bot — same path as Support &amp; Ideas.</div>
+              <div style="margin-top:12px"><label class="lbl">Message</label><textarea class="in" data-sf="ann-msg" placeholder="What everyone should see."></textarea></div>
+              <button class="btn" style="margin-top:12px" data-sf="ann-publish"><svg viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>Publish</button>
+              <div class="subnote" style="margin-top:10px">Dashboards post instantly to everyone's dashboard. (Discord-server broadcast needs the Utilities bot — coming next.)</div>
 
               <div class="listcap">Live now</div>
-              <div class="crow"><div class="nm" style="color:var(--heading);font-weight:600">Welcome to the team</div><span class="sp"><span class="tag a">note</span><span class="ic"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></span></span></div>
-              <div class="crow"><div class="nm" style="color:var(--heading);font-weight:600">Verification reset fix live</div><span class="sp"><span class="tag g">fix</span><span class="ic"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></span></span></div>
+              <div data-sf="ann-list"><div class="subnote">Loading…</div></div>
             </div>
           </div>
         </div>
@@ -943,8 +941,18 @@ const Admin = () => {
         /* leave placeholder values */
       }
     });
+
+    // Storefront — wire the live tools (returns a disposer for its timer).
+    let disposeStorefront = () => {};
+    try {
+      disposeStorefront = wireStorefront(root) || (() => {});
+    } catch {
+      /* leave placeholders */
+    }
+
     return () => {
       cancelled = true;
+      disposeStorefront();
     };
   }, [isAdmin, navigate]);
 
@@ -1167,6 +1175,212 @@ function populateOverview(root: HTMLElement, d: any) {
       if (mut) mut.textContent = `this week · ${total.toLocaleString()} total`;
     }
   });
+}
+
+// ── Storefront data binding ────────────────────────────────────────────
+// Wires the injected Storefront forms/lists to the same tables/RPCs the old
+// admin components used: discount_codes, bot_free_period_codes, the billing
+// override RPCs, and dashboard_fixes. Returns a disposer for the override timer.
+const COPY_SVG = `<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>`;
+const X_SVG = `<svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
+
+function wireStorefront(root: HTMLElement): () => void {
+  const sb = supabase as any;
+  const $ = <T extends Element = HTMLElement>(sel: string) => root.querySelector(sel) as T | null;
+  const val = (sel: string) => ($(sel) as HTMLInputElement | HTMLTextAreaElement | null)?.value ?? "";
+  const setVal = (sel: string, v: string) => {
+    const el = $(sel) as HTMLInputElement | HTMLTextAreaElement | null;
+    if (el) el.value = v;
+  };
+
+  // ── Discount codes ──
+  const discList = $('[data-sf="disc-list"]');
+  async function loadDiscounts() {
+    const { data } = await sb.from("discount_codes").select("*").order("created_at", { ascending: false });
+    if (!discList) return;
+    const rows = (data || []) as any[];
+    discList.innerHTML = rows.length
+      ? rows
+          .map((c) => {
+            const amt = c.kind === "percent" ? `${c.value}% off` : `$${c.value} off`;
+            const uses = c.max_uses != null ? `${c.times_used || 0}/${c.max_uses} uses` : `${c.times_used || 0} uses`;
+            const tag = c.is_active ? '<span class="tag g">active</span>' : '<span class="tag n">off</span>';
+            return `<div class="crow" data-id="${c.id}"><div><div class="c">${escHtml(c.code)}</div><div class="meta">${amt} · ${uses}</div></div><span class="sp">${tag}<span class="ic" data-act="copy" data-v="${escHtml(c.code)}">${COPY_SVG}</span><span class="ic" data-act="del-disc">${X_SVG}</span></span></div>`;
+          })
+          .join("")
+      : '<div class="subnote">No codes yet.</div>';
+  }
+  $('[data-sf="disc-create"]')?.addEventListener("click", async () => {
+    const code = val('[data-sf="disc-code"]').trim().toUpperCase();
+    const raw = val('[data-sf="disc-amount"]').trim();
+    if (!code) return toast.error("Code is required");
+    const isPct = raw.includes("%");
+    const num = parseFloat(raw.replace("%", ""));
+    if (!Number.isFinite(num) || num <= 0) return toast.error("Enter an amount");
+    if (isPct && num > 100) return toast.error("Percent can't exceed 100");
+    const { error } = await sb.from("discount_codes").insert({ code, kind: isPct ? "percent" : "fixed", value: num });
+    if (error) return toast.error(error.message);
+    toast.success(`Code ${code} created`);
+    setVal('[data-sf="disc-code"]', "");
+    setVal('[data-sf="disc-amount"]', "");
+    loadDiscounts();
+  });
+  discList?.addEventListener("click", async (e) => {
+    const ic = (e.target as Element).closest(".ic");
+    if (!ic) return;
+    const act = ic.getAttribute("data-act");
+    if (act === "copy") {
+      navigator.clipboard.writeText(ic.getAttribute("data-v") || "");
+      toast.success("Copied");
+    } else if (act === "del-disc") {
+      const id = ic.closest(".crow")?.getAttribute("data-id");
+      if (!id || !confirm("Delete this code?")) return;
+      const { error } = await sb.from("discount_codes").delete().eq("id", id);
+      if (error) return toast.error(error.message);
+      loadDiscounts();
+    }
+  });
+  loadDiscounts();
+
+  // ── Free hosting codes ──
+  const freeList = $('[data-sf="free-list"]');
+  const randomCode = (p: string) =>
+    p + "-" + Array.from({ length: 6 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
+  async function loadFree() {
+    const { data } = await sb.from("bot_free_period_codes").select("*").order("created_at", { ascending: false });
+    if (!freeList) return;
+    const rows = (data || []) as any[];
+    freeList.innerHTML = rows.length
+      ? rows
+          .map((c) => {
+            const uses = c.max_uses != null ? `${c.times_used || 0}/${c.max_uses} used` : `${c.times_used || 0} used`;
+            const tag = c.is_active ? '<span class="tag g">active</span>' : '<span class="tag n">off</span>';
+            return `<div class="crow" data-id="${c.id}"><div><div class="c">${escHtml(c.code)}</div><div class="meta">${c.months} mo · ${uses}</div></div><span class="sp">${tag}<span class="ic" data-act="copy" data-v="${escHtml(c.code)}">${COPY_SVG}</span><span class="ic" data-act="del-free">${X_SVG}</span></span></div>`;
+          })
+          .join("")
+      : '<div class="subnote">No codes yet.</div>';
+  }
+  $('[data-sf="free-create"]')?.addEventListener("click", async () => {
+    const months = parseInt(val('[data-sf="free-months"]').trim(), 10);
+    if (!Number.isFinite(months) || months < 1 || months > 24) return toast.error("Months must be 1–24");
+    const usesRaw = val('[data-sf="free-uses"]').trim();
+    const max_uses = usesRaw === "" ? null : parseInt(usesRaw, 10);
+    if (max_uses !== null && (!Number.isFinite(max_uses) || max_uses < 1)) return toast.error("Max uses must be a positive number or blank");
+    const code = randomCode("FREE");
+    const { error } = await sb.from("bot_free_period_codes").insert({ code, months, max_uses });
+    if (error) return toast.error(error.message);
+    toast.success(`Code ${code} created`);
+    setVal('[data-sf="free-months"]', "");
+    setVal('[data-sf="free-uses"]', "");
+    loadFree();
+  });
+  freeList?.addEventListener("click", async (e) => {
+    const ic = (e.target as Element).closest(".ic");
+    if (!ic) return;
+    const act = ic.getAttribute("data-act");
+    if (act === "copy") {
+      navigator.clipboard.writeText(ic.getAttribute("data-v") || "");
+      toast.success("Copied");
+    } else if (act === "del-free") {
+      const id = ic.closest(".crow")?.getAttribute("data-id");
+      if (!id || !confirm("Delete this code?")) return;
+      const { error } = await sb.from("bot_free_period_codes").delete().eq("id", id);
+      if (error) return toast.error(error.message);
+      loadFree();
+    }
+  });
+  loadFree();
+
+  // ── Billing override (rotating) ──
+  let ovrExpires = 0;
+  const codeEl = $('[data-sf="ovr-code"]');
+  const timerEl = $('[data-sf="ovr-timer"]');
+  let ovrCode = "";
+  const setOvr = (r: any) => {
+    if (!r) return;
+    ovrCode = r.code;
+    ovrExpires = new Date(r.expires_at).getTime();
+    if (codeEl) codeEl.textContent = r.code;
+  };
+  async function loadOvr() {
+    const { data } = await sb.rpc("get_current_billing_override_code");
+    setOvr(data?.[0]);
+  }
+  $('[data-sf="ovr-refresh"]')?.addEventListener("click", async () => {
+    const { data, error } = await sb.rpc("rotate_billing_override_code");
+    if (error) return toast.error(error.message);
+    setOvr(data?.[0]);
+    toast.success("New code generated");
+  });
+  $('[data-sf="ovr-copy"]')?.addEventListener("click", () => {
+    if (!ovrCode) return;
+    navigator.clipboard.writeText(ovrCode);
+    toast.success("Copied");
+  });
+  const ovrTimer = window.setInterval(() => {
+    if (!ovrExpires || !timerEl || !document.body.contains(timerEl)) return;
+    const rem = Math.max(0, ovrExpires - Date.now());
+    const mm = Math.floor(rem / 60000);
+    const ss = Math.floor((rem % 60000) / 1000);
+    timerEl.textContent = `${mm}:${String(ss).padStart(2, "0")}`;
+    if (rem === 0) loadOvr();
+  }, 1000);
+  loadOvr();
+
+  // ── Announcements → dashboards (dashboard_fixes) ──
+  const annList = $('[data-sf="ann-list"]');
+  async function loadFixes() {
+    const { data } = await sb
+      .from("dashboard_fixes")
+      .select("id, title, severity, is_active, created_at")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (!annList) return;
+    const rows = (data || []) as any[];
+    annList.innerHTML = rows.length
+      ? rows
+          .map(
+            (fx) =>
+              `<div class="crow" data-id="${fx.id}"><div class="nm" style="color:var(--heading);font-weight:600">${escHtml(fx.title)}</div><span class="sp"><span class="tag ${fx.severity === "fix" ? "g" : "a"}">${escHtml(fx.severity)}</span><span class="ic" data-act="del-fix">${X_SVG}</span></span></div>`,
+          )
+          .join("")
+      : '<div class="subnote">Nothing live.</div>';
+  }
+  $('[data-sf="ann-publish"]')?.addEventListener("click", async () => {
+    const destBtn = root.querySelector("#dest button.on");
+    const destText = (destBtn?.textContent || "Dashboards").trim();
+    const toServerOnly = /Discord/i.test(destText);
+    if (toServerOnly) {
+      return toast.error("Discord-server broadcast isn't set up yet — pick Dashboards or Both.");
+    }
+    const typeBtn = root.querySelector("#ann-type button.on");
+    const severity = typeBtn && /fix/i.test(typeBtn.textContent || "") ? "fix" : "note";
+    const title = val('[data-sf="ann-title"]').trim();
+    const body = val('[data-sf="ann-msg"]').trim();
+    if (!title) return toast.error("Title is required");
+    const { data: u } = await sb.auth.getUser();
+    const { error } = await sb
+      .from("dashboard_fixes")
+      .insert({ title, body: body || null, severity, is_active: true, created_by: u?.user?.id ?? null });
+    if (error) return toast.error(error.message);
+    toast.success(/Both/i.test(destText) ? "Published to dashboards (server broadcast coming soon)" : "Published to dashboards");
+    setVal('[data-sf="ann-title"]', "");
+    setVal('[data-sf="ann-msg"]', "");
+    loadFixes();
+  });
+  annList?.addEventListener("click", async (e) => {
+    const ic = (e.target as Element).closest(".ic");
+    if (!ic || ic.getAttribute("data-act") !== "del-fix") return;
+    const id = ic.closest(".crow")?.getAttribute("data-id");
+    if (!id || !confirm("Remove this announcement?")) return;
+    const { error } = await sb.from("dashboard_fixes").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    loadFixes();
+  });
+  loadFixes();
+
+  return () => window.clearInterval(ovrTimer);
 }
 
 export default Admin;
