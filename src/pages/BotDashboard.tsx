@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, useCallback, useLayoutEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, useCallback, useLayoutEffect, useMemo, type ReactNode } from "react";
 import { useBotHealth } from "@/hooks/useBotHealth";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,6 +27,21 @@ import {
 import { toast } from "sonner";
 import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
 import { SortableAddonGrid } from "@/components/dashboard/SortableAddonGrid";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS as DndCSS } from "@dnd-kit/utilities";
 // Lazy-loaded: the add-on configuration UI pulls in a large bundle of
 // per-addon editors. Defer it so the bot header/controls paint within
 // 1-2s of navigation instead of waiting on all addon code to load.
@@ -1192,6 +1207,10 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;align-items:start}
 .osd .left{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .osd .right{display:flex;flex-direction:column;gap:16px}
+.osd .dashgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.osd .dashgrid .dashcell{min-width:0}
+.osd .dashgrid .dashcell.wide{grid-column:1/-1}
+.osd .dashgrid .dashcell.dragging{box-shadow:0 22px 60px -16px rgba(0,0,0,.65);border-radius:18px}
 .osd .card{border:1px solid rgba(168,180,191,.14);border-radius:18px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);padding:18px}
 .osd .ch{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
 .osd .ct{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:14.5px}
@@ -1403,7 +1422,7 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 @media(max-width:1180px){.osd .grid, .osd .bgrid{grid-template-columns:1fr}}
 @media(max-width:1180px){.osd .botgrid{grid-template-columns:repeat(3,1fr)}.osd .feat{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:980px){.osd .botgrid{grid-template-columns:repeat(2,1fr)}.osd .strip{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:760px){.osd .side{position:fixed;left:-260px;transition:.2s;z-index:50}.osd .main{padding:18px 14px 40px}.osd .left, .osd .form, .osd .feat, .osd .choices, .osd .gbody{grid-template-columns:1fr}.osd .head h1{font-size:24px}}
+@media(max-width:760px){.osd .side{position:fixed;left:-260px;transition:.2s;z-index:50}.osd .main{padding:18px 14px 40px}.osd .left, .osd .form, .osd .feat, .osd .choices, .osd .gbody, .osd .dashgrid{grid-template-columns:1fr}.osd .dashgrid .dashcell.wide{grid-column:auto}.osd .head h1{font-size:24px}}
 @media(max-width:560px){.osd .botgrid{grid-template-columns:1fr}.osd .search{display:none}}`;
 
 const LS = { ws: "os_ws_mode", onboarded: "os_onboarded", tour: "os_tour_seen", bg: "os_bg", order: "os_bot_order", groups: "os_groups", accent: "os_accent", accentHex: "os_accent_hex" };
@@ -1458,6 +1477,39 @@ const CDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
 type Group = { id: string; name: string; botIds: string[] };
 
+const DEFAULT_DASH_ORDER = ["setup", "activity", "table", "bots", "spotlight"];
+
+// One draggable dashboard box. Whole card is the grab area; a small movement
+// threshold on the sensor lets clicks on inner buttons/rows still register.
+function DashSortableCard({
+  id,
+  wide,
+  children,
+}: {
+  id: string;
+  wide?: boolean;
+  children: ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={"dashcell" + (wide ? " wide" : "") + (isDragging ? " dragging" : "")}
+      style={{
+        transform: DndCSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 60 : undefined,
+        opacity: isDragging ? 0.9 : 1,
+        cursor: "grab",
+      }}
+      {...attributes}
+      {...listeners}
+    >
+      {children}
+    </div>
+  );
+}
+
 const BotDashboard = () => {
   const { user, isAdmin, loading } = useAuth();
   const { dashboardBots, hasDashboardAccess, loading: botsLoading, reload } = useOwnedBots();
@@ -1467,10 +1519,69 @@ const BotDashboard = () => {
   const navigate = useNavigate();
 
   const [view, setView] = useState("dashboard");
+  // Shared, owner-set dashboard box layout (an ordered array of card ids).
+  const [dashOrder, setDashOrder] = useState<string[]>(DEFAULT_DASH_ORDER);
+  const dashSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
   const [botId, setBotId] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
+
+  // The currently-rendered dashboard order (subset of dashOrder that has a
+  // visible card); the drag handler reorders against this.
+  const dashOrderedRef = useRef<string[]>(DEFAULT_DASH_ORDER);
+
+  // Load the shared layout and keep it live — an owner change applies for
+  // everyone. Defensive: bad/missing data just keeps the default order.
+  useEffect(() => {
+    let alive = true;
+    (supabase as any)
+      .from("app_settings")
+      .select("dashboard_layout")
+      .eq("id", 1)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (alive && Array.isArray(data?.dashboard_layout) && data.dashboard_layout.length) {
+          setDashOrder(data.dashboard_layout as string[]);
+        }
+      });
+    const ch = (supabase as any)
+      .channel("dash-layout-shared")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "app_settings", filter: "id=eq.1" },
+        (payload: any) => {
+          const dl = payload?.new?.dashboard_layout;
+          if (Array.isArray(dl) && dl.length) setDashOrder(dl as string[]);
+        },
+      )
+      .subscribe();
+    return () => {
+      alive = false;
+      (supabase as any).removeChannel(ch);
+    };
+  }, []);
+
+  // Admin drags a box → reorder the rendered set and persist globally.
+  const onDashDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const cur = dashOrderedRef.current;
+    const from = cur.indexOf(String(active.id));
+    const to = cur.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    const next = arrayMove(cur, from, to);
+    setDashOrder(next);
+    (supabase as any)
+      .from("app_settings")
+      .update({ dashboard_layout: next, updated_at: new Date().toISOString() })
+      .eq("id", 1)
+      .then(({ error }: any) => {
+        if (error) toast.error("Couldn't save layout", { description: error.message });
+      });
+  };
 
   const [wsMode, setWsMode] = useState<"solo" | "team">(() => (lsGet(LS.ws) === "team" ? "team" : "solo"));
   const [appOn, setAppOn] = useState(() => !!lsGet(LS.onboarded));
@@ -1615,6 +1726,118 @@ const BotDashboard = () => {
 
   const filt = (f: string) => (b: OwnedBot) => f === "all" ? true : f === "online" ? isLive(b) : !isLive(b);
 
+  // Dashboard boxes, addressable by id so they can be reordered. The shared
+  // order lives in dashOrder; admins drag to rearrange (saved for everyone),
+  // customers get the same order as plain cells (no drag code at all).
+  const renderDash = () => {
+    const cells: Record<string, ReactNode> = {
+      setup: (
+        <div className="card cust">
+          <div className="ch"><span className="ct">Setup</span><span className="dots">···</span></div>
+          <div className="ph"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg></div>
+          <h3>Almost there</h3>
+          <p>{isTeam ? "Connect billing, invite your team, then set each bot's commands." : "Connect billing, then set each bot's commands."}</p>
+          <button className="ghost" onClick={() => go("settings")}>Pick up where you left off</button>
+        </div>
+      ),
+      activity: (
+        <div className="card" id="tour-activity">
+          <div className="ch"><div><span className="ct">Fleet activity</span><div style={{ fontSize: "11px", color: "var(--faint)", marginTop: "2px" }}>This week</div></div><span className="dots">···</span></div>
+          <div className="leg"><span><i style={{ background: "var(--accent)" }} />Events</span><span><i style={{ background: "var(--surface2)" }} />Blocked</span></div>
+          <div className="chart">{CHART.map((d, i) => (<div className="col" key={i}><div className="bars"><div className="bar buy" style={{ height: d[0] + "%" }} /><div className="bar sell" style={{ height: d[1] + "%" }} /></div><div className="x">{CDAYS[i]}</div></div>))}</div>
+          <div className="kpis"><span className="big num">{owned.length ? "8.9" : "0"}<sup>%</sup></span><span className="updelta">▲ 2%</span><span className="vs">vs last week</span></div>
+        </div>
+      ),
+      table: (
+        <div className="card assets">
+          <div className="thead">
+            <div className="tabs" style={{ margin: 0 }}>
+              <button className={tableFilter === "all" ? "on" : ""} onClick={() => setTableFilter("all")}>All bots</button>
+              <button className={tableFilter === "online" ? "on" : ""} onClick={() => setTableFilter("online")}>Online</button>
+              <button className={tableFilter === "warn" ? "on" : ""} onClick={() => setTableFilter("warn")}>Needs attention</button>
+            </div>
+            <div className="seg"><button className="on">1D</button><button>2W</button><button>1M</button></div>
+          </div>
+          <div className="tscroll"><table>
+            <thead><tr><th>Bot</th><th>Status</th><th>Base</th><th>Add-ons</th><th></th></tr></thead>
+            <tbody>
+              {owned.filter(filt(tableFilter)).map((b) => (
+                <tr key={b.id} onClick={() => openBot(b.id)}>
+                  <td><div className="coin"><div className="a">{botSvg(b.base)}</div><div><div className="nm">{b.bot_name}</div><div className="tk">{BOT_BASE_LABELS[b.base] ?? b.base}</div></div></div></td>
+                  <td><span style={{ color: stColor(b) }}>● {stWord(b)}</span></td>
+                  <td className="num">{BOT_BASE_LABELS[b.base] ?? b.base}</td>
+                  <td className="num">{b.addons.length}</td>
+                  <td><button className="trade" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Manage</button></td>
+                </tr>
+              ))}
+              {owned.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--faint)" }}>No bots yet.</td></tr>}
+            </tbody>
+          </table></div>
+        </div>
+      ),
+      bots: (
+        <div className="card" id="tour-bots">
+          <div className="ch"><span className="ct">Your bots</span><span className="dots">···</span></div>
+          <div className="tabs">
+            <button className={listFilter === "all" ? "on" : ""} onClick={() => setListFilter("all")}>All</button>
+            <button className={listFilter === "online" ? "on" : ""} onClick={() => setListFilter("online")}>Online</button>
+            <button className={listFilter === "warn" ? "on" : ""} onClick={() => setListFilter("warn")}>Other</button>
+          </div>
+          <div>
+            {owned.filter(filt(listFilter)).map((b) => (
+              <div className="tok" key={b.id} onClick={() => openBot(b.id)}>
+                <div className="ic">{botSvg(b.base)}</div>
+                <div><div className="v">{b.bot_name}</div><div className="s">{stWord(b).toLowerCase()}</div></div>
+                <button className="act" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Open</button>
+              </div>
+            ))}
+            {owned.length === 0 && <div className="tok"><div><div className="s">No bots yet.</div></div></div>}
+          </div>
+        </div>
+      ),
+      spotlight: spotlight ? (
+        <div className="card">
+          <div className="mhead"><div /><div className="mout" onClick={() => openBot(spotlight.id)}><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></div></div>
+          <div className="mname">{spotlight.bot_name} <span className="x">{BOT_BASE_LABELS[spotlight.base] ?? spotlight.base}</span></div>
+          <div className="mhot">Your fleet</div>
+          <div style={{ marginTop: "14px" }}>
+            <div className="mrow"><span className="k">Status</span><span className="v">{stWord(spotlight)}</span></div>
+            <div className="mrow"><span className="k">Add-ons</span><span className="v">{spotlight.addons.length}</span></div>
+            <div className="mrow" style={{ borderBottom: 0 }}><span className="k">Engine</span><span className="v">{spotlight.engine_version === "v2" ? "V2" : "V1"}</span></div>
+          </div>
+          <div className="mbtns"><button className="ghost" onClick={() => openBot(spotlight.id)}>Configure</button><button className="cta" style={{ width: "100%" }} onClick={() => openBot(spotlight.id)}>Open bot</button></div>
+        </div>
+      ) : null,
+    };
+    const wide = new Set(["table"]);
+    const ordered = [
+      ...dashOrder.filter((id) => DEFAULT_DASH_ORDER.includes(id) && cells[id] != null),
+      ...DEFAULT_DASH_ORDER.filter((id) => !dashOrder.includes(id) && cells[id] != null),
+    ];
+    dashOrderedRef.current = ordered;
+
+    if (!isAdmin) {
+      return (
+        <div className="dashgrid">
+          {ordered.map((id) => (
+            <div key={id} className={"dashcell" + (wide.has(id) ? " wide" : "")}>{cells[id]}</div>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <DndContext sensors={dashSensors} collisionDetection={closestCenter} onDragEnd={onDashDragEnd}>
+        <SortableContext items={ordered} strategy={rectSortingStrategy}>
+          <div className="dashgrid">
+            {ordered.map((id) => (
+              <DashSortableCard key={id} id={id} wide={wide.has(id)}>{cells[id]}</DashSortableCard>
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+    );
+  };
+
   return (
     <div className={"osd" + (appOn ? " app" : "") + (instant ? " instant" : "")} style={{ ["--accent" as any]: accent.c, ["--accentink" as any]: accent.ink }}>
       <style>{OSD_CSS}</style>
@@ -1748,85 +1971,7 @@ const BotDashboard = () => {
 
             {/* DASHBOARD */}
             <div className={"view" + (view === "dashboard" ? " on" : "")}>
-              <div className="grid">
-                <div className="left">
-                  <div className="card cust">
-                    <div className="ch"><span className="ct">Setup</span><span className="dots">···</span></div>
-                    <div className="ph"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg></div>
-                    <h3>Almost there</h3>
-                    <p>{isTeam ? "Connect billing, invite your team, then set each bot's commands." : "Connect billing, then set each bot's commands."}</p>
-                    <button className="ghost" onClick={() => go("settings")}>Pick up where you left off</button>
-                  </div>
-
-                  <div className="card" id="tour-activity">
-                    <div className="ch"><div><span className="ct">Fleet activity</span><div style={{ fontSize: "11px", color: "var(--faint)", marginTop: "2px" }}>This week</div></div><span className="dots">···</span></div>
-                    <div className="leg"><span><i style={{ background: "var(--accent)" }} />Events</span><span><i style={{ background: "var(--surface2)" }} />Blocked</span></div>
-                    <div className="chart">{CHART.map((d, i) => (<div className="col" key={i}><div className="bars"><div className="bar buy" style={{ height: d[0] + "%" }} /><div className="bar sell" style={{ height: d[1] + "%" }} /></div><div className="x">{CDAYS[i]}</div></div>))}</div>
-                    <div className="kpis"><span className="big num">{owned.length ? "8.9" : "0"}<sup>%</sup></span><span className="updelta">▲ 2%</span><span className="vs">vs last week</span></div>
-                  </div>
-
-                  <div className="card assets">
-                    <div className="thead">
-                      <div className="tabs" style={{ margin: 0 }}>
-                        <button className={tableFilter === "all" ? "on" : ""} onClick={() => setTableFilter("all")}>All bots</button>
-                        <button className={tableFilter === "online" ? "on" : ""} onClick={() => setTableFilter("online")}>Online</button>
-                        <button className={tableFilter === "warn" ? "on" : ""} onClick={() => setTableFilter("warn")}>Needs attention</button>
-                      </div>
-                      <div className="seg"><button className="on">1D</button><button>2W</button><button>1M</button></div>
-                    </div>
-                    <div className="tscroll"><table>
-                      <thead><tr><th>Bot</th><th>Status</th><th>Base</th><th>Add-ons</th><th></th></tr></thead>
-                      <tbody>
-                        {owned.filter(filt(tableFilter)).map((b) => (
-                          <tr key={b.id} onClick={() => openBot(b.id)}>
-                            <td><div className="coin"><div className="a">{botSvg(b.base)}</div><div><div className="nm">{b.bot_name}</div><div className="tk">{BOT_BASE_LABELS[b.base] ?? b.base}</div></div></div></td>
-                            <td><span style={{ color: stColor(b) }}>● {stWord(b)}</span></td>
-                            <td className="num">{BOT_BASE_LABELS[b.base] ?? b.base}</td>
-                            <td className="num">{b.addons.length}</td>
-                            <td><button className="trade" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Manage</button></td>
-                          </tr>
-                        ))}
-                        {owned.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--faint)" }}>No bots yet.</td></tr>}
-                      </tbody>
-                    </table></div>
-                  </div>
-                </div>
-
-                <div className="right">
-                  <div className="card" id="tour-bots">
-                    <div className="ch"><span className="ct">Your bots</span><span className="dots">···</span></div>
-                    <div className="tabs">
-                      <button className={listFilter === "all" ? "on" : ""} onClick={() => setListFilter("all")}>All</button>
-                      <button className={listFilter === "online" ? "on" : ""} onClick={() => setListFilter("online")}>Online</button>
-                      <button className={listFilter === "warn" ? "on" : ""} onClick={() => setListFilter("warn")}>Other</button>
-                    </div>
-                    <div>
-                      {owned.filter(filt(listFilter)).map((b) => (
-                        <div className="tok" key={b.id} onClick={() => openBot(b.id)}>
-                          <div className="ic">{botSvg(b.base)}</div>
-                          <div><div className="v">{b.bot_name}</div><div className="s">{stWord(b).toLowerCase()}</div></div>
-                          <button className="act" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Open</button>
-                        </div>
-                      ))}
-                      {owned.length === 0 && <div className="tok"><div><div className="s">No bots yet.</div></div></div>}
-                    </div>
-                  </div>
-
-                  {spotlight && (
-                    <div className="card">
-                      <div className="mhead"><div /><div className="mout" onClick={() => openBot(spotlight.id)}><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></div></div>
-                      <div className="mname">{spotlight.bot_name} <span className="x">{BOT_BASE_LABELS[spotlight.base] ?? spotlight.base}</span></div>
-                      <div className="mhot">Your fleet</div>
-                      <div style={{ marginTop: "14px" }}>
-                        <div className="mrow"><span className="k">Status</span><span className="v">{stWord(spotlight)}</span></div>
-                        <div className="mrow"><span className="k">Add-ons</span><span className="v">{spotlight.addons.length}</span></div>
-                        <div className="mrow" style={{ borderBottom: 0 }}><span className="k">Engine</span><span className="v">{spotlight.engine_version === "v2" ? "V2" : "V1"}</span></div>
-                      </div>
-                      <div className="mbtns"><button className="ghost" onClick={() => openBot(spotlight.id)}>Configure</button><button className="cta" style={{ width: "100%" }} onClick={() => openBot(spotlight.id)}>Open bot</button></div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              {renderDash()}
             </div>
 
             {/* MY BOTS */}
