@@ -2,6 +2,33 @@ import { useEffect, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
+// useAuth is a per-component hook (no shared context), so many components run
+// it at once. Realtime channels must have unique topics AND .on() must be
+// called before .subscribe(); creating one channel per hook instance with the
+// same name makes the duplicates throw "cannot add callbacks after subscribe".
+// So we keep ONE shared channel per user_id and fan out to every instance's
+// re-check callback.
+const roleListeners = new Set<() => void>();
+let roleChannel: ReturnType<typeof supabase.channel> | null = null;
+let roleChannelUid: string | null = null;
+
+function ensureRoleChannel(uid: string) {
+  if (roleChannelUid === uid && roleChannel) return;
+  if (roleChannel) {
+    supabase.removeChannel(roleChannel);
+    roleChannel = null;
+  }
+  roleChannelUid = uid;
+  roleChannel = supabase
+    .channel(`user-roles-${uid}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "user_roles", filter: `user_id=eq.${uid}` },
+      () => roleListeners.forEach((fn) => fn()),
+    )
+    .subscribe();
+}
+
 export const useAuth = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -76,7 +103,7 @@ export const useAuth = () => {
 
   // Live admin-role changes: if a super admin grants or revokes this user's
   // admin access while they're using the app, flip isAdmin right away (no
-  // manual refresh). Admin-gated screens react immediately via this flag.
+  // manual refresh). Shares one channel across all hook instances.
   useEffect(() => {
     const uid = user?.id;
     if (!uid) return;
@@ -89,16 +116,15 @@ export const useAuth = () => {
         .maybeSingle();
       setIsAdmin(!!data);
     };
-    const channel = supabase
-      .channel(`user-roles-${uid}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "user_roles", filter: `user_id=eq.${uid}` },
-        recheck,
-      )
-      .subscribe();
+    roleListeners.add(recheck);
+    ensureRoleChannel(uid);
     return () => {
-      supabase.removeChannel(channel);
+      roleListeners.delete(recheck);
+      if (roleListeners.size === 0 && roleChannel) {
+        supabase.removeChannel(roleChannel);
+        roleChannel = null;
+        roleChannelUid = null;
+      }
     };
   }, [user?.id]);
 
