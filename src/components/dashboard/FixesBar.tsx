@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { X } from "lucide-react";
 
 type Fix = {
   id: string;
@@ -82,11 +81,21 @@ export function FixesBar() {
 
   return (
     <div
-      className="flex items-center gap-3"
+      role="button"
+      tabIndex={0}
+      onClick={dismiss}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          dismiss();
+        }
+      }}
+      title="Dismiss"
+      className="flex cursor-pointer items-center gap-3"
       style={{
         height: 46,
         paddingLeft: 26,
-        paddingRight: 16,
+        paddingRight: 26,
         background: "rgba(33,39,46,.96)",
         borderBottom: "1px solid rgba(168,180,191,.14)",
         boxShadow: `inset 3px 0 0 ${m.color}`,
@@ -115,15 +124,6 @@ export function FixesBar() {
       >
         {date}
       </span>
-      <button
-        type="button"
-        onClick={dismiss}
-        className="grid w-9 shrink-0 place-items-center self-stretch rounded-md transition-colors hover:bg-white/5"
-        style={{ color: FAINT }}
-        aria-label="Dismiss"
-      >
-        <X className="h-[18px] w-[18px]" />
-      </button>
     </div>
   );
 }
