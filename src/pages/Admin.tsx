@@ -482,9 +482,9 @@ const ADMIN_HTML = `<div class="osd app">
             <div class="cb">
               <label class="lbl">Send to</label>
               <div class="seg" id="dest">
-                <button class="on" data-dash="1">Dashboards</button>
-                <button data-dash="0">Discord server</button>
-                <button data-dash="1">Both</button>
+                <button class="on" data-dash="1" data-server="0">Dashboards</button>
+                <button data-dash="0" data-server="1">Discord server</button>
+                <button data-dash="1" data-server="1">Both</button>
               </div>
 
               <div id="dashfields" style="margin-top:12px">
@@ -494,9 +494,17 @@ const ADMIN_HTML = `<div class="osd app">
                 </div>
               </div>
 
+              <div id="serverfields" style="display:none;margin-top:12px">
+                <label class="lbl">Announcements channel ID</label>
+                <div class="redeem">
+                  <input class="in mono" data-sf="ann-channel" placeholder="right-click the channel → Copy Channel ID">
+                  <button class="btn ghost" data-sf="ann-channel-save">Save</button>
+                </div>
+              </div>
+
               <div style="margin-top:12px"><label class="lbl">Message</label><textarea class="in" data-sf="ann-msg" placeholder="What everyone should see."></textarea></div>
               <button class="btn" style="margin-top:12px" data-sf="ann-publish"><svg viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>Publish</button>
-              <div class="subnote" style="margin-top:10px">Dashboards post instantly to everyone's dashboard. (Discord-server broadcast needs the Utilities bot — coming next.)</div>
+              <div class="subnote" style="margin-top:10px">Dashboards post instantly to everyone's dashboard. Discord-server posts go out through the Oversite Utilities bot.</div>
 
               <div class="listcap">Live now</div>
               <div data-sf="ann-list"><div class="subnote">Loading…</div></div>
@@ -1347,24 +1355,49 @@ function wireStorefront(root: HTMLElement): () => void {
           .join("")
       : '<div class="subnote">Nothing live.</div>';
   }
+  // Announcements channel (for Discord-server posts) — show field for server/both, load + save.
+  const serverFields = $("#serverfields") as HTMLElement | null;
+  root.querySelectorAll("#dest button").forEach((b) => {
+    b.addEventListener("click", () => {
+      if (serverFields) serverFields.style.display = b.getAttribute("data-server") === "1" ? "block" : "none";
+    });
+  });
+  sb.rpc("admin_get_announce_channel").then(({ data }: { data: string | null }) => {
+    if (data) setVal('[data-sf="ann-channel"]', data);
+  });
+  $('[data-sf="ann-channel-save"]')?.addEventListener("click", async () => {
+    const ch = val('[data-sf="ann-channel"]').trim();
+    const { data, error } = await sb.rpc("admin_set_announce_channel", { _channel_id: ch });
+    if (error || data?.ok === false) return toast.error(error?.message || data?.error || "Couldn't save");
+    toast.success("Channel saved");
+  });
+
   $('[data-sf="ann-publish"]')?.addEventListener("click", async () => {
     const destBtn = root.querySelector("#dest button.on");
-    const destText = (destBtn?.textContent || "Dashboards").trim();
-    const toServerOnly = /Discord/i.test(destText);
-    if (toServerOnly) {
-      return toast.error("Discord-server broadcast isn't set up yet — pick Dashboards or Both.");
-    }
-    const typeBtn = root.querySelector("#ann-type button.on");
-    const severity = typeBtn && /fix/i.test(typeBtn.textContent || "") ? "fix" : "note";
+    const toDash = destBtn?.getAttribute("data-dash") === "1";
+    const toServer = destBtn?.getAttribute("data-server") === "1";
     const title = val('[data-sf="ann-title"]').trim();
     const body = val('[data-sf="ann-msg"]').trim();
-    if (!title) return toast.error("Title is required");
-    const { data: u } = await sb.auth.getUser();
-    const { error } = await sb
-      .from("dashboard_fixes")
-      .insert({ title, body: body || null, severity, is_active: true, created_by: u?.user?.id ?? null });
-    if (error) return toast.error(error.message);
-    toast.success(/Both/i.test(destText) ? "Published to dashboards (server broadcast coming soon)" : "Published to dashboards");
+
+    if (toDash) {
+      if (!title) return toast.error("Title is required for dashboards");
+      const typeBtn = root.querySelector("#ann-type button.on");
+      const severity = typeBtn && /fix/i.test(typeBtn.textContent || "") ? "fix" : "note";
+      const { data: u } = await sb.auth.getUser();
+      const { error } = await sb
+        .from("dashboard_fixes")
+        .insert({ title, body: body || null, severity, is_active: true, created_by: u?.user?.id ?? null });
+      if (error) return toast.error("Dashboards: " + error.message);
+    }
+
+    if (toServer) {
+      const msg = body || title;
+      if (!msg) return toast.error("Message is required for the server post");
+      const { data, error } = await sb.rpc("admin_post_server_announcement", { _message: msg });
+      if (error || data?.ok === false) return toast.error("Server: " + (error?.message || data?.error || "failed"));
+    }
+
+    toast.success(toDash && toServer ? "Published to dashboards + server" : toServer ? "Posted to the server" : "Published to dashboards");
     setVal('[data-sf="ann-title"]', "");
     setVal('[data-sf="ann-msg"]', "");
     loadFixes();
