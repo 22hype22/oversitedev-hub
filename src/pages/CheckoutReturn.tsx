@@ -22,6 +22,7 @@ export default function CheckoutReturn() {
   const navigate = useNavigate();
   const sessionId = searchParams.get("session_id");
   const setupOrderId = searchParams.get("order");
+  const comped = searchParams.get("comped") === "1";
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [files, setFiles] = useState<PurchasedFile[]>([]);
@@ -98,9 +99,11 @@ export default function CheckoutReturn() {
         <CheckCircle2 className="mx-auto h-14 w-14 text-primary mb-4" />
         <h1 className="text-2xl font-bold mb-2">Thanks for your order!</h1>
         <p className="text-muted-foreground mb-6">
-          {sessionId || setupOrderId
-            ? "Your payment was received."
-            : "No session information found."}
+          {comped
+            ? "100% off — no charge. Your order is all set."
+            : sessionId || setupOrderId
+              ? "Your payment was received."
+              : "No session information found."}
         </p>
 
         {/* Bot order — Discord-join gate then status-driven next-step */}
