@@ -74,5 +74,33 @@ export const useAuth = () => {
     };
   }, []);
 
+  // Live admin-role changes: if a super admin grants or revokes this user's
+  // admin access while they're using the app, flip isAdmin right away (no
+  // manual refresh). Admin-gated screens react immediately via this flag.
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid) return;
+    const recheck = async () => {
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", uid)
+        .eq("role", "admin")
+        .maybeSingle();
+      setIsAdmin(!!data);
+    };
+    const channel = supabase
+      .channel(`user-roles-${uid}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "user_roles", filter: `user_id=eq.${uid}` },
+        recheck,
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
   return { session, user, isAdmin, loading: loading || (!!user && roleLoading) };
 };
