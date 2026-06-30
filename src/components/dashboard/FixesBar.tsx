@@ -63,8 +63,7 @@ export function FixesBar() {
   if (!note) return null;
 
   const m = getMeta(note.severity);
-  const hasBody =
-    !!note.body && note.body.trim().toLowerCase() !== note.title.trim().toLowerCase();
+  const hasBody = !!note.body && note.body.trim().length > 0;
   const date = new Date(note.created_at).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
@@ -83,41 +82,47 @@ export function FixesBar() {
 
   return (
     <div
-      className="flex items-center gap-3 px-5"
+      className="flex items-center gap-3"
       style={{
-        height: 44,
+        height: 46,
+        paddingLeft: 26,
+        paddingRight: 16,
         background: "rgba(33,39,46,.96)",
         borderBottom: "1px solid rgba(168,180,191,.14)",
         boxShadow: `inset 3px 0 0 ${m.color}`,
       }}
     >
-      <span className="shrink-0 text-sm font-semibold" style={{ color: HEADING }}>
+      <span
+        className="shrink-0 text-sm font-semibold"
+        style={{ color: HEADING, lineHeight: 1 }}
+      >
         {note.title}
       </span>
       {hasBody && (
         <>
-          <span className="shrink-0 text-sm" style={{ color: "rgba(168,180,191,.35)" }}>
+          <span className="shrink-0 text-sm" style={{ color: "rgba(168,180,191,.35)", lineHeight: 1 }}>
             |
           </span>
-          <span className="min-w-0 flex-1 truncate text-sm" style={{ color: BODY }}>
+          <span className="min-w-0 flex-1 truncate text-sm" style={{ color: BODY, lineHeight: 1 }}>
             {note.body}
           </span>
         </>
       )}
+      {!hasBody && <span className="flex-1" />}
       <span
-        className={`${hasBody ? "" : "flex-1 text-right"} shrink-0 text-xs`}
-        style={{ color: FAINT, fontFamily: '"Space Mono", monospace' }}
+        className="shrink-0 text-xs"
+        style={{ color: FAINT, lineHeight: 1, fontFamily: '"Space Mono", monospace' }}
       >
         {date}
       </span>
       <button
         type="button"
         onClick={dismiss}
-        className="grid h-7 w-7 shrink-0 place-items-center rounded-md transition-colors hover:bg-white/5"
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-md transition-colors hover:bg-white/5"
         style={{ color: FAINT }}
         aria-label="Dismiss"
       >
-        <X className="h-4 w-4" />
+        <X className="h-[18px] w-[18px]" />
       </button>
     </div>
   );
