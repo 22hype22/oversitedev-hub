@@ -86,6 +86,8 @@ export function FixesBar() {
     }
   };
 
+  const canExpand = rest.length > 0 || !!latest.body;
+
   return (
     <div className="sticky top-3 z-30 mb-5">
       <div
@@ -96,14 +98,8 @@ export function FixesBar() {
         }}
       >
         <span
-          className="grid h-7 w-7 shrink-0 place-items-center rounded-lg"
-          style={{ background: m.tint, color: m.color }}
-        >
-          <m.Icon className="h-4 w-4" />
-        </span>
-        <span
-          className="shrink-0 text-[10px] font-bold uppercase tracking-[0.14em]"
-          style={{ color: m.color }}
+          className="shrink-0 rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em]"
+          style={{ background: m.tint, color: m.color, fontFamily: '"Bricolage Grotesque", sans-serif' }}
         >
           {m.label}
         </span>
@@ -120,13 +116,14 @@ export function FixesBar() {
             +{rest.length} more
           </button>
         )}
-        {(rest.length > 0 || latest.body) && (
+        {canExpand && (
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
             className="grid h-7 w-7 shrink-0 place-items-center rounded-md transition-colors hover:bg-white/5"
             style={{ color: FAINT }}
-            aria-label="Toggle details"
+            aria-label={expanded ? "Collapse" : "Expand"}
+            aria-expanded={expanded}
           >
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
@@ -144,26 +141,35 @@ export function FixesBar() {
 
       {expanded && (
         <div
-          className="mt-2 space-y-3 rounded-2xl border p-4 backdrop-blur-md"
+          className="mt-2 rounded-2xl border px-4 py-1 backdrop-blur-md"
           style={{ background: SURFACE, borderColor: HAIR }}
         >
-          {visible.map((f) => {
+          {visible.map((f, i) => {
             const meta = getMeta(f.severity);
             return (
-              <div key={f.id} className="flex items-start gap-3">
-                <meta.Icon className="mt-0.5 h-4 w-4 shrink-0" style={{ color: meta.color }} />
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium" style={{ color: HEADING }}>
+              <div
+                key={f.id}
+                className="py-3"
+                style={i > 0 ? { borderTop: "1px solid rgba(168,180,191,.10)" } : undefined}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className="rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em]"
+                    style={{ background: meta.tint, color: meta.color, fontFamily: '"Bricolage Grotesque", sans-serif' }}
+                  >
+                    {meta.label}
+                  </span>
+                  <div className="text-sm font-semibold" style={{ color: HEADING }}>
                     {f.title}
                   </div>
-                  {f.body && (
-                    <p className="mt-0.5 whitespace-pre-wrap text-sm" style={{ color: BODY }}>
-                      {f.body}
-                    </p>
-                  )}
-                  <div className="mt-1 text-xs" style={{ color: FAINT }}>
-                    {new Date(f.created_at).toLocaleString()}
-                  </div>
+                </div>
+                {f.body && (
+                  <p className="mt-1.5 whitespace-pre-wrap text-sm" style={{ color: BODY }}>
+                    {f.body}
+                  </p>
+                )}
+                <div className="mt-1.5 text-[11px]" style={{ color: FAINT, fontFamily: '"Space Mono", monospace' }}>
+                  {new Date(f.created_at).toLocaleString()}
                 </div>
               </div>
             );
