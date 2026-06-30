@@ -932,6 +932,20 @@ const Admin = () => {
     } catch {
       /* noop */
     }
+
+    // Overview — fill the blocks backed by real data.
+    let cancelled = false;
+    (supabase as any).rpc("admin_overview_stats").then(({ data }: { data: any }) => {
+      if (cancelled || !data || data.ok === false) return;
+      try {
+        populateOverview(root, data);
+      } catch {
+        /* leave placeholder values */
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [isAdmin, navigate]);
 
   if (loading) {
@@ -1002,5 +1016,108 @@ const CONFIRM_CSS = `
 .osadmin .osa-btn.danger{background:#e08a8a;color:#2a1213}
 .osadmin .osa-btn.danger:hover{filter:brightness(1.06)}
 `;
+
+// ── Overview data binding ──────────────────────────────────────────────
+// The Overview markup is injected HTML; after the admin_overview_stats RPC
+// returns, we patch the real-data blocks in place. Blocks that need visitor
+// tracking (Live now, Conversion, funnel, visitors chart) are marked "needs
+// tracking" rather than showing fake numbers.
+function timeAgo(iso: string | null): string {
+  if (!iso) return "never";
+  const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+function escHtml(v: unknown): string {
+  return String(v ?? "").replace(/[&<>"]/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string),
+  );
+}
+function dollars(cents: number): string {
+  return "$" + Math.round((cents || 0) / 100).toLocaleString();
+}
+
+function populateOverview(root: HTMLElement, d: any) {
+  const ov = root.querySelector("#overview-content");
+  if (!ov) return;
+  const q = (el: Element | null, sel: string) => el?.querySelector(sel) as HTMLElement | null;
+
+  // ── KPI strip: [Live now, Bots sold, Revenue, Conversion] ──
+  const kpis = ov.querySelectorAll(".kpis .kpi");
+  // Live now — needs tracking
+  if (kpis[0]) {
+    const v = q(kpis[0], ".val"); if (v) v.textContent = "—";
+    const s = q(kpis[0], ".sub"); if (s) s.textContent = "needs visitor tracking";
+  }
+  // Bots sold
+  if (kpis[1]) {
+    const v = q(kpis[1], ".val"); if (v) v.innerHTML = `${d.bots_sold_total ?? 0} <small>total</small>`;
+    const s = q(kpis[1], ".sub");
+    if (s) s.innerHTML = `<b class="up">+${d.bots_sold_today ?? 0}</b> today · <b class="up">+${d.bots_sold_week ?? 0}</b> this week`;
+  }
+  // Revenue
+  if (kpis[2]) {
+    const v = q(kpis[2], ".val"); if (v) v.textContent = dollars(d.revenue_week_cents);
+    const s = q(kpis[2], ".sub");
+    const prev = (d.revenue_prev_week_cents || 0) / 100;
+    const cur = (d.revenue_week_cents || 0) / 100;
+    if (s) {
+      if (prev > 0) {
+        const pct = Math.round(((cur - prev) / prev) * 100);
+        s.innerHTML = `this week · <b class="${pct >= 0 ? "up" : "down"}">${pct >= 0 ? "+" : ""}${pct}%</b>`;
+      } else {
+        s.textContent = "this week";
+      }
+    }
+  }
+  // Conversion — needs tracking
+  if (kpis[3]) {
+    const v = q(kpis[3], ".val"); if (v) v.textContent = "—";
+    const s = q(kpis[3], ".sub"); if (s) s.textContent = "needs funnel tracking";
+  }
+
+  // ── cards by title ──
+  ov.querySelectorAll(".card").forEach((card) => {
+    const title = (card.querySelector("h3")?.textContent || "").trim();
+
+    if (title === "Fleet health") {
+      const rows = card.querySelectorAll(".lrow .sp");
+      // [Bots online, Orders in progress, Utilities bot, Pending commands, Worker tokens]
+      const set = (i: number, html: string) => { if (rows[i]) (rows[i] as HTMLElement).innerHTML = html; };
+      set(0, `${d.bots_online ?? 0} / ${d.bots_total ?? 0}`);
+      set(1, `${d.orders_in_progress ?? 0} · building`);
+      set(2, `<span class="up">${timeAgo(d.utilities_last_seen)}</span>`);
+      set(3, `${d.pending_commands ?? 0}`);
+      set(4, `${d.worker_tokens_active ?? 0} active`);
+    }
+
+    if (title === "Top sellers") {
+      const cb = card.querySelector(".cb");
+      const top: Array<{ base: string; count: number }> = d.top_sellers || [];
+      if (cb) {
+        if (!top.length) {
+          cb.innerHTML = `<div class="subnote">No sales yet.</div>`;
+        } else {
+          const max = top[0].count || 1;
+          cb.innerHTML = top
+            .map(
+              (t) =>
+                `<div class="lrow"><span class="nm">${escHtml(t.base)}</span><span class="meter"><span class="bar"><i style="width:${Math.round((t.count / max) * 100)}%"></i></span><span class="v">${t.count}</span></span></div>`,
+            )
+            .join("");
+        }
+      }
+    }
+
+    // Funnel + visitors chart need tracking — flag them so the demo numbers
+    // don't read as real.
+    if (title === "Checkout funnel" || title === "Visitors") {
+      const mut = card.querySelector(".ch .mut") as HTMLElement | null;
+      if (mut) mut.textContent = "needs tracking";
+    }
+  });
+}
 
 export default Admin;
