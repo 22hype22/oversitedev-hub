@@ -1081,9 +1081,10 @@ const OSD_CSS = `.osd{font-family:var(--bodyf);color:var(--body);min-height:100v
         --disp:"Bricolage Grotesque",system-ui,sans-serif;--bodyf:"Space Grotesk",system-ui,sans-serif;--mono:"Space Mono",monospace}
 .osd *{box-sizing:border-box;margin:0;padding:0}
 .osd.instant::after, .osd.instant .appwrap, .osd.instant .side{transition:none!important}
-.osd .appwrap{display:flex;min-height:100vh;opacity:0;transform:translateY(16px);pointer-events:none;
+.osd .appwrap{display:flex;flex-direction:column;min-height:100vh;opacity:0;transform:translateY(16px);pointer-events:none;
     transition:opacity .9s ease .18s,transform 1s cubic-bezier(.22,1,.36,1) .18s}
 .osd .appwrap.show{opacity:1;transform:none;pointer-events:auto}
+.osd .approw{display:flex;flex:1;min-height:0}
 .osd a{color:inherit;text-decoration:none}
 .osd svg{display:block}
 .osd .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
@@ -1696,6 +1697,9 @@ const BotDashboard = () => {
 
         {/* APP */}
         <div className={"appwrap" + (appOn ? " show" : "")}>
+          {/* Admin notice — flush bar across the very top of the screen. */}
+          <FixesBar />
+          <div className="approw">
           <aside className="side">
             <div className="prof">
               <div className="av">{initial}</div>
@@ -1726,8 +1730,6 @@ const BotDashboard = () => {
           </aside>
 
           <div className="main">
-            {/* Admin notices — sticky bar pinned to the top. */}
-            <FixesBar />
             <div className="head">
               <div>
                 <div className="crumb">Oversite / <b>{view === "bot" ? "My Bots" : view.charAt(0).toUpperCase() + view.slice(1)}</b>{view === "bot" && activeBot && <> / <b>{activeBot.bot_name}</b></>}</div>
@@ -1964,6 +1966,7 @@ const BotDashboard = () => {
                 </>
               )}
             </div>
+          </div>
           </div>
         </div>
       </div>
