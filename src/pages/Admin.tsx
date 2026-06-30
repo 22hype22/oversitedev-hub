@@ -962,12 +962,19 @@ const Admin = () => {
         .eq("email", email)
         .maybeSingle();
       if (cancelled) return;
-      // Reset all gated nav items to visible, then hide the disallowed ones so
-      // re-granted access reappears live without a reload.
+      const isSuper = !!row?.is_super;
+      // Super Admin + Danger Zone are owner-only; the other five gate by the
+      // saved sections list (null = all). Reset then hide so re-granted access
+      // reappears live without a reload.
+      const superOnly = ["Super Admin", "Danger Zone"];
       const restricted =
-        row && !row.is_super && Array.isArray(row.sections) ? new Set(row.sections as string[]) : null;
+        !isSuper && Array.isArray(row?.sections) ? new Set(row.sections as string[]) : null;
       root.querySelectorAll<HTMLElement>(".nav[data-sec]").forEach((n) => {
         const sec = n.getAttribute("data-sec") || "";
+        if (superOnly.includes(sec)) {
+          n.style.display = isSuper ? "" : "none";
+          return;
+        }
         if (!gated.includes(sec)) return;
         n.style.display = restricted && !restricted.has(sec) ? "none" : "";
       });
@@ -2115,11 +2122,8 @@ function wireDanger(root: HTMLElement): void {
   marketBtn?.addEventListener("click", async () => {
     if (val('[data-dz="market-code"]') !== CODE) return toast.error("Wrong admin code");
     const next = !suspended;
-    const { error } = await sb
-      .from("app_settings")
-      .update({ marketing_suspended: next, updated_at: new Date().toISOString() })
-      .eq("id", 1);
-    if (error) return toast.error(error.message);
+    const { data, error } = await sb.rpc("admin_set_market_suspended", { _suspended: next });
+    if (error || !data?.ok) return toast.error(error?.message || data?.error || "Couldn't update");
     setVal('[data-dz="market-code"]', "");
     toast.success(next ? "Market closed" : "Market opened");
     loadMarket();
