@@ -693,18 +693,18 @@ const ADMIN_HTML = `<div class="osd app">
           <div class="card">
             <div class="ch"><span class="eye">Permissions</span><h3>Access</h3><span class="mut">what this admin can see</span></div>
             <div class="cb">
-              <div class="permhead"><span class="pe" id="perm-name">everetth.inquiries@gmail.com</span></div>
-              <div class="subnote" style="margin-bottom:8px">Toggle which sections of the admin panel this person can open.</div>
+              <div class="permhead"><span class="pe" id="perm-name" data-sa="perm-name">Select a person on the left</span></div>
+              <div class="subnote" style="margin-bottom:8px" data-sa="perm-hint">Pick an admin to choose which sections they can open.</div>
 
-              <div class="permrow"><div><div class="pt">Overview</div><div class="pd">Stats &amp; funnel</div></div><span class="sw on"><i></i></span></div>
-              <div class="permrow"><div><div class="pt">Storefront</div><div class="pd">Codes, billing override, announcements</div></div><span class="sw on"><i></i></span></div>
-              <div class="permrow"><div><div class="pt">Bots &amp; Workers</div><div class="pd">Secrets, token pool, worker tokens</div></div><span class="sw"><i></i></span></div>
-              <div class="permrow"><div><div class="pt">Support Access</div><div class="pd">Redeem codes, customer lookup</div></div><span class="sw on"><i></i></span></div>
-              <div class="permrow"><div><div class="pt">Logs &amp; History</div><div class="pd">Orders, purchases, signups, audit</div></div><span class="sw on"><i></i></span></div>
-              <div class="permrow"><div><div class="pt">Super Admin</div><div class="pd">Manage admins &amp; access — owner only</div></div><span class="sw lock"><i></i></span></div>
-              <div class="permrow"><div><div class="pt">Danger Zone</div><div class="pd">Kill switches, reset — owner only</div></div><span class="sw lock"><i></i></span></div>
+              <div class="permrow"><div><div class="pt">Overview</div><div class="pd">Stats &amp; funnel</div></div><span class="sw" data-key="Overview"><i></i></span></div>
+              <div class="permrow"><div><div class="pt">Storefront</div><div class="pd">Codes, billing override, announcements</div></div><span class="sw" data-key="Storefront"><i></i></span></div>
+              <div class="permrow"><div><div class="pt">Bots &amp; Workers</div><div class="pd">Secrets, token pool, worker tokens</div></div><span class="sw" data-key="Bots &amp; Workers"><i></i></span></div>
+              <div class="permrow"><div><div class="pt">Support Access</div><div class="pd">Redeem codes, customer lookup</div></div><span class="sw" data-key="Support Access"><i></i></span></div>
+              <div class="permrow"><div><div class="pt">Logs &amp; History</div><div class="pd">Orders, purchases, signups, audit</div></div><span class="sw" data-key="Logs &amp; History"><i></i></span></div>
+              <div class="permrow"><div><div class="pt">Super Admin</div><div class="pd">Manage admins &amp; access — super only</div></div><span class="sw lock"><i></i></span></div>
+              <div class="permrow"><div><div class="pt">Danger Zone</div><div class="pd">Kill switches, reset — super only</div></div><span class="sw lock"><i></i></span></div>
 
-              <button class="btn" style="margin-top:14px"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Save access</button>
+              <button class="btn" data-sa="save-access" style="margin-top:14px"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Save access</button>
             </div>
           </div>
         </div>
@@ -948,6 +948,28 @@ const Admin = () => {
     } catch {
       /* leave placeholders */
     }
+
+    // Gate this admin's own nav by their saved section access (super = all,
+    // sections null = all). UI-level convenience; DB still enforces admin RLS.
+    (async () => {
+      const {
+        data: { user: me },
+      } = await (supabase as any).auth.getUser();
+      const email = me?.email?.toLowerCase();
+      if (!email) return;
+      const { data: row } = await (supabase as any)
+        .from("admin_allowlist")
+        .select("is_super, sections")
+        .eq("email", email)
+        .maybeSingle();
+      if (cancelled || !row || row.is_super || !Array.isArray(row.sections)) return;
+      const allowed = new Set(row.sections as string[]);
+      const gated = ["Overview", "Storefront", "Bots & Workers", "Support Access", "Logs & History"];
+      root.querySelectorAll<HTMLElement>(".nav[data-sec]").forEach((n) => {
+        const sec = n.getAttribute("data-sec") || "";
+        if (gated.includes(sec) && !allowed.has(sec)) n.style.display = "none";
+      });
+    })();
 
     return () => {
       cancelled = true;
@@ -1865,10 +1887,22 @@ function wireSuper(root: HTMLElement): void {
     if (el) el.value = v;
   };
   const listEl = $('[data-sa="list"]');
+  // The five non-owner sections that can be toggled per admin.
+  const KEYS = ["Overview", "Storefront", "Bots & Workers", "Support Access", "Logs & History"];
+  let selected: { id: string; email: string; isSuper: boolean } | null = null;
+
+  const setToggles = (sections: string[] | null, isSuper: boolean) => {
+    root.querySelectorAll<HTMLElement>(".permrow .sw[data-key]").forEach((sw) => {
+      const key = sw.getAttribute("data-key") || "";
+      const on = isSuper || sections == null || sections.includes(key);
+      sw.classList.toggle("on", on);
+    });
+  };
+
   async function load() {
     const { data, error } = await sb
       .from("admin_allowlist")
-      .select("id, email, is_super, created_at")
+      .select("id, email, is_super, created_at, sections")
       .order("is_super", { ascending: false })
       .order("created_at", { ascending: true });
     if (!listEl) return;
@@ -1881,10 +1915,35 @@ function wireSuper(root: HTMLElement): void {
       const badge = a.is_super ? '<span class="tag g">super</span>' : '<span class="tag a">admin</span>';
       const ro = a.is_super ? "Owner · full access" : "Admin";
       const del = a.is_super ? "" : `<span class="ic x" data-act="del-admin">${X_SVG}</span>`;
-      return `<div class="adm" data-id="${a.id}"><div class="av">${escHtml(initial)}</div><div><div class="em">${escHtml(a.email)} ${badge}</div><div class="ro">${ro}</div></div>${del}</div>`;
+      const sectionsAttr = escHtml(JSON.stringify(a.sections ?? null));
+      const sel = selected && selected.id === a.id ? " sel" : "";
+      return `<div class="adm${sel}" data-id="${a.id}" data-email="${escHtml(a.email)}" data-super="${a.is_super ? 1 : 0}" data-sections="${sectionsAttr}"><div class="av">${escHtml(initial)}</div><div><div class="em">${escHtml(a.email)} ${badge}</div><div class="ro">${ro}</div></div>${del}</div>`;
     });
     paginate(listEl, html, '<div class="subnote">No admins yet.</div>');
   }
+
+  const selectRow = (rowEl: Element) => {
+    const id = rowEl.getAttribute("data-id") || "";
+    const email = rowEl.getAttribute("data-email") || "";
+    const isSuper = rowEl.getAttribute("data-super") === "1";
+    let sections: string[] | null = null;
+    try {
+      sections = JSON.parse(rowEl.getAttribute("data-sections") || "null");
+    } catch {
+      sections = null;
+    }
+    selected = { id, email, isSuper };
+    root.querySelectorAll(".adm").forEach((a) => a.classList.toggle("sel", a === rowEl));
+    const nameEl = $('[data-sa="perm-name"]');
+    if (nameEl) nameEl.textContent = email;
+    const hintEl = $('[data-sa="perm-hint"]');
+    if (hintEl)
+      hintEl.textContent = isSuper
+        ? "Super admin — full access to everything. Not editable."
+        : "Toggle which sections this admin can open, then Save access.";
+    setToggles(sections, isSuper);
+  };
+
   $('[data-sa="grant"]')?.addEventListener("click", async () => {
     const email = val('[data-sa="email"]').trim().toLowerCase();
     if (!email || !email.includes("@")) return toast.error("Enter a valid email");
@@ -1894,18 +1953,41 @@ function wireSuper(root: HTMLElement): void {
     setVal('[data-sa="email"]', "");
     load();
   });
+
   listEl?.addEventListener("click", async (e) => {
     const x = (e.target as Element).closest('[data-act="del-admin"]');
-    if (!x) return;
-    const rowEl = x.closest(".adm");
-    const id = rowEl?.getAttribute("data-id");
-    const email = (rowEl?.querySelector(".em")?.textContent || "").trim().split(" ")[0];
-    if (!id || !confirm(`Remove admin access${email ? " for " + email : ""}?`)) return;
-    const { error } = await sb.from("admin_allowlist").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Admin removed");
+    if (x) {
+      const rowEl = x.closest(".adm");
+      const id = rowEl?.getAttribute("data-id");
+      const email = (rowEl?.getAttribute("data-email") || "").trim();
+      if (!id || !confirm(`Remove admin access${email ? " for " + email : ""}?`)) return;
+      const { error } = await sb.from("admin_allowlist").delete().eq("id", id);
+      if (error) return toast.error(error.message);
+      if (selected?.id === id) selected = null;
+      toast.success("Admin removed");
+      load();
+      return;
+    }
+    // Otherwise: clicking the row selects that admin for editing.
+    const rowEl = (e.target as Element).closest(".adm");
+    if (rowEl) selectRow(rowEl);
+  });
+
+  $('[data-sa="save-access"]')?.addEventListener("click", async () => {
+    if (!selected) return toast.error("Pick an admin on the left first");
+    if (selected.isSuper) return toast.error("Super admins always have full access");
+    const sections = KEYS.filter(
+      (k) => root.querySelector(`.permrow .sw[data-key="${k}"]`)?.classList.contains("on"),
+    );
+    const { data, error } = await sb.rpc("admin_set_admin_sections", {
+      _id: selected.id,
+      _sections: sections,
+    });
+    if (error || !data?.ok) return toast.error(error?.message || data?.error || "Couldn't save");
+    toast.success(`Access saved for ${selected.email}`);
     load();
   });
+
   load();
 }
 
