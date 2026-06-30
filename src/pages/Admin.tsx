@@ -295,7 +295,7 @@ const ADMIN_HTML = `<div class="osd app">
       <div class="nav" data-sec="Storefront" data-sub="Categories, products, pricing, discount &amp; billing codes"><svg viewBox="0 0 24 24"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/></svg>Storefront</div>
       <div class="nav" data-sec="Bots &amp; Workers" data-sub="Bot secrets, token pool, and worker auth tokens"><svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 7V4"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/></svg>Bots &amp; Workers</div>
       <div class="nav" data-sec="Support Access" data-sub="Redeem support codes and send notifications"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 2.5"/><path d="M12 17h.01"/></svg>Support Access</div>
-      <div class="nav" data-sec="Logs &amp; history" data-sub="Bot orders, purchases, accounts, and admin actions"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Logs &amp; history</div>
+      <div class="nav" data-sec="Logs &amp; History" data-sub="Bot orders, purchases, accounts, and admin actions"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Logs &amp; History</div>
 
       <div class="glab">Owner</div>
       <div class="nav" data-sec="Super admin" data-sub="Manage who has admin access to the platform"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Super admin</div>
@@ -624,28 +624,17 @@ const ADMIN_HTML = `<div class="osd app">
         <!-- Bot orders & preorders -->
         <div class="card" style="margin-bottom:16px">
           <div class="ch"><span class="eye">Sales</span><h3>Bot orders &amp; preorders</h3>
-            <div class="logtools"><span class="srch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Search</span></div>
+            <div class="logtools"><span class="srch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input data-lg="orders-q" placeholder="Search" style="background:transparent;border:0;outline:none;color:var(--body);font:inherit;width:120px"></span></div>
           </div>
           <div class="cb">
-            <div class="chips" style="margin-top:0">
-              <span class="chip on">All</span><span class="chip">Orders</span><span class="chip">Preorders</span>
+            <div class="chips" data-lg="orders-chips" style="margin-top:0">
+              <span class="chip on" data-f="all">All</span><span class="chip" data-f="orders">Orders</span><span class="chip" data-f="preorders">Preorders</span>
             </div>
             <div class="log">
               <div class="th" style="grid-template-columns:0.8fr 1.6fr 1fr 0.9fr 0.6fr">
                 <span>Order</span><span>Customer</span><span>Base</span><span>Status</span><span class="right">When</span>
               </div>
-              <div class="tr" style="grid-template-columns:0.8fr 1.6fr 1fr 0.9fr 0.6fr">
-                <span class="mn">#10482</span><span class="c1">mia@example.com</span><span>Protection</span><span><span class="tag g">paid</span></span><span class="tm right">2h</span>
-              </div>
-              <div class="tr" style="grid-template-columns:0.8fr 1.6fr 1fr 0.9fr 0.6fr">
-                <span class="mn">#10481</span><span class="c1">leo@example.com</span><span>Utilities</span><span><span class="tag a">preorder</span></span><span class="tm right">5h</span>
-              </div>
-              <div class="tr" style="grid-template-columns:0.8fr 1.6fr 1fr 0.9fr 0.6fr">
-                <span class="mn">#10480</span><span class="c1">sam@example.com</span><span>Support</span><span><span class="tag n">building</span></span><span class="tm right">6h</span>
-              </div>
-              <div class="tr" style="grid-template-columns:0.8fr 1.6fr 1fr 0.9fr 0.6fr">
-                <span class="mn">#10479</span><span class="c1">ava@example.com</span><span>Protection</span><span><span class="tag g">paid</span></span><span class="tm right">9h</span>
-              </div>
+              <div data-lg="orders"><div class="subnote" style="padding-top:11px">Loading…</div></div>
             </div>
           </div>
         </div>
@@ -657,9 +646,7 @@ const ADMIN_HTML = `<div class="osd app">
             <div class="cb">
               <div class="log">
                 <div class="th" style="grid-template-columns:0.7fr 0.9fr 1.6fr 0.6fr"><span>Amount</span><span>Method</span><span>Customer</span><span class="right">When</span></div>
-                <div class="tr" style="grid-template-columns:0.7fr 0.9fr 1.6fr 0.6fr"><span class="amt">$29</span><span>Stripe</span><span class="c1">mia@example.com</span><span class="tm right">2h</span></div>
-                <div class="tr" style="grid-template-columns:0.7fr 0.9fr 1.6fr 0.6fr"><span class="amt">$8</span><span>Stripe</span><span class="c1">leo@example.com</span><span class="tm right">3h</span></div>
-                <div class="tr" style="grid-template-columns:0.7fr 0.9fr 1.6fr 0.6fr"><span class="amt">$24</span><span>Stripe</span><span class="c1">ava@example.com</span><span class="tm right">9h</span></div>
+                <div data-lg="purchases"><div class="subnote" style="padding-top:11px">Loading…</div></div>
               </div>
             </div>
           </div>
@@ -669,9 +656,7 @@ const ADMIN_HTML = `<div class="osd app">
             <div class="cb">
               <div class="log">
                 <div class="th" style="grid-template-columns:1.8fr 0.8fr 0.6fr"><span>Email</span><span>Via</span><span class="right">When</span></div>
-                <div class="tr" style="grid-template-columns:1.8fr 0.8fr 0.6fr"><span class="c1">new@user.com</span><span>Discord</span><span class="tm right">1h</span></div>
-                <div class="tr" style="grid-template-columns:1.8fr 0.8fr 0.6fr"><span class="c1">jess@user.com</span><span>Email</span><span class="tm right">4h</span></div>
-                <div class="tr" style="grid-template-columns:1.8fr 0.8fr 0.6fr"><span class="c1">kyle@user.com</span><span>Google</span><span class="tm right">7h</span></div>
+                <div data-lg="signups"><div class="subnote" style="padding-top:11px">Loading…</div></div>
               </div>
             </div>
           </div>
@@ -683,10 +668,7 @@ const ADMIN_HTML = `<div class="osd app">
           <div class="cb">
             <div class="log">
               <div class="th" style="grid-template-columns:1.3fr 1.1fr 1.3fr 0.6fr"><span>Action</span><span>Admin</span><span>Target</span><span class="right">When</span></div>
-              <div class="tr" style="grid-template-columns:1.3fr 1.1fr 1.3fr 0.6fr"><span class="c1">Token created</span><span>everant00</span><span class="mn">railway-prod</span><span class="tm right">3s</span></div>
-              <div class="tr" style="grid-template-columns:1.3fr 1.1fr 1.3fr 0.6fr"><span class="c1">Price updated</span><span>everant00</span><span>Protection · $29</span><span class="tm right">1h</span></div>
-              <div class="tr" style="grid-template-columns:1.3fr 1.1fr 1.3fr 0.6fr"><span class="c1">Support code redeemed</span><span>everett</span><span class="mn">mia@example.com</span><span class="tm right">2d</span></div>
-              <div class="tr" style="grid-template-columns:1.3fr 1.1fr 1.3fr 0.6fr"><span class="c1">Marketing disabled</span><span>everant00</span><span>storefront</span><span class="tm right">3d</span></div>
+              <div data-lg="audit"><div class="subnote" style="padding-top:11px">Loading…</div></div>
             </div>
           </div>
         </div>
@@ -734,7 +716,7 @@ const ADMIN_HTML = `<div class="osd app">
               <div class="permrow"><div><div class="pt">Storefront</div><div class="pd">Codes, billing override, announcements</div></div><span class="sw on"><i></i></span></div>
               <div class="permrow"><div><div class="pt">Bots &amp; Workers</div><div class="pd">Secrets, token pool, worker tokens</div></div><span class="sw"><i></i></span></div>
               <div class="permrow"><div><div class="pt">Support Access</div><div class="pd">Redeem codes, customer lookup</div></div><span class="sw on"><i></i></span></div>
-              <div class="permrow"><div><div class="pt">Logs &amp; history</div><div class="pd">Orders, purchases, signups, audit</div></div><span class="sw on"><i></i></span></div>
+              <div class="permrow"><div><div class="pt">Logs &amp; History</div><div class="pd">Orders, purchases, signups, audit</div></div><span class="sw on"><i></i></span></div>
               <div class="permrow"><div><div class="pt">Super admin</div><div class="pd">Manage admins &amp; access — owner only</div></div><span class="sw lock"><i></i></span></div>
               <div class="permrow"><div><div class="pt">Danger zone</div><div class="pd">Kill switches, reset — owner only</div></div><span class="sw lock"><i></i></span></div>
 
@@ -864,7 +846,7 @@ const ADMIN_JS = `// segmented toggles (generic: click sets .on within the group
       document.getElementById('crumb').innerHTML = sec;
       document.getElementById('title').innerHTML = sec;
       document.getElementById('sub').textContent = n.getAttribute('data-sub');
-      var map = { 'Overview': 'overview-content', 'Storefront': 'storefront-content', 'Bots & Workers': 'bots-content', 'Support Access': 'support-content', 'Logs & history': 'logs-content', 'Super admin': 'super-content', 'Captcha images': 'captcha-content', 'Danger zone': 'danger-content' };
+      var map = { 'Overview': 'overview-content', 'Storefront': 'storefront-content', 'Bots & Workers': 'bots-content', 'Support Access': 'support-content', 'Logs & History': 'logs-content', 'Super admin': 'super-content', 'Captcha images': 'captcha-content', 'Danger zone': 'danger-content' };
       ['overview-content','storefront-content','bots-content','support-content','logs-content','super-content','captcha-content','danger-content'].forEach(function(id){
         var el = document.getElementById(id); if (el) el.style.display = 'none';
       });
@@ -958,6 +940,13 @@ const Admin = () => {
     let disposeSupport = () => {};
     try {
       disposeSupport = wireSupport(root) || (() => {});
+    } catch {
+      /* leave placeholders */
+    }
+
+    // Logs & History — fill the four feeds.
+    try {
+      wireLogs(root);
     } catch {
       /* leave placeholders */
     }
@@ -1753,6 +1742,116 @@ function wireSupport(root: HTMLElement): () => void {
   loadGrants();
   const timer = window.setInterval(loadGrants, 60000);
   return () => window.clearInterval(timer);
+}
+
+// ── Logs & History data binding ────────────────────────────────────────
+// One admin_logs_overview() call fills the four feeds (orders, purchases,
+// signups, audit). Orders support client-side chip filter + search.
+function wireLogs(root: HTMLElement): void {
+  const sb = supabase as any;
+  const $ = <T extends Element = HTMLElement>(sel: string) => root.querySelector(sel) as T | null;
+  const val = (sel: string) => ($(sel) as HTMLInputElement | null)?.value ?? "";
+
+  const ordersEl = $('[data-lg="orders"]');
+  const purchasesEl = $('[data-lg="purchases"]');
+  const signupsEl = $('[data-lg="signups"]');
+  const auditEl = $('[data-lg="audit"]');
+  let allOrders: any[] = [];
+
+  const ORDER_COLS = "grid-template-columns:0.8fr 1.6fr 1fr 0.9fr 0.6fr";
+  const STATUS_TAG: Record<string, [string, string]> = {
+    submitted: ["a", "preorder"],
+    paid: ["g", "paid"],
+    building: ["n", "building"],
+    ready: ["g", "ready"],
+    live: ["g", "live"],
+    cancelled: ["n", "cancelled"],
+    draft: ["n", "draft"],
+  };
+  const statusTag = (s: string) => {
+    const [cls, label] = STATUS_TAG[s] || ["n", s || "—"];
+    return `<span class="tag ${cls}">${escHtml(label)}</span>`;
+  };
+  const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
+  function renderOrders() {
+    if (!ordersEl) return;
+    const q = val('[data-lg="orders-q"]').trim().toLowerCase();
+    const f = root.querySelector('[data-lg="orders-chips"] .chip.on')?.getAttribute("data-f") || "all";
+    let list = allOrders;
+    if (f === "orders") list = list.filter((o) => o.status !== "submitted");
+    else if (f === "preorders") list = list.filter((o) => o.status === "submitted");
+    if (q)
+      list = list.filter(
+        (o) =>
+          (o.bot_name || "").toLowerCase().includes(q) ||
+          (o.email || "").toLowerCase().includes(q) ||
+          (o.base || "").toLowerCase().includes(q),
+      );
+    ordersEl.innerHTML = list.length
+      ? list
+          .map(
+            (o) =>
+              `<div class="tr" style="${ORDER_COLS}"><span class="mn" title="${escHtml(o.id)}">${escHtml(String(o.id).slice(0, 8))}</span><span class="c1">${escHtml(o.email || "—")}</span><span>${escHtml(o.base || "")}</span><span>${statusTag(o.status)}</span><span class="tm right">${escHtml(timeAgo(o.ts))}</span></div>`,
+          )
+          .join("")
+      : '<div class="subnote" style="padding-top:11px">No orders match.</div>';
+  }
+
+  async function load() {
+    const { data, error } = await sb.rpc("admin_logs_overview");
+    if (error || !data?.ok) {
+      const msg = `<div class="subnote" style="padding-top:11px">${escHtml(data?.error || error?.message || "Failed to load")}</div>`;
+      [ordersEl, purchasesEl, signupsEl, auditEl].forEach((el) => {
+        if (el) el.innerHTML = msg;
+      });
+      return;
+    }
+    allOrders = (data.orders || []) as any[];
+    renderOrders();
+
+    if (purchasesEl) {
+      const rows = (data.purchases || []) as any[];
+      purchasesEl.innerHTML = rows.length
+        ? rows
+            .map(
+              (p) =>
+                `<div class="tr" style="grid-template-columns:0.7fr 0.9fr 1.6fr 0.6fr"><span class="amt">$${escHtml(p.amount)}</span><span>Stripe</span><span class="c1">${escHtml(p.email || "—")}</span><span class="tm right">${escHtml(timeAgo(p.ts))}</span></div>`,
+            )
+            .join("")
+        : '<div class="subnote" style="padding-top:11px">No payments yet.</div>';
+    }
+
+    if (signupsEl) {
+      const rows = (data.signups || []) as any[];
+      signupsEl.innerHTML = rows.length
+        ? rows
+            .map(
+              (u) =>
+                `<div class="tr" style="grid-template-columns:1.8fr 0.8fr 0.6fr"><span class="c1">${escHtml(u.email || "—")}</span><span>${escHtml(cap(u.provider || "email"))}</span><span class="tm right">${escHtml(timeAgo(u.ts))}</span></div>`,
+            )
+            .join("")
+        : '<div class="subnote" style="padding-top:11px">No signups.</div>';
+    }
+
+    if (auditEl) {
+      const rows = (data.audit || []) as any[];
+      auditEl.innerHTML = rows.length
+        ? rows
+            .map(
+              (a) =>
+                `<div class="tr" style="grid-template-columns:1.3fr 1.1fr 1.3fr 0.6fr"><span class="c1">${escHtml(a.action)}</span><span>${escHtml(a.admin || "—")}</span><span class="mn">${escHtml(a.target || "—")}</span><span class="tm right">${escHtml(timeAgo(a.ts))}</span></div>`,
+            )
+            .join("")
+        : '<div class="subnote" style="padding-top:11px">No actions yet.</div>';
+    }
+  }
+
+  // Chips (ADMIN_JS already toggles .on) + search re-render the orders list.
+  root.querySelectorAll('[data-lg="orders-chips"] .chip').forEach((c) => c.addEventListener("click", renderOrders));
+  $('[data-lg="orders-q"]')?.addEventListener("input", renderOrders);
+
+  load();
 }
 
 export default Admin;
