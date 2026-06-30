@@ -86,7 +86,12 @@ export function FixesBar() {
     }
   };
 
-  const canExpand = rest.length > 0 || !!latest.body;
+  // Only treat the body as expandable content when it actually adds something
+  // beyond the title (admins often paste the same text into both).
+  const sameAsTitle = (b: string | null) =>
+    !b || b.trim().toLowerCase() === latest.title.trim().toLowerCase();
+  const latestBody = sameAsTitle(latest.body) ? null : latest.body;
+  const canExpand = rest.length > 0 || !!latestBody;
 
   return (
     <div className="mb-8">
@@ -99,21 +104,21 @@ export function FixesBar() {
       >
         {/* Header row — single bar. Clicking anywhere on it toggles expand. */}
         <div
-          className={`flex items-center gap-3 px-4 ${canExpand ? "cursor-pointer" : ""}`}
-          style={{ minHeight: 52 }}
+          className={`flex items-center gap-3 px-5 ${canExpand ? "cursor-pointer" : ""}`}
+          style={{ height: 54 }}
           onClick={canExpand ? () => setExpanded((v) => !v) : undefined}
         >
           <span
-            className="inline-flex shrink-0 items-center rounded-md px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.1em]"
-            style={{ background: m.tint, color: m.color, fontFamily: '"Bricolage Grotesque", sans-serif' }}
+            className="inline-flex shrink-0 items-center rounded-md px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.1em]"
+            style={{ background: m.tint, color: m.color, lineHeight: 1, fontFamily: '"Bricolage Grotesque", sans-serif' }}
           >
             {m.label}
           </span>
-          <span className="flex-1 truncate text-sm font-semibold leading-none" style={{ color: HEADING }}>
+          <span className="flex-1 truncate text-sm font-semibold" style={{ color: HEADING }}>
             {latest.title}
           </span>
           {rest.length > 0 && (
-            <span className="shrink-0 text-xs leading-none" style={{ color: FAINT }}>
+            <span className="shrink-0 text-xs" style={{ color: FAINT }}>
               +{rest.length} more
             </span>
           )}
@@ -141,18 +146,15 @@ export function FixesBar() {
         </div>
 
         {/* Expanded body — grows the SAME container downward. The latest note's
-            label/title already show in the header above, so here we only add its
-            body + timestamp, then any other notes. */}
+            label + title already show in the header, so we only add its body
+            here (skipped when it just repeats the title), then any other notes. */}
         {expanded && (
-          <div className="px-4 pb-4" style={{ borderTop: `1px solid ${HAIR}` }}>
-            {latest.body && (
+          <div className="px-5 pb-4" style={{ borderTop: `1px solid ${HAIR}` }}>
+            {latestBody && (
               <p className="mt-3 whitespace-pre-wrap text-sm" style={{ color: BODY }}>
-                {latest.body}
+                {latestBody}
               </p>
             )}
-            <div className="mt-2 text-[11px]" style={{ color: FAINT, fontFamily: '"Space Mono", monospace' }}>
-              {new Date(latest.created_at).toLocaleString()}
-            </div>
 
             {rest.map((f) => {
               const meta = getMeta(f.severity);
@@ -164,8 +166,8 @@ export function FixesBar() {
                 >
                   <div className="flex items-center gap-2.5">
                     <span
-                      className="inline-flex items-center rounded px-2 py-0.5 text-[9px] font-bold uppercase leading-none tracking-[0.1em]"
-                      style={{ background: meta.tint, color: meta.color, fontFamily: '"Bricolage Grotesque", sans-serif' }}
+                      className="inline-flex items-center rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em]"
+                      style={{ background: meta.tint, color: meta.color, lineHeight: 1, fontFamily: '"Bricolage Grotesque", sans-serif' }}
                     >
                       {meta.label}
                     </span>
@@ -173,14 +175,11 @@ export function FixesBar() {
                       {f.title}
                     </div>
                   </div>
-                  {f.body && (
+                  {f.body && f.body.trim().toLowerCase() !== f.title.trim().toLowerCase() && (
                     <p className="mt-1.5 whitespace-pre-wrap text-sm" style={{ color: BODY }}>
                       {f.body}
                     </p>
                   )}
-                  <div className="mt-1.5 text-[11px]" style={{ color: FAINT, fontFamily: '"Space Mono", monospace' }}>
-                    {new Date(f.created_at).toLocaleString()}
-                  </div>
                 </div>
               );
             })}
