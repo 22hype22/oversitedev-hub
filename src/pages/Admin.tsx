@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import containers from "@/assets/containers.webp";
+import { rememberRedeemedGrant } from "@/hooks/useSupportGrants";
 
 /**
  * Admin panel — dashboard-styled shell. Layout is final; data hookups are wired
@@ -588,17 +589,16 @@ const ADMIN_HTML = `<div class="osd app">
             <div class="cb">
               <label class="lbl">Support code</label>
               <div class="redeem">
-                <input class="in mono" placeholder="XXXX-XXXX-XXXX">
-                <button class="btn"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Redeem</button>
+                <input class="in mono" data-su="code" placeholder="SUP-XXXX-XXXX">
+                <button class="btn" data-su="redeem"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Redeem</button>
               </div>
               <div class="subnote" style="margin-top:10px">Paste a user-issued code to open their bot dashboard. Access auto-expires.</div>
 
               <div class="listcap">Active access</div>
-              <div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">mia@example.com</div><div class="meta">expires in 1h 12m</div></div><span class="sp"><button class="btn ghost sm">Open</button><span class="ic"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></span></span></div>
-              <div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">leo@example.com</div><div class="meta">expires in 22m</div></div><span class="sp"><button class="btn ghost sm">Open</button><span class="ic"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></span></span></div>
+              <div data-su="active"><div class="subnote">Loading…</div></div>
 
               <div class="listcap">Recent</div>
-              <div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">sam@example.com</div><div class="meta">ended 2d ago</div></div><span class="sp"><span class="tag n">expired</span></span></div>
+              <div data-su="recent"><div class="subnote">Loading…</div></div>
             </div>
           </div>
 
@@ -606,21 +606,13 @@ const ADMIN_HTML = `<div class="osd app">
           <div class="card">
             <div class="ch"><span class="eye">Find</span><h3>Customer lookup</h3><span class="mut">who you're helping</span></div>
             <div class="cb">
-              <label class="lbl">Search by email or bot</label>
+              <label class="lbl">Search by email, bot, or Discord</label>
               <div class="redeem">
-                <input class="in" placeholder="mia@example.com">
-                <button class="btn ghost"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Search</button>
+                <input class="in" data-su="q" placeholder="mia@example.com">
+                <button class="btn ghost" data-su="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Search</button>
               </div>
 
-              <div class="inner">
-                <div class="who">mia@example.com</div>
-                <div class="sub2">Joined 4 months ago · 2 bots · billing active</div>
-                <div style="margin-top:10px">
-                  <div class="botline"><span class="pdot"></span><span class="nm">Protection Bot</span><span class="sp">online · 1 server</span></div>
-                  <div class="botline"><span class="pdot"></span><span class="nm">Utilities Bot</span><span class="sp">online · 2 servers</span></div>
-                </div>
-                <button class="btn ghost sm" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/></svg>Request access</button>
-              </div>
+              <div data-su="result"></div>
               <div class="subnote" style="margin-top:10px">Read-only summary. To act on their dashboard, request a support code.</div>
             </div>
           </div>
@@ -962,9 +954,18 @@ const Admin = () => {
       /* leave placeholders */
     }
 
+    // Support Access — wire code redemption + customer lookup.
+    let disposeSupport = () => {};
+    try {
+      disposeSupport = wireSupport(root) || (() => {});
+    } catch {
+      /* leave placeholders */
+    }
+
     return () => {
       cancelled = true;
       disposeStorefront();
+      disposeSupport();
     };
   }, [isAdmin, navigate]);
 
@@ -1621,6 +1622,137 @@ function wireBots(root: HTMLElement): void {
     loadSlots();
   });
   loadSlots();
+}
+
+// ── Support Access data binding ────────────────────────────────────────
+// Redeem support codes (creates a grant → the bot dashboard then shows the
+// owner's bots via support_access_grants) and look up customers. Returns a
+// disposer for the active-sessions refresh interval.
+function wireSupport(root: HTMLElement): () => void {
+  const sb = supabase as any;
+  const $ = <T extends Element = HTMLElement>(sel: string) => root.querySelector(sel) as T | null;
+  const val = (sel: string) => ($(sel) as HTMLInputElement | null)?.value ?? "";
+  const setVal = (sel: string, v: string) => {
+    const el = $(sel) as HTMLInputElement | null;
+    if (el) el.value = v;
+  };
+
+  // ── Redeem code + active/recent sessions ──
+  const activeEl = $('[data-su="active"]');
+  const recentEl = $('[data-su="recent"]');
+  async function loadGrants() {
+    const { data: u } = await sb.auth.getUser();
+    const uid = u?.user?.id;
+    if (!uid) return;
+    const nowIso = new Date().toISOString();
+    const { data } = await sb
+      .from("support_access_grants")
+      .select("id, owner_user_id, granted_at, expires_at, revoked_at")
+      .eq("admin_user_id", uid)
+      .order("granted_at", { ascending: false })
+      .limit(25);
+    const rows = (data || []) as any[];
+    const active = rows.filter((g) => !g.revoked_at && g.expires_at > nowIso);
+    const recent = rows.filter((g) => g.revoked_at || g.expires_at <= nowIso).slice(0, 5);
+    if (activeEl)
+      activeEl.innerHTML = active.length
+        ? active
+            .map(
+              (g) =>
+                `<div class="crow" data-id="${g.id}" data-owner="${escHtml(g.owner_user_id)}"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">Owner ${escHtml(String(g.owner_user_id).slice(0, 8))}…</div><div class="meta">expires ${escHtml(new Date(g.expires_at).toLocaleString())}</div></div><span class="sp"><button class="btn ghost sm" data-act="open-grant">Open</button><span class="ic" data-act="release-grant" title="Only the owner can revoke">${X_SVG}</span></span></div>`,
+            )
+            .join("")
+        : '<div class="subnote">No active sessions.</div>';
+    if (recentEl)
+      recentEl.innerHTML = recent.length
+        ? recent
+            .map((g) => {
+              const ended = g.revoked_at ? "revoked" : "expired";
+              return `<div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">Owner ${escHtml(String(g.owner_user_id).slice(0, 8))}…</div><div class="meta">ended ${escHtml(timeAgo(g.revoked_at || g.expires_at))}</div></div><span class="sp"><span class="tag n">${ended}</span></span></div>`;
+            })
+            .join("")
+        : '<div class="subnote">Nothing recent.</div>';
+  }
+  $('[data-su="redeem"]')?.addEventListener("click", async () => {
+    const code = val('[data-su="code"]').trim().toUpperCase();
+    if (!code) return toast.error("Enter a support code");
+    const { data, error } = await sb.rpc("redeem_support_access_code", { _code: code });
+    if (error || !data?.ok) return toast.error(data?.error || error?.message || "Couldn't redeem");
+    rememberRedeemedGrant(data.grant_id, data.owner_user_id);
+    toast.success("Access granted", {
+      description: `Active until ${new Date(data.expires_at).toLocaleString()}`,
+    });
+    setVal('[data-su="code"]', "");
+    loadGrants();
+  });
+  activeEl?.addEventListener("click", (e) => {
+    const t = e.target as Element;
+    if (t.closest('[data-act="open-grant"]')) {
+      window.location.assign("/bot-dashboard");
+    } else if (t.closest('[data-act="release-grant"]')) {
+      toast.info(
+        "Only the bot owner can revoke a code. Ask them to revoke from their dashboard, or wait for it to expire.",
+      );
+    }
+  });
+
+  // ── Customer lookup ──
+  const resultEl = $('[data-su="result"]');
+  async function runSearch() {
+    const q = val('[data-su="q"]').trim();
+    if (q.length < 2) return toast.error("Enter at least 2 characters");
+    if (resultEl) resultEl.innerHTML = '<div class="subnote">Searching…</div>';
+    const { data, error } = await sb.rpc("admin_lookup_customer", { _query: q });
+    if (error || !data?.ok) {
+      if (resultEl)
+        resultEl.innerHTML = `<div class="subnote">${escHtml(data?.error || error?.message || "Search failed")}</div>`;
+      return;
+    }
+    if (!data.found) {
+      if (resultEl) resultEl.innerHTML = '<div class="subnote">No customer found.</div>';
+      return;
+    }
+    const bots = (data.bots || []) as any[];
+    const joined = data.joined_at ? timeAgo(data.joined_at) : "unknown";
+    const botLines = bots.length
+      ? bots
+          .map((b) => {
+            const online =
+              (b.presence && b.presence !== "offline") || b.status === "ready" || b.status === "active";
+            const dot = online
+              ? '<span class="pdot"></span>'
+              : '<span class="d" style="height:7px;width:7px;border-radius:50%;background:var(--faint);display:inline-block"></span>';
+            const n = b.servers || 0;
+            return `<div class="botline">${dot}<span class="nm">${escHtml(b.name)}</span><span class="sp">${online ? "online" : "offline"} · ${n} server${n === 1 ? "" : "s"}</span></div>`;
+          })
+          .join("")
+      : '<div class="subnote">No bots.</div>';
+    if (resultEl)
+      resultEl.innerHTML = `<div class="inner" data-owner="${escHtml(data.user_id)}"><div class="who">${escHtml(data.email || "(unknown email)")}</div><div class="sub2">Joined ${escHtml(joined)} · ${data.bot_count} bot${data.bot_count === 1 ? "" : "s"} · billing ${escHtml(data.billing)}</div><div style="margin-top:10px">${botLines}</div><button class="btn ghost sm" data-act="request" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/></svg>Request access</button></div>`;
+  }
+  $('[data-su="search"]')?.addEventListener("click", runSearch);
+  $('[data-su="q"]')?.addEventListener("keydown", (e: Event) => {
+    if ((e as KeyboardEvent).key === "Enter") runSearch();
+  });
+  resultEl?.addEventListener("click", async (e) => {
+    const btn = (e.target as Element).closest('[data-act="request"]');
+    if (!btn) return;
+    const owner = btn.closest("[data-owner]")?.getAttribute("data-owner");
+    if (!owner) return;
+    const { data, error } = await sb.rpc("admin_send_notification", {
+      _target_user_id: owner,
+      _title: "Support access requested",
+      _body:
+        "An admin would like temporary access to your dashboard to help with an issue. Generate a support code in Settings → Support access and share it with them.",
+      _event_type: "support_request",
+    });
+    if (error || data?.ok === false) return toast.error(error?.message || data?.error || "Couldn't send");
+    toast.success("Asked the customer to share a support code");
+  });
+
+  loadGrants();
+  const timer = window.setInterval(loadGrants, 60000);
+  return () => window.clearInterval(timer);
 }
 
 export default Admin;
