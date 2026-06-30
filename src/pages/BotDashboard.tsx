@@ -1726,6 +1726,8 @@ const BotDashboard = () => {
           </aside>
 
           <div className="main">
+            {/* Admin notices — sticky bar pinned to the top. */}
+            <FixesBar />
             <div className="head">
               <div>
                 <div className="crumb">Oversite / <b>{view === "bot" ? "My Bots" : view.charAt(0).toUpperCase() + view.slice(1)}</b>{view === "bot" && activeBot && <> / <b>{activeBot.bot_name}</b></>}</div>
@@ -1741,9 +1743,6 @@ const BotDashboard = () => {
 
             {/* Hosting payment overdue — renders nothing unless past due. */}
             <HostingPastDueBanner />
-
-            {/* Active known-issue notices — renders nothing when none are active. */}
-            <FixesBar />
 
             {/* DASHBOARD */}
             <div className={"view" + (view === "dashboard" ? " on" : "")}>
