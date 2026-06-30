@@ -458,6 +458,23 @@ const ADMIN_HTML = `<div class="osd app">
           </div>
         </div>
 
+        <!-- Comp list: emails that never pay -->
+        <div class="scols" style="margin-top:16px">
+          <div class="card">
+            <div class="ch"><span class="eye">Comp</span><h3>Comp list</h3><span class="mut">emails that never pay</span></div>
+            <div class="cb">
+              <div class="catform" style="grid-template-columns:1.6fr 1.4fr auto">
+                <div><label class="lbl">Email</label><input class="in" data-sf="comp-email" placeholder="person@example.com"></div>
+                <div><label class="lbl">Note <span style="text-transform:none;letter-spacing:0">(optional)</span></label><input class="in" data-sf="comp-note" placeholder="e.g. partner, giveaway winner"></div>
+                <button class="btn" data-sf="comp-add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+              </div>
+              <div class="subnote" style="margin-top:10px">Orders from these emails go through the whole build flow but are 100% off — no charge, hosting waived. Removing an email is forward-only: they keep existing bots; their next purchase charges normally.</div>
+              <div class="listcap">On the list</div>
+              <div data-sf="comp-list"><div class="subnote">Loading…</div></div>
+            </div>
+          </div>
+        </div>
+
         <!-- Row 2: billing override | combined announcements -->
         <div class="scols" style="margin-top:16px;align-items:start">
           <!-- Billing override -->
@@ -1371,6 +1388,44 @@ function wireStorefront(root: HTMLElement): () => void {
     }
   });
   loadFree();
+
+  // ── Comp list (emails that never pay) ──
+  const compList = $('[data-sf="comp-list"]');
+  async function loadComp() {
+    const { data } = await sb
+      .from("comped_emails")
+      .select("id, email, note, created_at")
+      .order("created_at", { ascending: false });
+    if (!compList) return;
+    const html = ((data || []) as any[]).map((c) => {
+      const note = c.note ? ` · ${escHtml(c.note)}` : "";
+      return `<div class="crow" data-id="${c.id}"><div><div class="c">${escHtml(c.email)}</div><div class="meta">never pays${note}</div></div><span class="sp"><span class="tag g">comped</span><span class="ic" data-act="del-comp">${X_SVG}</span></span></div>`;
+    });
+    paginate(compList, html, '<div class="subnote">No comped emails.</div>');
+  }
+  $('[data-sf="comp-add"]')?.addEventListener("click", async () => {
+    const email = val('[data-sf="comp-email"]').trim().toLowerCase();
+    const note = val('[data-sf="comp-note"]').trim();
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast.error("Enter a valid email");
+    const { error } = await sb.from("comped_emails").insert({ email, note: note || null });
+    if (error)
+      return toast.error(/duplicate|unique/i.test(error.message) ? "That email is already on the list" : error.message);
+    toast.success(`${email} will never pay`);
+    setVal('[data-sf="comp-email"]', "");
+    setVal('[data-sf="comp-note"]', "");
+    loadComp();
+  });
+  compList?.addEventListener("click", async (e) => {
+    const ic = (e.target as Element).closest(".ic");
+    if (!ic || ic.getAttribute("data-act") !== "del-comp") return;
+    const id = ic.closest(".crow")?.getAttribute("data-id");
+    const email = ic.closest(".crow")?.querySelector(".c")?.textContent || "this email";
+    if (!id || !confirm(`Remove ${email} from the comp list? They keep existing bots; their next purchase will charge normally.`)) return;
+    const { error } = await sb.from("comped_emails").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    loadComp();
+  });
+  loadComp();
 
   // ── Billing override (rotating) ──
   let ovrExpires = 0;
