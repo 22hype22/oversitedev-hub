@@ -236,7 +236,7 @@ const ADMIN_CSS = `.osadmin{
 .osadmin .sw i{position:absolute;top:3px;left:3px;height:16px;width:16px;border-radius:50%;background:#cfd8df;transition:.2s}
 .osadmin .sw.on i{left:19px;background:var(--accentink)}
 .osadmin .permhead{display:flex;align-items:center;gap:10px;margin-bottom:4px}
-.osadmin .permhead .pe{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:14px}
+.osadmin .permhead .pe{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:21px;letter-spacing:-.01em;word-break:break-all;line-height:1.15}
 .osadmin .drop{border:1.5px dashed var(--line2);border-radius:13px;padding:26px 18px;text-align:center;color:var(--faint);cursor:pointer;transition:.15s;background:rgba(33,39,46,.3)}
 .osadmin .drop:hover{border-color:rgba(201,219,230,.45);color:var(--body)}
 .osadmin .drop svg{width:24px;height:24px;stroke:currentColor;stroke-width:1.7;fill:none;margin-bottom:8px}
@@ -951,30 +951,54 @@ const Admin = () => {
 
     // Gate this admin's own nav by their saved section access (super = all,
     // sections null = all). UI-level convenience; DB still enforces admin RLS.
-    (async () => {
+    const gated = ["Overview", "Storefront", "Bots & Workers", "Support Access", "Logs & History"];
+    const applyNavGate = async () => {
       const {
         data: { user: me },
       } = await (supabase as any).auth.getUser();
       const email = me?.email?.toLowerCase();
-      if (!email) return;
+      if (cancelled || !email) return;
       const { data: row } = await (supabase as any)
         .from("admin_allowlist")
         .select("is_super, sections")
         .eq("email", email)
         .maybeSingle();
-      if (cancelled || !row || row.is_super || !Array.isArray(row.sections)) return;
-      const allowed = new Set(row.sections as string[]);
-      const gated = ["Overview", "Storefront", "Bots & Workers", "Support Access", "Logs & History"];
+      if (cancelled) return;
+      // Reset all gated nav items to visible, then hide the disallowed ones so
+      // re-granted access reappears live without a reload.
+      const restricted =
+        row && !row.is_super && Array.isArray(row.sections) ? new Set(row.sections as string[]) : null;
       root.querySelectorAll<HTMLElement>(".nav[data-sec]").forEach((n) => {
         const sec = n.getAttribute("data-sec") || "";
-        if (gated.includes(sec) && !allowed.has(sec)) n.style.display = "none";
+        if (!gated.includes(sec)) return;
+        n.style.display = restricted && !restricted.has(sec) ? "none" : "";
       });
+    };
+    applyNavGate();
+
+    // Live: re-apply the gate the moment this admin's allowlist row changes.
+    let allowlistChannel: any = null;
+    (async () => {
+      const {
+        data: { user: me },
+      } = await (supabase as any).auth.getUser();
+      const email = me?.email?.toLowerCase();
+      if (cancelled || !email) return;
+      allowlistChannel = (supabase as any)
+        .channel("admin-self-allowlist")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "admin_allowlist", filter: `email=eq.${email}` },
+          () => applyNavGate(),
+        )
+        .subscribe();
     })();
 
     return () => {
       cancelled = true;
       disposeStorefront();
       disposeSupport();
+      if (allowlistChannel) (supabase as any).removeChannel(allowlistChannel);
     };
   }, [isAdmin, navigate]);
 
