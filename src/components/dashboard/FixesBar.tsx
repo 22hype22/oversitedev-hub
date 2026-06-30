@@ -87,26 +87,34 @@ export function FixesBar() {
   };
 
   return (
-    <div className="sticky top-0 z-30 mb-5">
+    <div className="sticky top-3 z-30 mb-5">
       <div
-        className="flex items-center gap-3 rounded-xl border px-4 py-2.5 backdrop-blur-md"
-        style={{ background: m.tint, borderColor: HAIR }}
+        className="flex items-center gap-3 rounded-2xl border py-2.5 pl-3 pr-2 backdrop-blur-md"
+        style={{
+          background: "linear-gradient(180deg,rgba(46,54,63,.85),rgba(39,46,54,.9))",
+          borderColor: HAIR,
+        }}
       >
-        <m.Icon className="h-4 w-4 shrink-0" style={{ color: m.color }} />
         <span
-          className="shrink-0 text-[11px] font-bold uppercase tracking-wide"
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-lg"
+          style={{ background: m.tint, color: m.color }}
+        >
+          <m.Icon className="h-4 w-4" />
+        </span>
+        <span
+          className="shrink-0 text-[10px] font-bold uppercase tracking-[0.14em]"
           style={{ color: m.color }}
         >
           {m.label}
         </span>
-        <span className="flex-1 truncate text-sm font-medium" style={{ color: HEADING }}>
+        <span className="flex-1 truncate text-sm font-semibold" style={{ color: HEADING }}>
           {latest.title}
         </span>
         {rest.length > 0 && (
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="shrink-0 text-xs"
+            className="shrink-0 rounded-md px-2 py-1 text-xs transition-colors hover:bg-white/5"
             style={{ color: FAINT }}
           >
             +{rest.length} more
@@ -116,7 +124,7 @@ export function FixesBar() {
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="shrink-0"
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-md transition-colors hover:bg-white/5"
             style={{ color: FAINT }}
             aria-label="Toggle details"
           >
@@ -126,7 +134,7 @@ export function FixesBar() {
         <button
           type="button"
           onClick={dismissAll}
-          className="shrink-0 transition-opacity hover:opacity-70"
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-md transition-colors hover:bg-white/5"
           style={{ color: FAINT }}
           aria-label="Dismiss"
         >
@@ -136,7 +144,7 @@ export function FixesBar() {
 
       {expanded && (
         <div
-          className="mt-2 space-y-3 rounded-xl border p-4 backdrop-blur-md"
+          className="mt-2 space-y-3 rounded-2xl border p-4 backdrop-blur-md"
           style={{ background: SURFACE, borderColor: HAIR }}
         >
           {visible.map((f) => {
