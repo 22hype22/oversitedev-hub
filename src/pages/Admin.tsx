@@ -26,6 +26,7 @@ const ADMIN_CSS = `.osadmin{
 .osadmin, .osadmin{margin:0;padding:0;background:#1b2026}
 .osadmin .osd-bg{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center 20%;background-repeat:no-repeat}
 .osadmin .osd-scrim{position:fixed;inset:0;z-index:0;background:linear-gradient(180deg,rgba(18,22,27,.42),rgba(18,22,27,.6) 60%,rgba(18,22,27,.74))}
+.osadmin .osd-dim{position:fixed;inset:0;z-index:0;background:rgba(14,18,23,.62)}
 .osadmin .appwrap{display:flex;min-height:100vh;position:relative;z-index:1}
 .osadmin .side{width:236px;flex:none;display:flex;flex-direction:column;gap:6px;padding:18px 14px;
     background:rgba(34,40,47,.66);backdrop-filter:blur(16px);border-right:1px solid rgba(168,180,191,.12);
@@ -277,6 +278,7 @@ const ADMIN_CSS = `.osadmin{
 const ADMIN_HTML = `<div class="osd app">
   <div class="osd-bg" style="background-image:url()"></div>
   <div class="osd-scrim"></div>
+  <div class="osd-dim"></div>
 
   <div class="appwrap show">
     <!-- sidebar -->
