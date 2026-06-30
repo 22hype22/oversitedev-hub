@@ -867,6 +867,31 @@ export function BotForge() {
       const { primary } = buildSubmissionPayload();
       const planMonths = paymentPlan === "full" ? null : parseInt(paymentPlan, 10);
 
+      // COMP LIST: if this account's email never pays, fulfill the order for
+      // free server-side (marked paid at $0, hosting waived) and skip Stripe
+      // entirely. They still go through the whole build/deploy flow.
+      try {
+        const { data: comp } = await (supabase as any).functions.invoke("create-comped-order", {
+          body: { botOrderId: orderId },
+        });
+        if (comp?.comped) {
+          sonnerToast.success(
+            comp.status === "waitlisted" ? "You're on the list — 100% off" : "You're all set — 100% off",
+            {
+              description:
+                comp.status === "waitlisted"
+                  ? "No charge. Your bot is reserved and deploys the moment a slot frees up."
+                  : "No charge. Your bot is being prepared right now.",
+              duration: 9000,
+            },
+          );
+          window.location.href = `${window.location.origin}/checkout/return?order=${orderId}&comped=1`;
+          return;
+        }
+      } catch {
+        /* not comped (or check failed) — fall through to normal checkout */
+      }
+
       // PREORDER MODE: don't charge — save the card via SetupIntent. We'll
       // charge off-session when the customer confirms via Discord DM.
       if (!salesLive) {
