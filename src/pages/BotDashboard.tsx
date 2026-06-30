@@ -1573,6 +1573,7 @@ const BotDashboard = () => {
   const openBot = (id: string) => { setBotId(id); setView("bot"); window.scrollTo({ top: 0 }); };
   const go = (v: string) => { setView(v); window.scrollTo({ top: 0 }); };
   const openPortal = async () => { const { data, error } = await supabase.functions.invoke("customer-portal"); if (error) { toast.error("Couldn't open billing portal", { description: error.message }); return; } const url = (data as { url?: string } | null)?.url; if (url) window.location.href = url; else toast.error("No billing portal available yet."); };
+  const [confirmOut, setConfirmOut] = useState(false);
   const signOut = async () => { await supabase.auth.signOut(); navigate("/auth", { replace: true }); };
   const cancelOrder = async (bot: OwnedBot) => { if (!user) return; setCancelling(true); const { error } = await (supabase as any).from("bot_orders").update({ status: "cancelled" }).eq("id", bot.id).eq("user_id", user.id); setCancelling(false); if (error) { toast.error("Couldn't cancel — " + error.message); return; } toast.success(`Cancelled "${bot.bot_name}"`); setCancelTarget(null); reload(); };
 
@@ -1721,7 +1722,7 @@ const BotDashboard = () => {
 
             <div style={{ marginTop: "auto" }} />
             <div className="nav" onClick={() => navigate("/")}><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14.5 14.5 0 0 0 0 18 14.5 14.5 0 0 0 0-18"/></svg>Back to website</div>
-            <div className="nav" onClick={signOut}><svg viewBox="0 0 24 24"><path d="M9 21H5V3h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</div>
+            <div className="nav" onClick={() => setConfirmOut(true)}><svg viewBox="0 0 24 24"><path d="M9 21H5V3h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</div>
           </aside>
 
           <div className="main">
@@ -1976,6 +1977,12 @@ const BotDashboard = () => {
         </AlertDialogContent>
       </AlertDialog>
       <AddAddonsDialog bot={addonsTarget} open={!!addonsTarget} onOpenChange={(o) => !o && setAddonsTarget(null)} />
+      <AlertDialog open={confirmOut} onOpenChange={setConfirmOut}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Sign out?</AlertDialogTitle><AlertDialogDescription>You'll need to sign back in to access your dashboard.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={(e) => { e.preventDefault(); setConfirmOut(false); signOut(); }}>Sign out</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
