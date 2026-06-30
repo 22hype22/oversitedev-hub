@@ -118,7 +118,7 @@ export function FixesBar() {
       <button
         type="button"
         onClick={dismiss}
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-md transition-colors hover:bg-white/5"
+        className="grid w-9 shrink-0 place-items-center self-stretch rounded-md transition-colors hover:bg-white/5"
         style={{ color: FAINT }}
         aria-label="Dismiss"
       >
