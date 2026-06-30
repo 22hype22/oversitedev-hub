@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   AlertCircle,
   CheckCircle2,
@@ -9,6 +7,7 @@ import {
   Wrench,
   ChevronDown,
   ChevronUp,
+  X,
 } from "lucide-react";
 
 type Fix = {
@@ -20,39 +19,37 @@ type Fix = {
   created_at: string;
 };
 
-const SEVERITY_META: Record<
-  string,
-  { label: string; icon: typeof Info; className: string }
-> = {
-  info: {
-    label: "Info",
-    icon: Info,
-    className: "bg-primary/10 text-primary border-primary/30",
-  },
-  fix: {
-    label: "Fix",
-    icon: Wrench,
-    className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
-  },
-  resolved: {
-    label: "Resolved",
-    icon: CheckCircle2,
-    className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
-  },
-  warning: {
-    label: "Heads up",
-    icon: AlertCircle,
-    className: "bg-amber-500/10 text-amber-400 border-amber-500/30",
-  },
+// Colors are inline (literal) because this renders inside the .osd dashboard
+// theme, not the Tailwind os- token scope.
+const META: Record<string, { label: string; Icon: typeof Info; color: string; tint: string }> = {
+  info: { label: "Info", Icon: Info, color: "#C9DBE6", tint: "rgba(201,219,230,.10)" },
+  note: { label: "Note", Icon: Info, color: "#C9DBE6", tint: "rgba(201,219,230,.10)" },
+  fix: { label: "Fix", Icon: Wrench, color: "#86d3a1", tint: "rgba(134,211,161,.10)" },
+  resolved: { label: "Resolved", Icon: CheckCircle2, color: "#86d3a1", tint: "rgba(134,211,161,.10)" },
+  warning: { label: "Heads up", Icon: AlertCircle, color: "#e6c478", tint: "rgba(230,196,120,.12)" },
 };
+const getMeta = (s: string) => META[s] ?? META.info;
 
-const getMeta = (s: string) => SEVERITY_META[s] ?? SEVERITY_META.info;
+const HAIR = "rgba(168,180,191,.18)";
+const HEADING = "#E8EEF3";
+const BODY = "#A8B4BF";
+const FAINT = "#788591";
+const SURFACE = "rgba(45,53,62,.78)";
+const DISMISS_KEY = "os_dismissed_fixes";
 
-/** Compact bar at the top of the bot dashboard listing recent fixes / notes
- *  posted by admins. Only shows when there's at least one active fix. */
+/** Full-width sticky bar pinned to the top of the bot dashboard, listing the
+ *  active fixes / notes admins post. Dismissible (remembered per browser) and
+ *  expandable when there's more than one. Renders nothing when there are none. */
 export function FixesBar() {
   const [fixes, setFixes] = useState<Fix[] | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [dismissed, setDismissed] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(DISMISS_KEY) || "[]");
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -64,75 +61,99 @@ export function FixesBar() {
         .order("created_at", { ascending: false })
         .limit(10);
       if (cancelled) return;
-      if (error) {
-        setFixes([]);
-        return;
-      }
-      setFixes((data ?? []) as Fix[]);
+      setFixes(error ? [] : ((data ?? []) as Fix[]));
     })();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  if (!fixes || fixes.length === 0) return null;
+  if (!fixes) return null;
+  const visible = fixes.filter((f) => !dismissed.includes(f.id));
+  if (visible.length === 0) return null;
 
-  const latest = fixes[0];
-  const rest = fixes.slice(1);
-  const LatestIcon = getMeta(latest.severity).icon;
+  const latest = visible[0];
+  const rest = visible.slice(1);
+  const m = getMeta(latest.severity);
+
+  const dismissAll = () => {
+    const ids = Array.from(new Set([...dismissed, ...visible.map((f) => f.id)]));
+    setDismissed(ids);
+    try {
+      localStorage.setItem(DISMISS_KEY, JSON.stringify(ids));
+    } catch {
+      /* ignore */
+    }
+  };
 
   return (
-    <Card className="p-3 mb-6 bg-card/40 border-border">
-      <button
-        type="button"
-        className="w-full flex items-center gap-3 text-left"
-        onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
+    <div className="sticky top-0 z-30 mb-5">
+      <div
+        className="flex items-center gap-3 rounded-xl border px-4 py-2.5 backdrop-blur-md"
+        style={{ background: m.tint, borderColor: HAIR }}
       >
-        <Badge
-          variant="outline"
-          className={`text-xs gap-1 ${getMeta(latest.severity).className}`}
+        <m.Icon className="h-4 w-4 shrink-0" style={{ color: m.color }} />
+        <span
+          className="shrink-0 text-[11px] font-bold uppercase tracking-wide"
+          style={{ color: m.color }}
         >
-          <LatestIcon className="h-3 w-3" />
-          {getMeta(latest.severity).label}
-        </Badge>
-        <span className="text-sm font-medium truncate flex-1">
+          {m.label}
+        </span>
+        <span className="flex-1 truncate text-sm font-medium" style={{ color: HEADING }}>
           {latest.title}
         </span>
         {rest.length > 0 && (
-          <span className="text-xs text-muted-foreground shrink-0">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="shrink-0 text-xs"
+            style={{ color: FAINT }}
+          >
             +{rest.length} more
-          </span>
+          </button>
         )}
-        {expanded ? (
-          <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+        {(rest.length > 0 || latest.body) && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="shrink-0"
+            style={{ color: FAINT }}
+            aria-label="Toggle details"
+          >
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
         )}
-      </button>
+        <button
+          type="button"
+          onClick={dismissAll}
+          className="shrink-0 transition-opacity hover:opacity-70"
+          style={{ color: FAINT }}
+          aria-label="Dismiss"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
 
       {expanded && (
-        <div className="mt-3 pt-3 border-t border-border space-y-3">
-          {fixes.map((f) => {
+        <div
+          className="mt-2 space-y-3 rounded-xl border p-4 backdrop-blur-md"
+          style={{ background: SURFACE, borderColor: HAIR }}
+        >
+          {visible.map((f) => {
             const meta = getMeta(f.severity);
-            const Icon = meta.icon;
             return (
               <div key={f.id} className="flex items-start gap-3">
-                <Badge
-                  variant="outline"
-                  className={`text-xs gap-1 mt-0.5 shrink-0 ${meta.className}`}
-                >
-                  <Icon className="h-3 w-3" />
-                  {meta.label}
-                </Badge>
+                <meta.Icon className="mt-0.5 h-4 w-4 shrink-0" style={{ color: meta.color }} />
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium">{f.title}</div>
+                  <div className="text-sm font-medium" style={{ color: HEADING }}>
+                    {f.title}
+                  </div>
                   {f.body && (
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-0.5">
+                    <p className="mt-0.5 whitespace-pre-wrap text-sm" style={{ color: BODY }}>
                       {f.body}
                     </p>
                   )}
-                  <div className="text-xs text-muted-foreground mt-1">
+                  <div className="mt-1 text-xs" style={{ color: FAINT }}>
                     {new Date(f.created_at).toLocaleString()}
                   </div>
                 </div>
@@ -141,6 +162,6 @@ export function FixesBar() {
           })}
         </div>
       )}
-    </Card>
+    </div>
   );
 }
