@@ -1,13 +1,12 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { track, startPresence } from "@/lib/analytics";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { SplashScreen } from "@/components/SplashScreen";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { SuspensionBanner } from "@/components/SuspensionBanner";
-import { SignupPromoDialog } from "@/components/SignupPromoDialog";
 import { PreferencesProvider } from "@/hooks/usePreferences";
 import { AutoTranslator } from "@/components/AutoTranslator";
 import { ScrollToTop } from "@/components/ScrollToTop";
@@ -30,6 +29,7 @@ const Terms = lazy(() => import("./pages/Terms.tsx"));
 const MeetTheOwner = lazy(() => import("./pages/MeetTheOwner.tsx"));
 const MeetTheTeam = lazy(() => import("./pages/MeetTheTeam.tsx"));
 const Plugyxz = lazy(() => import("./pages/Plugyxz.tsx"));
+const SupportIdeas = lazy(() => import("./pages/SupportIdeas.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const Verify = lazy(() => import("./pages/Verify.tsx"));
 
@@ -45,17 +45,31 @@ const queryClient = new QueryClient({
   },
 });
 
+// Shown while a lazy route chunk downloads. Without this, Suspense renders
+// nothing and the user sees a blank dark screen until the chunk arrives —
+// which on a cold cache (e.g. the heavy bot-dashboard chunk) reads as "stuck".
+const RouteFallback = () => (
+  <div className="min-h-screen bg-background grid place-items-center">
+    <div
+      aria-label="Loading"
+      role="status"
+      className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground/25 border-t-muted-foreground/80"
+    />
+  </div>
+);
+
+// Fires a page_view on every route change and keeps a presence ping going so
+// the admin Overview can show live visitors + the funnel.
+const AnalyticsTracker = () => {
+  const location = useLocation();
+  useEffect(() => {
+    track("page_view", undefined, location.pathname);
+  }, [location.pathname]);
+  useEffect(() => startPresence(), []);
+  return null;
+};
+
 const App = () => {
-  const [showSplash, setShowSplash] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return !sessionStorage.getItem("oversite-splash-seen");
-  });
-
-  const handleSplashDone = () => {
-    sessionStorage.setItem("oversite-splash-seen", "1");
-    setShowSplash(false);
-  };
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -63,14 +77,13 @@ const App = () => {
         <Sonner />
         <PaymentTestModeBanner />
         <SuspensionBanner />
-        {showSplash && <SplashScreen onDone={handleSplashDone} />}
         <BrowserRouter>
           <PreferencesProvider>
             <ScrollToTop />
+            <AnalyticsTracker />
             <AutoTranslator />
-            <SignupPromoDialog />
             <MarkdownFormattingToolbar />
-            <Suspense fallback={null}>
+            <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/process" element={<ProcessPage />} />
@@ -84,6 +97,7 @@ const App = () => {
                 <Route path="/checkout/setup" element={<CheckoutSetup />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/explore/team" element={<MeetTheTeam />} />
+                <Route path="/support-ideas" element={<SupportIdeas />} />
                 <Route path="/explore/owner" element={<MeetTheOwner />} />
                 <Route path="/explore/plugyxz" element={<Plugyxz />} />
                 <Route path="/verify" element={<Verify />} />
