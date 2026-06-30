@@ -1,6 +1,7 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { track, startPresence } from "@/lib/analytics";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -57,6 +58,17 @@ const RouteFallback = () => (
   </div>
 );
 
+// Fires a page_view on every route change and keeps a presence ping going so
+// the admin Overview can show live visitors + the funnel.
+const AnalyticsTracker = () => {
+  const location = useLocation();
+  useEffect(() => {
+    track("page_view", undefined, location.pathname);
+  }, [location.pathname]);
+  useEffect(() => startPresence(), []);
+  return null;
+};
+
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
@@ -68,6 +80,7 @@ const App = () => {
         <BrowserRouter>
           <PreferencesProvider>
             <ScrollToTop />
+            <AnalyticsTracker />
             <AutoTranslator />
             <MarkdownFormattingToolbar />
             <Suspense fallback={<RouteFallback />}>
