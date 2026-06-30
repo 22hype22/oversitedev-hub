@@ -985,7 +985,7 @@ const Admin = () => {
       const email = me?.email?.toLowerCase();
       if (cancelled || !email) return;
       allowlistChannel = (supabase as any)
-        .channel("admin-self-allowlist")
+        .channel(`admin-self-allowlist-${Date.now()}`)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "admin_allowlist", filter: `email=eq.${email}` },
