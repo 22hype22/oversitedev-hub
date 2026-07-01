@@ -160,7 +160,7 @@ const ADMIN_CSS = `.osadmin{
 /* Orders rows: slide the date left so the X doesn't overlap, and animate row removal. */
 .osadmin [data-lg="orders"] .tr{transition:transform .26s ease,opacity .26s ease,max-height .24s ease,padding .24s ease}
 .osadmin [data-lg="orders"] .tr .tm{transition:transform .18s ease}
-.osadmin [data-lg="orders"] .tr:hover .tm{transform:translateX(-22px)}
+.osadmin [data-lg="orders"] .tr:hover .tm{transform:translateX(-34px)}
 .osadmin [data-lg="orders"] .tr.removing{transform:translateX(100%);opacity:0}
 .osadmin .crow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:13px}
 .osadmin .crow:first-child{border-top:0}
