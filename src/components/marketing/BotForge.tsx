@@ -349,6 +349,13 @@ export function BotForge() {
   const [planeOrigin, setPlaneOrigin] = useState<{ x: number; y: number } | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutItems, setCheckoutItems] = useState<CheckoutItem[]>([]);
+  // Discord contact gate (shown at order time in live mode). Linking is
+  // optional — "No thanks" proceeds to the same checkout unchanged. It only
+  // controls whether we can DM the customer when their bot is ready.
+  const [discordGateOpen, setDiscordGateOpen] = useState(false);
+  const [discordSkip, setDiscordSkip] = useState(false);
+  const [discordLinking, setDiscordLinking] = useState(false);
+  const [resumeAfterDiscord, setResumeAfterDiscord] = useState(false);
 
   const iconInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -769,20 +776,12 @@ export function BotForge() {
       }, 350);
       return;
     }
-    // In preorder mode we DM the customer on Go Live to confirm — Discord ID required.
-    if (user && !salesLive) {
-      if (!/^\d{17,20}$/.test(discordUserId.trim())) {
-        sonnerToast.error("Discord User ID required", {
-          description: "Enable Developer Mode in Discord, right-click your name, and click 'Copy User ID'.",
-        });
-        return;
-      }
-      if (!discordUsername.trim()) {
-        sonnerToast.error("Discord username required", {
-          description: "We'll ask you to type it back to confirm your order when we go live.",
-        });
-        return;
-      }
+    // Discord contact gate (live sales): nudge them to link Discord so we can
+    // DM them the moment their bot is ready. Fully optional — "No thanks"
+    // skips it. Linking or skipping both continue to the same checkout below.
+    if (user && salesLive && !discordUserId.trim() && !discordSkip) {
+      setDiscordGateOpen(true);
+      return;
     }
     setSubmitting(true);
 
@@ -959,6 +958,69 @@ export function BotForge() {
         : "/#contact";
     }, 6000);
   };
+
+  // ── Discord contact gate ────────────────────────────────────────────────
+  // Opens the linked-Discord OAuth flow in a small popup so the in-progress
+  // build never loses its state. The popup postMessages us the identity.
+  const startDiscordLink = async () => {
+    if (!user) return;
+    setDiscordLinking(true);
+    const redirect_uri = `${window.location.origin}/discord/linked`;
+    const { data, error } = await (supabase as any).functions.invoke("discord-link", {
+      body: { action: "get_authorize_url", redirect_uri },
+    });
+    if (error || !data?.url) {
+      setDiscordLinking(false);
+      sonnerToast.error("Couldn't start Discord link", {
+        description: data?.error || error?.message || "Please try again.",
+      });
+      return;
+    }
+    localStorage.setItem("oswire_discord_link_state", data.state);
+    const w = 480;
+    const h = 720;
+    const left = window.screenX + Math.max(0, (window.outerWidth - w) / 2);
+    const top = window.screenY + Math.max(0, (window.outerHeight - h) / 2);
+    window.open(data.url, "discord-link", `width=${w},height=${h},left=${left},top=${top}`);
+  };
+
+  const skipDiscord = () => {
+    setDiscordSkip(true);
+    setDiscordGateOpen(false);
+    setResumeAfterDiscord(true);
+  };
+
+  // Receive the linked identity back from the popup window.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
+      const d = e.data;
+      if (!d || d.type !== "oswire-discord-linked") return;
+      setDiscordLinking(false);
+      if (!d.ok) {
+        if (d.error && d.error !== "cancelled") {
+          sonnerToast.error("Discord link didn't finish", { description: "Please try again or skip." });
+        }
+        return;
+      }
+      setDiscordUserId(String(d.discord_user_id || ""));
+      setDiscordUsername(String(d.discord_username || ""));
+      setDiscordGateOpen(false);
+      setResumeAfterDiscord(true);
+      sonnerToast.success(`Linked @${d.discord_username || d.discord_user_id}`);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
+  // Once the Discord decision is made (linked or skipped), continue the order.
+  useEffect(() => {
+    if (resumeAfterDiscord && (discordUserId.trim() || discordSkip)) {
+      setResumeAfterDiscord(false);
+      submit();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeAfterDiscord, discordUserId, discordSkip]);
 
   const selectedBase = BASES.find((b) => b.id === (isPack ? "scratch" : bases[0]));
   const SelectedIcon = selectedBase?.icon ?? Bot;
@@ -1574,37 +1636,6 @@ export function BotForge() {
             />
           </div>
 
-          {!salesLive && (
-            <div className="rounded-2xl border border-os-accent/30 bg-os-accent/5 backdrop-blur-sm p-6">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="grid h-7 w-7 place-items-center rounded-full border border-os-accent/40 bg-os-accent/10 font-label text-xs font-bold text-os-accent">
-                  5
-                </div>
-                <h3 className="font-display text-lg font-semibold text-os-heading">Your Discord</h3>
-              </div>
-              <p className="font-body text-sm text-os-faint mb-4">
-                Preorder only — when we go live, our utilities bot will DM you to confirm before charging your card.
-                Enable Developer Mode in Discord, right-click your name, and click <em>Copy User ID</em>.
-              </p>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <input
-                  value={discordUserId}
-                  onChange={(e) => setDiscordUserId(e.target.value.replace(/\D/g, ""))}
-                  placeholder="Discord User ID (numbers)"
-                  inputMode="numeric"
-                  maxLength={20}
-                  className="w-full rounded-lg border border-os-hairline/50 bg-os-bg/60 px-3 py-2.5 font-body text-[14px] text-os-heading placeholder:text-os-faint outline-none transition focus:border-os-accent/70"
-                />
-                <input
-                  value={discordUsername}
-                  onChange={(e) => setDiscordUsername(e.target.value)}
-                  placeholder="Discord username (e.g. yourname)"
-                  maxLength={48}
-                  className="w-full rounded-lg border border-os-hairline/50 bg-os-bg/60 px-3 py-2.5 font-body text-[14px] text-os-heading placeholder:text-os-faint outline-none transition focus:border-os-accent/70"
-                />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Right: dark live preview */}
@@ -2125,6 +2156,46 @@ export function BotForge() {
           )}
         </div>
       )}
+      {discordGateOpen && (
+        <div
+          className="fixed inset-0 z-[70] grid place-items-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setDiscordGateOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-os-hairline/50 bg-os-surface p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="grid h-10 w-10 place-items-center rounded-full border border-os-accent/40 bg-os-accent/10 text-os-accent">
+                <Bell size={18} />
+              </div>
+              <h3 className="font-display text-lg font-semibold text-os-heading">
+                Link your Discord
+              </h3>
+            </div>
+            <p className="font-body text-sm text-os-faint mb-5 leading-relaxed">
+              Link your Discord so we can message you the moment your bot is ready — and reach
+              you if we ever need to confirm your order. Takes two clicks.
+            </p>
+            <button
+              type="button"
+              onClick={startDiscordLink}
+              disabled={discordLinking}
+              className="w-full rounded-lg bg-os-accent px-4 py-2.5 font-label text-sm font-semibold text-os-accent-ink transition hover:brightness-110 disabled:opacity-60"
+            >
+              {discordLinking ? "Waiting for Discord…" : "Link Discord"}
+            </button>
+            <button
+              type="button"
+              onClick={skipDiscord}
+              className="mt-3 block w-full text-center font-body text-xs text-os-faint/70 underline-offset-2 transition hover:text-os-faint hover:underline"
+            >
+              No thanks — just build it
+            </button>
+          </div>
+        </div>
+      )}
+
       <CheckoutDialog
         open={checkoutOpen}
         onOpenChange={(o) => {
