@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -143,6 +143,59 @@ const AnalyticsTracker = () => {
   return null;
 };
 
+// Catches any render/effect crash (e.g. a realtime hiccup on tab return) and
+// shows a recoverable screen instead of a black void.
+class RouteErrorBoundary extends Component<{ children: ReactNode }, { crashed: boolean }> {
+  state = { crashed: false };
+  static getDerivedStateFromError() {
+    return { crashed: true };
+  }
+  componentDidCatch(err: unknown) {
+    console.error("App error boundary caught:", err);
+  }
+  render() {
+    if (this.state.crashed) {
+      return (
+        <div
+          style={{
+            minHeight: "100vh",
+            display: "grid",
+            placeItems: "center",
+            background: "#0b0b0f",
+            color: "#e6e6ee",
+            fontFamily: "system-ui, -apple-system, sans-serif",
+            padding: 24,
+            textAlign: "center",
+          }}
+        >
+          <div style={{ maxWidth: 360 }}>
+            <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Something hiccuped.</p>
+            <p style={{ fontSize: 13, opacity: 0.7, lineHeight: 1.5, marginBottom: 18 }}>
+              The page ran into an error. Reloading usually clears it.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                background: "#6ea8fe",
+                color: "#0b0b0f",
+                border: 0,
+                borderRadius: 10,
+                padding: "10px 22px",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Reload
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
@@ -158,6 +211,7 @@ const App = () => {
             <AutoTranslator />
             <MarkdownFormattingToolbar />
             <Suspense fallback={<RouteFallback />}>
+              <RouteErrorBoundary>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/process" element={<ProcessPage />} />
@@ -179,6 +233,7 @@ const App = () => {
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              </RouteErrorBoundary>
             </Suspense>
           </PreferencesProvider>
         </BrowserRouter>
