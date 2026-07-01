@@ -71,7 +71,7 @@ const ADMIN_CSS = `.osadmin{
    fields (typing) and clickable controls (pointer). */
 .osadmin,.osadmin *{cursor:default !important}
 .osadmin input,.osadmin textarea,.osadmin [contenteditable="true"]{cursor:text !important}
-.osadmin button,.osadmin a,.osadmin .chip,.osadmin [role="button"],.osadmin select,.osadmin summary,.osadmin label{cursor:pointer !important}
+.osadmin .adm,.osadmin .bell,.osadmin .btn,.osadmin .capmeta .del,.osadmin .chip,.osadmin .cta,.osadmin .drop,.osadmin .ic,.osadmin .nav,.osadmin .osa-btn,.osadmin .osa-more,.osadmin .prof .ed,.osadmin .rowx,.osadmin .seg button,.osadmin .sw,.osadmin select.in,.osadmin button,.osadmin a,.osadmin [role="button"],.osadmin select,.osadmin summary,.osadmin label{cursor:pointer !important}
 .osadmin .card{border:1px solid var(--line2);border-radius:16px;background:rgba(39,46,54,.55);backdrop-filter:blur(14px)}
 .osadmin .ch{display:flex;align-items:baseline;gap:10px;padding:17px 19px 0}
 .osadmin .ch .eye{font-family:var(--disp);font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
