@@ -32,6 +32,7 @@ const Plugyxz = lazy(() => import("./pages/Plugyxz.tsx"));
 const SupportIdeas = lazy(() => import("./pages/SupportIdeas.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const Verify = lazy(() => import("./pages/Verify.tsx"));
+const DiscordLinkedPopup = lazy(() => import("./pages/DiscordLinkedPopup.tsx"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -101,6 +102,7 @@ const App = () => {
                 <Route path="/explore/owner" element={<MeetTheOwner />} />
                 <Route path="/explore/plugyxz" element={<Plugyxz />} />
                 <Route path="/verify" element={<Verify />} />
+                <Route path="/discord/linked" element={<DiscordLinkedPopup />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
