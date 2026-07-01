@@ -929,16 +929,21 @@ const Admin = () => {
       /* noop */
     }
 
-    // Overview — fill the blocks backed by real data.
+    // Overview — fill the blocks backed by real data, and re-poll every 10s so
+    // the KPI odometers (Live now / Bots sold) roll live as the numbers change.
     let cancelled = false;
-    (supabase as any).rpc("admin_overview_stats").then(({ data }: { data: any }) => {
-      if (cancelled || !data || data.ok === false) return;
-      try {
-        populateOverview(root, data);
-      } catch {
-        /* leave placeholder values */
-      }
-    });
+    const loadOverview = () => {
+      (supabase as any).rpc("admin_overview_stats").then(({ data }: { data: any }) => {
+        if (cancelled || !data || data.ok === false) return;
+        try {
+          populateOverview(root, data);
+        } catch {
+          /* leave placeholder values */
+        }
+      });
+    };
+    loadOverview();
+    const overviewPoll = window.setInterval(loadOverview, 10000);
 
     // Storefront — wire the live tools (returns a disposer for its timer).
     let disposeStorefront = () => {};
@@ -1041,6 +1046,7 @@ const Admin = () => {
 
     return () => {
       cancelled = true;
+      window.clearInterval(overviewPoll);
       disposeStorefront();
       disposeSupport();
       if (allowlistChannel) (supabase as any).removeChannel(allowlistChannel);
@@ -1160,13 +1166,21 @@ function rollNumber(valEl: HTMLElement, num: number, suffixHtml = ""): void {
     valEl.innerHTML = `<span class="odo">${cols}</span>${suffixHtml ? ` ${suffixHtml}` : ""}`;
     odo = valEl.querySelector(".odo") as HTMLElement;
     const tracks = odo.querySelectorAll(".odo-track");
-    str.split("").forEach((ch, i) => {
-      const t = tracks[i] as HTMLElement;
-      t.style.transition = "none";
-      t.style.transform = `translateY(-${Number(ch)}em)`;
+    // Start every column at 0 (no transition)...
+    tracks.forEach((t) => {
+      const el = t as HTMLElement;
+      el.style.transition = "none";
+      el.style.transform = "translateY(0em)";
     });
-    void odo.offsetHeight; // commit the start position before re-enabling transitions
+    void odo.offsetHeight; // commit the 0 position
     tracks.forEach((t) => ((t as HTMLElement).style.transition = ""));
+    // ...then on the next frame roll each column up to its digit, so the
+    // number visibly counts up from 0 every time it renders.
+    requestAnimationFrame(() => {
+      str.split("").forEach((ch, i) => {
+        (tracks[i] as HTMLElement).style.transform = `translateY(-${Number(ch)}em)`;
+      });
+    });
   } else {
     // Same length → just move each column to its new digit (this rolls).
     const tracks = odo.querySelectorAll(".odo-track");
