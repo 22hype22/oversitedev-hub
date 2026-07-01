@@ -785,87 +785,22 @@ export function BotForge() {
     }
     setSubmitting(true);
 
-    // When sales are LIVE, every bot in the order needs an available token from
-    // the pool. If we don't have enough, persist the order as a waitlist entry
-    // and surface a professional notice — no Stripe charge happens.
-    if (user && salesLive) {
-      const botsNeeded = usesPackTabs ? visibleIdentityTabs.length : 1;
-      const { count: availableTokens, error: tokenErr } = await (supabase as any)
-        .from("bot_token_pool")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "available");
+    // NOTE: we no longer charge at checkout or pre-insert a bare waitlist row.
+    // Every order saves the card (SetupIntent) below, then the post-checkout
+    // confirm gate (confirm-order-discord-join) decides stock and charges the
+    // saved card ONLY when the build actually starts. So nobody is charged
+    // until their bot is being built.
 
-      if (tokenErr) {
-        sonnerToast.error("Couldn't verify bot availability", {
-          description: "Please try again in a moment.",
-        });
-        setSubmitting(false);
-        return;
-      }
-
-      if ((availableTokens ?? 0) < botsNeeded) {
-        // Persist the order as a waitlist entry so we can fulfill it the moment
-        // tokens become available.
-        const { primary, notesField } = buildSubmissionPayload();
-        const baseField = isPack ? "scratch" : bases.join("+");
-        const planMonths = paymentPlan === "full" ? null : parseInt(paymentPlan, 10);
-        const installmentAmount = planMonths
-          ? Number((finalTotal / planMonths).toFixed(2))
-          : null;
-        const waitlistNotes = `[WAITLISTED — awaiting available bot token]\n\n${notesField ?? ""}`.trim();
-        const { error: insertErr } = await (supabase as any)
-          .from("bot_orders")
-          .insert({
-            user_id: user.id,
-            bot_name: primary.name.trim(),
-            bot_description: primary.description.trim() || null,
-            bot_bio: (primary.bio || "").trim().slice(0, 190) || null,
-            icon_url: primary.icon,
-            banner_url: primary.banner,
-            base: baseField,
-            addons,
-            monthly_hosting: monthlyHosting,
-            notes: waitlistNotes,
-            total_amount: finalTotal,
-            currency: "usd",
-            status: "waitlist",
-            submitted_at: new Date().toISOString(),
-            payment_plan: planMonths ? "installments" : "full",
-            plan_months: planMonths,
-            installment_amount: installmentAmount,
-            discount_code: appliedDiscount?.code ?? null,
-            discount_amount: discountAmount,
-            engine_version: engineVersion,
-          });
-        setSubmitting(false);
-        if (insertErr) {
-          sonnerToast.error("Couldn't add you to the waitlist", {
-            description: insertErr.message,
-          });
-          return;
-        }
-        sonnerToast.success("You've been added to the waitlist", {
-          description:
-            "All of our bot slots are currently allocated. Your order has been reserved and will be prepared and delivered the moment a slot becomes available. Thank you for choosing Oversite — we appreciate your patience and your business.",
-          duration: 12000,
-        });
-        return;
-      }
-    }
-
-    // Save the order to the database (status='pending_payment'). Stripe webhook
-    // flips it to 'paid' on checkout.session.completed, which triggers the build.
+    // Save the order to the database (status='pending_payment' → 'preorder'
+    // once the card is saved). The card is charged later, at build-start.
     const orderId = await persistOrder();
     if (user && !orderId) {
       setSubmitting(false);
       return;
     }
 
-    // For signed-in users with a real order: open Stripe checkout.
+    // For signed-in users with a real order: save the card, no charge.
     if (user && orderId) {
-      const { primary } = buildSubmissionPayload();
-      const planMonths = paymentPlan === "full" ? null : parseInt(paymentPlan, 10);
-
       // COMP LIST: if this account's email never pays, fulfill the order for
       // free server-side (marked paid at $0, hosting waived) and skip Stripe
       // entirely. They still go through the whole build/deploy flow.
@@ -891,47 +826,26 @@ export function BotForge() {
         /* not comped (or check failed) — fall through to normal checkout */
       }
 
-      // PREORDER MODE: don't charge — save the card via SetupIntent. We'll
-      // charge off-session when the customer confirms via Discord DM.
-      if (!salesLive) {
-        // Kick off Stripe.js download in parallel with the SetupIntent
-        // creation so the card form is ready instantly on /checkout/setup.
-        import("@/lib/stripe").then((m) => m.getStripe()).catch(() => {});
+      // Save the card via a SetupIntent — NO charge happens here. The card is
+      // only charged later, at the moment the build actually starts (in
+      // confirm-order-discord-join for in-stock, or after the waitlist DM
+      // "YES" for out-of-stock). So a customer is never charged for a bot that
+      // isn't being built.
+      import("@/lib/stripe").then((m) => m.getStripe()).catch(() => {});
 
-        const { data, error } = await (supabase as any).functions.invoke("create-setup-intent", {
-          body: { botOrderId: orderId, customerEmail: user.email },
+      const { data, error } = await (supabase as any).functions.invoke("create-setup-intent", {
+        body: { botOrderId: orderId, customerEmail: user.email },
+      });
+      if (error || !data?.clientSecret) {
+        sonnerToast.error("Couldn't start checkout", {
+          description: error?.message || "Please try again.",
         });
-        if (error || !data?.clientSecret) {
-          sonnerToast.error("Couldn't start preorder", {
-            description: error?.message || "Please try again.",
-          });
-          setSubmitting(false);
-          return;
-        }
-        // Send them to a hosted page that completes the SetupIntent.
-        // Stripe redirects back to /checkout/return?setup_intent=...
-        window.location.href = `${window.location.origin}/checkout/setup?cs=${encodeURIComponent(data.clientSecret)}&order=${orderId}`;
+        setSubmitting(false);
         return;
       }
-
-      // LIVE MODE: charge the first installment / full amount now.
-      const chargeNow = planMonths
-        ? Number((finalTotal / planMonths).toFixed(2))
-        : finalTotal;
-      const amountCents = Math.max(50, Math.round(chargeNow * 100));
-      setCheckoutItems([
-        {
-          productName: planMonths
-            ? `${primary.name.trim() || "Custom Bot"} — installment 1 of ${planMonths}`
-            : primary.name.trim() || "Custom Bot",
-          amountCents,
-          currency: "usd",
-          quantity: 1,
-          botOrderId: orderId,
-        },
-      ]);
-      setCheckoutOpen(true);
-      setSubmitting(false);
+      // Send them to the hosted page that completes the SetupIntent (saves the
+      // card), which redirects back to /checkout/return to finish the order.
+      window.location.href = `${window.location.origin}/checkout/setup?cs=${encodeURIComponent(data.clientSecret)}&order=${orderId}`;
       return;
     }
 
