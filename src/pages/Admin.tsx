@@ -154,9 +154,14 @@ const ADMIN_CSS = `.osadmin{
 .osadmin .tag.n{background:rgba(168,180,191,.12);color:var(--faint)}
 .osadmin .tag.a{background:rgba(203,178,119,.16);color:var(--gold)}
 .osadmin .tag.r{background:rgba(232,116,116,.16);color:#eb8a8a}
-.osadmin .rowx{position:absolute;top:50%;right:6px;transform:translateY(-50%);display:grid;place-items:center;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:rgba(232,116,116,.18);color:#eb8a8a;font-size:14px;line-height:1;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .12s}
-.osadmin .tr:hover .rowx{opacity:1;pointer-events:auto}
+.osadmin .rowx{position:absolute;top:50%;right:6px;transform:translate(10px,-50%);display:grid;place-items:center;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:rgba(232,116,116,.18);color:#eb8a8a;font-size:14px;line-height:1;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease}
+.osadmin .tr:hover .rowx{opacity:1;pointer-events:auto;transform:translate(0,-50%)}
 .osadmin .rowx:hover{background:rgba(232,116,116,.32)}
+/* Orders rows: slide the date left so the X doesn't overlap, and animate row removal. */
+.osadmin [data-lg="orders"] .tr{transition:transform .26s ease,opacity .26s ease,max-height .24s ease,padding .24s ease}
+.osadmin [data-lg="orders"] .tr .tm{transition:transform .18s ease}
+.osadmin [data-lg="orders"] .tr:hover .tm{transform:translateX(-22px)}
+.osadmin [data-lg="orders"] .tr.removing{transform:translateX(100%);opacity:0}
 .osadmin .crow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:13px}
 .osadmin .crow:first-child{border-top:0}
 .osadmin .crow .c{font-family:var(--mono);color:var(--heading);font-weight:600}
@@ -1988,6 +1993,7 @@ function wireLogs(root: HTMLElement): void {
     if (!btn) return;
     const id = btn.getAttribute("data-del");
     if (!id) return;
+    const rowEl = btn.closest(".tr") as HTMLElement | null;
     const ord = allOrders.find((o) => o.id === id);
     const nm = ord?.bot_name ? ` (“${ord.bot_name}”)` : "";
     if (!confirm(`Cancel & permanently delete this order${nm}?\n\nThis tears down its bot and removes the log — it can't be undone.`)) return;
@@ -2015,7 +2021,22 @@ function wireLogs(root: HTMLElement): void {
     }
     toast.success("Order deleted");
     allOrders = allOrders.filter((o) => o.id !== id && (o as any).parent_order_id !== id);
-    renderOrders();
+    // Animate the row out: slide it right, then collapse its height so the
+    // rows below slide up into place. Fall back to a re-render if the node is gone.
+    if (rowEl) {
+      rowEl.classList.add("removing");
+      window.setTimeout(() => {
+        rowEl.style.maxHeight = `${rowEl.offsetHeight}px`;
+        rowEl.style.overflow = "hidden";
+        void rowEl.offsetHeight; // force reflow so the collapse animates
+        rowEl.style.maxHeight = "0px";
+        rowEl.style.paddingTop = "0px";
+        rowEl.style.paddingBottom = "0px";
+        window.setTimeout(() => rowEl.remove(), 260);
+      }, 260);
+    } else {
+      renderOrders();
+    }
   });
 
   load();
