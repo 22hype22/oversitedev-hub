@@ -162,11 +162,12 @@ const ADMIN_CSS = `.osadmin{
 .osadmin .rowx{position:absolute;top:50%;right:6px;transform:translate(10px,-50%);display:grid;place-items:center;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:rgba(232,116,116,.18);color:#eb8a8a;font-size:14px;line-height:1;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease}
 .osadmin .tr:hover .rowx{opacity:1;pointer-events:auto;transform:translate(0,-50%)}
 .osadmin .rowx:hover{background:rgba(232,116,116,.32)}
-/* Orders rows: slide the date left so the X doesn't overlap, and animate row removal. */
-.osadmin [data-lg="orders"] .tr{transition:transform .26s ease,opacity .26s ease,max-height .24s ease,padding .24s ease}
-.osadmin [data-lg="orders"] .tr .tm{transition:transform .18s ease}
-.osadmin [data-lg="orders"] .tr:hover .tm{transform:translateX(-34px)}
-.osadmin [data-lg="orders"] .tr.removing{transform:translateX(100%);opacity:0}
+/* Orders + signups rows: slide the date left so the hover button doesn't
+   overlap, and animate row removal. */
+.osadmin [data-lg="orders"] .tr,.osadmin [data-lg="signups"] .tr{transition:transform .26s ease,opacity .26s ease,max-height .24s ease,padding .24s ease}
+.osadmin [data-lg="orders"] .tr .tm,.osadmin [data-lg="signups"] .tr .tm{transition:transform .18s ease}
+.osadmin [data-lg="orders"] .tr:hover .tm,.osadmin [data-lg="signups"] .tr:hover .tm{transform:translateX(-34px)}
+.osadmin [data-lg="orders"] .tr.removing,.osadmin [data-lg="signups"] .tr.removing{transform:translateX(100%);opacity:0}
 .osadmin .crow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:13px}
 .osadmin .crow:first-child{border-top:0}
 .osadmin .crow .c{font-family:var(--mono);color:var(--heading);font-weight:600}
@@ -683,7 +684,9 @@ const ADMIN_HTML = `<div class="osd app">
           </div>
 
           <div class="card">
-            <div class="ch"><span class="eye">Users</span><h3>Account signups</h3></div>
+            <div class="ch"><span class="eye">Users</span><h3>Account signups</h3>
+              <div class="logtools"><span class="srch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input data-lg="signups-q" placeholder="Search users" style="background:transparent;border:0;outline:none;color:var(--body);font:inherit;width:130px"></span></div>
+            </div>
             <div class="cb">
               <div class="log">
                 <div class="th" style="grid-template-columns:1.8fr 0.8fr 0.6fr"><span>Email</span><span>Via</span><span class="right">When</span></div>
@@ -1933,6 +1936,7 @@ function wireLogs(root: HTMLElement): void {
   const signupsEl = $('[data-lg="signups"]');
   const auditEl = $('[data-lg="audit"]');
   let allOrders: any[] = [];
+  let allSignups: any[] = [];
 
   const ORDER_COLS = "grid-template-columns:0.8fr 1.6fr 1fr 0.9fr 0.6fr";
   const STATUS_TAG: Record<string, [string, string]> = {
@@ -1994,6 +1998,23 @@ function wireLogs(root: HTMLElement): void {
     paginate(ordersEl, html, '<div class="subnote" style="padding-top:11px">No orders match.</div>');
   }
 
+  function renderSignups() {
+    if (!signupsEl) return;
+    const q = val('[data-lg="signups-q"]').trim().toLowerCase();
+    let list = allSignups;
+    if (q)
+      list = list.filter(
+        (u) =>
+          (u.email || "").toLowerCase().includes(q) ||
+          (u.provider || "").toLowerCase().includes(q),
+      );
+    const html = list.map(
+      (u) =>
+        `<div class="tr" style="grid-template-columns:1.8fr 0.8fr 0.6fr;position:relative"><span class="c1">${escHtml(u.email || "—")}</span><span>${escHtml(cap(u.provider || "email"))}</span><span class="tm right">${escHtml(timeAgo(u.ts))}</span>${u.user_id ? `<button class="rowx" data-deact="${escHtml(u.user_id)}" title="Deactivate this account">×</button>` : ""}</div>`,
+    );
+    paginate(signupsEl, html, '<div class="subnote" style="padding-top:11px">No signups.</div>');
+  }
+
   async function load() {
     const { data, error } = await sb.rpc("admin_logs_overview");
     if (error || !data?.ok) {
@@ -2014,13 +2035,8 @@ function wireLogs(root: HTMLElement): void {
       paginate(purchasesEl, html, '<div class="subnote" style="padding-top:11px">No payments yet.</div>');
     }
 
-    if (signupsEl) {
-      const html = ((data.signups || []) as any[]).map(
-        (u) =>
-          `<div class="tr" style="grid-template-columns:1.8fr 0.8fr 0.6fr"><span class="c1">${escHtml(u.email || "—")}</span><span>${escHtml(cap(u.provider || "email"))}</span><span class="tm right">${escHtml(timeAgo(u.ts))}</span></div>`,
-      );
-      paginate(signupsEl, html, '<div class="subnote" style="padding-top:11px">No signups.</div>');
-    }
+    allSignups = (data.signups || []) as any[];
+    renderSignups();
 
     if (auditEl) {
       const html = ((data.audit || []) as any[]).map(
@@ -2089,6 +2105,54 @@ function wireLogs(root: HTMLElement): void {
       }, 260);
     } else {
       renderOrders();
+    }
+  });
+
+  // Signups search.
+  $('[data-lg="signups-q"]')?.addEventListener("input", renderSignups);
+
+  // Hover-X on a signup row: deactivate the account (cancels all its bots →
+  // releases their tokens → bans the login).
+  signupsEl?.addEventListener("click", async (e) => {
+    const btn = (e.target as HTMLElement)?.closest?.(".rowx") as HTMLButtonElement | null;
+    if (!btn) return;
+    const uid = btn.getAttribute("data-deact");
+    if (!uid) return;
+    const rowEl = btn.closest(".tr") as HTMLElement | null;
+    const su = allSignups.find((u) => u.user_id === uid);
+    const em = su?.email ? ` (${su.email})` : "";
+    const ok = await osConfirm({
+      title: "Deactivate this account?",
+      body: `This bans the account${em} from signing in and cancels every bot it owns — their tokens go back to the pool. Reversible later.`,
+      confirmLabel: "Deactivate",
+    });
+    if (!ok) return;
+    btn.textContent = "…";
+    btn.style.pointerEvents = "none";
+    const { data, error } = await sb.functions.invoke("admin-deactivate-account", {
+      body: { targetUserId: uid },
+    });
+    if (error || !data?.success) {
+      toast.error("Couldn't deactivate account", { description: data?.error || error?.message });
+      btn.textContent = "×";
+      btn.style.pointerEvents = "";
+      return;
+    }
+    toast.success(`Account deactivated — ${data.bots_released ?? 0} bot slot(s) freed`);
+    allSignups = allSignups.filter((u) => u.user_id !== uid);
+    if (rowEl) {
+      rowEl.classList.add("removing");
+      window.setTimeout(() => {
+        rowEl.style.maxHeight = `${rowEl.offsetHeight}px`;
+        rowEl.style.overflow = "hidden";
+        void rowEl.offsetHeight;
+        rowEl.style.maxHeight = "0px";
+        rowEl.style.paddingTop = "0px";
+        rowEl.style.paddingBottom = "0px";
+        window.setTimeout(() => rowEl.remove(), 260);
+      }, 260);
+    } else {
+      renderSignups();
     }
   });
 
