@@ -17,11 +17,32 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+const INTERNAL_CHARGE_SECRET = Deno.env.get("INTERNAL_CHARGE_SECRET") ?? "";
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
 function norm(s: string) {
   return s.trim().replace(/^@/, "").toLowerCase();
+}
+
+// Charge the saved card off-session (build-start). ok=false on decline.
+async function chargeOrder(botOrderId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/charge-confirmed-order`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${ANON_KEY}`,
+        "x-internal-charge-secret": INTERNAL_CHARGE_SECRET,
+      },
+      body: JSON.stringify({ botOrderId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data?.ok) return { ok: true };
+    return { ok: false, error: data?.error || `charge_failed_${res.status}` };
+  } catch (e) {
+    return { ok: false, error: (e as any)?.message || "charge_error" };
+  }
 }
 
 function bad(msg: string, status = 400) {
@@ -102,9 +123,35 @@ serve(async (req) => {
     if (tokenErr) return bad("Could not verify availability", 500);
 
     const now = new Date().toISOString();
-    const nextStatus = (availableTokens ?? 0) >= allIds.length
-      ? "ready"
-      : "waitlist";
+    const inStock = (availableTokens ?? 0) >= allIds.length;
+
+    // Build-start charge: if a slot is available, charge the saved card NOW.
+    // Decline → don't deploy; mark payment_failed and tell the client.
+    if (inStock) {
+      const charge = await chargeOrder(parentId);
+      if (!charge.ok) {
+        await admin
+          .from("bot_orders")
+          .update({
+            status: "payment_failed",
+            confirmation_state: "confirmed",
+            confirmation_responded_at: now,
+            confirmed_username: reply,
+            updated_at: now,
+          })
+          .in("id", allIds);
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            declined: true,
+            error: "Your card was declined or has insufficient funds. Update your payment method and try again.",
+          }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
+    const nextStatus = inStock ? "ready" : "waitlist";
 
     const { error: updErr } = await admin
       .from("bot_orders")
