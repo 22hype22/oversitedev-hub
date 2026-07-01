@@ -93,7 +93,7 @@ export function useUserPurchases() {
 
     setOwned(map);
     setLoading(false);
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     reload();
@@ -108,7 +108,7 @@ export function useUserPurchases() {
   useEffect(() => {
     if (!user) return;
     const channel = supabase
-      .channel(`user-purchases-${user.id}`)
+      .channel(`user-purchases-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "pending_purchases" },
@@ -123,7 +123,7 @@ export function useUserPurchases() {
       supabase.removeChannel(channel);
       window.removeEventListener("focus", onFocus);
     };
-  }, [user, reload]);
+  }, [user?.id, reload]);
 
   return { owned, loading, reload };
 }
