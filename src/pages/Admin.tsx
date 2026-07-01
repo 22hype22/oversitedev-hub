@@ -655,7 +655,7 @@ const ADMIN_HTML = `<div class="osd app">
         <!-- Bot orders & preorders -->
         <div class="card" style="margin-bottom:16px">
           <div class="ch"><span class="eye">Sales</span><h3>Bot orders &amp; preorders</h3>
-            <div class="logtools"><span class="srch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input data-lg="orders-q" placeholder="Search" style="background:transparent;border:0;outline:none;color:var(--body);font:inherit;width:120px"></span></div>
+            <div class="logtools"><span class="srch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input data-lg="orders-q" placeholder="Search order or customer" style="background:transparent;border:0;outline:none;color:var(--body);font:inherit;width:190px"></span></div>
           </div>
           <div class="cb">
             <div class="chips" data-lg="orders-chips" style="margin-top:0">
@@ -1982,8 +1982,9 @@ function wireLogs(root: HTMLElement): void {
     if (q)
       list = list.filter(
         (o) =>
-          (o.bot_name || "").toLowerCase().includes(q) ||
+          (o.id || "").toLowerCase().includes(q) ||
           (o.email || "").toLowerCase().includes(q) ||
+          (o.bot_name || "").toLowerCase().includes(q) ||
           (o.base || "").toLowerCase().includes(q),
       );
     const html = list.map(
