@@ -153,6 +153,10 @@ const ADMIN_CSS = `.osadmin{
 .osadmin .tag.g{background:rgba(134,211,161,.14);color:var(--ok)}
 .osadmin .tag.n{background:rgba(168,180,191,.12);color:var(--faint)}
 .osadmin .tag.a{background:rgba(203,178,119,.16);color:var(--gold)}
+.osadmin .tag.r{background:rgba(232,116,116,.16);color:#eb8a8a}
+.osadmin .rowx{position:absolute;top:50%;right:6px;transform:translateY(-50%);display:grid;place-items:center;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:rgba(232,116,116,.18);color:#eb8a8a;font-size:14px;line-height:1;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .12s}
+.osadmin .tr:hover .rowx{opacity:1;pointer-events:auto}
+.osadmin .rowx:hover{background:rgba(232,116,116,.32)}
 .osadmin .crow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:13px}
 .osadmin .crow:first-child{border-top:0}
 .osadmin .crow .c{font-family:var(--mono);color:var(--heading);font-weight:600}
@@ -645,7 +649,7 @@ const ADMIN_HTML = `<div class="osd app">
           </div>
           <div class="cb">
             <div class="chips" data-lg="orders-chips" style="margin-top:0">
-              <span class="chip on" data-f="all">All</span><span class="chip" data-f="orders">Orders</span><span class="chip" data-f="preorders">Preorders</span>
+              <span class="chip on" data-f="all">All</span><span class="chip" data-f="active">Active</span><span class="chip" data-f="pending">Pending</span><span class="chip" data-f="crashed">Crashed</span>
             </div>
             <div class="log">
               <div class="th" style="grid-template-columns:0.8fr 1.6fr 1fr 0.9fr 0.6fr">
@@ -1883,13 +1887,34 @@ function wireLogs(root: HTMLElement): void {
     submitted: ["a", "preorder"],
     paid: ["g", "paid"],
     building: ["n", "building"],
-    ready: ["g", "ready"],
+    ready: ["g", "active"],
+    active: ["g", "active"],
     live: ["g", "live"],
+    crashed: ["r", "crashed"],
     cancelled: ["n", "cancelled"],
     draft: ["n", "draft"],
   };
-  const statusTag = (s: string) => {
-    const [cls, label] = STATUS_TAG[s] || ["n", s || "—"];
+  // Prettify any raw status we don't have an explicit label for: drop the
+  // underscores and Title-Case it (e.g. preorder_pending_card → "Preorder Pending Card").
+  const pretty = (s: string) =>
+    String(s || "—").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  // A crashed runtime overrides the order status; a "ready" order reads as "active".
+  const effStatus = (o: any): string => {
+    if (o.runtime_status === "crashed") return "crashed";
+    if (o.status === "ready") return "active";
+    return o.status;
+  };
+  const bucket = (o: any): string => {
+    if (o.runtime_status === "crashed") return "crashed";
+    if (o.status === "ready" || o.status === "active" || o.status === "live") return "active";
+    if (o.status === "cancelled") return "cancelled";
+    return "pending";
+  };
+  const statusTag = (o: any) => {
+    const s = effStatus(o);
+    const meta = STATUS_TAG[s];
+    const cls = meta ? meta[0] : "n";
+    const label = meta ? meta[1] : pretty(s);
     return `<span class="tag ${cls}">${escHtml(label)}</span>`;
   };
   const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
@@ -1899,8 +1924,9 @@ function wireLogs(root: HTMLElement): void {
     const q = val('[data-lg="orders-q"]').trim().toLowerCase();
     const f = root.querySelector('[data-lg="orders-chips"] .chip.on')?.getAttribute("data-f") || "all";
     let list = allOrders;
-    if (f === "orders") list = list.filter((o) => o.status !== "submitted");
-    else if (f === "preorders") list = list.filter((o) => o.status === "submitted");
+    if (f === "active") list = list.filter((o) => bucket(o) === "active");
+    else if (f === "pending") list = list.filter((o) => bucket(o) === "pending");
+    else if (f === "crashed") list = list.filter((o) => bucket(o) === "crashed");
     if (q)
       list = list.filter(
         (o) =>
@@ -1910,7 +1936,7 @@ function wireLogs(root: HTMLElement): void {
       );
     const html = list.map(
       (o) =>
-        `<div class="tr" style="${ORDER_COLS}"><span class="mn" title="${escHtml(o.id)}">${escHtml(String(o.id).slice(0, 8))}</span><span class="c1">${escHtml(o.email || "—")}</span><span>${escHtml(o.base || "")}</span><span>${statusTag(o.status)}</span><span class="tm right">${escHtml(timeAgo(o.ts))}</span></div>`,
+        `<div class="tr" style="${ORDER_COLS};position:relative"><span class="mn" title="${escHtml(o.id)}">${escHtml(String(o.id).slice(0, 8))}</span><span class="c1">${escHtml(o.email || "—")}</span><span>${escHtml(o.base || "")}</span><span>${statusTag(o)}</span><span class="tm right">${escHtml(timeAgo(o.ts))}</span><button class="rowx" data-del="${escHtml(o.id)}" title="Cancel & delete this order">×</button></div>`,
     );
     paginate(ordersEl, html, '<div class="subnote" style="padding-top:11px">No orders match.</div>');
   }
@@ -1955,6 +1981,42 @@ function wireLogs(root: HTMLElement): void {
   // Chips (ADMIN_JS already toggles .on) + search re-render the orders list.
   root.querySelectorAll('[data-lg="orders-chips"] .chip').forEach((c) => c.addEventListener("click", renderOrders));
   $('[data-lg="orders-q"]')?.addEventListener("input", renderOrders);
+
+  // Hover-X on an order row: fully cancel + tear down + delete the record.
+  ordersEl?.addEventListener("click", async (e) => {
+    const btn = (e.target as HTMLElement)?.closest?.(".rowx") as HTMLButtonElement | null;
+    if (!btn) return;
+    const id = btn.getAttribute("data-del");
+    if (!id) return;
+    const ord = allOrders.find((o) => o.id === id);
+    const nm = ord?.bot_name ? ` (“${ord.bot_name}”)` : "";
+    if (!confirm(`Cancel & permanently delete this order${nm}?\n\nThis tears down its bot and removes the log — it can't be undone.`)) return;
+    btn.textContent = "…";
+    btn.style.pointerEvents = "none";
+    // 1. Mark this order + any pack siblings cancelled first.
+    await sb
+      .from("bot_orders")
+      .update({ status: "cancelled", cancelled_at: new Date().toISOString(), cancellation_reason: "admin_delete" })
+      .or(`id.eq.${id},parent_order_id.eq.${id}`);
+    // 2. Best-effort Railway teardown (safe/no-op if it never deployed).
+    try {
+      await sb.functions.invoke("cancel-bot-deploy", { body: { orderId: id } });
+    } catch {
+      /* teardown not available — record is still removed below */
+    }
+    // 3. Hard-delete children, then the row.
+    await sb.from("bot_orders").delete().eq("parent_order_id", id);
+    const { error } = await sb.from("bot_orders").delete().eq("id", id);
+    if (error) {
+      toast.error("Couldn't delete order", { description: error.message });
+      btn.textContent = "×";
+      btn.style.pointerEvents = "";
+      return;
+    }
+    toast.success("Order deleted");
+    allOrders = allOrders.filter((o) => o.id !== id && (o as any).parent_order_id !== id);
+    renderOrders();
+  });
 
   load();
 }
