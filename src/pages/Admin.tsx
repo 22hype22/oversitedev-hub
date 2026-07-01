@@ -695,7 +695,7 @@ const ADMIN_HTML = `<div class="osd app">
 
         <!-- Admin audit log -->
         <div class="card" style="margin-top:16px">
-          <div class="ch"><span class="eye">Accountability</span><h3>Admin audit log</h3><span class="mut">who changed what</span></div>
+          <div class="ch"><span class="eye">Accountability</span><h3>Admin audit log</h3></div>
           <div class="cb">
             <div class="log">
               <div class="th" style="grid-template-columns:1.3fr 1.1fr 1.3fr 0.6fr"><span>Action</span><span>Admin</span><span>Target</span><span class="right">When</span></div>
