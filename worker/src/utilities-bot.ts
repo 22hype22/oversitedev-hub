@@ -332,25 +332,15 @@ async function cancelOrder(orderId: string, reason: string) {
     .eq("id", orderId);
 }
 
-async function confirmOrder(orderId: string) {
-  // Mark order ready to build. The build trigger will call charge-confirmed-order
-  // when a token gets allocated. We move to 'paid_pending_charge' so the existing
-  // build pipeline picks it up. (If the project keys off 'paid', we use that.)
-  await supabase
-    .from("bot_orders")
-    .update({
-      status: "paid",
-      confirmation_state: "confirmed",
-      confirmation_responded_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", orderId);
+// Charge the saved card FIRST; only flip to 'ready' (which fires the build) if
+// the charge succeeds. Returns true if charged+building, false if declined.
+async function confirmOrder(orderId: string): Promise<boolean> {
+  const now = new Date().toISOString();
 
-  // Best-effort: invoke charge-confirmed-order so we attempt the off-session
-  // PaymentIntent right away.
+  let charged = false;
   if (INTERNAL_CHARGE_SECRET && SUPABASE_URL) {
     try {
-      await fetch(`${SUPABASE_URL}/functions/v1/charge-confirmed-order`, {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/charge-confirmed-order`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -359,10 +349,38 @@ async function confirmOrder(orderId: string) {
         },
         body: JSON.stringify({ botOrderId: orderId }),
       });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean };
+      charged = res.ok && !!data?.ok;
     } catch (e) {
       console.error("[utils-bot] charge invoke failed:", (e as Error).message);
     }
   }
+
+  if (!charged) {
+    // Card declined / no funds → do NOT build. Mark failed so it doesn't deploy.
+    await supabase
+      .from("bot_orders")
+      .update({
+        status: "payment_failed",
+        confirmation_state: "confirmed",
+        confirmation_responded_at: now,
+        updated_at: now,
+      })
+      .eq("id", orderId);
+    return false;
+  }
+
+  // Charge succeeded → flip to 'ready' so the auto-deploy trigger fires.
+  await supabase
+    .from("bot_orders")
+    .update({
+      status: "ready",
+      confirmation_state: "confirmed",
+      confirmation_responded_at: now,
+      updated_at: now,
+    })
+    .eq("id", orderId);
+  return true;
 }
 
 async function loadExpectedUsername(orderId: string): Promise<string | null> {
@@ -397,10 +415,14 @@ async function handleDm(msg: Message) {
     if (lower === "yes" || lower === "y" || lower === "confirm") {
       const expected = await loadExpectedUsername(state.bot_order_id);
       if (!expected) {
-        // No username on file — just confirm.
-        await confirmOrder(state.bot_order_id);
+        // No username on file — charge + confirm.
+        const ok = await confirmOrder(state.bot_order_id);
         await clearDmState(msg.author.id);
-        await msg.reply("✅ Confirmed! Your bot is being built — we'll DM you again when it's ready.");
+        await msg.reply(
+          ok
+            ? "✅ Confirmed! Your bot is being built — we'll DM you again when it's ready."
+            : "⚠️ We couldn't charge your saved card (declined or insufficient funds), so your bot wasn't built. Update your payment method in your dashboard and we'll try again next time a slot opens.",
+        );
         return;
       }
       await supabase
@@ -430,11 +452,13 @@ async function handleDm(msg: Message) {
     const expected = (state.expected_username ?? "").trim().toLowerCase();
     const given = text.toLowerCase().replace(/^@/, "");
     if (expected && given === expected) {
-      await confirmOrder(state.bot_order_id);
+      const ok = await confirmOrder(state.bot_order_id);
       await clearDmState(msg.author.id);
       const botName = await loadBotName(state.bot_order_id);
       await msg.reply(
-        `✅ Confirmed! Your bot **${botName}** is being built. We'll DM you the moment it's live.`,
+        ok
+          ? `✅ Confirmed! Your bot **${botName}** is being built. We'll DM you the moment it's live.`
+          : `⚠️ We couldn't charge your saved card for **${botName}** (declined or insufficient funds), so it wasn't built. Update your payment method in your dashboard and we'll retry next time a slot opens.`,
       );
       return;
     }
