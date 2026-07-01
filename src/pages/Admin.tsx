@@ -168,6 +168,11 @@ const ADMIN_CSS = `.osadmin{
 .osadmin [data-lg="orders"] .tr .tm,.osadmin [data-lg="signups"] .tr .tm{transition:transform .18s ease}
 .osadmin [data-lg="orders"] .tr:hover .tm,.osadmin [data-lg="signups"] .tr:hover .tm{transform:translateX(-34px)}
 .osadmin [data-lg="orders"] .tr.removing,.osadmin [data-lg="signups"] .tr.removing{transform:translateX(100%);opacity:0}
+/* Rolling-digit odometer for KPI numbers (Live now / Bots sold). */
+.osadmin .odo{display:inline-flex;line-height:1;vertical-align:-0.05em;font-variant-numeric:tabular-nums}
+.osadmin .odo-col{display:inline-block;height:1em;overflow:hidden}
+.osadmin .odo-track{display:flex;flex-direction:column;transition:transform .55s cubic-bezier(.22,1,.36,1);will-change:transform}
+.osadmin .odo-digit{height:1em;display:flex;align-items:center;justify-content:center}
 .osadmin .crow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:13px}
 .osadmin .crow:first-child{border-top:0}
 .osadmin .crow .c{font-family:var(--mono);color:var(--heading);font-weight:600}
@@ -1135,6 +1140,43 @@ function dollars(cents: number): string {
   return "$" + Math.round((cents || 0) / 100).toLocaleString();
 }
 
+// Rolling odometer: render a KPI number as per-digit columns so each digit
+// scrolls (old spins up, new comes from the bottom) whenever the value changes.
+function rollNumber(valEl: HTMLElement, num: number, suffixHtml = ""): void {
+  const str = String(Math.max(0, Math.floor(Number(num) || 0)));
+  const prev = valEl.getAttribute("data-odo");
+  const digits = "0123456789"
+    .split("")
+    .map((d) => `<span class="odo-digit">${d}</span>`)
+    .join("");
+  let odo = valEl.querySelector(".odo") as HTMLElement | null;
+
+  if (!odo || !prev || prev.length !== str.length) {
+    // First render, or the digit count changed → rebuild (no roll animation).
+    const cols = str
+      .split("")
+      .map(() => `<span class="odo-col"><span class="odo-track">${digits}</span></span>`)
+      .join("");
+    valEl.innerHTML = `<span class="odo">${cols}</span>${suffixHtml ? ` ${suffixHtml}` : ""}`;
+    odo = valEl.querySelector(".odo") as HTMLElement;
+    const tracks = odo.querySelectorAll(".odo-track");
+    str.split("").forEach((ch, i) => {
+      const t = tracks[i] as HTMLElement;
+      t.style.transition = "none";
+      t.style.transform = `translateY(-${Number(ch)}em)`;
+    });
+    void odo.offsetHeight; // commit the start position before re-enabling transitions
+    tracks.forEach((t) => ((t as HTMLElement).style.transition = ""));
+  } else {
+    // Same length → just move each column to its new digit (this rolls).
+    const tracks = odo.querySelectorAll(".odo-track");
+    str.split("").forEach((ch, i) => {
+      (tracks[i] as HTMLElement).style.transform = `translateY(-${Number(ch)}em)`;
+    });
+  }
+  valEl.setAttribute("data-odo", str);
+}
+
 // Styled replacement for window.confirm — reuses the .osa-dialog look. Resolves
 // true on confirm, false on cancel / backdrop click / Escape.
 function osConfirm(opts: { title: string; body?: string; confirmLabel?: string }): Promise<boolean> {
@@ -1217,14 +1259,14 @@ function populateOverview(root: HTMLElement, d: any) {
   // ── KPI strip: [Live now, Bots sold, Revenue, Conversion] ──
   const kpis = ov.querySelectorAll(".kpis .kpi");
   const f = d.funnel || { visited: 0, builder: 0, checkout: 0, purchased: 0 };
-  // Live now
+  // Live now (rolling odometer)
   if (kpis[0]) {
-    const v = q(kpis[0], ".val"); if (v) v.textContent = String(d.live_now ?? 0);
+    const v = q(kpis[0], ".val") as HTMLElement | null; if (v) rollNumber(v, d.live_now ?? 0);
     const s = q(kpis[0], ".sub"); if (s) s.textContent = "on the site right now";
   }
-  // Bots sold
+  // Bots sold (rolling odometer)
   if (kpis[1]) {
-    const v = q(kpis[1], ".val"); if (v) v.innerHTML = `${d.bots_sold_total ?? 0} <small>total</small>`;
+    const v = q(kpis[1], ".val") as HTMLElement | null; if (v) rollNumber(v, d.bots_sold_total ?? 0, "<small>total</small>");
     const s = q(kpis[1], ".sub");
     if (s) s.innerHTML = `<b class="up">+${d.bots_sold_today ?? 0}</b> today · <b class="up">+${d.bots_sold_week ?? 0}</b> this week`;
   }
