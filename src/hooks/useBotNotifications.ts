@@ -39,7 +39,7 @@ export function useBotNotifications() {
     setItems((rows as BotNotification[]) ?? []);
     setUnread(count ?? 0);
     setLoading(false);
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     refresh();
@@ -49,7 +49,7 @@ export function useBotNotifications() {
   useEffect(() => {
     if (!user) return;
     const channel = supabase
-      .channel(`bot-notifs-${user.id}`)
+      .channel(`bot-notifs-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {
@@ -64,7 +64,7 @@ export function useBotNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, refresh]);
+  }, [user?.id, refresh]);
 
   const markAllRead = useCallback(async () => {
     if (!user) return;
