@@ -1132,6 +1132,48 @@ function dollars(cents: number): string {
   return "$" + Math.round((cents || 0) / 100).toLocaleString();
 }
 
+// Styled replacement for window.confirm — reuses the .osa-dialog look. Resolves
+// true on confirm, false on cancel / backdrop click / Escape.
+function osConfirm(opts: { title: string; body?: string; confirmLabel?: string }): Promise<boolean> {
+  return new Promise((resolve) => {
+    const host = document.querySelector(".osadmin") || document.body;
+    const overlay = document.createElement("div");
+    overlay.className = "osa-modal";
+    overlay.innerHTML =
+      '<div class="osa-dialog" role="dialog" aria-modal="true">' +
+      '<div class="osa-dt"></div>' +
+      '<div class="osa-dp"></div>' +
+      '<div class="osa-da">' +
+      '<button class="osa-btn ghost" data-act="cancel">Cancel</button>' +
+      '<button class="osa-btn danger" data-act="ok"></button>' +
+      "</div></div>";
+    (overlay.querySelector(".osa-dt") as HTMLElement).textContent = opts.title;
+    const bodyEl = overlay.querySelector(".osa-dp") as HTMLElement;
+    if (opts.body) bodyEl.textContent = opts.body;
+    else bodyEl.remove();
+    const okBtn = overlay.querySelector('[data-act="ok"]') as HTMLElement;
+    okBtn.textContent = opts.confirmLabel || "Confirm";
+
+    const close = (result: boolean) => {
+      document.removeEventListener("keydown", onKey);
+      overlay.remove();
+      resolve(result);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close(false);
+      else if (e.key === "Enter") close(true);
+    };
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close(false);
+    });
+    (overlay.querySelector('[data-act="cancel"]') as HTMLElement).addEventListener("click", () => close(false));
+    okBtn.addEventListener("click", () => close(true));
+    document.addEventListener("keydown", onKey);
+    host.appendChild(overlay);
+    okBtn.focus();
+  });
+}
+
 // Render a list with a "Load more" tail: shows `pageSize` rows, then a button
 // that reveals the next page. `rows` is an array of row-HTML strings. Delegated
 // click handlers on the container keep working (rows stay inside it).
@@ -2001,7 +2043,12 @@ function wireLogs(root: HTMLElement): void {
     const rowEl = btn.closest(".tr") as HTMLElement | null;
     const ord = allOrders.find((o) => o.id === id);
     const nm = ord?.bot_name ? ` (“${ord.bot_name}”)` : "";
-    if (!confirm(`Cancel & permanently delete this order${nm}?\n\nThis tears down its bot and removes the log — it can't be undone.`)) return;
+    const ok = await osConfirm({
+      title: "Delete this order?",
+      body: `This cancels & permanently deletes this order${nm}, tears down its bot, and removes the log — it can't be undone.`,
+      confirmLabel: "Delete",
+    });
+    if (!ok) return;
     btn.textContent = "…";
     btn.style.pointerEvents = "none";
     // 1. Mark this order + any pack siblings cancelled first.
