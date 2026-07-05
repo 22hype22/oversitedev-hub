@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { SystemScreen, SystemCard, SystemBadge } from "@/components/site/SystemScreen";
 
 declare global {
   interface Window {
@@ -110,25 +112,24 @@ const Verify = () => {
   }, [token, provider, siteKey]);
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-card p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-foreground mb-2 text-center">
-          Server Verification
-        </h1>
-        <p className="text-sm text-muted-foreground mb-6 text-center">{message}</p>
+    <SystemScreen footer={<>Protected by captcha · We never store personal data from this check</>}>
+      <SystemCard>
+        <SystemBadge tone={status === "success" ? "success" : status === "error" ? "error" : "accent"}>
+          <ShieldCheck className="h-8 w-8" />
+        </SystemBadge>
+        <h1 style={{ fontSize: 24, marginBottom: 8 }}>Server Verification</h1>
+        <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>{message}</p>
         {status !== "success" && status !== "error" && (
           <div ref={containerRef} className="flex justify-center" />
         )}
         {status === "success" && (
-          <div className="text-center text-green-600 dark:text-green-400 font-medium">
-            ✓ Verified
-          </div>
+          <div style={{ fontWeight: 600, color: "#86d3a1" }}>✓ Verified</div>
         )}
         {status === "error" && (
-          <div className="text-center text-destructive font-medium">✗ {message}</div>
+          <div style={{ fontWeight: 600, color: "#e98b8b" }}>✗ {message}</div>
         )}
-      </div>
-    </main>
+      </SystemCard>
+    </SystemScreen>
   );
 };
 
