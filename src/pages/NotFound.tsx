@@ -1,15 +1,12 @@
 import { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
-import dashboardBg from "@/assets/dashboardBg";
 import oversiteLogo from "@/assets/oversite-logo.png";
 
 // Self-contained "system page" shell (mountain backdrop + frosted slate glass
 // + icy accent). Inlined rather than shared so no extra file is required.
 const OSSYS_CSS = `
-.ossys{--os-heading:#E8EEF3;--os-body:#A8B4BF;--os-faint:#788591;--os-accent:#C9DBE6;--os-accent-ink:#1E242B;--os-hair:rgba(168,180,191,.16);position:relative;min-height:100vh;display:flex;flex-direction:column;overflow:hidden;color:var(--os-body);font-family:'Manrope',system-ui,-apple-system,sans-serif}
-.ossys-bg{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center 22%;background-repeat:no-repeat}
-.ossys-scrim{position:fixed;inset:0;z-index:0;background:linear-gradient(180deg,rgba(18,22,27,.55),rgba(18,22,27,.72) 55%,rgba(18,22,27,.86))}
+.ossys{--os-heading:#E8EEF3;--os-body:#A8B4BF;--os-faint:#788591;--os-accent:#C9DBE6;--os-accent-ink:#1E242B;--os-hair:rgba(168,180,191,.16);position:relative;min-height:100vh;display:flex;flex-direction:column;overflow:hidden;color:var(--os-body);font-family:'Manrope',system-ui,-apple-system,sans-serif;background:radial-gradient(130% 85% at 50% 118%,rgba(201,219,230,.14),transparent 55%),radial-gradient(95% 70% at 50% -15%,rgba(70,82,94,.55),transparent 60%),linear-gradient(180deg,#293038,#1e242b)}
 .ossys-top{position:relative;z-index:2;padding:22px 26px}
 .ossys-top img{height:30px;width:auto;object-fit:contain}
 .ossys-mid{position:relative;z-index:2;flex:1;display:grid;place-items:center;padding:16px 16px 64px}
@@ -38,8 +35,6 @@ const NotFound = () => {
   return (
     <main className="ossys">
       <style>{OSSYS_CSS}</style>
-      <div className="ossys-bg" style={{ backgroundImage: `url(${dashboardBg})` }} aria-hidden />
-      <div className="ossys-scrim" aria-hidden />
       <div className="ossys-top">
         <Link to="/" aria-label="Oversite — home">
           <img src={oversiteLogo} alt="Oversite" />
