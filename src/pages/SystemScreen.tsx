@@ -68,6 +68,7 @@ export function SystemScreen({
         </Link>
       </div>
 
+
       <div className="ossys-mid">
         <div style={{ width: "100%", maxWidth }}>{children}</div>
       </div>
