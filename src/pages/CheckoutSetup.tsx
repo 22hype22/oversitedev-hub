@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { getStripe } from "@/lib/stripe";
 import { toast } from "sonner";
+import { SystemScreen, SystemCard } from "@/components/site/SystemScreen";
 
 function SetupForm({ orderId }: { orderId: string }) {
   const stripe = useStripe();
@@ -36,10 +35,20 @@ function SetupForm({ orderId }: { orderId: string }) {
   };
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
-      <div className="relative min-h-[200px]">
+    <form onSubmit={onSubmit} style={{ display: "grid", gap: 20 }}>
+      <div style={{ position: "relative", minHeight: 200 }}>
         {!paymentReady && (
-          <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 14,
+              color: "var(--os-faint)",
+            }}
+          >
             Loading secure card form…
           </div>
         )}
@@ -47,12 +56,17 @@ function SetupForm({ orderId }: { orderId: string }) {
           <PaymentElement onReady={() => setPaymentReady(true)} />
         </div>
       </div>
-      <Button type="submit" disabled={!stripe || !paymentReady || submitting} className="w-full" size="lg" variant="hero">
+      <button
+        type="submit"
+        className="ossys-accent"
+        style={{ width: "100%", height: 48 }}
+        disabled={!stripe || !paymentReady || submitting}
+      >
         {submitting ? "Saving card…" : "Save card & reserve preorder"}
-      </Button>
-      <p className="text-xs text-muted-foreground text-center">
-        Your card will <strong>not</strong> be charged now. We'll DM you on Discord when we're ready
-        to build, and only charge after you confirm.
+      </button>
+      <p style={{ fontSize: 12, lineHeight: 1.6, textAlign: "center", color: "var(--os-faint)" }}>
+        Your card will <strong style={{ color: "var(--os-body)" }}>not</strong> be charged now.
+        We'll DM you on Discord when we're ready to build, and only charge after you confirm.
       </p>
     </form>
   );
@@ -73,16 +87,35 @@ export default function CheckoutSetup() {
   if (!cs) return null;
 
   return (
-    <main className="min-h-screen grid place-items-center px-4 py-16">
-      <Card className="w-full max-w-md p-8">
-        <h1 className="text-2xl font-semibold mb-2">Reserve your preorder</h1>
-        <p className="text-sm text-muted-foreground mb-6">
-          Save a card to lock in your spot. We'll DM you on Discord to confirm before charging.
+    <SystemScreen footer={<>Payments are securely processed by Stripe · 256-bit encrypted</>}>
+      <SystemCard align="left">
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 12,
+            fontWeight: 700,
+            padding: "6px 12px",
+            borderRadius: 999,
+            marginBottom: 18,
+            background: "rgba(201,219,230,.12)",
+            border: "1px solid rgba(201,219,230,.28)",
+            color: "var(--os-accent)",
+          }}
+        >
+          <span style={{ width: 7, height: 7, borderRadius: 999, background: "var(--os-accent)" }} />
+          Preorder — no charge today
+        </span>
+        <h1 style={{ fontSize: 24, marginBottom: 8 }}>Reserve your preorder</h1>
+        <p style={{ fontSize: 14.5, lineHeight: 1.6, marginBottom: 24 }}>
+          Save a card to lock in your spot. We'll DM you on Discord to confirm before we build — and
+          only then are you charged.
         </p>
         <Elements stripe={stripePromise} options={{ clientSecret: cs, appearance: { theme: "night" } }}>
           <SetupForm orderId={orderId} />
         </Elements>
-      </Card>
-    </main>
+      </SystemCard>
+    </SystemScreen>
   );
 }
