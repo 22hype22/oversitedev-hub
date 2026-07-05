@@ -1,7 +1,6 @@
-import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { track, startPresence } from "@/lib/analytics";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -33,79 +32,6 @@ const Plugyxz = lazy(() => import("./pages/Plugyxz.tsx"));
 const SupportIdeas = lazy(() => import("./pages/SupportIdeas.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const Verify = lazy(() => import("./pages/Verify.tsx"));
-// Popup callback for the "Link Discord" flow started from the bot builder.
-// Discord redirects here with ?code=&state=. We exchange the code, tell the
-// window that opened us the result, then close. Kept inline (rather than a
-// separate page file) so there's no extra file to create on deploy.
-const DISCORD_LINK_STATE_KEY = "oswire_discord_link_state";
-function DiscordLinkedPopup() {
-  const [msg, setMsg] = useState("Linking your Discord…");
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    const returnedState = params.get("state");
-    const expected = localStorage.getItem(DISCORD_LINK_STATE_KEY);
-    localStorage.removeItem(DISCORD_LINK_STATE_KEY);
-
-    const finish = (payload: Record<string, unknown>) => {
-      try {
-        window.opener?.postMessage(
-          { type: "oswire-discord-linked", ...payload },
-          window.location.origin,
-        );
-      } catch {
-        /* opener gone — nothing to do */
-      }
-      setTimeout(() => window.close(), 200);
-    };
-
-    if (!code) {
-      setMsg("Discord link cancelled — you can close this window.");
-      finish({ ok: false, error: "cancelled" });
-      return;
-    }
-    if (!expected || expected !== returnedState) {
-      setMsg("This link expired — please try again.");
-      finish({ ok: false, error: "state_mismatch" });
-      return;
-    }
-
-    (async () => {
-      const redirect_uri = `${window.location.origin}/discord/linked`;
-      const { data, error } = await supabase.functions.invoke("discord-link", {
-        body: { action: "exchange_code", code, redirect_uri },
-      });
-      if (error || !data?.ok) {
-        setMsg("Couldn't link Discord — you can close this window.");
-        finish({ ok: false, error: data?.error || error?.message || "exchange_failed" });
-        return;
-      }
-      setMsg(`Linked @${data.discord_username || data.discord_user_id}! Closing…`);
-      finish({
-        ok: true,
-        discord_user_id: data.discord_user_id,
-        discord_username: data.discord_username,
-      });
-    })();
-  }, []);
-
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "grid",
-        placeItems: "center",
-        background: "#0b0b0f",
-        color: "#e6e6ee",
-        fontFamily: "system-ui, -apple-system, sans-serif",
-        padding: 24,
-        textAlign: "center",
-      }}
-    >
-      <p style={{ fontSize: 15, maxWidth: 360, lineHeight: 1.5 }}>{msg}</p>
-    </div>
-  );
-}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -123,12 +49,18 @@ const queryClient = new QueryClient({
 // nothing and the user sees a blank dark screen until the chunk arrives —
 // which on a cold cache (e.g. the heavy bot-dashboard chunk) reads as "stuck".
 const RouteFallback = () => (
-  <div className="min-h-screen bg-background grid place-items-center">
-    <div
-      aria-label="Loading"
-      role="status"
-      className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground/25 border-t-muted-foreground/80"
-    />
+  <div className="min-h-screen grid place-items-center" style={{ background: "#21272e" }}>
+    <div className="flex flex-col items-center gap-5">
+      <div
+        aria-label="Loading"
+        role="status"
+        className="h-12 w-12 animate-spin rounded-full"
+        style={{ border: "3px solid rgba(168,180,191,.16)", borderTopColor: "#C9DBE6" }}
+      />
+      <p className="text-sm font-medium" style={{ color: "#A8B4BF" }}>
+        Loading Oversite…
+      </p>
+    </div>
   </div>
 );
 
@@ -142,59 +74,6 @@ const AnalyticsTracker = () => {
   useEffect(() => startPresence(), []);
   return null;
 };
-
-// Catches any render/effect crash (e.g. a realtime hiccup on tab return) and
-// shows a recoverable screen instead of a black void.
-class RouteErrorBoundary extends Component<{ children: ReactNode }, { crashed: boolean }> {
-  state = { crashed: false };
-  static getDerivedStateFromError() {
-    return { crashed: true };
-  }
-  componentDidCatch(err: unknown) {
-    console.error("App error boundary caught:", err);
-  }
-  render() {
-    if (this.state.crashed) {
-      return (
-        <div
-          style={{
-            minHeight: "100vh",
-            display: "grid",
-            placeItems: "center",
-            background: "#0b0b0f",
-            color: "#e6e6ee",
-            fontFamily: "system-ui, -apple-system, sans-serif",
-            padding: 24,
-            textAlign: "center",
-          }}
-        >
-          <div style={{ maxWidth: 360 }}>
-            <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Something hiccuped.</p>
-            <p style={{ fontSize: 13, opacity: 0.7, lineHeight: 1.5, marginBottom: 18 }}>
-              The page ran into an error. Reloading usually clears it.
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              style={{
-                background: "#6ea8fe",
-                color: "#0b0b0f",
-                border: 0,
-                borderRadius: 10,
-                padding: "10px 22px",
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              Reload
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 const App = () => {
   return (
@@ -211,7 +90,6 @@ const App = () => {
             <AutoTranslator />
             <MarkdownFormattingToolbar />
             <Suspense fallback={<RouteFallback />}>
-              <RouteErrorBoundary>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/process" element={<ProcessPage />} />
@@ -229,11 +107,9 @@ const App = () => {
                 <Route path="/explore/owner" element={<MeetTheOwner />} />
                 <Route path="/explore/plugyxz" element={<Plugyxz />} />
                 <Route path="/verify" element={<Verify />} />
-                <Route path="/discord/linked" element={<DiscordLinkedPopup />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
-              </RouteErrorBoundary>
             </Suspense>
           </PreferencesProvider>
         </BrowserRouter>
