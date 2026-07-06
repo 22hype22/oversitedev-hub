@@ -114,25 +114,28 @@ import {
 import heroBg from "@/assets/hero-bg.jpg";
 
 const BOTSEC_CSS = `
-.botsec{background:linear-gradient(180deg,#272e36,#242b32);border:1px solid #3a434d;border-radius:16px;overflow:hidden;
-  box-shadow:0 24px 60px -32px rgba(0,0,0,.6)}
-.botsec>.bsum{display:flex;align-items:center;gap:13px;padding:16px 20px;cursor:pointer;list-style:none}
+.botsec{background:linear-gradient(180deg,rgba(46,54,63,.72),rgba(37,44,52,.72));border:1px solid rgba(168,180,191,.14);border-radius:20px;overflow:hidden;
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 40px 90px -50px rgba(0,0,0,.85)}
+.botsec>.bsum{display:flex;align-items:center;gap:14px;padding:19px 22px;cursor:pointer;list-style:none}
 .botsec>.bsum::-webkit-details-marker{display:none}
-.botsec>.bsum:hover{background:rgba(255,255,255,.014)}
-.botsec .bico{height:36px;width:36px;border-radius:10px;flex:none;display:grid;place-items:center;background:#2d353e;color:#C9DBE6}
-.botsec .bico svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.8;fill:none}
+.botsec>.bsum:hover{background:rgba(201,219,230,.022)}
+.botsec .bico{height:42px;width:42px;border-radius:13px;flex:none;display:grid;place-items:center;
+  background:rgba(201,219,230,.10);color:#C9DBE6;border:1px solid rgba(201,219,230,.16);box-shadow:0 0 24px -6px rgba(201,219,230,.25)}
+.botsec .bico svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.8;fill:none}
 .botsec .btx{flex:1;min-width:0}
-.botsec .btx .ba{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:700;font-size:14.5px;color:#E8EEF3;
+.botsec .btx .ba{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;font-size:16px;color:#E8EEF3;letter-spacing:-.01em;
   display:flex;align-items:center;gap:8px}
-.botsec .btx .ba .ct{font-family:"Space Mono",monospace;font-size:10px;font-weight:400;color:#788591;border:1px solid #3a434d;
+.botsec .btx .ba .ct{font-family:"Space Mono",monospace;font-size:10px;font-weight:400;color:#788591;border:1px solid rgba(168,180,191,.18);
   border-radius:20px;padding:1px 8px;flex:none}
-.botsec .btx .bb{font-size:11.5px;color:#788591;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.botsec .btx .bb{font-size:12px;color:#788591;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .botsec .bchev{height:20px;width:20px;color:#788591;transition:transform .2s,color .2s;flex:none}
 .botsec[open] .bchev{transform:rotate(180deg);color:#C9DBE6}
-.botsec .bbody{border-top:1px solid #3a434d;padding:12px 10px 14px}
-/* Flatten the inner panel wrappers so they don't read as cramped secondary
-   boxes inside the section; their inner tiles/content keep their own framing. */
-.botsec .bbody .bg-card\\/40{background-color:transparent;border-color:transparent;box-shadow:none}
+.botsec .bbody{border-top:1px solid rgba(168,180,191,.10);padding:16px}
+/* Premium frosted framing for the inner panel wrappers (visual only — bg / border /
+   radius / shadow; no layout properties changed). Semantic-tinted cards keep their tint. */
+.botsec .bbody .bg-card\\/40{background:linear-gradient(180deg,rgba(52,61,70,.42),rgba(45,53,62,.42));border-color:rgba(168,180,191,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.botsec .bbody .rounded-lg.border,.botsec .bbody .rounded-xl.border{border-radius:15px;border-color:rgba(168,180,191,.12)}
 `;
 import { useBotNotifications, type BotNotification } from "@/hooks/useBotNotifications";
 
