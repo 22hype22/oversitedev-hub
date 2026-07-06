@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { Component, lazy, Suspense, useEffect, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { track, startPresence } from "@/lib/analytics";
@@ -75,6 +75,53 @@ const AnalyticsTracker = () => {
   return null;
 };
 
+// Catches any render/effect crash (e.g. a realtime or auth hiccup when a tab
+// regains focus) and shows a recoverable slate screen instead of a black void.
+// Without this, one thrown error anywhere in the tree unmounts the whole app.
+class RouteErrorBoundary extends Component<{ children: ReactNode }, { crashed: boolean }> {
+  state = { crashed: false };
+  static getDerivedStateFromError() {
+    return { crashed: true };
+  }
+  componentDidCatch(err: unknown) {
+    console.error("App error boundary caught:", err);
+  }
+  render() {
+    if (this.state.crashed) {
+      return (
+        <div
+          className="min-h-screen grid place-items-center px-4"
+          style={{ background: "#21272e", fontFamily: "'Manrope', system-ui, sans-serif" }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl p-8 md:p-10 text-center"
+            style={{
+              border: "1px solid rgba(168,180,191,.16)",
+              background: "linear-gradient(180deg,rgba(46,54,63,.9),rgba(39,46,54,.94))",
+              boxShadow: "0 34px 90px -34px rgba(0,0,0,.8)",
+            }}
+          >
+            <h1 className="mb-2 text-xl font-extrabold" style={{ color: "#E8EEF3" }}>
+              Something hiccuped
+            </h1>
+            <p className="mb-7 text-sm leading-relaxed" style={{ color: "#A8B4BF" }}>
+              The page ran into an error. Reloading usually clears it right up — your data is safe.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="inline-flex h-11 items-center justify-center rounded-xl px-6 text-sm font-bold"
+              style={{ background: "#C9DBE6", color: "#1E242B", cursor: "pointer" }}
+            >
+              Reload the page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
@@ -89,6 +136,7 @@ const App = () => {
             <AnalyticsTracker />
             <AutoTranslator />
             <MarkdownFormattingToolbar />
+            <RouteErrorBoundary>
             <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/" element={<Index />} />
@@ -111,6 +159,7 @@ const App = () => {
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
+            </RouteErrorBoundary>
           </PreferencesProvider>
         </BrowserRouter>
       </TooltipProvider>
