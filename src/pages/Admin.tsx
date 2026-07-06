@@ -943,7 +943,7 @@ const Admin = () => {
       });
     };
     loadOverview();
-    const overviewPoll = window.setInterval(loadOverview, 10000);
+    const overviewPoll = window.setInterval(loadOverview, 4000);
 
     // Revenue KPI — all-time collected (captured minus refunds) straight from
     // Stripe (live). Fetched here rather than from admin_overview_stats because
