@@ -85,22 +85,24 @@ function sendLeave(): void {
   }
 }
 
-// Presence: a "ping" now and every 45s while the tab is visible; a "leave" the
-// moment it hides or closes. Live-visitor count = distinct sessions whose most
+// Presence: a "ping" now and every 30s for as long as the tab is OPEN — even
+// when it's in the background — so any open tab counts as "live". A "leave" is
+// sent only when the tab is actually closed or navigated away (pagehide), so a
+// closed tab drops off immediately while a merely-backgrounded one keeps
+// counting. (Browsers throttle background timers to ~once/min, which still lands
+// inside the 90s live window.) Live-visitor count = distinct sessions whose most
 // recent signal in the last 90s wasn't a leave.
 export function startPresence(): () => void {
-  const ping = () => {
-    if (typeof document === "undefined" || document.visibilityState === "visible") {
-      track("ping");
-    }
-  };
+  const ping = () => track("ping");
   ping();
-  const iv = window.setInterval(ping, 45000);
+  const iv = window.setInterval(ping, 30000);
+  // Ping immediately when the tab returns to the foreground so a background tab
+  // that got its timer throttled re-enters "live" right away.
   const onVis = () => {
-    if (document.visibilityState === "visible") ping();
-    else sendLeave();
+    if (typeof document === "undefined" || document.visibilityState === "visible") ping();
   };
   document.addEventListener("visibilitychange", onVis);
+  // Fire "leave" only on real close / navigation away.
   window.addEventListener("pagehide", sendLeave);
   return () => {
     window.clearInterval(iv);
