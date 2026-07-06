@@ -318,24 +318,71 @@ async function clearDmState(discordUserId: string) {
     .eq("discord_user_id", discordUserId);
 }
 
+// Cancel the WHOLE order (parent + children) and wipe the saved-card references
+// so we no longer keep their card on file. The bot_orders cancel trigger frees
+// any tokens back to the pool. `orderId` is the parent order id.
 async function cancelOrder(orderId: string, reason: string) {
+  const now = new Date().toISOString();
   await supabase
     .from("bot_orders")
     .update({
       status: "cancelled_by_customer",
       confirmation_state: "declined",
-      cancelled_at: new Date().toISOString(),
+      cancelled_at: now,
       cancellation_reason: reason,
-      confirmation_responded_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      confirmation_responded_at: now,
+      // "Get rid of their card stuff" — drop the stored card references.
+      stripe_payment_method_id: null,
+      stripe_setup_intent_id: null,
+      stripe_customer_id: null,
+      updated_at: now,
     })
-    .eq("id", orderId);
+    .or(`id.eq.${orderId},parent_order_id.eq.${orderId}`);
 }
 
-// Charge the saved card FIRST; only flip to 'ready' (which fires the build) if
-// the charge succeeds. Returns true if charged+building, false if declined.
-async function confirmOrder(orderId: string): Promise<boolean> {
+type ConfirmResult = "charged" | "declined" | "out_of_stock";
+
+// Count how many bots this order still needs a token for (parent + children).
+async function botsNeededForOrder(orderId: string): Promise<number> {
+  const { data } = await supabase
+    .from("bot_orders")
+    .select("id, status")
+    .or(`id.eq.${orderId},parent_order_id.eq.${orderId}`);
+  const pending = (data ?? []).filter((r: any) =>
+    ["waitlisted", "paid", "preorder", "preorder_pending_card"].includes(r.status),
+  ).length;
+  return pending || 1;
+}
+
+async function availableTokens(): Promise<number> {
+  const { count } = await supabase
+    .from("bot_token_pool")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "available");
+  return count ?? 0;
+}
+
+// All-or-nothing charge. Only charges if the pool can build EVERY bot in the
+// order right now. Charges the saved card FIRST; only flips the whole order to
+// 'ready' (which fires the build) if the charge succeeds. `orderId` is the
+// parent order id.
+//   "charged"      → paid + building
+//   "declined"     → card failed; order marked payment_failed, no build
+//   "out_of_stock" → not enough slots for the whole order; no charge, stays waitlisted
+async function confirmOrder(orderId: string): Promise<ConfirmResult> {
   const now = new Date().toISOString();
+
+  // Guard: never partially build a multi-bot order. If a slot got taken since we
+  // asked, keep them waitlisted (the promotion trigger will re-ask) and DON'T charge.
+  const needed = await botsNeededForOrder(orderId);
+  const avail = await availableTokens();
+  if (avail < needed) {
+    await supabase
+      .from("bot_orders")
+      .update({ status: "waitlisted", confirmation_state: null, updated_at: now })
+      .or(`id.eq.${orderId},parent_order_id.eq.${orderId}`);
+    return "out_of_stock";
+  }
 
   let charged = false;
   if (INTERNAL_CHARGE_SECRET && SUPABASE_URL) {
@@ -357,7 +404,7 @@ async function confirmOrder(orderId: string): Promise<boolean> {
   }
 
   if (!charged) {
-    // Card declined / no funds → do NOT build. Mark failed so it doesn't deploy.
+    // Card declined / no funds → do NOT build. Mark the whole order failed.
     await supabase
       .from("bot_orders")
       .update({
@@ -366,11 +413,12 @@ async function confirmOrder(orderId: string): Promise<boolean> {
         confirmation_responded_at: now,
         updated_at: now,
       })
-      .eq("id", orderId);
-    return false;
+      .or(`id.eq.${orderId},parent_order_id.eq.${orderId}`);
+    return "declined";
   }
 
-  // Charge succeeded → flip to 'ready' so the auto-deploy trigger fires.
+  // Charge succeeded → whole order -> 'ready' so the auto-deploy trigger fires.
+  // (charge-confirmed-order also flips the group; this is belt-and-suspenders.)
   await supabase
     .from("bot_orders")
     .update({
@@ -379,8 +427,8 @@ async function confirmOrder(orderId: string): Promise<boolean> {
       confirmation_responded_at: now,
       updated_at: now,
     })
-    .eq("id", orderId);
-  return true;
+    .or(`id.eq.${orderId},parent_order_id.eq.${orderId}`);
+  return "charged";
 }
 
 async function loadExpectedUsername(orderId: string): Promise<string | null> {
@@ -416,12 +464,14 @@ async function handleDm(msg: Message) {
       const expected = await loadExpectedUsername(state.bot_order_id);
       if (!expected) {
         // No username on file — charge + confirm.
-        const ok = await confirmOrder(state.bot_order_id);
+        const result = await confirmOrder(state.bot_order_id);
         await clearDmState(msg.author.id);
         await msg.reply(
-          ok
+          result === "charged"
             ? "✅ Confirmed! Your bot is being built — we'll DM you again when it's ready."
-            : "⚠️ We couldn't charge your saved card (declined or insufficient funds), so your bot wasn't built. Update your payment method in your dashboard and we'll try again next time a slot opens.",
+            : result === "out_of_stock"
+              ? "⏳ A slot was taken just before we could finish — no charge was made. You're still first in line and we'll DM you the moment enough slots open for your order."
+              : "⚠️ Transaction failed — we couldn't charge your saved card (declined or insufficient funds), so your bot wasn't built. Update your payment method in your dashboard and we'll try again next time a slot opens.",
         );
         return;
       }
@@ -452,13 +502,15 @@ async function handleDm(msg: Message) {
     const expected = (state.expected_username ?? "").trim().toLowerCase();
     const given = text.toLowerCase().replace(/^@/, "");
     if (expected && given === expected) {
-      const ok = await confirmOrder(state.bot_order_id);
+      const result = await confirmOrder(state.bot_order_id);
       await clearDmState(msg.author.id);
       const botName = await loadBotName(state.bot_order_id);
       await msg.reply(
-        ok
+        result === "charged"
           ? `✅ Confirmed! Your bot **${botName}** is being built. We'll DM you the moment it's live.`
-          : `⚠️ We couldn't charge your saved card for **${botName}** (declined or insufficient funds), so it wasn't built. Update your payment method in your dashboard and we'll retry next time a slot opens.`,
+          : result === "out_of_stock"
+            ? `⏳ A slot was taken just before we could finish **${botName}** — no charge was made. You're still first in line and we'll DM you as soon as enough slots open.`
+            : `⚠️ Transaction failed — we couldn't charge your saved card for **${botName}** (declined or insufficient funds), so it wasn't built. Update your payment method in your dashboard and we'll retry next time a slot opens.`,
       );
       return;
     }
