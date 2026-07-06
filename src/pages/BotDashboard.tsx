@@ -132,10 +132,38 @@ const BOTSEC_CSS = `
 .botsec .bchev{height:20px;width:20px;color:#788591;transition:transform .2s,color .2s;flex:none}
 .botsec[open] .bchev{transform:rotate(180deg);color:#C9DBE6}
 .botsec .bbody{border-top:1px solid rgba(168,180,191,.10);padding:16px}
-/* Premium frosted framing for the inner panel wrappers (visual only — bg / border /
-   radius / shadow; no layout properties changed). Semantic-tinted cards keep their tint. */
-.botsec .bbody .bg-card\\/40{background:linear-gradient(180deg,rgba(52,61,70,.42),rgba(45,53,62,.42));border-color:rgba(168,180,191,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
-.botsec .bbody .rounded-lg.border,.botsec .bbody .rounded-xl.border{border-radius:15px;border-color:rgba(168,180,191,.12)}
+
+/* ---- Premium frosting for the inner panels (VISUAL ONLY — background / border /
+   radius / shadow; no layout, spacing, or logic changed). Semantic-tinted cards
+   (emerald "ready", amber "at limit", blue "deploying", primary banners, etc.) are
+   deliberately excluded so they keep their status color. ---- */
+
+/* Neutral shadcn <Card>s (Manage controls, Server slots, Engine switcher, build
+   summary, Usage, Logs, Request-custom) → frosted glass. The :not() chain keeps
+   every colored status card untouched. */
+.botsec .bbody .rounded-lg.border.bg-card:not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-primary"]):not([class*="bg-destructive"]):not([class*="bg-yellow"]):not([class*="bg-blue"]):not([class*="bg-green"]),
+.botsec .bbody .bg-card\\/40{
+  background:linear-gradient(180deg,rgba(52,61,70,.55),rgba(45,53,62,.5));
+  border-color:rgba(168,180,191,.14);border-radius:16px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 26px 55px -42px rgba(0,0,0,.75)}
+
+/* Inner frosted tiles — usage stat cells, server list, log viewport, buy box. */
+.botsec .bbody .rounded-md.border,
+.botsec .bbody .bg-background\\/40{
+  background:rgba(52,61,70,.42);border-color:rgba(168,180,191,.12);border-radius:12px}
+
+/* Keep the "buy an extra slot" attention state accented, not frosted-over. */
+.botsec .bbody .rounded-md.border.border-primary{
+  border-color:rgba(201,219,230,.5);background:rgba(201,219,230,.07)}
+
+/* Engine-version pills → frosted, with an icy glow on the active one. */
+.botsec .bbody button.rounded-lg.border{
+  border-color:rgba(168,180,191,.16);border-radius:13px;background:rgba(52,61,70,.4);transition:all .18s ease}
+.botsec .bbody button.rounded-lg.border:hover:not(:disabled){
+  border-color:rgba(201,219,230,.32);background:rgba(201,219,230,.05)}
+.botsec .bbody button.rounded-lg.border-primary{
+  border-color:rgba(201,219,230,.55);background:rgba(201,219,230,.08);
+  box-shadow:0 0 0 1px rgba(201,219,230,.22),0 0 22px -8px rgba(201,219,230,.5)}
 `;
 import { useBotNotifications, type BotNotification } from "@/hooks/useBotNotifications";
 
