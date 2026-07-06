@@ -13,7 +13,8 @@ export type TrackEvent =
   | "build_started"
   | "checkout_reached"
   | "purchased"
-  | "checkout_abandoned";
+  | "checkout_abandoned"
+  | "leave";
 
 function sessionId(): string {
   try {
@@ -56,8 +57,37 @@ export function track(
   }
 }
 
-// Presence: a "ping" now and every 45s while the tab is visible. Live-visitor
-// count = distinct sessions pinged in the last 90s.
+// Fire a "leave" the instant the tab is hidden/closed, using a keepalive fetch
+// so it still sends during unload. This drops the session out of "live now"
+// immediately instead of waiting out the 90s presence window.
+function sendLeave(): void {
+  try {
+    const url = import.meta.env.VITE_SUPABASE_URL;
+    const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!url || !key) return;
+    fetch(`${url}/rest/v1/rpc/track_event`, {
+      method: "POST",
+      keepalive: true,
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        _session: sessionId(),
+        _type: "leave",
+        _path: typeof location !== "undefined" ? location.pathname : null,
+        _meta: null,
+      }),
+    }).catch(() => {});
+  } catch {
+    /* ignore */
+  }
+}
+
+// Presence: a "ping" now and every 45s while the tab is visible; a "leave" the
+// moment it hides or closes. Live-visitor count = distinct sessions whose most
+// recent signal in the last 90s wasn't a leave.
 export function startPresence(): () => void {
   const ping = () => {
     if (typeof document === "undefined" || document.visibilityState === "visible") {
@@ -68,10 +98,13 @@ export function startPresence(): () => void {
   const iv = window.setInterval(ping, 45000);
   const onVis = () => {
     if (document.visibilityState === "visible") ping();
+    else sendLeave();
   };
   document.addEventListener("visibilitychange", onVis);
+  window.addEventListener("pagehide", sendLeave);
   return () => {
     window.clearInterval(iv);
     document.removeEventListener("visibilitychange", onVis);
+    window.removeEventListener("pagehide", sendLeave);
   };
 }
