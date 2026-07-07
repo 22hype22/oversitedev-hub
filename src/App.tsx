@@ -66,6 +66,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
               Reload page
             </button>
           </div>
+          {this.state.msg && <div className="oserr-detail">{this.state.msg}</div>}
         </div>
       </main>
     );
