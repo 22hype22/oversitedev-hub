@@ -114,92 +114,25 @@ import {
 import heroBg from "@/assets/hero-bg.jpg";
 
 const BOTSEC_CSS = `
-.botsec{background:linear-gradient(180deg,rgba(46,54,63,.72),rgba(37,44,52,.72));border:1px solid rgba(168,180,191,.14);border-radius:20px;overflow:hidden;
-  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 40px 90px -50px rgba(0,0,0,.85)}
-.botsec>.bsum{display:flex;align-items:center;gap:14px;padding:19px 22px;cursor:pointer;list-style:none}
+.botsec{background:linear-gradient(180deg,#272e36,#242b32);border:1px solid #3a434d;border-radius:16px;overflow:hidden;
+  box-shadow:0 24px 60px -32px rgba(0,0,0,.6)}
+.botsec>.bsum{display:flex;align-items:center;gap:13px;padding:16px 20px;cursor:pointer;list-style:none}
 .botsec>.bsum::-webkit-details-marker{display:none}
-.botsec>.bsum:hover{background:rgba(201,219,230,.022)}
-.botsec .bico{height:42px;width:42px;border-radius:13px;flex:none;display:grid;place-items:center;
-  background:rgba(201,219,230,.10);color:#C9DBE6;border:1px solid rgba(201,219,230,.16);box-shadow:0 0 24px -6px rgba(201,219,230,.25)}
-.botsec .bico svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.8;fill:none}
+.botsec>.bsum:hover{background:rgba(255,255,255,.014)}
+.botsec .bico{height:36px;width:36px;border-radius:10px;flex:none;display:grid;place-items:center;background:#2d353e;color:#C9DBE6}
+.botsec .bico svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.8;fill:none}
 .botsec .btx{flex:1;min-width:0}
-.botsec .btx .ba{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;font-size:16px;color:#E8EEF3;letter-spacing:-.01em;
+.botsec .btx .ba{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:700;font-size:14.5px;color:#E8EEF3;
   display:flex;align-items:center;gap:8px}
-.botsec .btx .ba .ct{font-family:"Space Mono",monospace;font-size:10px;font-weight:400;color:#788591;border:1px solid rgba(168,180,191,.18);
+.botsec .btx .ba .ct{font-family:"Space Mono",monospace;font-size:10px;font-weight:400;color:#788591;border:1px solid #3a434d;
   border-radius:20px;padding:1px 8px;flex:none}
-.botsec .btx .bb{font-size:12px;color:#788591;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.botsec .btx .bb{font-size:11.5px;color:#788591;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .botsec .bchev{height:20px;width:20px;color:#788591;transition:transform .2s,color .2s;flex:none}
 .botsec[open] .bchev{transform:rotate(180deg);color:#C9DBE6}
-.botsec .bbody{border-top:1px solid rgba(168,180,191,.10);padding:16px}
-
-/* ---- Premium frosting for the inner panels (VISUAL ONLY — background / border /
-   radius / shadow; no layout, spacing, or logic changed). Semantic-tinted cards
-   (emerald "ready", amber "at limit", blue "deploying", primary banners, etc.) are
-   deliberately excluded so they keep their status color. ---- */
-
-/* Neutral shadcn <Card>s (Manage controls, Server slots, Engine switcher, build
-   summary, Usage, Logs, Request-custom) → frosted glass. The :not() chain keeps
-   every colored status card untouched. */
-.botsec .bbody .rounded-lg.border.bg-card:not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-primary"]):not([class*="bg-destructive"]):not([class*="bg-yellow"]):not([class*="bg-blue"]):not([class*="bg-green"]),
-.botsec .bbody .bg-card\\/40{
-  background:linear-gradient(180deg,rgba(52,61,70,.55),rgba(45,53,62,.5));
-  border-color:rgba(168,180,191,.14);border-radius:16px;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 26px 55px -42px rgba(0,0,0,.75)}
-
-/* Inner frosted tiles — usage stat cells, server list, log viewport, buy box. */
-.botsec .bbody .rounded-md.border,
-.botsec .bbody .bg-background\\/40{
-  background:rgba(52,61,70,.42);border-color:rgba(168,180,191,.12);border-radius:12px}
-
-/* Keep the "buy an extra slot" attention state accented, not frosted-over. */
-.botsec .bbody .rounded-md.border.border-primary{
-  border-color:rgba(201,219,230,.5);background:rgba(201,219,230,.07)}
-
-/* Engine-version pills → frosted, with an icy glow on the active one. */
-.botsec .bbody button.rounded-lg.border{
-  border-color:rgba(168,180,191,.16);border-radius:13px;background:rgba(32,38,46,.5);transition:all .16s ease}
-.botsec .bbody button.rounded-lg.border:hover:not(:disabled){
-  border-color:rgba(201,219,230,.32);background:rgba(201,219,230,.05)}
-.botsec .bbody button.rounded-lg.border-primary{
-  border-color:rgba(201,219,230,.55);background:rgba(201,219,230,.06);
-  box-shadow:0 0 0 1px rgba(201,219,230,.25),0 12px 30px -18px rgba(201,219,230,.4)}
-
-/* ---- Palette + typography remap ----
-   The app's base "primary" token is BLUE; the dashboard's identity is slate +
-   icy accent. Inside the panel we map that blue (and the blue "deploying" tint)
-   onto the icy accent, and give text the slate heading/faint treatment — so the
-   live panel matches the approved preview instead of rendering blue.
-   Everything is scoped to .botsec .bbody; semantic emerald/amber/red statuses
-   are left alone. Uses the --accent/--heading/--faint vars inherited from .osd. */
-.botsec .bbody h3,.botsec .bbody h4{color:var(--heading)}
-/* brighten neutral bold text to the heading tone, but never touch text that
-   carries a semantic color (emerald/amber/blue/red/primary). */
-.botsec .bbody .font-semibold:not([class*="text-emerald"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="text-yellow"]):not([class*="text-red"]):not([class*="text-destructive"]):not([class*="text-green"]):not([class*="text-primary"]):not([class*="text-muted"]),
-.botsec .bbody .font-bold:not([class*="text-emerald"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="text-yellow"]):not([class*="text-red"]):not([class*="text-destructive"]):not([class*="text-green"]):not([class*="text-primary"]):not([class*="text-muted"]){color:var(--heading)}
-.botsec .bbody .text-muted-foreground{color:var(--faint)}
-.botsec .bbody .text-primary{color:var(--accent)}
-.botsec .bbody .text-primary svg,.botsec .bbody svg.text-primary{stroke:var(--accent);color:var(--accent)}
-/* icy chips / rings / tinted surfaces (were blue) */
-.botsec .bbody .bg-primary\\/5,
-.botsec .bbody .bg-primary\\/10,
-.botsec .bbody .bg-primary\\/15{background:rgba(201,219,230,.08)}
-.botsec .bbody .border-primary\\/30,
-.botsec .bbody .border-primary\\/40{border-color:rgba(201,219,230,.28)}
-.botsec .bbody .ring-primary\\/40{--tw-ring-color:rgba(201,219,230,.35)}
-/* solid primary buttons → icy fill */
-.botsec .bbody .bg-primary:not(.bg-primary\\/5):not(.bg-primary\\/10):not(.bg-primary\\/15){
-  background:var(--accent);color:var(--accentink)}
-/* the "Deploying…" banner → icy glass with a soft shimmer (was blue) */
-.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10{
-  position:relative;overflow:hidden;border-color:rgba(201,219,230,.18);
-  background:linear-gradient(180deg,rgba(201,219,230,.06),rgba(201,219,230,.02))}
-.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10 .text-blue-300{color:var(--heading)}
-.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10 .bg-blue-400{background:var(--accent);box-shadow:0 0 10px var(--accent)}
-.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10::after{content:"";position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(100deg,transparent 20%,rgba(201,219,230,.12) 50%,transparent 80%);
-  transform:translateX(-100%);animation:botsweep 2.4s ease-in-out infinite}
-@keyframes botsweep{to{transform:translateX(100%)}}
+.botsec .bbody{border-top:1px solid #3a434d;padding:12px 10px 14px}
+/* Flatten the inner panel wrappers so they don't read as cramped secondary
+   boxes inside the section; their inner tiles/content keep their own framing. */
+.botsec .bbody .bg-card\\/40{background-color:transparent;border-color:transparent;box-shadow:none}
 `;
 import { useBotNotifications, type BotNotification } from "@/hooks/useBotNotifications";
 
