@@ -136,11 +136,11 @@ const BOTSEC_CSS = `
 
 /* Neutral cards → clean subtle surfaces (tinted status cards keep their color). */
 .botsec .bbody .rounded-lg.border.bg-card:not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-primary"]):not([class*="bg-destructive"]):not([class*="bg-yellow"]):not([class*="bg-blue"]):not([class*="bg-green"]),
-.botsec .bbody .bg-card\\/40{background:rgba(255,255,255,.032);border-color:rgba(255,255,255,.11);border-radius:13px;box-shadow:none}
+.botsec .bbody .bg-card\\/40{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.13);border-radius:13px;box-shadow:none}
 
 /* Inner tiles slightly recessed. */
 .botsec .bbody .rounded-md.border,
-.botsec .bbody .bg-background\\/40{background:rgba(255,255,255,.025);border-color:rgba(255,255,255,.09);border-radius:10px}
+.botsec .bbody .bg-background\\/40{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.11);border-radius:10px}
 .botsec .bbody .rounded-md.border.border-primary{border-color:rgba(201,219,230,.4);background:rgba(201,219,230,.06)}
 .botsec .bbody .rounded-md.border{padding:16px}
 .botsec .bbody .grid.grid-cols-2{gap:12px}
@@ -356,7 +356,7 @@ const EngineVersionSwitcher = ({
     <>
       {/* Explicit inline styling so the card renders exactly as designed,
           independent of the theme cascade. Logic/handlers unchanged. */}
-      <div style={{ background: "rgba(255,255,255,.032)", border: "1px solid rgba(255,255,255,.11)", borderRadius: 14, padding: 20 }}>
+      <div style={{ background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 14, padding: 20 }}>
         <div className="flex items-start gap-3" style={{ marginBottom: 16 }}>
           <Code2 className="h-5 w-5 mt-0.5 shrink-0" style={{ color: "#E8EEF3" }} />
           <div className="flex-1">
@@ -380,8 +380,8 @@ const EngineVersionSwitcher = ({
                   textAlign: "left",
                   borderRadius: 12,
                   padding: 16,
-                  border: active ? "1px solid rgba(201,219,230,.5)" : "1px solid rgba(255,255,255,.09)",
-                  background: active ? "rgba(201,219,230,.06)" : "rgba(255,255,255,.015)",
+                  border: active ? "1px solid rgba(201,219,230,.55)" : "1px solid rgba(255,255,255,.12)",
+                  background: active ? "rgba(201,219,230,.09)" : "rgba(255,255,255,.035)",
                   boxShadow: active ? "0 0 0 1px rgba(201,219,230,.18)" : "none",
                   cursor: saving || active ? "default" : "pointer",
                   transition: "all .15s ease",
