@@ -354,18 +354,20 @@ const EngineVersionSwitcher = ({
 
   return (
     <>
-      <Card className="p-4">
-        <div className="flex items-start gap-3 mb-3">
-          <Code2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-          <div className="text-sm flex-1">
-            <div className="font-semibold text-foreground">Bot engine version</div>
-            <p className="text-muted-foreground mt-1 text-xs">
+      {/* Explicit inline styling so the card renders exactly as designed,
+          independent of the theme cascade. Logic/handlers unchanged. */}
+      <div style={{ background: "rgba(255,255,255,.032)", border: "1px solid rgba(255,255,255,.11)", borderRadius: 14, padding: 20 }}>
+        <div className="flex items-start gap-3" style={{ marginBottom: 16 }}>
+          <Code2 className="h-5 w-5 mt-0.5 shrink-0" style={{ color: "#E8EEF3" }} />
+          <div className="flex-1">
+            <div style={{ color: "#E8EEF3", fontWeight: 600, fontSize: 14 }}>Bot engine version</div>
+            <p style={{ color: "#818d9a", fontSize: 12.5, lineHeight: 1.6, marginTop: 6, maxWidth: 620 }}>
               Switch between Component V1 (stable) and V2 (newest features).
               Switching causes a short period of downtime while we swap engines.
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           {(["v1", "v2"] as const).map((id) => {
             const active = current === id;
             return (
@@ -374,26 +376,31 @@ const EngineVersionSwitcher = ({
                 type="button"
                 disabled={saving || active}
                 onClick={() => setConfirmTarget(id)}
-                className={`text-left rounded-lg border p-3 transition-all ${
-                  active
-                    ? "border-primary bg-primary/10 ring-1 ring-primary/40"
-                    : "border-border hover:border-primary/40 hover:bg-card disabled:opacity-50"
-                }`}
+                style={{
+                  textAlign: "left",
+                  borderRadius: 12,
+                  padding: 16,
+                  border: active ? "1px solid rgba(201,219,230,.5)" : "1px solid rgba(255,255,255,.09)",
+                  background: active ? "rgba(201,219,230,.06)" : "rgba(255,255,255,.015)",
+                  boxShadow: active ? "0 0 0 1px rgba(201,219,230,.18)" : "none",
+                  cursor: saving || active ? "default" : "pointer",
+                  transition: "all .15s ease",
+                }}
               >
-                <div className="text-sm font-medium text-foreground flex items-center justify-between">
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, color: "#E8EEF3", fontWeight: 600, fontSize: 14 }}>
                   Component {id.toUpperCase()}
                   {active && (
-                    <Badge variant="secondary" className="text-[10px]">Active</Badge>
+                    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase", color: "#1E242B", background: "#C9DBE6", borderRadius: 5, padding: "2px 8px" }}>Active</span>
                   )}
                 </div>
-                <div className="text-[11px] text-muted-foreground mt-0.5">
+                <div style={{ color: "#818d9a", fontSize: 11.5, marginTop: 6 }}>
                   {id === "v1" ? "Stable — recommended" : "Newest — latest features"}
                 </div>
               </button>
             );
           })}
         </div>
-      </Card>
+      </div>
 
       <AlertDialog
         open={confirmTarget !== null}
