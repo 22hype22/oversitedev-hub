@@ -158,12 +158,48 @@ const BOTSEC_CSS = `
 
 /* Engine-version pills → frosted, with an icy glow on the active one. */
 .botsec .bbody button.rounded-lg.border{
-  border-color:rgba(168,180,191,.16);border-radius:13px;background:rgba(52,61,70,.4);transition:all .18s ease}
+  border-color:rgba(168,180,191,.16);border-radius:13px;background:rgba(32,38,46,.5);transition:all .16s ease}
 .botsec .bbody button.rounded-lg.border:hover:not(:disabled){
   border-color:rgba(201,219,230,.32);background:rgba(201,219,230,.05)}
 .botsec .bbody button.rounded-lg.border-primary{
-  border-color:rgba(201,219,230,.55);background:rgba(201,219,230,.08);
-  box-shadow:0 0 0 1px rgba(201,219,230,.22),0 0 22px -8px rgba(201,219,230,.5)}
+  border-color:rgba(201,219,230,.55);background:rgba(201,219,230,.06);
+  box-shadow:0 0 0 1px rgba(201,219,230,.25),0 12px 30px -18px rgba(201,219,230,.4)}
+
+/* ---- Palette + typography remap ----
+   The app's base "primary" token is BLUE; the dashboard's identity is slate +
+   icy accent. Inside the panel we map that blue (and the blue "deploying" tint)
+   onto the icy accent, and give text the slate heading/faint treatment — so the
+   live panel matches the approved preview instead of rendering blue.
+   Everything is scoped to `.botsec .bbody`; semantic emerald/amber/red statuses
+   are left alone. Uses the --accent/--heading/--faint vars inherited from .osd. */
+.botsec .bbody h3,.botsec .bbody h4{color:var(--heading)}
+/* brighten neutral bold text to the heading tone, but never touch text that
+   carries a semantic color (emerald/amber/blue/red/primary). */
+.botsec .bbody .font-semibold:not([class*="text-emerald"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="text-yellow"]):not([class*="text-red"]):not([class*="text-destructive"]):not([class*="text-green"]):not([class*="text-primary"]):not([class*="text-muted"]),
+.botsec .bbody .font-bold:not([class*="text-emerald"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="text-yellow"]):not([class*="text-red"]):not([class*="text-destructive"]):not([class*="text-green"]):not([class*="text-primary"]):not([class*="text-muted"]){color:var(--heading)}
+.botsec .bbody .text-muted-foreground{color:var(--faint)}
+.botsec .bbody .text-primary{color:var(--accent)}
+.botsec .bbody .text-primary svg,.botsec .bbody svg.text-primary{stroke:var(--accent);color:var(--accent)}
+/* icy chips / rings / tinted surfaces (were blue) */
+.botsec .bbody .bg-primary\\/5,
+.botsec .bbody .bg-primary\\/10,
+.botsec .bbody .bg-primary\\/15{background:rgba(201,219,230,.08)}
+.botsec .bbody .border-primary\\/30,
+.botsec .bbody .border-primary\\/40{border-color:rgba(201,219,230,.28)}
+.botsec .bbody .ring-primary\\/40{--tw-ring-color:rgba(201,219,230,.35)}
+/* solid primary buttons → icy fill */
+.botsec .bbody .bg-primary:not(.bg-primary\\/5):not(.bg-primary\\/10):not(.bg-primary\\/15){
+  background:var(--accent);color:var(--accentink)}
+/* the "Deploying…" banner → icy glass with a soft shimmer (was blue) */
+.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10{
+  position:relative;overflow:hidden;border-color:rgba(201,219,230,.18);
+  background:linear-gradient(180deg,rgba(201,219,230,.06),rgba(201,219,230,.02))}
+.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10 .text-blue-300{color:var(--heading)}
+.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10 .bg-blue-400{background:var(--accent);box-shadow:0 0 10px var(--accent)}
+.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(100deg,transparent 20%,rgba(201,219,230,.12) 50%,transparent 80%);
+  transform:translateX(-100%);animation:botsweep 2.4s ease-in-out infinite}
+@keyframes botsweep{to{transform:translateX(100%)}}
 `;
 import { useBotNotifications, type BotNotification } from "@/hooks/useBotNotifications";
 
