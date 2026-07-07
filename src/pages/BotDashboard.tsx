@@ -123,7 +123,7 @@ const BOTSEC_CSS = `
 .botsec>.bsum::-webkit-details-marker{display:none}
 .botsec>.bsum:hover{background:rgba(255,255,255,.015)}
 .botsec .bico{height:40px;width:40px;border-radius:11px;flex:none;display:grid;place-items:center;
-  background:rgba(201,219,230,.07);color:#C9DBE6;border:1px solid rgba(201,219,230,.14)}
+  background:rgba(201,219,230,.07);color:#E8EEF3;border:1px solid rgba(201,219,230,.14)}
 .botsec .bico svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.7;fill:none}
 .botsec .btx{flex:1;min-width:0}
 .botsec .btx .ba{font-weight:700;font-size:15.5px;color:#E8EEF3;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
@@ -142,9 +142,11 @@ const BOTSEC_CSS = `
 .botsec .bbody .rounded-md.border,
 .botsec .bbody .bg-background\\/40{background:rgba(255,255,255,.015);border-color:rgba(255,255,255,.06);border-radius:10px}
 .botsec .bbody .rounded-md.border.border-primary{border-color:rgba(201,219,230,.4);background:rgba(201,219,230,.06)}
+.botsec .bbody .rounded-md.border{padding:16px}
+.botsec .bbody .grid.grid-cols-2{gap:12px}
 
 /* Engine pills → clean, equal, subtle active state. */
-.botsec .bbody button.rounded-lg.border{border-color:rgba(255,255,255,.08);border-radius:11px;background:rgba(255,255,255,.012);transition:all .15s ease}
+.botsec .bbody button.rounded-lg.border{border-color:rgba(255,255,255,.08);border-radius:11px;background:rgba(255,255,255,.012);padding:16px;transition:all .15s ease}
 .botsec .bbody button.rounded-lg.border:hover:not(:disabled){border-color:rgba(201,219,230,.28);background:rgba(201,219,230,.035)}
 .botsec .bbody button.rounded-lg.border-primary{border-color:rgba(201,219,230,.42);background:rgba(201,219,230,.05);box-shadow:0 0 0 1px rgba(201,219,230,.14)}
 
@@ -153,8 +155,8 @@ const BOTSEC_CSS = `
 .botsec .bbody .font-semibold:not([class*="text-emerald"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="text-yellow"]):not([class*="text-red"]):not([class*="text-destructive"]):not([class*="text-green"]):not([class*="text-primary"]):not([class*="text-muted"]),
 .botsec .bbody .font-bold:not([class*="text-emerald"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="text-yellow"]):not([class*="text-red"]):not([class*="text-destructive"]):not([class*="text-green"]):not([class*="text-primary"]):not([class*="text-muted"]){color:var(--heading)}
 .botsec .bbody .text-muted-foreground{color:var(--faint)}
-.botsec .bbody .text-primary{color:var(--accent)}
-.botsec .bbody .text-primary svg,.botsec .bbody svg.text-primary{stroke:var(--accent);color:var(--accent)}
+.botsec .bbody .text-primary{color:#E8EEF3}
+.botsec .bbody .text-primary svg,.botsec .bbody svg.text-primary{stroke:#E8EEF3;color:#E8EEF3}
 
 /* Map the base blue "primary" onto the icy accent inside the panel. */
 .botsec .bbody .bg-primary\\/5,.botsec .bbody .bg-primary\\/10,.botsec .bbody .bg-primary\\/15{background:rgba(201,219,230,.08)}
