@@ -131,16 +131,16 @@ const BOTSEC_CSS = `
 .botsec .btx .bb{font-size:12.5px;color:#788591;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .botsec .bchev{height:18px;width:18px;color:#788591;transition:transform .2s;flex:none}
 .botsec[open] .bchev{transform:rotate(180deg)}
-.botsec .bbody{border-top:1px solid rgba(255,255,255,.05);padding:22px 24px 26px;display:flex;flex-direction:column;gap:18px}
+.botsec .bbody{border-top:1px solid rgba(255,255,255,.05);padding:24px 26px 28px;display:flex;flex-direction:column;gap:22px}
 .botsec .bbody.space-y-5>*+*{margin-top:0}
 
 /* Neutral cards → clean subtle surfaces (tinted status cards keep their color). */
 .botsec .bbody .rounded-lg.border.bg-card:not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-primary"]):not([class*="bg-destructive"]):not([class*="bg-yellow"]):not([class*="bg-blue"]):not([class*="bg-green"]),
-.botsec .bbody .bg-card\\/40{background:rgba(255,255,255,.022);border-color:rgba(255,255,255,.075);border-radius:13px;box-shadow:none}
+.botsec .bbody .bg-card\\/40{background:rgba(255,255,255,.032);border-color:rgba(255,255,255,.11);border-radius:13px;box-shadow:none}
 
 /* Inner tiles slightly recessed. */
 .botsec .bbody .rounded-md.border,
-.botsec .bbody .bg-background\\/40{background:rgba(255,255,255,.015);border-color:rgba(255,255,255,.06);border-radius:10px}
+.botsec .bbody .bg-background\\/40{background:rgba(255,255,255,.025);border-color:rgba(255,255,255,.09);border-radius:10px}
 .botsec .bbody .rounded-md.border.border-primary{border-color:rgba(201,219,230,.4);background:rgba(201,219,230,.06)}
 .botsec .bbody .rounded-md.border{padding:16px}
 .botsec .bbody .grid.grid-cols-2{gap:12px}
