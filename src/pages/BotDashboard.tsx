@@ -114,92 +114,58 @@ import {
 import heroBg from "@/assets/hero-bg.jpg";
 
 const BOTSEC_CSS = `
-.botsec{background:linear-gradient(180deg,rgba(33,39,46,.82),rgba(25,30,36,.82));border:1px solid rgba(168,180,191,.14);border-radius:20px;overflow:hidden;
-  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 40px 90px -50px rgba(0,0,0,.85)}
-.botsec>.bsum{display:flex;align-items:center;gap:14px;padding:19px 22px;cursor:pointer;list-style:none}
+/* ---- Clean, professional panel redesign (VISUAL ONLY, scoped to .botsec —
+   no layout logic, props, or handlers changed). Roomy spacing, restrained
+   surfaces, clear hierarchy. Icy accent + slate text via the .osd vars. ---- */
+.botsec{background:#181c22;border:1px solid rgba(255,255,255,.06);border-radius:16px;overflow:hidden;
+  box-shadow:0 1px 0 rgba(255,255,255,.02) inset,0 18px 44px -28px rgba(0,0,0,.75)}
+.botsec>.bsum{display:flex;align-items:center;gap:14px;padding:22px 26px;cursor:pointer;list-style:none}
 .botsec>.bsum::-webkit-details-marker{display:none}
-.botsec>.bsum:hover{background:rgba(201,219,230,.022)}
-.botsec .bico{height:42px;width:42px;border-radius:13px;flex:none;display:grid;place-items:center;
-  background:rgba(201,219,230,.10);color:#C9DBE6;border:1px solid rgba(201,219,230,.16);box-shadow:0 0 24px -6px rgba(201,219,230,.25)}
-.botsec .bico svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.8;fill:none}
+.botsec>.bsum:hover{background:rgba(255,255,255,.015)}
+.botsec .bico{height:40px;width:40px;border-radius:11px;flex:none;display:grid;place-items:center;
+  background:rgba(201,219,230,.07);color:#C9DBE6;border:1px solid rgba(201,219,230,.14)}
+.botsec .bico svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.7;fill:none}
 .botsec .btx{flex:1;min-width:0}
-.botsec .btx .ba{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;font-size:16px;color:#E8EEF3;letter-spacing:-.01em;
-  display:flex;align-items:center;gap:8px}
-.botsec .btx .ba .ct{font-family:"Space Mono",monospace;font-size:10px;font-weight:400;color:#788591;border:1px solid rgba(168,180,191,.18);
-  border-radius:20px;padding:1px 8px;flex:none}
-.botsec .btx .bb{font-size:12px;color:#788591;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.botsec .bchev{height:20px;width:20px;color:#788591;transition:transform .2s,color .2s;flex:none}
-.botsec[open] .bchev{transform:rotate(180deg);color:#C9DBE6}
-.botsec .bbody{border-top:1px solid rgba(168,180,191,.10);padding:16px}
+.botsec .btx .ba{font-weight:700;font-size:15.5px;color:#E8EEF3;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.botsec .btx .ba .ct{font-size:10px;font-weight:400;color:#788591;border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:1px 8px;flex:none}
+.botsec .btx .bb{font-size:12.5px;color:#788591;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.botsec .bchev{height:18px;width:18px;color:#788591;transition:transform .2s;flex:none}
+.botsec[open] .bchev{transform:rotate(180deg)}
+.botsec .bbody{border-top:1px solid rgba(255,255,255,.05);padding:22px 24px 26px;display:flex;flex-direction:column;gap:18px}
+.botsec .bbody.space-y-5>*+*{margin-top:0}
 
-/* ---- Premium frosting for the inner panels (VISUAL ONLY — background / border /
-   radius / shadow; no layout, spacing, or logic changed). Semantic-tinted cards
-   (emerald "ready", amber "at limit", blue "deploying", primary banners, etc.) are
-   deliberately excluded so they keep their status color. ---- */
-
-/* Neutral shadcn <Card>s (Manage controls, Server slots, Engine switcher, build
-   summary, Usage, Logs, Request-custom) → frosted glass. The :not() chain keeps
-   every colored status card untouched. */
+/* Neutral cards → clean subtle surfaces (tinted status cards keep their color). */
 .botsec .bbody .rounded-lg.border.bg-card:not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-primary"]):not([class*="bg-destructive"]):not([class*="bg-yellow"]):not([class*="bg-blue"]):not([class*="bg-green"]),
-.botsec .bbody .bg-card\\/40{
-  background:linear-gradient(180deg,rgba(60,70,81,.62),rgba(50,59,69,.52));
-  border-color:rgba(190,202,214,.17);border-radius:16px;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 12px 30px -14px rgba(0,0,0,.7)}
+.botsec .bbody .bg-card\\/40{background:rgba(255,255,255,.022);border-color:rgba(255,255,255,.075);border-radius:13px;box-shadow:none}
 
-/* Inner frosted tiles — usage stat cells, server list, log viewport, buy box. */
+/* Inner tiles slightly recessed. */
 .botsec .bbody .rounded-md.border,
-.botsec .bbody .bg-background\\/40{
-  background:rgba(44,52,61,.5);border-color:rgba(178,190,202,.14);border-radius:12px}
+.botsec .bbody .bg-background\\/40{background:rgba(255,255,255,.015);border-color:rgba(255,255,255,.06);border-radius:10px}
+.botsec .bbody .rounded-md.border.border-primary{border-color:rgba(201,219,230,.4);background:rgba(201,219,230,.06)}
 
-/* Keep the "buy an extra slot" attention state accented, not frosted-over. */
-.botsec .bbody .rounded-md.border.border-primary{
-  border-color:rgba(201,219,230,.5);background:rgba(201,219,230,.07)}
+/* Engine pills → clean, equal, subtle active state. */
+.botsec .bbody button.rounded-lg.border{border-color:rgba(255,255,255,.08);border-radius:11px;background:rgba(255,255,255,.012);transition:all .15s ease}
+.botsec .bbody button.rounded-lg.border:hover:not(:disabled){border-color:rgba(201,219,230,.28);background:rgba(201,219,230,.035)}
+.botsec .bbody button.rounded-lg.border-primary{border-color:rgba(201,219,230,.42);background:rgba(201,219,230,.05);box-shadow:0 0 0 1px rgba(201,219,230,.14)}
 
-/* Engine-version pills → frosted, with an icy glow on the active one. */
-.botsec .bbody button.rounded-lg.border{
-  border-color:rgba(168,180,191,.16);border-radius:13px;background:rgba(32,38,46,.5);transition:all .16s ease}
-.botsec .bbody button.rounded-lg.border:hover:not(:disabled){
-  border-color:rgba(201,219,230,.32);background:rgba(201,219,230,.05)}
-.botsec .bbody button.rounded-lg.border-primary{
-  border-color:rgba(201,219,230,.55);background:rgba(201,219,230,.06);
-  box-shadow:0 0 0 1px rgba(201,219,230,.25),0 12px 30px -18px rgba(201,219,230,.4)}
-
-/* ---- Palette + typography remap ----
-   The app's base "primary" token is BLUE; the dashboard's identity is slate +
-   icy accent. Inside the panel we map that blue (and the blue "deploying" tint)
-   onto the icy accent, and give text the slate heading/faint treatment — so the
-   live panel matches the approved preview instead of rendering blue.
-   Everything is scoped to .botsec .bbody; semantic emerald/amber/red statuses
-   are left alone. Uses the --accent/--heading/--faint vars inherited from .osd. */
+/* Typography: brighten neutral headings/bold; keep semantic-colored text. */
 .botsec .bbody h3,.botsec .bbody h4{color:var(--heading)}
-/* brighten neutral bold text to the heading tone, but never touch text that
-   carries a semantic color (emerald/amber/blue/red/primary). */
 .botsec .bbody .font-semibold:not([class*="text-emerald"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="text-yellow"]):not([class*="text-red"]):not([class*="text-destructive"]):not([class*="text-green"]):not([class*="text-primary"]):not([class*="text-muted"]),
 .botsec .bbody .font-bold:not([class*="text-emerald"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="text-yellow"]):not([class*="text-red"]):not([class*="text-destructive"]):not([class*="text-green"]):not([class*="text-primary"]):not([class*="text-muted"]){color:var(--heading)}
 .botsec .bbody .text-muted-foreground{color:var(--faint)}
 .botsec .bbody .text-primary{color:var(--accent)}
 .botsec .bbody .text-primary svg,.botsec .bbody svg.text-primary{stroke:var(--accent);color:var(--accent)}
-/* icy chips / rings / tinted surfaces (were blue) */
-.botsec .bbody .bg-primary\\/5,
-.botsec .bbody .bg-primary\\/10,
-.botsec .bbody .bg-primary\\/15{background:rgba(201,219,230,.08)}
-.botsec .bbody .border-primary\\/30,
-.botsec .bbody .border-primary\\/40{border-color:rgba(201,219,230,.28)}
-.botsec .bbody .ring-primary\\/40{--tw-ring-color:rgba(201,219,230,.35)}
-/* solid primary buttons → icy fill */
-.botsec .bbody .bg-primary:not(.bg-primary\\/5):not(.bg-primary\\/10):not(.bg-primary\\/15){
-  background:var(--accent);color:var(--accentink)}
-/* the "Deploying…" banner → icy glass with a soft shimmer (was blue) */
-.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10{
-  position:relative;overflow:hidden;border-color:rgba(201,219,230,.18);
-  background:linear-gradient(180deg,rgba(201,219,230,.06),rgba(201,219,230,.02))}
-.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10 .text-blue-300{color:var(--heading)}
-.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10 .bg-blue-400{background:var(--accent);box-shadow:0 0 10px var(--accent)}
-.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10::after{content:"";position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(100deg,transparent 20%,rgba(201,219,230,.12) 50%,transparent 80%);
-  transform:translateX(-100%);animation:botsweep 2.4s ease-in-out infinite}
-@keyframes botsweep{to{transform:translateX(100%)}}
+
+/* Map the base blue "primary" onto the icy accent inside the panel. */
+.botsec .bbody .bg-primary\\/5,.botsec .bbody .bg-primary\\/10,.botsec .bbody .bg-primary\\/15{background:rgba(201,219,230,.08)}
+.botsec .bbody .border-primary\\/30,.botsec .bbody .border-primary\\/40{border-color:rgba(201,219,230,.28)}
+.botsec .bbody .bg-primary:not(.bg-primary\\/5):not(.bg-primary\\/10):not(.bg-primary\\/15){background:var(--accent);color:var(--accentink)}
+
+/* "Deploying…" banner → clean icy (was blue). */
+.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10{border-color:rgba(201,219,230,.16);background:rgba(201,219,230,.045)}
+.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10 .text-blue-300{color:var(--body)}
+.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10 .bg-blue-400{background:var(--accent)}
+
 `;
 import { useBotNotifications, type BotNotification } from "@/hooks/useBotNotifications";
 
