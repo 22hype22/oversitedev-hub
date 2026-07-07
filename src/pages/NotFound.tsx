@@ -2,11 +2,12 @@ import { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
 import oversiteLogo from "@/assets/oversite-logo.png";
+import containers from "@/assets/containers.webp";
 
 // Self-contained "system page" shell (mountain backdrop + frosted slate glass
 // + icy accent). Inlined rather than shared so no extra file is required.
 const OSSYS_CSS = `
-.ossys{--os-heading:#E8EEF3;--os-body:#A8B4BF;--os-faint:#788591;--os-accent:#C9DBE6;--os-accent-ink:#1E242B;--os-hair:rgba(168,180,191,.16);position:relative;min-height:100vh;display:flex;flex-direction:column;overflow:hidden;color:var(--os-body);font-family:'Manrope',system-ui,-apple-system,sans-serif;background:radial-gradient(130% 85% at 50% 118%,rgba(201,219,230,.14),transparent 55%),radial-gradient(95% 70% at 50% -15%,rgba(70,82,94,.55),transparent 60%),linear-gradient(180deg,#293038,#1e242b)}
+.ossys{--os-heading:#E8EEF3;--os-body:#A8B4BF;--os-faint:#788591;--os-accent:#C9DBE6;--os-accent-ink:#1E242B;--os-hair:rgba(168,180,191,.16);position:relative;min-height:100vh;display:flex;flex-direction:column;overflow:hidden;color:var(--os-body);font-family:'Manrope',system-ui,-apple-system,sans-serif;background:radial-gradient(120% 80% at 50% 120%,rgba(201,219,230,.10),transparent 55%),linear-gradient(180deg,rgba(28,34,41,.58),rgba(20,25,31,.82)),var(--os-mtn,none) center 20%/cover no-repeat,#1e242b}
 .ossys-top{position:relative;z-index:2;padding:22px 26px}
 .ossys-top img{height:30px;width:auto;object-fit:contain}
 .ossys-mid{position:relative;z-index:2;flex:1;display:grid;place-items:center;padding:16px 16px 64px}
@@ -33,7 +34,7 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    <main className="ossys">
+    <main className="ossys" style={{ ["--os-mtn" as any]: `url(${containers})` }}>
       <style>{OSSYS_CSS}</style>
       <div className="ossys-top">
         <Link to="/" aria-label="Oversite — home">
