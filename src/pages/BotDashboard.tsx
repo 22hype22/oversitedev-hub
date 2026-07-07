@@ -114,7 +114,7 @@ import {
 import heroBg from "@/assets/hero-bg.jpg";
 
 const BOTSEC_CSS = `
-.botsec{background:linear-gradient(180deg,rgba(46,54,63,.72),rgba(37,44,52,.72));border:1px solid rgba(168,180,191,.14);border-radius:20px;overflow:hidden;
+.botsec{background:linear-gradient(180deg,rgba(33,39,46,.82),rgba(25,30,36,.82));border:1px solid rgba(168,180,191,.14);border-radius:20px;overflow:hidden;
   -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 40px 90px -50px rgba(0,0,0,.85)}
 .botsec>.bsum{display:flex;align-items:center;gap:14px;padding:19px 22px;cursor:pointer;list-style:none}
@@ -143,14 +143,14 @@ const BOTSEC_CSS = `
    every colored status card untouched. */
 .botsec .bbody .rounded-lg.border.bg-card:not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-primary"]):not([class*="bg-destructive"]):not([class*="bg-yellow"]):not([class*="bg-blue"]):not([class*="bg-green"]),
 .botsec .bbody .bg-card\\/40{
-  background:linear-gradient(180deg,rgba(52,61,70,.55),rgba(45,53,62,.5));
-  border-color:rgba(168,180,191,.14);border-radius:16px;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 26px 55px -42px rgba(0,0,0,.75)}
+  background:linear-gradient(180deg,rgba(60,70,81,.62),rgba(50,59,69,.52));
+  border-color:rgba(190,202,214,.17);border-radius:16px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 12px 30px -14px rgba(0,0,0,.7)}
 
 /* Inner frosted tiles — usage stat cells, server list, log viewport, buy box. */
 .botsec .bbody .rounded-md.border,
 .botsec .bbody .bg-background\\/40{
-  background:rgba(52,61,70,.42);border-color:rgba(168,180,191,.12);border-radius:12px}
+  background:rgba(44,52,61,.5);border-color:rgba(178,190,202,.14);border-radius:12px}
 
 /* Keep the "buy an extra slot" attention state accented, not frosted-over. */
 .botsec .bbody .rounded-md.border.border-primary{
