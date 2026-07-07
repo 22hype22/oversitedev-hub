@@ -170,7 +170,7 @@ const BOTSEC_CSS = `
    icy accent. Inside the panel we map that blue (and the blue "deploying" tint)
    onto the icy accent, and give text the slate heading/faint treatment — so the
    live panel matches the approved preview instead of rendering blue.
-   Everything is scoped to `.botsec .bbody`; semantic emerald/amber/red statuses
+   Everything is scoped to .botsec .bbody; semantic emerald/amber/red statuses
    are left alone. Uses the --accent/--heading/--faint vars inherited from .osd. */
 .botsec .bbody h3,.botsec .bbody h4{color:var(--heading)}
 /* brighten neutral bold text to the heading tone, but never touch text that
