@@ -543,19 +543,10 @@ export function BotForge() {
         return sum + (idx === 0 ? b.price : SECOND_BOT_PRICE);
       }, 0);
     }
-    // Add-ons default to INCLUDED (free). Admins can flip individual ones to
-    // NOT INCLUDED — those then add their listed price to the total when
-    // the customer selects them.
-    const addonLookup = new Map<string, Addon>();
-    for (const list of Object.values(ADDONS_BY_BASE)) for (const a of list) addonLookup.set(a.id, a);
-    for (const a of SHARED_ADDONS) addonLookup.set(a.id, a);
-    const addonCost = addons.reduce((sum, id) => {
-      if (addonIsIncluded(id)) return sum;
-      const a = addonLookup.get(id);
-      return sum + (a?.price ?? 0);
-    }, 0);
-    return baseCost + addonCost;
-  }, [bases, addons, addonIsIncluded]);
+    // Every add-on is included for free now — only the bot base(s) cost money.
+    // Add-ons never contribute to the total.
+    return baseCost;
+  }, [bases]);
 
   const discountAmount = useMemo(() => {
     if (!appliedDiscount) return 0;
@@ -1411,20 +1402,9 @@ export function BotForge() {
                       {a.desc}
                     </p>
                     <div className="mt-2 text-xs text-os-body flex items-center gap-2 flex-wrap">
-                      {included ? (
-                        <span className="px-1.5 py-0.5 rounded-full bg-os-accent/15 text-os-accent text-[10px] font-semibold">
-                          INCLUDED
-                        </span>
-                      ) : (
-                        <span className="px-1.5 py-0.5 rounded-full bg-os-surface/60 text-os-faint text-[10px] font-semibold">
-                          NOT INCLUDED
-                        </span>
-                      )}
-                      {a.price > 0 && (
-                        <span className={included ? "line-through text-os-faint/70" : "text-os-heading font-semibold"}>
-                          ${a.price.toFixed(2)}
-                        </span>
-                      )}
+                      <span className="px-1.5 py-0.5 rounded-full bg-os-accent/15 text-os-accent text-[10px] font-semibold">
+                        FREE
+                      </span>
                       {a.id === "dashboard" && (
                         <span className="px-1.5 py-0.5 rounded-full bg-os-surface/60 text-os-faint text-[10px] font-semibold">
                           ALL BOTS
