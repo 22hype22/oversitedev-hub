@@ -755,13 +755,13 @@ export const BotIdentityEditor = ({
 
 const BID_CSS = `
 .bid{
-  --bpanel:#272e36;--bpanel2:#242b32;--bsurface:#2d353e;--bsurface2:#343d46;--bhair:#3a434d;
+  --bpanel:#2a313a;--bpanel2:#242b33;--bsurface:#2f3740;--bsurface2:#353d47;--bhair:rgba(255,255,255,.12);
   --bheading:#E8EEF3;--bbody:#A8B4BF;--bfaint:#788591;--baccent:#C9DBE6;--baccentink:#1E242B;
   --bok:#86d3a1;--bgold:#cbb277;
   --bdisp:"Bricolage Grotesque",system-ui,sans-serif;--bbodyf:"Space Grotesk",system-ui,sans-serif;--bmono:"Space Mono",monospace;
 }
 .bid .card{position:relative;background:linear-gradient(180deg,var(--bpanel),var(--bpanel2));border:1px solid var(--bhair);
-  border-radius:18px;box-shadow:0 24px 60px -32px rgba(0,0,0,.6);overflow:hidden}
+  border-radius:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 18px 44px -28px rgba(0,0,0,.7);overflow:hidden}
 .bid .head{display:flex;align-items:center;gap:16px;padding:18px 20px;flex-wrap:wrap}
 .bid .avatar{position:relative;height:60px;width:60px;border-radius:16px;flex:none;display:grid;place-items:center;
   background:color-mix(in srgb,var(--baccent) 12%,transparent);border:1px solid var(--bhair);overflow:hidden}
