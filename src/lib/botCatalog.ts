@@ -226,8 +226,10 @@ export function getAddonIdsForBase(baseId: string): string[] {
   return [...(ADDON_IDS_BY_BASE[baseId] ?? []), ...SHARED_ADDON_IDS];
 }
 
-export function getAddonPrice(id: string): number {
-  return BOT_ADDON_PRICES[id] ?? 0;
+export function getAddonPrice(_id: string): number {
+  // Every add-on is included for free now — nothing costs anything.
+  // The BOT_ADDON_PRICES map is kept for reference only.
+  return 0;
 }
 
 export type AddonCategory = "protection" | "support" | "utilities" | "shared";
