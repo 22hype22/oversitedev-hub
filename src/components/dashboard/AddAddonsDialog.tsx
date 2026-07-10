@@ -6,7 +6,6 @@ import {
   getAddonCategory,
   getAddonIdsForBase,
   getAddonLabel,
-  getAddonPrice,
   getIncludedAddonsForBase,
   type AddonCategory,
 } from "@/lib/botCatalog";
@@ -38,7 +37,7 @@ interface AddAddonsDialogProps {
 }
 
 type CategoryFilter = "all" | AddonCategory;
-type SortMode = "default" | "price-asc" | "price-desc" | "name-asc";
+type SortMode = "default" | "name-asc";
 
 const CATEGORY_LABELS: Record<CategoryFilter, string> = {
   all: "All categories",
@@ -49,7 +48,7 @@ const CATEGORY_LABELS: Record<CategoryFilter, string> = {
 };
 
 export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProps) {
-  const { hasDashboardAccess, reload } = useOwnedBots();
+  const { reload } = useOwnedBots();
   const { isIncluded } = useAddonOverrides();
   const [selected, setSelected] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -115,11 +114,7 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
         id.toLowerCase().includes(q)
       );
     });
-    if (sortMode === "price-asc") {
-      list = [...list].sort((a, b) => getAddonPrice(a) - getAddonPrice(b));
-    } else if (sortMode === "price-desc") {
-      list = [...list].sort((a, b) => getAddonPrice(b) - getAddonPrice(a));
-    } else if (sortMode === "name-asc") {
+    if (sortMode === "name-asc") {
       list = [...list].sort((a, b) =>
         getAddonLabel(a).localeCompare(getAddonLabel(b)),
       );
@@ -128,14 +123,6 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
   }, [allAvailable, query, category, sortMode]);
 
   if (!bot) return null;
-
-  const total = selected.reduce((sum, id) => {
-    // Dashboard add-on is a one-time, account-wide unlock — free if owned
-    if (id === "dashboard" && hasDashboardAccess) return sum;
-    // Admin-marked included add-ons are free to add
-    if (isIncluded(id)) return sum;
-    return sum + getAddonPrice(id);
-  }, 0);
 
   const toggle = (id: string) =>
     setSelected((prev) =>
@@ -158,7 +145,7 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
     }
     toast.success(
       `Added ${selected.length} add-on${selected.length === 1 ? "" : "s"} to "${bot.bot_name}"`,
-      { description: "We'll be in touch about billing for the new add-ons." }
+      { description: "They're included free — your bot will pick them up shortly." }
     );
     await reload();
     onOpenChange(false);
@@ -173,8 +160,9 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
             Add more add-ons to "{bot.bot_name}"
           </DialogTitle>
           <DialogDescription>
-            Pick anything you'd like to add. We'll be in touch with payment
-            details after you submit — your bot keeps running in the meantime.
+            Pick anything you'd like to add — every add-on is included free.
+            Choose only what your team should have access to; your bot keeps
+            running in the meantime.
           </DialogDescription>
         </DialogHeader>
 
@@ -207,8 +195,6 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
                 <SelectContent>
                   <SelectItem value="default">Default order</SelectItem>
                   <SelectItem value="name-asc">Name (A→Z)</SelectItem>
-                  <SelectItem value="price-asc">Price (low→high)</SelectItem>
-                  <SelectItem value="price-desc">Price (high→low)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -253,9 +239,6 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {available.map((id) => {
                 const active = selected.includes(id);
-                const isFreeDashboard = id === "dashboard" && hasDashboardAccess;
-                const isFreeIncluded = isIncluded(id);
-                const price = getAddonPrice(id);
                 return (
                   <button
                     key={id}
@@ -278,13 +261,9 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
                       </div>
                     </div>
                     <div className="mt-1.5 text-xs text-muted-foreground">
-                      {isFreeDashboard || isFreeIncluded ? (
-                        <span className="text-primary font-medium">
-                          Included — free to add
-                        </span>
-                      ) : (
-                        <>+${price.toFixed(2)}</>
-                      )}
+                      <span className="text-primary font-medium">
+                        Included — free to add
+                      </span>
                     </div>
                   </button>
                 );
@@ -299,7 +278,7 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
               {selected.length} selected
             </Badge>
             <span className="text-muted-foreground">
-              Total: <span className="text-foreground font-semibold">${total.toFixed(2)}</span>
+              <span className="text-primary font-semibold">All included — free</span>
             </span>
           </div>
           <div className="flex gap-2 justify-end">
