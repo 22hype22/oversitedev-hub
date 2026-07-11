@@ -55,10 +55,7 @@ import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
 
 import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
-import { BotControlsPanel } from "@/components/dashboard/BotControlsPanel";
-import { BotUsageMetricsPanel } from "@/components/dashboard/BotUsageMetricsPanel";
-import { BotLogsPanel } from "@/components/dashboard/BotLogsPanel";
-import { BotServerSlotsCard } from "@/components/dashboard/BotServerSlotsCard";
+import { BotManagePanel } from "@/components/dashboard/BotManagePanel";
 import { BotInviteLinkCard } from "@/components/dashboard/BotInviteLinkCard";
 import { GroupTeamHub } from "@/components/dashboard/team/GroupTeamHub";
 import { NewOwnerBillingDialog } from "@/components/dashboard/team/NewOwnerBillingDialog";
@@ -770,7 +767,7 @@ const BotSection = ({
           </span>
           <div className="btx">
             <div className="ba">Manage this bot</div>
-            <div className="bb">Banners, engine, secrets, controls, logs</div>
+            <div className="bb">Engine, power controls, servers, usage &amp; logs</div>
           </div>
           <ChevronDown className="bchev" />
         </summary>
@@ -809,7 +806,16 @@ const BotSection = ({
       )}
 
       {!bot.isDemo && (
-        <EngineVersionSwitcher bot={bot} onReload={onReload} />
+        <BotManagePanel
+          bot={bot}
+          health={health}
+          isOffline={isOffline}
+          isDeploying={isDeploying}
+          isStarting={isStarting}
+          highlightSlots={highlightSlots}
+          onCommandSent={handleCommandSent}
+          onReload={onReload}
+        />
       )}
 
       {/* Compact build summary — collapsible (controlled, default closed) */}
@@ -855,8 +861,6 @@ const BotSection = ({
 
 
 
-
-      {!bot.isDemo && !isDeploying && <BotControlsPanel botId={bot.id} isOffline={isOffline} onCommandSent={handleCommandSent} />}
 
       {isDeploying && (
         <div
@@ -927,11 +931,6 @@ const BotSection = ({
           />
         )}
 
-        {!bot.isDemo && <BotServerSlotsCard botId={bot.id} highlightBuy={highlightSlots} />}
-
-        {!bot.isDemo && <BotUsageMetricsPanel botId={bot.id} />}
-
-        {!bot.isDemo && <BotLogsPanel botId={bot.id} />}
       </div>
 
         </div>
