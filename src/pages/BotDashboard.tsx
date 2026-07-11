@@ -746,7 +746,7 @@ const BotSection = ({
         badges={headerBadges}
         actions={headerActions}
         menuItems={headerMenuItems}
-        enableDiscordEdits={!bot.isDemo && !isDeploying}
+        enableDiscordEdits={!bot.isDemo}
         onRefresh={() => { reloadHealth(); onReload(); }}
       />
 
