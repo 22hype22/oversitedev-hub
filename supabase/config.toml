@@ -25,4 +25,6 @@ project_id = "prvqfjairnketwhmfshu"
     verify_jwt = false
   [functions.handle-email-suppression]
     verify_jwt = false
+  [functions.bot-list-emojis]
+    verify_jwt = false
 
