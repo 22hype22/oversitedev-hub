@@ -3,8 +3,6 @@ import { Bot, Pencil, Upload, Loader2, ChevronDown, ChevronUp, Activity, Check, 
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -696,56 +694,55 @@ export const BotIdentityEditor = ({
           </button>
 
           {expanded && (
-            <div className="mt-3 space-y-4 rounded-xl border border-border bg-background/50 p-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="bot-bio" className="text-xs flex items-center gap-1.5">
-                  <Info className="h-3 w-3 text-primary" />
+            <div className="bioeditor">
+              <div className="biofield">
+                <label htmlFor="bot-bio" className="biolabel">
+                  <Info />
                   About Me
-                </Label>
+                </label>
                 <Textarea
                   id="bot-bio"
                   value={bio}
                   onChange={(e) => {
                     setBio(resolveEmojis(e.target.value));
                   }}
-
                   maxLength={190}
                   rows={3}
                   placeholder="Describe what your bot does…"
                   disabled={savingDetails}
+                  className="resize-none bg-[var(--bpanel)] border-[var(--bhair)] text-[var(--bheading)]"
                 />
                 {bioError && (
-                  <div className="flex items-start gap-2 rounded-md bg-red-500/10 border border-red-500/20 p-2 text-[11px] text-red-400">
-                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <div className="bioerr">
+                    <AlertTriangle />
                     <span>{bioError}</span>
                   </div>
                 )}
-                <div className="flex items-start gap-2 rounded-md bg-muted/40 p-2 text-[11px] text-muted-foreground">
-                  <Info className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
+                <div className="bionote">
+                  <Info />
                   <span>
-                    Discord doesn't allow bots to update their own About Me via the API.
-                    When you save, your request is sent to our team and we'll update it manually
-                    in the Discord Developer Portal within 24 hours.
+                    Discord doesn't let bots change their own About Me through the API.
+                    When you save, we get the request and update it by hand in the Discord
+                    Developer Portal — usually within 24 hours.
                   </span>
                 </div>
-                <div className="text-[10px] text-muted-foreground text-right">
-                  {bio.length}/190
-                </div>
+                <div className="biocount">{bio.length}/190</div>
               </div>
 
-
-              <div className="grid sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs flex items-center gap-1.5">
-                    <Activity className="h-3 w-3 text-primary" />
+              <div className="biogrid">
+                <div className="biofield">
+                  <label className="biolabel">
+                    <Activity />
                     Online status
-                  </Label>
+                  </label>
                   <Select
                     value={presence}
                     onValueChange={(v) => setPresence(v as PresenceStatus)}
                     disabled={savingDetails}
                   >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="bg-[var(--bpanel)] border-[var(--bhair)] text-[var(--bheading)]">
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       {PRESENCE_OPTIONS.map((o) => (
                         <SelectItem key={o.value} value={o.value}>
@@ -759,8 +756,8 @@ export const BotIdentityEditor = ({
                   </Select>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="bot-status-msg" className="text-xs">Status message</Label>
+                <div className="biofield">
+                  <label htmlFor="bot-status-msg" className="biolabel">Status message</label>
                   <Input
                     id="bot-status-msg"
                     value={activityText}
@@ -768,13 +765,19 @@ export const BotIdentityEditor = ({
                     maxLength={128}
                     placeholder="e.g. helping out"
                     disabled={savingDetails}
+                    className="bg-[var(--bpanel)] border-[var(--bhair)] text-[var(--bheading)]"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end">
-                <Button size="sm" onClick={saveDetails} disabled={savingDetails || !!bioError}>
-                  {savingDetails ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+              <div className="bioactions">
+                <Button
+                  size="sm"
+                  onClick={saveDetails}
+                  disabled={savingDetails || !!bioError}
+                  className="min-w-[120px]"
+                >
+                  {savingDetails ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save changes"}
                 </Button>
               </div>
             </div>
@@ -796,10 +799,12 @@ const BID_CSS = `
   --bdisp:"Bricolage Grotesque",system-ui,sans-serif;--bbodyf:"Space Grotesk",system-ui,sans-serif;--bmono:"Space Mono",monospace;
 }
 .bid .card{position:relative;background:linear-gradient(180deg,var(--bpanel),var(--bpanel2));border:1px solid var(--bhair);
-  border-radius:18px;box-shadow:0 24px 60px -32px rgba(0,0,0,.6);overflow:hidden}
+  border-radius:18px;box-shadow:0 24px 60px -32px rgba(0,0,0,.6)}
 
-/* Banner — uploaded image, or an icy gradient fallback */
-.bid .pbanner{position:relative;height:132px;
+/* Banner — uploaded image, or an icy gradient fallback. Only the banner clips
+   (rounded top corners); the card itself must NOT clip, or the bio panel /
+   Save button get sliced off at the rounded bottom corners. */
+.bid .pbanner{position:relative;height:132px;border-radius:17px 17px 0 0;overflow:hidden;
   background:radial-gradient(120% 160% at 18% -20%,rgba(201,219,230,.22),transparent 60%),
     linear-gradient(120deg,#2c353f 0%,#323d48 45%,#3b4753 100%)}
 .bid .pbanner.hasimg{background:#20262d}
@@ -855,4 +860,23 @@ const BID_CSS = `
   border-radius:9px;padding:8px 13px;font-family:var(--bbodyf);font-size:12.5px;font-weight:500;color:var(--bfaint);cursor:pointer}
 .bid .biotoggle:hover{background:var(--bsurface2);color:var(--bbody)}
 .bid .biotoggle svg{width:13px;height:13px;stroke:currentColor;stroke-width:1.9;fill:none}
+
+/* Expanded bio & status editor — matched to the card's design language */
+.bid .bioeditor{margin-top:14px;border:1px solid var(--bhair);border-radius:14px;background:var(--bpanel2);
+  padding:20px;display:flex;flex-direction:column;gap:18px}
+.bid .biofield{display:flex;flex-direction:column;gap:8px;min-width:0}
+.bid .biolabel{display:inline-flex;align-items:center;gap:7px;font-family:var(--bbodyf);font-size:12px;font-weight:600;
+  color:var(--bheading);letter-spacing:.01em}
+.bid .biolabel svg{width:13px;height:13px;stroke:var(--baccent);stroke-width:2;fill:none}
+.bid .bionote{display:flex;align-items:flex-start;gap:9px;border-radius:11px;background:rgba(201,219,230,.06);
+  border:1px solid rgba(201,219,230,.14);padding:11px 13px;font-family:var(--bbodyf);font-size:11.5px;color:var(--bbody);line-height:1.55}
+.bid .bionote svg{width:14px;height:14px;flex:none;margin-top:1px;stroke:var(--baccent);stroke-width:2;fill:none}
+.bid .bioerr{display:flex;align-items:flex-start;gap:9px;border-radius:11px;background:rgba(239,68,68,.1);
+  border:1px solid rgba(239,68,68,.25);padding:10px 12px;font-size:11.5px;color:#f4a6a6}
+.bid .bioerr svg{width:14px;height:14px;flex:none;margin-top:1px;stroke:currentColor;stroke-width:2;fill:none}
+.bid .biocount{font-size:10.5px;color:var(--bfaint);text-align:right;font-variant-numeric:tabular-nums}
+.bid .biogrid{display:grid;grid-template-columns:1fr;gap:16px}
+.bid .biogrid>*{min-width:0}
+@media(min-width:560px){.bid .biogrid{grid-template-columns:1fr 1fr}}
+.bid .bioactions{display:flex;justify-content:flex-end}
 `;
