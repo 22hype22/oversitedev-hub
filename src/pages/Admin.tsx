@@ -357,8 +357,8 @@ const ADMIN_HTML = `<div class="osd app">
           </div>
           <div class="kpi">
             <div class="lab">Revenue</div>
-            <div class="val">$0</div>
-            <div class="sub">all time</div>
+            <div class="val">$3,712</div>
+            <div class="sub">this week · <b class="up">+12%</b></div>
           </div>
           <div class="kpi">
             <div class="lab">Conversion</div>
@@ -878,8 +878,18 @@ const ADMIN_JS = `// segmented toggles (generic: click sets .on within the group
         document.getElementById('stage-title').innerHTML = sec;
       }
       window.scrollTo(0,0);
+      try { localStorage.setItem('os_admin_sec', sec); } catch(e) {}
     });
-  });`;
+  });
+
+  // Restore the section the user was last on so a refresh keeps them here.
+  try {
+    var savedSec = localStorage.getItem('os_admin_sec');
+    if (savedSec) {
+      var savedEl = document.querySelector('.nav[data-sec="' + savedSec + '"]');
+      if (savedEl) savedEl.click();
+    }
+  } catch(e) {}`;
 
 const Admin = () => {
   const { user, isAdmin, loading } = useAuth();
@@ -943,29 +953,7 @@ const Admin = () => {
       });
     };
     loadOverview();
-    const overviewPoll = window.setInterval(loadOverview, 4000);
-
-    // Revenue KPI — all-time collected (captured minus refunds) straight from
-    // Stripe (live). Fetched here rather than from admin_overview_stats because
-    // a DB function can't call Stripe. Refresh every 5 min; the function caches
-    // for 60s so this stays cheap.
-    const loadRevenue = () => {
-      (supabase as any).functions
-        .invoke("admin-stripe-revenue")
-        .then(({ data }: { data: any }) => {
-          if (cancelled || !data || typeof data.all_time_cents !== "number") return;
-          const ov = root.querySelector("#overview-content");
-          const card = ov?.querySelectorAll(".kpis .kpi")[2] as HTMLElement | undefined;
-          if (!card) return;
-          const v = card.querySelector(".val");
-          if (v) v.textContent = dollars(data.all_time_cents);
-          const s = card.querySelector(".sub");
-          if (s) s.textContent = "all time";
-        })
-        .catch(() => {});
-    };
-    loadRevenue();
-    const revenuePoll = window.setInterval(loadRevenue, 300000);
+    const overviewPoll = window.setInterval(loadOverview, 10000);
 
     // Storefront — wire the live tools (returns a disposer for its timer).
     let disposeStorefront = () => {};
@@ -1069,7 +1057,6 @@ const Admin = () => {
     return () => {
       cancelled = true;
       window.clearInterval(overviewPoll);
-      window.clearInterval(revenuePoll);
       disposeStorefront();
       disposeSupport();
       if (allowlistChannel) (supabase as any).removeChannel(allowlistChannel);
@@ -1307,8 +1294,21 @@ function populateOverview(root: HTMLElement, d: any) {
     const s = q(kpis[1], ".sub");
     if (s) s.innerHTML = `<b class="up">+${d.bots_sold_today ?? 0}</b> today · <b class="up">+${d.bots_sold_week ?? 0}</b> this week`;
   }
-  // Revenue KPI is populated from Stripe (all-time collected) by loadRevenue(),
-  // not here — so the 10s stats poll doesn't overwrite it with weekly figures.
+  // Revenue
+  if (kpis[2]) {
+    const v = q(kpis[2], ".val"); if (v) v.textContent = dollars(d.revenue_week_cents);
+    const s = q(kpis[2], ".sub");
+    const prev = (d.revenue_prev_week_cents || 0) / 100;
+    const cur = (d.revenue_week_cents || 0) / 100;
+    if (s) {
+      if (prev > 0) {
+        const pct = Math.round(((cur - prev) / prev) * 100);
+        s.innerHTML = `this week · <b class="${pct >= 0 ? "up" : "down"}">${pct >= 0 ? "+" : ""}${pct}%</b>`;
+      } else {
+        s.textContent = "this week";
+      }
+    }
+  }
   // Conversion
   if (kpis[3]) {
     const conv = f.visited > 0 ? (f.purchased / f.visited) * 100 : 0;
