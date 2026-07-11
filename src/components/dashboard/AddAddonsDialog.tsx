@@ -322,7 +322,9 @@ const ADDON_CSS = `
   border:0;background:transparent;color:var(--faint);display:grid;place-items:center;cursor:pointer}
 .osad .sclear:hover{background:var(--surface2);color:var(--heading)}
 .osad .sclear svg{width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none}
-.osad .osadsort{height:40px;min-width:152px;border-radius:11px;border:1px solid var(--hair);background:var(--panel2);
+/* Fixed width + no flex grow/shrink so the shadcn w-full trigger can't
+   stretch across and overlap the search input. */
+.osad .osadsort{height:40px;width:152px;flex:none;border-radius:11px;border:1px solid var(--hair);background:var(--panel2);
   color:var(--heading);font-family:inherit;font-size:13.5px;padding:0 12px}
 
 .osad .chips{padding:14px 24px;display:flex;flex-wrap:wrap;gap:8px;border-bottom:1px solid var(--hair)}
