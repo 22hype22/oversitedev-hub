@@ -232,7 +232,7 @@ export const BotIdentityEditor = ({
         author: { name: "Banner Logging" },
         title: "New Banner upload request",
         description: embedDescription,
-        footer: { text: "Every banner you change is plus 50 cents." },
+        footer: { text: "Banner update request" },
         color: 0x3b82f6,
       };
       if (bannerUrl) (embed as any).image = { url: bannerUrl };
@@ -359,6 +359,10 @@ export const BotIdentityEditor = ({
               action: "set_status",
               payload: {
                 activity_type: activityType,
+                // Send both keys: the worker reads `activity_text`, while some
+                // bot runtimes read `status_text`. Keeping both avoids the
+                // activity label being silently dropped.
+                activity_text: activityText,
                 status_text: activityText,
                 presence_status: presence,
               },
@@ -436,7 +440,7 @@ export const BotIdentityEditor = ({
                     author: { name: "Description Logging" },
                     title: "New About Me update request",
                     description: embedDescription,
-                    footer: { text: "Every description you change is plus 50 cents." },
+                    footer: { text: "Description update request" },
                     color: 0x3b82f6,
                   },
                 },
