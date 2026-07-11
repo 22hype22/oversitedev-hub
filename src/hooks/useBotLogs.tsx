@@ -12,7 +12,13 @@ export interface BotLog {
   created_at: string;
 }
 
-export function useBotLogs(botId: string | null, limit = 50) {
+/**
+ * @param botId   bot to stream logs for
+ * @param limit   max rows to keep
+ * @param sinceMs only return logs newer than (now - sinceMs). Pass null/undefined
+ *                for "all" (bounded by `limit` and the DB's 7-day retention).
+ */
+export function useBotLogs(botId: string | null, limit = 50, sinceMs?: number | null) {
   const [logs, setLogs] = useState<BotLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,10 +27,14 @@ export function useBotLogs(botId: string | null, limit = 50) {
     if (!botId) return;
     setLoading(true);
     setError(null);
-    const { data, error } = await supabase
+    let query = supabase
       .from("bot_logs")
       .select("id, bot_id, level, message, context, created_at")
-      .eq("bot_id", botId)
+      .eq("bot_id", botId);
+    if (sinceMs != null) {
+      query = query.gte("created_at", new Date(Date.now() - sinceMs).toISOString());
+    }
+    const { data, error } = await query
       .order("created_at", { ascending: false })
       .limit(limit);
     if (error) {
@@ -34,7 +44,7 @@ export function useBotLogs(botId: string | null, limit = 50) {
       setLogs((data ?? []) as BotLog[]);
     }
     setLoading(false);
-  }, [botId, limit]);
+  }, [botId, limit, sinceMs]);
 
   useEffect(() => {
     refresh();
