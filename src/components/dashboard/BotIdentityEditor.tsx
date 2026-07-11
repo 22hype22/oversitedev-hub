@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { Bot, Pencil, Upload, Loader2, ChevronDown, ChevronUp, Activity, Check, X, AlertTriangle, Info, Copy, MoreVertical } from "lucide-react";
+import { Bot, Pencil, Upload, Loader2, ChevronDown, ChevronUp, Activity, Check, X, AlertTriangle, Info, Copy, MoreVertical, RefreshCw, Image as ImageIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +52,8 @@ type Props = {
   menuItems?: React.ReactNode;
   /** When false, Discord-side edits (avatar/banner/username/bio/status) are hidden. */
   enableDiscordEdits?: boolean;
+  /** Re-check the bot's live status. Renders the banner Refresh button when set. */
+  onRefresh?: () => void | Promise<void>;
 };
 
 export const BotIdentityEditor = ({
@@ -61,6 +63,7 @@ export const BotIdentityEditor = ({
   actions,
   menuItems,
   enableDiscordEdits = true,
+  onRefresh,
 }: Props) => {
   const { user } = useAuth();
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -69,6 +72,18 @@ export const BotIdentityEditor = ({
 
   const [savingAvatar, setSavingAvatar] = useState(false);
   const [savingBanner, setSavingBanner] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    if (!onRefresh || refreshing) return;
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      // Brief spin so a fast refresh still reads as an action.
+      setTimeout(() => setRefreshing(false), 500);
+    }
+  };
 
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(bot.bot_name);
@@ -468,130 +483,44 @@ export const BotIdentityEditor = ({
     <div className="bid">
       <style>{BID_CSS}</style>
       <div className="card">
-      {/* Compact header row */}
-      <div className="head">
-        {/* Avatar (with inline edit) */}
-        <div className="avatar">
-            {bot.icon_url ? (
-              <img src={bot.icon_url} alt={bot.bot_name} />
-            ) : (
-              <Bot />
-            )}
-          {enableDiscordEdits && (
-            <>
-              <button
-                type="button"
-                onClick={() => avatarInputRef.current?.click()}
-                disabled={savingAvatar}
-                aria-label="Change avatar"
-                className="edit"
-              >
-                {savingAvatar ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Pencil className="h-3 w-3" />
-                )}
-              </button>
-              <input
-                ref={avatarInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) onAvatarPick(f);
-                  e.target.value = "";
-                }}
-              />
-            </>
+      {/* Banner — uploaded image, or an icy gradient fallback */}
+      <div className={`pbanner${bot.banner_url ? " hasimg" : ""}`}>
+        {bot.banner_url && <img src={bot.banner_url} alt={`${bot.bot_name} banner`} />}
+
+        {/* Edit banner — visible affordance, top-left */}
+        {enableDiscordEdits && (
+          <button
+            type="button"
+            onClick={() => bannerInputRef.current?.click()}
+            disabled={savingBanner}
+            className="pbtn bnedit"
+            aria-label="Edit banner"
+          >
+            {savingBanner ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon />}
+            <span>{savingBanner ? "Uploading…" : "Edit banner"}</span>
+          </button>
+        )}
+
+        {/* Refresh + actions + menu, top-right */}
+        <div className="pacts">
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="pbtn icon"
+              aria-label="Refresh status"
+              title="Refresh status"
+            >
+              <RefreshCw className={refreshing ? "animate-spin" : ""} />
+            </button>
           )}
-        </div>
-
-        {/* Name + meta */}
-        <div className="hmid">
-          <div className="nrow">
-            {editingName ? (
-              <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                <Input
-                  ref={nameInputRef}
-                  autoFocus
-                  value={nameDraft}
-                  onChange={(e) => setNameDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") { e.preventDefault(); saveName(); }
-                    if (e.key === "Escape") { e.preventDefault(); cancelName(); }
-                  }}
-                  onBlur={() => { if (!savingName) saveName(); }}
-                  maxLength={32}
-                  minLength={2}
-                  disabled={savingName}
-                  className="h-9 text-lg font-bold"
-                />
-                {savingName ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={saveName}
-                      className="p-1 text-emerald-400 hover:text-emerald-300"
-                      aria-label="Save name"
-                    >
-                      <Check className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={cancelName}
-                      className="p-1 text-muted-foreground hover:text-foreground"
-                      aria-label="Cancel"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </>
-                )}
-              </div>
-            ) : (
-              <>
-                <h1>{bot.bot_name}</h1>
-                {enableDiscordEdits && (
-                  <button
-                    type="button"
-                    onClick={() => setEditingName(true)}
-                    className="pen"
-                    aria-label="Edit name"
-                  >
-                    <Pencil />
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-
-          {badges && <div className="meta">{badges}</div>}
-          {recentChange && (
-            <div className="warn">
-              <AlertTriangle />
-              <span>Discord limits username changes to 2 per hour.</span>
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="hact">
           {actions}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-9 w-9 text-muted-foreground"
-                aria-label="More"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
+              <button type="button" className="pbtn icon" aria-label="More">
+                <MoreVertical />
+              </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem onSelect={copyBotId} className="gap-2">
@@ -626,28 +555,133 @@ export const BotIdentityEditor = ({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-          {enableDiscordEdits && (
-            <input
-              ref={bannerInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) onBannerPick(f);
-                e.target.value = "";
-              }}
-            />
-          )}
         </div>
+        {enableDiscordEdits && (
+          <input
+            ref={bannerInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onBannerPick(f);
+              e.target.value = "";
+            }}
+          />
+        )}
       </div>
 
-      {/* Banner preview (only when one is set) */}
-      {bot.banner_url && (
-        <div className="bannerstrip">
-          <img src={bot.banner_url} alt={`${bot.bot_name} banner`} />
+      {/* Body — avatar overlaps banner, then name + meta */}
+      <div className="pbody">
+        <div className="prow">
+          {/* Avatar (with inline edit) */}
+          <div className="avatar">
+            {bot.icon_url ? (
+              <img src={bot.icon_url} alt={bot.bot_name} />
+            ) : (
+              <Bot />
+            )}
+            {enableDiscordEdits && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={savingAvatar}
+                  aria-label="Change icon"
+                  className="edit"
+                >
+                  {savingAvatar ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Pencil className="h-3 w-3" />
+                  )}
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) onAvatarPick(f);
+                    e.target.value = "";
+                  }}
+                />
+              </>
+            )}
+          </div>
+
+          {/* Name + meta */}
+          <div className="pident">
+            <div className="nrow">
+              {editingName ? (
+                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                  <Input
+                    ref={nameInputRef}
+                    autoFocus
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { e.preventDefault(); saveName(); }
+                      if (e.key === "Escape") { e.preventDefault(); cancelName(); }
+                    }}
+                    onBlur={() => { if (!savingName) saveName(); }}
+                    maxLength={32}
+                    minLength={2}
+                    disabled={savingName}
+                    className="h-9 text-lg font-bold"
+                  />
+                  {savingName ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={saveName}
+                        className="p-1 text-emerald-400 hover:text-emerald-300"
+                        aria-label="Save name"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={cancelName}
+                        className="p-1 text-muted-foreground hover:text-foreground"
+                        aria-label="Cancel"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <h1>{bot.bot_name}</h1>
+                  {enableDiscordEdits && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingName(true)}
+                      className="pen"
+                      aria-label="Edit name"
+                    >
+                      <Pencil />
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+
+            {badges && <div className="metawrap">{badges}</div>}
+            {recentChange && (
+              <div className="warn">
+                <AlertTriangle />
+                <span>Discord limits username changes to 2 per hour.</span>
+              </div>
+            )}
+          </div>
         </div>
-      )}
 
       {/* Bio & status editor */}
       {enableDiscordEdits && (
@@ -747,6 +781,7 @@ export const BotIdentityEditor = ({
           )}
         </div>
       )}
+      </div>{/* pbody */}
 
       </div>
     </div>
@@ -755,38 +790,69 @@ export const BotIdentityEditor = ({
 
 const BID_CSS = `
 .bid{
-  --bpanel:#2a313a;--bpanel2:#242b33;--bsurface:#2f3740;--bsurface2:#353d47;--bhair:rgba(255,255,255,.12);
+  --bpanel:#272e36;--bpanel2:#242b32;--bsurface:#2d353e;--bsurface2:#343d46;--bhair:#3a434d;
   --bheading:#E8EEF3;--bbody:#A8B4BF;--bfaint:#788591;--baccent:#C9DBE6;--baccentink:#1E242B;
   --bok:#86d3a1;--bgold:#cbb277;
   --bdisp:"Bricolage Grotesque",system-ui,sans-serif;--bbodyf:"Space Grotesk",system-ui,sans-serif;--bmono:"Space Mono",monospace;
 }
 .bid .card{position:relative;background:linear-gradient(180deg,var(--bpanel),var(--bpanel2));border:1px solid var(--bhair);
-  border-radius:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 18px 44px -28px rgba(0,0,0,.7);overflow:hidden}
-.bid .head{display:flex;align-items:center;gap:16px;padding:18px 20px;flex-wrap:wrap}
-.bid .avatar{position:relative;height:60px;width:60px;border-radius:16px;flex:none;display:grid;place-items:center;
-  background:color-mix(in srgb,var(--baccent) 12%,transparent);border:1px solid var(--bhair);overflow:hidden}
+  border-radius:18px;box-shadow:0 24px 60px -32px rgba(0,0,0,.6);overflow:hidden}
+
+/* Banner — uploaded image, or an icy gradient fallback */
+.bid .pbanner{position:relative;height:132px;
+  background:radial-gradient(120% 160% at 18% -20%,rgba(201,219,230,.22),transparent 60%),
+    linear-gradient(120deg,#2c353f 0%,#323d48 45%,#3b4753 100%)}
+.bid .pbanner.hasimg{background:#20262d}
+.bid .pbanner>img{position:absolute;inset:0;height:100%;width:100%;object-fit:cover;display:block}
+.bid .pbanner::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(24,28,34,0) 40%,rgba(24,28,34,.5) 100%)}
+
+.bid .pbtn{position:relative;z-index:2;height:34px;display:inline-flex;align-items:center;gap:7px;padding:0 12px;
+  border-radius:9px;background:rgba(20,24,28,.55);border:1px solid rgba(255,255,255,.14);color:var(--bheading);
+  font-family:var(--bbodyf);font-size:12.5px;font-weight:600;cursor:pointer;backdrop-filter:blur(6px);transition:.15s}
+.bid .pbtn:hover{background:rgba(20,24,28,.72);border-color:rgba(201,219,230,.4)}
+.bid .pbtn:disabled{opacity:.6;cursor:default}
+.bid .pbtn.icon{width:34px;justify-content:center;padding:0}
+.bid .pbtn svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.9;fill:none}
+.bid .bnedit{position:absolute;top:14px;left:14px}
+.bid .pacts{position:absolute;top:14px;right:14px;z-index:2;display:flex;align-items:center;gap:8px}
+/* Let the parent-supplied "Add add-ons" button match the banner buttons */
+.bid .pacts>button{height:34px;border-radius:9px;background:rgba(20,24,28,.55);border:1px solid rgba(255,255,255,.14);
+  color:var(--bheading);backdrop-filter:blur(6px)}
+.bid .pacts>button:hover{background:rgba(20,24,28,.72);border-color:rgba(201,219,230,.4)}
+
+/* Body — avatar overlaps banner */
+.bid .pbody{position:relative;padding:0 22px 18px}
+.bid .prow{display:flex;align-items:flex-end;gap:16px;margin-top:-40px}
+.bid .avatar{position:relative;height:88px;width:88px;border-radius:20px;flex:none;overflow:hidden;
+  background:color-mix(in srgb,var(--baccent) 12%,var(--bpanel));border:4px solid var(--bpanel);
+  display:grid;place-items:center;box-shadow:0 10px 30px -10px rgba(0,0,0,.7)}
 .bid .avatar>img{height:100%;width:100%;object-fit:cover}
-.bid .avatar>svg{width:28px;height:28px;stroke:var(--baccent);stroke-width:1.7;fill:none}
-.bid .avatar .edit{position:absolute;bottom:-6px;right:-6px;height:26px;width:26px;border-radius:50%;background:var(--baccent);
+.bid .avatar>svg{width:38px;height:38px;stroke:var(--baccent);stroke-width:1.6;fill:none}
+.bid .avatar .edit{position:absolute;bottom:4px;right:4px;height:26px;width:26px;border-radius:50%;background:var(--baccent);
   color:var(--baccentink);border:2px solid var(--bpanel);display:grid;place-items:center;cursor:pointer}
 .bid .avatar .edit:disabled{opacity:.6}
-.bid .avatar .edit svg{width:12px;height:12px;stroke:currentColor;stroke-width:2;fill:none}
-.bid .hmid{flex:1;min-width:0}
-.bid .nrow{display:flex;align-items:center;gap:8px;min-width:0}
-.bid .nrow h1{font-family:var(--bdisp);font-weight:800;font-size:22px;color:var(--bheading);margin:0;letter-spacing:-.02em;
+.bid .avatar .edit svg{width:12px;height:12px;stroke:currentColor;stroke-width:2.2;fill:none}
+.bid .pident{flex:1;min-width:0;padding-bottom:4px}
+.bid .nrow{display:flex;align-items:center;gap:9px;min-width:0}
+.bid .nrow h1{font-family:var(--bdisp);font-weight:800;font-size:25px;color:var(--bheading);margin:0;letter-spacing:-.02em;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bid .nrow .pen{color:var(--bfaint);cursor:pointer;display:grid;place-items:center;padding:2px;background:none;border:0}
-.bid .nrow .pen:hover{color:var(--bbody)} .bid .nrow .pen svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.9;fill:none}
-.bid .meta{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--bfaint);flex-wrap:wrap;line-height:1.2}
-.bid .meta svg{width:13px;height:13px}
+.bid .nrow .pen{color:var(--bfaint);cursor:pointer;display:grid;place-items:center;padding:3px;background:none;border:0}
+.bid .nrow .pen:hover{color:var(--bbody)} .bid .nrow .pen svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.9;fill:none}
+
+/* Meta rows (supplied by parent as .meta1 / .meta2) */
+.bid .metawrap{margin-top:9px;display:flex;flex-direction:column;gap:8px}
+.bid .meta1{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bid .basetype{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--bheading)}
+.bid .basetype svg{width:14px;height:14px;stroke:var(--baccent);stroke-width:1.8;fill:none}
+.bid .meta2{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--bfaint);flex-wrap:wrap;line-height:1.2}
+.bid .meta2 svg{width:13px;height:13px}
 .bid .warn{margin-top:8px;display:flex;align-items:flex-start;gap:6px;font-size:11px;color:var(--bgold)}
 .bid .warn svg{width:12px;height:12px;margin-top:2px;flex:none;stroke:currentColor;stroke-width:1.9;fill:none}
-.bid .hact{display:flex;align-items:center;gap:8px;flex:none;margin-left:auto}
-.bid .bannerstrip{margin:0 20px 14px;height:84px;border-radius:12px;overflow:hidden;border:1px solid var(--bhair)}
-.bid .bannerstrip img{height:100%;width:100%;object-fit:cover;display:block}
-.bid .biorow{padding:0 20px 18px}
+
+.bid .biorow{padding:16px 0 0}
 .bid .biotoggle{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--bhair);background:rgba(255,255,255,.02);
-  border-radius:9px;padding:7px 12px;font-family:var(--bbodyf);font-size:12px;font-weight:500;color:var(--bfaint);cursor:pointer}
+  border-radius:9px;padding:8px 13px;font-family:var(--bbodyf);font-size:12.5px;font-weight:500;color:var(--bfaint);cursor:pointer}
 .bid .biotoggle:hover{background:var(--bsurface2);color:var(--bbody)}
 .bid .biotoggle svg{width:13px;height:13px;stroke:currentColor;stroke-width:1.9;fill:none}
 `;
