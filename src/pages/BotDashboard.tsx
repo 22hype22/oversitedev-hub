@@ -114,60 +114,25 @@ import {
 import heroBg from "@/assets/hero-bg.jpg";
 
 const BOTSEC_CSS = `
-/* ---- Clean, professional panel redesign (VISUAL ONLY, scoped to .botsec —
-   no layout logic, props, or handlers changed). Roomy spacing, restrained
-   surfaces, clear hierarchy. Icy accent + slate text via the .osd vars. ---- */
-.botsec{background:#181c22;border:1px solid rgba(255,255,255,.06);border-radius:16px;overflow:hidden;
-  box-shadow:0 1px 0 rgba(255,255,255,.02) inset,0 18px 44px -28px rgba(0,0,0,.75)}
-.botsec>.bsum{display:flex;align-items:center;gap:14px;padding:22px 26px;cursor:pointer;list-style:none}
+.botsec{background:linear-gradient(180deg,#272e36,#242b32);border:1px solid #3a434d;border-radius:16px;overflow:hidden;
+  box-shadow:0 24px 60px -32px rgba(0,0,0,.6)}
+.botsec>.bsum{display:flex;align-items:center;gap:13px;padding:16px 20px;cursor:pointer;list-style:none}
 .botsec>.bsum::-webkit-details-marker{display:none}
-.botsec>.bsum:hover{background:rgba(255,255,255,.015)}
-.botsec .bico{height:40px;width:40px;border-radius:11px;flex:none;display:grid;place-items:center;
-  background:rgba(201,219,230,.07);color:#E8EEF3;border:1px solid rgba(201,219,230,.14)}
-.botsec .bico svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.7;fill:none}
+.botsec>.bsum:hover{background:rgba(255,255,255,.014)}
+.botsec .bico{height:36px;width:36px;border-radius:10px;flex:none;display:grid;place-items:center;background:#2d353e;color:#C9DBE6}
+.botsec .bico svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.8;fill:none}
 .botsec .btx{flex:1;min-width:0}
-.botsec .btx .ba{font-weight:700;font-size:15.5px;color:#E8EEF3;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
-.botsec .btx .ba .ct{font-size:10px;font-weight:400;color:#788591;border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:1px 8px;flex:none}
-.botsec .btx .bb{font-size:12.5px;color:#788591;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.botsec .bchev{height:18px;width:18px;color:#788591;transition:transform .2s;flex:none}
-.botsec[open] .bchev{transform:rotate(180deg)}
-.botsec .bbody{border-top:1px solid rgba(255,255,255,.05);padding:24px 26px 28px;display:flex;flex-direction:column;gap:22px}
-.botsec .bbody.space-y-5>*+*{margin-top:0}
-
-/* Neutral cards → clean subtle surfaces (tinted status cards keep their color). */
-.botsec .bbody .rounded-lg.border.bg-card:not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-primary"]):not([class*="bg-destructive"]):not([class*="bg-yellow"]):not([class*="bg-blue"]):not([class*="bg-green"]),
-.botsec .bbody .bg-card\\/40{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.13);border-radius:13px;box-shadow:none}
-
-/* Inner tiles slightly recessed. */
-.botsec .bbody .rounded-md.border,
-.botsec .bbody .bg-background\\/40{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.11);border-radius:10px}
-.botsec .bbody .rounded-md.border.border-primary{border-color:rgba(201,219,230,.4);background:rgba(201,219,230,.06)}
-.botsec .bbody .rounded-md.border{padding:16px}
-.botsec .bbody .grid.grid-cols-2{gap:12px}
-
-/* Engine pills → clean, equal, subtle active state. */
-.botsec .bbody button.rounded-lg.border{border-color:rgba(255,255,255,.08);border-radius:11px;background:rgba(255,255,255,.012);padding:16px;transition:all .15s ease}
-.botsec .bbody button.rounded-lg.border:hover:not(:disabled){border-color:rgba(201,219,230,.28);background:rgba(201,219,230,.035)}
-.botsec .bbody button.rounded-lg.border-primary{border-color:rgba(201,219,230,.42);background:rgba(201,219,230,.05);box-shadow:0 0 0 1px rgba(201,219,230,.14)}
-
-/* Typography: brighten neutral headings/bold; keep semantic-colored text. */
-.botsec .bbody h3,.botsec .bbody h4{color:var(--heading)}
-.botsec .bbody .font-semibold:not([class*="text-emerald"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="text-yellow"]):not([class*="text-red"]):not([class*="text-destructive"]):not([class*="text-green"]):not([class*="text-primary"]):not([class*="text-muted"]),
-.botsec .bbody .font-bold:not([class*="text-emerald"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="text-yellow"]):not([class*="text-red"]):not([class*="text-destructive"]):not([class*="text-green"]):not([class*="text-primary"]):not([class*="text-muted"]){color:var(--heading)}
-.botsec .bbody .text-muted-foreground{color:var(--faint)}
-.botsec .bbody .text-primary{color:#E8EEF3}
-.botsec .bbody .text-primary svg,.botsec .bbody svg.text-primary{stroke:#E8EEF3;color:#E8EEF3}
-
-/* Map the base blue "primary" onto the icy accent inside the panel. */
-.botsec .bbody .bg-primary\\/5,.botsec .bbody .bg-primary\\/10,.botsec .bbody .bg-primary\\/15{background:rgba(201,219,230,.08)}
-.botsec .bbody .border-primary\\/30,.botsec .bbody .border-primary\\/40{border-color:rgba(201,219,230,.28)}
-.botsec .bbody .bg-primary:not(.bg-primary\\/5):not(.bg-primary\\/10):not(.bg-primary\\/15){background:var(--accent);color:var(--accentink)}
-
-/* "Deploying…" banner → clean icy (was blue). */
-.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10{border-color:rgba(201,219,230,.16);background:rgba(201,219,230,.045)}
-.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10 .text-blue-300{color:var(--body)}
-.botsec .bbody .border-blue-500\\/30.bg-blue-500\\/10 .bg-blue-400{background:var(--accent)}
-
+.botsec .btx .ba{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:700;font-size:14.5px;color:#E8EEF3;
+  display:flex;align-items:center;gap:8px}
+.botsec .btx .ba .ct{font-family:"Space Mono",monospace;font-size:10px;font-weight:400;color:#788591;border:1px solid #3a434d;
+  border-radius:20px;padding:1px 8px;flex:none}
+.botsec .btx .bb{font-size:11.5px;color:#788591;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.botsec .bchev{height:20px;width:20px;color:#788591;transition:transform .2s,color .2s;flex:none}
+.botsec[open] .bchev{transform:rotate(180deg);color:#C9DBE6}
+.botsec .bbody{border-top:1px solid #3a434d;padding:12px 10px 14px}
+/* Flatten the inner panel wrappers so they don't read as cramped secondary
+   boxes inside the section; their inner tiles/content keep their own framing. */
+.botsec .bbody .bg-card\\/40{background-color:transparent;border-color:transparent;box-shadow:none}
 `;
 import { useBotNotifications, type BotNotification } from "@/hooks/useBotNotifications";
 
@@ -354,20 +319,18 @@ const EngineVersionSwitcher = ({
 
   return (
     <>
-      {/* Explicit inline styling so the card renders exactly as designed,
-          independent of the theme cascade. Logic/handlers unchanged. */}
-      <div style={{ background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 14, padding: 20 }}>
-        <div className="flex items-start gap-3" style={{ marginBottom: 16 }}>
-          <Code2 className="h-5 w-5 mt-0.5 shrink-0" style={{ color: "#E8EEF3" }} />
-          <div className="flex-1">
-            <div style={{ color: "#E8EEF3", fontWeight: 600, fontSize: 14 }}>Bot engine version</div>
-            <p style={{ color: "#818d9a", fontSize: 12.5, lineHeight: 1.6, marginTop: 6, maxWidth: 620 }}>
+      <Card className="p-4">
+        <div className="flex items-start gap-3 mb-3">
+          <Code2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+          <div className="text-sm flex-1">
+            <div className="font-semibold text-foreground">Bot engine version</div>
+            <p className="text-muted-foreground mt-1 text-xs">
               Switch between Component V1 (stable) and V2 (newest features).
               Switching causes a short period of downtime while we swap engines.
             </p>
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div className="grid grid-cols-2 gap-2">
           {(["v1", "v2"] as const).map((id) => {
             const active = current === id;
             return (
@@ -376,31 +339,26 @@ const EngineVersionSwitcher = ({
                 type="button"
                 disabled={saving || active}
                 onClick={() => setConfirmTarget(id)}
-                style={{
-                  textAlign: "left",
-                  borderRadius: 12,
-                  padding: 16,
-                  border: active ? "1px solid rgba(201,219,230,.55)" : "1px solid rgba(255,255,255,.12)",
-                  background: active ? "rgba(201,219,230,.09)" : "rgba(255,255,255,.035)",
-                  boxShadow: active ? "0 0 0 1px rgba(201,219,230,.18)" : "none",
-                  cursor: saving || active ? "default" : "pointer",
-                  transition: "all .15s ease",
-                }}
+                className={`text-left rounded-lg border p-3 transition-all ${
+                  active
+                    ? "border-primary bg-primary/10 ring-1 ring-primary/40"
+                    : "border-border hover:border-primary/40 hover:bg-card disabled:opacity-50"
+                }`}
               >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, color: "#E8EEF3", fontWeight: 600, fontSize: 14 }}>
+                <div className="text-sm font-medium text-foreground flex items-center justify-between">
                   Component {id.toUpperCase()}
                   {active && (
-                    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase", color: "#1E242B", background: "#C9DBE6", borderRadius: 5, padding: "2px 8px" }}>Active</span>
+                    <Badge variant="secondary" className="text-[10px]">Active</Badge>
                   )}
                 </div>
-                <div style={{ color: "#818d9a", fontSize: 11.5, marginTop: 6 }}>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
                   {id === "v1" ? "Stable — recommended" : "Newest — latest features"}
                 </div>
               </button>
             );
           })}
         </div>
-      </div>
+      </Card>
 
       <AlertDialog
         open={confirmTarget !== null}
@@ -647,64 +605,75 @@ const BotSection = ({
       })
     : null;
 
-  const metaSep = <span className="text-muted-foreground/40">·</span>;
+  // Icon for the bot's base ("what it originally was").
+  const BaseIcon =
+    bot.base === "support" ? LifeBuoy
+    : bot.base === "utilities" ? Wrench
+    : bot.base === "scratch" ? Sparkles
+    : ShieldCheck;
+
+  // Secondary meta chips (engine · hosting · free · health) shown on row two.
+  const secondaryMeta: ReactNode[] = [];
+  if (!bot.isDemo) {
+    secondaryMeta.push(
+      <span key="engine" className="inline-flex items-center gap-1">
+        <Code2 className="h-3 w-3" />
+        Component {bot.engine_version === "v2" ? "V2" : "V1"}
+      </span>,
+    );
+  }
+  if (bot.monthly_hosting) {
+    secondaryMeta.push(
+      <span key="hosting" className="inline-flex items-center gap-1">
+        <Server className="h-3 w-3" />
+        Hosting
+      </span>,
+    );
+  }
+  if (freeActive) {
+    secondaryMeta.push(
+      <span key="free" className="inline-flex items-center gap-1 text-emerald-400">
+        <Gift className="h-3 w-3" />
+        Free until {freeUntilLabel}
+      </span>,
+    );
+  }
+  if (!bot.isDemo) {
+    secondaryMeta.push(<BotHealthBadge key="health" botId={bot.id} />);
+  }
+
   const headerBadges = (
     <>
-      <span
-        className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${statusMeta.className}`}
-      >
-        {statusMeta.loading && !bot.isDemo && <HexagonLoader size={10} />}
-        {statusMeta.label}
-      </span>
-      {metaSep}
-      <span className="text-foreground/80">{baseLabel}</span>
-      {!bot.isDemo && (
-        <>
-          {metaSep}
-          <span className="inline-flex items-center gap-1">
-            <Code2 className="h-3 w-3" />
-            Component {bot.engine_version === "v2" ? "V2" : "V1"}
-          </span>
-        </>
-      )}
-      {bot.monthly_hosting && (
-        <>
-          {metaSep}
-          <span className="inline-flex items-center gap-1">
-            <Server className="h-3 w-3" />
-            Hosting
-          </span>
-        </>
-      )}
-      {freeActive && (
-        <>
-          {metaSep}
-          <span className="inline-flex items-center gap-1 text-emerald-400">
-            <Gift className="h-3 w-3" />
-            Free until {freeUntilLabel}
-          </span>
-        </>
-      )}
-      {bot.isDemo && (
-        <>
-          {metaSep}
-          <span className="text-primary">Practice bot</span>
-        </>
-      )}
-      {bot.viaSupport && (
-        <>
-          {metaSep}
-          <span className="inline-flex items-center gap-1 text-amber-400">
+      <div className="meta1">
+        <span
+          className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${statusMeta.className}`}
+        >
+          {statusMeta.loading && !bot.isDemo && <HexagonLoader size={10} />}
+          {statusMeta.label}
+        </span>
+        <span className="basetype">
+          <BaseIcon />
+          {baseLabel}
+        </span>
+        {bot.isDemo && (
+          <span className="text-primary text-xs font-medium">Practice bot</span>
+        )}
+        {bot.viaSupport && (
+          <span className="inline-flex items-center gap-1 text-amber-400 text-xs font-medium">
             <LifeBuoy className="h-3 w-3" />
             Support session
           </span>
-        </>
-      )}
-      {!bot.isDemo && (
-        <>
-          {metaSep}
-          <BotHealthBadge botId={bot.id} />
-        </>
+        )}
+      </div>
+      {secondaryMeta.length > 0 && (
+        <div className="meta2">
+          {secondaryMeta.map((node, i) => (
+            <span key={i} className="inline-flex items-center gap-2">
+              {i > 0 && <span className="text-muted-foreground/40">·</span>}
+              {node}
+            </span>
+          ))}
+        </div>
       )}
     </>
   );
@@ -778,6 +747,7 @@ const BotSection = ({
         actions={headerActions}
         menuItems={headerMenuItems}
         enableDiscordEdits={!bot.isDemo && !isDeploying}
+        onRefresh={() => { reloadHealth(); onReload(); }}
       />
 
       {deployFailed && (
