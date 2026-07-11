@@ -1437,7 +1437,7 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 @media(max-width:760px){.osd .side{position:fixed;left:-260px;transition:.2s;z-index:50}.osd .main{padding:18px 14px 40px}.osd .left, .osd .form, .osd .feat, .osd .choices, .osd .gbody, .osd .dashgrid{grid-template-columns:1fr}.osd .dashgrid .dashcell.wide{grid-column:auto}.osd .head h1{font-size:24px}}
 @media(max-width:560px){.osd .botgrid{grid-template-columns:1fr}.osd .search{display:none}}`;
 
-const LS = { ws: "os_ws_mode", onboarded: "os_onboarded", tour: "os_tour_seen", bg: "os_bg", order: "os_bot_order", groups: "os_groups", accent: "os_accent", accentHex: "os_accent_hex" };
+const LS = { ws: "os_ws_mode", onboarded: "os_onboarded", tour: "os_tour_seen", bg: "os_bg", order: "os_bot_order", groups: "os_groups", accent: "os_accent", accentHex: "os_accent_hex", view: "os_view", bot: "os_bot" };
 
 // readable text color (dark/light) for an arbitrary accent hex
 const inkFor = (hex: string) => {
@@ -1530,13 +1530,15 @@ const BotDashboard = () => {
   const { items: notifications, unread } = useBotNotifications();
   const navigate = useNavigate();
 
-  const [view, setView] = useState("dashboard");
+  // Persist the active view + open bot so a refresh keeps you exactly where
+  // you were instead of dropping you back on the dashboard home.
+  const [view, setView] = useState(() => lsGet(LS.view) || "dashboard");
   // Shared, owner-set dashboard box layout (an ordered array of card ids).
   const [dashOrder, setDashOrder] = useState<string[]>(DEFAULT_DASH_ORDER);
   const dashSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
-  const [botId, setBotId] = useState<string | null>(null);
+  const [botId, setBotId] = useState<string | null>(() => lsGet(LS.bot) || null);
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
@@ -1681,6 +1683,21 @@ const BotDashboard = () => {
   }, [idsKey]);
   useEffect(() => { if (order.length) lsSet(LS.order, JSON.stringify(order)); }, [order]);
   const byId = useMemo(() => { const m: Record<string, OwnedBot> = {}; dashboardBots.forEach((b) => { m[b.id] = b; }); return m; }, [dashboardBots]);
+
+  // Remember where the user is across refreshes: persist the active view and
+  // the open bot, and recover gracefully if the remembered bot is gone.
+  useEffect(() => { lsSet(LS.view, view); }, [view]);
+  useEffect(() => {
+    if (botId) lsSet(LS.bot, botId);
+    else { try { localStorage.removeItem(LS.bot); } catch { /* ignore */ } }
+  }, [botId]);
+  useEffect(() => {
+    if (!botsLoading && view === "bot" && botId && !byId[botId]) {
+      setView("bots");
+      setBotId(null);
+    }
+  }, [botsLoading, view, botId, byId]);
+
   const orderedBots = useMemo(() => order.map((id) => byId[id]).filter(Boolean) as OwnedBot[], [order, byId]);
   const owned = orderedBots.filter((b) => !b.isDemo);
   const dragId = useRef<string | null>(null);
