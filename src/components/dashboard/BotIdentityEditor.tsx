@@ -724,6 +724,7 @@ export const BotIdentityEditor = ({
                   placeholder="Describe what your bot does…"
                   disabled={savingDetails}
                   className="resize-none bg-[var(--bpanel)] border-[var(--bhair)] text-[var(--bheading)]"
+                  style={{ padding: "10px 13px" }}
                 />
                 {bioError && (
                   <div className="bioerr">
@@ -753,7 +754,10 @@ export const BotIdentityEditor = ({
                     onValueChange={(v) => setPresence(v as PresenceStatus)}
                     disabled={savingDetails}
                   >
-                    <SelectTrigger className="bg-[var(--bpanel)] border-[var(--bhair)] text-[var(--bheading)]">
+                    <SelectTrigger
+                      className="bg-[var(--bpanel)] border-[var(--bhair)] text-[var(--bheading)]"
+                      style={{ paddingLeft: 13, paddingRight: 12 }}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -779,6 +783,7 @@ export const BotIdentityEditor = ({
                     placeholder="e.g. helping out"
                     disabled={savingDetails}
                     className="bg-[var(--bpanel)] border-[var(--bhair)] text-[var(--bheading)]"
+                    style={{ paddingLeft: 13, paddingRight: 13 }}
                   />
                 </div>
               </div>
