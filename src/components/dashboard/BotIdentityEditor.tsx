@@ -694,7 +694,19 @@ export const BotIdentityEditor = ({
           </button>
 
           {expanded && (
-            <div className="bioeditor">
+            <div
+              className="bioeditor"
+              style={{
+                marginTop: 14,
+                border: "1px solid var(--bhair)",
+                borderRadius: 14,
+                background: "var(--bpanel2)",
+                padding: "22px 26px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 18,
+              }}
+            >
               <div className="biofield">
                 <label htmlFor="bot-bio" className="biolabel">
                   <Info />
