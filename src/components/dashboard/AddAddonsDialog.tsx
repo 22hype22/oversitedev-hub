@@ -128,20 +128,46 @@ export function AddAddonsDialog({ bot, open, onOpenChange }: AddAddonsDialogProp
   const submit = async () => {
     if (selected.length === 0) return;
     setSubmitting(true);
+    const count = selected.length;
     const newAddons = Array.from(new Set([...bot.addons, ...selected]));
     const { error } = await (supabase as any)
       .from("bot_orders")
       .update({ addons: newAddons, updated_at: new Date().toISOString() })
       .eq("id", bot.id);
-    setSubmitting(false);
     if (error) {
+      setSubmitting(false);
       toast.error("Couldn't add add-ons", { description: error.message });
       return;
     }
-    toast.success(
-      `Added ${selected.length} add-on${selected.length === 1 ? "" : "s"} to "${bot.bot_name}"`,
-      { description: "They're included free — your bot will pick them up shortly." }
+
+    // Saving the add-ons to the order isn't enough — the running bot bakes its
+    // feature flags in at deploy time. Re-run auto-deploy-bot so it recomputes
+    // the F_* env vars from the new addon list and restarts with them enabled.
+    const { data: dep, error: depErr } = await supabase.functions.invoke(
+      "auto-deploy-bot",
+      { body: { orderId: bot.id } },
     );
+    setSubmitting(false);
+
+    const noun = `add-on${count === 1 ? "" : "s"}`;
+    if (depErr) {
+      // The add-ons are saved; only the redeploy failed to start.
+      toast.warning(`Saved your ${noun}, but the update didn't start`, {
+        description:
+          (depErr.message ?? "Please try again") +
+          " — you can also retry from the bot's controls.",
+      });
+    } else if ((dep as any)?.alreadyInProgress) {
+      toast.success(`Added ${count} ${noun} to "${bot.bot_name}"`, {
+        description:
+          "An update is already running — your bot will include them once it finishes.",
+      });
+    } else {
+      toast.success(`Added ${count} ${noun} to "${bot.bot_name}"`, {
+        description:
+          "Applying now — your bot restarts briefly (about 1–2 minutes) to turn them on.",
+      });
+    }
     await reload();
     onOpenChange(false);
   };
