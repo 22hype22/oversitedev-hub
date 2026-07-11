@@ -863,7 +863,7 @@ const BID_CSS = `
 
 /* Expanded bio & status editor — matched to the card's design language */
 .bid .bioeditor{margin-top:14px;border:1px solid var(--bhair);border-radius:14px;background:var(--bpanel2);
-  padding:20px;display:flex;flex-direction:column;gap:18px}
+  padding:22px 26px;display:flex;flex-direction:column;gap:18px}
 .bid .biofield{display:flex;flex-direction:column;gap:8px;min-width:0}
 .bid .biolabel{display:inline-flex;align-items:center;gap:7px;font-family:var(--bbodyf);font-size:12px;font-weight:600;
   color:var(--bheading);letter-spacing:.01em}
