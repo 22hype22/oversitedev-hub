@@ -698,13 +698,14 @@ export const BotIdentityEditor = ({
               className="bioeditor"
               style={{
                 marginTop: 14,
-                border: "1px solid var(--bhair)",
+                border: "1px solid rgba(201,219,230,.22)",
                 borderRadius: 14,
-                background: "var(--bpanel2)",
-                padding: "22px 26px",
+                background: "#20262d",
+                padding: "24px 28px",
                 display: "flex",
                 flexDirection: "column",
                 gap: 18,
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.03)",
               }}
             >
               <div className="biofield">
