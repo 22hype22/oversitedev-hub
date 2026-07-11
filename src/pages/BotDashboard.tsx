@@ -701,10 +701,10 @@ const BotSection = ({
 
   const headerActions =
     !bot.isDemo && !bot.viaTeam && canEditBilling ? (
-      <Button variant="outline" size="sm" onClick={() => onAddAddons(bot)}>
-        <Plus className="h-4 w-4 mr-1.5" />
-        Add add-ons
-      </Button>
+      <button type="button" className="pbtn" onClick={() => onAddAddons(bot)}>
+        <Plus />
+        Add-ons
+      </button>
     ) : null;
 
   const showCancel = !bot.isDemo && !bot.viaTeam && cancellable && canEditBilling;
