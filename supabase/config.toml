@@ -26,3 +26,4 @@ project_id = "prvqfjairnketwhmfshu"
   [functions.handle-email-suppression]
     verify_jwt = false
 
+# trigger function deploy
