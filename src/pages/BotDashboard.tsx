@@ -862,14 +862,15 @@ const BotSection = ({
 
 
 
-      {isDeploying && (
+      {/* Only the actionable deploy states get a banner now — the plain
+          "Deploying…" strip is redundant with the Manage panel's live status
+          beam, so we no longer render it. */}
+      {(deployFailed || isQueued) && (
         <div
           className={`rounded-lg border px-4 py-3 text-sm flex items-center justify-center gap-3 ${
             deployFailed
               ? "border-destructive/30 bg-destructive/10 text-destructive"
-              : isQueued
-                ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
-                : "border-blue-500/30 bg-blue-500/10 text-blue-300"
+              : "border-amber-500/30 bg-amber-500/10 text-amber-200"
           }`}
         >
           {deployFailed ? (
@@ -879,18 +880,11 @@ const BotSection = ({
                 {retrying ? "Retrying…" : "Retry deployment"}
               </Button>
             </>
-          ) : isQueued ? (
+          ) : (
             <>
               <span className="h-2 w-2 rounded-full bg-amber-300 animate-pulse" />
               <span className="font-medium text-center">
                 We're currently preparing your bot — our team is on it and you'll receive a Discord DM as soon as it's live. Thank you for your patience!
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
-              <span className="font-medium">
-                Deploying your bot… this usually takes 1–2 minutes.
               </span>
             </>
           )}
