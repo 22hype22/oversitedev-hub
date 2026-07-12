@@ -2,16 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   Play,
   Square,
   RotateCw,
@@ -430,39 +420,63 @@ export function BotManagePanel({
       </div>
 
       {/* ── engine confirm ── */}
-      <AlertDialog open={engineTarget !== null} onOpenChange={(o) => !o && !engineSaving && setEngineTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Switch to Components {engineTarget?.toUpperCase()}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Your bot may have a short period of downtime while the engine swaps over.
-              Commands and events may be briefly unavailable. Continue?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={engineSaving}>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={engineSaving} onClick={() => engineTarget && switchEngine(engineTarget)}>
-              {engineSaving ? "Switching…" : "Switch version"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmModal
+        open={engineTarget !== null}
+        title={`Switch to Components ${engineTarget?.toUpperCase() ?? ""}?`}
+        body="Your bot may have a short period of downtime while the engine swaps over. Commands and events may be briefly unavailable."
+        confirmLabel={engineSaving ? "Switching…" : "Switch version"}
+        busy={engineSaving}
+        onCancel={() => !engineSaving && setEngineTarget(null)}
+        onConfirm={() => engineTarget && switchEngine(engineTarget)}
+      />
 
       {/* ── control confirm ── */}
-      <AlertDialog open={confirmAction !== null} onOpenChange={(o) => !o && setConfirmAction(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{confirmMeta ? `${confirmMeta.label} this bot?` : ""}</AlertDialogTitle>
-            <AlertDialogDescription>{confirmMeta?.desc}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => confirmAction && send(confirmAction)}>
-              Yes, {confirmMeta?.label.toLowerCase()}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmModal
+        open={confirmAction !== null}
+        title={confirmMeta ? `${confirmMeta.label} this bot?` : ""}
+        body={confirmMeta?.desc ?? ""}
+        confirmLabel={`Yes, ${confirmMeta?.label.toLowerCase() ?? ""}`}
+        tone={confirmAction === "stop" ? "danger" : undefined}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => confirmAction && send(confirmAction)}
+      />
+    </div>
+  );
+}
+
+function ConfirmModal({
+  open,
+  title,
+  body,
+  confirmLabel,
+  tone,
+  busy = false,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  title: string;
+  body: string;
+  confirmLabel: string;
+  tone?: "danger";
+  busy?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) return null;
+  return (
+    <div className="mng2">
+      <style>{MANAGE_CSS}</style>
+      <div className="cfmask" onClick={onCancel}>
+        <div className="cfbox" role="alertdialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <div className="cft">{title}</div>
+          <div className="cfb">{body}</div>
+          <div className="cfa">
+            <button type="button" className="cfcancel" onClick={onCancel} disabled={busy}>Cancel</button>
+            <button type="button" className={`cfok ${tone ?? ""}`} onClick={onConfirm} disabled={busy}>{confirmLabel}</button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -482,7 +496,8 @@ const MANAGE_CSS = `
   --bad:#e98b8b;--badd:rgba(233,139,139,.12);--info:#93bbe0;--busy:#93bbe0;--busyd:rgba(147,187,224,.12);
   background:linear-gradient(180deg,rgba(255,255,255,.022),transparent 40%);
   border:1px solid var(--hair);border-radius:16px;overflow:hidden;
-  box-shadow:0 24px 60px -34px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.04)}
+  box-shadow:0 24px 60px -34px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.04);
+  font-family:'Manrope',system-ui,-apple-system,"Segoe UI",sans-serif}
 .mng2 svg{display:block}
 
 .mng2 .sec{padding:20px 22px;border-top:1px solid var(--line)}
@@ -548,7 +563,7 @@ const MANAGE_CSS = `
 .mng2 .ucell .uk{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);
   display:flex;align-items:center;gap:5px;white-space:nowrap}
 .mng2 .ucell .uk svg{width:12px;height:12px;flex:none;stroke:currentColor;stroke-width:2;fill:none;opacity:.75}
-.mng2 .ucell .uv{font-family:var(--disp);font-size:26px;font-weight:800;color:var(--heading);letter-spacing:-.025em;margin-top:9px;line-height:1}
+.mng2 .ucell .uv{font-family:'Manrope',system-ui,sans-serif;font-size:25px;font-weight:800;color:var(--heading);letter-spacing:-.02em;margin-top:9px;line-height:1}
 .mng2 .ucell.err .uv{color:var(--bad)}
 .mng2 .ucell.err .uk svg{color:var(--bad);opacity:1}
 .mng2 .ucap{font-size:11px;color:var(--faint);margin-top:12px;display:flex;align-items:center;gap:6px}
@@ -615,6 +630,27 @@ const MANAGE_CSS = `
 .mng2 .lrow .lv.debug{background:rgba(255,255,255,.06);color:var(--faint)}
 .mng2 .lrow .lm{color:var(--body);flex:1;min-width:0;line-height:1.45;word-break:break-word}
 .mng2 .lrow.empty2{color:var(--faint);justify-content:center;padding:26px 15px;font-size:12px}
+
+/* confirm modal */
+.mng2 .cfmask{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:rgba(10,13,17,.64);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+  animation:cffade .16s ease}
+.mng2 .cfbox{width:100%;max-width:432px;background:linear-gradient(180deg,#2b333c,#262d35);border:1px solid var(--hair);
+  border-radius:16px;padding:24px 24px 20px;box-shadow:0 34px 90px -30px rgba(0,0,0,.85),inset 0 1px 0 rgba(255,255,255,.05);
+  animation:cfpop .18s cubic-bezier(.22,1,.36,1)}
+.mng2 .cft{font-size:17px;font-weight:800;color:var(--heading);letter-spacing:-.01em}
+.mng2 .cfb{font-size:13px;color:var(--body);line-height:1.55;margin-top:10px}
+.mng2 .cfa{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
+.mng2 .cfa button{height:40px;padding:0 18px;border-radius:11px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:.15s}
+.mng2 .cfcancel{background:transparent;border:1px solid var(--hair);color:var(--body)}
+.mng2 .cfcancel:hover:not(:disabled){border-color:var(--line2);color:var(--heading)}
+.mng2 .cfok{border:0;background:linear-gradient(180deg,#d6e4ee,#c1d4e0);color:#1E242B;
+  box-shadow:0 2px 8px -2px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.5)}
+.mng2 .cfok:hover:not(:disabled){filter:brightness(1.05)}
+.mng2 .cfok.danger{background:linear-gradient(180deg,#eca6a6,#e08888);color:#2a1414}
+.mng2 .cfa button:disabled{opacity:.5;cursor:not-allowed}
+@keyframes cffade{from{opacity:0}to{opacity:1}}
+@keyframes cfpop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
 
 @media(max-width:660px){
   .mng2 .engrow{flex-direction:column;align-items:stretch}
