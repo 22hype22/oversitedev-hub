@@ -30,3 +30,4 @@ project_id = "prvqfjairnketwhmfshu"
   [functions.admin-link-bot]
     verify_jwt = true
 
+# trigger function deploy
