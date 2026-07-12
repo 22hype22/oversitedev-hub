@@ -27,4 +27,6 @@ project_id = "prvqfjairnketwhmfshu"
     verify_jwt = false
   [functions.bot-list-emojis]
     verify_jwt = false
+  [functions.admin-link-bot]
+    verify_jwt = true
 
