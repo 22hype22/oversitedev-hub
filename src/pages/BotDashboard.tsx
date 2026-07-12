@@ -643,7 +643,10 @@ const BotSection = ({
     <>
       <div className="meta1">
         <span
-          className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${statusMeta.className}`}
+          className={`inline-flex items-center gap-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${statusMeta.className}`}
+          /* Inline padding: the .osd *{padding:0} reset zeroes Tailwind px-*
+             utilities here, which made the label rub the pill edges. */
+          style={{ padding: "3px 11px" }}
         >
           {statusMeta.loading && !bot.isDemo && <HexagonLoader size={10} />}
           {statusMeta.label}
