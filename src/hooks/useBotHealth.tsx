@@ -43,11 +43,24 @@ export const useBotHealth = (botId: string | null) => {
     }
     setLoading(true);
     load();
-    // Poll every 10s so an offline → online transition after a Start /
-    // Restart / Redeploy is reflected on the dashboard within ~10s of the
-    // worker's first heartbeat, without requiring a manual refresh.
+    // Poll every 10s as a staleness fallback (a hard-killed worker can't
+    // report anything, so only the heartbeat age reveals it's gone).
     const t = setInterval(load, 10_000);
-    return () => clearInterval(t);
+    // Realtime: any worker/status write (online, starting, restarting,
+    // crashed, …) re-fetches immediately so transitions show up instantly
+    // instead of waiting out the poll interval.
+    const channel = supabase
+      .channel(`bot-health-${botId}-${Math.random().toString(36).slice(2)}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bot_runtime_status", filter: `bot_id=eq.${botId}` },
+        () => load(),
+      )
+      .subscribe();
+    return () => {
+      clearInterval(t);
+      supabase.removeChannel(channel);
+    };
   }, [botId, load]);
 
   return { health, loading, reload: load };
