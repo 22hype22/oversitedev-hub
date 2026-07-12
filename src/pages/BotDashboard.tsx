@@ -1723,6 +1723,12 @@ const BotDashboard = () => {
 
   useEffect(() => { if (loading) return; if (!user) navigate("/auth", { replace: true }); }, [user, loading, navigate]);
 
+  // Live runtime statuses for the bot list. MUST be called before the early
+  // returns below — hooks after a conditional return break React's hook order
+  // and crash the page on the loading → loaded transition.
+  const liveIds = useMemo(() => owned.filter((b) => isLive(b)).map((b) => b.id), [owned]);
+  const liveStatuses = useLiveBotStatuses(liveIds);
+
   if (loading || botsLoading) return <div className="min-h-screen bg-background grid place-items-center text-muted-foreground">Loading...</div>;
   if (!user) return null;
   const hasAccess = isAdmin || hasDashboardAccess;
@@ -1758,10 +1764,8 @@ const BotDashboard = () => {
   // ── Live runtime status for the list/table/cards ─────────────────────────
   // The order-based "Online" (status = live/ready) only says the bot was
   // delivered — not that it's actually running. Overlay the worker's live
-  // runtime status (realtime push) so Crashed / Restarting / Starting /
-  // Offline show up the moment they happen.
-  const liveIds = useMemo(() => owned.filter((b) => isLive(b)).map((b) => b.id), [owned]);
-  const liveStatuses = useLiveBotStatuses(liveIds);
+  // runtime status (liveStatuses, subscribed above the early returns) so
+  // Crashed / Restarting / Starting / Offline show up the moment they happen.
   const RUNTIME_WORD: Record<string, string> = {
     online: "Online", offline: "Offline", starting: "Starting…", stopping: "Stopping…",
     restarting: "Restarting…", crashed: "Crashed", updating: "Redeploying…", suspended: "Suspended",
