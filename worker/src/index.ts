@@ -812,10 +812,25 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (orderErr || !order) {
-      return new Response(JSON.stringify({ error: "Order not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      // Surface WHY the lookup failed — a DB error here (bad key, missing
+      // column, RLS) otherwise masquerades as a missing order forever.
+      console.error("[auto-deploy-bot] order lookup failed", {
+        orderId,
+        dbError: orderErr?.message ?? null,
+        dbCode: (orderErr as { code?: string } | null)?.code ?? null,
       });
+      return new Response(
+        JSON.stringify({
+          error: "Order not found",
+          orderId: orderId ?? null,
+          dbError: orderErr?.message ?? null,
+          dbCode: (orderErr as { code?: string } | null)?.code ?? null,
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // Concurrency lock: refuse to start a new deploy if one is already in
