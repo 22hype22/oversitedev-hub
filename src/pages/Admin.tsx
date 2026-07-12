@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import containers from "@/assets/containers.webp";
 import { rememberRedeemedGrant } from "@/hooks/useSupportGrants";
+import { getAddonIdsForBase } from "@/lib/botCatalog";
 
 /**
  * Admin panel — dashboard-styled shell. Layout is final; data hookups are wired
@@ -612,6 +613,21 @@ const ADMIN_HTML = `<div class="osd app">
               <div class="listcap">Slots</div>
               <div data-bw="slot-list"><div class="subnote">Loading…</div></div>
             </div>
+          </div>
+        </div>
+
+        <!-- Link existing bot -->
+        <div class="card" style="margin-top:14px">
+          <div class="ch"><span class="eye">Managed bots</span><h3>Link existing bot</h3><span class="mut">bring one of your live bots into the dashboard</span></div>
+          <div class="cb">
+            <div class="row2">
+              <div><label class="lbl">Bot name</label><input class="in" data-bw="link-name" placeholder="Oversite Protection"></div>
+              <div><label class="lbl">Base</label><div class="seg" data-bw="link-base"><button class="on" data-v="protection">Protection</button><button data-v="support">Support</button><button data-v="utilities">Utilities</button></div></div>
+            </div>
+            <div style="margin-top:10px"><label class="lbl">Discord bot token</label><input class="in mono" type="password" data-bw="link-token" placeholder="paste the bot's own token" autocomplete="off"></div>
+            <div style="margin-top:10px"><label class="lbl">Railway service ID <span class="mut">optional — reuses the running service</span></label><input class="in mono" data-bw="link-service" placeholder="leave empty to create a new service"></div>
+            <button class="btn" data-bw="link-submit" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>Link bot</button>
+            <div class="subnote" style="margin-top:10px">Validates the token with Discord, creates the order under your account with every add-on enabled, and deploys through the normal pipeline. The bot restarts once (~1–2 min) and then the whole dashboard controls it — status, identity, power, logs, metrics.</div>
           </div>
         </div>
 
@@ -1743,6 +1759,58 @@ function wireBots(root: HTMLElement): void {
     loadWorkerTokens();
   });
   loadWorkerTokens();
+
+  // ── Link existing bot (main Oversite bots → managed dashboard bots) ──
+  $('[data-bw="link-submit"]')?.addEventListener("click", async () => {
+    const name = val('[data-bw="link-name"]').trim();
+    const base =
+      $('[data-bw="link-base"] button.on')?.getAttribute("data-v") || "protection";
+    const token = val('[data-bw="link-token"]').trim();
+    const serviceId = val('[data-bw="link-service"]').trim();
+    if (!name) return toast.error("Bot name is required");
+    if (!token) return toast.error("Paste the bot's Discord token");
+    const btn = $('[data-bw="link-submit"]') as HTMLButtonElement | null;
+    if (btn) btn.disabled = true;
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-link-bot", {
+        body: {
+          botName: name,
+          base,
+          token,
+          railwayServiceId: serviceId || null,
+          // Linked (main) bots get every add-on for their base.
+          addons: getAddonIdsForBase(base),
+        },
+      });
+      if (error) {
+        let msg = error.message as string;
+        const ctx = (error as { context?: Response }).context;
+        if (ctx && typeof ctx.text === "function") {
+          try {
+            msg = (JSON.parse(await ctx.text()) as { error?: string })?.error ?? msg;
+          } catch {
+            /* ignore */
+          }
+        }
+        return toast.error(msg || "Couldn't link the bot");
+      }
+      const res = data as {
+        ok?: boolean;
+        error?: string;
+        botUsername?: string;
+        message?: string;
+      } | null;
+      if (!res?.ok) return toast.error(res?.error || "Couldn't link the bot");
+      toast.success(`Linked ${res.botUsername ?? name}`, {
+        description: res.message ?? "Deploying now — it appears in your dashboard in ~1–2 minutes.",
+      });
+      setVal('[data-bw="link-name"]', "");
+      setVal('[data-bw="link-token"]', "");
+      setVal('[data-bw="link-service"]', "");
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
 
   // ── Token pool ──
   const poolList = $('[data-bw="pool-list"]');
