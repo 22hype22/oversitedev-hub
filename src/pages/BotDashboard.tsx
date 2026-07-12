@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, useCallback, useLayoutEffect, useMemo, type ReactNode } from "react";
 import { useBotHealth } from "@/hooks/useBotHealth";
+import { useLiveBotStatuses } from "@/hooks/useLiveBotStatuses";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useOwnedBots, type OwnedBot } from "@/hooks/useOwnedBots";
@@ -1745,7 +1746,6 @@ const BotDashboard = () => {
     (user.email ? user.email.split("@")[0] : "") ||
     "you";
   const initial = (user.email?.[0] ?? "U").toUpperCase();
-  const liveCount = owned.filter(isLive).length;
   const activeBot = botId ? byId[botId] : null;
   const firstOwned = dashboardBots.find((b) => !b.isDemo && !b.viaTeam && !b.viaSupport);
   const spotlight = owned[0];
@@ -1755,7 +1755,34 @@ const BotDashboard = () => {
     <div className={"nav" + (view === v ? " on" : "")} data-view={v} id={extraId} onClick={() => go(v)}>{icon}{label}</div>
   );
 
-  const filt = (f: string) => (b: OwnedBot) => f === "all" ? true : f === "online" ? isLive(b) : !isLive(b);
+  // ── Live runtime status for the list/table/cards ─────────────────────────
+  // The order-based "Online" (status = live/ready) only says the bot was
+  // delivered — not that it's actually running. Overlay the worker's live
+  // runtime status (realtime push) so Crashed / Restarting / Starting /
+  // Offline show up the moment they happen.
+  const liveIds = useMemo(() => owned.filter((b) => isLive(b)).map((b) => b.id), [owned]);
+  const liveStatuses = useLiveBotStatuses(liveIds);
+  const RUNTIME_WORD: Record<string, string> = {
+    online: "Online", offline: "Offline", starting: "Starting…", stopping: "Stopping…",
+    restarting: "Restarting…", crashed: "Crashed", updating: "Redeploying…", suspended: "Suspended",
+  };
+  const RUNTIME_COLOR: Record<string, string> = {
+    online: "var(--ok)", offline: "var(--faint)", starting: "var(--gold)", stopping: "var(--gold)",
+    restarting: "var(--gold)", crashed: "var(--bad)", updating: "var(--gold)", suspended: "var(--gold)",
+  };
+  const runtimeOf = (b: OwnedBot): string | null =>
+    isLive(b) ? liveStatuses[b.id]?.effective ?? null : null;
+  const stColorLive = (b: OwnedBot) => {
+    const s = runtimeOf(b);
+    return s ? (RUNTIME_COLOR[s] ?? "var(--faint)") : stColor(b);
+  };
+  const stWordLive = (b: OwnedBot) => {
+    const s = runtimeOf(b);
+    return s ? (RUNTIME_WORD[s] ?? s) : stWord(b);
+  };
+
+  const filt = (f: string) => (b: OwnedBot) => f === "all" ? true : f === "online" ? stWordLive(b) === "Online" : stWordLive(b) !== "Online";
+  const liveCount = owned.filter((b) => stWordLive(b) === "Online").length;
 
   // Dashboard boxes, addressable by id so they can be reordered. The shared
   // order lives in dashOrder; admins drag to rearrange (saved for everyone),
@@ -1795,7 +1822,7 @@ const BotDashboard = () => {
               {owned.filter(filt(tableFilter)).map((b) => (
                 <tr key={b.id} onClick={() => openBot(b.id)}>
                   <td><div className="coin"><div className="a">{botSvg(b.base)}</div><div><div className="nm">{b.bot_name}</div><div className="tk">{BOT_BASE_LABELS[b.base] ?? b.base}</div></div></div></td>
-                  <td><span style={{ color: stColor(b) }}>● {stWord(b)}</span></td>
+                  <td><span style={{ color: stColorLive(b) }}>● {stWordLive(b)}</span></td>
                   <td className="num">{BOT_BASE_LABELS[b.base] ?? b.base}</td>
                   <td className="num">{b.addons.length}</td>
                   <td><button className="trade" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Manage</button></td>
@@ -1818,7 +1845,7 @@ const BotDashboard = () => {
             {owned.filter(filt(listFilter)).map((b) => (
               <div className="tok" key={b.id} onClick={() => openBot(b.id)}>
                 <div className="ic">{botSvg(b.base)}</div>
-                <div><div className="v">{b.bot_name}</div><div className="s">{stWord(b).toLowerCase()}</div></div>
+                <div><div className="v">{b.bot_name}</div><div className="s">{stWordLive(b).toLowerCase()}</div></div>
                 <button className="act" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Open</button>
               </div>
             ))}
@@ -1832,7 +1859,7 @@ const BotDashboard = () => {
           <div className="mname">{spotlight.bot_name} <span className="x">{BOT_BASE_LABELS[spotlight.base] ?? spotlight.base}</span></div>
           <div className="mhot">Your fleet</div>
           <div style={{ marginTop: "14px" }}>
-            <div className="mrow"><span className="k">Status</span><span className="v">{stWord(spotlight)}</span></div>
+            <div className="mrow"><span className="k">Status</span><span className="v" style={{ color: stColorLive(spotlight) }}>{stWordLive(spotlight)}</span></div>
             <div className="mrow"><span className="k">Add-ons</span><span className="v">{spotlight.addons.length}</span></div>
             <div className="mrow" style={{ borderBottom: 0 }}><span className="k">Engine</span><span className="v">{spotlight.engine_version === "v2" ? "V2" : "V1"}</span></div>
           </div>
@@ -2012,7 +2039,7 @@ const BotDashboard = () => {
                 {owned.map((b) => (
                   <div className="bcard" key={b.id} draggable onDragStart={() => onDragStart(b.id)} onDragOver={(e) => onDragOver(e, b.id)} onDragEnd={onDragEnd} onClick={() => openBot(b.id)}>
                     <div className="a">{botSvg(b.base)}</div>
-                    <div className="nm">{b.bot_name}</div><div className="st" style={{ color: stColor(b) }}>● {stWord(b)}</div>
+                    <div className="nm">{b.bot_name}</div><div className="st" style={{ color: stColorLive(b) }}>● {stWordLive(b)}</div>
                     <div className="bstats"><div className="bx"><span className="k">Base</span><span className="v num">{BOT_BASE_LABELS[b.base] ?? b.base}</span></div><div className="bx"><span className="k">Add-ons</span><span className="v num">{b.addons.length}</span></div></div>
                     <button className="ghost" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Open</button>
                   </div>
