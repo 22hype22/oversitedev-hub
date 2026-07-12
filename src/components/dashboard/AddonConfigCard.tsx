@@ -171,31 +171,26 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
 
   const persistEnabledFlag = async (next: boolean) => {
     const feature = TOGGLE_FEATURE_MAP[addonId];
-    console.log("[toggle] persistEnabledFlag start", { addonId, feature, botId, next });
     if (!feature || !botId) {
       console.warn("[toggle] aborting — missing feature or botId", { feature, botId });
       return;
     }
     try {
       // 1) Server-side JSONB merge: config = COALESCE(config,'{}') || {"enabled": next}
-      console.log("[toggle] calling set_bot_config_enabled", { botId, feature, next });
       const { error: mergeError } = await supabase.rpc("set_bot_config_enabled" as any, {
         _bot_id: botId,
         _feature: feature,
         _enabled: next,
       });
-      console.log("[toggle] set_bot_config_enabled result", { mergeError });
       if (mergeError) {
         toast.error(`Failed to save toggle: ${mergeError.message}`);
         return;
       }
       // 2) ALWAYS enqueue apply_config so the bot picks up the change immediately.
-      console.log("[toggle] BEFORE enqueue_apply_config", { botId, feature });
       const { data: cmdData, error: cmdError } = await supabase.rpc(
         "enqueue_apply_config" as any,
         { _bot_id: botId, _feature: feature },
       );
-      console.log("[toggle] AFTER enqueue_apply_config", { cmdData, cmdError });
       const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
       if (cmdError) {
         toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
@@ -210,7 +205,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   };
 
   const handleToggleEnabled = (next: boolean) => {
-    console.log("[toggle] handleToggleEnabled fired", { addonId, next });
     onToggleEnabled?.(next);
     void persistEnabledFlag(next);
   };
@@ -1226,7 +1220,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   }, [isBioPhrase, open, botId]);
 
   const saveBioPhrase = async () => {
-    console.log("[bio-phrase] saveBioPhrase called", { botId, values, enabled });
     if (!botId) {
       console.warn("[bio-phrase] aborting — missing botId");
       return toast.error("Missing bot id.");
@@ -1248,21 +1241,17 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         },
         updated_at: new Date().toISOString(),
       };
-      console.log("[bio-phrase] upserting bot_config", payload);
       const { data: upsertData, error } = await supabase
         .from("bot_config")
         .upsert(payload, { onConflict: "bot_id,feature" })
         .select();
-      console.log("[bio-phrase] upsert result", { upsertData, error });
       if (error) {
         toast.error(`Save failed: ${error.message}`);
         return;
       }
-      console.log("[bio-phrase] enqueueing apply_config", { botId });
       const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
         _bot_id: botId, _feature: "bio-phrase",
       });
-      console.log("[bio-phrase] enqueue_apply_config result", { cmdData, cmdError });
       const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
       if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
       else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
@@ -2611,27 +2600,38 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
 
   return (
     <>
+      <style>{`
+        .acard.acard{position:relative;height:210px;padding:18px;display:flex;flex-direction:column;border-radius:15px;
+          font-family:'Manrope',system-ui,-apple-system,"Segoe UI",sans-serif;border:1px solid #3a434d;
+          background:linear-gradient(180deg,#2d353e,#29313a);box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+          transition:transform .17s cubic-bezier(.22,1,.36,1),border-color .17s,box-shadow .17s;cursor:pointer}
+        .acard.on:hover{transform:translateY(-2px);border-color:rgba(201,219,230,.42);
+          box-shadow:0 16px 34px -18px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05)}
+        .acard.off{opacity:.5;filter:grayscale(.6);cursor:default;background:#272e36}
+        .acard .ac-head{display:flex;align-items:flex-start;gap:12px}
+        .acard .ac-ico{height:38px;width:38px;border-radius:11px;flex:none;display:grid;place-items:center;
+          background:rgba(201,219,230,.10);border:1px solid rgba(201,219,230,.42);color:#C9DBE6;transition:.17s}
+        .acard.on:hover .ac-ico{background:rgba(201,219,230,.16)}
+        .acard.off .ac-ico{background:#343d46;border-color:#3a434d;color:#788591}
+        .acard .ac-ico svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.8;fill:none}
+        .acard .ac-title{flex:1;min-width:0;font-size:14.5px;font-weight:700;line-height:1.25;letter-spacing:-.01em;color:#E8EEF3;padding-top:2px}
+        .acard.off .ac-title{color:#A8B4BF}
+        .acard .ac-sw{padding-top:2px;flex:none}
+        .acard .ac-summary{flex:1;margin-top:13px;font-size:12.5px;line-height:1.5;color:#788591}
+        .acard .ac-foot{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
+        .acard .ac-count{font-size:11.5px;font-weight:600;color:#788591}
+        .acard .ac-arrow{height:16px;width:16px;color:#788591;transition:transform .17s,color .17s}
+        .acard.on:hover .ac-arrow{color:#C9DBE6;transform:translateX(3px)}
+      `}</style>
       <Card
         onClick={() => enabled && setOpen(true)}
-        className={cn(
-          "group/card border-border transition-smooth p-6 flex flex-col h-[210px] relative",
-          enabled
-            ? "cursor-pointer bg-card hover:bg-card/80 hover:border-primary/50 hover:shadow-elegant"
-            : "bg-muted/30 opacity-60 grayscale cursor-default",
-        )}
+        className={cn("acard", enabled ? "on" : "off")}
       >
-        <div className="flex items-start gap-3 mb-3">
-          <div className={cn(
-            "h-10 w-10 rounded-lg border grid place-items-center shrink-0 transition-smooth",
-            enabled
-              ? "bg-primary/10 border-primary/20 group-hover/card:bg-primary/15"
-              : "bg-muted border-border",
-          )}>
-            <Icon className={cn("h-5 w-5", enabled ? "text-primary" : "text-muted-foreground")} />
-          </div>
-          <h3 className="font-semibold text-base leading-tight pt-1.5 flex-1">
-            {config.title}
-          </h3>
+        <div className="ac-head">
+          <span className="ac-ico">
+            <Icon />
+          </span>
+          <h3 className="ac-title">{config.title}</h3>
           {onToggleEnabled && (
             <div
               onClick={(e) => e.stopPropagation()}
@@ -2639,7 +2639,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               onPointerDownCapture={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
               onTouchStart={(e) => e.stopPropagation()}
-              className="pt-1"
+              className="ac-sw"
             >
               <Switch
                 checked={enabled}
@@ -2649,16 +2649,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
             </div>
           )}
         </div>
-        <p className="text-sm text-muted-foreground flex-1">{config.summary}</p>
-        <div className="flex items-center justify-between mt-3">
-          <span className="text-xs text-muted-foreground">
+        <p className="ac-summary">{config.summary}</p>
+        <div className="ac-foot">
+          <span className="ac-count">
             {enabled
               ? `${config.fields.length} setting${config.fields.length === 1 ? "" : "s"}`
               : "Disabled"}
           </span>
-          {enabled && (
-            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover/card:text-primary group-hover/card:translate-x-1 transition-smooth" />
-          )}
+          {enabled && <ArrowRight className="ac-arrow" />}
         </div>
       </Card>
 
@@ -2882,7 +2880,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 disabled={saving || !canEdit}
                 title={!canEdit ? `Your role (${role ?? "viewer"}) doesn't allow editing bot config` : undefined}
                 onClick={async () => {
-                  console.log("[AddonConfigCard] Save clicked", { addonId, isBioPhrase, isAntiSpam, canEdit, saving });
                   if (isSayCommand || isRules) {
                     setSaving(true);
                     try {
@@ -2909,11 +2906,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     return;
                   }
                   if (isTicketEditor) {
-                    console.log("[AddonConfigCard] TicketEditor ref:", ticketEditorRef.current);
                     setSaving(true);
                     try {
                       const ok = await ticketEditorRef.current?.save();
-                      console.log("[AddonConfigCard] ticketEditorRef.save() returned:", ok);
                       if (ok) setOpen(false);
                     } finally {
                       setSaving(false);
