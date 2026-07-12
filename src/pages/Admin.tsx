@@ -554,7 +554,22 @@ const ADMIN_HTML = `<div class="osd app">
 
       <!-- ───── BOTS & WORKERS ───── -->
       <div id="bots-content" style="display:none">
-        <!-- Worker tokens (hero) -->
+        <!-- Link existing bot (hero) -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="ch"><span class="eye">Managed bots</span><h3>Link existing bot</h3><span class="mut">bring one of your live bots into the dashboard</span></div>
+          <div class="cb">
+            <div class="row2">
+              <div><label class="lbl">Bot name</label><input class="in" data-bw="link-name" placeholder="Oversite Protection"></div>
+              <div><label class="lbl">Base</label><div class="seg" data-bw="link-base"><button class="on" data-v="protection">Protection</button><button data-v="support">Support</button><button data-v="utilities">Utilities</button></div></div>
+            </div>
+            <div style="margin-top:10px"><label class="lbl">Discord bot token</label><input class="in mono" type="password" data-bw="link-token" placeholder="paste the bot's own token" autocomplete="off"></div>
+            <div style="margin-top:10px"><label class="lbl">Railway service ID <span class="mut">optional — reuses the running service</span></label><input class="in mono" data-bw="link-service" placeholder="leave empty to create a new service"></div>
+            <button class="btn" data-bw="link-submit" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>Link bot</button>
+            <div class="subnote" style="margin-top:10px">Validates the token with Discord, creates the order under your account with every add-on enabled, and deploys through the normal pipeline. The bot restarts once (~1–2 min) and then the whole dashboard controls it — status, identity, power, logs, metrics.</div>
+          </div>
+        </div>
+
+        <!-- Worker tokens -->
         <div class="card" style="margin-bottom:16px">
           <div class="ch"><span class="eye">Auth</span><h3>Worker tokens</h3><span class="mut">the handshake every bot uses — treat like passwords</span></div>
           <div class="cb">
@@ -616,20 +631,6 @@ const ADMIN_HTML = `<div class="osd app">
           </div>
         </div>
 
-        <!-- Link existing bot -->
-        <div class="card" style="margin-top:14px">
-          <div class="ch"><span class="eye">Managed bots</span><h3>Link existing bot</h3><span class="mut">bring one of your live bots into the dashboard</span></div>
-          <div class="cb">
-            <div class="row2">
-              <div><label class="lbl">Bot name</label><input class="in" data-bw="link-name" placeholder="Oversite Protection"></div>
-              <div><label class="lbl">Base</label><div class="seg" data-bw="link-base"><button class="on" data-v="protection">Protection</button><button data-v="support">Support</button><button data-v="utilities">Utilities</button></div></div>
-            </div>
-            <div style="margin-top:10px"><label class="lbl">Discord bot token</label><input class="in mono" type="password" data-bw="link-token" placeholder="paste the bot's own token" autocomplete="off"></div>
-            <div style="margin-top:10px"><label class="lbl">Railway service ID <span class="mut">optional — reuses the running service</span></label><input class="in mono" data-bw="link-service" placeholder="leave empty to create a new service"></div>
-            <button class="btn" data-bw="link-submit" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>Link bot</button>
-            <div class="subnote" style="margin-top:10px">Validates the token with Discord, creates the order under your account with every add-on enabled, and deploys through the normal pipeline. The bot restarts once (~1–2 min) and then the whole dashboard controls it — status, identity, power, logs, metrics.</div>
-          </div>
-        </div>
 
       </div>
 
