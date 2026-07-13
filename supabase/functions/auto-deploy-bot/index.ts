@@ -777,7 +777,12 @@ Deno.serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  // Same workaround as the anon key below: on this project the auto-injected
+  // SUPABASE_SERVICE_ROLE_KEY may not carry service-role privileges (RLS then
+  // silently hides every row). SERVICE_ROLE_KEY_OVERRIDE is a user-managed
+  // secret holding a real service_role / sb_secret_ key and wins when set.
+  const serviceKey = Deno.env.get("SERVICE_ROLE_KEY_OVERRIDE") ||
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   // The auto-injected SUPABASE_ANON_KEY on newer projects is the publishable
   // key (sb_publishable_...), which PostgREST rejects. The worker needs the
   // legacy JWT anon key. Read it from LEGACY_ANON_JWT (user-managed secret)
@@ -814,10 +819,37 @@ Deno.serve(async (req) => {
     if (orderErr || !order) {
       // Surface WHY the lookup failed — a DB error here (bad key, missing
       // column, RLS) otherwise masquerades as a missing order forever.
+      // keyKind/keyRole/visibleRows expose the credential problem directly:
+      // no error + 0 visible rows means the key is anon-level and RLS is
+      // silently hiding the table from us.
+      const keyKind = serviceKey.startsWith("sb_secret_")
+        ? "sb_secret"
+        : serviceKey.startsWith("sb_publishable_")
+        ? "sb_publishable"
+        : serviceKey.startsWith("eyJ")
+        ? "legacy_jwt"
+        : "unknown";
+      let keyRole: string | null = null;
+      if (keyKind === "legacy_jwt") {
+        try {
+          keyRole = JSON.parse(atob(serviceKey.split(".")[1])).role ?? null;
+        } catch {
+          keyRole = "undecodable";
+        }
+      }
+      const { count: visibleRows, error: countErr } = await admin
+        .from("bot_orders")
+        .select("id", { count: "exact", head: true });
+      const usingOverride = Boolean(Deno.env.get("SERVICE_ROLE_KEY_OVERRIDE"));
       console.error("[auto-deploy-bot] order lookup failed", {
         orderId,
         dbError: orderErr?.message ?? null,
         dbCode: (orderErr as { code?: string } | null)?.code ?? null,
+        keyKind,
+        keyRole,
+        usingOverride,
+        visibleRows: visibleRows ?? null,
+        countError: countErr?.message ?? null,
       });
       return new Response(
         JSON.stringify({
@@ -825,6 +857,11 @@ Deno.serve(async (req) => {
           orderId: orderId ?? null,
           dbError: orderErr?.message ?? null,
           dbCode: (orderErr as { code?: string } | null)?.code ?? null,
+          keyKind,
+          keyRole,
+          usingOverride,
+          visibleRows: visibleRows ?? null,
+          countError: countErr?.message ?? null,
         }),
         {
           status: 404,
