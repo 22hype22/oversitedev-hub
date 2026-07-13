@@ -29,7 +29,7 @@ const Terms = lazy(() => import("./pages/Terms.tsx"));
 const MeetTheOwner = lazy(() => import("./pages/MeetTheOwner.tsx"));
 const MeetTheTeam = lazy(() => import("./pages/MeetTheTeam.tsx"));
 const Plugyxz = lazy(() => import("./pages/Plugyxz.tsx"));
-const SupportIdeas = lazy(() => import("./pages/SupportIdeas.tsx"));
+
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const Verify = lazy(() => import("./pages/Verify.tsx"));
 
