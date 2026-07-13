@@ -97,7 +97,7 @@ const App = () => {
                 <Route path="/checkout/setup" element={<CheckoutSetup />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/explore/team" element={<MeetTheTeam />} />
-                <Route path="/support-ideas" element={<SupportIdeas />} />
+                
                 <Route path="/explore/owner" element={<MeetTheOwner />} />
                 <Route path="/explore/plugyxz" element={<Plugyxz />} />
                 <Route path="/verify" element={<Verify />} />
