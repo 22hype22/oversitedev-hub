@@ -25,8 +25,11 @@ export type LiveBotStatus = {
 };
 
 const STALE_MS = 60_000;
-// Minimum gap between Railway verification calls (bot-status-sync).
-const SYNC_COOLDOWN_MS = 55_000;
+// Minimum gap between Railway verification calls (bot-status-sync). Short
+// enough that every 30s poll can re-verify — a bot kept online by Railway
+// checks (dead heartbeat loop) must be refreshed before the 60s staleness
+// cutoff or it dips offline between checks.
+const SYNC_COOLDOWN_MS = 25_000;
 // While an action is in flight (Restarting… / Redeploying… / Stopping… /
 // Starting…) poll and re-verify much faster so the transition plays out live.
 const TRANSITIONAL = new Set(["starting", "stopping", "restarting", "updating"]);
