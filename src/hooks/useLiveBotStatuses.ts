@@ -33,6 +33,34 @@ const TRANSITIONAL = new Set(["starting", "stopping", "restarting", "updating"])
 const FAST_POLL_MS = 5_000;
 const FAST_SYNC_COOLDOWN_MS = 10_000;
 
+/**
+ * Optimistic transitions ("pins"). The control panels call
+ * announceBotTransition the instant an action button is clicked, so the badge
+ * flips immediately — no round-trip, no realtime dependency. The pin shields
+ * the label from polls that still see the pre-action DB state, and releases
+ * as soon as the database reports either a transition of its own or the
+ * expected end state (or after PIN_MS as a failsafe).
+ */
+const OPTIMISTIC_EVENT = "oversite:bot-transition";
+const PIN_MS = 90_000;
+const EXPECTED_TERMINAL: Record<string, string> = {
+  stopping: "offline",
+  starting: "online",
+  restarting: "online",
+  updating: "online",
+};
+
+export type BotTransition = "starting" | "stopping" | "restarting" | "updating";
+
+export function announceBotTransition(botId: string, status: BotTransition) {
+  window.dispatchEvent(new CustomEvent(OPTIMISTIC_EVENT, { detail: { botId, status } }));
+}
+
+/** Cancel an announced transition (e.g. the action request failed). */
+export function clearBotTransition(botId: string) {
+  window.dispatchEvent(new CustomEvent(OPTIMISTIC_EVENT, { detail: { botId, status: null } }));
+}
+
 function effectiveOf(status: string | null, hb: string | null): string {
   const s = status ?? "offline";
   if (s === "online" && (!hb || Date.now() - new Date(hb).getTime() > STALE_MS)) {
@@ -45,6 +73,7 @@ export function useLiveBotStatuses(botIds: string[]) {
   const [rows, setRows] = useState<Record<string, { status: string; hb: string | null }>>({});
   const [tick, setTick] = useState(0);
   const lastSyncRef = useRef(0);
+  const pinsRef = useRef<Record<string, { status: string; until: number }>>({});
   // Stable key so the effect doesn't resubscribe on every render.
   const key = useMemo(() => botIds.slice().sort().join(","), [botIds]);
 
@@ -53,6 +82,27 @@ export function useLiveBotStatuses(botIds: string[]) {
     let cancelled = false;
     const ids = key.split(",");
 
+    // Overlay an active pin on top of what the database reports. Returns the
+    // row to display; drops the pin once the DB has caught up (shows its own
+    // transition, or reached the pinned action's expected end state).
+    const withPin = (
+      id: string,
+      db: { status: string; hb: string | null } | undefined,
+    ): { status: string; hb: string | null } | undefined => {
+      const pin = pinsRef.current[id];
+      if (!pin) return db;
+      const expected = EXPECTED_TERMINAL[pin.status];
+      if (
+        Date.now() > pin.until ||
+        (db && TRANSITIONAL.has(db.status)) ||
+        (db && effectiveOf(db.status, db.hb) === expected)
+      ) {
+        delete pinsRef.current[id];
+        return db;
+      }
+      return { status: pin.status, hb: db?.hb ?? null };
+    };
+
     const load = async (): Promise<boolean> => {
       const { data } = await (supabase.from("bot_runtime_status") as any)
         .select("bot_id, status, last_heartbeat_at")
@@ -60,7 +110,14 @@ export function useLiveBotStatuses(botIds: string[]) {
       if (cancelled || !data) return false;
       const next: Record<string, { status: string; hb: string | null }> = {};
       for (const r of data as { bot_id: string; status: string; last_heartbeat_at: string | null }[]) {
-        next[r.bot_id] = { status: r.status, hb: r.last_heartbeat_at };
+        next[r.bot_id] = withPin(r.bot_id, { status: r.status, hb: r.last_heartbeat_at })!;
+      }
+      // Pinned bots with no runtime row yet still need their label shown.
+      for (const id of Object.keys(pinsRef.current)) {
+        if (!next[id]) {
+          const pinned = withPin(id, undefined);
+          if (pinned) next[id] = pinned;
+        }
       }
       setRows(next);
 
@@ -87,10 +144,11 @@ export function useLiveBotStatuses(botIds: string[]) {
             setRows((prev) => {
               const merged = { ...prev };
               for (const [id, v] of Object.entries(verified)) {
-                merged[id] = {
+                const row = withPin(id, {
                   status: v.status,
                   hb: v.status === "online" ? now : prev[id]?.hb ?? null,
-                };
+                });
+                if (row) merged[id] = row;
               }
               return merged;
             });
@@ -126,10 +184,9 @@ export function useLiveBotStatuses(botIds: string[]) {
         (payload) => {
           const row = payload.new as { bot_id?: string; status?: string; last_heartbeat_at?: string | null } | null;
           if (!row?.bot_id) return;
-          setRows((prev) => ({
-            ...prev,
-            [row.bot_id as string]: { status: row.status ?? "offline", hb: row.last_heartbeat_at ?? null },
-          }));
+          const id = row.bot_id as string;
+          const merged = withPin(id, { status: row.status ?? "offline", hb: row.last_heartbeat_at ?? null });
+          if (merged) setRows((prev) => ({ ...prev, [id]: merged }));
           // A transition just started (e.g. the user hit Restart) — switch to
           // the fast poll right away instead of waiting out the 30s timer.
           if (TRANSITIONAL.has(row.status ?? "")) {
@@ -140,9 +197,33 @@ export function useLiveBotStatuses(botIds: string[]) {
       )
       .subscribe();
 
+    // Optimistic transitions from the control panels: flip the badge the
+    // moment the button is clicked and start the fast poll/verify cycle.
+    const onAnnounce = (e: Event) => {
+      const { botId, status } = ((e as CustomEvent).detail ?? {}) as {
+        botId?: string;
+        status?: string | null;
+      };
+      if (!botId || !ids.includes(botId)) return;
+      if (status && TRANSITIONAL.has(status)) {
+        pinsRef.current[botId] = { status, until: Date.now() + PIN_MS };
+        setRows((prev) => ({
+          ...prev,
+          [botId]: { status, hb: prev[botId]?.hb ?? null },
+        }));
+        lastSyncRef.current = 0; // let the next poll re-verify immediately
+      } else {
+        delete pinsRef.current[botId];
+      }
+      clearTimeout(timer);
+      timer = setTimeout(loop, status ? FAST_POLL_MS : 0);
+    };
+    window.addEventListener(OPTIMISTIC_EVENT, onAnnounce);
+
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      window.removeEventListener(OPTIMISTIC_EVENT, onAnnounce);
       supabase.removeChannel(channel);
     };
   }, [key]);
