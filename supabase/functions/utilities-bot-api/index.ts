@@ -184,6 +184,29 @@ Deno.serve(async (req) => {
       };
       if (body.guilds !== undefined) upsertData.guilds = body.guilds;
 
+      // During a zero-downtime redeploy the OLD container keeps heartbeating
+      // "online" while the new one builds — don't let that wipe out a fresh
+      // dashboard-driven transition (Restarting…/Redeploying…/Stopping…).
+      // bot-status-sync moves the label to its real end state from Railway.
+      const TRANSITIONAL = new Set(["stopping", "starting", "restarting", "updating"]);
+      const TRANSITION_HOLD_MS = 3 * 60_000;
+      if (status === "online") {
+        const { data: existing } = await admin
+          .from("bot_runtime_status")
+          .select("status, updated_at")
+          .eq("bot_id", botId)
+          .maybeSingle();
+        if (
+          existing &&
+          TRANSITIONAL.has(existing.status) &&
+          existing.updated_at &&
+          Date.now() - new Date(existing.updated_at).getTime() < TRANSITION_HOLD_MS
+        ) {
+          upsertData.status = existing.status;
+          delete upsertData.updated_at; // preserve the transition's start time
+        }
+      }
+
       const { error: upsertError } = await admin
         .from("bot_runtime_status")
         .upsert(upsertData, { onConflict: "bot_id" });
