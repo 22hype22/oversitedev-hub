@@ -8,13 +8,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMembership } from "@/hooks/useMembership";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
 import { DiscordJoinGate } from "@/components/checkout/DiscordJoinGate";
+import heroBg from "@/assets/hero-bg.jpg";
 import { track } from "@/lib/analytics";
 
 // Self-contained "system page" shell (mountain backdrop + frosted slate glass).
 // Inlined rather than shared so no extra file is required.
 const OSSYS_CSS = `
 .ossys{--os-heading:#E8EEF3;--os-body:#A8B4BF;--os-faint:#788591;--os-accent:#C9DBE6;--os-accent-ink:#1E242B;--os-hair:rgba(168,180,191,.16);position:relative;min-height:100vh;display:flex;flex-direction:column;overflow:hidden;color:var(--os-body);font-family:'Manrope',system-ui,-apple-system,sans-serif;background:radial-gradient(130% 85% at 50% 118%,rgba(201,219,230,.14),transparent 55%),radial-gradient(95% 70% at 50% -15%,rgba(70,82,94,.55),transparent 60%),linear-gradient(180deg,#293038,#1e242b)}
-.ossys-mid{position:relative;z-index:2;flex:1;display:grid;place-items:center;padding:64px 16px}
+.ossys-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 28%;opacity:.55;pointer-events:none}
+.ossys-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(30,36,43,.45),rgba(30,36,43,.88));pointer-events:none}
+.ossys-mid{position:relative;z-index:2;flex:1;display:flex;align-items:center;justify-content:center;padding:64px 16px}
+@media(min-width:1100px){.ossys-mid{justify-content:flex-start;padding-left:7vw}}
 .ossys-foot{position:relative;z-index:2;padding-bottom:22px;text-align:center;font-size:12px;color:var(--os-faint)}
 .ossys-foot a{color:var(--os-faint);text-decoration:none;transition:color .15s}
 .ossys-foot a:hover{color:var(--os-heading)}
@@ -98,6 +102,9 @@ export default function CheckoutReturn() {
   return (
     <main className="ossys">
       <style>{OSSYS_CSS}</style>
+      {/* Mountain backdrop — card sits left on desktop so the peak stays visible */}
+      <img src={heroBg} alt="" aria-hidden="true" className="ossys-bg" />
+      <div className="ossys-shade" />
       <div className="ossys-mid">
        <div style={{ width: "100%", maxWidth: 560 }}>
       <div className="ossys-card relative">
