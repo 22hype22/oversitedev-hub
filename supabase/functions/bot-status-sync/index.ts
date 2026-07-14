@@ -28,7 +28,11 @@ const json = (status: number, data: unknown) =>
 const RAILWAY_API = "https://backboard.railway.app/graphql/v2";
 
 // A heartbeat younger than this is trusted as-is and never overridden.
-const FRESH_MS = 45_000;
+// Kept well under the dashboard's 60s staleness cutoff so bots whose
+// heartbeat loop is dead (kept online by these Railway checks) get their
+// timestamp refreshed on every 30s poll instead of dipping offline between
+// checks.
+const FRESH_MS = 25_000;
 // Don't hammer Railway: at most this many services checked per call.
 const MAX_CHECKS = 12;
 // Dashboard-driven transitions (stopping/starting/restarting/updating).
