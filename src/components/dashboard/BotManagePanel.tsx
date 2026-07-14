@@ -15,6 +15,11 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { type OwnedBot } from "@/hooks/useOwnedBots";
+import {
+  announceBotTransition,
+  clearBotTransition,
+  type BotTransition,
+} from "@/hooks/useLiveBotStatuses";
 import { type BotHealth, formatUptime, formatRelative } from "@/hooks/useBotHealth";
 import { useBotUsageMetrics, type BotUsageDay } from "@/hooks/useBotUsageMetrics";
 import { useBotServerSlots } from "@/hooks/useBotServerSlots";
@@ -122,6 +127,15 @@ export function BotManagePanel({
 
   const send = async (action: Action) => {
     setPending(action);
+    // Flip the status badge immediately — the pin in useLiveBotStatuses keeps
+    // the label until the backend confirms the transition or its end state.
+    const optimistic: Record<Action, BotTransition> = {
+      start: "starting",
+      stop: "stopping",
+      restart: "restarting",
+      redeploy: "updating",
+    };
+    announceBotTransition(bot.id, optimistic[action]);
     let ok = false;
     let errorMsg: string | null = null;
     try {
@@ -162,6 +176,7 @@ export function BotManagePanel({
     setConfirmAction(null);
     setPending(null);
     if (!ok) {
+      clearBotTransition(bot.id);
       toast.error(errorMsg ?? "Request failed");
       refreshHistory();
       return;
