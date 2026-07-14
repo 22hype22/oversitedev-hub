@@ -8,18 +8,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMembership } from "@/hooks/useMembership";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
 import { DiscordJoinGate } from "@/components/checkout/DiscordJoinGate";
-import oversiteLogo from "@/assets/oversite-logo.png";
-import containers from "@/assets/containers.webp";
 import { track } from "@/lib/analytics";
 
 // Self-contained "system page" shell (mountain backdrop + frosted slate glass).
 // Inlined rather than shared so no extra file is required.
 const OSSYS_CSS = `
-.ossys{--os-heading:#E8EEF3;--os-body:#A8B4BF;--os-faint:#788591;--os-accent:#C9DBE6;--os-accent-ink:#1E242B;--os-hair:rgba(168,180,191,.16);position:relative;min-height:100vh;display:flex;flex-direction:column;overflow:hidden;color:var(--os-body);font-family:'Manrope',system-ui,-apple-system,sans-serif;background:radial-gradient(120% 80% at 50% 120%,rgba(201,219,230,.10),transparent 55%),linear-gradient(180deg,rgba(28,34,41,.58),rgba(20,25,31,.82)),var(--os-mtn,none) center 20%/cover no-repeat,#1e242b}
-.ossys-top{position:relative;z-index:2;padding:22px 26px}
-.ossys-top img{height:30px;width:auto;object-fit:contain}
-.ossys-mid{position:relative;z-index:2;flex:1;display:grid;place-items:center;padding:16px 16px 64px}
+.ossys{--os-heading:#E8EEF3;--os-body:#A8B4BF;--os-faint:#788591;--os-accent:#C9DBE6;--os-accent-ink:#1E242B;--os-hair:rgba(168,180,191,.16);position:relative;min-height:100vh;display:flex;flex-direction:column;overflow:hidden;color:var(--os-body);font-family:'Manrope',system-ui,-apple-system,sans-serif;background:radial-gradient(130% 85% at 50% 118%,rgba(201,219,230,.14),transparent 55%),radial-gradient(95% 70% at 50% -15%,rgba(70,82,94,.55),transparent 60%),linear-gradient(180deg,#293038,#1e242b)}
+.ossys-mid{position:relative;z-index:2;flex:1;display:grid;place-items:center;padding:64px 16px}
 .ossys-foot{position:relative;z-index:2;padding-bottom:22px;text-align:center;font-size:12px;color:var(--os-faint)}
+.ossys-foot a{color:var(--os-faint);text-decoration:none;transition:color .15s}
+.ossys-foot a:hover{color:var(--os-heading)}
+.ossys-foot .sep{margin:0 10px;opacity:.45}
 .ossys-card{width:100%;border:1px solid var(--os-hair);border-radius:20px;background:linear-gradient(180deg,rgba(46,54,63,.72),rgba(39,46,54,.8));-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:0 34px 90px -34px rgba(0,0,0,.8);padding:38px 34px;text-align:center}
 `;
 
@@ -97,13 +96,8 @@ export default function CheckoutReturn() {
   }, [isBotOrder]);
 
   return (
-    <main className="ossys" style={{ ["--os-mtn" as any]: `url(${containers})` }}>
+    <main className="ossys">
       <style>{OSSYS_CSS}</style>
-      <div className="ossys-top">
-        <Link to="/" aria-label="Oversite — home">
-          <img src={oversiteLogo} alt="Oversite" />
-        </Link>
-      </div>
       <div className="ossys-mid">
        <div style={{ width: "100%", maxWidth: 560 }}>
       <div className="ossys-card relative">
@@ -218,7 +212,14 @@ export default function CheckoutReturn() {
       </div>
        </div>
       </div>
-      <div className="ossys-foot">Order reference kept on file · Oversite</div>
+      {/* Legal footer — each opens the tabbed /terms page in a new tab */}
+      <div className="ossys-foot">
+        <a href="/terms#terms" target="_blank" rel="noopener noreferrer">Terms of Use</a>
+        <span className="sep">·</span>
+        <a href="/terms#privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+        <span className="sep">·</span>
+        <a href="/terms#refunds" target="_blank" rel="noopener noreferrer">Sales &amp; Refunds</a>
+      </div>
     </main>
   );
 }
