@@ -31,6 +31,12 @@ const RAILWAY_API = "https://backboard.railway.app/graphql/v2";
 const FRESH_MS = 45_000;
 // Don't hammer Railway: at most this many services checked per call.
 const MAX_CHECKS = 12;
+// Dashboard-driven transitions (stopping/starting/restarting/updating).
+// Right after one of these is written, Railway's latest deployment can still
+// read SUCCESS from *before* the action took effect — so for this window a
+// SUCCESS is ignored rather than clobbering the transition back to online.
+const TRANSITIONAL = new Set(["stopping", "starting", "restarting", "updating"]);
+const TRANSITION_GRACE_MS = 45_000;
 
 async function railway(query: string, variables: Record<string, unknown>) {
   const token = Deno.env.get("RAILWAY_API_TOKEN");
@@ -155,7 +161,7 @@ Deno.serve(async (req) => {
     // Trust fresh heartbeats — only second-guess stale or non-online rows.
     const { data: runtime } = await admin
       .from("bot_runtime_status")
-      .select("bot_id, status, last_heartbeat_at")
+      .select("bot_id, status, last_heartbeat_at, updated_at")
       .in("bot_id", orders.map((o: any) => o.id));
     const runtimeById = new Map<string, any>(
       (runtime ?? []).map((r: any) => [r.bot_id, r]),
@@ -180,6 +186,21 @@ Deno.serve(async (req) => {
           const railwayStatus = await latestDeploymentStatus(order.railway_service_id);
           if (!railwayStatus) return;
           const mapped = mapStatus(railwayStatus);
+
+          // Mid-transition rules: keep the user-facing label ("Restarting…",
+          // "Redeploying…") until Railway reaches a terminal state.
+          const current = runtimeById.get(order.id);
+          if (current && TRANSITIONAL.has(current.status)) {
+            const age = current.updated_at
+              ? Date.now() - new Date(current.updated_at).getTime()
+              : Infinity;
+            // Don't downgrade a named transition to the generic "starting".
+            if (mapped === "starting") return;
+            // A SUCCESS this soon after the action is almost certainly the
+            // deployment from *before* it — wait for the next check.
+            if (mapped === "online" && age < TRANSITION_GRACE_MS) return;
+          }
+
           statuses[order.id] = { status: mapped, railway: railwayStatus };
 
           const now = new Date().toISOString();
