@@ -21,6 +21,11 @@ import {
 import { Play, Square, RotateCw, Download, Power } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import {
+  announceBotTransition,
+  clearBotTransition,
+  type BotTransition,
+} from "@/hooks/useLiveBotStatuses";
 
 type Action = "start" | "stop" | "restart" | "redeploy";
 
@@ -117,6 +122,15 @@ export function BotControlsPanel({ botId, isOffline = false, onCommandSent }: Bo
 
   const send = async (action: Action) => {
     setPending(action);
+    // Flip the status badge immediately — the pin in useLiveBotStatuses keeps
+    // the label until the backend confirms the transition or its end state.
+    const optimistic: Record<Action, BotTransition> = {
+      start: "starting",
+      stop: "stopping",
+      restart: "restarting",
+      redeploy: "updating",
+    };
+    announceBotTransition(botId, optimistic[action]);
     let ok = false;
     let errorMsg: string | null = null;
 
@@ -189,6 +203,7 @@ export function BotControlsPanel({ botId, isOffline = false, onCommandSent }: Bo
     setPending(null);
 
     if (!ok) {
+      clearBotTransition(botId);
       toast.error(errorMsg ?? "Request failed");
       refresh();
       return;
