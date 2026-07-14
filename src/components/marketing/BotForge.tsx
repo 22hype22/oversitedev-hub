@@ -82,6 +82,7 @@ import {
   Settings2,
   MessageSquare,
   Gamepad2,
+  Loader2,
 } from "lucide-react";
 
 type Base = {
@@ -962,6 +963,27 @@ export function BotForge() {
 
   return (
     <section id="build" className="mt-24 scroll-mt-24">
+      {/* Placing-order overlay — the submit path does real server work
+          (order persist, comp check, Stripe setup) before redirecting, so
+          without this the click looks dead for several seconds. Shown for
+          the whole submit and kept up through the redirect (submitting is
+          intentionally never reset on the success paths). */}
+      {submitting && (
+        <div
+          className="fixed inset-0 z-[100] grid place-items-center"
+          style={{ background: "rgba(15,19,24,.72)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-os-hairline/40 bg-os-surface/90 px-10 py-8 shadow-2xl">
+            <Loader2 className="h-7 w-7 animate-spin text-os-accent" />
+            <div className="text-sm font-semibold text-os-heading">Placing your order…</div>
+            <div className="text-xs text-os-faint">
+              Setting everything up — this takes a few seconds. Don't close this tab.
+            </div>
+          </div>
+        </div>
+      )}
       <div className="max-w-3xl">
         <h2 className="font-display text-3xl md:text-5xl font-bold tracking-tight text-os-heading">
           Design your <span className="text-os-accent">dream bot.</span>
