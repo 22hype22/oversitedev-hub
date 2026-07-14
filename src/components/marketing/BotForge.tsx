@@ -296,6 +296,11 @@ export function BotForge() {
       cancelled = true;
     };
   }, [user?.email]);
+  // A comped order is always fulfilled in full at $0 — never as installments —
+  // so pin the plan to "full" in case one was selected before the check resolved.
+  useEffect(() => {
+    if (comped) setPaymentPlan("full");
+  }, [comped]);
   const { hasDashboardAccess: dashboardAlreadyOwned } = useOwnedBots();
   const { isLive: salesLive } = useBotSalesMode();
   const stockCount = useBotStockCount();
@@ -1921,45 +1926,63 @@ export function BotForge() {
                   </p>
                 </div>
 
-                {/* Financing — split the total into monthly installments */}
+                {/* Financing — split the total into monthly installments.
+                    Comped accounts never pay, so the plan picker is replaced
+                    with a single "no payment required" panel. */}
                 <div className="mt-3 rounded-xl border border-os-hairline/40 bg-os-surface/30 backdrop-blur-sm p-4">
                   <div className="flex items-center gap-2 text-xs font-medium text-os-heading mb-2">
                     <CreditCard size={12} className="text-os-accent" />
                     How would you like to pay?
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {([
-                      { id: "full", label: "Pay in full", sub: `$${finalTotal.toFixed(2)} once` },
-                      { id: "3", label: "3 months", sub: `$${(finalTotal / 3).toFixed(2)}/mo` },
-                      { id: "6", label: "6 months", sub: `$${(finalTotal / 6).toFixed(2)}/mo` },
-                      { id: "10", label: "10 months", sub: `$${(finalTotal / 10).toFixed(2)}/mo` },
-                    ] as const).map((opt) => {
-                      const active = paymentPlan === opt.id;
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => setPaymentPlan(opt.id)}
-                          className={`text-left rounded-lg border p-2.5 transition ${
-                            active
-                              ? "border-os-accent bg-os-accent/10 shadow-[0_0_30px_-10px_rgb(var(--os-accent)/0.6)]"
-                              : "border-os-hairline/40 bg-os-bg/40 hover:border-os-accent/50"
-                          }`}
-                        >
-                          <div className="text-xs font-medium text-os-heading flex items-center justify-between">
-                            {opt.label}
-                            {active && <Check size={12} className="text-os-accent" />}
-                          </div>
-                          <div className="text-[10px] text-os-faint mt-0.5">{opt.sub}</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p className="text-[10px] text-os-faint mt-2.5 leading-relaxed">
-                    {paymentPlan === "full"
-                      ? "One charge once we confirm your build scope."
-                      : `${paymentPlan} equal monthly payments — no fees, no interest. Build starts after the first payment clears.`}
-                  </p>
+                  {comped ? (
+                    <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3">
+                      <div className="text-xs font-medium text-emerald-400 flex items-center gap-1.5">
+                        <Check size={12} /> No payment required
+                      </div>
+                      <div className="text-[10px] text-os-faint mt-1 leading-relaxed">
+                        This account is comped —{" "}
+                        <span className="line-through">${total.toFixed(2)} once</span>{" "}
+                        <span className="text-emerald-400 font-medium">$0.00</span>. No card
+                        needed; your build starts as soon as you place the order.
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        {([
+                          { id: "full", label: "Pay in full", sub: `$${finalTotal.toFixed(2)} once` },
+                          { id: "3", label: "3 months", sub: `$${(finalTotal / 3).toFixed(2)}/mo` },
+                          { id: "6", label: "6 months", sub: `$${(finalTotal / 6).toFixed(2)}/mo` },
+                          { id: "10", label: "10 months", sub: `$${(finalTotal / 10).toFixed(2)}/mo` },
+                        ] as const).map((opt) => {
+                          const active = paymentPlan === opt.id;
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => setPaymentPlan(opt.id)}
+                              className={`text-left rounded-lg border p-2.5 transition ${
+                                active
+                                  ? "border-os-accent bg-os-accent/10 shadow-[0_0_30px_-10px_rgb(var(--os-accent)/0.6)]"
+                                  : "border-os-hairline/40 bg-os-bg/40 hover:border-os-accent/50"
+                              }`}
+                            >
+                              <div className="text-xs font-medium text-os-heading flex items-center justify-between">
+                                {opt.label}
+                                {active && <Check size={12} className="text-os-accent" />}
+                              </div>
+                              <div className="text-[10px] text-os-faint mt-0.5">{opt.sub}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[10px] text-os-faint mt-2.5 leading-relaxed">
+                        {paymentPlan === "full"
+                          ? "One charge once we confirm your build scope."
+                          : `${paymentPlan} equal monthly payments — no fees, no interest. Build starts after the first payment clears.`}
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
