@@ -1543,7 +1543,6 @@ const BotDashboard = () => {
   );
   const [botId, setBotId] = useState<string | null>(() => lsGet(LS.bot) || null);
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
-  const [cancelling, setCancelling] = useState(false);
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
 
   // The currently-rendered dashboard order (subset of dashOrder that has a
@@ -1719,7 +1718,27 @@ const BotDashboard = () => {
   const openPortal = async () => { const { data, error } = await supabase.functions.invoke("customer-portal"); if (error) { toast.error("Couldn't open billing portal", { description: error.message }); return; } const url = (data as { url?: string } | null)?.url; if (url) window.location.href = url; else toast.error("No billing portal available yet."); };
   const [confirmOut, setConfirmOut] = useState(false);
   const signOut = async () => { await supabase.auth.signOut(); navigate("/auth", { replace: true }); };
-  const cancelOrder = async (bot: OwnedBot) => { if (!user) return; setCancelling(true); const { error } = await (supabase as any).from("bot_orders").update({ status: "cancelled" }).eq("id", bot.id).eq("user_id", user.id); setCancelling(false); if (error) { toast.error("Couldn't cancel — " + error.message); return; } toast.success(`Cancelled "${bot.bot_name}"`); setCancelTarget(null); reload(); };
+  // Optimistic cancel: the status update fires server-side triggers and can
+  // take many seconds, so close the dialog immediately and track the work
+  // with a toast instead of freezing the UI on the button.
+  const cancelOrder = (bot: OwnedBot) => {
+    if (!user) return;
+    setCancelTarget(null);
+    const work = (supabase as any)
+      .from("bot_orders")
+      .update({ status: "cancelled" })
+      .eq("id", bot.id)
+      .eq("user_id", user.id)
+      .then(({ error }: { error: { message: string } | null }) => {
+        if (error) throw new Error(error.message);
+        reload();
+      });
+    toast.promise(work, {
+      loading: `Cancelling "${bot.bot_name}"…`,
+      success: `Cancelled "${bot.bot_name}"`,
+      error: (e: Error) => "Couldn't cancel — " + e.message,
+    });
+  };
 
   useEffect(() => { if (loading) return; if (!user) navigate("/auth", { replace: true }); }, [user, loading, navigate]);
 
@@ -2179,10 +2198,10 @@ const BotDashboard = () => {
       </div>
 
       <NewOwnerBillingDialog forceOpen={new URLSearchParams(window.location.search).get("team_transfer") === "accepted"} />
-      <AlertDialog open={!!cancelTarget} onOpenChange={(o) => !o && !cancelling && setCancelTarget(null)}>
+      <AlertDialog open={!!cancelTarget} onOpenChange={(o) => !o && setCancelTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Cancel subscription for "{cancelTarget?.bot_name}"?</AlertDialogTitle><AlertDialogDescription>This stops recurring payments and hosting, takes the bot offline, and removes it from your dashboard.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel disabled={cancelling}>Keep subscription</AlertDialogCancel><AlertDialogAction disabled={cancelling} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(e) => { e.preventDefault(); if (cancelTarget) cancelOrder(cancelTarget); }}>{cancelling ? "Cancelling…" : "Yes, cancel"}</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogFooter><AlertDialogCancel>Keep subscription</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(e) => { e.preventDefault(); if (cancelTarget) cancelOrder(cancelTarget); }}>Yes, cancel</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
       <AddAddonsDialog bot={addonsTarget} open={!!addonsTarget} onOpenChange={(o) => !o && setAddonsTarget(null)} />
