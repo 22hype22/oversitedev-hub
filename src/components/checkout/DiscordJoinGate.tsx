@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Loader2, ExternalLink, MessageSquare, Clock, Bot } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -19,7 +18,36 @@ type Phase =
  *     server-side whether the order takes the in-stock path (status -> ready,
  *     auto-deploy fires) or the waitlist path (status -> waitlisted, customer
  *     gets a "still want to proceed?" DM the moment a slot opens up).
+ *
+ * Styled with the OSSYS slate palette (CSS vars inherited from the .ossys
+ * page shell) — deliberately no shadcn theme colors here so the card matches
+ * the system page instead of the default blue component theme.
  */
+
+const card: React.CSSProperties = {
+  marginBottom: 24,
+  borderRadius: 14,
+  border: "1px solid var(--os-hair)",
+  background: "rgba(232,238,243,.045)",
+  padding: "18px 20px",
+  textAlign: "left",
+};
+
+const pillBase: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  borderRadius: 999,
+  padding: "8px 18px",
+  fontSize: 12,
+  fontWeight: 700,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase" as const,
+  cursor: "pointer",
+  transition: "filter .15s, background .15s",
+  border: "1px solid transparent",
+};
+
 export const DiscordJoinGate = ({ orderId }: { orderId: string }) => {
   const [phase, setPhase] = useState<Phase>({ kind: "join" });
   const [busy, setBusy] = useState(false);
@@ -47,29 +75,46 @@ export const DiscordJoinGate = ({ orderId }: { orderId: string }) => {
 
   if (phase.kind === "join") {
     return (
-      <div className="mb-6 rounded-lg border border-primary/30 bg-primary/5 p-5 text-left">
-        <div className="flex items-start gap-3">
-          <MessageSquare className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm font-semibold">One more step — join our Discord</p>
-            <p className="text-xs text-muted-foreground mt-1">
+      <div style={card}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+          <MessageSquare size={18} style={{ color: "var(--os-accent)", flexShrink: 0, marginTop: 2 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 14, fontWeight: 700, color: "var(--os-heading)", margin: 0 }}>
+              One more step — join our Discord
+            </p>
+            <p style={{ fontSize: 12, color: "var(--os-body)", margin: "6px 0 0", lineHeight: 1.55 }}>
               Join the Oversite Discord server so we can DM you build progress, deployment
               notifications, and (if needed) confirm your order details.
             </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button asChild size="sm" variant="outlineGlow">
-                <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer">
-                  Open Discord <ExternalLink className="h-3.5 w-3.5 ml-1" />
-                </a>
-              </Button>
-              <Button
-                size="sm"
-                variant="hero"
+            <div style={{ marginTop: 14, display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <a
+                href={DISCORD_INVITE}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  ...pillBase,
+                  border: "1px solid var(--os-hair)",
+                  color: "var(--os-heading)",
+                  background: "rgba(232,238,243,.05)",
+                  textDecoration: "none",
+                }}
+              >
+                Open Discord <ExternalLink size={13} />
+              </a>
+              <button
+                type="button"
                 onClick={onJoinConfirmed}
                 disabled={busy}
+                style={{
+                  ...pillBase,
+                  background: "var(--os-accent)",
+                  color: "var(--os-accent-ink)",
+                  opacity: busy ? 0.6 : 1,
+                  pointerEvents: busy ? "none" : "auto",
+                }}
               >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "I've joined"}
-              </Button>
+                {busy ? <Loader2 size={14} className="animate-spin" /> : "I've joined"}
+              </button>
             </div>
           </div>
         </div>
@@ -79,12 +124,14 @@ export const DiscordJoinGate = ({ orderId }: { orderId: string }) => {
 
   if (phase.kind === "in_stock") {
     return (
-      <div className="mb-6 rounded-lg border border-primary/30 bg-primary/5 p-5 text-left">
-        <div className="flex items-start gap-3">
-          <Bot className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+      <div style={card}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+          <Bot size={18} style={{ color: "#86d3a1", flexShrink: 0, marginTop: 2 }} />
           <div>
-            <p className="text-sm font-semibold">Your bot is being built!</p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p style={{ fontSize: 14, fontWeight: 700, color: "var(--os-heading)", margin: 0 }}>
+              Your bot is being built!
+            </p>
+            <p style={{ fontSize: 12, color: "var(--os-body)", margin: "6px 0 0", lineHeight: 1.55 }}>
               A bot slot has been reserved and your build has been queued. You'll get a
               Discord DM the moment it's live. This usually takes less than a minute.
             </p>
@@ -96,18 +143,18 @@ export const DiscordJoinGate = ({ orderId }: { orderId: string }) => {
 
   // waitlist
   return (
-    <div className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/5 p-5 text-left">
-      <div className="flex items-start gap-3">
-        <Clock className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+    <div style={{ ...card, border: "1px solid rgba(245,196,110,.35)", background: "rgba(245,196,110,.06)" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <Clock size={18} style={{ color: "#f5c46e", flexShrink: 0, marginTop: 2 }} />
         <div>
-          <p className="text-sm font-semibold">
+          <p style={{ fontSize: 14, fontWeight: 700, color: "var(--os-heading)", margin: 0 }}>
             You're on the waitlist
             {phase.botsNeeded > 1 ? ` (${phase.botsNeeded} bots)` : ""}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            All bot slots are currently allocated. The moment one opens up,
-            we'll DM you on Discord asking if you'd like us to deploy — just
-            reply <strong>YES</strong> and your bot goes live.
+          <p style={{ fontSize: 12, color: "var(--os-body)", margin: "6px 0 0", lineHeight: 1.55 }}>
+            All bot slots are currently allocated. The moment one opens up, we'll DM you on
+            Discord asking if you'd like us to deploy — just reply <strong>YES</strong> and
+            your bot goes live.
           </p>
         </div>
       </div>
