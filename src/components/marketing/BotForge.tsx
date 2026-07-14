@@ -273,6 +273,29 @@ export function BotForge() {
     track("build_started");
   }, []);
   const { user, isAdmin } = useAuth();
+  // COMP LIST: accounts on public.comped_emails never pay. The is_comped_email()
+  // RPC answers yes/no for the signed-in user (the table itself is admin-only),
+  // so the estimate can show the price slashed to $0.00 up front instead of
+  // only revealing the comp at the moment of checkout.
+  const [comped, setComped] = useState(false);
+  useEffect(() => {
+    if (!user?.email) {
+      setComped(false);
+      return;
+    }
+    let cancelled = false;
+    (supabase as any)
+      .rpc("is_comped_email")
+      .then(({ data }: { data: boolean | null }) => {
+        if (!cancelled) setComped(Boolean(data));
+      })
+      .catch(() => {
+        if (!cancelled) setComped(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.email]);
   const { hasDashboardAccess: dashboardAlreadyOwned } = useOwnedBots();
   const { isLive: salesLive } = useBotSalesMode();
   const stockCount = useBotStockCount();
@@ -1649,16 +1672,26 @@ export function BotForge() {
                 Estimated
               </span>
               <span className="text-2xl font-bold tracking-tight text-os-heading">
-                {appliedDiscount && (
+                {(appliedDiscount || comped) && (
                   <span className="text-base text-os-faint line-through font-normal mr-2">
                     ${total.toFixed(2)}
                   </span>
                 )}
-                ${finalTotal.toFixed(2)}
+                ${(comped ? 0 : finalTotal).toFixed(2)}
                 <span className="text-xs text-os-faint font-normal"> one-time*</span>
               </span>
             </div>
-            {appliedDiscount && (
+            {comped && (
+              <div className="mt-1 flex items-center justify-between text-xs">
+                <span className="text-emerald-400 font-medium">
+                  Comped account — 100% off
+                </span>
+                <span className="text-emerald-400 font-medium">
+                  −${total.toFixed(2)}
+                </span>
+              </div>
+            )}
+            {appliedDiscount && !comped && (
               <div className="mt-1 flex items-center justify-between text-xs">
                 <span className="text-emerald-400 font-medium">
                   Code {appliedDiscount.code} applied
@@ -1678,12 +1711,29 @@ export function BotForge() {
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <span className="text-sm font-medium text-os-heading">Managed hosting included</span>
                   <span className="text-sm font-semibold text-os-heading">
-                    +$5<span className="text-xs text-os-faint font-normal">/month</span>
+                    {comped ? (
+                      <>
+                        <span className="text-os-faint line-through font-normal mr-1.5">
+                          +$5/month
+                        </span>
+                        <span className="text-emerald-400">waived</span>
+                      </>
+                    ) : (
+                      <>
+                        +$5<span className="text-xs text-os-faint font-normal">/month</span>
+                      </>
+                    )}
                   </span>
                 </div>
                 <p className="text-xs text-os-faint mt-1">
-                  We host and keep your bot online 24/7. <strong>Buy a 3rd bot and its
-                  hosting is free</strong> — 1 bot $5/mo, 2 bots $10/mo, 3 bots still $10/mo.
+                  {comped ? (
+                    <>We host and keep your bot online 24/7 — hosting is waived for this account.</>
+                  ) : (
+                    <>
+                      We host and keep your bot online 24/7. <strong>Buy a 3rd bot and its
+                      hosting is free</strong> — 1 bot $5/mo, 2 bots $10/mo, 3 bots still $10/mo.
+                    </>
+                  )}
                 </p>
               </div>
             </div>
