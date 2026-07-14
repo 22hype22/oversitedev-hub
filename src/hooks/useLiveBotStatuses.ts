@@ -27,6 +27,11 @@ export type LiveBotStatus = {
 const STALE_MS = 60_000;
 // Minimum gap between Railway verification calls (bot-status-sync).
 const SYNC_COOLDOWN_MS = 55_000;
+// While an action is in flight (Restarting… / Redeploying… / Stopping… /
+// Starting…) poll and re-verify much faster so the transition plays out live.
+const TRANSITIONAL = new Set(["starting", "stopping", "restarting", "updating"]);
+const FAST_POLL_MS = 5_000;
+const FAST_SYNC_COOLDOWN_MS = 10_000;
 
 function effectiveOf(status: string | null, hb: string | null): string {
   const s = status ?? "offline";
@@ -48,11 +53,11 @@ export function useLiveBotStatuses(botIds: string[]) {
     let cancelled = false;
     const ids = key.split(",");
 
-    const load = async () => {
+    const load = async (): Promise<boolean> => {
       const { data } = await (supabase.from("bot_runtime_status") as any)
         .select("bot_id, status, last_heartbeat_at")
         .in("bot_id", ids);
-      if (cancelled || !data) return;
+      if (cancelled || !data) return false;
       const next: Record<string, { status: string; hb: string | null }> = {};
       for (const r of data as { bot_id: string; status: string; last_heartbeat_at: string | null }[]) {
         next[r.bot_id] = { status: r.status, hb: r.last_heartbeat_at };
@@ -66,7 +71,9 @@ export function useLiveBotStatuses(botIds: string[]) {
         const r = next[id];
         return !r || effectiveOf(r.status, r.hb) !== "online";
       });
-      if (suspect.length > 0 && Date.now() - lastSyncRef.current > SYNC_COOLDOWN_MS) {
+      const inTransition = ids.some((id) => TRANSITIONAL.has(next[id]?.status ?? ""));
+      const cooldown = inTransition ? FAST_SYNC_COOLDOWN_MS : SYNC_COOLDOWN_MS;
+      if (suspect.length > 0 && Date.now() - lastSyncRef.current > cooldown) {
         lastSyncRef.current = Date.now();
         try {
           const { data: sync } = await supabase.functions.invoke("bot-status-sync", {
@@ -87,14 +94,24 @@ export function useLiveBotStatuses(botIds: string[]) {
               }
               return merged;
             });
+            return Object.values(verified).some((v) => TRANSITIONAL.has(v.status)) || inTransition;
           }
         } catch {
           // Verification is best-effort; the heartbeat view stays authoritative.
         }
       }
+      return inTransition;
     };
-    load();
-    const poll = setInterval(load, 30_000);
+
+    // Self-scheduling poll: 30s normally, 5s while an action is in flight so
+    // Restarting…/Redeploying…/Stopping… resolve on screen without a refresh.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const loop = async () => {
+      const fast = await load();
+      if (cancelled) return;
+      timer = setTimeout(loop, fast ? FAST_POLL_MS : 30_000);
+    };
+    loop();
 
     const channel = supabase
       .channel(`live-bot-statuses-${Math.random().toString(36).slice(2)}`)
@@ -113,13 +130,19 @@ export function useLiveBotStatuses(botIds: string[]) {
             ...prev,
             [row.bot_id as string]: { status: row.status ?? "offline", hb: row.last_heartbeat_at ?? null },
           }));
+          // A transition just started (e.g. the user hit Restart) — switch to
+          // the fast poll right away instead of waiting out the 30s timer.
+          if (TRANSITIONAL.has(row.status ?? "")) {
+            clearTimeout(timer);
+            timer = setTimeout(loop, FAST_POLL_MS);
+          }
         },
       )
       .subscribe();
 
     return () => {
       cancelled = true;
-      clearInterval(poll);
+      clearTimeout(timer);
       supabase.removeChannel(channel);
     };
   }, [key]);
