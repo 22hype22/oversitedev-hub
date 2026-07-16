@@ -37,6 +37,66 @@ async function railway(query: string, variables: Record<string, unknown>) {
   return json.data;
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// SECURITY GATE — pool-token guild scrub.
+//
+// A pool token must NEVER reach a new customer while it still has access to
+// a previous customer's servers. Cancellation-time cleanup exists, but it
+// can miss (edge function down, Discord outage, historical cancellations
+// from before the cleanup was wired up). So the handout itself is gated:
+// right after claiming a pool token we leave every guild it's in and
+// re-verify the list is empty. If Discord won't let us finish, the deploy
+// ABORTS — a dirty token is never shipped.
+async function listBotGuilds(botToken: string): Promise<Array<{ id: string; name?: string }> | null> {
+  const guilds: Array<{ id: string; name?: string }> = [];
+  let after: string | null = null;
+  for (let i = 0; i < 50; i++) {
+    const url = new URL("https://discord.com/api/v10/users/@me/guilds");
+    url.searchParams.set("limit", "200");
+    if (after) url.searchParams.set("after", after);
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: `Bot ${botToken}` },
+    });
+    if (res.status === 429) {
+      const ra = Number(res.headers.get("retry-after") ?? "1");
+      await new Promise((r) => setTimeout(r, Math.min(5000, ra * 1000)));
+      continue;
+    }
+    if (!res.ok) return null; // can't trust a partial listing
+    const page = (await res.json()) as Array<{ id: string; name?: string }>;
+    if (!Array.isArray(page) || page.length === 0) break;
+    guilds.push(...page);
+    if (page.length < 200) break;
+    after = page[page.length - 1].id;
+  }
+  return guilds;
+}
+
+/** Leave every guild; returns true only when a final re-list shows zero. */
+async function scrubPoolTokenGuilds(botToken: string): Promise<{ clean: boolean; detail: string }> {
+  for (let pass = 0; pass < 3; pass++) {
+    const guilds = await listBotGuilds(botToken);
+    if (guilds === null) return { clean: false, detail: "Discord guild listing failed" };
+    if (guilds.length === 0) return { clean: true, detail: pass === 0 ? "already clean" : `clean after ${pass} pass(es)` };
+    for (const g of guilds) {
+      const res = await fetch(`https://discord.com/api/v10/users/@me/guilds/${g.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bot ${botToken}` },
+      });
+      if (res.status === 429) {
+        const ra = Number(res.headers.get("retry-after") ?? "1");
+        await new Promise((r) => setTimeout(r, Math.min(5000, ra * 1000)));
+      }
+      console.log(`[scrub] leave guild ${g.id} (${g.name ?? ""}) status=${res.status}`);
+    }
+  }
+  const finalCheck = await listBotGuilds(botToken);
+  if (finalCheck === null) return { clean: false, detail: "final verification listing failed" };
+  return finalCheck.length === 0
+    ? { clean: true, detail: "clean after retries" }
+    : { clean: false, detail: `${finalCheck.length} guild(s) could not be left` };
+}
+
 function repoSourceFor(base: string): string {
   const b = (base ?? "").toLowerCase().trim();
   switch (b) {
@@ -777,7 +837,12 @@ Deno.serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  // Same workaround as the anon key below: on this project the auto-injected
+  // SUPABASE_SERVICE_ROLE_KEY may not carry service-role privileges (RLS then
+  // silently hides every row). SERVICE_ROLE_KEY_OVERRIDE is a user-managed
+  // secret holding a real service_role / sb_secret_ key and wins when set.
+  const serviceKey = Deno.env.get("SERVICE_ROLE_KEY_OVERRIDE") ||
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   // The auto-injected SUPABASE_ANON_KEY on newer projects is the publishable
   // key (sb_publishable_...), which PostgREST rejects. The worker needs the
   // legacy JWT anon key. Read it from LEGACY_ANON_JWT (user-managed secret)
@@ -812,10 +877,57 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (orderErr || !order) {
-      return new Response(JSON.stringify({ error: "Order not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      // Surface WHY the lookup failed — a DB error here (bad key, missing
+      // column, RLS) otherwise masquerades as a missing order forever.
+      // keyKind/keyRole/visibleRows expose the credential problem directly:
+      // no error + 0 visible rows means the key is anon-level and RLS is
+      // silently hiding the table from us.
+      const keyKind = serviceKey.startsWith("sb_secret_")
+        ? "sb_secret"
+        : serviceKey.startsWith("sb_publishable_")
+        ? "sb_publishable"
+        : serviceKey.startsWith("eyJ")
+        ? "legacy_jwt"
+        : "unknown";
+      let keyRole: string | null = null;
+      if (keyKind === "legacy_jwt") {
+        try {
+          keyRole = JSON.parse(atob(serviceKey.split(".")[1])).role ?? null;
+        } catch {
+          keyRole = "undecodable";
+        }
+      }
+      const { count: visibleRows, error: countErr } = await admin
+        .from("bot_orders")
+        .select("id", { count: "exact", head: true });
+      const usingOverride = Boolean(Deno.env.get("SERVICE_ROLE_KEY_OVERRIDE"));
+      console.error("[auto-deploy-bot] order lookup failed", {
+        orderId,
+        dbError: orderErr?.message ?? null,
+        dbCode: (orderErr as { code?: string } | null)?.code ?? null,
+        keyKind,
+        keyRole,
+        usingOverride,
+        visibleRows: visibleRows ?? null,
+        countError: countErr?.message ?? null,
       });
+      return new Response(
+        JSON.stringify({
+          error: "Order not found",
+          orderId: orderId ?? null,
+          dbError: orderErr?.message ?? null,
+          dbCode: (orderErr as { code?: string } | null)?.code ?? null,
+          keyKind,
+          keyRole,
+          usingOverride,
+          visibleRows: visibleRows ?? null,
+          countError: countErr?.message ?? null,
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // Concurrency lock: refuse to start a new deploy if one is already in
@@ -886,6 +998,29 @@ Deno.serve(async (req) => {
       botToken = c.token ?? null;
       poolClientId = c.client_id ?? null;
       if (!botToken) throw new Error("Pool returned an empty token");
+
+      // SECURITY GATE: never hand a pool token to a customer while it still
+      // has access to someone else's servers. Only on the first deploy of an
+      // order (no Railway service yet) — a re-deploy of an already-live bot
+      // must NOT kick it from its current owner's servers.
+      if (!order.railway_service_id) {
+        const scrub = await scrubPoolTokenGuilds(botToken);
+        if (!scrub.clean) {
+          const msg =
+            `Deploy blocked for safety: the assigned bot token still has access to previous servers and Discord wouldn't let us remove it (${scrub.detail}). ` +
+            "Retry the deploy in a few minutes.";
+          console.error("[auto-deploy-bot] scrub failed", orderId, scrub.detail);
+          await admin
+            .from("bot_orders")
+            .update({ deployment_status: "failed", deployment_error: msg })
+            .eq("id", orderId);
+          return new Response(JSON.stringify({ error: msg }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        console.log("[auto-deploy-bot] pool token scrub:", scrub.detail);
+      }
     }
 
     const projectId = Deno.env.get("RAILWAY_PROJECT_ID");
