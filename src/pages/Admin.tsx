@@ -909,17 +909,25 @@ const ADMIN_JS = `// segmented toggles (generic: click sets .on within the group
         document.getElementById('stage-title').innerHTML = sec;
       }
       window.scrollTo(0,0);
-      try { localStorage.setItem('os_admin_sec', sec); } catch(e) {}
+      try { sessionStorage.setItem('os_admin_sec', sec); } catch(e) {}
     });
   });
 
-  // Restore the section the user was last on so a refresh keeps them here.
+  // Restore the last section ONLY on a page refresh: sessionStorage keeps it
+  // out of other tabs, the navigation-type check makes leave-and-come-back
+  // start fresh, and the window flag limits it to the first mount per load.
   try {
-    var savedSec = localStorage.getItem('os_admin_sec');
-    if (savedSec) {
-      var savedEl = document.querySelector('.nav[data-sec="' + savedSec + '"]');
-      if (savedEl) savedEl.click();
+    localStorage.removeItem('os_admin_sec'); // legacy always-restore copy
+    var navEntry = performance.getEntriesByType('navigation')[0];
+    var isReload = navEntry && navEntry.type === 'reload';
+    if (isReload && !window.__osAdminRestored) {
+      var savedSec = sessionStorage.getItem('os_admin_sec');
+      if (savedSec) {
+        var savedEl = document.querySelector('.nav[data-sec="' + savedSec + '"]');
+        if (savedEl) savedEl.click();
+      }
     }
+    window.__osAdminRestored = true;
   } catch(e) {}`;
 
 const Admin = () => {
