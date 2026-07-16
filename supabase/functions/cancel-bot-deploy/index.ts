@@ -93,6 +93,14 @@ Deno.serve(async (req) => {
     // back to the pool. Otherwise the next bot to claim this token inherits
     // the previous bot's avatar/bio. (Username can't be cleared via API, but
     // the next deploy's auto-deploy-bot will PATCH it to the new bot_name.)
+    //
+    // SECURITY: the token is only released to 'available' after a VERIFIED
+    // guild scrub (a fresh listing shows zero servers). If anything prevents
+    // verification, the pool row is parked as 'needs_cleanup' instead —
+    // claim_pool_token_for_deploy only hands out 'available' tokens, and
+    // auto-deploy-bot re-scrubs at claim time as the final gate.
+    let scrubVerified = false;
+    let scrubDetail = "no token resolved for this order";
     try {
       const { data: tokenData } = await admin.rpc("runtime_resolve_bot_token", {
         _bot_id: orderId,
@@ -152,7 +160,25 @@ Deno.serve(async (req) => {
             }
           }
           console.log("[cancel-bot-deploy] left", guilds.length, "guilds for bot", orderId);
+
+          // VERIFY with a fresh listing — release is only allowed on zero.
+          const vRes = await fetch(
+            "https://discord.com/api/v10/users/@me/guilds?limit=200",
+            { headers: { Authorization: `Bot ${botToken}` } },
+          );
+          if (vRes.ok) {
+            const remaining = (await vRes.json()) as unknown[];
+            if (Array.isArray(remaining) && remaining.length === 0) {
+              scrubVerified = true;
+              scrubDetail = "verified clean";
+            } else {
+              scrubDetail = `${Array.isArray(remaining) ? remaining.length : "?"} guild(s) remain after leave loop`;
+            }
+          } else {
+            scrubDetail = `verification listing failed (HTTP ${vRes.status})`;
+          }
         } catch (e) {
+          scrubDetail = `guild leave loop error: ${(e as Error).message}`;
           console.warn("[cancel-bot-deploy] guild leave loop error", (e as Error).message);
         }
 
@@ -176,18 +202,33 @@ Deno.serve(async (req) => {
     }
 
 
-    // Now release the pool token (the trigger no longer does this, so we own it).
-    const { error: releaseErr } = await admin
-      .from("bot_token_pool")
-      .update({
-        status: "available",
-        assigned_bot_id: null,
-        assigned_at: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("assigned_bot_id", orderId);
-    if (releaseErr) {
-      console.warn("[cancel-bot-deploy] token release failed", releaseErr.message);
+    // Release the pool token ONLY after a verified scrub. Anything less parks
+    // the row as 'needs_cleanup': it can't be claimed (claims take only
+    // 'available'), and even if it somehow were, auto-deploy-bot's claim-time
+    // scrub is the final gate.
+    if (scrubVerified) {
+      const { error: releaseErr } = await admin
+        .from("bot_token_pool")
+        .update({
+          status: "available",
+          assigned_bot_id: null,
+          assigned_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("assigned_bot_id", orderId);
+      if (releaseErr) {
+        console.warn("[cancel-bot-deploy] token release failed", releaseErr.message);
+      }
+    } else {
+      console.warn("[cancel-bot-deploy] NOT releasing token —", scrubDetail);
+      const { error: parkErr } = await admin
+        .from("bot_token_pool")
+        .update({ status: "needs_cleanup", updated_at: new Date().toISOString() })
+        .eq("assigned_bot_id", orderId)
+        .eq("status", "assigned");
+      if (parkErr) {
+        console.warn("[cancel-bot-deploy] token park failed", parkErr.message);
+      }
     }
 
     await admin
