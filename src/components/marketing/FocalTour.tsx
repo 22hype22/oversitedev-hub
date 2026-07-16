@@ -24,7 +24,7 @@ const POINTS: Point[] = [
 ];
 
 const AR = 3559 / 1500; // mountain image natural height / width
-const EASE = 0.06; // inertia — lower = slower / smoother catch-up
+const EASE = 0.035; // inertia — lower = slower / smoother catch-up
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -39,7 +39,9 @@ export function FocalTour() {
     // first part of the slot, then travels to the next point in the rest — so
     // it sits at each spot for a couple of scrolls instead of gliding through.
     const N = POINTS.length;
-    const HOLD = 0.55; // fraction of each slot spent parked on the point
+    // Shorter hold = the left↔right travel is spread across more scroll
+    // distance, so the sweep is slower and calmer instead of a quick whip.
+    const HOLD = 0.35; // fraction of each slot spent parked on the point
     const smooth = (t: number) => t * t * (3 - 2 * t);
     const targetAt = (p: number): Point => {
       const slot = 1 / N;
