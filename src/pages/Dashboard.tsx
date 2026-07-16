@@ -217,9 +217,29 @@ const Dashboard = () => {
   };
 
   if (loading || !user) {
+    // Same self-drawing ridge as the route + dashboard loaders so every
+    // loading state in the app reads as one system.
     return (
-      <div className="grid min-h-screen place-items-center bg-os-bg text-os-faint">
-        <Loader2 className="h-6 w-6 animate-spin" />
+      <div
+        role="status"
+        aria-label="Loading"
+        className="grid min-h-screen place-items-center"
+        style={{
+          background:
+            "radial-gradient(120% 90% at 50% 115%, rgba(201,219,230,.10), transparent 55%), linear-gradient(180deg, #293038, #1a1f25)",
+        }}
+      >
+        <style>{`
+          @keyframes os-ridge-draw{0%{stroke-dashoffset:340}55%{stroke-dashoffset:0}78%{stroke-dashoffset:0}100%{stroke-dashoffset:-340}}
+          .os-ridge path{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:2}
+          .os-ridge .draw{stroke:#C9DBE6;stroke-dasharray:340;stroke-dashoffset:340;animation:os-ridge-draw 2.6s cubic-bezier(.45,.05,.35,1) infinite;filter:drop-shadow(0 0 10px rgba(201,219,230,.35))}
+          .os-ridge .ghost{stroke:rgba(201,219,230,.14)}
+          @media (prefers-reduced-motion: reduce){.os-ridge .draw{animation:none;stroke-dashoffset:0}}
+        `}</style>
+        <svg className="os-ridge" width="190" height="74" viewBox="0 0 190 74" style={{ overflow: "visible" }} aria-hidden>
+          <path className="ghost" d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70" />
+          <path className="draw" d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70" />
+        </svg>
       </div>
     );
   }
