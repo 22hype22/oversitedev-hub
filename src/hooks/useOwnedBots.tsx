@@ -109,6 +109,18 @@ function mapRow(row: any, opts: { viaSupport?: boolean; viaTeam?: boolean } = {}
  * tagged with `viaSupport: true`. Invited team members see the owner's bots
  * tagged with `viaTeam: true`.
  */
+// Session-lifetime snapshot of the last successful load, per user. Lets the
+// dashboard paint instantly when it remounts (leaving and coming back within
+// the app) and refresh quietly in the background, instead of blanking on a
+// full-screen loader for every single visit.
+type OwnedBotsSnapshot = {
+  bots: OwnedBot[];
+  supportBots: OwnedBot[];
+  teamBots: OwnedBot[];
+  ownsDashboardAddon: boolean;
+};
+const snapshotCache = new Map<string, OwnedBotsSnapshot>();
+
 export function useOwnedBots() {
   const { user, isAdmin, loading: authLoading } = useAuth();
   const userId = user?.id ?? null;
@@ -135,6 +147,19 @@ export function useOwnedBots() {
       hasLoadedRef.current = false;
       emptyRetriesRef.current = 0;
       return;
+    }
+    // Serve the cached snapshot instantly on remount, then refresh silently
+    // below — the loader only ever shows on the first load of a session.
+    if (!hasLoadedRef.current) {
+      const cached = snapshotCache.get(userId);
+      if (cached) {
+        setBots(cached.bots);
+        setSupportBots(cached.supportBots);
+        setTeamBots(cached.teamBots);
+        setOwnsDashboardAddon(cached.ownsDashboardAddon);
+        hasLoadedRef.current = true;
+        setLoading(false);
+      }
     }
     if (!hasLoadedRef.current) setLoading(true);
 
@@ -250,6 +275,14 @@ export function useOwnedBots() {
       }, 800 * emptyRetriesRef.current);
     } else if (!looksEmpty) {
       emptyRetriesRef.current = 0;
+      // Cache only non-empty results: an auth-race "empty" must never poison
+      // the next mount with a bot-less dashboard.
+      snapshotCache.set(userId, {
+        bots: ownMapped,
+        supportBots: supportMapped,
+        teamBots: teamMapped,
+        ownsDashboardAddon,
+      });
     }
 
     hasLoadedRef.current = true;
