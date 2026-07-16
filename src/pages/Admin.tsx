@@ -631,6 +631,20 @@ const ADMIN_HTML = `<div class="osd app">
           </div>
         </div>
 
+        <!-- Bot servers (Discord guild membership) -->
+        <div class="card" style="margin-top:16px">
+          <div class="ch"><span class="eye">Discord presence</span><h3>Bot servers</h3><span class="mut">every server a bot is in — kick it out of the ones it shouldn't be</span></div>
+          <div class="cb">
+            <div class="catform" style="grid-template-columns:1fr auto">
+              <div><label class="lbl">Bot</label><select class="in" data-bw="bg-bot"><option value="">Loading bots…</option></select></div>
+              <button class="btn" data-bw="bg-load"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>Load servers</button>
+            </div>
+            <div class="listcap">Servers</div>
+            <div data-bw="bg-list"><div class="subnote">Pick a bot and hit Load servers.</div></div>
+            <div class="subnote" style="margin-top:10px">Leaving is immediate — the server owner would have to re-invite the bot. Cancelled orders leave every server automatically before their token returns to the pool.</div>
+          </div>
+        </div>
+
 
       </div>
 
@@ -1926,6 +1940,75 @@ function wireBots(root: HTMLElement): void {
     loadSlots();
   });
   loadSlots();
+
+  // ── Bot servers (Discord guild membership via admin-bot-guilds) ──
+  const bgList = $('[data-bw="bg-list"]');
+  const bgSelect = $('[data-bw="bg-bot"]') as HTMLSelectElement | null;
+  async function loadBgBots() {
+    if (!bgSelect) return;
+    const { data } = await sb
+      .from("bot_orders")
+      .select("id, bot_name, status")
+      .in("status", ["ready", "in_build"])
+      .order("bot_name", { ascending: true });
+    const rows = (data || []) as any[];
+    bgSelect.innerHTML =
+      '<option value="">Choose a bot…</option>' +
+      rows.map((r) => `<option value="${r.id}">${escHtml(r.bot_name)}</option>`).join("");
+  }
+  async function bgInvoke(body: Record<string, unknown>) {
+    const { data, error } = await supabase.functions.invoke("admin-bot-guilds", { body });
+    if (error) {
+      let msg = error.message as string;
+      const ctx = (error as { context?: Response }).context;
+      if (ctx && typeof ctx.text === "function") {
+        try {
+          msg = (JSON.parse(await ctx.text()) as { error?: string })?.error ?? msg;
+        } catch {
+          /* ignore */
+        }
+      }
+      throw new Error(msg || "Request failed");
+    }
+    if (!data?.ok) throw new Error(data?.error || "Request failed");
+    return data;
+  }
+  async function loadBgGuilds() {
+    const orderId = bgSelect?.value;
+    if (!orderId) return toast.error("Pick a bot first");
+    if (bgList) bgList.innerHTML = '<div class="subnote">Asking Discord…</div>';
+    try {
+      const data = await bgInvoke({ action: "list", orderId });
+      const guilds = (data.guilds || []) as any[];
+      if (!bgList) return;
+      const html = guilds.map(
+        (g) =>
+          `<div class="crow" data-gid="${g.id}"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">${escHtml(g.name || g.id)}</div><div class="meta mono">${escHtml(g.id)}${g.memberCount != null ? ` · ~${g.memberCount} members` : ""}</div></div><span class="sp"><span class="ic" data-act="bg-leave" title="Leave this server">${X_SVG}</span></span></div>`,
+      );
+      paginate(bgList, html, '<div class="subnote">This bot isn\'t in any servers.</div>');
+    } catch (e) {
+      if (bgList) bgList.innerHTML = `<div class="subnote">${escHtml((e as Error).message)}</div>`;
+    }
+  }
+  $('[data-bw="bg-load"]')?.addEventListener("click", loadBgGuilds);
+  bgList?.addEventListener("click", async (e) => {
+    const ic = (e.target as Element).closest(".ic");
+    if (!ic || ic.getAttribute("data-act") !== "bg-leave") return;
+    const row = ic.closest(".crow");
+    const gid = row?.getAttribute("data-gid");
+    const orderId = bgSelect?.value;
+    if (!gid || !orderId) return;
+    const name = row?.querySelector(".c")?.textContent || gid;
+    if (!confirm(`Make the bot leave "${name}"? The server owner would have to re-invite it.`)) return;
+    try {
+      await bgInvoke({ action: "leave", orderId, guildId: gid });
+      toast.success("Left the server");
+      row?.remove();
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  });
+  loadBgBots();
 }
 
 // ── Support Access data binding ────────────────────────────────────────
