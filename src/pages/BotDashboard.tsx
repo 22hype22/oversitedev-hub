@@ -1464,6 +1464,22 @@ const ACCENTS: { key: string; label: string; c: string; ink: string }[] = [
 const lsGet = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const lsSet = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } };
 const lsDel = (k: string) => { try { localStorage.removeItem(k); } catch { /* ignore */ } };
+const ssGet = (k: string) => { try { return sessionStorage.getItem(k); } catch { return null; } };
+const ssSet = (k: string, v: string) => { try { sessionStorage.setItem(k, v); } catch { /* ignore */ } };
+const ssDel = (k: string) => { try { sessionStorage.removeItem(k); } catch { /* ignore */ } };
+
+// Position restore policy: bring the user back to where they were ONLY on a
+// page refresh. sessionStorage keeps position out of other/new tabs, the
+// navigation-type check makes leave-and-come-back start fresh, and the
+// consumed flag limits the restore to the first dashboard mount of the load.
+const PAGE_IS_RELOAD = (() => {
+  try {
+    const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    return nav?.type === "reload";
+  } catch { return false; }
+})();
+let positionRestoreConsumed = false;
+const restoredPosition = (k: string) => (PAGE_IS_RELOAD && !positionRestoreConsumed ? ssGet(k) : null);
 
 const BG_PRESETS: { key: string; label: string; url: string | null }[] = [
   { key: "mountain", label: "Mountain", url: containers },
@@ -1535,13 +1551,13 @@ const BotDashboard = () => {
 
   // Persist the active view + open bot so a refresh keeps you exactly where
   // you were instead of dropping you back on the dashboard home.
-  const [view, setView] = useState(() => lsGet(LS.view) || "dashboard");
+  const [view, setView] = useState(() => restoredPosition(LS.view) || "dashboard");
   // Shared, owner-set dashboard box layout (an ordered array of card ids).
   const [dashOrder, setDashOrder] = useState<string[]>(DEFAULT_DASH_ORDER);
   const dashSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
-  const [botId, setBotId] = useState<string | null>(() => lsGet(LS.bot) || null);
+  const [botId, setBotId] = useState<string | null>(() => restoredPosition(LS.bot) || null);
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
 
@@ -1688,11 +1704,18 @@ const BotDashboard = () => {
 
   // Remember where the user is across refreshes: persist the active view and
   // the open bot, and recover gracefully if the remembered bot is gone.
-  useEffect(() => { lsSet(LS.view, view); }, [view]);
+  useEffect(() => { ssSet(LS.view, view); }, [view]);
   useEffect(() => {
-    if (botId) lsSet(LS.bot, botId);
-    else { try { localStorage.removeItem(LS.bot); } catch { /* ignore */ } }
+    if (botId) ssSet(LS.bot, botId);
+    else ssDel(LS.bot);
   }, [botId]);
+  // One restore per page load; also clear the legacy localStorage copies so
+  // stale positions from the old always-restore behavior can't come back.
+  useEffect(() => {
+    positionRestoreConsumed = true;
+    lsDel(LS.view);
+    lsDel(LS.bot);
+  }, []);
   useEffect(() => {
     if (!botsLoading && view === "bot" && botId && !byId[botId]) {
       setView("bots");
