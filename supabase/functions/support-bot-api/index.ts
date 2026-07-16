@@ -173,6 +173,46 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
+    // POST /log { bot_id, level, message, context? }
+    //          or { bot_id, entries: [{ level, message, context?, created_at? }] }
+    // Feeds the dashboard's live Logs panel (bot_logs table, 7-day retention).
+    // Batching is preferred — ship every few seconds, not per-line.
+    if (req.method === "POST" && path.startsWith("/log")) {
+      const body = await req.json().catch(() => ({} as any));
+      const botId = String(body.bot_id || "");
+      if (!botId) return json(400, { error: "bot_id required" });
+
+      const { data: order, error: orderError } = await admin
+        .from("bot_orders")
+        .select("user_id")
+        .eq("id", botId)
+        .single();
+      if (orderError || !order) return json(404, { error: "Bot order not found" });
+
+      const LEVELS = new Set(["debug", "info", "warn", "error"]);
+      const raw = Array.isArray(body.entries)
+        ? body.entries
+        : [{ level: body.level, message: body.message, context: body.context }];
+      const rows = raw
+        .slice(0, 100)
+        .filter((e: any) => e && typeof e.message === "string" && e.message.trim())
+        .map((e: any) => ({
+          bot_id: botId,
+          user_id: order.user_id,
+          level: LEVELS.has(String(e.level ?? "").toLowerCase())
+            ? String(e.level).toLowerCase()
+            : "info",
+          message: String(e.message).slice(0, 2000),
+          context: e.context ?? null,
+          ...(e.created_at ? { created_at: e.created_at } : {}),
+        }));
+      if (rows.length === 0) return json(400, { error: "message (or entries[]) required" });
+
+      const { error: insErr } = await admin.from("bot_logs").insert(rows);
+      if (insErr) return json(500, { error: insErr.message });
+      return json(200, { ok: true, inserted: rows.length });
+    }
+
     // POST /record-metrics { bot_id, commands, messages, errors, active_servers, member_count }
     if (req.method === "POST" && path.startsWith("/record-metrics")) {
       const body = await req.json().catch(() => ({} as any));
