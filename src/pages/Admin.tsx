@@ -307,10 +307,10 @@ const ADMIN_HTML = `<div class="osd app">
     <!-- sidebar -->
     <aside class="side">
       <div class="prof">
-        <div class="av">E</div>
+        <div class="av" data-me="avatar">·</div>
         <div>
-          <div class="nm">Hype <span class="pro">OWNER</span></div>
-          <div class="h">everant00@gmail.com</div>
+          <div class="nm"><span data-me="name">Admin</span> <span class="pro" data-me="role">ADMIN</span></div>
+          <div class="h" data-me="email"></div>
         </div>
         <span class="ed"><svg width="14" height="14" viewBox="0 0 24 24" style="stroke:currentColor;stroke-width:1.8;fill:none"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
       </div>
@@ -981,6 +981,41 @@ const Admin = () => {
     // Overview — fill the blocks backed by real data, and re-poll every 10s so
     // the KPI odometers (Live now / Bots sold) roll live as the numbers change.
     let cancelled = false;
+
+    // Signed-in admin identity — the template ships with neutral placeholders
+    // so whoever is logged in sees THEIR name/email here, never a hardcoded
+    // account. OWNER badge is reserved for the super admin; others read ADMIN.
+    const fillIdentity = (p?: {
+      preferred_name?: string | null;
+      display_name?: string | null;
+      discord_username?: string | null;
+    } | null) => {
+      const email = user?.email ?? "";
+      const name =
+        (p?.preferred_name && p.preferred_name.trim()) ||
+        (p?.display_name && p.display_name.trim()) ||
+        (p?.discord_username && p.discord_username.trim()) ||
+        (email ? email.split("@")[0] : "Admin");
+      const nameEl = root.querySelector('[data-me="name"]');
+      const emailEl = root.querySelector('[data-me="email"]');
+      const avEl = root.querySelector('[data-me="avatar"]');
+      const roleEl = root.querySelector('[data-me="role"]');
+      if (nameEl) nameEl.textContent = name;
+      if (emailEl) emailEl.textContent = email;
+      if (avEl) avEl.textContent = (name[0] || email[0] || "A").toUpperCase();
+      if (roleEl) roleEl.textContent = email.toLowerCase() === "everant00@gmail.com" ? "OWNER" : "ADMIN";
+    };
+    fillIdentity();
+    if (user?.id) {
+      (supabase as any)
+        .from("profiles")
+        .select("preferred_name, display_name, discord_username")
+        .eq("user_id", user.id)
+        .maybeSingle()
+        .then(({ data }: { data: any }) => {
+          if (!cancelled && data) fillIdentity(data);
+        });
+    }
     const loadOverview = () => {
       (supabase as any).rpc("admin_overview_stats").then(({ data }: { data: any }) => {
         if (cancelled || !data || data.ok === false) return;
@@ -1100,7 +1135,7 @@ const Admin = () => {
       disposeSupport();
       if (allowlistChannel) (supabase as any).removeChannel(allowlistChannel);
     };
-  }, [isAdmin, navigate]);
+  }, [isAdmin, navigate, user]);
 
   if (loading) {
     return (
