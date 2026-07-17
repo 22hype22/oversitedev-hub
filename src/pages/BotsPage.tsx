@@ -173,7 +173,7 @@ const BotsPage = () => (
                 </h2>
                 <p className="mt-3 font-body text-[15px] leading-relaxed text-os-body">
                   Mix and match — protection, support, or utilities, same price whichever two you pick.
-                  Or grab the All-in-One Pack and ship the whole fleet as three focused bots.
+                  Or grab the All in One Pack and ship the whole fleet as three focused bots.
                 </p>
               </div>
               <AccentButton href="#build" className="flex-none">Start building</AccentButton>
