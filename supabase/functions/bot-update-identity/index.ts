@@ -24,6 +24,91 @@ const json = (status: number, data: unknown) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+// ── Staff alert: fields Discord won't apply automatically ─────────────────
+// Discord's API silently ignores the "About me" bio for bots (and sometimes
+// the banner). When that happens we post an alert into the staff server via
+// the Oversite Utilities bot so the team can apply the change manually in
+// the Discord Developer Portal. Fire-and-forget: an alert failure must never
+// break the customer's save.
+//
+// Secrets: OVERSITE_UTILITIES_BOT_TOKEN (already set for order DMs) and
+// STAFF_ALERTS_CHANNEL_ID (the staff channel's ID).
+async function notifyStaffManualApply(opts: {
+  botName: string;
+  orderId: string;
+  bioText: string | null;
+  bannerDataUrl: string | null;
+}): Promise<void> {
+  const token = Deno.env.get("OVERSITE_UTILITIES_BOT_TOKEN");
+  const channelId = Deno.env.get("STAFF_ALERTS_CHANNEL_ID");
+  if (!token || !channelId) {
+    console.warn(
+      "[bot-update-identity] staff alert skipped — OVERSITE_UTILITIES_BOT_TOKEN or STAFF_ALERTS_CHANNEL_ID not configured",
+    );
+    return;
+  }
+
+  const changed: string[] = [];
+  if (opts.bioText !== null) changed.push("Description");
+  if (opts.bannerDataUrl !== null) changed.push("Banner");
+
+  const embed: Record<string, unknown> = {
+    title: "Identity change needs a manual apply",
+    color: 0xc9dbe6,
+    description:
+      `**${opts.botName}** updated their ${changed.join(" and ").toLowerCase()}, ` +
+      "and Discord doesn't apply this automatically for bots. Apply it in the " +
+      "Discord Developer Portal for this bot's application.",
+    fields: [
+      { name: "Bot", value: opts.botName, inline: true },
+      { name: "Order", value: `\`${opts.orderId.slice(0, 8)}\``, inline: true },
+      { name: "Changed", value: changed.join(", "), inline: true },
+      ...(opts.bioText !== null
+        ? [{ name: "New description", value: opts.bioText.slice(0, 1000) || "*(cleared)*" }]
+        : []),
+    ],
+    timestamp: new Date().toISOString(),
+  };
+
+  const url = `https://discord.com/api/v10/channels/${channelId}/messages`;
+  const auth = { Authorization: `Bot ${token}` };
+
+  // Attach the banner image itself when we have one, so staff can apply it
+  // without digging through the dashboard.
+  if (opts.bannerDataUrl) {
+    const m = opts.bannerDataUrl.match(/^data:image\/(png|jpe?g|gif|webp);base64,(.+)$/);
+    if (m) {
+      const ext = m[1] === "jpeg" ? "jpg" : m[1];
+      const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+      (embed as any).image = { url: `attachment://banner.${ext}` };
+      const form = new FormData();
+      form.append(
+        "payload_json",
+        JSON.stringify({ embeds: [embed], attachments: [{ id: 0, filename: `banner.${ext}` }] }),
+      );
+      form.append("files[0]", new Blob([bytes], { type: `image/${m[1]}` }), `banner.${ext}`);
+      const res = await fetch(url, { method: "POST", headers: auth, body: form });
+      if (!res.ok) {
+        console.warn(
+          `[bot-update-identity] staff alert (with banner) failed: ${res.status} ${(await res.text()).slice(0, 200)}`,
+        );
+      }
+      return;
+    }
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { ...auth, "Content-Type": "application/json" },
+    body: JSON.stringify({ embeds: [embed] }),
+  });
+  if (!res.ok) {
+    console.warn(
+      `[bot-update-identity] staff alert failed: ${res.status} ${(await res.text()).slice(0, 200)}`,
+    );
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { error: "POST only" });
@@ -80,7 +165,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderErr } = await admin
       .from("bot_orders")
-      .select("id, user_id, discord_last_username_change_at")
+      .select("id, user_id, bot_name, discord_last_username_change_at")
       .eq("id", botId)
       .maybeSingle();
     if (orderErr) return json(500, { error: orderErr.message });
@@ -236,6 +321,22 @@ Deno.serve(async (req) => {
       .eq("id", botId);
     if (updErr) {
       console.warn("bot-update-identity: db persist failed", updErr);
+    }
+
+    // Staff alert for the fields Discord did NOT apply: the bio is always
+    // dropped for bots, and the banner sometimes is. Only ping when there's
+    // real manual work to do.
+    const bioDropped = bio !== null && typeof updated?.bio !== "string";
+    const bannerDropped = banner !== null && !updated?.banner;
+    if (bioDropped || bannerDropped) {
+      notifyStaffManualApply({
+        botName: (username ?? order.bot_name ?? "Unknown bot") as string,
+        orderId: botId,
+        bioText: bioDropped ? resolvedBio : null,
+        bannerDataUrl: bannerDropped ? banner : null,
+      }).catch((e) =>
+        console.warn("[bot-update-identity] staff alert error", (e as Error).message),
+      );
     }
 
     return json(200, {
