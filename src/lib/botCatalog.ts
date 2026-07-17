@@ -8,7 +8,7 @@ export const BOT_BASE_LABELS: Record<string, string> = {
   protection: "Oversite Protection",
   support: "Oversite Support",
   utilities: "Oversite Utilities",
-  scratch: "All-in-One Pack",
+  scratch: "All in One Pack",
 };
 
 export const BOT_BASE_TAGLINES: Record<string, string> = {
