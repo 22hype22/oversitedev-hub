@@ -155,7 +155,7 @@ const BASES: Base[] = [
   },
   {
     id: "scratch",
-    name: "All-in-One Pack",
+    name: "All in One Pack",
     tagline: "Protection + Support + Utilities — every base in one bot.",
     icon: Sparkles,
     price: 199,
@@ -1035,7 +1035,7 @@ export function BotForge() {
                     key={b.id}
                     type="button"
                     onClick={() => toggleBase(b.id)}
-                    className={`group text-left rounded-xl border p-4 transition ${
+                    className={`group flex flex-col items-stretch justify-start text-left rounded-xl border p-4 transition ${
                       active
                         ? "border-os-accent bg-os-accent/10 shadow-[0_0_30px_-10px_rgb(var(--os-accent)/0.6)]"
                         : "border-os-hairline/40 bg-os-bg/40 hover:border-os-accent/50"
