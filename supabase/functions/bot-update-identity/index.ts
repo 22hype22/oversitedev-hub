@@ -64,7 +64,14 @@ async function notifyStaffManualApply(opts: {
       { name: "Order", value: `\`${opts.orderId.slice(0, 8)}\``, inline: true },
       { name: "Changed", value: changed.join(", "), inline: true },
       ...(opts.bioText !== null
-        ? [{ name: "New description", value: opts.bioText.slice(0, 1000) || "*(cleared)*" }]
+        ? [{
+            // Code block = shown verbatim (no markdown/emoji rendering), so
+            // staff can copy-paste it into the Developer Portal exactly.
+            name: "New description — copy & paste",
+            value: opts.bioText.trim()
+              ? "```\n" + opts.bioText.slice(0, 1000) + "\n```"
+              : "*(cleared — remove the description)*",
+          }]
         : []),
     ],
     timestamp: new Date().toISOString(),
