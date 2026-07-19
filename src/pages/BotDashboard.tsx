@@ -815,6 +815,20 @@ const BotSection = ({
 
       {deployFailedBanner}
 
+      {/* Invite panel lives at the top level — a bot with no server is the
+          single most important thing on this page, not something to find
+          inside the Manage drawer. */}
+      {!bot.isDemo && (
+        <BotInviteLinkCard
+          botId={bot.id}
+          status={bot.status}
+          onRequestBuySlot={() => {
+            setHighlightSlots(true);
+            setTimeout(() => setHighlightSlots(false), 4000);
+          }}
+        />
+      )}
+
       <details
         open={manageOpen}
         onToggle={(e) => setManageOpen((e.target as HTMLDetailsElement).open)}
@@ -948,27 +962,10 @@ const BotSection = ({
       )}
 
       {hasNoServers && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center text-xs text-amber-300 font-medium">
-          Add your bot to a server to configure these settings.
+        <div className="rounded-lg border border-[#C9DBE6]/20 bg-[#C9DBE6]/[0.06] px-4 py-2.5 text-center text-xs font-medium text-[#C9DBE6]/90">
+          These settings unlock once your bot joins a server — use the invite panel above.
         </div>
       )}
-
-      <div
-        className={(isOffline || isDeploying) ? "space-y-5 opacity-40 pointer-events-none select-none" : "space-y-5"}
-        aria-disabled={isOffline}
-      >
-        {!bot.isDemo && (
-          <BotInviteLinkCard
-            botId={bot.id}
-            status={bot.status}
-            onRequestBuySlot={() => {
-              setHighlightSlots(true);
-              setTimeout(() => setHighlightSlots(false), 4000);
-            }}
-          />
-        )}
-
-      </div>
 
         </div>
       </details>
