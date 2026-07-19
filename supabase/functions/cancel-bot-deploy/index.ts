@@ -8,6 +8,7 @@
 // Railway service and clears railway_service_id on the order so the slot
 // is fully cleaned up.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { scrubGuilds } from "../_shared/discord-guilds.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,7 +72,7 @@ Deno.serve(async (req) => {
 
     const { data: order } = await admin
       .from("bot_orders")
-      .select("id, railway_service_id, status")
+      .select("id, railway_service_id, status, bot_token")
       .eq("id", orderId)
       .maybeSingle();
 
@@ -80,6 +81,24 @@ Deno.serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // FIREBREAK — linked/main bots are never torn down by platform actions.
+    // An order carrying its own manual token (bot_token set, e.g. bots linked
+    // via admin-link-bot) means the bot's real home is its Railway service +
+    // Discord, and the dashboard is just a control panel. Cancelling such an
+    // order only detaches it here: no service deletion, no leaving servers,
+    // no identity reset. Pool-token customer bots below are unaffected.
+    if (order.bot_token) {
+      console.log("[cancel-bot-deploy] linked bot (manual token) — teardown skipped", orderId);
+      await admin
+        .from("bot_orders")
+        .update({ deployment_status: "cancelled" })
+        .eq("id", orderId);
+      return new Response(
+        JSON.stringify({ ok: true, skipped: "linked-bot", teardown: null, deleted: false }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const serviceId = order.railway_service_id as string | null;
@@ -96,9 +115,11 @@ Deno.serve(async (req) => {
     //
     // SECURITY: the token is only released to 'available' after a VERIFIED
     // guild scrub (a fresh listing shows zero servers). If anything prevents
-    // verification, the pool row is parked as 'needs_cleanup' instead —
+    // verification, the row stays 'assigned' with a needs-cleanup note —
     // claim_pool_token_for_deploy only hands out 'available' tokens, and
-    // auto-deploy-bot re-scrubs at claim time as the final gate.
+    // auto-deploy-bot re-scrubs at claim time as the final gate. (The pool
+    // status CHECK only allows available/assigned/retired, so an unclean
+    // token is flagged via `notes` rather than a custom status.)
     let scrubVerified = false;
     let scrubDetail = "no token resolved for this order";
     try {
@@ -107,79 +128,17 @@ Deno.serve(async (req) => {
       });
       const botToken = typeof tokenData === "string" ? tokenData : null;
       if (botToken) {
-        // 1) Leave every guild the bot is currently in. We must finish this
-        // BEFORE releasing the token, otherwise the next bot to claim it
-        // would inherit membership in these servers.
+        // 1) Leave every guild the bot is currently in (shared scrub with
+        // built-in re-list verification). We must finish this BEFORE
+        // releasing the token, otherwise the next bot to claim it would
+        // inherit membership in these servers.
         try {
-          const authHeader = { Authorization: `Bot ${botToken}` };
-          const guilds: Array<{ id: string; name?: string }> = [];
-          let after: string | null = null;
-          // Paginate (Discord caps at 200 per page).
-          for (let i = 0; i < 50; i++) {
-            const url = new URL("https://discord.com/api/v10/users/@me/guilds");
-            url.searchParams.set("limit", "200");
-            if (after) url.searchParams.set("after", after);
-            const gRes = await fetch(url.toString(), { headers: authHeader });
-            if (!gRes.ok) {
-              const t = await gRes.text();
-              console.warn("[cancel-bot-deploy] list guilds failed", gRes.status, t.slice(0, 200));
-              break;
-            }
-            const page = (await gRes.json()) as Array<{ id: string; name?: string }>;
-            if (!Array.isArray(page) || page.length === 0) break;
-            guilds.push(...page);
-            if (page.length < 200) break;
-            after = page[page.length - 1].id;
-          }
-
-          for (const g of guilds) {
-            try {
-              const lRes = await fetch(
-                `https://discord.com/api/v10/users/@me/guilds/${g.id}`,
-                {
-                  method: "DELETE",
-                  headers: { Authorization: `Bot ${botToken}` },
-                },
-              );
-              const body = await lRes.text();
-              console.log(
-                "[cancel-bot-deploy] leave guild",
-                g.id,
-                g.name ?? "",
-                "status=",
-                lRes.status,
-                "body=",
-                body.slice(0, 300),
-              );
-              if (lRes.status === 429) {
-                const ra = Number(lRes.headers.get("retry-after") ?? "1");
-                await new Promise((r) => setTimeout(r, Math.min(5000, ra * 1000)));
-              }
-            } catch (e) {
-              console.warn("[cancel-bot-deploy] leave guild error", g.id, (e as Error).message);
-            }
-          }
-          console.log("[cancel-bot-deploy] left", guilds.length, "guilds for bot", orderId);
-
-          // VERIFY with a fresh listing — release is only allowed on zero.
-          const vRes = await fetch(
-            "https://discord.com/api/v10/users/@me/guilds?limit=200",
-            { headers: { Authorization: `Bot ${botToken}` } },
-          );
-          if (vRes.ok) {
-            const remaining = (await vRes.json()) as unknown[];
-            if (Array.isArray(remaining) && remaining.length === 0) {
-              scrubVerified = true;
-              scrubDetail = "verified clean";
-            } else {
-              scrubDetail = `${Array.isArray(remaining) ? remaining.length : "?"} guild(s) remain after leave loop`;
-            }
-          } else {
-            scrubDetail = `verification listing failed (HTTP ${vRes.status})`;
-          }
+          const scrub = await scrubGuilds(botToken, "cancel-bot-deploy");
+          scrubVerified = scrub.clean;
+          scrubDetail = scrub.detail;
         } catch (e) {
-          scrubDetail = `guild leave loop error: ${(e as Error).message}`;
-          console.warn("[cancel-bot-deploy] guild leave loop error", (e as Error).message);
+          scrubDetail = `guild scrub error: ${(e as Error).message}`;
+          console.warn("[cancel-bot-deploy] guild scrub error", (e as Error).message);
         }
 
         // 2) Reset Discord identity (avatar + bio) so the next bot to claim
@@ -202,10 +161,12 @@ Deno.serve(async (req) => {
     }
 
 
-    // Release the pool token ONLY after a verified scrub. Anything less parks
-    // the row as 'needs_cleanup': it can't be claimed (claims take only
-    // 'available'), and even if it somehow were, auto-deploy-bot's claim-time
-    // scrub is the final gate.
+    // Release the pool token ONLY after a verified scrub. Anything less keeps
+    // the row 'assigned' with a needs-cleanup note: it can't be claimed
+    // (claims take only 'available'), and even if it somehow were,
+    // auto-deploy-bot's claim-time scrub is the final gate. The admin panel's
+    // "Reclaim stuck tokens" button (admin-token-pool) re-scrubs and frees
+    // any row left behind here.
     if (scrubVerified) {
       const { error: releaseErr } = await admin
         .from("bot_token_pool")
@@ -213,6 +174,7 @@ Deno.serve(async (req) => {
           status: "available",
           assigned_bot_id: null,
           assigned_at: null,
+          notes: null,
           updated_at: new Date().toISOString(),
         })
         .eq("assigned_bot_id", orderId);
@@ -223,7 +185,10 @@ Deno.serve(async (req) => {
       console.warn("[cancel-bot-deploy] NOT releasing token —", scrubDetail);
       const { error: parkErr } = await admin
         .from("bot_token_pool")
-        .update({ status: "needs_cleanup", updated_at: new Date().toISOString() })
+        .update({
+          notes: `needs cleanup: ${scrubDetail}`,
+          updated_at: new Date().toISOString(),
+        })
         .eq("assigned_bot_id", orderId)
         .eq("status", "assigned");
       if (parkErr) {
