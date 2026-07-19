@@ -750,6 +750,54 @@ const BotSection = ({
       </>
     ) : null;
 
+  // Deploy-failed state: the brand ridge, interrupted. The line draws up to
+  // the launch step and stops at a glowing break point on a red wash; retry
+  // resumes the climb. Rendered in two spots, so built once here.
+  const deployFailedBanner = deployFailed ? (
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-destructive/40 bg-destructive/20 px-5 py-4">
+      <style>{`
+        .os-ridge-break{animation:os-ridge-break 2.2s ease-out infinite}
+        @keyframes os-ridge-break{0%,100%{opacity:1}50%{opacity:.25}}
+        @media (prefers-reduced-motion: reduce){.os-ridge-break{animation:none}}
+      `}</style>
+      <svg
+        width="112"
+        height="44"
+        viewBox="0 0 190 74"
+        style={{ overflow: "visible" }}
+        aria-hidden
+        className="shrink-0"
+      >
+        <path
+          d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70"
+          fill="none"
+          stroke="rgba(201,219,230,.22)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M4 70 L44 26 L62 44 L95 6"
+          fill="none"
+          stroke="#C9DBE6"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle className="os-ridge-break" cx="95" cy="6" r="4" fill="#FF9C82" />
+      </svg>
+      <div className="min-w-[220px] flex-1 text-sm leading-snug">
+        <div className="font-semibold text-foreground">The launch stopped partway.</div>
+        <div className="text-muted-foreground mt-0.5">
+          Nothing is lost. Retrying picks the climb back up exactly where it stopped.
+        </div>
+      </div>
+      <Button size="sm" className="shrink-0 rounded-full" onClick={retryDeploy} disabled={retrying}>
+        {retrying ? "Resuming…" : "Resume launch"}
+      </Button>
+    </div>
+  ) : null;
+
   const sectionInner = (
     <section className="space-y-5">
       <style>{BOTSEC_CSS}</style>
@@ -763,20 +811,7 @@ const BotSection = ({
         onRefresh={() => { reloadHealth(); onReload(); }}
       />
 
-      {deployFailed && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-destructive/25 bg-destructive/[0.07] px-4 py-3">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-destructive/15">
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-          </span>
-          <div className="min-w-0 flex-1 text-sm leading-snug">
-            <span className="font-semibold text-foreground">Deployment hit a snag.</span>{" "}
-            <span className="text-muted-foreground">Retrying is safe — it picks up where it left off.</span>
-          </div>
-          <Button size="sm" variant="outline" className="shrink-0 border-destructive/40 hover:bg-destructive/10" onClick={retryDeploy} disabled={retrying}>
-            {retrying ? "Retrying…" : "Retry deployment"}
-          </Button>
-        </div>
-      )}
+      {deployFailedBanner}
 
       <details
         open={manageOpen}
@@ -887,20 +922,7 @@ const BotSection = ({
       {/* Only the actionable deploy states get a banner now — the plain
           "Deploying…" strip is redundant with the Manage panel's live status
           beam, so we no longer render it. */}
-      {deployFailed && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-destructive/25 bg-destructive/[0.07] px-4 py-3">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-destructive/15">
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-          </span>
-          <div className="min-w-0 flex-1 text-sm leading-snug">
-            <span className="font-semibold text-foreground">Deployment hit a snag.</span>{" "}
-            <span className="text-muted-foreground">Retrying is safe — it picks up where it left off.</span>
-          </div>
-          <Button size="sm" variant="outline" className="shrink-0 border-destructive/40 hover:bg-destructive/10" onClick={retryDeploy} disabled={retrying}>
-            {retrying ? "Retrying…" : "Retry deployment"}
-          </Button>
-        </div>
-      )}
+      {deployFailedBanner}
       {!deployFailed && isQueued && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm flex items-center justify-center gap-3 text-amber-200">
           <span className="h-2 w-2 rounded-full bg-amber-300 animate-pulse" />
