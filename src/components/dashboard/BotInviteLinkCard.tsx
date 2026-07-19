@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Send, Lock } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { useBotServerSlots } from "@/hooks/useBotServerSlots";
 
 interface Props {
@@ -16,9 +15,13 @@ interface Props {
 const SHOW_STATUSES = new Set(["ready", "live", "online"]);
 
 /**
- * Add-to-Server invite card. Visible only when the bot is `ready`/`live`/`online`
- * AND the bot has a token assigned in the pool. Disables the invite when the
- * user is at their server limit and prompts them to buy a slot instead.
+ * Add-to-Server invite panel. Visible only when the bot is `ready`/`live`/
+ * `online` AND the bot has a token assigned in the pool. Disables the invite
+ * when the user is at their server limit and prompts them to buy a slot.
+ *
+ * Visual: the completed brand ridge with a glowing summit dot — the deploy
+ * climb is finished, the bot just needs a server. Mirrors the broken-ridge
+ * deploy-failed banner so both states read as one system.
  */
 export function BotInviteLinkCard({ botId, status, onRequestBuySlot }: Props) {
   const [clientId, setClientId] = useState<string | null>(null);
@@ -56,69 +59,87 @@ export function BotInviteLinkCard({ botId, status, onRequestBuySlot }: Props) {
   )}&permissions=8&scope=bot+applications.commands`;
 
   return (
-    <Card
-      className={`p-4 ${
+    <div
+      className={`rounded-2xl border px-6 py-7 sm:px-9 ${
         atLimit
-          ? "bg-amber-500/5 border-amber-500/40"
-          : "bg-emerald-500/5 border-emerald-500/30"
+          ? "border-amber-400/30 bg-amber-400/[0.07]"
+          : "border-[#C9DBE6]/25 bg-[#C9DBE6]/[0.05]"
       }`}
     >
-      <div className="flex items-start gap-3">
-        <div
-          className={`h-10 w-10 rounded-lg grid place-items-center shrink-0 border ${
-            atLimit
-              ? "bg-amber-500/10 border-amber-500/30"
-              : "bg-emerald-500/10 border-emerald-500/30"
-          }`}
+      <style>{`
+        .os-ridge-summit{animation:os-ridge-summit 2.6s ease-out infinite}
+        @keyframes os-ridge-summit{0%,100%{opacity:1}50%{opacity:.35}}
+        @media (prefers-reduced-motion: reduce){.os-ridge-summit{animation:none}}
+      `}</style>
+      <div className="flex flex-wrap items-center gap-x-10 gap-y-5">
+        <svg
+          width="148"
+          height="58"
+          viewBox="0 0 190 74"
+          style={{ overflow: "visible" }}
+          aria-hidden
+          className="shrink-0"
         >
-          {atLimit ? (
-            <Lock className="h-5 w-5 text-amber-400" />
-          ) : (
-            <Send className="h-5 w-5 text-emerald-400" />
-          )}
-        </div>
-        <div className="text-sm flex-1 min-w-0">
-          {atLimit ? (
-            <>
-              <div className="font-semibold text-amber-300">
+          <path
+            d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70"
+            fill="none"
+            stroke="#C9DBE6"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <circle
+            className="os-ridge-summit"
+            cx="95"
+            cy="6"
+            r="4.5"
+            fill={atLimit ? "#F5C46E" : "#7DE8B2"}
+          />
+        </svg>
+        {atLimit ? (
+          <>
+            <div className="min-w-[240px] flex-1">
+              <div className="text-base font-semibold text-foreground">
                 Server limit reached ({current}/{max})
               </div>
-              <p className="text-muted-foreground mt-1">
-                Buy an extra slot to add this bot to another Discord server. Slots are shared
-                across all your bots.
+              <p className="mt-1.5 max-w-[52ch] text-sm leading-relaxed text-muted-foreground">
+                Buy an extra slot to add this bot to another Discord server. Slots are
+                shared across all your bots.
               </p>
-              <Button
-                variant="default"
-                size="sm"
-                className="mt-3"
-                onClick={() => onRequestBuySlot?.()}
-              >
-                Buy an extra slot ($2.99)
-              </Button>
-            </>
-          ) : (
-            <>
-              <div className="font-semibold text-emerald-300">Add your bot to a server</div>
-              <p className="text-muted-foreground mt-1">
-                Use the button below to invite your bot to your Discord server.
+            </div>
+            <Button
+              className="shrink-0 rounded-full px-7"
+              onClick={() => onRequestBuySlot?.()}
+            >
+              Buy an extra slot ($2.99)
+            </Button>
+          </>
+        ) : (
+          <>
+            <div className="min-w-[240px] flex-1">
+              <div className="text-base font-semibold text-foreground">
+                Your bot is ready for a server.
+              </div>
+              <p className="mt-1.5 max-w-[52ch] text-sm leading-relaxed text-muted-foreground">
+                It's online and waiting. Invite it to your Discord server to bring it to life.
               </p>
-              <Button asChild variant="outline" size="sm" className="mt-3">
-                <a href={inviteUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4 mr-1.5" />
-                  Add to Server
-                </a>
-              </Button>
-              <p className="text-xs text-muted-foreground mt-3">
+              <p className="mt-2 text-xs text-muted-foreground/80">
                 {isUnlimited
                   ? "Unlimited servers (admin)."
                   : `You can add this bot to ${max - current} more server${
                       max - current === 1 ? "" : "s"
                     }. Extra slots are $2.99 each, shared across all your bots.`}
               </p>
-            </>
-          )}
-        </div>
+            </div>
+            <Button asChild className="shrink-0 rounded-full px-7">
+              <a href={inviteUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="mr-1.5 h-4 w-4" />
+                Add to server
+              </a>
+            </Button>
+          </>
+        )}
       </div>
-    </Card>
+    </div>
   );
 }
