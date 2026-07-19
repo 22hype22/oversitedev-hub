@@ -9,6 +9,7 @@
 // based on the order's `base` field, sets the bot-specific env vars, triggers
 // a deploy, and writes the new service id back to bot_orders.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { scrubGuilds } from "../_shared/discord-guilds.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,65 +38,16 @@ async function railway(query: string, variables: Record<string, unknown>) {
   return json.data;
 }
 
-// ──────────────────────────────────────────────────────────────────────
 // SECURITY GATE — pool-token guild scrub.
 //
 // A pool token must NEVER reach a new customer while it still has access to
 // a previous customer's servers. Cancellation-time cleanup exists, but it
 // can miss (edge function down, Discord outage, historical cancellations
 // from before the cleanup was wired up). So the handout itself is gated:
-// right after claiming a pool token we leave every guild it's in and
-// re-verify the list is empty. If Discord won't let us finish, the deploy
-// ABORTS — a dirty token is never shipped.
-async function listBotGuilds(botToken: string): Promise<Array<{ id: string; name?: string }> | null> {
-  const guilds: Array<{ id: string; name?: string }> = [];
-  let after: string | null = null;
-  for (let i = 0; i < 50; i++) {
-    const url = new URL("https://discord.com/api/v10/users/@me/guilds");
-    url.searchParams.set("limit", "200");
-    if (after) url.searchParams.set("after", after);
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `Bot ${botToken}` },
-    });
-    if (res.status === 429) {
-      const ra = Number(res.headers.get("retry-after") ?? "1");
-      await new Promise((r) => setTimeout(r, Math.min(5000, ra * 1000)));
-      continue;
-    }
-    if (!res.ok) return null; // can't trust a partial listing
-    const page = (await res.json()) as Array<{ id: string; name?: string }>;
-    if (!Array.isArray(page) || page.length === 0) break;
-    guilds.push(...page);
-    if (page.length < 200) break;
-    after = page[page.length - 1].id;
-  }
-  return guilds;
-}
-
-/** Leave every guild; returns true only when a final re-list shows zero. */
-async function scrubPoolTokenGuilds(botToken: string): Promise<{ clean: boolean; detail: string }> {
-  for (let pass = 0; pass < 3; pass++) {
-    const guilds = await listBotGuilds(botToken);
-    if (guilds === null) return { clean: false, detail: "Discord guild listing failed" };
-    if (guilds.length === 0) return { clean: true, detail: pass === 0 ? "already clean" : `clean after ${pass} pass(es)` };
-    for (const g of guilds) {
-      const res = await fetch(`https://discord.com/api/v10/users/@me/guilds/${g.id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bot ${botToken}` },
-      });
-      if (res.status === 429) {
-        const ra = Number(res.headers.get("retry-after") ?? "1");
-        await new Promise((r) => setTimeout(r, Math.min(5000, ra * 1000)));
-      }
-      console.log(`[scrub] leave guild ${g.id} (${g.name ?? ""}) status=${res.status}`);
-    }
-  }
-  const finalCheck = await listBotGuilds(botToken);
-  if (finalCheck === null) return { clean: false, detail: "final verification listing failed" };
-  return finalCheck.length === 0
-    ? { clean: true, detail: "clean after retries" }
-    : { clean: false, detail: `${finalCheck.length} guild(s) could not be left` };
-}
+// right after claiming a pool token, `scrubGuilds` (shared, see
+// _shared/discord-guilds.ts) leaves every guild it's in and re-verifies the
+// list is empty. If Discord won't let us finish, the deploy ABORTS — a dirty
+// token is never shipped.
 
 function repoSourceFor(base: string): string {
   const b = (base ?? "").toLowerCase().trim();
@@ -962,7 +914,7 @@ Deno.serve(async (req) => {
     if (!botToken) {
       // Self-healing pool: reclaim tokens stranded by cancelled orders or
       // parked as needs_cleanup, so a botched cancellation can never require
-      // manual SQL to recover. Safe because scrubPoolTokenGuilds strips and
+      // manual SQL to recover. Safe because the claim-time scrubGuilds gate strips and
       // verifies every claimed token before it reaches a customer anyway.
       try {
         const { data: stranded } = await admin
@@ -1050,7 +1002,7 @@ Deno.serve(async (req) => {
       // order (no Railway service yet) — a re-deploy of an already-live bot
       // must NOT kick it from its current owner's servers.
       if (!order.railway_service_id) {
-        const scrub = await scrubPoolTokenGuilds(botToken);
+        const scrub = await scrubGuilds(botToken, "auto-deploy-bot");
         if (!scrub.clean) {
           const msg =
             `Deploy blocked for safety: the assigned bot token still has access to previous servers and Discord wouldn't let us remove it (${scrub.detail}). ` +
