@@ -985,40 +985,6 @@ const Admin = () => {
     // the KPI odometers (Live now / Bots sold) roll live as the numbers change.
     let cancelled = false;
 
-    // Signed-in admin identity — the template ships with neutral placeholders
-    // so whoever is logged in sees THEIR name/email here, never a hardcoded
-    // account. OWNER badge is reserved for the super admin; others read ADMIN.
-    const fillIdentity = (p?: {
-      preferred_name?: string | null;
-      display_name?: string | null;
-      discord_username?: string | null;
-    } | null) => {
-      const email = user?.email ?? "";
-      const name =
-        (p?.preferred_name && p.preferred_name.trim()) ||
-        (p?.display_name && p.display_name.trim()) ||
-        (p?.discord_username && p.discord_username.trim()) ||
-        (email ? email.split("@")[0] : "Admin");
-      const nameEl = root.querySelector('[data-me="name"]');
-      const emailEl = root.querySelector('[data-me="email"]');
-      const avEl = root.querySelector('[data-me="avatar"]');
-      const roleEl = root.querySelector('[data-me="role"]');
-      if (nameEl) nameEl.textContent = name;
-      if (emailEl) emailEl.textContent = email;
-      if (avEl) avEl.textContent = (name[0] || email[0] || "A").toUpperCase();
-      if (roleEl) roleEl.textContent = email.toLowerCase() === "everant00@gmail.com" ? "OWNER" : "ADMIN";
-    };
-    fillIdentity();
-    if (user?.id) {
-      (supabase as any)
-        .from("profiles")
-        .select("preferred_name, display_name, discord_username")
-        .eq("user_id", user.id)
-        .maybeSingle()
-        .then(({ data }: { data: any }) => {
-          if (!cancelled && data) fillIdentity(data);
-        });
-    }
     const loadOverview = () => {
       (supabase as any).rpc("admin_overview_stats").then(({ data }: { data: any }) => {
         if (cancelled || !data || data.ok === false) return;
@@ -1138,7 +1104,56 @@ const Admin = () => {
       disposeSupport();
       if (allowlistChannel) (supabase as any).removeChannel(allowlistChannel);
     };
-  }, [isAdmin, navigate, user]);
+    // NOTE: `user` must NOT be a dependency here. Supabase mints a new user
+    // object on every token refresh / tab refocus; re-running this effect
+    // would stack duplicate click listeners on the persistent template DOM
+    // and every admin action (and its toast) would fire twice. Identity text
+    // lives in its own effect below.
+  }, [isAdmin, navigate]);
+
+  // Signed-in admin identity — the template ships with neutral placeholders
+  // so whoever is logged in sees THEIR name/email, never a hardcoded account.
+  // Kept separate from the wiring effect: this only writes text, so it's safe
+  // to re-run whenever the auth session hands us a fresh `user` object.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || !isAdmin) return;
+    let cancelled = false;
+    const fillIdentity = (p?: {
+      preferred_name?: string | null;
+      display_name?: string | null;
+      discord_username?: string | null;
+    } | null) => {
+      const email = user?.email ?? "";
+      const name =
+        (p?.preferred_name && p.preferred_name.trim()) ||
+        (p?.display_name && p.display_name.trim()) ||
+        (p?.discord_username && p.discord_username.trim()) ||
+        (email ? email.split("@")[0] : "Admin");
+      const nameEl = root.querySelector('[data-me="name"]');
+      const emailEl = root.querySelector('[data-me="email"]');
+      const avEl = root.querySelector('[data-me="avatar"]');
+      const roleEl = root.querySelector('[data-me="role"]');
+      if (nameEl) nameEl.textContent = name;
+      if (emailEl) emailEl.textContent = email;
+      if (avEl) avEl.textContent = (name[0] || email[0] || "A").toUpperCase();
+      if (roleEl) roleEl.textContent = email.toLowerCase() === "everant00@gmail.com" ? "OWNER" : "ADMIN";
+    };
+    fillIdentity();
+    if (user?.id) {
+      (supabase as any)
+        .from("profiles")
+        .select("preferred_name, display_name, discord_username")
+        .eq("user_id", user.id)
+        .maybeSingle()
+        .then(({ data }: { data: any }) => {
+          if (!cancelled && data) fillIdentity(data);
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, user]);
 
   if (loading) {
     return (
