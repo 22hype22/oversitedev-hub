@@ -23,7 +23,6 @@ import {
 import { type BotHealth, formatUptime, formatRelative } from "@/hooks/useBotHealth";
 import { useBotUsageMetrics, type BotUsageDay } from "@/hooks/useBotUsageMetrics";
 import { useBotServerSlots } from "@/hooks/useBotServerSlots";
-import { BotInviteLinkCard } from "@/components/dashboard/BotInviteLinkCard";
 import { useBotLogs, type BotLogLevel } from "@/hooks/useBotLogs";
 
 type Action = "start" | "stop" | "restart" | "redeploy";
@@ -252,6 +251,29 @@ export function BotManagePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── invite ──
+  // The Servers empty state doubles as the invite (no separate card): fetch
+  // the bot's Discord client id so the dashed box can carry the Add-to-server
+  // button the moment the bot is deliverable.
+  const [inviteClientId, setInviteClientId] = useState<string | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    if (bot.isDemo || !["ready", "live", "online"].includes(bot.status)) {
+      setInviteClientId(null);
+      return;
+    }
+    (async () => {
+      const { data } = await (supabase as any).rpc("get_bot_client_id", { _bot_id: bot.id });
+      if (mounted) setInviteClientId(typeof data === "string" && data.length > 0 ? data : null);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [bot.id, bot.status, bot.isDemo]);
+  const inviteUrl = inviteClientId
+    ? `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(inviteClientId)}&permissions=8&scope=bot+applications.commands`
+    : null;
+
   // ── logs ──
   const [logRange, setLogRange] = useState("24h");
   const activeRange = LOG_RANGES.find((r) => r.key === logRange) ?? LOG_RANGES[1];
@@ -373,6 +395,22 @@ export function BotManagePanel({
                 );
               })}
             </div>
+          ) : inviteUrl && !guildsLoading ? (
+            <div className="invempty">
+              <svg width="86" height="34" viewBox="0 0 190 74" style={{ overflow: "visible" }} aria-hidden>
+                <path d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70" />
+              </svg>
+              <div className="inv-t">Not in any servers yet</div>
+              <div className="inv-d">Your bot is online and waiting. Invite it to bring it to life.</div>
+              <a className="invbtn" href={inviteUrl} target="_blank" rel="noopener noreferrer">
+                Add to server
+              </a>
+              <div className="inv-s">
+                {isUnlimited
+                  ? "Unlimited servers (admin)"
+                  : `${Math.max(maxSlots - currentSlots, 0)} slot${maxSlots - currentSlots === 1 ? "" : "s"} free`}
+              </div>
+            </div>
           ) : (
             <div className="empty">
               {guildsLoading ? "Loading servers…" : "Bot isn't in any servers yet. Invite it to get started."}
@@ -384,10 +422,17 @@ export function BotManagePanel({
               <ChevronDown style={{ transform: showAllServers ? "rotate(180deg)" : "none" }} />
             </button>
           )}
-          {/* Invite panel lives here, next to the server list it feeds. */}
-          <div style={{ marginTop: 14 }}>
-            <BotInviteLinkCard botId={bot.id} status={bot.status} onRequestBuySlot={onBuySlot} />
-          </div>
+          {shownGuilds.length > 0 && inviteUrl && !atLimit && (
+            <a
+              className="smore"
+              style={{ textDecoration: "none" }}
+              href={inviteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Add to another server
+            </a>
+          )}
           {!isUnlimited && (
             <div className={`slotbar ${highlightSlots || atLimit ? "hot" : ""}`}>
               <div className="sbx">
@@ -623,6 +668,16 @@ const MANAGE_CSS = `
 .mng2 .slotbar .sbtn svg{width:15px;height:15px;stroke:currentColor;stroke-width:2.6;fill:none}
 .mng2 .empty{font-size:12.5px;color:var(--faint);text-align:center;padding:22px 12px;
   border:1px dashed var(--hair);border-radius:12px}
+.mng2 .invempty{border:1px dashed var(--hair);border-radius:12px;padding:26px 16px;
+  display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+.mng2 .invempty svg path{fill:none;stroke:var(--accent);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.9}
+.mng2 .invempty .inv-t{font-size:13.5px;font-weight:700;color:var(--heading)}
+.mng2 .invempty .inv-d{font-size:12px;color:var(--faint);max-width:42ch}
+.mng2 .invempty .inv-s{font-size:11px;color:var(--faint);opacity:.8}
+.mng2 .invbtn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 16px;border-radius:10px;
+  border:0;background:linear-gradient(180deg,#d6e4ee,#c1d4e0);color:#1E242B;font:inherit;font-size:12.5px;font-weight:700;
+  cursor:pointer;text-decoration:none;box-shadow:0 2px 8px -2px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.5)}
+.mng2 .invbtn:hover{filter:brightness(1.04)}
 
 /* logs */
 .mng2 .logbar{display:flex;align-items:center;gap:10px}
