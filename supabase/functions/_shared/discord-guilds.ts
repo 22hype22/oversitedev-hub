@@ -50,6 +50,9 @@ export async function scrubGuilds(
   botToken: string,
   tag = "scrub",
 ): Promise<{ clean: boolean; detail: string }> {
+  // Discord's refusal reason per guild id, surfaced in the failure detail so
+  // a kept token's toast says WHY (e.g. "leave HTTP 400: …"), not just where.
+  const lastError = new Map<string, string>();
   for (let pass = 0; pass < 3; pass++) {
     const guilds = await listBotGuilds(botToken);
     if (guilds === null) return { clean: false, detail: "Discord guild listing failed" };
@@ -65,6 +68,7 @@ export async function scrubGuilds(
       // near-empty means it's a shell the bot itself created — delete it.
       // Owned with real members is reported below instead of destroyed.
       const ownedShell = g.owner === true && (g.approximate_member_count ?? 999) <= 3;
+      const verb = ownedShell ? "delete owned shell guild" : "leave guild";
       const res = await fetch(
         ownedShell
           ? `${DISCORD_API}/guilds/${g.id}`
@@ -75,9 +79,15 @@ export async function scrubGuilds(
         const ra = Number(res.headers.get("retry-after") ?? "1");
         await new Promise((r) => setTimeout(r, Math.min(5000, ra * 1000)));
       }
-      console.log(
-        `[${tag}] ${ownedShell ? "delete owned shell guild" : "leave guild"} ${g.id} (${g.name ?? ""}) status=${res.status}`,
-      );
+      let body = "";
+      if (!res.ok && res.status !== 404) {
+        // 404 = already out; anything else failed — keep Discord's reason.
+        body = (await res.text().catch(() => "")).slice(0, 160);
+        lastError.set(g.id, `${ownedShell ? "delete" : "leave"} HTTP ${res.status}${body ? `: ${body}` : ""}`);
+      } else {
+        lastError.delete(g.id);
+      }
+      console.log(`[${tag}] ${verb} ${g.id} (${g.name ?? ""}) status=${res.status}${body ? ` body=${body}` : ""}`);
     }
   }
   const finalCheck = await listBotGuilds(botToken);
@@ -85,10 +95,12 @@ export async function scrubGuilds(
   if (finalCheck.length === 0) return { clean: true, detail: "clean after retries" };
   const names = finalCheck
     .map((g) => {
-      const bits = [g.name ?? g.id];
+      const bits: string[] = [];
       if (g.owner) bits.push("bot-owned");
       if (typeof g.approximate_member_count === "number") bits.push(`~${g.approximate_member_count} members`);
-      return `${bits[0]}${bits.length > 1 ? ` (${bits.slice(1).join(", ")})` : ""}`;
+      const err = lastError.get(g.id);
+      if (err) bits.push(err);
+      return `${g.name ?? g.id}${bits.length ? ` (${bits.join(", ")})` : ""}`;
     })
     .join(", ");
   return { clean: false, detail: `could not exit: ${names}` };
