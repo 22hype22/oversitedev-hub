@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { useBotHealth, formatUptime, formatRelative } from "@/hooks/useBotHealth";
 import { Activity, CircleOff, AlertTriangle, RefreshCw, Pause, Loader2 } from "lucide-react";
 
@@ -19,12 +18,19 @@ const STATUS_META: Record<
 export const BotHealthBadge = ({ botId }: { botId: string }) => {
   const { health, loading, reload } = useBotHealth(botId);
 
+  // Match the "Ready to invite" status pill exactly: same font size/weight
+  // and the same inline padding (the dashboard's `.osd *{padding:0}` reset
+  // zeroes Tailwind/Badge padding, which left this chip looking cramped).
+  const pillClass =
+    "inline-flex items-center gap-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap";
+  const pillPad = { padding: "3px 11px" } as const;
+
   if (loading || !health) {
     return (
-      <Badge variant="outline" className="text-[10px] gap-1.5 bg-muted text-muted-foreground border-border">
+      <span className={`${pillClass} bg-muted text-muted-foreground border-border`} style={pillPad}>
         <Loader2 className="h-3 w-3 animate-spin" />
         Checking…
-      </Badge>
+      </span>
     );
   }
 
@@ -39,11 +45,11 @@ export const BotHealthBadge = ({ botId }: { botId: string }) => {
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <Badge variant="outline" className={`text-[10px] gap-1.5 ${meta.className}`}>
+      <span className={`${pillClass} ${meta.className}`} style={pillPad}>
         <Icon className={`h-3 w-3 ${meta.pulse ? "animate-pulse" : ""}`} />
         {meta.label}
         {health.stale && <span className="opacity-70">(stale)</span>}
-      </Badge>
+      </span>
       {uptime && (
         <span className="text-[10px] text-muted-foreground">
           up <span className="text-foreground font-medium">{uptime}</span>
