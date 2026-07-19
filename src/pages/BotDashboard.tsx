@@ -495,7 +495,19 @@ const BotSection = ({
         body: { orderId: bot.id },
       });
       if (error) {
-        toast.error("Retry failed", { description: error.message });
+        // supabase-js buries the function's real error body inside
+        // error.context — surface it instead of the generic non-2xx line.
+        let msg = error.message as string;
+        const ctx = (error as { context?: Response }).context;
+        if (ctx && typeof ctx.json === "function") {
+          try {
+            const body = await ctx.clone().json();
+            if (body?.error) msg = String(body.error);
+          } catch {
+            /* keep generic message */
+          }
+        }
+        toast.error("Retry failed", { description: msg });
       } else if ((data as { alreadyInProgress?: boolean } | null)?.alreadyInProgress) {
         toast.info("A deployment is already in progress for this bot.");
         onReload();
