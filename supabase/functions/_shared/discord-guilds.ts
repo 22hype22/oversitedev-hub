@@ -69,25 +69,38 @@ export async function scrubGuilds(
       // Owned with real members is reported below instead of destroyed.
       const ownedShell = g.owner === true && (g.approximate_member_count ?? 999) <= 3;
       const verb = ownedShell ? "delete owned shell guild" : "leave guild";
-      const res = await fetch(
-        ownedShell
-          ? `${DISCORD_API}/guilds/${g.id}`
-          : `${DISCORD_API}/users/@me/guilds/${g.id}`,
-        { method: "DELETE", headers: { Authorization: `Bot ${botToken}` } },
-      );
-      if (res.status === 429) {
-        const ra = Number(res.headers.get("retry-after") ?? "1");
-        await new Promise((r) => setTimeout(r, Math.min(5000, ra * 1000)));
+      const url = ownedShell
+        ? `${DISCORD_API}/guilds/${g.id}`
+        : `${DISCORD_API}/users/@me/guilds/${g.id}`;
+      // A 429 is "ask again shortly", not a refusal — retry THIS guild after
+      // Discord's retry-after instead of moving on, so a momentary rate
+      // limit can't burn a whole pass (or abort a deploy).
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const res = await fetch(url, {
+          method: "DELETE",
+          headers: { Authorization: `Bot ${botToken}` },
+        });
+        if (res.status === 429) {
+          const ra = Number(res.headers.get("retry-after") ?? "1");
+          const waitMs = Math.min(5000, Math.max(600, ra * 1000));
+          console.log(`[${tag}] ${verb} ${g.id} rate limited, retrying in ${waitMs}ms`);
+          await new Promise((r) => setTimeout(r, waitMs));
+          if (attempt === 3) {
+            lastError.set(g.id, `${ownedShell ? "delete" : "leave"} kept hitting rate limits`);
+          }
+          continue;
+        }
+        let body = "";
+        if (!res.ok && res.status !== 404) {
+          // 404 = already out; anything else failed — keep Discord's reason.
+          body = (await res.text().catch(() => "")).slice(0, 160);
+          lastError.set(g.id, `${ownedShell ? "delete" : "leave"} HTTP ${res.status}${body ? `: ${body}` : ""}`);
+        } else {
+          lastError.delete(g.id);
+        }
+        console.log(`[${tag}] ${verb} ${g.id} (${g.name ?? ""}) status=${res.status}${body ? ` body=${body}` : ""}`);
+        break;
       }
-      let body = "";
-      if (!res.ok && res.status !== 404) {
-        // 404 = already out; anything else failed — keep Discord's reason.
-        body = (await res.text().catch(() => "")).slice(0, 160);
-        lastError.set(g.id, `${ownedShell ? "delete" : "leave"} HTTP ${res.status}${body ? `: ${body}` : ""}`);
-      } else {
-        lastError.delete(g.id);
-      }
-      console.log(`[${tag}] ${verb} ${g.id} (${g.name ?? ""}) status=${res.status}${body ? ` body=${body}` : ""}`);
     }
   }
   const finalCheck = await listBotGuilds(botToken);
