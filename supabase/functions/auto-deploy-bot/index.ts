@@ -960,6 +960,52 @@ Deno.serve(async (req) => {
     let botToken = order.bot_token as string | null;
     let poolClientId: string | null = null;
     if (!botToken) {
+      // Self-healing pool: reclaim tokens stranded by cancelled orders or
+      // parked as needs_cleanup, so a botched cancellation can never require
+      // manual SQL to recover. Safe because scrubPoolTokenGuilds strips and
+      // verifies every claimed token before it reaches a customer anyway.
+      try {
+        const { data: stranded } = await admin
+          .from("bot_token_pool")
+          .select("id, assigned_bot_id, status")
+          .in("status", ["assigned", "needs_cleanup"]);
+        if (stranded && stranded.length > 0) {
+          const linkedIds = stranded
+            .map((r: any) => r.assigned_bot_id)
+            .filter(Boolean) as string[];
+          const { data: linkedOrders } = linkedIds.length
+            ? await admin.from("bot_orders").select("id, status").in("id", linkedIds)
+            : { data: [] as any[] };
+          const statusById = new Map(
+            (linkedOrders ?? []).map((o: any) => [o.id, o.status]),
+          );
+          const reclaim = stranded
+            .filter((r: any) => {
+              if (r.status === "needs_cleanup") return true;
+              if (!r.assigned_bot_id) return true; // assigned to nothing
+              const s = statusById.get(r.assigned_bot_id);
+              return s === undefined || s === "cancelled"; // order gone or cancelled
+            })
+            .map((r: any) => r.id);
+          if (reclaim.length > 0) {
+            await admin
+              .from("bot_token_pool")
+              .update({
+                status: "available",
+                assigned_bot_id: null,
+                assigned_at: null,
+                updated_at: new Date().toISOString(),
+              })
+              .in("id", reclaim);
+            console.log(
+              `[auto-deploy-bot] self-heal: reclaimed ${reclaim.length} stranded pool token(s)`,
+            );
+          }
+        }
+      } catch (e) {
+        console.warn("[auto-deploy-bot] pool self-heal failed", (e as Error).message);
+      }
+
       const { data: claim, error: claimErr } = await admin.rpc(
         "claim_pool_token_for_deploy",
         { _order_id: orderId },
