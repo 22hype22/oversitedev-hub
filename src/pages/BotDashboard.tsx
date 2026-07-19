@@ -754,47 +754,49 @@ const BotSection = ({
   // the launch step and stops at a glowing break point on a red wash; retry
   // resumes the climb. Rendered in two spots, so built once here.
   const deployFailedBanner = deployFailed ? (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-destructive/40 bg-destructive/20 px-5 py-4">
+    <div className="rounded-2xl border border-destructive/40 bg-destructive/20 px-6 py-7 sm:px-9">
       <style>{`
         .os-ridge-break{animation:os-ridge-break 2.2s ease-out infinite}
         @keyframes os-ridge-break{0%,100%{opacity:1}50%{opacity:.25}}
         @media (prefers-reduced-motion: reduce){.os-ridge-break{animation:none}}
       `}</style>
-      <svg
-        width="112"
-        height="44"
-        viewBox="0 0 190 74"
-        style={{ overflow: "visible" }}
-        aria-hidden
-        className="shrink-0"
-      >
-        <path
-          d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70"
-          fill="none"
-          stroke="rgba(201,219,230,.22)"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M4 70 L44 26 L62 44 L95 6"
-          fill="none"
-          stroke="#C9DBE6"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <circle className="os-ridge-break" cx="95" cy="6" r="4" fill="#FF9C82" />
-      </svg>
-      <div className="min-w-[220px] flex-1 text-sm leading-snug">
-        <div className="font-semibold text-foreground">The launch stopped partway.</div>
-        <div className="text-muted-foreground mt-0.5">
-          Nothing is lost. Retrying picks the climb back up exactly where it stopped.
+      <div className="flex flex-wrap items-center gap-x-10 gap-y-5">
+        <svg
+          width="148"
+          height="58"
+          viewBox="0 0 190 74"
+          style={{ overflow: "visible" }}
+          aria-hidden
+          className="shrink-0"
+        >
+          <path
+            d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70"
+            fill="none"
+            stroke="rgba(201,219,230,.22)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M4 70 L44 26 L62 44 L95 6"
+            fill="none"
+            stroke="#C9DBE6"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <circle className="os-ridge-break" cx="95" cy="6" r="4.5" fill="#FF9C82" />
+        </svg>
+        <div className="min-w-[240px] flex-1">
+          <div className="text-base font-semibold text-foreground">The launch stopped partway.</div>
+          <p className="mt-1.5 max-w-[52ch] text-sm leading-relaxed text-muted-foreground">
+            Nothing is lost. Retrying picks the climb back up exactly where it stopped.
+          </p>
         </div>
+        <Button className="shrink-0 rounded-full px-7" onClick={retryDeploy} disabled={retrying}>
+          {retrying ? "Resuming…" : "Resume launch"}
+        </Button>
       </div>
-      <Button size="sm" className="shrink-0 rounded-full" onClick={retryDeploy} disabled={retrying}>
-        {retrying ? "Resuming…" : "Resume launch"}
-      </Button>
     </div>
   ) : null;
 
