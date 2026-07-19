@@ -9,7 +9,12 @@
 
 const DISCORD_API = "https://discord.com/api/v10";
 
-export type GuildRef = { id: string; name?: string };
+export type GuildRef = {
+  id: string;
+  name?: string;
+  owner?: boolean;
+  approximate_member_count?: number;
+};
 
 /** List every guild the bot is in. Returns null when the listing can't be
  * trusted (Discord error) — callers must treat null as "not verified". */
@@ -19,6 +24,7 @@ export async function listBotGuilds(botToken: string): Promise<GuildRef[] | null
   for (let i = 0; i < 50; i++) {
     const url = new URL(`${DISCORD_API}/users/@me/guilds`);
     url.searchParams.set("limit", "200");
+    url.searchParams.set("with_counts", "true");
     if (after) url.searchParams.set("after", after);
     const res = await fetch(url.toString(), {
       headers: { Authorization: `Bot ${botToken}` },
@@ -54,20 +60,36 @@ export async function scrubGuilds(
       };
     }
     for (const g of guilds) {
-      const res = await fetch(`${DISCORD_API}/users/@me/guilds/${g.id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bot ${botToken}` },
-      });
+      // A bot can never LEAVE a guild it owns (ownership can't be transferred
+      // off a bot), so an owned guild would stick the token forever. Owned +
+      // near-empty means it's a shell the bot itself created — delete it.
+      // Owned with real members is reported below instead of destroyed.
+      const ownedShell = g.owner === true && (g.approximate_member_count ?? 999) <= 3;
+      const res = await fetch(
+        ownedShell
+          ? `${DISCORD_API}/guilds/${g.id}`
+          : `${DISCORD_API}/users/@me/guilds/${g.id}`,
+        { method: "DELETE", headers: { Authorization: `Bot ${botToken}` } },
+      );
       if (res.status === 429) {
         const ra = Number(res.headers.get("retry-after") ?? "1");
         await new Promise((r) => setTimeout(r, Math.min(5000, ra * 1000)));
       }
-      console.log(`[${tag}] leave guild ${g.id} (${g.name ?? ""}) status=${res.status}`);
+      console.log(
+        `[${tag}] ${ownedShell ? "delete owned shell guild" : "leave guild"} ${g.id} (${g.name ?? ""}) status=${res.status}`,
+      );
     }
   }
   const finalCheck = await listBotGuilds(botToken);
   if (finalCheck === null) return { clean: false, detail: "final verification listing failed" };
-  return finalCheck.length === 0
-    ? { clean: true, detail: "clean after retries" }
-    : { clean: false, detail: `${finalCheck.length} server(s) could not be left` };
+  if (finalCheck.length === 0) return { clean: true, detail: "clean after retries" };
+  const names = finalCheck
+    .map((g) => {
+      const bits = [g.name ?? g.id];
+      if (g.owner) bits.push("bot-owned");
+      if (typeof g.approximate_member_count === "number") bits.push(`~${g.approximate_member_count} members`);
+      return `${bits[0]}${bits.length > 1 ? ` (${bits.slice(1).join(", ")})` : ""}`;
+    })
+    .join(", ");
+  return { clean: false, detail: `could not exit: ${names}` };
 }
