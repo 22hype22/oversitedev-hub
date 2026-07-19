@@ -752,12 +752,21 @@ const BotSection = ({
       />
 
       {deployFailed && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm flex items-center justify-between gap-3">
-          <span className="font-medium text-destructive">Deployment failed.</span>
-          <Button size="sm" variant="outline" onClick={retryDeploy} disabled={retrying}>
-            {retrying ? "Retrying…" : "Retry deployment"}
-          </Button>
-        </div>
+        <Card className="p-4 bg-destructive/5 border-destructive/30">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+            <div className="text-sm flex-1">
+              <div className="font-semibold text-destructive">Deployment hit a snag</div>
+              <p className="text-muted-foreground mt-1">
+                Something went wrong while launching this bot. Retrying is safe — it
+                picks up where it left off, and our team is alerted if it keeps failing.
+              </p>
+              <Button size="sm" variant="outline" className="mt-3" onClick={retryDeploy} disabled={retrying}>
+                {retrying ? "Retrying…" : "Retry deployment"}
+              </Button>
+            </div>
+          </div>
+        </Card>
       )}
 
       <details
@@ -869,29 +878,29 @@ const BotSection = ({
       {/* Only the actionable deploy states get a banner now — the plain
           "Deploying…" strip is redundant with the Manage panel's live status
           beam, so we no longer render it. */}
-      {(deployFailed || isQueued) && (
-        <div
-          className={`rounded-lg border px-4 py-3 text-sm flex items-center justify-center gap-3 ${
-            deployFailed
-              ? "border-destructive/30 bg-destructive/10 text-destructive"
-              : "border-amber-500/30 bg-amber-500/10 text-amber-200"
-          }`}
-        >
-          {deployFailed ? (
-            <>
-              <span className="font-medium">Deployment failed.</span>
-              <Button size="sm" variant="outline" onClick={retryDeploy} disabled={retrying}>
+      {deployFailed && (
+        <Card className="p-4 bg-destructive/5 border-destructive/30">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+            <div className="text-sm flex-1">
+              <div className="font-semibold text-destructive">Deployment hit a snag</div>
+              <p className="text-muted-foreground mt-1">
+                Something went wrong while launching this bot. Retrying is safe — it
+                picks up where it left off, and our team is alerted if it keeps failing.
+              </p>
+              <Button size="sm" variant="outline" className="mt-3" onClick={retryDeploy} disabled={retrying}>
                 {retrying ? "Retrying…" : "Retry deployment"}
               </Button>
-            </>
-          ) : (
-            <>
-              <span className="h-2 w-2 rounded-full bg-amber-300 animate-pulse" />
-              <span className="font-medium text-center">
-                We're currently preparing your bot — our team is on it and you'll receive a Discord DM as soon as it's live. Thank you for your patience!
-              </span>
-            </>
-          )}
+            </div>
+          </div>
+        </Card>
+      )}
+      {!deployFailed && isQueued && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm flex items-center justify-center gap-3 text-amber-200">
+          <span className="h-2 w-2 rounded-full bg-amber-300 animate-pulse" />
+          <span className="font-medium text-center">
+            We're currently preparing your bot — our team is on it and you'll receive a Discord DM as soon as it's live. Thank you for your patience!
+          </span>
         </div>
       )}
 
