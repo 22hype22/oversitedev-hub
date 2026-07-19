@@ -609,7 +609,10 @@ const ADMIN_HTML = `<div class="osd app">
               </div>
               <div class="row2"><div><label class="lbl">Bot username</label><input class="in" data-bw="pool-user" placeholder="MyBot#0001"></div><div><label class="lbl">Client ID</label><input class="in" data-bw="pool-client" placeholder="1304…"></div></div>
               <div style="margin-top:10px"><label class="lbl">Token</label><input class="in mono" data-bw="pool-token" placeholder="paste bot token"></div>
-              <button class="btn" data-bw="pool-add" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add to pool</button>
+              <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn" data-bw="pool-add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add to pool</button>
+                <button class="btn ghost" data-bw="pool-reclaim" title="Free tokens still marked assigned after their bot was cancelled"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/></svg>Reclaim stuck tokens</button>
+              </div>
               <div class="listcap">Pool</div>
               <div data-bw="pool-list"><div class="subnote">Loading…</div></div>
             </div>
@@ -1915,6 +1918,34 @@ function wireBots(root: HTMLElement): void {
     setVal('[data-bw="pool-client"]', "");
     setVal('[data-bw="pool-token"]', "");
     loadPool();
+  });
+  $('[data-bw="pool-reclaim"]')?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const orig = btn.innerHTML;
+    btn.textContent = "Reclaiming…";
+    try {
+      const { data, error } = await sb.functions.invoke("admin-token-pool", {
+        body: { action: "reclaim" },
+      });
+      if (error) return void toast.error(error.message);
+      if (!data?.ok) return void toast.error(data?.error || "Reclaim failed");
+      const freed = (data.reclaimed ?? []) as Array<{ username: string }>;
+      const kept = (data.kept ?? []) as Array<{ username: string; reason: string }>;
+      if (freed.length === 0 && kept.length === 0) {
+        toast.success("Nothing stuck — every assigned token belongs to a live bot");
+      } else if (freed.length > 0) {
+        toast.success(`Freed ${freed.map((t) => t.username).join(", ")} back to available`);
+      }
+      for (const t of kept) {
+        toast.error(`${t.username} kept assigned — ${t.reason}`);
+      }
+      loadPool();
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
   });
   poolList?.addEventListener("click", async (e) => {
     const ic = (e.target as Element).closest(".ic");
