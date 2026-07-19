@@ -23,6 +23,7 @@ import {
 import { type BotHealth, formatUptime, formatRelative } from "@/hooks/useBotHealth";
 import { useBotUsageMetrics, type BotUsageDay } from "@/hooks/useBotUsageMetrics";
 import { useBotServerSlots } from "@/hooks/useBotServerSlots";
+import { BotInviteLinkCard } from "@/components/dashboard/BotInviteLinkCard";
 import { useBotLogs, type BotLogLevel } from "@/hooks/useBotLogs";
 
 type Action = "start" | "stop" | "restart" | "redeploy";
@@ -383,6 +384,10 @@ export function BotManagePanel({
               <ChevronDown style={{ transform: showAllServers ? "rotate(180deg)" : "none" }} />
             </button>
           )}
+          {/* Invite panel lives here, next to the server list it feeds. */}
+          <div style={{ marginTop: 14 }}>
+            <BotInviteLinkCard botId={bot.id} status={bot.status} onRequestBuySlot={onBuySlot} />
+          </div>
           {!isUnlimited && (
             <div className={`slotbar ${highlightSlots || atLimit ? "hot" : ""}`}>
               <div className="sbx">
