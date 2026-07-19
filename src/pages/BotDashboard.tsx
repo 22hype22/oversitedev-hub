@@ -764,21 +764,18 @@ const BotSection = ({
       />
 
       {deployFailed && (
-        <Card className="p-4 bg-destructive/5 border-destructive/30">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
-            <div className="text-sm flex-1">
-              <div className="font-semibold text-destructive">Deployment hit a snag</div>
-              <p className="text-muted-foreground mt-1">
-                Something went wrong while launching this bot. Retrying is safe — it
-                picks up where it left off, and our team is alerted if it keeps failing.
-              </p>
-              <Button size="sm" variant="outline" className="mt-3" onClick={retryDeploy} disabled={retrying}>
-                {retrying ? "Retrying…" : "Retry deployment"}
-              </Button>
-            </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-destructive/25 bg-destructive/[0.07] px-4 py-3">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-destructive/15">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+          </span>
+          <div className="min-w-0 flex-1 text-sm leading-snug">
+            <span className="font-semibold text-foreground">Deployment hit a snag.</span>{" "}
+            <span className="text-muted-foreground">Retrying is safe — it picks up where it left off.</span>
           </div>
-        </Card>
+          <Button size="sm" variant="outline" className="shrink-0 border-destructive/40 hover:bg-destructive/10" onClick={retryDeploy} disabled={retrying}>
+            {retrying ? "Retrying…" : "Retry deployment"}
+          </Button>
+        </div>
       )}
 
       <details
@@ -891,21 +888,18 @@ const BotSection = ({
           "Deploying…" strip is redundant with the Manage panel's live status
           beam, so we no longer render it. */}
       {deployFailed && (
-        <Card className="p-4 bg-destructive/5 border-destructive/30">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
-            <div className="text-sm flex-1">
-              <div className="font-semibold text-destructive">Deployment hit a snag</div>
-              <p className="text-muted-foreground mt-1">
-                Something went wrong while launching this bot. Retrying is safe — it
-                picks up where it left off, and our team is alerted if it keeps failing.
-              </p>
-              <Button size="sm" variant="outline" className="mt-3" onClick={retryDeploy} disabled={retrying}>
-                {retrying ? "Retrying…" : "Retry deployment"}
-              </Button>
-            </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-destructive/25 bg-destructive/[0.07] px-4 py-3">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-destructive/15">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+          </span>
+          <div className="min-w-0 flex-1 text-sm leading-snug">
+            <span className="font-semibold text-foreground">Deployment hit a snag.</span>{" "}
+            <span className="text-muted-foreground">Retrying is safe — it picks up where it left off.</span>
           </div>
-        </Card>
+          <Button size="sm" variant="outline" className="shrink-0 border-destructive/40 hover:bg-destructive/10" onClick={retryDeploy} disabled={retrying}>
+            {retrying ? "Retrying…" : "Retry deployment"}
+          </Button>
+        </div>
       )}
       {!deployFailed && isQueued && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm flex items-center justify-center gap-3 text-amber-200">
