@@ -683,44 +683,157 @@ async function fetchImageAsDataUrl(url: string): Promise<string | null> {
   }
 }
 
-async function applyDiscordIdentity(
+// Wipe a pool token's Discord identity to a blank slate (avatar, banner, bio)
+// so a bot returned to the pool never carries the previous customer's look to
+// the next one. Runs at claim time right after the guild scrub, so it's
+// guaranteed even if the cancellation-time reset never ran. Returns which
+// fields Discord refused to clear (it silently ignores bio/banner for some
+// applications) so the caller can alert staff to wipe them by hand.
+async function resetBotIdentityToBlank(
   botToken: string,
-  identity: { username?: string | null; iconUrl?: string | null; bio?: string | null },
-): Promise<{ ok: boolean; status?: number; error?: string }> {
-  const payload: Record<string, unknown> = {};
-  if (identity.username) {
-    payload.username = identity.username.trim().slice(0, 32);
-  }
-  if (identity.bio) {
-    payload.bio = identity.bio.slice(0, 190);
-  }
-  if (identity.iconUrl) {
-    const dataUrl = await fetchImageAsDataUrl(identity.iconUrl);
-    if (dataUrl) payload.avatar = dataUrl;
-  }
-  if (Object.keys(payload).length === 0) return { ok: true };
+): Promise<{ ok: boolean; stuck: string[]; error?: string }> {
+  const stuck: string[] = [];
+  let ok = true;
+  let error: string | undefined;
   try {
+    // Avatar + banner live on the bot USER.
     const res = await fetch("https://discord.com/api/v10/users/@me", {
       method: "PATCH",
       headers: {
         Authorization: `Bot ${botToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ avatar: null, banner: null }),
     });
     if (!res.ok) {
       const text = await res.text();
-      console.warn("[auto-deploy-bot] discord identity patch failed", {
-        status: res.status,
-        body: text.slice(0, 300),
-        keys: Object.keys(payload),
-      });
-      return { ok: false, status: res.status, error: text.slice(0, 300) };
+      ok = false;
+      error = `users HTTP ${res.status}: ${text.slice(0, 160)}`;
+      stuck.push("avatar", "banner");
+    } else {
+      const updated = await res.json().catch(() => ({} as Record<string, unknown>));
+      if (updated?.avatar) stuck.push("avatar");
+      if (updated?.banner) stuck.push("banner");
     }
-    console.log("[auto-deploy-bot] discord identity applied", {
-      keys: Object.keys(payload),
+    // Description lives on the APPLICATION — clear it there.
+    const aRes = await fetch("https://discord.com/api/v10/applications/@me", {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bot ${botToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ description: "" }),
     });
-    return { ok: true };
+    if (!aRes.ok) {
+      const text = await aRes.text();
+      ok = false;
+      error = error ?? `applications HTTP ${aRes.status}: ${text.slice(0, 160)}`;
+      stuck.push("description");
+    } else {
+      const app = await aRes.json().catch(() => ({} as Record<string, unknown>));
+      if (typeof app?.description === "string" && app.description.trim().length > 0) {
+        stuck.push("description");
+      }
+    }
+    return { ok, stuck, error };
+  } catch (e) {
+    return { ok: false, stuck: ["avatar", "banner", "description"], error: String(e) };
+  }
+}
+
+// Post a staff alert when a returned token's old banner/bio couldn't be wiped
+// automatically, so a human clears it. Fire-and-forget; needs
+// OVERSITE_UTILITIES_BOT_TOKEN + STAFF_ALERTS_CHANNEL_ID. No-op if missing.
+async function alertStaffIdentityStuck(
+  botName: string | null | undefined,
+  orderId: string,
+  stuck: string[],
+): Promise<void> {
+  const token = Deno.env.get("OVERSITE_UTILITIES_BOT_TOKEN");
+  const channelId = Deno.env.get("STAFF_ALERTS_CHANNEL_ID");
+  if (!token || !channelId) return;
+  try {
+    const content =
+      `⚠️ **Returned bot token needs a manual identity wipe.**\n` +
+      `A pool token was just handed to a new order and Discord refused to clear: **${stuck.join(", ")}**.\n` +
+      `Bot: \`${botName ?? "unknown"}\` · Order: \`${orderId}\`\n` +
+      `Open the bot's application and clear the leftover ${stuck.join(" / ")} so the new customer doesn't inherit the previous one.`;
+    await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+  } catch (e) {
+    console.warn("[auto-deploy-bot] identity-stuck staff alert failed", String(e));
+  }
+}
+
+async function applyDiscordIdentity(
+  botToken: string,
+  identity: { username?: string | null; iconUrl?: string | null; bio?: string | null },
+): Promise<{ ok: boolean; status?: number; error?: string }> {
+  // Username + avatar go on the bot USER; the description ("About Me") is the
+  // APPLICATION description (/applications/@me). Sending description as `bio`
+  // to /users/@me is silently ignored for bots.
+  const payload: Record<string, unknown> = {};
+  if (identity.username) {
+    payload.username = identity.username.trim().slice(0, 32);
+  }
+  if (identity.iconUrl) {
+    const dataUrl = await fetchImageAsDataUrl(identity.iconUrl);
+    if (dataUrl) payload.avatar = dataUrl;
+  }
+  let ok = true;
+  let status: number | undefined;
+  let error: string | undefined;
+  try {
+    if (Object.keys(payload).length > 0) {
+      const res = await fetch("https://discord.com/api/v10/users/@me", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        console.warn("[auto-deploy-bot] discord user patch failed", {
+          status: res.status,
+          body: text.slice(0, 300),
+          keys: Object.keys(payload),
+        });
+        ok = false;
+        status = res.status;
+        error = text.slice(0, 300);
+      } else {
+        console.log("[auto-deploy-bot] discord user identity applied", { keys: Object.keys(payload) });
+      }
+    }
+    // Description via the application endpoint (empty string clears it).
+    if (identity.bio) {
+      const aRes = await fetch("https://discord.com/api/v10/applications/@me", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ description: identity.bio.slice(0, 400) }),
+      });
+      if (!aRes.ok) {
+        const text = await aRes.text();
+        console.warn("[auto-deploy-bot] discord application description patch failed", {
+          status: aRes.status,
+          body: text.slice(0, 300),
+        });
+        ok = false;
+        status = status ?? aRes.status;
+        error = error ?? text.slice(0, 300);
+      } else {
+        console.log("[auto-deploy-bot] discord application description applied");
+      }
+    }
+    return { ok, status, error };
   } catch (e) {
     console.warn("[auto-deploy-bot] discord identity patch threw", { e: String(e) });
     return { ok: false, error: String(e) };
@@ -1018,6 +1131,21 @@ Deno.serve(async (req) => {
           });
         }
         console.log("[auto-deploy-bot] pool token scrub:", scrub.detail);
+
+        // Wipe the previous owner's identity (avatar/banner/bio) before this
+        // token reaches the new customer. Discord doesn't let a bot re-fetch
+        // and change its own banner/bio reliably, so if it refuses, alert
+        // staff to clear it by hand instead of silently leaking it.
+        const idReset = await resetBotIdentityToBlank(botToken);
+        if (!idReset.ok) {
+          console.warn("[auto-deploy-bot] identity reset call failed:", idReset.error);
+          await alertStaffIdentityStuck((order as any).bot_name, orderId, idReset.stuck);
+        } else if (idReset.stuck.length > 0) {
+          console.warn("[auto-deploy-bot] identity fields Discord refused to clear:", idReset.stuck.join(", "));
+          await alertStaffIdentityStuck((order as any).bot_name, orderId, idReset.stuck);
+        } else {
+          console.log("[auto-deploy-bot] identity reset to blank slate");
+        }
       }
     }
 
