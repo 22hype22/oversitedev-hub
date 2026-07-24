@@ -9,6 +9,7 @@
 // based on the order's `base` field, sets the bot-specific env vars, triggers
 // a deploy, and writes the new service id back to bot_orders.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { scrubGuilds } from "../_shared/discord-guilds.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,6 +37,17 @@ async function railway(query: string, variables: Record<string, unknown>) {
   }
   return json.data;
 }
+
+// SECURITY GATE — pool-token guild scrub.
+//
+// A pool token must NEVER reach a new customer while it still has access to
+// a previous customer's servers. Cancellation-time cleanup exists, but it
+// can miss (edge function down, Discord outage, historical cancellations
+// from before the cleanup was wired up). So the handout itself is gated:
+// right after claiming a pool token, `scrubGuilds` (shared, see
+// _shared/discord-guilds.ts) leaves every guild it's in and re-verifies the
+// list is empty. If Discord won't let us finish, the deploy ABORTS — a dirty
+// token is never shipped.
 
 function repoSourceFor(base: string): string {
   const b = (base ?? "").toLowerCase().trim();
@@ -671,6 +683,68 @@ async function fetchImageAsDataUrl(url: string): Promise<string | null> {
   }
 }
 
+// Wipe a pool token's Discord identity to a blank slate (avatar, banner, bio)
+// so a bot returned to the pool never carries the previous customer's look to
+// the next one. Runs at claim time right after the guild scrub, so it's
+// guaranteed even if the cancellation-time reset never ran. Returns which
+// fields Discord refused to clear (it silently ignores bio/banner for some
+// applications) so the caller can alert staff to wipe them by hand.
+async function resetBotIdentityToBlank(
+  botToken: string,
+): Promise<{ ok: boolean; stuck: string[]; error?: string }> {
+  try {
+    const res = await fetch("https://discord.com/api/v10/users/@me", {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bot ${botToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ avatar: null, banner: null, bio: "" }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, stuck: ["avatar", "banner", "bio"], error: `HTTP ${res.status}: ${text.slice(0, 200)}` };
+    }
+    // Discord returns the updated user; anything still present is a field it
+    // refused to clear (bots can't always clear bio/banner via the API).
+    const updated = await res.json().catch(() => ({} as Record<string, unknown>));
+    const stuck: string[] = [];
+    if (updated?.avatar) stuck.push("avatar");
+    if (updated?.banner) stuck.push("banner");
+    if (typeof updated?.bio === "string" && updated.bio.trim().length > 0) stuck.push("bio");
+    return { ok: true, stuck };
+  } catch (e) {
+    return { ok: false, stuck: ["avatar", "banner", "bio"], error: String(e) };
+  }
+}
+
+// Post a staff alert when a returned token's old banner/bio couldn't be wiped
+// automatically, so a human clears it. Fire-and-forget; needs
+// OVERSITE_UTILITIES_BOT_TOKEN + STAFF_ALERTS_CHANNEL_ID. No-op if missing.
+async function alertStaffIdentityStuck(
+  botName: string | null | undefined,
+  orderId: string,
+  stuck: string[],
+): Promise<void> {
+  const token = Deno.env.get("OVERSITE_UTILITIES_BOT_TOKEN");
+  const channelId = Deno.env.get("STAFF_ALERTS_CHANNEL_ID");
+  if (!token || !channelId) return;
+  try {
+    const content =
+      `⚠️ **Returned bot token needs a manual identity wipe.**\n` +
+      `A pool token was just handed to a new order and Discord refused to clear: **${stuck.join(", ")}**.\n` +
+      `Bot: \`${botName ?? "unknown"}\` · Order: \`${orderId}\`\n` +
+      `Open the bot's application and clear the leftover ${stuck.join(" / ")} so the new customer doesn't inherit the previous one.`;
+    await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+  } catch (e) {
+    console.warn("[auto-deploy-bot] identity-stuck staff alert failed", String(e));
+  }
+}
+
 async function applyDiscordIdentity(
   botToken: string,
   identity: { username?: string | null; iconUrl?: string | null; bio?: string | null },
@@ -900,6 +974,52 @@ Deno.serve(async (req) => {
     let botToken = order.bot_token as string | null;
     let poolClientId: string | null = null;
     if (!botToken) {
+      // Self-healing pool: reclaim tokens stranded by cancelled orders or
+      // parked as needs_cleanup, so a botched cancellation can never require
+      // manual SQL to recover. Safe because the claim-time scrubGuilds gate strips and
+      // verifies every claimed token before it reaches a customer anyway.
+      try {
+        const { data: stranded } = await admin
+          .from("bot_token_pool")
+          .select("id, assigned_bot_id, status")
+          .in("status", ["assigned", "needs_cleanup"]);
+        if (stranded && stranded.length > 0) {
+          const linkedIds = stranded
+            .map((r: any) => r.assigned_bot_id)
+            .filter(Boolean) as string[];
+          const { data: linkedOrders } = linkedIds.length
+            ? await admin.from("bot_orders").select("id, status").in("id", linkedIds)
+            : { data: [] as any[] };
+          const statusById = new Map(
+            (linkedOrders ?? []).map((o: any) => [o.id, o.status]),
+          );
+          const reclaim = stranded
+            .filter((r: any) => {
+              if (r.status === "needs_cleanup") return true;
+              if (!r.assigned_bot_id) return true; // assigned to nothing
+              const s = statusById.get(r.assigned_bot_id);
+              return s === undefined || s === "cancelled"; // order gone or cancelled
+            })
+            .map((r: any) => r.id);
+          if (reclaim.length > 0) {
+            await admin
+              .from("bot_token_pool")
+              .update({
+                status: "available",
+                assigned_bot_id: null,
+                assigned_at: null,
+                updated_at: new Date().toISOString(),
+              })
+              .in("id", reclaim);
+            console.log(
+              `[auto-deploy-bot] self-heal: reclaimed ${reclaim.length} stranded pool token(s)`,
+            );
+          }
+        }
+      } catch (e) {
+        console.warn("[auto-deploy-bot] pool self-heal failed", (e as Error).message);
+      }
+
       const { data: claim, error: claimErr } = await admin.rpc(
         "claim_pool_token_for_deploy",
         { _order_id: orderId },
@@ -938,6 +1058,44 @@ Deno.serve(async (req) => {
       botToken = c.token ?? null;
       poolClientId = c.client_id ?? null;
       if (!botToken) throw new Error("Pool returned an empty token");
+
+      // SECURITY GATE: never hand a pool token to a customer while it still
+      // has access to someone else's servers. Only on the first deploy of an
+      // order (no Railway service yet) — a re-deploy of an already-live bot
+      // must NOT kick it from its current owner's servers.
+      if (!order.railway_service_id) {
+        const scrub = await scrubGuilds(botToken, "auto-deploy-bot");
+        if (!scrub.clean) {
+          const msg =
+            `Deploy blocked for safety: the assigned bot token still has access to previous servers and Discord wouldn't let us remove it (${scrub.detail}). ` +
+            "Retry the deploy in a few minutes.";
+          console.error("[auto-deploy-bot] scrub failed", orderId, scrub.detail);
+          await admin
+            .from("bot_orders")
+            .update({ deployment_status: "failed", deployment_error: msg })
+            .eq("id", orderId);
+          return new Response(JSON.stringify({ error: msg }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        console.log("[auto-deploy-bot] pool token scrub:", scrub.detail);
+
+        // Wipe the previous owner's identity (avatar/banner/bio) before this
+        // token reaches the new customer. Discord doesn't let a bot re-fetch
+        // and change its own banner/bio reliably, so if it refuses, alert
+        // staff to clear it by hand instead of silently leaking it.
+        const idReset = await resetBotIdentityToBlank(botToken);
+        if (!idReset.ok) {
+          console.warn("[auto-deploy-bot] identity reset call failed:", idReset.error);
+          await alertStaffIdentityStuck((order as any).bot_name, orderId, idReset.stuck);
+        } else if (idReset.stuck.length > 0) {
+          console.warn("[auto-deploy-bot] identity fields Discord refused to clear:", idReset.stuck.join(", "));
+          await alertStaffIdentityStuck((order as any).bot_name, orderId, idReset.stuck);
+        } else {
+          console.log("[auto-deploy-bot] identity reset to blank slate");
+        }
+      }
     }
 
     const projectId = Deno.env.get("RAILWAY_PROJECT_ID");

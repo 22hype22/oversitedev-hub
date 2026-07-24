@@ -8,6 +8,7 @@
 // Railway service and clears railway_service_id on the order so the slot
 // is fully cleaned up.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { scrubGuilds } from "../_shared/discord-guilds.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,7 +72,7 @@ Deno.serve(async (req) => {
 
     const { data: order } = await admin
       .from("bot_orders")
-      .select("id, railway_service_id, status")
+      .select("id, railway_service_id, status, bot_token")
       .eq("id", orderId)
       .maybeSingle();
 
@@ -80,6 +81,24 @@ Deno.serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // FIREBREAK — linked/main bots are never torn down by platform actions.
+    // An order carrying its own manual token (bot_token set, e.g. bots linked
+    // via admin-link-bot) means the bot's real home is its Railway service +
+    // Discord, and the dashboard is just a control panel. Cancelling such an
+    // order only detaches it here: no service deletion, no leaving servers,
+    // no identity reset. Pool-token customer bots below are unaffected.
+    if (order.bot_token) {
+      console.log("[cancel-bot-deploy] linked bot (manual token) — teardown skipped", orderId);
+      await admin
+        .from("bot_orders")
+        .update({ deployment_status: "cancelled" })
+        .eq("id", orderId);
+      return new Response(
+        JSON.stringify({ ok: true, skipped: "linked-bot", teardown: null, deleted: false }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const serviceId = order.railway_service_id as string | null;
@@ -93,70 +112,36 @@ Deno.serve(async (req) => {
     // back to the pool. Otherwise the next bot to claim this token inherits
     // the previous bot's avatar/bio. (Username can't be cleared via API, but
     // the next deploy's auto-deploy-bot will PATCH it to the new bot_name.)
+    //
+    // SECURITY: the token is only released to 'available' after a VERIFIED
+    // guild scrub (a fresh listing shows zero servers). If anything prevents
+    // verification, the row stays 'assigned' with a needs-cleanup note —
+    // claim_pool_token_for_deploy only hands out 'available' tokens, and
+    // auto-deploy-bot re-scrubs at claim time as the final gate. (The pool
+    // status CHECK only allows available/assigned/retired, so an unclean
+    // token is flagged via `notes` rather than a custom status.)
+    let scrubVerified = false;
+    let scrubDetail = "no token resolved for this order";
     try {
       const { data: tokenData } = await admin.rpc("runtime_resolve_bot_token", {
         _bot_id: orderId,
       });
       const botToken = typeof tokenData === "string" ? tokenData : null;
       if (botToken) {
-        // 1) Leave every guild the bot is currently in. We must finish this
-        // BEFORE releasing the token, otherwise the next bot to claim it
-        // would inherit membership in these servers.
+        // 1) Leave every guild the bot is currently in (shared scrub with
+        // built-in re-list verification). We must finish this BEFORE
+        // releasing the token, otherwise the next bot to claim it would
+        // inherit membership in these servers.
         try {
-          const authHeader = { Authorization: `Bot ${botToken}` };
-          const guilds: Array<{ id: string; name?: string }> = [];
-          let after: string | null = null;
-          // Paginate (Discord caps at 200 per page).
-          for (let i = 0; i < 50; i++) {
-            const url = new URL("https://discord.com/api/v10/users/@me/guilds");
-            url.searchParams.set("limit", "200");
-            if (after) url.searchParams.set("after", after);
-            const gRes = await fetch(url.toString(), { headers: authHeader });
-            if (!gRes.ok) {
-              const t = await gRes.text();
-              console.warn("[cancel-bot-deploy] list guilds failed", gRes.status, t.slice(0, 200));
-              break;
-            }
-            const page = (await gRes.json()) as Array<{ id: string; name?: string }>;
-            if (!Array.isArray(page) || page.length === 0) break;
-            guilds.push(...page);
-            if (page.length < 200) break;
-            after = page[page.length - 1].id;
-          }
-
-          for (const g of guilds) {
-            try {
-              const lRes = await fetch(
-                `https://discord.com/api/v10/users/@me/guilds/${g.id}`,
-                {
-                  method: "DELETE",
-                  headers: { Authorization: `Bot ${botToken}` },
-                },
-              );
-              const body = await lRes.text();
-              console.log(
-                "[cancel-bot-deploy] leave guild",
-                g.id,
-                g.name ?? "",
-                "status=",
-                lRes.status,
-                "body=",
-                body.slice(0, 300),
-              );
-              if (lRes.status === 429) {
-                const ra = Number(lRes.headers.get("retry-after") ?? "1");
-                await new Promise((r) => setTimeout(r, Math.min(5000, ra * 1000)));
-              }
-            } catch (e) {
-              console.warn("[cancel-bot-deploy] leave guild error", g.id, (e as Error).message);
-            }
-          }
-          console.log("[cancel-bot-deploy] left", guilds.length, "guilds for bot", orderId);
+          const scrub = await scrubGuilds(botToken, "cancel-bot-deploy");
+          scrubVerified = scrub.clean;
+          scrubDetail = scrub.detail;
         } catch (e) {
-          console.warn("[cancel-bot-deploy] guild leave loop error", (e as Error).message);
+          scrubDetail = `guild scrub error: ${(e as Error).message}`;
+          console.warn("[cancel-bot-deploy] guild scrub error", (e as Error).message);
         }
 
-        // 2) Reset Discord identity (avatar + bio) so the next bot to claim
+        // 2) Reset Discord identity (avatar + banner + bio) so the next bot to claim
         // this token doesn't inherit the previous bot's look.
         const dRes = await fetch("https://discord.com/api/v10/users/@me", {
           method: "PATCH",
@@ -164,7 +149,10 @@ Deno.serve(async (req) => {
             Authorization: `Bot ${botToken}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ avatar: null, bio: "" }),
+          // Clear the banner too — otherwise the next customer to claim this
+          // token inherits the previous owner's banner. (auto-deploy-bot
+          // re-wipes and verifies at claim time as the real guarantee.)
+          body: JSON.stringify({ avatar: null, banner: null, bio: "" }),
         });
         if (!dRes.ok) {
           const t = await dRes.text();
@@ -176,18 +164,39 @@ Deno.serve(async (req) => {
     }
 
 
-    // Now release the pool token (the trigger no longer does this, so we own it).
-    const { error: releaseErr } = await admin
-      .from("bot_token_pool")
-      .update({
-        status: "available",
-        assigned_bot_id: null,
-        assigned_at: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("assigned_bot_id", orderId);
-    if (releaseErr) {
-      console.warn("[cancel-bot-deploy] token release failed", releaseErr.message);
+    // Release the pool token ONLY after a verified scrub. Anything less keeps
+    // the row 'assigned' with a needs-cleanup note: it can't be claimed
+    // (claims take only 'available'), and even if it somehow were,
+    // auto-deploy-bot's claim-time scrub is the final gate. The admin panel's
+    // "Reclaim stuck tokens" button (admin-token-pool) re-scrubs and frees
+    // any row left behind here.
+    if (scrubVerified) {
+      const { error: releaseErr } = await admin
+        .from("bot_token_pool")
+        .update({
+          status: "available",
+          assigned_bot_id: null,
+          assigned_at: null,
+          notes: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("assigned_bot_id", orderId);
+      if (releaseErr) {
+        console.warn("[cancel-bot-deploy] token release failed", releaseErr.message);
+      }
+    } else {
+      console.warn("[cancel-bot-deploy] NOT releasing token —", scrubDetail);
+      const { error: parkErr } = await admin
+        .from("bot_token_pool")
+        .update({
+          notes: `needs cleanup: ${scrubDetail}`,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("assigned_bot_id", orderId)
+        .eq("status", "assigned");
+      if (parkErr) {
+        console.warn("[cancel-bot-deploy] token park failed", parkErr.message);
+      }
     }
 
     await admin
