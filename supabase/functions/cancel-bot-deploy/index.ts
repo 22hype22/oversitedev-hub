@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
           console.warn("[cancel-bot-deploy] guild scrub error", (e as Error).message);
         }
 
-        // 2) Reset Discord identity (avatar + bio) so the next bot to claim
+        // 2) Reset Discord identity (avatar + banner + bio) so the next bot to claim
         // this token doesn't inherit the previous bot's look.
         const dRes = await fetch("https://discord.com/api/v10/users/@me", {
           method: "PATCH",
@@ -149,11 +149,26 @@ Deno.serve(async (req) => {
             Authorization: `Bot ${botToken}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ avatar: null, bio: "" }),
+          // Clear avatar + banner on the bot USER. (auto-deploy-bot re-wipes
+          // and verifies at claim time as the real guarantee.)
+          body: JSON.stringify({ avatar: null, banner: null }),
         });
         if (!dRes.ok) {
           const t = await dRes.text();
           console.warn("[cancel-bot-deploy] Discord identity reset failed", dRes.status, t.slice(0, 200));
+        }
+        // Description lives on the APPLICATION, not the user — clear it there.
+        const aRes = await fetch("https://discord.com/api/v10/applications/@me", {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bot ${botToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ description: "" }),
+        });
+        if (!aRes.ok) {
+          const t = await aRes.text();
+          console.warn("[cancel-bot-deploy] Discord description reset failed", aRes.status, t.slice(0, 200));
         }
       }
     } catch (e) {
