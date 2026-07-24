@@ -149,14 +149,26 @@ Deno.serve(async (req) => {
             Authorization: `Bot ${botToken}`,
             "Content-Type": "application/json",
           },
-          // Clear the banner too — otherwise the next customer to claim this
-          // token inherits the previous owner's banner. (auto-deploy-bot
-          // re-wipes and verifies at claim time as the real guarantee.)
-          body: JSON.stringify({ avatar: null, banner: null, bio: "" }),
+          // Clear avatar + banner on the bot USER. (auto-deploy-bot re-wipes
+          // and verifies at claim time as the real guarantee.)
+          body: JSON.stringify({ avatar: null, banner: null }),
         });
         if (!dRes.ok) {
           const t = await dRes.text();
           console.warn("[cancel-bot-deploy] Discord identity reset failed", dRes.status, t.slice(0, 200));
+        }
+        // Description lives on the APPLICATION, not the user — clear it there.
+        const aRes = await fetch("https://discord.com/api/v10/applications/@me", {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bot ${botToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ description: "" }),
+        });
+        if (!aRes.ok) {
+          const t = await aRes.text();
+          console.warn("[cancel-bot-deploy] Discord description reset failed", aRes.status, t.slice(0, 200));
         }
       }
     } catch (e) {

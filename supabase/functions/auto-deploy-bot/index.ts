@@ -692,29 +692,52 @@ async function fetchImageAsDataUrl(url: string): Promise<string | null> {
 async function resetBotIdentityToBlank(
   botToken: string,
 ): Promise<{ ok: boolean; stuck: string[]; error?: string }> {
+  const stuck: string[] = [];
+  let ok = true;
+  let error: string | undefined;
   try {
+    // Avatar + banner live on the bot USER.
     const res = await fetch("https://discord.com/api/v10/users/@me", {
       method: "PATCH",
       headers: {
         Authorization: `Bot ${botToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ avatar: null, banner: null, bio: "" }),
+      body: JSON.stringify({ avatar: null, banner: null }),
     });
     if (!res.ok) {
       const text = await res.text();
-      return { ok: false, stuck: ["avatar", "banner", "bio"], error: `HTTP ${res.status}: ${text.slice(0, 200)}` };
+      ok = false;
+      error = `users HTTP ${res.status}: ${text.slice(0, 160)}`;
+      stuck.push("avatar", "banner");
+    } else {
+      const updated = await res.json().catch(() => ({} as Record<string, unknown>));
+      if (updated?.avatar) stuck.push("avatar");
+      if (updated?.banner) stuck.push("banner");
     }
-    // Discord returns the updated user; anything still present is a field it
-    // refused to clear (bots can't always clear bio/banner via the API).
-    const updated = await res.json().catch(() => ({} as Record<string, unknown>));
-    const stuck: string[] = [];
-    if (updated?.avatar) stuck.push("avatar");
-    if (updated?.banner) stuck.push("banner");
-    if (typeof updated?.bio === "string" && updated.bio.trim().length > 0) stuck.push("bio");
-    return { ok: true, stuck };
+    // Description lives on the APPLICATION — clear it there.
+    const aRes = await fetch("https://discord.com/api/v10/applications/@me", {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bot ${botToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ description: "" }),
+    });
+    if (!aRes.ok) {
+      const text = await aRes.text();
+      ok = false;
+      error = error ?? `applications HTTP ${aRes.status}: ${text.slice(0, 160)}`;
+      stuck.push("description");
+    } else {
+      const app = await aRes.json().catch(() => ({} as Record<string, unknown>));
+      if (typeof app?.description === "string" && app.description.trim().length > 0) {
+        stuck.push("description");
+      }
+    }
+    return { ok, stuck, error };
   } catch (e) {
-    return { ok: false, stuck: ["avatar", "banner", "bio"], error: String(e) };
+    return { ok: false, stuck: ["avatar", "banner", "description"], error: String(e) };
   }
 }
 
@@ -749,40 +772,68 @@ async function applyDiscordIdentity(
   botToken: string,
   identity: { username?: string | null; iconUrl?: string | null; bio?: string | null },
 ): Promise<{ ok: boolean; status?: number; error?: string }> {
+  // Username + avatar go on the bot USER; the description ("About Me") is the
+  // APPLICATION description (/applications/@me). Sending description as `bio`
+  // to /users/@me is silently ignored for bots.
   const payload: Record<string, unknown> = {};
   if (identity.username) {
     payload.username = identity.username.trim().slice(0, 32);
-  }
-  if (identity.bio) {
-    payload.bio = identity.bio.slice(0, 190);
   }
   if (identity.iconUrl) {
     const dataUrl = await fetchImageAsDataUrl(identity.iconUrl);
     if (dataUrl) payload.avatar = dataUrl;
   }
-  if (Object.keys(payload).length === 0) return { ok: true };
+  let ok = true;
+  let status: number | undefined;
+  let error: string | undefined;
   try {
-    const res = await fetch("https://discord.com/api/v10/users/@me", {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bot ${botToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      console.warn("[auto-deploy-bot] discord identity patch failed", {
-        status: res.status,
-        body: text.slice(0, 300),
-        keys: Object.keys(payload),
+    if (Object.keys(payload).length > 0) {
+      const res = await fetch("https://discord.com/api/v10/users/@me", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
-      return { ok: false, status: res.status, error: text.slice(0, 300) };
+      if (!res.ok) {
+        const text = await res.text();
+        console.warn("[auto-deploy-bot] discord user patch failed", {
+          status: res.status,
+          body: text.slice(0, 300),
+          keys: Object.keys(payload),
+        });
+        ok = false;
+        status = res.status;
+        error = text.slice(0, 300);
+      } else {
+        console.log("[auto-deploy-bot] discord user identity applied", { keys: Object.keys(payload) });
+      }
     }
-    console.log("[auto-deploy-bot] discord identity applied", {
-      keys: Object.keys(payload),
-    });
-    return { ok: true };
+    // Description via the application endpoint (empty string clears it).
+    if (identity.bio) {
+      const aRes = await fetch("https://discord.com/api/v10/applications/@me", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ description: identity.bio.slice(0, 400) }),
+      });
+      if (!aRes.ok) {
+        const text = await aRes.text();
+        console.warn("[auto-deploy-bot] discord application description patch failed", {
+          status: aRes.status,
+          body: text.slice(0, 300),
+        });
+        ok = false;
+        status = status ?? aRes.status;
+        error = error ?? text.slice(0, 300);
+      } else {
+        console.log("[auto-deploy-bot] discord application description applied");
+      }
+    }
+    return { ok, status, error };
   } catch (e) {
     console.warn("[auto-deploy-bot] discord identity patch threw", { e: String(e) });
     return { ok: false, error: String(e) };

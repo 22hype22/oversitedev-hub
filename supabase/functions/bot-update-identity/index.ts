@@ -24,6 +24,98 @@ const json = (status: number, data: unknown) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+// ── Staff alert: fields Discord won't apply automatically ─────────────────
+// Discord's API silently ignores the "About me" bio for bots (and sometimes
+// the banner). When that happens we post an alert into the staff server via
+// the Oversite Utilities bot so the team can apply the change manually in
+// the Discord Developer Portal. Fire-and-forget: an alert failure must never
+// break the customer's save.
+//
+// Secrets: OVERSITE_UTILITIES_BOT_TOKEN (already set for order DMs) and
+// STAFF_ALERTS_CHANNEL_ID (the staff channel's ID).
+async function notifyStaffManualApply(opts: {
+  botName: string;
+  orderId: string;
+  bioText: string | null;
+  bannerDataUrl: string | null;
+}): Promise<void> {
+  const token = Deno.env.get("OVERSITE_UTILITIES_BOT_TOKEN");
+  const channelId = Deno.env.get("STAFF_ALERTS_CHANNEL_ID");
+  if (!token || !channelId) {
+    console.warn(
+      "[bot-update-identity] staff alert skipped — OVERSITE_UTILITIES_BOT_TOKEN or STAFF_ALERTS_CHANNEL_ID not configured",
+    );
+    return;
+  }
+
+  const changed: string[] = [];
+  if (opts.bioText !== null) changed.push("Description");
+  if (opts.bannerDataUrl !== null) changed.push("Banner");
+
+  const embed: Record<string, unknown> = {
+    title: "Identity change needs a manual apply",
+    color: 0xc9dbe6,
+    description:
+      `**${opts.botName}** updated their ${changed.join(" and ").toLowerCase()}, ` +
+      "and Discord doesn't apply this automatically for bots. Apply it in the " +
+      "Discord Developer Portal for this bot's application.",
+    fields: [
+      { name: "Bot", value: opts.botName, inline: true },
+      { name: "Order", value: `\`${opts.orderId.slice(0, 8)}\``, inline: true },
+      { name: "Changed", value: changed.join(", "), inline: true },
+      ...(opts.bioText !== null
+        ? [{
+            // Code block = shown verbatim (no markdown/emoji rendering), so
+            // staff can copy-paste it into the Developer Portal exactly.
+            name: "New description — copy & paste",
+            value: opts.bioText.trim()
+              ? "```\n" + opts.bioText.slice(0, 1000) + "\n```"
+              : "*(cleared — remove the description)*",
+          }]
+        : []),
+    ],
+    timestamp: new Date().toISOString(),
+  };
+
+  const url = `https://discord.com/api/v10/channels/${channelId}/messages`;
+  const auth = { Authorization: `Bot ${token}` };
+
+  // Attach the banner image itself when we have one, so staff can apply it
+  // without digging through the dashboard.
+  if (opts.bannerDataUrl) {
+    const m = opts.bannerDataUrl.match(/^data:image\/(png|jpe?g|gif|webp);base64,(.+)$/);
+    if (m) {
+      const ext = m[1] === "jpeg" ? "jpg" : m[1];
+      const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+      (embed as any).image = { url: `attachment://banner.${ext}` };
+      const form = new FormData();
+      form.append(
+        "payload_json",
+        JSON.stringify({ embeds: [embed], attachments: [{ id: 0, filename: `banner.${ext}` }] }),
+      );
+      form.append("files[0]", new Blob([bytes], { type: `image/${m[1]}` }), `banner.${ext}`);
+      const res = await fetch(url, { method: "POST", headers: auth, body: form });
+      if (!res.ok) {
+        console.warn(
+          `[bot-update-identity] staff alert (with banner) failed: ${res.status} ${(await res.text()).slice(0, 200)}`,
+        );
+      }
+      return;
+    }
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { ...auth, "Content-Type": "application/json" },
+    body: JSON.stringify({ embeds: [embed] }),
+  });
+  if (!res.ok) {
+    console.warn(
+      `[bot-update-identity] staff alert failed: ${res.status} ${(await res.text()).slice(0, 200)}`,
+    );
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { error: "POST only" });
@@ -80,7 +172,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderErr } = await admin
       .from("bot_orders")
-      .select("id, user_id, discord_last_username_change_at")
+      .select("id, user_id, bot_name, discord_last_username_change_at")
       .eq("id", botId)
       .maybeSingle();
     if (orderErr) return json(500, { error: orderErr.message });
@@ -156,55 +248,84 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Username / avatar / banner live on the bot USER (/users/@me).
+    // The description ("About Me") is the APPLICATION description and must go
+    // to /applications/@me — Discord silently ignores `bio` on /users/@me for
+    // bots, which is why descriptions used to need a manual staff copy-paste.
     const payload: Record<string, unknown> = {};
     if (username !== null) payload.username = username;
     if (avatar !== null) payload.avatar = avatar;
     if (banner !== null) payload.banner = banner;
-    if (resolvedBio !== null) payload.bio = resolvedBio;
-
 
     const fieldsSent = Object.keys(payload);
-    console.log(
-      `[bot-update-identity] bot=${botId} PATCH /users/@me fields=${fieldsSent.join(",")} bio_len=${
-        bio !== null ? bio.length : "n/a"
-      }`,
-    );
+    let updated: any = {};
 
-    const dRes = await fetch("https://discord.com/api/v10/users/@me", {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bot ${botToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const rawBody = await dRes.text();
-    console.log(
-      `[bot-update-identity] bot=${botId} discord_status=${dRes.status} retry_after=${
-        dRes.headers.get("retry-after") ?? "-"
-      } body=${rawBody.slice(0, 500)}`,
-    );
-
-    if (!dRes.ok) {
-      const retryAfter = dRes.headers.get("retry-after");
-      return json(dRes.status === 429 ? 429 : dRes.status === 401 || dRes.status === 403 ? 400 : 502, {
-        error: `Discord API error ${dRes.status}: ${rawBody.slice(0, 300)}`,
-        retry_after: retryAfter ? Number(retryAfter) : undefined,
+    if (fieldsSent.length > 0) {
+      console.log(`[bot-update-identity] bot=${botId} PATCH /users/@me fields=${fieldsSent.join(",")}`);
+      const dRes = await fetch("https://discord.com/api/v10/users/@me", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
+      const rawBody = await dRes.text();
+      console.log(
+        `[bot-update-identity] bot=${botId} users_status=${dRes.status} retry_after=${
+          dRes.headers.get("retry-after") ?? "-"
+        } body=${rawBody.slice(0, 500)}`,
+      );
+      if (!dRes.ok) {
+        const retryAfter = dRes.headers.get("retry-after");
+        return json(dRes.status === 429 ? 429 : dRes.status === 401 || dRes.status === 403 ? 400 : 502, {
+          error: `Discord API error ${dRes.status}: ${rawBody.slice(0, 300)}`,
+          retry_after: retryAfter ? Number(retryAfter) : undefined,
+        });
+      }
+      updated = (() => {
+        try { return JSON.parse(rawBody); } catch { return {} as any; }
+      })();
     }
 
-    const updated = (() => {
-      try { return JSON.parse(rawBody); } catch { return {} as any; }
-    })();
-
-    // Warn if Discord silently dropped the bio (returned 200 but no bio in response).
-    if (bio !== null && typeof updated?.bio !== "string") {
-      console.warn(
-        `[bot-update-identity] bot=${botId} bio sent but missing from Discord response. response_keys=${Object.keys(
-          updated ?? {},
-        ).join(",")}`,
+    // Description → PATCH /applications/@me { description }. Empty string clears
+    // it. This is the field that used to always fall to the manual staff flow.
+    let descriptionApplied = true;
+    if (resolvedBio !== null) {
+      const aRes = await fetch("https://discord.com/api/v10/applications/@me", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ description: resolvedBio.slice(0, 400) }),
+      });
+      const aBody = await aRes.text();
+      console.log(
+        `[bot-update-identity] bot=${botId} applications_status=${aRes.status} body=${aBody.slice(0, 300)}`,
       );
+      if (!aRes.ok) {
+        // 429 is retryable by the caller; surface it. Other failures fall to
+        // the staff alert below rather than blocking the whole update.
+        if (aRes.status === 429) {
+          const retryAfter = aRes.headers.get("retry-after");
+          return json(429, {
+            error: `Discord API error 429: ${aBody.slice(0, 300)}`,
+            retry_after: retryAfter ? Number(retryAfter) : undefined,
+          });
+        }
+        descriptionApplied = false;
+      } else {
+        // Verify Discord stored what we sent (empty means we cleared it).
+        try {
+          const appJson = JSON.parse(aBody);
+          const want = resolvedBio.slice(0, 400).trim();
+          const got = typeof appJson?.description === "string" ? appJson.description.trim() : "";
+          descriptionApplied = got === want;
+        } catch {
+          /* keep optimistic */
+        }
+      }
     }
 
 
@@ -236,6 +357,23 @@ Deno.serve(async (req) => {
       .eq("id", botId);
     if (updErr) {
       console.warn("bot-update-identity: db persist failed", updErr);
+    }
+
+    // Staff alert is now a genuine last resort, not the normal path: the
+    // description applies automatically via /applications/@me, so we only ping
+    // when Discord actually refused (applications PATCH failed, or the banner
+    // came back empty despite being sent).
+    const descriptionDropped = resolvedBio !== null && !descriptionApplied;
+    const bannerDropped = banner !== null && !updated?.banner;
+    if (descriptionDropped || bannerDropped) {
+      notifyStaffManualApply({
+        botName: (username ?? order.bot_name ?? "Unknown bot") as string,
+        orderId: botId,
+        bioText: descriptionDropped ? resolvedBio : null,
+        bannerDataUrl: bannerDropped ? banner : null,
+      }).catch((e) =>
+        console.warn("[bot-update-identity] staff alert error", (e as Error).message),
+      );
     }
 
     return json(200, {
