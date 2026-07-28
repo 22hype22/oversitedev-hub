@@ -43,6 +43,7 @@ import { BotControlsPanel } from "@/components/dashboard/BotControlsPanel";
 import { BotUsageMetricsPanel } from "@/components/dashboard/BotUsageMetricsPanel";
 import { BotLogsPanel } from "@/components/dashboard/BotLogsPanel";
 import { BotServerSlotsCard } from "@/components/dashboard/BotServerSlotsCard";
+import { BotSecretsCard } from "@/components/dashboard/BotSecretsCard";
 import { BotInviteLinkCard } from "@/components/dashboard/BotInviteLinkCard";
 import { TeamManagementHub } from "@/components/dashboard/team/TeamManagementHub";
 import { GroupTeamHub } from "@/components/dashboard/team/GroupTeamHub";
@@ -874,6 +875,8 @@ const BotSection = ({
         )}
 
         {!bot.isDemo && <BotServerSlotsCard botId={bot.id} highlightBuy={highlightSlots} />}
+
+        {!bot.isDemo && <BotSecretsCard bot={bot} />}
 
         {!bot.isDemo && <BotUsageMetricsPanel botId={bot.id} />}
 
