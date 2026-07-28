@@ -170,6 +170,20 @@ const BASES: Base[] = [
       "Everything in Oversite Utilities",
     ],
   },
+  {
+    id: "dispatch",
+    name: "Oversite Dispatch",
+    tagline: "AI voice dispatcher for ER:LC — reads 911 calls and talks back.",
+    icon: Megaphone,
+    price: 19.99,
+    included: [
+      "Reads live 911 calls aloud in a real dispatcher voice",
+      "Two-way voice — officers talk to dispatch and get answers",
+      "Nearest-unit dispatch from live in-game positions",
+      "Automatic officer-down and pursuit alerts",
+      "Region-accurate radio codes and phonetics",
+    ],
+  },
 ];
 
 const SHARED_ADDONS: Addon[] = [
@@ -220,6 +234,7 @@ const ADDONS_BY_BASE: Record<string, Addon[]> = {
     { id: "staff-notes", name: "Staff Notes on Users", desc: "Private notes staff can attach to any member.", icon: ClipboardList, price: 1.99 },
   ],
   scratch: [],
+  dispatch: [],
 };
 
 const getAddonsForBase = (baseId: string): Addon[] => {
@@ -231,6 +246,7 @@ const getAddonsForBase = (baseId: string): Addon[] => {
       ...SHARED_ADDONS,
     ];
   }
+  if (baseId === "dispatch") return [];
   return [...(ADDONS_BY_BASE[baseId] ?? []), ...SHARED_ADDONS];
 };
 
@@ -498,9 +514,14 @@ export const BotBuilder = () => {
       setActivePackTab("protection");
       return;
     }
+    if (id === "dispatch") {
+      // Dispatch is a standalone product — never mixed with the mod bots.
+      setBases(["dispatch"]);
+      return;
+    }
     setBases((prev) => {
       // If pack is currently selected, replace with this single
-      if (prev.includes("scratch")) {
+      if (prev.includes("scratch") || prev.includes("dispatch")) {
         setActivePackTab(id);
         return [id];
       }
@@ -985,12 +1006,12 @@ export const BotBuilder = () => {
               {(() => {
                 // First selected single bot keeps full price; any other single bot
                 // (whether already selected or available) shows the $50 add-on price.
-                const firstSingle = bases.find((id) => id !== "scratch");
+                const firstSingle = bases.find((id) => id !== "scratch" && id !== "dispatch");
                 return BASES.map((b) => {
                 const Icon = b.icon;
                 const active = bases.includes(b.id);
                 const isDiscountedSecond =
-                  b.id !== "scratch" && !!firstSingle && b.id !== firstSingle;
+                  b.id !== "scratch" && b.id !== "dispatch" && !!firstSingle && b.id !== firstSingle;
                 const displayPrice = isDiscountedSecond ? 50 : b.price;
                 const displayOldPrice = isDiscountedSecond ? b.price : b.oldPrice;
                 return (
