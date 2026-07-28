@@ -56,6 +56,8 @@ function repoSourceFor(base: string): string {
       return "22hype22/oversite-support";
     case "utilities":
       return "22hype22/oversite-utilities";
+    case "dispatch":
+      return "22hype22/oversite-dispatch";
     case "protection":
     case "scratch":
     case "all-in-one-pack":
@@ -896,6 +898,55 @@ async function sendDeployedDM(
 
 
 
+// Build the env vars for a Dispatch (ER:LC voice dispatcher) bot. Unlike the
+// Discord bases, Dispatch reads real credentials at boot: the customer's ER:LC
+// server key plus which guild/voice-channel to sit in (pulled from their
+// encrypted secrets), and the Oversite-bundled voice + AI keys (from this
+// function's own env). Strictly separate from buildFeatureFlagVars — the F_*
+// feature flags don't apply to Dispatch.
+async function buildDispatchVars(
+  admin: ReturnType<typeof createClient>,
+  orderId: string,
+): Promise<Record<string, string>> {
+  const vars: Record<string, string> = {};
+
+  const getSecret = async (key: string): Promise<string | null> => {
+    const { data, error } = await admin.rpc("runtime_get_bot_secret", {
+      _bot_id: orderId,
+      _key: key,
+    });
+    if (error) {
+      console.warn("[auto-deploy-bot] dispatch secret read failed", {
+        key,
+        message: error.message,
+      });
+      return null;
+    }
+    return typeof data === "string" && data.trim() ? data.trim() : null;
+  };
+
+  // Customer-entered (from the dashboard credentials card).
+  for (const key of ["ERLC_SERVER_KEY", "DISPATCH_GUILD_ID", "DISPATCH_VOICE_CHANNEL_ID"]) {
+    const v = await getSecret(key);
+    if (v) vars[key] = v;
+  }
+
+  // Oversite-bundled, shared across every Dispatch bot. Set these as secrets on
+  // this edge function so customers never supply their own voice/AI keys.
+  const bundled: Record<string, string | undefined> = {
+    ELEVENLABS_API_KEY: Deno.env.get("DISPATCH_ELEVENLABS_API_KEY") ?? Deno.env.get("ELEVENLABS_API_KEY"),
+    ANTHROPIC_API_KEY: Deno.env.get("DISPATCH_ANTHROPIC_API_KEY") ?? Deno.env.get("ANTHROPIC_API_KEY"),
+    ELEVENLABS_VOICE_ID: Deno.env.get("DISPATCH_ELEVENLABS_VOICE_ID"),
+    DISPATCH_REGION: Deno.env.get("DISPATCH_DEFAULT_REGION"),
+    DISPATCH_TZ: Deno.env.get("DISPATCH_DEFAULT_TZ"),
+  };
+  for (const [k, v] of Object.entries(bundled)) {
+    if (v && v.trim()) vars[k] = v.trim();
+  }
+
+  return vars;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -1198,7 +1249,10 @@ Deno.serve(async (req) => {
     const purchasedAddons = Array.isArray((order as any).addons)
       ? ((order as any).addons as string[])
       : [];
-    const featureFlagVars = buildFeatureFlagVars(order.base, purchasedAddons);
+    const isDispatch = (order.base ?? "").toLowerCase().trim() === "dispatch";
+    const featureFlagVars = isDispatch
+      ? await buildDispatchVars(admin, orderId)
+      : buildFeatureFlagVars(order.base, purchasedAddons);
 
     const varsPayload: Record<string, string> = {
       DISCORD_TOKEN: botToken.trim(),
@@ -1292,7 +1346,9 @@ Deno.serve(async (req) => {
     // Provision base-included + purchased addon entitlements so the
     // dashboard renders every config block the customer paid for the
     // moment they land on the page after deploy.
-    await provisionAddonEntitlements(admin, orderId, order.base, purchasedAddons);
+    if (!isDispatch) {
+      await provisionAddonEntitlements(admin, orderId, order.base, purchasedAddons);
+    }
 
     // Send the "your bot is live" Discord DM directly from the edge function
     // using the Oversite Utilities notifier bot. This replaces the previous
