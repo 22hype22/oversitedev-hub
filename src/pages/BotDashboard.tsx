@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect, useRef, useState, useCallback, useLayoutEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, useCallback, useLayoutEffect, useMemo, type ReactNode } from "react";
 import { useBotHealth } from "@/hooks/useBotHealth";
+import { useLiveBotStatuses } from "@/hooks/useLiveBotStatuses";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useOwnedBots, type OwnedBot } from "@/hooks/useOwnedBots";
@@ -13,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +28,21 @@ import {
 import { toast } from "sonner";
 import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
 import { SortableAddonGrid } from "@/components/dashboard/SortableAddonGrid";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS as DndCSS } from "@dnd-kit/utilities";
 // Lazy-loaded: the add-on configuration UI pulls in a large bundle of
 // per-addon editors. Defer it so the bot header/controls paint within
 // 1-2s of navigation instead of waiting on all addon code to load.
@@ -39,13 +56,8 @@ import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
 
 import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
-import { BotControlsPanel } from "@/components/dashboard/BotControlsPanel";
-import { BotUsageMetricsPanel } from "@/components/dashboard/BotUsageMetricsPanel";
-import { BotLogsPanel } from "@/components/dashboard/BotLogsPanel";
-import { BotServerSlotsCard } from "@/components/dashboard/BotServerSlotsCard";
+import { BotManagePanel } from "@/components/dashboard/BotManagePanel";
 import { BotSecretsCard } from "@/components/dashboard/BotSecretsCard";
-import { BotInviteLinkCard } from "@/components/dashboard/BotInviteLinkCard";
-import { TeamManagementHub } from "@/components/dashboard/team/TeamManagementHub";
 import { GroupTeamHub } from "@/components/dashboard/team/GroupTeamHub";
 import { NewOwnerBillingDialog } from "@/components/dashboard/team/NewOwnerBillingDialog";
 import { RequestCustomFeatureDialog } from "@/components/dashboard/RequestCustomFeatureDialog";
@@ -98,6 +110,28 @@ import {
   Network,
 } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
+
+const BOTSEC_CSS = `
+.botsec{background:linear-gradient(180deg,#272e36,#242b32);border:1px solid #3a434d;border-radius:16px;overflow:hidden;
+  box-shadow:0 24px 60px -32px rgba(0,0,0,.6)}
+.botsec>.bsum{display:flex;align-items:center;gap:13px;padding:16px 20px;cursor:pointer;list-style:none}
+.botsec>.bsum::-webkit-details-marker{display:none}
+.botsec>.bsum:hover{background:rgba(255,255,255,.014)}
+.botsec .bico{height:36px;width:36px;border-radius:10px;flex:none;display:grid;place-items:center;background:#2d353e;color:#C9DBE6}
+.botsec .bico svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.8;fill:none}
+.botsec .btx{flex:1;min-width:0}
+.botsec .btx .ba{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:700;font-size:14.5px;color:#E8EEF3;
+  display:flex;align-items:center;gap:8px}
+.botsec .btx .ba .ct{font-family:"Space Mono",monospace;font-size:10px;font-weight:400;color:#788591;border:1px solid #3a434d;
+  border-radius:20px;padding:1px 8px;flex:none}
+.botsec .btx .bb{font-size:11.5px;color:#788591;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.botsec .bchev{height:20px;width:20px;color:#788591;transition:transform .2s,color .2s;flex:none}
+.botsec[open] .bchev{transform:rotate(180deg);color:#C9DBE6}
+.botsec .bbody{border-top:1px solid #3a434d;padding:12px 10px 14px}
+/* Flatten the inner panel wrappers so they don't read as cramped secondary
+   boxes inside the section; their inner tiles/content keep their own framing. */
+.botsec .bbody .bg-card\\/40{background-color:transparent;border-color:transparent;box-shadow:none}
+`;
 import { useBotNotifications, type BotNotification } from "@/hooks/useBotNotifications";
 
 // Mountain backdrop — imported as a real asset so it is a separately
@@ -461,7 +495,19 @@ const BotSection = ({
         body: { orderId: bot.id },
       });
       if (error) {
-        toast.error("Retry failed", { description: error.message });
+        // supabase-js buries the function's real error body inside
+        // error.context — surface it instead of the generic non-2xx line.
+        let msg = error.message as string;
+        const ctx = (error as { context?: Response }).context;
+        if (ctx && typeof ctx.json === "function") {
+          try {
+            const body = await ctx.clone().json();
+            if (body?.error) msg = String(body.error);
+          } catch {
+            /* keep generic message */
+          }
+        }
+        toast.error("Retry failed", { description: msg });
       } else if ((data as { alreadyInProgress?: boolean } | null)?.alreadyInProgress) {
         toast.info("A deployment is already in progress for this bot.");
         onReload();
@@ -569,53 +615,77 @@ const BotSection = ({
       })
     : null;
 
+  // Icon for the bot's base ("what it originally was").
+  const BaseIcon =
+    bot.base === "support" ? LifeBuoy
+    : bot.base === "utilities" ? Wrench
+    : bot.base === "scratch" ? Sparkles
+    : ShieldCheck;
+
+  // Secondary meta chips (engine · hosting · free · health) shown on row two.
+  const secondaryMeta: ReactNode[] = [];
+  if (!bot.isDemo) {
+    secondaryMeta.push(
+      <span key="engine" className="inline-flex items-center gap-1">
+        <Code2 className="h-3 w-3" />
+        Component {bot.engine_version === "v2" ? "V2" : "V1"}
+      </span>,
+    );
+  }
+  if (bot.monthly_hosting) {
+    secondaryMeta.push(
+      <span key="hosting" className="inline-flex items-center gap-1">
+        <Server className="h-3 w-3" />
+        Hosting
+      </span>,
+    );
+  }
+  if (freeActive) {
+    secondaryMeta.push(
+      <span key="free" className="inline-flex items-center gap-1 text-emerald-400">
+        <Gift className="h-3 w-3" />
+        Free until {freeUntilLabel}
+      </span>,
+    );
+  }
+  if (!bot.isDemo) {
+    secondaryMeta.push(<BotHealthBadge key="health" botId={bot.id} />);
+  }
+
   const headerBadges = (
     <>
-      <Badge variant="outline" className={`text-xs gap-1.5 ${statusMeta.className}`}>
-        {statusMeta.loading && !bot.isDemo && <HexagonLoader size={12} />}
-        {statusMeta.label}
-      </Badge>
-      <Badge variant="secondary" className="text-xs">
-        {baseLabel}
-      </Badge>
-      {!bot.isDemo && (
-        <Badge variant="outline" className="text-xs gap-1">
-          <Code2 className="h-3 w-3" />
-          Component {bot.engine_version === "v2" ? "V2" : "V1"}
-        </Badge>
-      )}
-      {bot.monthly_hosting && (
-        <Badge variant="outline" className="text-xs gap-1">
-          <Server className="h-3 w-3" />
-          Hosting
-        </Badge>
-      )}
-      {freeActive && (
-        <Badge
-          variant="outline"
-          className="text-xs gap-1 bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+      <div className="meta1">
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${statusMeta.className}`}
+          /* Inline padding: the .osd *{padding:0} reset zeroes Tailwind px-*
+             utilities here, which made the label rub the pill edges. */
+          style={{ padding: "3px 11px" }}
         >
-          <Gift className="h-3 w-3" />
-          Free until {freeUntilLabel}
-        </Badge>
-      )}
-      {bot.isDemo && (
-        <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
-          Practice bot
-        </Badge>
-      )}
-      {bot.viaSupport && (
-        <Badge
-          variant="outline"
-          className="text-xs gap-1 bg-amber-500/10 text-amber-400 border-amber-500/30"
-        >
-          <LifeBuoy className="h-3 w-3" />
-          Support session
-        </Badge>
-      )}
-      {!bot.isDemo && (
-        <div className="basis-full mt-1">
-          <BotHealthBadge botId={bot.id} />
+          {statusMeta.loading && !bot.isDemo && <HexagonLoader size={10} />}
+          {statusMeta.label}
+        </span>
+        <span className="basetype">
+          <BaseIcon />
+          {baseLabel}
+        </span>
+        {bot.isDemo && (
+          <span className="text-primary text-xs font-medium">Practice bot</span>
+        )}
+        {bot.viaSupport && (
+          <span className="inline-flex items-center gap-1 text-amber-400 text-xs font-medium">
+            <LifeBuoy className="h-3 w-3" />
+            Support session
+          </span>
+        )}
+      </div>
+      {secondaryMeta.length > 0 && (
+        <div className="meta2">
+          {secondaryMeta.map((node, i) => (
+            <span key={i} className="inline-flex items-center gap-2">
+              {i > 0 && <span className="text-muted-foreground/40">·</span>}
+              {node}
+            </span>
+          ))}
         </div>
       )}
     </>
@@ -642,86 +712,125 @@ const BotSection = ({
     onReload();
   };
 
-  const headerActions = !bot.isDemo ? (
-    <>
-      {!bot.viaTeam && canEditBilling && (
-        <Button variant="outline" size="sm" onClick={() => onAddAddons(bot)}>
-          <Plus className="h-4 w-4 mr-1.5" />
-          Add add-ons
-        </Button>
-      )}
-      {!bot.viaTeam && cancellable && canEditBilling && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-          onClick={() => onCancel(bot)}
+  const headerActions =
+    !bot.isDemo && !bot.viaTeam && canEditBilling ? (
+      <button type="button" className="pbtn" onClick={() => onAddAddons(bot)}>
+        <Plus />
+        Add-ons
+      </button>
+    ) : null;
+
+  const showCancel = !bot.isDemo && !bot.viaTeam && cancellable && canEditBilling;
+  const showLeave = !bot.isDemo && bot.viaTeam;
+  const headerMenuItems =
+    showCancel || showLeave ? (
+      <>
+        {showCancel && (
+          <DropdownMenuItem
+            onSelect={() => onCancel(bot)}
+            className="gap-2 text-destructive focus:text-destructive"
+          >
+            <XCircle className="h-4 w-4" />
+            Cancel subscription
+          </DropdownMenuItem>
+        )}
+        {showLeave && (
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              leaveBot();
+            }}
+            disabled={leaving}
+            className="gap-2 text-destructive focus:text-destructive"
+          >
+            <LogOut className="h-4 w-4" />
+            {leaving ? "Leaving…" : "Leave bot"}
+          </DropdownMenuItem>
+        )}
+      </>
+    ) : null;
+
+  // Deploy-failed state: the brand ridge, interrupted. The line draws up to
+  // the launch step and stops at a glowing break point on a red wash; retry
+  // resumes the climb. Rendered in two spots, so built once here.
+  const deployFailedBanner = deployFailed ? (
+    <div className="rounded-2xl border border-destructive/40 bg-destructive/20 px-6 py-7 sm:px-9">
+      <style>{`
+        .os-ridge-break{animation:os-ridge-break 2.2s ease-out infinite}
+        @keyframes os-ridge-break{0%,100%{opacity:1}50%{opacity:.25}}
+        @media (prefers-reduced-motion: reduce){.os-ridge-break{animation:none}}
+      `}</style>
+      <div className="flex flex-wrap items-center gap-x-10 gap-y-5">
+        <svg
+          width="148"
+          height="58"
+          viewBox="0 0 190 74"
+          style={{ overflow: "visible" }}
+          aria-hidden
+          className="shrink-0"
         >
-          <XCircle className="h-4 w-4 mr-1.5" />
-          Cancel
+          <path
+            d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70"
+            fill="none"
+            stroke="rgba(201,219,230,.22)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M4 70 L44 26 L62 44 L95 6"
+            fill="none"
+            stroke="#C9DBE6"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <circle className="os-ridge-break" cx="95" cy="6" r="4.5" fill="#FF9C82" />
+        </svg>
+        <div className="min-w-[240px] flex-1">
+          <div className="text-base font-semibold text-foreground">The launch stopped partway.</div>
+          <p className="mt-1.5 max-w-[52ch] text-sm leading-relaxed text-muted-foreground">
+            Nothing is lost. Retrying picks the climb back up exactly where it stopped.
+          </p>
+        </div>
+        <Button className="shrink-0 rounded-full px-7" onClick={retryDeploy} disabled={retrying}>
+          {retrying ? "Resuming…" : "Resume launch"}
         </Button>
-      )}
-      {bot.viaTeam && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-          onClick={leaveBot}
-          disabled={leaving}
-        >
-          <LogOut className="h-4 w-4 mr-1.5" />
-          {leaving ? "Leaving…" : "Leave bot"}
-        </Button>
-      )}
-    </>
+      </div>
+    </div>
   ) : null;
 
   const sectionInner = (
     <section className="space-y-5">
+      <style>{BOTSEC_CSS}</style>
       <BotIdentityEditor
         bot={bot}
         onUpdated={onReload}
         badges={headerBadges}
         actions={headerActions}
-        enableDiscordEdits={!bot.isDemo && !isDeploying}
+        menuItems={headerMenuItems}
+        enableDiscordEdits={!bot.isDemo}
+        onRefresh={() => { reloadHealth(); onReload(); }}
       />
 
-      {deployFailed && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm flex items-center justify-between gap-3">
-          <span className="font-medium text-destructive">Deployment failed.</span>
-          <Button size="sm" variant="outline" onClick={retryDeploy} disabled={retrying}>
-            {retrying ? "Retrying…" : "Retry deployment"}
-          </Button>
-        </div>
-      )}
+      {deployFailedBanner}
 
       <details
         open={manageOpen}
         onToggle={(e) => setManageOpen((e.target as HTMLDetailsElement).open)}
-        className="group rounded-2xl border border-border bg-card/40 overflow-hidden shadow-lg shadow-black/5 transition-smooth open:bg-card/50"
+        className="botsec"
       >
-        <summary className="flex items-center justify-between gap-3 px-6 py-5 cursor-pointer list-none hover:bg-card/70 transition-smooth">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/25 grid place-items-center shrink-0">
-              <Settings className="h-4 w-4 text-primary" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground">Manage this bot</div>
-              <div className="text-xs text-muted-foreground truncate">
-                Banners, engine, secrets, controls, logs
-              </div>
-            </div>
+        <summary className="bsum">
+          <span className="bico">
+            <Settings />
+          </span>
+          <div className="btx">
+            <div className="ba">Manage this bot</div>
+            <div className="bb">Engine, power controls, servers, usage &amp; logs</div>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary group-open:hidden shrink-0">
-            <ChevronDown className="h-3.5 w-3.5" />
-            Expand
-          </span>
-          <span className="hidden group-open:inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shrink-0">
-            <ChevronUp className="h-3.5 w-3.5" />
-            Collapse
-          </span>
+          <ChevronDown className="bchev" />
         </summary>
-        <div className="px-6 pb-6 pt-4 space-y-5 border-t border-border">
+        <div className="bbody space-y-5">
 
       {showPreorderBanner && (
         <Card className="p-4 bg-primary/5 border-primary/30">
@@ -756,8 +865,19 @@ const BotSection = ({
       )}
 
       {!bot.isDemo && (
-        <EngineVersionSwitcher bot={bot} onReload={onReload} />
+        <BotManagePanel
+          bot={bot}
+          health={health}
+          isOffline={isOffline}
+          isDeploying={isDeploying}
+          isStarting={isStarting}
+          highlightSlots={highlightSlots}
+          onCommandSent={handleCommandSent}
+          onReload={onReload}
+        />
       )}
+
+      {!bot.isDemo && <BotSecretsCard bot={bot} />}
 
       {/* Compact build summary — collapsible (controlled, default closed) */}
       <div className="rounded-lg border border-border bg-card/40">
@@ -803,40 +923,16 @@ const BotSection = ({
 
 
 
-      {!bot.isDemo && !isDeploying && <BotControlsPanel botId={bot.id} isOffline={isOffline} onCommandSent={handleCommandSent} />}
-
-      {isDeploying && (
-        <div
-          className={`rounded-lg border px-4 py-3 text-sm flex items-center justify-center gap-3 ${
-            deployFailed
-              ? "border-destructive/30 bg-destructive/10 text-destructive"
-              : isQueued
-                ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
-                : "border-blue-500/30 bg-blue-500/10 text-blue-300"
-          }`}
-        >
-          {deployFailed ? (
-            <>
-              <span className="font-medium">Deployment failed.</span>
-              <Button size="sm" variant="outline" onClick={retryDeploy} disabled={retrying}>
-                {retrying ? "Retrying…" : "Retry deployment"}
-              </Button>
-            </>
-          ) : isQueued ? (
-            <>
-              <span className="h-2 w-2 rounded-full bg-amber-300 animate-pulse" />
-              <span className="font-medium text-center">
-                We're currently preparing your bot — our team is on it and you'll receive a Discord DM as soon as it's live. Thank you for your patience!
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
-              <span className="font-medium">
-                Deploying your bot… this usually takes 1–2 minutes.
-              </span>
-            </>
-          )}
+      {/* Only the actionable deploy states get a banner now — the plain
+          "Deploying…" strip is redundant with the Manage panel's live status
+          beam, so we no longer render it. */}
+      {deployFailedBanner}
+      {!deployFailed && isQueued && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm flex items-center justify-center gap-3 text-amber-200">
+          <span className="h-2 w-2 rounded-full bg-amber-300 animate-pulse" />
+          <span className="font-medium text-center">
+            We're currently preparing your bot — our team is on it and you'll receive a Discord DM as soon as it's live. Thank you for your patience!
+          </span>
         </div>
       )}
 
@@ -854,34 +950,10 @@ const BotSection = ({
       )}
 
       {hasNoServers && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center text-xs text-amber-300 font-medium">
-          Add your bot to a server to configure these settings.
+        <div className="rounded-lg border border-[#C9DBE6]/20 bg-[#C9DBE6]/[0.06] px-4 py-2.5 text-center text-xs font-medium text-[#C9DBE6]/90">
+          These settings unlock once your bot joins a server — invite it from Manage this bot, under Servers.
         </div>
       )}
-
-      <div
-        className={(isOffline || isDeploying) ? "space-y-5 opacity-40 pointer-events-none select-none" : "space-y-5"}
-        aria-disabled={isOffline}
-      >
-        {!bot.isDemo && (
-          <BotInviteLinkCard
-            botId={bot.id}
-            status={bot.status}
-            onRequestBuySlot={() => {
-              setHighlightSlots(true);
-              setTimeout(() => setHighlightSlots(false), 4000);
-            }}
-          />
-        )}
-
-        {!bot.isDemo && <BotServerSlotsCard botId={bot.id} highlightBuy={highlightSlots} />}
-
-        {!bot.isDemo && <BotSecretsCard bot={bot} />}
-
-        {!bot.isDemo && <BotUsageMetricsPanel botId={bot.id} />}
-
-        {!bot.isDemo && <BotLogsPanel botId={bot.id} />}
-      </div>
 
         </div>
       </details>
@@ -893,37 +965,26 @@ const BotSection = ({
       <details
         open={addonsOpen && !isOffline && !hasNoServers}
         onToggle={(e) => setAddonsOpen((e.target as HTMLDetailsElement).open)}
-        className="group rounded-2xl border border-border bg-card/40 overflow-hidden shadow-lg shadow-black/5 transition-smooth open:bg-card/50"
+        className="botsec"
       >
-        <summary className="flex items-center justify-between gap-3 px-6 py-5 cursor-pointer list-none hover:bg-card/70 transition-smooth">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/25 grid place-items-center shrink-0">
-              <Layers className="h-4 w-4 text-primary" />
+        <summary className="bsum">
+          <span className="bico">
+            <Layers />
+          </span>
+          <div className="btx">
+            <div className="ba">
+              Add-on configuration
+              {totalConfigurable > 0 && (
+                <span className="ct">
+                  {totalConfigurable} block{totalConfigurable === 1 ? "" : "s"}
+                </span>
+              )}
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-foreground">Add-on configuration</span>
-                {totalConfigurable > 0 && (
-                  <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                    {totalConfigurable} block{totalConfigurable === 1 ? "" : "s"}
-                  </span>
-                )}
-              </div>
-              <div className="text-xs text-muted-foreground truncate">
-                Tickets, say command, protection, utilities
-              </div>
-            </div>
+            <div className="bb">Tickets, say command, protection, utilities</div>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary group-open:hidden shrink-0">
-            <ChevronDown className="h-3.5 w-3.5" />
-            Expand
-          </span>
-          <span className="hidden group-open:inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shrink-0">
-            <ChevronUp className="h-3.5 w-3.5" />
-            Collapse
-          </span>
+          <ChevronDown className="bchev" />
         </summary>
-        <div className="px-6 pb-6 pt-4 space-y-5 border-t border-border">
+        <div className="bbody space-y-5">
       {!bot.isDemo && <DashboardServerSelector botId={bot.id} />}
       <div className="space-y-10">
 
@@ -949,11 +1010,17 @@ const BotSection = ({
             const GroupIcon = group.icon;
             return (
               <div key={group.key} className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <GroupIcon className="h-4 w-4 text-primary" />
-                  <h4 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
-                    {group.label} ({group.owned.length})
-                  </h4>
+                <div className="flex items-center gap-3 mb-1">
+                  <span className="h-6 w-6 rounded-md grid place-items-center shrink-0 bg-[rgba(201,219,230,0.1)] border border-[rgba(201,219,230,0.42)] text-primary">
+                    <GroupIcon className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="text-[11px] font-extrabold tracking-[0.14em] uppercase text-muted-foreground font-['Manrope',system-ui,sans-serif]">
+                    {group.label}
+                  </span>
+                  <span className="text-[11px] font-bold text-foreground bg-white/[0.04] border border-border rounded-full px-2 py-0.5">
+                    {group.owned.length}
+                  </span>
+                  <span className="flex-1 h-px bg-white/[0.055]" />
                 </div>
                 {group.key === "shared" ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -1053,15 +1120,25 @@ const OSD_CSS = `.osd{font-family:var(--bodyf);color:var(--body);min-height:100v
 .osd.app .osd-dim{opacity:1}
 .osd.instant .osd-dim,.osd.instant .appwrap,.osd.instant .side{transition:none!important}
 .osd-stage{position:relative;z-index:10}
+/* Remap shadcn/Tailwind theme tokens to the muted palette for every inner
+   panel rendered inside the dashboard — visual only, no component changes. */
+.osd{--background:212 16% 15%;--foreground:206 33% 93%;--card:213 16% 18%;--card-foreground:206 33% 93%;--popover:213 16% 18%;--popover-foreground:206 33% 93%;--primary:202 40% 85%;--primary-foreground:213 18% 14%;--primary-glow:202 40% 85%;--secondary:212 16% 21%;--secondary-foreground:206 33% 93%;--muted:212 16% 21%;--muted-foreground:209 16% 70%;--accent-foreground:206 33% 93%;--border:213 14% 26%;--input:213 14% 26%;--ring:202 40% 85%}
+/* Neutralize hardcoded blue utility classes inside the dashboard to the accent */
+.osd .text-blue-400,.osd .text-blue-300{color:#C9DBE6}
+.osd .border-blue-500\\/30{border-color:rgba(201,219,230,.32)}
+.osd .bg-blue-500\\/15{background-color:rgba(201,219,230,.14)}
+.osd .bg-blue-500\\/10{background-color:rgba(201,219,230,.10)}
+.osd .bg-blue-400{background-color:#C9DBE6}
 .osd :root{--bg:#21272e;--panel:#272e36;--surface:#2d353e;--surface2:#343d46;--hair:#3a434d;
         --heading:#E8EEF3;--body:#A8B4BF;--faint:#788591;--accent:#C9DBE6;--accentink:#1E242B;
         --ok:#86d3a1;--bad:#e98b8b;--gold:#cbb277;
         --disp:"Bricolage Grotesque",system-ui,sans-serif;--bodyf:"Space Grotesk",system-ui,sans-serif;--mono:"Space Mono",monospace}
 .osd *{box-sizing:border-box;margin:0;padding:0}
 .osd.instant::after, .osd.instant .appwrap, .osd.instant .side{transition:none!important}
-.osd .appwrap{display:flex;min-height:100vh;opacity:0;transform:translateY(16px);pointer-events:none;
+.osd .appwrap{display:flex;flex-direction:column;min-height:100vh;opacity:0;transform:translateY(16px);pointer-events:none;
     transition:opacity .9s ease .18s,transform 1s cubic-bezier(.22,1,.36,1) .18s}
 .osd .appwrap.show{opacity:1;transform:none;pointer-events:auto}
+.osd .approw{display:flex;flex:1;min-height:0}
 .osd a{color:inherit;text-decoration:none}
 .osd svg{display:block}
 .osd .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
@@ -1169,6 +1246,10 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;align-items:start}
 .osd .left{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .osd .right{display:flex;flex-direction:column;gap:16px}
+.osd .dashgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.osd .dashgrid .dashcell{min-width:0}
+.osd .dashgrid .dashcell.wide{grid-column:1/-1}
+.osd .dashgrid .dashcell.dragging{box-shadow:0 22px 60px -16px rgba(0,0,0,.65);border-radius:18px}
 .osd .card{border:1px solid rgba(168,180,191,.14);border-radius:18px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);padding:18px}
 .osd .ch{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
 .osd .ct{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:14.5px}
@@ -1380,10 +1461,10 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 @media(max-width:1180px){.osd .grid, .osd .bgrid{grid-template-columns:1fr}}
 @media(max-width:1180px){.osd .botgrid{grid-template-columns:repeat(3,1fr)}.osd .feat{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:980px){.osd .botgrid{grid-template-columns:repeat(2,1fr)}.osd .strip{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:760px){.osd .side{position:fixed;left:-260px;transition:.2s;z-index:50}.osd .main{padding:18px 14px 40px}.osd .left, .osd .form, .osd .feat, .osd .choices, .osd .gbody{grid-template-columns:1fr}.osd .head h1{font-size:24px}}
+@media(max-width:760px){.osd .side{position:fixed;left:-260px;transition:.2s;z-index:50}.osd .main{padding:18px 14px 40px}.osd .left, .osd .form, .osd .feat, .osd .choices, .osd .gbody, .osd .dashgrid{grid-template-columns:1fr}.osd .dashgrid .dashcell.wide{grid-column:auto}.osd .head h1{font-size:24px}}
 @media(max-width:560px){.osd .botgrid{grid-template-columns:1fr}.osd .search{display:none}}`;
 
-const LS = { ws: "os_ws_mode", onboarded: "os_onboarded", tour: "os_tour_seen", bg: "os_bg", order: "os_bot_order", groups: "os_groups", accent: "os_accent", accentHex: "os_accent_hex" };
+const LS = { ws: "os_ws_mode", onboarded: "os_onboarded", tour: "os_tour_seen", bg: "os_bg", order: "os_bot_order", groups: "os_groups", accent: "os_accent", accentHex: "os_accent_hex", view: "os_view", bot: "os_bot" };
 
 // readable text color (dark/light) for an arbitrary accent hex
 const inkFor = (hex: string) => {
@@ -1407,6 +1488,22 @@ const ACCENTS: { key: string; label: string; c: string; ink: string }[] = [
 const lsGet = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const lsSet = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } };
 const lsDel = (k: string) => { try { localStorage.removeItem(k); } catch { /* ignore */ } };
+const ssGet = (k: string) => { try { return sessionStorage.getItem(k); } catch { return null; } };
+const ssSet = (k: string, v: string) => { try { sessionStorage.setItem(k, v); } catch { /* ignore */ } };
+const ssDel = (k: string) => { try { sessionStorage.removeItem(k); } catch { /* ignore */ } };
+
+// Position restore policy: bring the user back to where they were ONLY on a
+// page refresh. sessionStorage keeps position out of other/new tabs, the
+// navigation-type check makes leave-and-come-back start fresh, and the
+// consumed flag limits the restore to the first dashboard mount of the load.
+const PAGE_IS_RELOAD = (() => {
+  try {
+    const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    return nav?.type === "reload";
+  } catch { return false; }
+})();
+let positionRestoreConsumed = false;
+const restoredPosition = (k: string) => (PAGE_IS_RELOAD && !positionRestoreConsumed ? ssGet(k) : null);
 
 const BG_PRESETS: { key: string; label: string; url: string | null }[] = [
   { key: "mountain", label: "Mountain", url: containers },
@@ -1435,6 +1532,39 @@ const CDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
 type Group = { id: string; name: string; botIds: string[] };
 
+const DEFAULT_DASH_ORDER = ["setup", "activity", "table", "bots", "spotlight"];
+
+// One draggable dashboard box. Whole card is the grab area; a small movement
+// threshold on the sensor lets clicks on inner buttons/rows still register.
+function DashSortableCard({
+  id,
+  wide,
+  children,
+}: {
+  id: string;
+  wide?: boolean;
+  children: ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={"dashcell" + (wide ? " wide" : "") + (isDragging ? " dragging" : "")}
+      style={{
+        transform: DndCSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 60 : undefined,
+        opacity: isDragging ? 0.9 : 1,
+        cursor: "grab",
+      }}
+      {...attributes}
+      {...listeners}
+    >
+      {children}
+    </div>
+  );
+}
+
 const BotDashboard = () => {
   const { user, isAdmin, loading } = useAuth();
   const { dashboardBots, hasDashboardAccess, loading: botsLoading, reload } = useOwnedBots();
@@ -1443,11 +1573,71 @@ const BotDashboard = () => {
   const { items: notifications, unread } = useBotNotifications();
   const navigate = useNavigate();
 
-  const [view, setView] = useState("dashboard");
-  const [botId, setBotId] = useState<string | null>(null);
+  // Persist the active view + open bot so a refresh keeps you exactly where
+  // you were instead of dropping you back on the dashboard home.
+  const [view, setView] = useState(() => restoredPosition(LS.view) || "dashboard");
+  // Shared, owner-set dashboard box layout (an ordered array of card ids).
+  const [dashOrder, setDashOrder] = useState<string[]>(DEFAULT_DASH_ORDER);
+  const dashSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+  const [botId, setBotId] = useState<string | null>(() => restoredPosition(LS.bot) || null);
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
-  const [cancelling, setCancelling] = useState(false);
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
+
+  // The currently-rendered dashboard order (subset of dashOrder that has a
+  // visible card); the drag handler reorders against this.
+  const dashOrderedRef = useRef<string[]>(DEFAULT_DASH_ORDER);
+
+  // Load the shared layout and keep it live — an owner change applies for
+  // everyone. Defensive: bad/missing data just keeps the default order.
+  useEffect(() => {
+    let alive = true;
+    (supabase as any)
+      .from("app_settings")
+      .select("dashboard_layout")
+      .eq("id", 1)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (alive && Array.isArray(data?.dashboard_layout) && data.dashboard_layout.length) {
+          setDashOrder(data.dashboard_layout as string[]);
+        }
+      });
+    const ch = (supabase as any)
+      .channel("dash-layout-shared")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "app_settings", filter: "id=eq.1" },
+        (payload: any) => {
+          const dl = payload?.new?.dashboard_layout;
+          if (Array.isArray(dl) && dl.length) setDashOrder(dl as string[]);
+        },
+      )
+      .subscribe();
+    return () => {
+      alive = false;
+      (supabase as any).removeChannel(ch);
+    };
+  }, []);
+
+  // Admin drags a box → reorder the rendered set and persist globally.
+  const onDashDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const cur = dashOrderedRef.current;
+    const from = cur.indexOf(String(active.id));
+    const to = cur.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    const next = arrayMove(cur, from, to);
+    setDashOrder(next);
+    (supabase as any)
+      .from("app_settings")
+      .update({ dashboard_layout: next, updated_at: new Date().toISOString() })
+      .eq("id", 1)
+      .then(({ error }: any) => {
+        if (error) toast.error("Couldn't save layout", { description: error.message });
+      });
+  };
 
   const [wsMode, setWsMode] = useState<"solo" | "team">(() => (lsGet(LS.ws) === "team" ? "team" : "solo"));
   const [appOn, setAppOn] = useState(() => !!lsGet(LS.onboarded));
@@ -1535,6 +1725,28 @@ const BotDashboard = () => {
   }, [idsKey]);
   useEffect(() => { if (order.length) lsSet(LS.order, JSON.stringify(order)); }, [order]);
   const byId = useMemo(() => { const m: Record<string, OwnedBot> = {}; dashboardBots.forEach((b) => { m[b.id] = b; }); return m; }, [dashboardBots]);
+
+  // Remember where the user is across refreshes: persist the active view and
+  // the open bot, and recover gracefully if the remembered bot is gone.
+  useEffect(() => { ssSet(LS.view, view); }, [view]);
+  useEffect(() => {
+    if (botId) ssSet(LS.bot, botId);
+    else ssDel(LS.bot);
+  }, [botId]);
+  // One restore per page load; also clear the legacy localStorage copies so
+  // stale positions from the old always-restore behavior can't come back.
+  useEffect(() => {
+    positionRestoreConsumed = true;
+    lsDel(LS.view);
+    lsDel(LS.bot);
+  }, []);
+  useEffect(() => {
+    if (!botsLoading && view === "bot" && botId && !byId[botId]) {
+      setView("bots");
+      setBotId(null);
+    }
+  }, [botsLoading, view, botId, byId]);
+
   const orderedBots = useMemo(() => order.map((id) => byId[id]).filter(Boolean) as OwnedBot[], [order, byId]);
   const owned = orderedBots.filter((b) => !b.isDemo);
   const dragId = useRef<string | null>(null);
@@ -1551,12 +1763,64 @@ const BotDashboard = () => {
   const openBot = (id: string) => { setBotId(id); setView("bot"); window.scrollTo({ top: 0 }); };
   const go = (v: string) => { setView(v); window.scrollTo({ top: 0 }); };
   const openPortal = async () => { const { data, error } = await supabase.functions.invoke("customer-portal"); if (error) { toast.error("Couldn't open billing portal", { description: error.message }); return; } const url = (data as { url?: string } | null)?.url; if (url) window.location.href = url; else toast.error("No billing portal available yet."); };
+  const [confirmOut, setConfirmOut] = useState(false);
   const signOut = async () => { await supabase.auth.signOut(); navigate("/auth", { replace: true }); };
-  const cancelOrder = async (bot: OwnedBot) => { if (!user) return; setCancelling(true); const { error } = await (supabase as any).from("bot_orders").update({ status: "cancelled" }).eq("id", bot.id).eq("user_id", user.id); setCancelling(false); if (error) { toast.error("Couldn't cancel — " + error.message); return; } toast.success(`Cancelled "${bot.bot_name}"`); setCancelTarget(null); reload(); };
+  // Optimistic cancel: the status update fires server-side triggers and can
+  // take many seconds, so close the dialog immediately and track the work
+  // with a toast instead of freezing the UI on the button.
+  const cancelOrder = (bot: OwnedBot) => {
+    if (!user) return;
+    setCancelTarget(null);
+    const work = (supabase as any)
+      .from("bot_orders")
+      .update({ status: "cancelled" })
+      .eq("id", bot.id)
+      .eq("user_id", user.id)
+      .then(({ error }: { error: { message: string } | null }) => {
+        if (error) throw new Error(error.message);
+        reload();
+      });
+    toast.promise(work, {
+      loading: `Cancelling "${bot.bot_name}"…`,
+      success: `Cancelled "${bot.bot_name}"`,
+      error: (e: Error) => "Couldn't cancel — " + e.message,
+    });
+  };
 
   useEffect(() => { if (loading) return; if (!user) navigate("/auth", { replace: true }); }, [user, loading, navigate]);
 
-  if (loading || botsLoading) return <div className="min-h-screen bg-background grid place-items-center text-muted-foreground">Loading...</div>;
+  // Live runtime statuses for the bot list. MUST be called before the early
+  // returns below — hooks after a conditional return break React's hook order
+  // and crash the page on the loading → loaded transition.
+  const liveIds = useMemo(() => owned.filter((b) => isLive(b)).map((b) => b.id), [owned]);
+  const liveStatuses = useLiveBotStatuses(liveIds);
+
+  // First data load of the session (auth restore + bot list) — same
+  // self-drawing ridge as the route loader so loading feels like one system.
+  // Revisits skip this entirely thanks to the useOwnedBots snapshot cache.
+  if (loading || botsLoading) return (
+    <div
+      role="status"
+      aria-label="Loading"
+      className="min-h-screen grid place-items-center"
+      style={{
+        background:
+          "radial-gradient(120% 90% at 50% 115%, rgba(201,219,230,.10), transparent 55%), linear-gradient(180deg, #293038, #1a1f25)",
+      }}
+    >
+      <style>{`
+        @keyframes os-ridge-draw{0%{stroke-dashoffset:340}55%{stroke-dashoffset:0}78%{stroke-dashoffset:0}100%{stroke-dashoffset:-340}}
+        .os-ridge path{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:2}
+        .os-ridge .draw{stroke:#C9DBE6;stroke-dasharray:340;stroke-dashoffset:340;animation:os-ridge-draw 2.6s cubic-bezier(.45,.05,.35,1) infinite;filter:drop-shadow(0 0 10px rgba(201,219,230,.35))}
+        .os-ridge .ghost{stroke:rgba(201,219,230,.14)}
+        @media (prefers-reduced-motion: reduce){.os-ridge .draw{animation:none;stroke-dashoffset:0}}
+      `}</style>
+      <svg className="os-ridge" width="190" height="74" viewBox="0 0 190 74" style={{ overflow: "visible" }} aria-hidden>
+        <path className="ghost" d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70" />
+        <path className="draw" d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70" />
+      </svg>
+    </div>
+  );
   if (!user) return null;
   const hasAccess = isAdmin || hasDashboardAccess;
   if (!hasAccess) {
@@ -1579,7 +1843,6 @@ const BotDashboard = () => {
     (user.email ? user.email.split("@")[0] : "") ||
     "you";
   const initial = (user.email?.[0] ?? "U").toUpperCase();
-  const liveCount = owned.filter(isLive).length;
   const activeBot = botId ? byId[botId] : null;
   const firstOwned = dashboardBots.find((b) => !b.isDemo && !b.viaTeam && !b.viaSupport);
   const spotlight = owned[0];
@@ -1589,7 +1852,144 @@ const BotDashboard = () => {
     <div className={"nav" + (view === v ? " on" : "")} data-view={v} id={extraId} onClick={() => go(v)}>{icon}{label}</div>
   );
 
-  const filt = (f: string) => (b: OwnedBot) => f === "all" ? true : f === "online" ? isLive(b) : !isLive(b);
+  // ── Live runtime status for the list/table/cards ─────────────────────────
+  // The order-based "Online" (status = live/ready) only says the bot was
+  // delivered — not that it's actually running. Overlay the worker's live
+  // runtime status (liveStatuses, subscribed above the early returns) so
+  // Crashed / Restarting / Starting / Offline show up the moment they happen.
+  const RUNTIME_WORD: Record<string, string> = {
+    online: "Online", offline: "Offline", starting: "Starting…", stopping: "Stopping…",
+    restarting: "Restarting…", crashed: "Crashed", updating: "Redeploying…", suspended: "Suspended",
+  };
+  const RUNTIME_COLOR: Record<string, string> = {
+    online: "var(--ok)", offline: "var(--faint)", starting: "var(--gold)", stopping: "var(--gold)",
+    restarting: "var(--gold)", crashed: "var(--bad)", updating: "var(--gold)", suspended: "var(--gold)",
+  };
+  const runtimeOf = (b: OwnedBot): string | null =>
+    isLive(b) ? liveStatuses[b.id]?.effective ?? null : null;
+  const stColorLive = (b: OwnedBot) => {
+    const s = runtimeOf(b);
+    return s ? (RUNTIME_COLOR[s] ?? "var(--faint)") : stColor(b);
+  };
+  const stWordLive = (b: OwnedBot) => {
+    const s = runtimeOf(b);
+    return s ? (RUNTIME_WORD[s] ?? s) : stWord(b);
+  };
+
+  const filt = (f: string) => (b: OwnedBot) => f === "all" ? true : f === "online" ? stWordLive(b) === "Online" : stWordLive(b) !== "Online";
+  const liveCount = owned.filter((b) => stWordLive(b) === "Online").length;
+
+  // Dashboard boxes, addressable by id so they can be reordered. The shared
+  // order lives in dashOrder; admins drag to rearrange (saved for everyone),
+  // customers get the same order as plain cells (no drag code at all).
+  const renderDash = () => {
+    const cells: Record<string, ReactNode> = {
+      setup: (
+        <div className="card cust">
+          <div className="ch"><span className="ct">Setup</span><span className="dots">···</span></div>
+          <div className="ph"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg></div>
+          <h3>Almost there</h3>
+          <p>{isTeam ? "Connect billing, invite your team, then set each bot's commands." : "Connect billing, then set each bot's commands."}</p>
+          <button className="ghost" onClick={() => go("settings")}>Pick up where you left off</button>
+        </div>
+      ),
+      activity: (
+        <div className="card" id="tour-activity">
+          <div className="ch"><div><span className="ct">Fleet activity</span><div style={{ fontSize: "11px", color: "var(--faint)", marginTop: "2px" }}>This week</div></div><span className="dots">···</span></div>
+          <div className="leg"><span><i style={{ background: "var(--accent)" }} />Events</span><span><i style={{ background: "var(--surface2)" }} />Blocked</span></div>
+          <div className="chart">{CHART.map((d, i) => (<div className="col" key={i}><div className="bars"><div className="bar buy" style={{ height: d[0] + "%" }} /><div className="bar sell" style={{ height: d[1] + "%" }} /></div><div className="x">{CDAYS[i]}</div></div>))}</div>
+          <div className="kpis"><span className="big num">{owned.length ? "8.9" : "0"}<sup>%</sup></span><span className="updelta">▲ 2%</span><span className="vs">vs last week</span></div>
+        </div>
+      ),
+      table: (
+        <div className="card assets">
+          <div className="thead">
+            <div className="tabs" style={{ margin: 0 }}>
+              <button className={tableFilter === "all" ? "on" : ""} onClick={() => setTableFilter("all")}>All bots</button>
+              <button className={tableFilter === "online" ? "on" : ""} onClick={() => setTableFilter("online")}>Online</button>
+              <button className={tableFilter === "warn" ? "on" : ""} onClick={() => setTableFilter("warn")}>Needs attention</button>
+            </div>
+            <div className="seg"><button className="on">1D</button><button>2W</button><button>1M</button></div>
+          </div>
+          <div className="tscroll"><table>
+            <thead><tr><th>Bot</th><th>Status</th><th>Base</th><th>Add-ons</th><th></th></tr></thead>
+            <tbody>
+              {owned.filter(filt(tableFilter)).map((b) => (
+                <tr key={b.id} onClick={() => openBot(b.id)}>
+                  <td><div className="coin"><div className="a">{botSvg(b.base)}</div><div><div className="nm">{b.bot_name}</div><div className="tk">{BOT_BASE_LABELS[b.base] ?? b.base}</div></div></div></td>
+                  <td><span style={{ color: stColorLive(b) }}>● {stWordLive(b)}</span></td>
+                  <td className="num">{BOT_BASE_LABELS[b.base] ?? b.base}</td>
+                  <td className="num">{b.addons.length}</td>
+                  <td><button className="trade" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Manage</button></td>
+                </tr>
+              ))}
+              {owned.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--faint)" }}>No bots yet.</td></tr>}
+            </tbody>
+          </table></div>
+        </div>
+      ),
+      bots: (
+        <div className="card" id="tour-bots">
+          <div className="ch"><span className="ct">Your bots</span><span className="dots">···</span></div>
+          <div className="tabs">
+            <button className={listFilter === "all" ? "on" : ""} onClick={() => setListFilter("all")}>All</button>
+            <button className={listFilter === "online" ? "on" : ""} onClick={() => setListFilter("online")}>Online</button>
+            <button className={listFilter === "warn" ? "on" : ""} onClick={() => setListFilter("warn")}>Other</button>
+          </div>
+          <div>
+            {owned.filter(filt(listFilter)).map((b) => (
+              <div className="tok" key={b.id} onClick={() => openBot(b.id)}>
+                <div className="ic">{botSvg(b.base)}</div>
+                <div><div className="v">{b.bot_name}</div><div className="s">{stWordLive(b).toLowerCase()}</div></div>
+                <button className="act" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Open</button>
+              </div>
+            ))}
+            {owned.length === 0 && <div className="tok"><div><div className="s">No bots yet.</div></div></div>}
+          </div>
+        </div>
+      ),
+      spotlight: spotlight ? (
+        <div className="card">
+          <div className="mhead"><div /><div className="mout" onClick={() => openBot(spotlight.id)}><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></div></div>
+          <div className="mname">{spotlight.bot_name} <span className="x">{BOT_BASE_LABELS[spotlight.base] ?? spotlight.base}</span></div>
+          <div className="mhot">Your fleet</div>
+          <div style={{ marginTop: "14px" }}>
+            <div className="mrow"><span className="k">Status</span><span className="v" style={{ color: stColorLive(spotlight) }}>{stWordLive(spotlight)}</span></div>
+            <div className="mrow"><span className="k">Add-ons</span><span className="v">{spotlight.addons.length}</span></div>
+            <div className="mrow" style={{ borderBottom: 0 }}><span className="k">Engine</span><span className="v">{spotlight.engine_version === "v2" ? "V2" : "V1"}</span></div>
+          </div>
+          <div className="mbtns"><button className="ghost" onClick={() => openBot(spotlight.id)}>Configure</button><button className="cta" style={{ width: "100%" }} onClick={() => openBot(spotlight.id)}>Open bot</button></div>
+        </div>
+      ) : null,
+    };
+    const wide = new Set(["table"]);
+    const ordered = [
+      ...dashOrder.filter((id) => DEFAULT_DASH_ORDER.includes(id) && cells[id] != null),
+      ...DEFAULT_DASH_ORDER.filter((id) => !dashOrder.includes(id) && cells[id] != null),
+    ];
+    dashOrderedRef.current = ordered;
+
+    if (!isAdmin) {
+      return (
+        <div className="dashgrid">
+          {ordered.map((id) => (
+            <div key={id} className={"dashcell" + (wide.has(id) ? " wide" : "")}>{cells[id]}</div>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <DndContext sensors={dashSensors} collisionDetection={closestCenter} onDragEnd={onDashDragEnd}>
+        <SortableContext items={ordered} strategy={rectSortingStrategy}>
+          <div className="dashgrid">
+            {ordered.map((id) => (
+              <DashSortableCard key={id} id={id} wide={wide.has(id)}>{cells[id]}</DashSortableCard>
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+    );
+  };
 
   return (
     <div className={"osd" + (appOn ? " app" : "") + (instant ? " instant" : "")} style={{ ["--accent" as any]: accent.c, ["--accentink" as any]: accent.ink }}>
@@ -1673,6 +2073,9 @@ const BotDashboard = () => {
 
         {/* APP */}
         <div className={"appwrap" + (appOn ? " show" : "")}>
+          {/* Admin notice — flush bar across the very top of the screen. */}
+          <FixesBar />
+          <div className="approw">
           <aside className="side">
             <div className="prof">
               <div className="av">{initial}</div>
@@ -1699,7 +2102,7 @@ const BotDashboard = () => {
 
             <div style={{ marginTop: "auto" }} />
             <div className="nav" onClick={() => navigate("/")}><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14.5 14.5 0 0 0 0 18 14.5 14.5 0 0 0 0-18"/></svg>Back to website</div>
-            <div className="nav" onClick={signOut}><svg viewBox="0 0 24 24"><path d="M9 21H5V3h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</div>
+            <div className="nav" onClick={() => setConfirmOut(true)}><svg viewBox="0 0 24 24"><path d="M9 21H5V3h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</div>
           </aside>
 
           <div className="main">
@@ -1719,90 +2122,9 @@ const BotDashboard = () => {
             {/* Hosting payment overdue — renders nothing unless past due. */}
             <HostingPastDueBanner />
 
-            {/* Active known-issue notices — renders nothing when none are active. */}
-            <FixesBar />
-
             {/* DASHBOARD */}
             <div className={"view" + (view === "dashboard" ? " on" : "")}>
-              <div className="grid">
-                <div className="left">
-                  <div className="card cust">
-                    <div className="ch"><span className="ct">Setup</span><span className="dots">···</span></div>
-                    <div className="ph"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg></div>
-                    <h3>Almost there</h3>
-                    <p>{isTeam ? "Connect billing, invite your team, then set each bot's commands." : "Connect billing, then set each bot's commands."}</p>
-                    <button className="ghost" onClick={() => go("settings")}>Pick up where you left off</button>
-                  </div>
-
-                  <div className="card" id="tour-activity">
-                    <div className="ch"><div><span className="ct">Fleet activity</span><div style={{ fontSize: "11px", color: "var(--faint)", marginTop: "2px" }}>This week</div></div><span className="dots">···</span></div>
-                    <div className="leg"><span><i style={{ background: "var(--accent)" }} />Events</span><span><i style={{ background: "var(--surface2)" }} />Blocked</span></div>
-                    <div className="chart">{CHART.map((d, i) => (<div className="col" key={i}><div className="bars"><div className="bar buy" style={{ height: d[0] + "%" }} /><div className="bar sell" style={{ height: d[1] + "%" }} /></div><div className="x">{CDAYS[i]}</div></div>))}</div>
-                    <div className="kpis"><span className="big num">{owned.length ? "8.9" : "0"}<sup>%</sup></span><span className="updelta">▲ 2%</span><span className="vs">vs last week</span></div>
-                  </div>
-
-                  <div className="card assets">
-                    <div className="thead">
-                      <div className="tabs" style={{ margin: 0 }}>
-                        <button className={tableFilter === "all" ? "on" : ""} onClick={() => setTableFilter("all")}>All bots</button>
-                        <button className={tableFilter === "online" ? "on" : ""} onClick={() => setTableFilter("online")}>Online</button>
-                        <button className={tableFilter === "warn" ? "on" : ""} onClick={() => setTableFilter("warn")}>Needs attention</button>
-                      </div>
-                      <div className="seg"><button className="on">1D</button><button>2W</button><button>1M</button></div>
-                    </div>
-                    <div className="tscroll"><table>
-                      <thead><tr><th>Bot</th><th>Status</th><th>Base</th><th>Add-ons</th><th></th></tr></thead>
-                      <tbody>
-                        {owned.filter(filt(tableFilter)).map((b) => (
-                          <tr key={b.id} onClick={() => openBot(b.id)}>
-                            <td><div className="coin"><div className="a">{botSvg(b.base)}</div><div><div className="nm">{b.bot_name}</div><div className="tk">{BOT_BASE_LABELS[b.base] ?? b.base}</div></div></div></td>
-                            <td><span style={{ color: stColor(b) }}>● {stWord(b)}</span></td>
-                            <td className="num">{BOT_BASE_LABELS[b.base] ?? b.base}</td>
-                            <td className="num">{b.addons.length}</td>
-                            <td><button className="trade" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Manage</button></td>
-                          </tr>
-                        ))}
-                        {owned.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--faint)" }}>No bots yet.</td></tr>}
-                      </tbody>
-                    </table></div>
-                  </div>
-                </div>
-
-                <div className="right">
-                  <div className="card" id="tour-bots">
-                    <div className="ch"><span className="ct">Your bots</span><span className="dots">···</span></div>
-                    <div className="tabs">
-                      <button className={listFilter === "all" ? "on" : ""} onClick={() => setListFilter("all")}>All</button>
-                      <button className={listFilter === "online" ? "on" : ""} onClick={() => setListFilter("online")}>Online</button>
-                      <button className={listFilter === "warn" ? "on" : ""} onClick={() => setListFilter("warn")}>Other</button>
-                    </div>
-                    <div>
-                      {owned.filter(filt(listFilter)).map((b) => (
-                        <div className="tok" key={b.id} onClick={() => openBot(b.id)}>
-                          <div className="ic">{botSvg(b.base)}</div>
-                          <div><div className="v">{b.bot_name}</div><div className="s">{stWord(b).toLowerCase()}</div></div>
-                          <button className="act" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Open</button>
-                        </div>
-                      ))}
-                      {owned.length === 0 && <div className="tok"><div><div className="s">No bots yet.</div></div></div>}
-                    </div>
-                  </div>
-
-                  {spotlight && (
-                    <div className="card">
-                      <div className="mhead"><div /><div className="mout" onClick={() => openBot(spotlight.id)}><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></div></div>
-                      <div className="mname">{spotlight.bot_name} <span className="x">{BOT_BASE_LABELS[spotlight.base] ?? spotlight.base}</span></div>
-                      <div className="mhot">Your fleet</div>
-                      <div style={{ marginTop: "14px" }}>
-                        <div className="mrow"><span className="k">Status</span><span className="v">{stWord(spotlight)}</span></div>
-                        <div className="mrow"><span className="k">Add-ons</span><span className="v">{spotlight.addons.length}</span></div>
-                        <div className="mrow" style={{ borderBottom: 0 }}><span className="k">Engine</span><span className="v">{spotlight.engine_version === "v2" ? "V2" : "V1"}</span></div>
-                      </div>
-                      <div className="mbtns"><button className="ghost" onClick={() => openBot(spotlight.id)}>Configure</button><button className="cta" style={{ width: "100%" }} onClick={() => openBot(spotlight.id)}>Open bot</button></div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              {renderDash()}
             </div>
 
             {/* MY BOTS */}
@@ -1812,7 +2134,7 @@ const BotDashboard = () => {
                 {owned.map((b) => (
                   <div className="bcard" key={b.id} draggable onDragStart={() => onDragStart(b.id)} onDragOver={(e) => onDragOver(e, b.id)} onDragEnd={onDragEnd} onClick={() => openBot(b.id)}>
                     <div className="a">{botSvg(b.base)}</div>
-                    <div className="nm">{b.bot_name}</div><div className="st" style={{ color: stColor(b) }}>● {stWord(b)}</div>
+                    <div className="nm">{b.bot_name}</div><div className="st" style={{ color: stColorLive(b) }}>● {stWordLive(b)}</div>
                     <div className="bstats"><div className="bx"><span className="k">Base</span><span className="v num">{BOT_BASE_LABELS[b.base] ?? b.base}</span></div><div className="bx"><span className="k">Add-ons</span><span className="v num">{b.addons.length}</span></div></div>
                     <button className="ghost" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Open</button>
                   </div>
@@ -1943,17 +2265,24 @@ const BotDashboard = () => {
               )}
             </div>
           </div>
+          </div>
         </div>
       </div>
 
       <NewOwnerBillingDialog forceOpen={new URLSearchParams(window.location.search).get("team_transfer") === "accepted"} />
-      <AlertDialog open={!!cancelTarget} onOpenChange={(o) => !o && !cancelling && setCancelTarget(null)}>
+      <AlertDialog open={!!cancelTarget} onOpenChange={(o) => !o && setCancelTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Cancel subscription for "{cancelTarget?.bot_name}"?</AlertDialogTitle><AlertDialogDescription>This stops recurring payments and hosting, takes the bot offline, and removes it from your dashboard.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel disabled={cancelling}>Keep subscription</AlertDialogCancel><AlertDialogAction disabled={cancelling} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(e) => { e.preventDefault(); if (cancelTarget) cancelOrder(cancelTarget); }}>{cancelling ? "Cancelling…" : "Yes, cancel"}</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogFooter><AlertDialogCancel>Keep subscription</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(e) => { e.preventDefault(); if (cancelTarget) cancelOrder(cancelTarget); }}>Yes, cancel</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
       <AddAddonsDialog bot={addonsTarget} open={!!addonsTarget} onOpenChange={(o) => !o && setAddonsTarget(null)} />
+      <AlertDialog open={confirmOut} onOpenChange={setConfirmOut}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Sign out?</AlertDialogTitle><AlertDialogDescription>You'll need to sign back in to access your dashboard.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={(e) => { e.preventDefault(); setConfirmOut(false); signOut(); }}>Sign out</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
