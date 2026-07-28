@@ -9,6 +9,7 @@ export const BOT_BASE_LABELS: Record<string, string> = {
   support: "Oversite Support",
   utilities: "Oversite Utilities",
   scratch: "All-in-One Pack",
+  dispatch: "Oversite Dispatch",
 };
 
 export const BOT_BASE_TAGLINES: Record<string, string> = {
@@ -16,6 +17,7 @@ export const BOT_BASE_TAGLINES: Record<string, string> = {
   support: "Tickets, appeals, reports, and welcomes.",
   utilities: "Announcements, roles, Roblox, music, more.",
   scratch: "Protection + Support + Utilities — every base in one bot.",
+  dispatch: "AI voice dispatcher for ER:LC — reads 911 calls and talks back.",
 };
 
 export const BOT_ADDON_LABELS: Record<string, string> = {
