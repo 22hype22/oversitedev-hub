@@ -58,6 +58,7 @@ import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
 import { BotManagePanel } from "@/components/dashboard/BotManagePanel";
 import { BotSecretsCard } from "@/components/dashboard/BotSecretsCard";
+import { DispatchVoiceCard } from "@/components/dashboard/DispatchVoiceCard";
 import { GroupTeamHub } from "@/components/dashboard/team/GroupTeamHub";
 import { NewOwnerBillingDialog } from "@/components/dashboard/team/NewOwnerBillingDialog";
 import { RequestCustomFeatureDialog } from "@/components/dashboard/RequestCustomFeatureDialog";
@@ -878,6 +879,8 @@ const BotSection = ({
       )}
 
       {!bot.isDemo && <BotSecretsCard bot={bot} />}
+
+      {!bot.isDemo && bot.base === "dispatch" && <DispatchVoiceCard bot={bot} />}
 
       {/* Compact build summary — collapsible (controlled, default closed) */}
       <div className="rounded-lg border border-border bg-card/40">
