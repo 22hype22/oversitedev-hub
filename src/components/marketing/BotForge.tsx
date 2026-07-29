@@ -122,10 +122,12 @@ const BASES: Base[] = [
     included: [
       "Verification system",
       "Warn, mute, ban, kick",
-      "Anti-spam",
-      "Anti-raid",
-      "Basic logging (bans/kicks/joins only)",
+      "Anti-spam & anti-raid",
       "Phishing link detection",
+      "Advanced logging — edits, deletes, activity",
+      "NSFW invite & avatar scanning",
+      "Auto-escalating warnings",
+      "Channel lockdown & temp-bans",
     ],
   },
   {
@@ -138,9 +140,12 @@ const BASES: Base[] = [
     included: [
       "Ticket system (unlimited categories)",
       "Claim system",
-      "Ban appeals",
-      "Member reports",
+      "Ban appeals & member reports",
       "Welcome / goodbye messages",
+      "Full ticket transcripts & logs",
+      "Staff performance tracking",
+      "Priority flagging & auto-close",
+      "Anonymous reporting",
     ],
   },
   {
@@ -153,11 +158,12 @@ const BASES: Base[] = [
     included: [
       "/say and /announce",
       "Reaction roles (unlimited)",
-      "Autorole",
-      "Poll",
+      "Autorole & polls",
       "Userinfo, serverinfo, avatar",
-      "Basic music (no Spotify, no auto-radio)",
-      "8ball, coinflip",
+      "Music + auto-radio by genre",
+      "Starboard & giveaways",
+      "Twitch / YouTube notifications",
+      "Leveling, economy & reminders",
     ],
   },
   {
@@ -168,9 +174,14 @@ const BASES: Base[] = [
     price: 199,
     oldPrice: 249,
     included: [
-      "Everything in Oversite Protection",
-      "Everything in Oversite Support",
-      "Everything in Oversite Utilities",
+      "Everything in Protection, Support & Utilities",
+      "Full automod, anti-raid & logging",
+      "Complete ticket, appeals & reports system",
+      "Reaction roles, autorole & welcomes",
+      "Music, giveaways & starboard",
+      "Leveling, economy & stream alerts",
+      "Every command in one bot",
+      "Best value — save vs buying separately",
     ],
   },
   {
@@ -181,10 +192,13 @@ const BASES: Base[] = [
     price: 19.99,
     included: [
       "Reads live 911 calls aloud in a real dispatcher voice",
-      "Two-way voice — officers talk to dispatch and get answers",
-      "Nearest-unit dispatch from live in-game positions",
-      "Automatic officer-down and pursuit alerts",
-      "Region-accurate radio codes and phonetics",
+      "Two-way voice — officers talk to dispatch",
+      "Nearest-unit dispatch from live positions",
+      "Automatic officer-down & pursuit alerts",
+      "BOLO broadcasts & call-cleared updates",
+      "Traffic-stop auto-return on pursuits",
+      "Live roster & unit status board",
+      "Region-accurate radio codes & phonetics",
     ],
   },
   {
@@ -198,6 +212,10 @@ const BASES: Base[] = [
       "Message-to-game linking",
       "Department role management",
       "Session tools & server binds",
+      "Live player & vehicle lookups",
+      "Automated shift & activity logging",
+      "Staff performance tracking",
+      "Custom in-game command binds",
     ],
   },
 ];
@@ -1161,7 +1179,7 @@ export function BotForge() {
                       type="button"
                       disabled={comingSoon}
                       onClick={() => { if (!comingSoon) toggleBase(b.id); }}
-                      className={`group flex w-full flex-col items-stretch justify-start text-left rounded-xl border p-4 transition ${
+                      className={`group flex h-full w-full flex-col items-stretch justify-start text-left rounded-xl border p-4 transition ${
                         comingSoon
                           ? "border-os-hairline/30 bg-os-bg/30 opacity-60 cursor-not-allowed"
                           : active
@@ -1196,7 +1214,7 @@ export function BotForge() {
                           </li>
                         ))}
                       </ul>
-                      <div className="mt-3 flex items-center gap-2 flex-wrap text-xs text-os-body">
+                      <div className="mt-auto pt-3 flex items-center gap-2 flex-wrap text-xs text-os-body">
                         <span>one-time</span>
                         {displayOldPrice && !comingSoon && (
                           <span className="text-os-faint line-through">${displayOldPrice}</span>
@@ -1229,7 +1247,7 @@ export function BotForge() {
                         <span className="font-label text-[11px] font-semibold uppercase tracking-[0.16em] text-os-body">Discord Bots</span>
                         <span className="h-px flex-1 bg-os-hairline/40" />
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 auto-rows-fr">
                         {discordBases.map(renderCard)}
                       </div>
                     </div>
@@ -1238,7 +1256,7 @@ export function BotForge() {
                         <span className="font-label text-[11px] font-semibold uppercase tracking-[0.16em] text-os-body">ER:LC / Roblox Bots</span>
                         <span className="h-px flex-1 bg-os-hairline/40" />
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 auto-rows-fr">
                         {roblocBases.map(renderCard)}
                       </div>
                     </div>
