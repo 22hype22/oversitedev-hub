@@ -187,6 +187,19 @@ const BASES: Base[] = [
       "Region-accurate radio codes and phonetics",
     ],
   },
+  {
+    id: "erlc-spec",
+    name: "ERLC Specialized",
+    tagline: "Purpose-built for ERLC servers — in-game moderation and department tools.",
+    icon: Gamepad2,
+    price: 99,
+    included: [
+      "In-game moderation",
+      "Message-to-game linking",
+      "Department role management",
+      "Session tools & server binds",
+    ],
+  },
 ];
 
 const SHARED_ADDONS: Addon[] = [
@@ -240,8 +253,9 @@ const ADDONS_BY_BASE: Record<string, Addon[]> = {
   dispatch: [],
 };
 
-const ROBLOX_BASE_IDS = new Set<string>(["dispatch"]);
+const ROBLOX_BASE_IDS = new Set<string>(["dispatch", "erlc-spec"]);
 const isRobloxBase = (id: string) => ROBLOX_BASE_IDS.has(id);
+const DEFAULT_STATUS: Record<string, BotStatus> = { "erlc-spec": "coming_soon" };
 
 const getAddonsForBase = (baseId: string): Addon[] => {
   if (baseId === "scratch") {
@@ -1129,7 +1143,7 @@ export function BotForge() {
                 const renderCard = (b: Base) => {
                 const Icon = b.icon;
                 const active = bases.includes(b.id);
-                const status: BotStatus = availability[b.id] ?? "available";
+                const status: BotStatus = availability[b.id] ?? DEFAULT_STATUS[b.id] ?? "available";
                 const comingSoon = status === "coming_soon";
                 const preorder = status === "preorder";
                 const isDiscountedSecond =
@@ -1139,7 +1153,7 @@ export function BotForge() {
                 return (
                   <div key={b.id} className="relative">
                     {canManageStatus && (
-                      <div className="absolute right-2 top-2 z-10">
+                      <div className="absolute bottom-2 right-2 z-10">
                         <StatusGear baseId={b.id} status={status} />
                       </div>
                     )}
@@ -1226,46 +1240,6 @@ export function BotForge() {
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {roblocBases.map(renderCard)}
-                                      {/* ERLC Specialized — Coming Soon */}
-              <div className="group text-left rounded-xl border border-os-hairline/30 bg-os-bg/30 p-4 opacity-70">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <Gamepad2 size={18} className="text-os-faint" />
-                    <span className="font-display font-semibold text-os-body">ERLC Specialized</span>
-                  </div>
-                  <span className="px-1.5 py-0.5 rounded-full bg-os-surface/60 border border-os-hairline/50 text-os-faint text-[10px] font-semibold uppercase tracking-wide">
-                    Coming Soon
-                  </span>
-                </div>
-                <p className="font-body text-xs text-os-faint mt-2 leading-relaxed">
-                  Purpose-built for ERLC servers — custom tools tuned for Emergency Response: Liberty County gameplay.
-                </p>
-                <ul className="mt-3 space-y-1">
-                  <li className="flex items-start gap-1.5 text-[11px] text-os-faint leading-snug">
-                    <Check size={11} className="mt-0.5 shrink-0 text-os-faint" />
-                    <span>In-game Moderation</span>
-                  </li>
-                  <li className="flex items-start gap-1.5 text-[11px] text-os-faint leading-snug">
-                    <Check size={11} className="mt-0.5 shrink-0 text-os-faint" />
-                    <span>Message to game Linking</span>
-                  </li>
-                  <li className="flex items-start gap-1.5 text-[11px] text-os-faint leading-snug">
-                    <Check size={11} className="mt-0.5 shrink-0 text-os-faint" />
-                    <span>Department role management</span>
-                  </li>
-                  <li className="flex items-start gap-1.5 text-[11px] text-os-faint leading-snug">
-                    <Check size={11} className="mt-0.5 shrink-0 text-os-faint" />
-                    <span>Session tools &amp; server binds</span>
-                  </li>
-                </ul>
-                <div className="mt-3 flex items-center gap-2 flex-wrap text-xs text-os-faint">
-                  <span>one-time</span>
-                  <span className="font-semibold text-os-body">$99</span>
-                  <span className="px-1.5 py-0.5 rounded-full bg-os-surface/60 border border-os-hairline/50 text-os-faint text-[10px] font-semibold uppercase tracking-wide">
-                    $50 with another bot
-                  </span>
-                </div>
-              </div>
                       </div>
                     </div>
                   </>
