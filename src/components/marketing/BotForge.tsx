@@ -1199,6 +1199,10 @@ export function BotForge() {
                           <span className="px-1.5 py-0.5 rounded-full bg-os-surface/60 border border-os-hairline/50 text-os-faint text-[10px] font-semibold uppercase tracking-wide">
                             Coming Soon
                           </span>
+                        ) : preorder ? (
+                          <span className="px-1.5 py-0.5 rounded-full bg-os-accent/15 border border-os-accent/30 text-os-accent text-[10px] font-semibold uppercase tracking-wide">
+                            Pre-order
+                          </span>
                         ) : active ? (
                           <Check size={16} className="text-os-accent" />
                         ) : null}
@@ -1223,10 +1227,6 @@ export function BotForge() {
                         {comingSoon ? null : isDiscountedSecond ? (
                           <span className="px-1.5 py-0.5 rounded-full bg-os-accent/15 border border-os-accent/30 text-os-accent text-[10px] font-semibold uppercase tracking-wide">
                             Add for $50
-                          </span>
-                        ) : preorder ? (
-                          <span className="px-1.5 py-0.5 rounded-full bg-os-accent/15 border border-os-accent/30 text-os-accent text-[10px] font-semibold uppercase tracking-wide">
-                            Pre-order
                           </span>
                         ) : b.oldPrice ? (
                           <span className="px-1.5 py-0.5 rounded-full bg-os-accent/15 border border-os-accent/30 text-os-accent text-[10px] font-semibold uppercase tracking-wide">
