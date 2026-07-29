@@ -1,11 +1,71 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { KeyRound, Loader2, Check, Trash2 } from "lucide-react";
+import { KeyRound, Loader2 } from "lucide-react";
 import type { OwnedBot } from "@/hooks/useOwnedBots";
+
+// Self-contained styling in the dashboard's own design language (mirrors
+// BotManagePanel): eyebrow + trailing hairline sections, hairline borders,
+// tinted controls. Scoped under .oskeys so nothing leaks.
+const SECRETS_CSS = `
+.oskeys{
+  --line:rgba(255,255,255,.055); --line2:rgba(255,255,255,.09);
+  --heading:rgb(var(--os-heading)); --body:rgb(var(--os-body)); --faint:rgb(var(--os-faint));
+  --accent:rgb(var(--os-accent)); --surface:rgb(var(--os-surface));
+  --accentd:rgba(201,219,230,.10); --accentl:rgba(201,219,230,.28);
+  --ok:#84d6a0; --okd:rgba(132,214,160,.12); --okl:rgba(132,214,160,.30);
+  --warn:#e6c47c; --warnd:rgba(230,196,124,.12); --warnl:rgba(230,196,124,.30);
+  --bad:#e98b8b; --badd:rgba(233,139,139,.12);
+  --inp:rgba(15,18,22,.45);
+  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+.oskeys .panel{border:1px solid var(--line2);border-radius:14px;overflow:hidden;
+  background:linear-gradient(180deg,rgba(255,255,255,.02),transparent 22%),var(--surface)}
+.oskeys .phead{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 22px}
+.oskeys .pl{display:flex;align-items:flex-start;gap:12px}
+.oskeys .ic{width:34px;height:34px;border-radius:10px;flex:none;display:grid;place-items:center;
+  border:1px solid var(--accentl);background:var(--accentd);color:var(--accent)}
+.oskeys .ic svg{width:17px;height:17px}
+.oskeys .pt{font-size:14.5px;font-weight:700;color:var(--heading);letter-spacing:-.01em}
+.oskeys .ps{font-size:12px;color:var(--faint);margin-top:3px;line-height:1.5;max-width:46ch}
+.oskeys .chip{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  border-radius:999px;padding:4px 9px;white-space:nowrap;flex:none}
+.oskeys .chip.warn,.oskeys .chip.req{color:var(--warn);background:var(--warnd);border:1px solid var(--warnl)}
+.oskeys .chip.ok{color:var(--ok);background:var(--okd);border:1px solid var(--okl)}
+.oskeys .sec{padding:18px 22px;border-top:1px solid var(--line)}
+.oskeys .eyebrow{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.oskeys .eyebrow .lbl{font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--faint);white-space:nowrap}
+.oskeys .eyebrow .ln{flex:1;height:1px;background:var(--line2)}
+.oskeys .mono-key{font-family:var(--mono);font-size:10px;color:var(--faint);opacity:.85;margin-left:4px;
+  text-transform:none;letter-spacing:0;font-weight:600}
+.oskeys .ed{font-size:12px;color:var(--faint);line-height:1.55;margin-bottom:13px;max-width:56ch}
+.oskeys .inprow{display:flex;gap:10px;align-items:stretch}
+.oskeys .inp{flex:1;min-width:0;background:var(--inp);border:1px solid var(--line2);border-radius:9px;
+  padding:11px 13px;color:var(--heading);font-family:var(--mono);font-size:13px;outline:none;
+  transition:border-color .15s,box-shadow .15s}
+.oskeys .inp::placeholder{color:var(--faint);font-family:inherit}
+.oskeys .inp:focus{border-color:var(--accentl);box-shadow:0 0 0 3px var(--accentd)}
+.oskeys .save{flex:none;border:1px solid var(--accentl);background:var(--accentd);color:var(--accent);
+  border-radius:9px;padding:0 18px;font:inherit;font-weight:700;font-size:13px;cursor:pointer;
+  transition:background .15s,border-color .15s,transform .05s;display:inline-flex;align-items:center;gap:6px}
+.oskeys .save:hover:not(:disabled){background:rgba(201,219,230,.16);border-color:var(--accent);color:var(--heading)}
+.oskeys .save:disabled{opacity:.5;cursor:not-allowed}
+.oskeys .save:active:not(:disabled){transform:translateY(1px)}
+.oskeys .savedrow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.oskeys .dots{font-family:var(--mono);font-size:16px;letter-spacing:.28em;color:var(--faint);user-select:none}
+.oskeys .btns{display:flex;gap:8px;flex:none}
+.oskeys .mini{border:1px solid var(--line2);background:transparent;color:var(--body);border-radius:8px;
+  padding:7px 13px;font:inherit;font-weight:600;font-size:12px;cursor:pointer;
+  transition:color .15s,border-color .15s,background .15s;display:inline-flex;align-items:center;gap:6px}
+.oskeys .mini:hover:not(:disabled){color:var(--heading);border-color:var(--accentl)}
+.oskeys .mini.danger:hover:not(:disabled){color:var(--bad);border-color:rgba(233,139,139,.5);background:var(--badd)}
+.oskeys .mini:disabled{opacity:.5;cursor:not-allowed}
+.oskeys .loading{padding:28px 22px;display:flex;align-items:center;justify-content:center;gap:8px;
+  color:var(--faint);font-size:13px}
+.oskeys .spin{animation:oskeys-spin 1s linear infinite}
+@keyframes oskeys-spin{to{transform:rotate(360deg)}}
+`;
 
 type SlotMeta = {
   addon_id: string;
@@ -75,47 +135,39 @@ export function BotSecretsCard({ bot }: Props) {
   const allRequiredSet = visible.filter((s) => s.is_required).every((s) => s.is_set);
 
   return (
-    <Card className="rounded-2xl border border-os-hairline/50 bg-os-surface/40 p-5 shadow-lg shadow-black/10">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="h-10 w-10 rounded-xl border border-os-accent/30 bg-os-accent/10 grid place-items-center shrink-0">
-            <KeyRound className="h-[18px] w-[18px] text-os-accent" />
+    <div className="oskeys">
+      <style>{SECRETS_CSS}</style>
+      <div className="panel">
+        <div className="phead">
+          <div className="pl">
+            <span className="ic">
+              <KeyRound />
+            </span>
+            <div>
+              <div className="pt">API keys &amp; credentials</div>
+              <div className="ps">
+                Your bot needs these to connect to your game. Encrypted, and only ever read
+                by your bot — never shown back to us or anyone.
+              </div>
+            </div>
           </div>
-          <div>
-            <div className="font-display font-semibold text-os-heading">API keys &amp; credentials</div>
-            <p className="text-xs text-os-faint mt-1 leading-relaxed max-w-prose">
-              Your bot needs these to connect to your game. They're encrypted and only ever
-              read by your bot — never shown back to us or anyone else.
-            </p>
-          </div>
+          {!loading && visible.length > 0 && (
+            <span className={`chip ${allRequiredSet ? "ok" : "warn"}`}>
+              {allRequiredSet ? "All set" : "Action needed"}
+            </span>
+          )}
         </div>
-        {!loading && visible.length > 0 && (
-          <span
-            className={
-              "shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide " +
-              (allRequiredSet
-                ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
-                : "border-amber-400/30 bg-amber-400/10 text-amber-300")
-            }
-          >
-            {allRequiredSet ? "All set" : "Action needed"}
-          </span>
+
+        {loading ? (
+          <div className="loading">
+            <Loader2 className="spin" size={15} />
+            Loading…
+          </div>
+        ) : (
+          visible.map((s) => <SecretRow key={s.key} bot={bot} slot={s} onChanged={reload} />)
         )}
       </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-8 text-os-faint text-sm">
-          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          Loading…
-        </div>
-      ) : (
-        <div className="mt-4 space-y-3">
-          {visible.map((s) => (
-            <SecretRow key={s.key} bot={bot} slot={s} onChanged={reload} />
-          ))}
-        </div>
-      )}
-    </Card>
+    </div>
   );
 }
 
@@ -175,65 +227,45 @@ function SecretRow({
     onChanged();
   };
 
+  const chip = slot.is_set ? (
+    <span className="chip ok">Saved</span>
+  ) : slot.is_required ? (
+    <span className="chip req">Required</span>
+  ) : null;
+
   return (
-    <div className="rounded-xl border border-os-hairline/45 bg-os-bg/40 p-4">
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-sm font-semibold text-os-heading">{slot.label}</span>
-        <code className="font-mono text-[10px] text-os-faint bg-os-bg/70 border border-os-hairline/50 rounded px-1.5 py-0.5">
-          {slot.key}
-        </code>
-        {slot.is_required && !slot.is_set && (
-          <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-300">
-            Required
-          </span>
-        )}
-        {slot.is_set && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-300">
-            <Check className="h-2.5 w-2.5" />
-            Saved
-          </span>
-        )}
+    <div className="sec">
+      <div className="eyebrow">
+        <span className="lbl">
+          {slot.label}
+          <span className="mono-key">{slot.key}</span>
+        </span>
+        <span className="ln" />
+        {chip}
       </div>
 
-      {slot.description && (
-        <p className="text-xs text-os-faint mt-1.5 leading-relaxed">{slot.description}</p>
-      )}
+      {slot.description && <div className="ed">{slot.description}</div>}
 
       {slot.is_set && !editing ? (
-        <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="savedrow">
           {/* Masked — the stored value is never displayed, even to the owner. */}
-          <span className="font-mono text-base tracking-[0.25em] text-os-faint select-none">
-            ••••••••••••••••
-          </span>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8 text-os-body hover:text-os-heading"
-              onClick={() => setEditing(true)}
-            >
+          <span className="dots">••••••••••••••••</span>
+          <span className="btns">
+            <button type="button" className="mini" onClick={() => setEditing(true)}>
               Replace
-            </Button>
+            </button>
             {!slot.is_required && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={remove}
-                disabled={deleting}
-              >
-                {deleting ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3.5 w-3.5" />
-                )}
-              </Button>
+              <button type="button" className="mini danger" onClick={remove} disabled={deleting}>
+                {deleting && <Loader2 className="spin" size={13} />}
+                Remove
+              </button>
             )}
-          </div>
+          </span>
         </div>
       ) : (
-        <div className="mt-3 flex items-stretch gap-2.5">
-          <Input
+        <div className="inprow">
+          <input
+            className="inp"
             type="password"
             autoComplete="off"
             value={value}
@@ -245,20 +277,16 @@ function SecretRow({
               }
             }}
             placeholder={slot.placeholder ?? "Paste your key…"}
-            className="flex-1 min-w-0 font-mono bg-os-bg/60 border-os-hairline/60 text-os-heading placeholder:text-os-faint placeholder:font-sans focus-visible:border-os-accent focus-visible:ring-os-accent/30"
             disabled={saving}
           />
-          <Button
-            onClick={save}
-            disabled={saving || !value.trim()}
-            className="shrink-0 bg-os-accent text-os-bg hover:bg-os-accent/90 font-semibold"
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
-          </Button>
+          <button type="button" className="save" onClick={save} disabled={saving || !value.trim()}>
+            {saving && <Loader2 className="spin" size={14} />}
+            Save
+          </button>
           {slot.is_set && (
-            <Button
-              variant="ghost"
-              className="shrink-0 text-os-body hover:text-os-heading"
+            <button
+              type="button"
+              className="mini"
               onClick={() => {
                 setValue("");
                 setEditing(false);
@@ -266,7 +294,7 @@ function SecretRow({
               disabled={saving}
             >
               Cancel
-            </Button>
+            </button>
           )}
         </div>
       )}
