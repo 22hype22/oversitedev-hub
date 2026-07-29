@@ -781,9 +781,10 @@ async function applyDiscordIdentity(
   if (identity.username) {
     payload.username = identity.username.trim().slice(0, 32);
   }
+  let iconDataUrl: string | null = null;
   if (identity.iconUrl) {
-    const dataUrl = await fetchImageAsDataUrl(identity.iconUrl);
-    if (dataUrl) payload.avatar = dataUrl;
+    iconDataUrl = await fetchImageAsDataUrl(identity.iconUrl);
+    if (iconDataUrl) payload.avatar = iconDataUrl;
   }
   let ok = true;
   let status: number | undefined;
@@ -812,27 +813,35 @@ async function applyDiscordIdentity(
         console.log("[auto-deploy-bot] discord user identity applied", { keys: Object.keys(payload) });
       }
     }
-    // Description via the application endpoint (empty string clears it).
-    if (identity.bio) {
+    // Application-level identity: the description ("About Me") AND the icon
+    // shown on the OAuth "Add to server" screen. Setting the icon here — before
+    // the customer ever opens the invite — makes that screen show their icon
+    // instead of the pool app's placeholder. The application NAME is not
+    // editable via the API, so it stays the pool app's Developer Portal name.
+    const appPayload: Record<string, unknown> = {};
+    if (identity.bio) appPayload.description = identity.bio.slice(0, 400);
+    if (iconDataUrl) appPayload.icon = iconDataUrl;
+    if (Object.keys(appPayload).length > 0) {
       const aRes = await fetch("https://discord.com/api/v10/applications/@me", {
         method: "PATCH",
         headers: {
           Authorization: `Bot ${botToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ description: identity.bio.slice(0, 400) }),
+        body: JSON.stringify(appPayload),
       });
       if (!aRes.ok) {
         const text = await aRes.text();
-        console.warn("[auto-deploy-bot] discord application description patch failed", {
+        console.warn("[auto-deploy-bot] discord application patch failed", {
           status: aRes.status,
           body: text.slice(0, 300),
+          keys: Object.keys(appPayload),
         });
         ok = false;
         status = status ?? aRes.status;
         error = error ?? text.slice(0, 300);
       } else {
-        console.log("[auto-deploy-bot] discord application description applied");
+        console.log("[auto-deploy-bot] discord application identity applied", { keys: Object.keys(appPayload) });
       }
     }
     return { ok, status, error };
@@ -904,35 +913,13 @@ async function sendDeployedDM(
 // encrypted secrets), and the Oversite-bundled voice + AI keys (from this
 // function's own env). Strictly separate from buildFeatureFlagVars — the F_*
 // feature flags don't apply to Dispatch.
-async function buildDispatchVars(
-  admin: ReturnType<typeof createClient>,
-  orderId: string,
-): Promise<Record<string, string>> {
+async function buildDispatchVars(): Promise<Record<string, string>> {
   const vars: Record<string, string> = {};
 
-  const getSecret = async (key: string): Promise<string | null> => {
-    const { data, error } = await admin.rpc("runtime_get_bot_secret", {
-      _bot_id: orderId,
-      _key: key,
-    });
-    if (error) {
-      console.warn("[auto-deploy-bot] dispatch secret read failed", {
-        key,
-        message: error.message,
-      });
-      return null;
-    }
-    return typeof data === "string" && data.trim() ? data.trim() : null;
-  };
-
-  // Customer-entered (from the dashboard credentials card).
-  for (const key of ["ERLC_SERVER_KEY", "DISPATCH_GUILD_ID", "DISPATCH_VOICE_CHANNEL_ID"]) {
-    const v = await getSecret(key);
-    if (v) vars[key] = v;
-  }
-
   // Oversite-bundled, shared across every Dispatch bot. Set these as secrets on
-  // this edge function so customers never supply their own voice/AI keys.
+  // this edge function. The customer's own values (ER:LC key, voice channel) are
+  // fetched by the bot at runtime using the BOT_ORDER_ID + WORKER_TOKEN env that
+  // every deploy already injects — so entering them later needs no redeploy.
   const bundled: Record<string, string | undefined> = {
     ELEVENLABS_API_KEY: Deno.env.get("DISPATCH_ELEVENLABS_API_KEY") ?? Deno.env.get("ELEVENLABS_API_KEY"),
     ANTHROPIC_API_KEY: Deno.env.get("DISPATCH_ANTHROPIC_API_KEY") ?? Deno.env.get("ANTHROPIC_API_KEY"),
@@ -1251,7 +1238,7 @@ Deno.serve(async (req) => {
       : [];
     const isDispatch = (order.base ?? "").toLowerCase().trim() === "dispatch";
     const featureFlagVars = isDispatch
-      ? await buildDispatchVars(admin, orderId)
+      ? await buildDispatchVars()
       : buildFeatureFlagVars(order.base, purchasedAddons);
 
     const varsPayload: Record<string, string> = {
