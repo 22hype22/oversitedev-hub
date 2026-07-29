@@ -70,8 +70,14 @@ export function BotSecretsCard({ bot }: Props) {
     reload();
   }, [reload]);
 
+  // Keys handled by their own dedicated dashboard block (e.g. the voice-channel
+  // picker) are hidden here so they aren't also shown as a raw text field.
+  const PICKER_MANAGED = new Set(["DISPATCH_VOICE_CHANNEL_ID"]);
   const visible = slots.filter(
-    (s) => !s.is_managed && scopes.has((s.addon_id ?? "").toLowerCase().trim()),
+    (s) =>
+      !s.is_managed &&
+      !PICKER_MANAGED.has(s.key) &&
+      scopes.has((s.addon_id ?? "").toLowerCase().trim()),
   );
 
   if (!loading && visible.length === 0) return null;
