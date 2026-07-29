@@ -781,9 +781,10 @@ async function applyDiscordIdentity(
   if (identity.username) {
     payload.username = identity.username.trim().slice(0, 32);
   }
+  let iconDataUrl: string | null = null;
   if (identity.iconUrl) {
-    const dataUrl = await fetchImageAsDataUrl(identity.iconUrl);
-    if (dataUrl) payload.avatar = dataUrl;
+    iconDataUrl = await fetchImageAsDataUrl(identity.iconUrl);
+    if (iconDataUrl) payload.avatar = iconDataUrl;
   }
   let ok = true;
   let status: number | undefined;
@@ -812,27 +813,35 @@ async function applyDiscordIdentity(
         console.log("[auto-deploy-bot] discord user identity applied", { keys: Object.keys(payload) });
       }
     }
-    // Description via the application endpoint (empty string clears it).
-    if (identity.bio) {
+    // Application-level identity: the description ("About Me") AND the icon
+    // shown on the OAuth "Add to server" screen. Setting the icon here — before
+    // the customer ever opens the invite — makes that screen show their icon
+    // instead of the pool app's placeholder. The application NAME is not
+    // editable via the API, so it stays the pool app's Developer Portal name.
+    const appPayload: Record<string, unknown> = {};
+    if (identity.bio) appPayload.description = identity.bio.slice(0, 400);
+    if (iconDataUrl) appPayload.icon = iconDataUrl;
+    if (Object.keys(appPayload).length > 0) {
       const aRes = await fetch("https://discord.com/api/v10/applications/@me", {
         method: "PATCH",
         headers: {
           Authorization: `Bot ${botToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ description: identity.bio.slice(0, 400) }),
+        body: JSON.stringify(appPayload),
       });
       if (!aRes.ok) {
         const text = await aRes.text();
-        console.warn("[auto-deploy-bot] discord application description patch failed", {
+        console.warn("[auto-deploy-bot] discord application patch failed", {
           status: aRes.status,
           body: text.slice(0, 300),
+          keys: Object.keys(appPayload),
         });
         ok = false;
         status = status ?? aRes.status;
         error = error ?? text.slice(0, 300);
       } else {
-        console.log("[auto-deploy-bot] discord application description applied");
+        console.log("[auto-deploy-bot] discord application identity applied", { keys: Object.keys(appPayload) });
       }
     }
     return { ok, status, error };
