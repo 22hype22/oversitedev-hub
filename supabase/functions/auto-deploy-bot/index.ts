@@ -904,35 +904,13 @@ async function sendDeployedDM(
 // encrypted secrets), and the Oversite-bundled voice + AI keys (from this
 // function's own env). Strictly separate from buildFeatureFlagVars — the F_*
 // feature flags don't apply to Dispatch.
-async function buildDispatchVars(
-  admin: ReturnType<typeof createClient>,
-  orderId: string,
-): Promise<Record<string, string>> {
+async function buildDispatchVars(): Promise<Record<string, string>> {
   const vars: Record<string, string> = {};
 
-  const getSecret = async (key: string): Promise<string | null> => {
-    const { data, error } = await admin.rpc("runtime_get_bot_secret", {
-      _bot_id: orderId,
-      _key: key,
-    });
-    if (error) {
-      console.warn("[auto-deploy-bot] dispatch secret read failed", {
-        key,
-        message: error.message,
-      });
-      return null;
-    }
-    return typeof data === "string" && data.trim() ? data.trim() : null;
-  };
-
-  // Customer-entered (from the dashboard credentials card).
-  for (const key of ["ERLC_SERVER_KEY", "DISPATCH_GUILD_ID", "DISPATCH_VOICE_CHANNEL_ID"]) {
-    const v = await getSecret(key);
-    if (v) vars[key] = v;
-  }
-
   // Oversite-bundled, shared across every Dispatch bot. Set these as secrets on
-  // this edge function so customers never supply their own voice/AI keys.
+  // this edge function. The customer's own values (ER:LC key, voice channel) are
+  // fetched by the bot at runtime using the BOT_ORDER_ID + WORKER_TOKEN env that
+  // every deploy already injects — so entering them later needs no redeploy.
   const bundled: Record<string, string | undefined> = {
     ELEVENLABS_API_KEY: Deno.env.get("DISPATCH_ELEVENLABS_API_KEY") ?? Deno.env.get("ELEVENLABS_API_KEY"),
     ANTHROPIC_API_KEY: Deno.env.get("DISPATCH_ANTHROPIC_API_KEY") ?? Deno.env.get("ANTHROPIC_API_KEY"),
@@ -1251,7 +1229,7 @@ Deno.serve(async (req) => {
       : [];
     const isDispatch = (order.base ?? "").toLowerCase().trim() === "dispatch";
     const featureFlagVars = isDispatch
-      ? await buildDispatchVars(admin, orderId)
+      ? await buildDispatchVars()
       : buildFeatureFlagVars(order.base, purchasedAddons);
 
     const varsPayload: Record<string, string> = {
