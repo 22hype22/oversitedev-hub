@@ -232,6 +232,9 @@ const ADDONS_BY_BASE: Record<string, Addon[]> = {
   dispatch: [],
 };
 
+const ROBLOX_BASE_IDS = new Set<string>(["dispatch"]);
+const isRobloxBase = (id: string) => ROBLOX_BASE_IDS.has(id);
+
 const getAddonsForBase = (baseId: string): Addon[] => {
   if (baseId === "scratch") {
     return [
@@ -542,59 +545,72 @@ export function BotForge() {
   const toggleBase = (id: string) => {
     setAddons([]);
     setShowAllAddons({});
+
+    // ER:LC / Roblox bots are standalone: toggle them without disturbing the
+    // Discord selection or the pack.
+    if (isRobloxBase(id)) {
+      setBases((prev) => {
+        if (prev.includes(id)) {
+          if (prev.length === 1) {
+            sonnerToast.info("Pick at least one bot", {
+              description: "You need to keep one bot selected.",
+            });
+            return prev;
+          }
+          return prev.filter((b) => b !== id);
+        }
+        return [...prev, id];
+      });
+      return;
+    }
+
     if (id === "scratch") {
-      // Pack is exclusive
-      setBases(["scratch"]);
+      // The pack replaces the other Discord bots but keeps any ER:LC bot.
+      setBases((prev) => ["scratch", ...prev.filter((b) => isRobloxBase(b))]);
       setActivePackTab("protection");
       return;
     }
-    if (id === "dispatch") {
-      // Dispatch is a standalone product — never mixed with the mod bots.
-      setBases(["dispatch"]);
-      return;
-    }
+
     setBases((prev) => {
-      // If pack is currently selected, replace with this single
-      if (prev.includes("scratch") || prev.includes("dispatch")) {
-        setActivePackTab(id);
-        return [id];
-      }
-      // Toggle off (but keep at least one selected)
-      if (prev.includes(id)) {
+      // A Discord single drops the pack but keeps everything else selected.
+      const withoutPack = prev.filter((b) => b !== "scratch");
+      if (withoutPack.includes(id)) {
         if (prev.length === 1) {
           sonnerToast.info("Pick at least one bot", {
-            description: "You need to keep one base selected.",
+            description: "You need to keep one bot selected.",
           });
           return prev;
         }
-        const next = prev.filter((b) => b !== id);
-        if (!next.includes(activePackTab)) setActivePackTab(next[0]);
+        const next = withoutPack.filter((b) => b !== id);
+        const firstDiscord = next.find((b) => !isRobloxBase(b));
+        if (firstDiscord && !next.includes(activePackTab)) setActivePackTab(firstDiscord);
         return next;
       }
-      // Add — no cap; users can pick as many bots as they want
-      const next = [...prev, id];
-      setActivePackTab(next[0]);
+      const next = [...withoutPack, id];
+      setActivePackTab(id);
       return next;
     });
   };
 
   const total = useMemo(() => {
-    // Pack is its own flat price. For singles: first bot full price,
-    // each additional single bot is a discounted $50 add-on.
     const SECOND_BOT_PRICE = 50;
-    let baseCost = 0;
-    if (bases.includes("scratch")) {
-      baseCost = BASES.find((b) => b.id === "scratch")?.price ?? 0;
+    // ER:LC / Roblox bots are always their own flat price — never part of the
+    // Discord "first full, each additional $50" ladder.
+    const roblocCost = bases
+      .filter((id) => isRobloxBase(id))
+      .reduce((sum, id) => sum + (BASES.find((b) => b.id === id)?.price ?? 0), 0);
+    const discord = bases.filter((id) => !isRobloxBase(id));
+    let discordCost = 0;
+    if (discord.includes("scratch")) {
+      discordCost = BASES.find((b) => b.id === "scratch")?.price ?? 0;
     } else {
-      baseCost = bases.reduce((sum, id, idx) => {
+      discordCost = discord.reduce((sum, id, idx) => {
         const b = BASES.find((x) => x.id === id);
         if (!b) return sum;
         return sum + (idx === 0 ? b.price : SECOND_BOT_PRICE);
       }, 0);
     }
-    // Every add-on is included for free now — only the bot base(s) cost money.
-    // Add-ons never contribute to the total.
-    return baseCost;
+    return discordCost + roblocCost;
   }, [bases]);
 
   const discountAmount = useMemo(() => {
@@ -1058,16 +1074,16 @@ export function BotForge() {
             <p className="font-body text-xs text-os-faint mb-3">
               Pick one bot, mix two, or grab the All-in-One Pack to bundle all three.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-6">
               {(() => {
-                // First selected single bot keeps full price; any other single bot
-                // (whether already selected or available) shows the $50 add-on price.
-                const firstSingle = bases.find((id) => id !== "scratch" && id !== "dispatch");
-                return BASES.map((b) => {
+                // First selected DISCORD single keeps full price; each additional
+                // Discord single is the $50 add-on. ER:LC bots price on their own.
+                const firstSingle = bases.find((id) => !isRobloxBase(id) && id !== "scratch");
+                const renderCard = (b: Base) => {
                 const Icon = b.icon;
                 const active = bases.includes(b.id);
                 const isDiscountedSecond =
-                  b.id !== "scratch" && b.id !== "dispatch" && !!firstSingle && b.id !== firstSingle;
+                  !isRobloxBase(b.id) && b.id !== "scratch" && !!firstSingle && b.id !== firstSingle;
                 const displayPrice = isDiscountedSecond ? 50 : b.price;
                 const displayOldPrice = isDiscountedSecond ? b.price : b.oldPrice;
                 return (
@@ -1120,9 +1136,28 @@ export function BotForge() {
                     </div>
                   </button>
                 );
-              });
-              })()}
-              {/* ERLC Specialized — Coming Soon */}
+                };
+                const discordBases = BASES.filter((b) => !isRobloxBase(b.id));
+                const roblocBases = BASES.filter((b) => isRobloxBase(b.id));
+                return (
+                  <>
+                    <div>
+                      <div className="mb-3 flex items-center gap-2">
+                        <span className="font-label text-[11px] font-semibold uppercase tracking-[0.16em] text-os-body">Discord Bots</span>
+                        <span className="h-px flex-1 bg-os-hairline/40" />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {discordBases.map(renderCard)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="mb-3 flex items-center gap-2">
+                        <span className="font-label text-[11px] font-semibold uppercase tracking-[0.16em] text-os-body">ER:LC / Roblox Bots</span>
+                        <span className="h-px flex-1 bg-os-hairline/40" />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {roblocBases.map(renderCard)}
+                                      {/* ERLC Specialized — Coming Soon */}
               <div className="group text-left rounded-xl border border-os-hairline/30 bg-os-bg/30 p-4 opacity-70">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2">
@@ -1162,6 +1197,11 @@ export function BotForge() {
                   </span>
                 </div>
               </div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
 
