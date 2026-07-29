@@ -3,6 +3,14 @@ import { track } from "@/lib/analytics";
 import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useBotAvailability, setBotAvailability, type BotStatus } from "@/hooks/useBotAvailability";
 import { useOwnedBots } from "@/hooks/useOwnedBots";
 import { useBotSalesMode } from "@/hooks/useBotSalesMode";
 import { useAddonOverrides, setAddonIncluded } from "@/hooks/useAddonOverrides";
@@ -286,12 +294,51 @@ const PACK_TABS: { id: string; label: string; icon: typeof Shield }[] = [
   { id: "utilities", label: "Utilities bot", icon: Wrench },
 ];
 
+function StatusGear({ baseId, status }: { baseId: string; status: BotStatus }) {
+  const [busy, setBusy] = useState(false);
+  const choose = async (next: BotStatus) => {
+    if (next === status) return;
+    setBusy(true);
+    const { data, error } = await setBotAvailability(baseId, next);
+    setBusy(false);
+    const res = data as { ok?: boolean; error?: string } | null;
+    if (error || !res?.ok) {
+      sonnerToast.error("Couldn't update status", { description: res?.error ?? error?.message });
+    } else {
+      sonnerToast.success("Availability updated");
+    }
+  };
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="Set availability"
+          onClick={(e) => e.stopPropagation()}
+          className="grid h-7 w-7 place-items-center rounded-lg border border-os-hairline/50 bg-os-surface/70 text-os-faint backdrop-blur-sm transition hover:border-os-accent/50 hover:text-os-heading"
+        >
+          <Settings2 size={13} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[9rem]">
+        <DropdownMenuRadioGroup value={status} onValueChange={(v) => choose(v as BotStatus)}>
+          <DropdownMenuRadioItem value="available" disabled={busy}>Available</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="preorder" disabled={busy}>Pre-order</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="coming_soon" disabled={busy}>Coming Soon</DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function BotForge() {
   // Funnel: reaching the builder counts as "started a build".
   useEffect(() => {
     track("build_started");
   }, []);
   const { user, isAdmin } = useAuth();
+  const { availability } = useBotAvailability();
+  const canManageStatus = (user?.email ?? "").toLowerCase() === "everant00@gmail.com";
   // COMP LIST: accounts on public.comped_emails never pay. The is_comped_email()
   // RPC answers yes/no for the signed-in user (the table itself is admin-only),
   // so the estimate can show the price slashed to $0.00 up front instead of
@@ -1082,59 +1129,81 @@ export function BotForge() {
                 const renderCard = (b: Base) => {
                 const Icon = b.icon;
                 const active = bases.includes(b.id);
+                const status: BotStatus = availability[b.id] ?? "available";
+                const comingSoon = status === "coming_soon";
+                const preorder = status === "preorder";
                 const isDiscountedSecond =
-                  !isRobloxBase(b.id) && b.id !== "scratch" && !!firstSingle && b.id !== firstSingle;
+                  !comingSoon && !isRobloxBase(b.id) && b.id !== "scratch" && !!firstSingle && b.id !== firstSingle;
                 const displayPrice = isDiscountedSecond ? 50 : b.price;
                 const displayOldPrice = isDiscountedSecond ? b.price : b.oldPrice;
                 return (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => toggleBase(b.id)}
-                    className={`group flex flex-col items-stretch justify-start text-left rounded-xl border p-4 transition ${
-                      active
-                        ? "border-os-accent bg-os-accent/10 shadow-[0_0_30px_-10px_rgb(var(--os-accent)/0.6)]"
-                        : "border-os-hairline/40 bg-os-bg/40 hover:border-os-accent/50"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <Icon
-                          size={18}
-                          className={`transition ${active ? "text-os-accent" : "text-os-faint"}`}
-                        />
-                        <span className="font-display font-semibold text-os-heading">{b.name}</span>
+                  <div key={b.id} className="relative">
+                    {canManageStatus && (
+                      <div className="absolute right-2 top-2 z-10">
+                        <StatusGear baseId={b.id} status={status} />
                       </div>
-                      {active && <Check size={16} className="text-os-accent" />}
-                    </div>
-                    <p className="font-body text-xs text-os-faint mt-2 leading-relaxed">
-                      {b.tagline}
-                    </p>
-                    <ul className="mt-3 space-y-1">
-                      {b.included.map((feat) => (
-                        <li key={feat} className="flex items-start gap-1.5 text-[11px] text-os-body leading-snug">
-                          <Check size={11} className={`mt-0.5 shrink-0 ${active ? "text-os-accent" : "text-os-faint"}`} />
-                          <span>{feat}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="mt-3 flex items-center gap-2 flex-wrap text-xs text-os-body">
-                      <span>one-time</span>
-                      {displayOldPrice && (
-                        <span className="text-os-faint line-through">${displayOldPrice}</span>
-                      )}
-                      <span className="font-semibold text-os-heading">${displayPrice}</span>
-                      {isDiscountedSecond ? (
-                        <span className="px-1.5 py-0.5 rounded-full bg-os-accent/15 border border-os-accent/30 text-os-accent text-[10px] font-semibold uppercase tracking-wide">
-                          Add for $50
-                        </span>
-                      ) : b.oldPrice && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-os-accent/15 border border-os-accent/30 text-os-accent text-[10px] font-semibold uppercase tracking-wide">
-                          {salesLive ? "Sale" : "Preorder sale"}
-                        </span>
-                      )}
-                    </div>
-                  </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={comingSoon}
+                      onClick={() => { if (!comingSoon) toggleBase(b.id); }}
+                      className={`group flex w-full flex-col items-stretch justify-start text-left rounded-xl border p-4 transition ${
+                        comingSoon
+                          ? "border-os-hairline/30 bg-os-bg/30 opacity-60 cursor-not-allowed"
+                          : active
+                            ? "border-os-accent bg-os-accent/10 shadow-[0_0_30px_-10px_rgb(var(--os-accent)/0.6)]"
+                            : "border-os-hairline/40 bg-os-bg/40 hover:border-os-accent/50"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <Icon
+                            size={18}
+                            className={`transition ${active && !comingSoon ? "text-os-accent" : "text-os-faint"}`}
+                          />
+                          <span className="font-display font-semibold text-os-heading">{b.name}</span>
+                        </div>
+                        {comingSoon ? (
+                          <span className="px-1.5 py-0.5 rounded-full bg-os-surface/60 border border-os-hairline/50 text-os-faint text-[10px] font-semibold uppercase tracking-wide">
+                            Coming Soon
+                          </span>
+                        ) : active ? (
+                          <Check size={16} className="text-os-accent" />
+                        ) : null}
+                      </div>
+                      <p className="font-body text-xs text-os-faint mt-2 leading-relaxed">
+                        {b.tagline}
+                      </p>
+                      <ul className="mt-3 space-y-1">
+                        {b.included.map((feat) => (
+                          <li key={feat} className="flex items-start gap-1.5 text-[11px] text-os-body leading-snug">
+                            <Check size={11} className={`mt-0.5 shrink-0 ${active && !comingSoon ? "text-os-accent" : "text-os-faint"}`} />
+                            <span>{feat}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-3 flex items-center gap-2 flex-wrap text-xs text-os-body">
+                        <span>one-time</span>
+                        {displayOldPrice && !comingSoon && (
+                          <span className="text-os-faint line-through">${displayOldPrice}</span>
+                        )}
+                        <span className="font-semibold text-os-heading">${displayPrice}</span>
+                        {comingSoon ? null : isDiscountedSecond ? (
+                          <span className="px-1.5 py-0.5 rounded-full bg-os-accent/15 border border-os-accent/30 text-os-accent text-[10px] font-semibold uppercase tracking-wide">
+                            Add for $50
+                          </span>
+                        ) : preorder ? (
+                          <span className="px-1.5 py-0.5 rounded-full bg-os-accent/15 border border-os-accent/30 text-os-accent text-[10px] font-semibold uppercase tracking-wide">
+                            Pre-order
+                          </span>
+                        ) : b.oldPrice ? (
+                          <span className="px-1.5 py-0.5 rounded-full bg-os-accent/15 border border-os-accent/30 text-os-accent text-[10px] font-semibold uppercase tracking-wide">
+                            {salesLive ? "Sale" : "Preorder sale"}
+                          </span>
+                        ) : null}
+                      </div>
+                    </button>
+                  </div>
                 );
                 };
                 const discordBases = BASES.filter((b) => !isRobloxBase(b.id));
@@ -1404,240 +1473,6 @@ export function BotForge() {
                   >
                     {next ? `Next: ${next.label}` : "All set"} →
                   </button>
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Step 3 — Add-ons (depend on base) */}
-          <div className="rounded-2xl border border-os-hairline/40 bg-os-surface/30 backdrop-blur-sm p-6">
-            {(() => {
-              // Select all should NOT auto-pick the manual-only extras
-              // (Custom Branding, Web Dashboard, Multi-Server License) —
-              // those have a per-bot/account cost and need explicit opt-in.
-              const SELECT_ALL_EXCLUDE = new Set(["branding", "dashboard", "multi-server"]);
-              const allAvailableIds = (
-                isPack
-                  ? [
-                      ...ADDONS_BY_BASE.protection,
-                      ...ADDONS_BY_BASE.support,
-                      ...ADDONS_BY_BASE.utilities,
-                      ...SHARED_ADDONS,
-                    ]
-                  : [
-                      ...bases.flatMap((b) => ADDONS_BY_BASE[b] ?? []),
-                      ...SHARED_ADDONS,
-                    ]
-              )
-                .map((a) => a.id)
-                .filter((id) => !SELECT_ALL_EXCLUDE.has(id));
-              const allSelected =
-                allAvailableIds.length > 0 &&
-                allAvailableIds.every((id) => addons.includes(id));
-              const toggleAll = () =>
-                setAddons(allSelected ? [] : Array.from(new Set(allAvailableIds)));
-              return (
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="grid h-7 w-7 place-items-center rounded-full border border-os-accent/40 bg-os-accent/10 font-label text-xs font-bold text-os-accent">
-                    3
-                  </div>
-                  <h3 className="font-display text-lg font-semibold text-os-heading">Stack on add-ons</h3>
-                  <button
-                    type="button"
-                    className="ml-auto inline-flex items-center justify-center gap-2 rounded-full border border-os-accent/60 px-4 py-1.5 font-label text-[11px] font-bold uppercase tracking-[0.14em] text-os-accent transition hover:bg-os-accent hover:text-os-accent-ink disabled:opacity-50"
-                    onClick={toggleAll}
-                  >
-                    {allSelected ? "Clear all" : "Select all"}
-                  </button>
-                  <span className="text-xs text-os-faint">Tap to toggle</span>
-                </div>
-              );
-            })()}
-            <p className="font-body text-xs text-os-faint mb-4">
-              {isPack
-                ? "All three categories included. Stack on extras from Protection, Support, or Utilities."
-                : isMulti
-                  ? <>Tailored options for each of your selected bots — stacked separately so you can mix &amp; match.</>
-                  : <>Tailored options for your <span className="text-os-accent font-medium">{selectedBase?.name}</span> base.</>}
-            </p>
-            {(() => {
-              const renderAddonCard = (a: Addon) => {
-                const Icon = a.icon;
-                const active = addons.includes(a.id);
-                const included = addonIsIncluded(a.id);
-                const toggleIncluded = async (e: React.MouseEvent) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  const { error } = await setAddonIncluded(a.id, !included, user?.id);
-                  if (error) {
-                    sonnerToast.error("Couldn't update — admin only", {
-                      description: error.message,
-                    });
-                    return;
-                  }
-                  sonnerToast.success(
-                    !included
-                      ? `"${a.name}" marked as INCLUDED`
-                      : `"${a.name}" marked as NOT INCLUDED`,
-                  );
-                };
-                return (
-                  <button
-                    key={a.id}
-                    type="button"
-                    onClick={() => toggleAddon(a.id)}
-                    className={`group text-left rounded-xl border p-4 transition ${
-                      active
-                        ? "border-os-accent bg-os-accent/10"
-                        : "border-os-hairline/40 bg-os-bg/40 hover:border-os-accent/50"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-os-accent/10 border border-os-accent/20 grid place-items-center shrink-0">
-                        <Icon size={14} className={active ? "text-os-accent" : "text-os-faint"} />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {isAdmin && (
-                          <span
-                            role="button"
-                            tabIndex={0}
-                            onClick={toggleIncluded}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                toggleIncluded(e as unknown as React.MouseEvent);
-                              }
-                            }}
-                            title={
-                              included
-                                ? "Admin: mark as NOT INCLUDED"
-                                : "Admin: mark as INCLUDED"
-                            }
-                            className="h-5 w-5 rounded-md border border-os-hairline/70 bg-os-bg/70 grid place-items-center text-os-faint hover:text-os-heading hover:border-os-accent/60 transition"
-                          >
-                            <Settings2 size={12} />
-                          </span>
-                        )}
-                        <div
-                          className={`h-5 w-5 rounded-md border grid place-items-center transition ${
-                            active ? "bg-os-accent border-os-accent" : "border-os-hairline"
-                          }`}
-                        >
-                          {active && <Check size={12} className="text-os-accent-ink" />}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3 font-medium text-sm text-os-heading">{a.name}</div>
-                    <p className="font-body text-xs text-os-faint mt-1 leading-relaxed">
-                      {a.desc}
-                    </p>
-                    <div className="mt-2 text-xs text-os-body flex items-center gap-2 flex-wrap">
-                      <span className="px-1.5 py-0.5 rounded-full bg-os-accent/15 text-os-accent text-[10px] font-semibold">
-                        FREE
-                      </span>
-                      {a.id === "dashboard" && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-os-surface/60 text-os-faint text-[10px] font-semibold">
-                          ALL BOTS
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              };
-
-              const renderList = (key: string, list: Addon[]) => {
-                const expanded = !!showAllAddons[key];
-                const visible = expanded ? list : list.slice(0, 10);
-                return (
-                  <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {visible.map(renderAddonCard)}
-                    </div>
-                    {list.length > 10 && (
-                      <div className="mt-4 flex justify-center">
-                        {expanded ? (
-                          <button
-                            key={`${key}-less`}
-                            type="button"
-                            onClick={() =>
-                              setShowAllAddons((prev) => ({ ...prev, [key]: false }))
-                            }
-                            className="inline-flex items-center justify-center gap-2 rounded-full border border-os-accent/60 px-5 py-2.5 font-label text-[11px] font-bold uppercase tracking-[0.14em] text-os-accent transition hover:bg-os-accent hover:text-os-accent-ink disabled:opacity-50"
-                          >
-                            Show less
-                          </button>
-                        ) : (
-                          <button
-                            key={`${key}-more`}
-                            type="button"
-                            onClick={() =>
-                              setShowAllAddons((prev) => ({ ...prev, [key]: true }))
-                            }
-                            className="inline-flex items-center justify-center gap-2 rounded-full border border-os-accent/60 px-5 py-2.5 font-label text-[11px] font-bold uppercase tracking-[0.14em] text-os-accent transition hover:bg-os-accent hover:text-os-accent-ink disabled:opacity-50"
-                          >
-                            View more ({list.length - 10})
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </>
-                );
-              };
-
-              if (isPack) {
-                return (
-                  <div className="space-y-8">
-                    {SCRATCH_CATEGORIES.map((cat) => {
-                      const CatIcon = cat.icon;
-                      return (
-                        <div key={cat.id}>
-                          <div className="flex items-center gap-2 mb-3">
-                            <CatIcon size={16} className="text-os-accent" />
-                            <h4 className="font-display text-sm font-semibold tracking-tight text-os-heading">{cat.label}</h4>
-                          </div>
-                          {renderList(cat.id, cat.addons)}
-                        </div>
-                      );
-                    })}
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Sparkles size={16} className="text-os-accent" />
-                        <h4 className="font-display text-sm font-semibold tracking-tight text-os-heading">Extras</h4>
-                      </div>
-                      {renderList("shared", SHARED_ADDONS)}
-                    </div>
-                  </div>
-                );
-              }
-
-              // One section per selected base, then Extras at the bottom.
-              return (
-                <div className="space-y-8">
-                  {bases.map((bid) => {
-                    const cat = SCRATCH_CATEGORIES.find((c) => c.id === bid);
-                    const list = ADDONS_BY_BASE[bid] ?? [];
-                    const CatIcon = cat?.icon ?? Sparkles;
-                    return (
-                      <div key={bid}>
-                        {isMulti && (
-                          <div className="flex items-center gap-2 mb-3">
-                            <CatIcon size={16} className="text-os-accent" />
-                            <h4 className="font-display text-sm font-semibold tracking-tight text-os-heading">
-                              {cat?.label ?? bid} stack-ons
-                            </h4>
-                          </div>
-                        )}
-                        {renderList(bid, list)}
-                      </div>
-                    );
-                  })}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Sparkles size={16} className="text-os-accent" />
-                      <h4 className="font-display text-sm font-semibold tracking-tight text-os-heading">Extras</h4>
-                    </div>
-                    {renderList("shared", SHARED_ADDONS)}
-                  </div>
                 </div>
               );
             })()}
