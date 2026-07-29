@@ -58,6 +58,7 @@ import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
 import { BotManagePanel } from "@/components/dashboard/BotManagePanel";
 import { BotSecretsCard } from "@/components/dashboard/BotSecretsCard";
+import { DispatchVoiceCard } from "@/components/dashboard/DispatchVoiceCard";
 import { GroupTeamHub } from "@/components/dashboard/team/GroupTeamHub";
 import { NewOwnerBillingDialog } from "@/components/dashboard/team/NewOwnerBillingDialog";
 import { RequestCustomFeatureDialog } from "@/components/dashboard/RequestCustomFeatureDialog";
@@ -879,6 +880,8 @@ const BotSection = ({
 
       {!bot.isDemo && <BotSecretsCard bot={bot} />}
 
+      {!bot.isDemo && bot.base === "dispatch" && <DispatchVoiceCard bot={bot} />}
+
       {/* Compact build summary — collapsible (controlled, default closed) */}
       <div className="rounded-lg border border-border bg-card/40">
         <button
@@ -888,7 +891,7 @@ const BotSection = ({
             e.stopPropagation();
             setSummaryOpen((v) => !v);
           }}
-          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+          className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left"
           aria-expanded={summaryOpen}
         >
           <div className="flex items-center gap-2 text-sm min-w-0">
@@ -903,12 +906,12 @@ const BotSection = ({
           </span>
         </button>
         {summaryOpen && (
-          <div className="px-4 pb-4 pt-1 space-y-3 border-t border-border">
+          <div className="px-4 pb-4 pt-3.5 space-y-3 border-t border-border">
             {baseTagline && (
-              <p className="text-sm text-muted-foreground">{baseTagline}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">{baseTagline}</p>
             )}
             {bot.addons.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {bot.addons.map((id) => (
                   <Badge key={id} variant="secondary" className="text-xs font-normal">
                     {getAddonLabel(id)}
