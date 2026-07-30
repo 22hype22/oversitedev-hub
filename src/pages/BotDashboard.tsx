@@ -58,7 +58,6 @@ import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
 import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
 import { BotManagePanel } from "@/components/dashboard/BotManagePanel";
 import { BotSecretsCard } from "@/components/dashboard/BotSecretsCard";
-import { DispatchVoiceCard } from "@/components/dashboard/DispatchVoiceCard";
 import { GroupTeamHub } from "@/components/dashboard/team/GroupTeamHub";
 import { NewOwnerBillingDialog } from "@/components/dashboard/team/NewOwnerBillingDialog";
 import { RequestCustomFeatureDialog } from "@/components/dashboard/RequestCustomFeatureDialog";
@@ -879,52 +878,6 @@ const BotSection = ({
       )}
 
       {!bot.isDemo && <BotSecretsCard bot={bot} />}
-
-      {!bot.isDemo && bot.base === "dispatch" && <DispatchVoiceCard bot={bot} />}
-
-      {/* Compact build summary — collapsible (controlled, default closed) */}
-      <div className="rounded-lg border border-border bg-card/40">
-        <button
-          type="button"
-          data-readonly-allow
-          onClick={(e) => {
-            e.stopPropagation();
-            setSummaryOpen((v) => !v);
-          }}
-          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
-          aria-expanded={summaryOpen}
-        >
-          <div className="flex items-center gap-2 text-sm min-w-0">
-            <Package className="h-4 w-4 text-primary shrink-0" />
-            <span className="font-medium truncate">{baseLabel}</span>
-            <span className="text-muted-foreground shrink-0">
-              · {bot.addons.length} add-on{bot.addons.length === 1 ? "" : "s"}
-            </span>
-          </div>
-          <span className="text-xs text-muted-foreground shrink-0">
-            {summaryOpen ? "Hide" : "Show"}
-          </span>
-        </button>
-        {summaryOpen && (
-          <div className="px-4 pb-4 pt-1 space-y-3 border-t border-border">
-            {baseTagline && (
-              <p className="text-sm text-muted-foreground">{baseTagline}</p>
-            )}
-            {bot.addons.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {bot.addons.map((id) => (
-                  <Badge key={id} variant="secondary" className="text-xs font-normal">
-                    {getAddonLabel(id)}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-
-
 
       {/* Only the actionable deploy states get a banner now — the plain
           "Deploying…" strip is redundant with the Manage panel's live status
