@@ -87,6 +87,7 @@ import {
   LifeBuoy,
   Wrench,
   Star,
+  ArrowUpRight,
   MessageSquare,
   Code2,
   RefreshCw,
@@ -237,23 +238,23 @@ const RequestCustomFeatureCard = () => {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Card className="bg-card/40 border-border p-6 flex flex-col h-[210px] hover:border-primary/40 transition-smooth">
-        <div className="flex items-start gap-3 mb-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/30 grid place-items-center shrink-0">
-            <MessageSquare className="h-5 w-5 text-primary" />
-          </div>
-          <h3 className="font-semibold text-base leading-tight pt-1.5">Custom feature</h3>
-        </div>
-        <p className="text-sm text-muted-foreground flex-1">
-          Need something unique? Request a custom feature built for your bot by our team.
-        </p>
-        <div className="mt-3">
-          <Button variant="outline" size="sm" className="w-full" onClick={() => setOpen(true)}>
-            <MessageSquare className="h-4 w-4 mr-1.5" />
-            Request custom feature
-          </Button>
-        </div>
-      </Card>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="group relative flex w-full items-center gap-4 overflow-hidden rounded-xl border border-border bg-card/30 py-4 pl-5 pr-4 text-left transition-colors hover:border-primary/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      >
+        <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-primary/70" />
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-primary/25 bg-primary/10 text-primary">
+          <MessageSquare className="h-[18px] w-[18px]" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold leading-tight text-foreground">Custom feature</span>
+          <span className="mt-1 block text-[12.5px] leading-snug text-muted-foreground">
+            Need something unique? We&rsquo;ll build it for your bot.
+          </span>
+        </span>
+        <ArrowUpRight className="h-[18px] w-[18px] shrink-0 text-muted-foreground transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary" />
+      </button>
       <RequestCustomFeatureDialog open={open} onOpenChange={setOpen} />
     </>
   );
@@ -263,23 +264,23 @@ const ReportBugCard = () => {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Card className="bg-card/40 border-border p-6 flex flex-col h-[210px] hover:border-destructive/50 transition-smooth">
-        <div className="flex items-start gap-3 mb-3">
-          <div className="h-10 w-10 rounded-lg bg-destructive/10 border border-destructive/30 grid place-items-center shrink-0">
-            <Bug className="h-5 w-5 text-destructive" />
-          </div>
-          <h3 className="font-semibold text-base leading-tight pt-1.5">Report a bug</h3>
-        </div>
-        <p className="text-sm text-muted-foreground flex-1">
-          Hit a snag? Send us the details and we'll get it fixed.
-        </p>
-        <div className="mt-3">
-          <Button variant="outline" size="sm" className="w-full" onClick={() => setOpen(true)}>
-            <Bug className="h-4 w-4 mr-1.5" />
-            Report a bug
-          </Button>
-        </div>
-      </Card>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="group relative flex w-full items-center gap-4 overflow-hidden rounded-xl border border-border bg-card/30 py-4 pl-5 pr-4 text-left transition-colors hover:border-destructive/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      >
+        <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-destructive/70" />
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-destructive/25 bg-destructive/10 text-destructive">
+          <Bug className="h-[18px] w-[18px]" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold leading-tight text-foreground">Report a bug</span>
+          <span className="mt-1 block text-[12.5px] leading-snug text-muted-foreground">
+            Hit a snag? Send the details and we&rsquo;ll get it fixed.
+          </span>
+        </span>
+        <ArrowUpRight className="h-[18px] w-[18px] shrink-0 text-muted-foreground transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-destructive" />
+      </button>
       <ReportBugDialog open={open} onOpenChange={setOpen} />
     </>
   );
@@ -979,9 +980,13 @@ const BotSection = ({
                   <span className="flex-1 h-px bg-white/[0.055]" />
                 </div>
                 {group.key === "shared" ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                    <RequestCustomFeatureCard />
-                    <ReportBugCard />
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <RequestCustomFeatureCard />
+                      <ReportBugCard />
+                    </div>
+                    {group.owned.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                     {group.owned.map((id) => {
                       const isHighlighted = highlightedAddonId === id;
                       return (
@@ -1022,6 +1027,8 @@ const BotSection = ({
                         </div>
                       );
                     })}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <>
