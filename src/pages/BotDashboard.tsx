@@ -132,6 +132,35 @@ const BOTSEC_CSS = `
 /* Flatten the inner panel wrappers so they don't read as cramped secondary
    boxes inside the section; their inner tiles/content keep their own framing. */
 .botsec .bbody .bg-card\\/40{background-color:transparent;border-color:transparent;box-shadow:none}
+/* Extras action rows (Custom feature / Report a bug). Styled in the section's
+   own language — same fonts, explicit spacing and icon sizing as the header —
+   so they render predictably instead of drifting against the site like raw
+   Tailwind utilities did. */
+.botsec .xtras{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:640px){.botsec .xtras{grid-template-columns:1fr}}
+.botsec .xrow{position:relative;display:flex;align-items:center;gap:15px;width:100%;text-align:left;
+  cursor:pointer;overflow:hidden;border:1px solid #3a434d;background:rgba(52,61,70,.32);border-radius:13px;
+  padding:15px 16px 15px 20px;font:inherit;transition:border-color .18s,background .18s}
+.botsec .xrow::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;opacity:.75}
+.botsec .xrow.acc::before{background:#C9DBE6}
+.botsec .xrow.bug::before{background:#e98b8b}
+.botsec .xrow:hover{background:rgba(52,61,70,.52)}
+.botsec .xrow.acc:hover{border-color:rgba(201,219,230,.42)}
+.botsec .xrow.bug:hover{border-color:rgba(233,139,139,.5)}
+.botsec .xrow:focus-visible{outline:2px solid #C9DBE6;outline-offset:2px}
+.botsec .xrow .xic{height:40px;width:40px;flex:none;display:grid;place-items:center;border-radius:11px}
+.botsec .xrow.acc .xic{background:rgba(201,219,230,.10);border:1px solid rgba(201,219,230,.24);color:#C9DBE6}
+.botsec .xrow.bug .xic{background:rgba(233,139,139,.10);border:1px solid rgba(233,139,139,.24);color:#e98b8b}
+.botsec .xrow .xic svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.8;fill:none}
+.botsec .xrow .xtx{flex:1;min-width:0}
+.botsec .xrow .xtx b{display:block;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:700;
+  font-size:14.5px;color:#E8EEF3;line-height:1.2}
+.botsec .xrow .xtx em{display:block;font-style:normal;font-size:12px;color:#788591;line-height:1.4;margin-top:3px;
+  overflow:hidden;text-overflow:ellipsis}
+.botsec .xrow .xar{flex:none;color:#788591;transition:transform .18s,color .18s}
+.botsec .xrow .xar svg{width:18px;height:18px;stroke:currentColor;stroke-width:2;fill:none}
+.botsec .xrow.acc:hover .xar{color:#C9DBE6;transform:translate(2px,-2px)}
+.botsec .xrow.bug:hover .xar{color:#e98b8b;transform:translate(2px,-2px)}
 `;
 import { useBotNotifications, type BotNotification } from "@/hooks/useBotNotifications";
 
@@ -238,22 +267,13 @@ const RequestCustomFeatureCard = () => {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="group relative flex w-full items-center gap-4 overflow-hidden rounded-xl border border-border bg-card/30 py-4 pl-5 pr-4 text-left transition-colors hover:border-primary/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      >
-        <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-primary/70" />
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-primary/25 bg-primary/10 text-primary">
-          <MessageSquare className="h-[18px] w-[18px]" />
+      <button type="button" className="xrow acc" onClick={() => setOpen(true)}>
+        <span className="xic"><MessageSquare /></span>
+        <span className="xtx">
+          <b>Custom feature</b>
+          <em>Need something unique? We&rsquo;ll build it for your bot.</em>
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-semibold leading-tight text-foreground">Custom feature</span>
-          <span className="mt-1 block text-[12.5px] leading-snug text-muted-foreground">
-            Need something unique? We&rsquo;ll build it for your bot.
-          </span>
-        </span>
-        <ArrowUpRight className="h-[18px] w-[18px] shrink-0 text-muted-foreground transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary" />
+        <span className="xar"><ArrowUpRight /></span>
       </button>
       <RequestCustomFeatureDialog open={open} onOpenChange={setOpen} />
     </>
@@ -264,22 +284,13 @@ const ReportBugCard = () => {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="group relative flex w-full items-center gap-4 overflow-hidden rounded-xl border border-border bg-card/30 py-4 pl-5 pr-4 text-left transition-colors hover:border-destructive/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      >
-        <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-destructive/70" />
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-destructive/25 bg-destructive/10 text-destructive">
-          <Bug className="h-[18px] w-[18px]" />
+      <button type="button" className="xrow bug" onClick={() => setOpen(true)}>
+        <span className="xic"><Bug /></span>
+        <span className="xtx">
+          <b>Report a bug</b>
+          <em>Hit a snag? Send the details and we&rsquo;ll get it fixed.</em>
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-semibold leading-tight text-foreground">Report a bug</span>
-          <span className="mt-1 block text-[12.5px] leading-snug text-muted-foreground">
-            Hit a snag? Send the details and we&rsquo;ll get it fixed.
-          </span>
-        </span>
-        <ArrowUpRight className="h-[18px] w-[18px] shrink-0 text-muted-foreground transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-destructive" />
+        <span className="xar"><ArrowUpRight /></span>
       </button>
       <ReportBugDialog open={open} onOpenChange={setOpen} />
     </>
@@ -981,7 +992,7 @@ const BotSection = ({
                 </div>
                 {group.key === "shared" ? (
                   <div className="space-y-5">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="xtras">
                       <RequestCustomFeatureCard />
                       <ReportBugCard />
                     </div>
