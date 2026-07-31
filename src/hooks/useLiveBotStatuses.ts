@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
  *   (online / starting / stopping / restarting / crashed / updating) and the
  *   optimistic 'restarting' written by bot-railway-action show up instantly.
  * - A 15s ticker re-evaluates heartbeat staleness so a hard-killed bot
- *   (which can't report anything) flips to offline within ~60–75s.
+ *   (which can't report anything) flips to offline within ~120–135s.
  * - Railway fallback: a bot whose heartbeat loop died still looks offline
  *   here even though the container (and the bot in Discord) is fine. When any
  *   bot reads as offline/stale, bot-status-sync asks Railway for the
@@ -24,10 +24,10 @@ export type LiveBotStatus = {
   last_heartbeat_at: string | null;
 };
 
-const STALE_MS = 60_000;
+const STALE_MS = 120_000;
 // Minimum gap between Railway verification calls (bot-status-sync). Short
 // enough that every 30s poll can re-verify — a bot kept online by Railway
-// checks (dead heartbeat loop) must be refreshed before the 60s staleness
+// checks (dead heartbeat loop) must be refreshed before the 120s staleness
 // cutoff or it dips offline between checks.
 const SYNC_COOLDOWN_MS = 25_000;
 // While an action is in flight (Restarting… / Redeploying… / Stopping… /
