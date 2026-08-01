@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { KeyRound, Loader2 } from "lucide-react";
+import { KeyRound, Loader2, Server, Radio, ChevronDown, RefreshCw, Check } from "lucide-react";
 import type { OwnedBot } from "@/hooks/useOwnedBots";
+import {
+  useBotGuilds,
+  useBotChannels,
+  sortedChannelCategoryEntries,
+} from "@/hooks/useGuildChannels";
 
 // Self-contained styling in the dashboard's own design language (mirrors
 // BotManagePanel): eyebrow + trailing hairline sections, hairline borders,
@@ -65,6 +70,30 @@ const SECRETS_CSS = `
   color:var(--faint);font-size:13px}
 .oskeys .spin{animation:oskeys-spin 1s linear infinite}
 @keyframes oskeys-spin{to{transform:rotate(360deg)}}
+
+/* Voice-channel picker (dispatch bots) — styled like the key sections. */
+.oskeys .vc{display:grid;gap:14px}
+.oskeys .vcrow{display:flex;flex-direction:column;gap:6px}
+.oskeys .vchead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.oskeys .vclbl{font-size:11px;font-weight:700;color:var(--body);letter-spacing:.01em}
+.oskeys .selwrap{position:relative;display:block}
+.oskeys .selwrap>svg{position:absolute;top:50%;transform:translateY(-50%);width:15px;height:15px;
+  color:var(--faint);pointer-events:none;left:13px}
+.oskeys .selwrap>svg.chev{left:auto;right:12px}
+.oskeys .sel{width:100%;appearance:none;-webkit-appearance:none;-moz-appearance:none;background:var(--inp);
+  border:1px solid var(--line2);border-radius:9px;padding:11px 36px;color:var(--heading);font:inherit;
+  font-size:13px;outline:none;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.oskeys .sel:disabled{opacity:.55;cursor:not-allowed}
+.oskeys .sel:focus{border-color:var(--accentl);box-shadow:0 0 0 3px var(--accentd)}
+.oskeys .sel option,.oskeys .sel optgroup{background:var(--surface);color:var(--heading)}
+.oskeys .refresh{border:none;background:transparent;color:var(--faint);font:inherit;font-size:11.5px;
+  font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:0}
+.oskeys .refresh:hover:not(:disabled){color:var(--body)}
+.oskeys .refresh:disabled{opacity:.5;cursor:not-allowed}
+.oskeys .refresh svg{width:12px;height:12px}
+.oskeys .vcfoot{margin-top:12px;font-size:12px;line-height:1.5}
+.oskeys .vcfoot.ok{color:var(--ok);display:inline-flex;align-items:center;gap:6px}
+.oskeys .vcfoot.note{color:var(--faint)}
 `;
 
 type SlotMeta = {
@@ -102,6 +131,7 @@ export function BotSecretsCard({ bot }: Props) {
   const [loading, setLoading] = useState(true);
 
   const scopes = useMemo(() => relevantScopes(bot), [bot]);
+  const showVoice = (bot.base ?? "").toLowerCase().trim() === "dispatch";
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -130,7 +160,9 @@ export function BotSecretsCard({ bot }: Props) {
     )
     .sort((a, b) => a.sort_order - b.sort_order);
 
-  if (!loading && visible.length === 0) return null;
+  const voiceSet = slots.some((s) => s.key === "DISPATCH_VOICE_CHANNEL_ID" && s.is_set);
+
+  if (!loading && visible.length === 0 && !showVoice) return null;
 
   const allRequiredSet = visible.filter((s) => s.is_required).every((s) => s.is_set);
 
@@ -164,7 +196,12 @@ export function BotSecretsCard({ bot }: Props) {
             Loading…
           </div>
         ) : (
-          visible.map((s) => <SecretRow key={s.key} bot={bot} slot={s} onChanged={reload} />)
+          <>
+            {visible.map((s) => (
+              <SecretRow key={s.key} bot={bot} slot={s} onChanged={reload} />
+            ))}
+            {showVoice && <VoiceChannelSection bot={bot} alreadySet={voiceSet} onSaved={reload} />}
+          </>
         )}
       </div>
     </div>
@@ -236,10 +273,7 @@ function SecretRow({
   return (
     <div className="sec">
       <div className="eyebrow">
-        <span className="lbl">
-          {slot.label}
-          <span className="mono-key">{slot.key}</span>
-        </span>
+        <span className="lbl">{slot.label}</span>
         <span className="ln" />
         {chip}
       </div>
@@ -298,6 +332,165 @@ function SecretRow({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// Voice-channel picker for dispatch bots — sits under the API keys as its own
+// "Voice channel" section. The chosen channel is written to the
+// DISPATCH_VOICE_CHANNEL_ID secret; the bot picks it up on its next config
+// refresh (~60s) with no restart.
+function VoiceChannelSection({
+  bot,
+  alreadySet,
+  onSaved,
+}: {
+  bot: OwnedBot;
+  alreadySet: boolean;
+  onSaved: () => void;
+}) {
+  const { guilds, loading: loadingGuilds } = useBotGuilds(bot.id);
+  const [guildId, setGuildId] = useState<string | null>(null);
+  const { channels, loading: loadingChannels, refreshing, refreshFromDiscord } = useBotChannels(
+    bot.id,
+    guildId ?? undefined,
+  );
+  const [channelId, setChannelId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [savedName, setSavedName] = useState<string | null>(null);
+
+  const voiceChannels = useMemo(
+    () => channels.filter((c) => c.channel_type === "voice"),
+    [channels],
+  );
+  const groups = useMemo(() => sortedChannelCategoryEntries(voiceChannels), [voiceChannels]);
+
+  // If the bot is only in one server, select it automatically.
+  useEffect(() => {
+    if (!guildId && guilds.length === 1) setGuildId(guilds[0].guild_id);
+  }, [guilds, guildId]);
+
+  const pick = async (id: string) => {
+    setChannelId(id);
+    if (!id) return;
+    const c = voiceChannels.find((x) => x.channel_id === id);
+    if (!c) return;
+    setSaving(true);
+    const { data, error } = await (supabase as any).rpc("set_bot_secret", {
+      _bot_id: bot.id,
+      _key: "DISPATCH_VOICE_CHANNEL_ID",
+      _value: c.channel_id,
+    });
+    setSaving(false);
+    const res = data as { ok?: boolean; error?: string } | null;
+    if (error || !res?.ok) {
+      toast.error("Couldn't save channel", { description: res?.error ?? error?.message });
+      return;
+    }
+    setSavedName(c.channel_name);
+    toast.success("Dispatch voice channel set", { description: `#${c.channel_name}` });
+    onSaved();
+  };
+
+  return (
+    <div className="sec">
+      <div className="eyebrow">
+        <span className="lbl">Voice channel</span>
+        <span className="ln" />
+        {(savedName || alreadySet) && <span className="chip ok">Set</span>}
+      </div>
+      <div className="ed">
+        The voice channel your dispatcher sits in and speaks from. It joins within a minute of
+        saving — no restart needed.
+      </div>
+
+      <div className="vc">
+        <div className="vcrow">
+          <span className="vclbl">Server</span>
+          <span className="selwrap">
+            <Server size={15} />
+            <select
+              className="sel"
+              value={guildId ?? ""}
+              disabled={loadingGuilds || guilds.length === 0}
+              onChange={(e) => {
+                setGuildId(e.target.value || null);
+                setChannelId("");
+                setSavedName(null);
+              }}
+            >
+              <option value="">
+                {loadingGuilds
+                  ? "Loading servers…"
+                  : guilds.length === 0
+                    ? "Bot not in any servers yet"
+                    : "Select a server…"}
+              </option>
+              {guilds.map((g) => (
+                <option key={g.guild_id} value={g.guild_id}>
+                  {g.guild_name ?? g.guild_id}
+                  {g.member_count != null ? ` · ${g.member_count.toLocaleString()} members` : ""}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="chev" size={15} />
+          </span>
+        </div>
+
+        <div className="vcrow">
+          <div className="vchead">
+            <span className="vclbl">Voice channel</span>
+            <button
+              type="button"
+              className="refresh"
+              disabled={refreshing || !guildId}
+              onClick={() => refreshFromDiscord()}
+            >
+              <RefreshCw className={refreshing ? "spin" : ""} size={12} />
+              {refreshing ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
+          <span className="selwrap">
+            <Radio size={15} />
+            <select
+              className="sel"
+              value={channelId}
+              disabled={!guildId || loadingChannels || voiceChannels.length === 0}
+              onChange={(e) => pick(e.target.value)}
+            >
+              <option value="">
+                {!guildId
+                  ? "Select a server first"
+                  : loadingChannels
+                    ? "Loading channels…"
+                    : voiceChannels.length === 0
+                      ? "No voice channels — click Refresh"
+                      : "Select a voice channel…"}
+              </option>
+              {groups.map((grp) => (
+                <optgroup key={grp.key} label={grp.label}>
+                  {grp.channels.map((c) => (
+                    <option key={c.channel_id} value={c.channel_id}>
+                      {c.channel_name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <ChevronDown className="chev" size={15} />
+          </span>
+        </div>
+      </div>
+
+      {saving ? (
+        <div className="vcfoot note">Saving…</div>
+      ) : savedName ? (
+        <div className="vcfoot ok">
+          <Check size={14} /> Saved — dispatcher will join #{savedName}.
+        </div>
+      ) : alreadySet ? (
+        <div className="vcfoot note">A voice channel is currently set. Pick again to change it.</div>
+      ) : null}
     </div>
   );
 }
