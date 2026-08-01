@@ -979,8 +979,8 @@ const BotSection = ({
             return (
               <div key={group.key} className="space-y-4">
                 <div className="flex items-center gap-3 mb-1">
-                  <span className="h-6 w-6 rounded-md grid place-items-center shrink-0 bg-[rgba(201,219,230,0.1)] border border-[rgba(201,219,230,0.42)] text-primary">
-                    <GroupIcon className="h-3.5 w-3.5" />
+                  <span className="h-6 w-6 rounded-md flex items-center justify-center shrink-0 bg-[rgba(201,219,230,0.1)] border border-[rgba(201,219,230,0.42)] text-primary">
+                    <GroupIcon className="h-3.5 w-3.5" size={14} />
                   </span>
                   <span className="text-[11px] font-extrabold tracking-[0.14em] uppercase text-muted-foreground font-['Manrope',system-ui,sans-serif]">
                     {group.label}
@@ -1776,7 +1776,7 @@ const BotDashboard = () => {
     <div
       role="status"
       aria-label="Loading"
-      className="min-h-screen grid place-items-center"
+      className="min-h-screen flex items-center justify-center"
       style={{
         background:
           "radial-gradient(120% 90% at 50% 115%, rgba(201,219,230,.10), transparent 55%), linear-gradient(180deg, #293038, #1a1f25)",
@@ -1799,9 +1799,9 @@ const BotDashboard = () => {
   const hasAccess = isAdmin || hasDashboardAccess;
   if (!hasAccess) {
     return (
-      <div className="min-h-screen bg-background grid place-items-center px-4">
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="max-w-md text-center space-y-5">
-          <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 border border-primary/20 grid place-items-center"><Lock className="h-5 w-5 text-primary" /></div>
+          <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center"><Lock className="h-5 w-5 text-primary" size={20} /></div>
           <h1 className="text-2xl font-bold">No bots yet</h1>
           <p className="text-muted-foreground">Once you <span className="text-foreground font-medium">own a bot</span> — by buying one or having it transferred to you — it'll show up here to manage. Team members get access when an owner shares a bot with them.</p>
           <div className="flex gap-3 justify-center"><Button asChild><Link to="/bots"><Globe className="h-4 w-4 mr-2" />Browse bots</Link></Button><Button variant="outline" asChild><Link to="/">Back to site</Link></Button></div>
