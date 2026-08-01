@@ -148,17 +148,17 @@ const BOTSEC_CSS = `
 .botsec .xrow.acc:hover{border-color:rgba(201,219,230,.42)}
 .botsec .xrow.bug:hover{border-color:rgba(233,139,139,.5)}
 .botsec .xrow:focus-visible{outline:2px solid #C9DBE6;outline-offset:2px}
-.botsec .xrow .xic{height:40px;width:40px;flex:none;display:grid;place-items:center;border-radius:11px}
+.botsec .xrow .xic{height:40px;width:40px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:11px}
 .botsec .xrow.acc .xic{background:rgba(201,219,230,.10);border:1px solid rgba(201,219,230,.24);color:#C9DBE6}
 .botsec .xrow.bug .xic{background:rgba(233,139,139,.10);border:1px solid rgba(233,139,139,.24);color:#e98b8b}
-.botsec .xrow .xic svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.8;fill:none}
+.botsec .xrow .xic svg{width:18px;height:18px;display:block;stroke:currentColor;stroke-width:1.8;fill:none}
 .botsec .xrow .xtx{flex:1;min-width:0}
 .botsec .xrow .xtx b{display:block;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:700;
   font-size:14.5px;color:#E8EEF3;line-height:1.2}
 .botsec .xrow .xtx em{display:block;font-style:normal;font-size:12px;color:#788591;line-height:1.4;margin-top:3px;
   overflow:hidden;text-overflow:ellipsis}
 .botsec .xrow .xar{flex:none;color:#788591;transition:transform .18s,color .18s}
-.botsec .xrow .xar svg{width:18px;height:18px;stroke:currentColor;stroke-width:2;fill:none}
+.botsec .xrow .xar svg{width:18px;height:18px;display:block;stroke:currentColor;stroke-width:2;fill:none}
 .botsec .xrow.acc:hover .xar{color:#C9DBE6;transform:translate(2px,-2px)}
 .botsec .xrow.bug:hover .xar{color:#e98b8b;transform:translate(2px,-2px)}
 `;
@@ -268,12 +268,12 @@ const RequestCustomFeatureCard = () => {
   return (
     <>
       <button type="button" className="xrow acc" onClick={() => setOpen(true)}>
-        <span className="xic"><MessageSquare /></span>
+        <span className="xic"><MessageSquare size={18} /></span>
         <span className="xtx">
           <b>Custom feature</b>
           <em>Need something unique? We&rsquo;ll build it for your bot.</em>
         </span>
-        <span className="xar"><ArrowUpRight /></span>
+        <span className="xar"><ArrowUpRight size={18} /></span>
       </button>
       <RequestCustomFeatureDialog open={open} onOpenChange={setOpen} />
     </>
@@ -285,12 +285,12 @@ const ReportBugCard = () => {
   return (
     <>
       <button type="button" className="xrow bug" onClick={() => setOpen(true)}>
-        <span className="xic"><Bug /></span>
+        <span className="xic"><Bug size={18} /></span>
         <span className="xtx">
           <b>Report a bug</b>
           <em>Hit a snag? Send the details and we&rsquo;ll get it fixed.</em>
         </span>
-        <span className="xar"><ArrowUpRight /></span>
+        <span className="xar"><ArrowUpRight size={18} /></span>
       </button>
       <ReportBugDialog open={open} onOpenChange={setOpen} />
     </>
