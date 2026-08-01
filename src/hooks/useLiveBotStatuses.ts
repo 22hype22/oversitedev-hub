@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
  *   (online / starting / stopping / restarting / crashed / updating) and the
  *   optimistic 'restarting' written by bot-railway-action show up instantly.
  * - A 15s ticker re-evaluates heartbeat staleness so a hard-killed bot
- *   (which can't report anything) flips to offline within ~120–135s.
+ *   (which can't report anything) flips to offline within ~60–75s.
  * - Railway fallback: a bot whose heartbeat loop died still looks offline
  *   here even though the container (and the bot in Discord) is fine. When any
  *   bot reads as offline/stale, bot-status-sync asks Railway for the
@@ -24,17 +24,10 @@ export type LiveBotStatus = {
   last_heartbeat_at: string | null;
 };
 
-const STALE_MS = 120_000;
-// How old a still-"online" heartbeat may get before we proactively re-verify
-// against Railway (which refreshes last_heartbeat_at). This is deliberately
-// far below STALE_MS: these bots don't self-heartbeat — the frontend keeps
-// them alive via bot-status-sync — so we must refresh the heartbeat well
-// before any offline cutoff. get_bot_health (the dashboard lockout) can flip
-// a live bot offline at 60s if its heartbeat is left to age, so refresh early.
-const REFRESH_MS = 30_000;
+const STALE_MS = 60_000;
 // Minimum gap between Railway verification calls (bot-status-sync). Short
 // enough that every 30s poll can re-verify — a bot kept online by Railway
-// checks (dead heartbeat loop) must be refreshed before the 120s staleness
+// checks (dead heartbeat loop) must be refreshed before the 60s staleness
 // cutoff or it dips offline between checks.
 const SYNC_COOLDOWN_MS = 25_000;
 // While an action is in flight (Restarting… / Redeploying… / Stopping… /
@@ -136,14 +129,7 @@ export function useLiveBotStatuses(botIds: string[]) {
       // safe to pass every suspect id; queued/cancelled orders are ignored.
       const suspect = ids.filter((id) => {
         const r = next[id];
-        if (!r) return true;
-        // Not confidently online → verify.
-        if (effectiveOf(r.status, r.hb) !== "online") return true;
-        // Online, but its heartbeat is getting old. These bots are kept alive
-        // by Railway re-checks rather than self-heartbeating, so refresh the
-        // heartbeat well before it can read stale to get_bot_health.
-        if (!r.hb || Date.now() - new Date(r.hb).getTime() > REFRESH_MS) return true;
-        return false;
+        return !r || effectiveOf(r.status, r.hb) !== "online";
       });
       const inTransition = ids.some((id) => TRANSITIONAL.has(next[id]?.status ?? ""));
       const cooldown = inTransition ? FAST_SYNC_COOLDOWN_MS : SYNC_COOLDOWN_MS;
