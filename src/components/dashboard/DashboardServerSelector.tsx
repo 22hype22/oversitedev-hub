@@ -61,8 +61,8 @@ export function DashboardServerSelector({ botId }: Props) {
   return (
     <Card className="bg-card/40 border-border p-4">
       <div className="flex items-start gap-3">
-        <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0">
-          <Globe className="h-5 w-5 text-primary" />
+        <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+          <Globe className="h-5 w-5 text-primary" size={20} />
         </div>
         <div className="flex-1 min-w-0 space-y-2">
           <div>
