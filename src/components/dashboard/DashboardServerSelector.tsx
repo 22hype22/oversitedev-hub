@@ -83,7 +83,14 @@ export function DashboardServerSelector({ botId }: Props) {
                   setGuild(next);
                 }}
                 disabled={loading || guilds.length === 0}
-                className="h-10 w-full appearance-none rounded-md border border-input bg-background py-2 pl-11 pr-9 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                style={{
+                  WebkitAppearance: "none",
+                  MozAppearance: "none",
+                  appearance: "none",
+                  paddingLeft: "2.75rem",
+                  paddingRight: "2.25rem",
+                }}
+                className="h-10 w-full rounded-md border border-input bg-background py-2 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Active server"
               >
                 <option value="">
