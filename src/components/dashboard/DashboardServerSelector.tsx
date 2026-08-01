@@ -75,7 +75,7 @@ export function DashboardServerSelector({ botId }: Props) {
 
           <div className="flex gap-2">
             <label className="relative flex-1 block">
-              <Server className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Server size={16} className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <select
                 value={selectedGuild?.guild_id ?? ""}
                 onChange={(event) => {
@@ -83,7 +83,8 @@ export function DashboardServerSelector({ botId }: Props) {
                   setGuild(next);
                 }}
                 disabled={loading || guilds.length === 0}
-                className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ textIndent: "2px" }}
+                className="h-10 w-full rounded-md border border-input bg-background py-2 pl-11 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Active server"
               >
                 <option value="">
