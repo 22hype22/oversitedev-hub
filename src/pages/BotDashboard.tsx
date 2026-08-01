@@ -87,6 +87,7 @@ import {
   LifeBuoy,
   Wrench,
   Star,
+  ArrowUpRight,
   MessageSquare,
   Code2,
   RefreshCw,
@@ -131,6 +132,35 @@ const BOTSEC_CSS = `
 /* Flatten the inner panel wrappers so they don't read as cramped secondary
    boxes inside the section; their inner tiles/content keep their own framing. */
 .botsec .bbody .bg-card\\/40{background-color:transparent;border-color:transparent;box-shadow:none}
+/* Extras action rows (Custom feature / Report a bug). Styled in the section's
+   own language — same fonts, explicit spacing and icon sizing as the header —
+   so they render predictably instead of drifting against the site like raw
+   Tailwind utilities did. */
+.botsec .xtras{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:640px){.botsec .xtras{grid-template-columns:1fr}}
+.botsec .xrow{position:relative;display:flex;align-items:center;gap:15px;width:100%;text-align:left;
+  cursor:pointer;overflow:hidden;border:1px solid #3a434d;background:rgba(52,61,70,.32);border-radius:13px;
+  padding:15px 16px 15px 20px;font:inherit;transition:border-color .18s,background .18s}
+.botsec .xrow::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;opacity:.75}
+.botsec .xrow.acc::before{background:#C9DBE6}
+.botsec .xrow.bug::before{background:#e98b8b}
+.botsec .xrow:hover{background:rgba(52,61,70,.52)}
+.botsec .xrow.acc:hover{border-color:rgba(201,219,230,.42)}
+.botsec .xrow.bug:hover{border-color:rgba(233,139,139,.5)}
+.botsec .xrow:focus-visible{outline:2px solid #C9DBE6;outline-offset:2px}
+.botsec .xrow .xic{height:40px;width:40px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:11px}
+.botsec .xrow.acc .xic{background:rgba(201,219,230,.10);border:1px solid rgba(201,219,230,.24);color:#C9DBE6}
+.botsec .xrow.bug .xic{background:rgba(233,139,139,.10);border:1px solid rgba(233,139,139,.24);color:#e98b8b}
+.botsec .xrow .xic svg{width:18px;height:18px;display:block;stroke:currentColor;stroke-width:1.8;fill:none}
+.botsec .xrow .xtx{flex:1;min-width:0}
+.botsec .xrow .xtx b{display:block;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:700;
+  font-size:14.5px;color:#E8EEF3;line-height:1.2}
+.botsec .xrow .xtx em{display:block;font-style:normal;font-size:12px;color:#788591;line-height:1.4;margin-top:3px;
+  overflow:hidden;text-overflow:ellipsis}
+.botsec .xrow .xar{flex:none;color:#788591;transition:transform .18s,color .18s}
+.botsec .xrow .xar svg{width:18px;height:18px;display:block;stroke:currentColor;stroke-width:2;fill:none}
+.botsec .xrow.acc:hover .xar{color:#C9DBE6;transform:translate(2px,-2px)}
+.botsec .xrow.bug:hover .xar{color:#e98b8b;transform:translate(2px,-2px)}
 `;
 import { useBotNotifications, type BotNotification } from "@/hooks/useBotNotifications";
 
@@ -237,23 +267,14 @@ const RequestCustomFeatureCard = () => {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Card className="bg-card/40 border-border p-6 flex flex-col h-[210px] hover:border-primary/40 transition-smooth">
-        <div className="flex items-start gap-3 mb-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/30 grid place-items-center shrink-0">
-            <MessageSquare className="h-5 w-5 text-primary" />
-          </div>
-          <h3 className="font-semibold text-base leading-tight pt-1.5">Custom feature</h3>
-        </div>
-        <p className="text-sm text-muted-foreground flex-1">
-          Need something unique? Request a custom feature built for your bot by our team.
-        </p>
-        <div className="mt-3">
-          <Button variant="outline" size="sm" className="w-full" onClick={() => setOpen(true)}>
-            <MessageSquare className="h-4 w-4 mr-1.5" />
-            Request custom feature
-          </Button>
-        </div>
-      </Card>
+      <button type="button" className="xrow acc" onClick={() => setOpen(true)}>
+        <span className="xic"><MessageSquare size={18} /></span>
+        <span className="xtx">
+          <b>Custom feature</b>
+          <em>Need something unique? We&rsquo;ll build it for your bot.</em>
+        </span>
+        <span className="xar"><ArrowUpRight size={18} /></span>
+      </button>
       <RequestCustomFeatureDialog open={open} onOpenChange={setOpen} />
     </>
   );
@@ -263,23 +284,14 @@ const ReportBugCard = () => {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Card className="bg-card/40 border-border p-6 flex flex-col h-[210px] hover:border-destructive/50 transition-smooth">
-        <div className="flex items-start gap-3 mb-3">
-          <div className="h-10 w-10 rounded-lg bg-destructive/10 border border-destructive/30 grid place-items-center shrink-0">
-            <Bug className="h-5 w-5 text-destructive" />
-          </div>
-          <h3 className="font-semibold text-base leading-tight pt-1.5">Report a bug</h3>
-        </div>
-        <p className="text-sm text-muted-foreground flex-1">
-          Hit a snag? Send us the details and we'll get it fixed.
-        </p>
-        <div className="mt-3">
-          <Button variant="outline" size="sm" className="w-full" onClick={() => setOpen(true)}>
-            <Bug className="h-4 w-4 mr-1.5" />
-            Report a bug
-          </Button>
-        </div>
-      </Card>
+      <button type="button" className="xrow bug" onClick={() => setOpen(true)}>
+        <span className="xic"><Bug size={18} /></span>
+        <span className="xtx">
+          <b>Report a bug</b>
+          <em>Hit a snag? Send the details and we&rsquo;ll get it fixed.</em>
+        </span>
+        <span className="xar"><ArrowUpRight size={18} /></span>
+      </button>
       <ReportBugDialog open={open} onOpenChange={setOpen} />
     </>
   );
@@ -967,8 +979,8 @@ const BotSection = ({
             return (
               <div key={group.key} className="space-y-4">
                 <div className="flex items-center gap-3 mb-1">
-                  <span className="h-6 w-6 rounded-md grid place-items-center shrink-0 bg-[rgba(201,219,230,0.1)] border border-[rgba(201,219,230,0.42)] text-primary">
-                    <GroupIcon className="h-3.5 w-3.5" />
+                  <span className="h-6 w-6 rounded-md flex items-center justify-center shrink-0 bg-[rgba(201,219,230,0.1)] border border-[rgba(201,219,230,0.42)] text-primary">
+                    <GroupIcon className="h-3.5 w-3.5" size={14} />
                   </span>
                   <span className="text-[11px] font-extrabold tracking-[0.14em] uppercase text-muted-foreground font-['Manrope',system-ui,sans-serif]">
                     {group.label}
@@ -979,9 +991,13 @@ const BotSection = ({
                   <span className="flex-1 h-px bg-white/[0.055]" />
                 </div>
                 {group.key === "shared" ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                    <RequestCustomFeatureCard />
-                    <ReportBugCard />
+                  <div className="space-y-5">
+                    <div className="xtras">
+                      <RequestCustomFeatureCard />
+                      <ReportBugCard />
+                    </div>
+                    {group.owned.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                     {group.owned.map((id) => {
                       const isHighlighted = highlightedAddonId === id;
                       return (
@@ -1022,6 +1038,8 @@ const BotSection = ({
                         </div>
                       );
                     })}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <>
@@ -1758,7 +1776,7 @@ const BotDashboard = () => {
     <div
       role="status"
       aria-label="Loading"
-      className="min-h-screen grid place-items-center"
+      className="min-h-screen flex items-center justify-center"
       style={{
         background:
           "radial-gradient(120% 90% at 50% 115%, rgba(201,219,230,.10), transparent 55%), linear-gradient(180deg, #293038, #1a1f25)",
@@ -1781,9 +1799,9 @@ const BotDashboard = () => {
   const hasAccess = isAdmin || hasDashboardAccess;
   if (!hasAccess) {
     return (
-      <div className="min-h-screen bg-background grid place-items-center px-4">
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="max-w-md text-center space-y-5">
-          <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 border border-primary/20 grid place-items-center"><Lock className="h-5 w-5 text-primary" /></div>
+          <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center"><Lock className="h-5 w-5 text-primary" size={20} /></div>
           <h1 className="text-2xl font-bold">No bots yet</h1>
           <p className="text-muted-foreground">Once you <span className="text-foreground font-medium">own a bot</span> — by buying one or having it transferred to you — it'll show up here to manage. Team members get access when an owner shares a bot with them.</p>
           <div className="flex gap-3 justify-center"><Button asChild><Link to="/bots"><Globe className="h-4 w-4 mr-2" />Browse bots</Link></Button><Button variant="outline" asChild><Link to="/">Back to site</Link></Button></div>
