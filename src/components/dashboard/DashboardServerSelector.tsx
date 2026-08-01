@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Server, Globe } from "lucide-react";
+import { RefreshCw, Server, Globe, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBotGuilds } from "@/hooks/useGuildChannels";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
@@ -83,8 +83,7 @@ export function DashboardServerSelector({ botId }: Props) {
                   setGuild(next);
                 }}
                 disabled={loading || guilds.length === 0}
-                style={{ textIndent: "2px" }}
-                className="h-10 w-full rounded-md border border-input bg-background py-2 pl-11 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-10 w-full appearance-none rounded-md border border-input bg-background py-2 pl-11 pr-9 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Active server"
               >
                 <option value="">
@@ -97,6 +96,10 @@ export function DashboardServerSelector({ botId }: Props) {
                   </option>
                 ))}
               </select>
+              <ChevronDown
+                size={16}
+                className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              />
             </label>
             <Button
               type="button"
