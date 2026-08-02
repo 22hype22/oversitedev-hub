@@ -172,7 +172,12 @@ export function BotSecretsCard({ bot }: Props) {
     )
     .sort((a, b) => a.sort_order - b.sort_order);
 
-  const voiceSet = slots.some((s) => s.key === "DISPATCH_VOICE_CHANNEL_ID" && s.is_set);
+  const voiceSlot = slots.find((s) => s.key === "DISPATCH_VOICE_CHANNEL_ID");
+  const voiceSet = !!voiceSlot?.is_set;
+  // The channel id itself is never returned (secrets are write-only), but the
+  // metadata carries the last 4 chars — enough to re-select the saved channel
+  // in the dropdown after a refresh so it doesn't look like it didn't save.
+  const voiceLastFour = voiceSlot?.is_set ? (voiceSlot.last_four ?? "") : "";
 
   if (!loading && visible.length === 0 && !showVoice) return null;
 
@@ -213,7 +218,12 @@ export function BotSecretsCard({ bot }: Props) {
               <SecretRow key={s.key} bot={bot} slot={s} onChanged={reload} />
             ))}
             {showVoice && (
-              <VoiceChannelSection bot={bot} alreadySet={voiceSet} onSaved={() => reload(true)} />
+              <VoiceChannelSection
+                bot={bot}
+                alreadySet={voiceSet}
+                savedLastFour={voiceLastFour}
+                onSaved={() => reload(true)}
+              />
             )}
           </>
         )}
@@ -357,10 +367,12 @@ function SecretRow({
 function VoiceChannelSection({
   bot,
   alreadySet,
+  savedLastFour,
   onSaved,
 }: {
   bot: OwnedBot;
   alreadySet: boolean;
+  savedLastFour: string;
   onSaved: () => void;
 }) {
   const { guilds, loading: loadingGuilds } = useBotGuilds(bot.id);
@@ -383,6 +395,19 @@ function VoiceChannelSection({
   useEffect(() => {
     if (!guildId && guilds.length === 1) setGuildId(guilds[0].guild_id);
   }, [guilds, guildId]);
+
+  // Restore the previously-saved channel in the dropdown after a refresh. The
+  // full id isn't readable (write-only secret), so match on the last 4 chars
+  // of the id among the loaded voice channels. Only pre-fills while the user
+  // hasn't picked anything yet this session.
+  useEffect(() => {
+    if (channelId || !savedLastFour || voiceChannels.length === 0) return;
+    const match = voiceChannels.find((c) => c.channel_id.endsWith(savedLastFour));
+    if (match) {
+      setChannelId(match.channel_id);
+      setSavedName(match.channel_name);
+    }
+  }, [channelId, savedLastFour, voiceChannels]);
 
   const pick = async (id: string) => {
     setChannelId(id);
