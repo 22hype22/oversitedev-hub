@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { KeyRound, Loader2, Server, Radio, ChevronDown, RefreshCw, Check } from "lucide-react";
+import { KeyRound, Loader2, Server, Radio, RefreshCw, Check } from "lucide-react";
 import type { OwnedBot } from "@/hooks/useOwnedBots";
 import {
   useBotGuilds,
@@ -85,16 +85,6 @@ const SECRETS_CSS = `
 .oskeys .vcrow{display:flex;flex-direction:column;gap:6px}
 .oskeys .vchead{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .oskeys .vclbl{font-size:11px;font-weight:700;color:var(--body);letter-spacing:.01em}
-.oskeys .selwrap{position:relative;display:block}
-.oskeys .selwrap>svg{position:absolute;top:50%;transform:translateY(-50%);width:15px;height:15px;
-  color:var(--faint);pointer-events:none;left:13px}
-.oskeys .selwrap>svg.chev{left:auto;right:12px}
-.oskeys .sel{width:100%;appearance:none;-webkit-appearance:none;-moz-appearance:none;background:var(--inp);
-  border:1px solid var(--line2);border-radius:9px;padding:11px 36px;color:var(--heading);font:inherit;
-  font-size:13px;outline:none;cursor:pointer;transition:border-color .15s,box-shadow .15s}
-.oskeys .sel:disabled{opacity:.55;cursor:not-allowed}
-.oskeys .sel:focus{border-color:var(--accentl);box-shadow:0 0 0 3px var(--accentd)}
-.oskeys .sel option,.oskeys .sel optgroup{background:var(--surface);color:var(--heading)}
 .oskeys .refresh{border:none;background:transparent;color:var(--faint);font:inherit;font-size:11.5px;
   font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:0}
 .oskeys .refresh:hover:not(:disabled){color:var(--body)}
@@ -446,34 +436,38 @@ function VoiceChannelSection({
       <div className="vc">
         <div className="vcrow">
           <span className="vclbl">Server</span>
-          <span className="selwrap">
-            <Server size={15} />
-            <select
-              className="sel"
-              value={guildId ?? ""}
-              disabled={loadingGuilds || guilds.length === 0}
-              onChange={(e) => {
-                setGuildId(e.target.value || null);
-                setChannelId("");
-                setSavedName(null);
-              }}
-            >
-              <option value="">
-                {loadingGuilds
-                  ? "Loading servers…"
-                  : guilds.length === 0
-                    ? "Bot not in any servers yet"
-                    : "Select a server…"}
-              </option>
+          <Select
+            value={guildId ?? ""}
+            disabled={loadingGuilds || guilds.length === 0}
+            onValueChange={(v) => {
+              setGuildId(v || null);
+              setChannelId("");
+              setSavedName(null);
+            }}
+          >
+            <SelectTrigger>
+              <span className="flex items-center gap-2 min-w-0">
+                <Server size={15} className="shrink-0" />
+                <SelectValue
+                  placeholder={
+                    loadingGuilds
+                      ? "Loading servers…"
+                      : guilds.length === 0
+                        ? "Bot not in any servers yet"
+                        : "Select a server…"
+                  }
+                />
+              </span>
+            </SelectTrigger>
+            <SelectContent>
               {guilds.map((g) => (
-                <option key={g.guild_id} value={g.guild_id}>
+                <SelectItem key={g.guild_id} value={g.guild_id}>
                   {g.guild_name ?? g.guild_id}
                   {g.member_count != null ? ` · ${g.member_count.toLocaleString()} members` : ""}
-                </option>
+                </SelectItem>
               ))}
-            </select>
-            <ChevronDown className="chev" size={15} />
-          </span>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="vcrow">
@@ -489,35 +483,40 @@ function VoiceChannelSection({
               {refreshing ? "Refreshing…" : "Refresh"}
             </button>
           </div>
-          <span className="selwrap">
-            <Radio size={15} />
-            <select
-              className="sel"
-              value={channelId}
-              disabled={!guildId || loadingChannels || voiceChannels.length === 0}
-              onChange={(e) => pick(e.target.value)}
-            >
-              <option value="">
-                {!guildId
-                  ? "Select a server first"
-                  : loadingChannels
-                    ? "Loading channels…"
-                    : voiceChannels.length === 0
-                      ? "No voice channels — click Refresh"
-                      : "Select a voice channel…"}
-              </option>
+          <Select
+            value={channelId}
+            disabled={!guildId || loadingChannels || voiceChannels.length === 0}
+            onValueChange={(v) => pick(v)}
+          >
+            <SelectTrigger>
+              <span className="flex items-center gap-2 min-w-0">
+                <Radio size={15} className="shrink-0" />
+                <SelectValue
+                  placeholder={
+                    !guildId
+                      ? "Select a server first"
+                      : loadingChannels
+                        ? "Loading channels…"
+                        : voiceChannels.length === 0
+                          ? "No voice channels — click Refresh"
+                          : "Select a voice channel…"
+                  }
+                />
+              </span>
+            </SelectTrigger>
+            <SelectContent>
               {groups.map((grp) => (
-                <optgroup key={grp.key} label={grp.label}>
+                <SelectGroup key={grp.key}>
+                  <SelectLabel>{grp.label}</SelectLabel>
                   {grp.channels.map((c) => (
-                    <option key={c.channel_id} value={c.channel_id}>
+                    <SelectItem key={c.channel_id} value={c.channel_id}>
                       {c.channel_name}
-                    </option>
+                    </SelectItem>
                   ))}
-                </optgroup>
+                </SelectGroup>
               ))}
-            </select>
-            <ChevronDown className="chev" size={15} />
-          </span>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
