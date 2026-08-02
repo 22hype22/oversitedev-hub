@@ -187,7 +187,9 @@ export const BotIdentityEditor = ({
     try {
       const { ok } = await callUpdate({ avatar: dataUrl });
       if (ok) {
-        toast.success("Avatar updated on Discord");
+        toast.success("Confirmed", {
+          description: "Allow up to 60 seconds for the change to take effect.",
+        });
         onUpdated();
       }
       return ok;
@@ -202,7 +204,9 @@ export const BotIdentityEditor = ({
       const { ok, data } = await callUpdate({ banner: dataUrl });
       console.log("[banner] callUpdate result", { ok, data });
       if (ok) {
-        toast.success("Banner updated on Discord");
+        toast.success("Confirmed", {
+          description: "Allow up to 60 seconds for the change to take effect.",
+        });
         onUpdated();
         await notifyBannerUploaded((data as any)?.banner_url ?? null);
       }
@@ -481,12 +485,12 @@ export const BotIdentityEditor = ({
 
       if (errors.length === 0) {
         if (bioSubmitted) {
-          toast.success("Your description request has been submitted.", {
-            description: "Our team will update it within 24 hours.",
+          toast.success("Confirmed", {
+            description: "Allow up to 60 seconds for the change to take effect.",
           });
         } else {
-          toast.success("Saved", {
-            description: "Your bot will apply changes shortly.",
+          toast.success("Confirmed", {
+            description: "Allow up to 60 seconds for the change to take effect.",
           });
         }
       } else if (anySucceeded) {
