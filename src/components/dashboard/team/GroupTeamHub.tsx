@@ -11,6 +11,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useOwnedBots, type OwnedBot } from "@/hooks/useOwnedBots";
 import { BOT_BASE_LABELS } from "@/lib/botCatalog";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Props = {
   /** The user_id of the bot owner viewing this hub. */
@@ -1351,17 +1358,18 @@ function GenerateCodeModal({
               code expires or you revoke it.
             </p>
             <label className="fl">Expires after</label>
-            <select
-              className="fi"
-              value={hours}
-              onChange={(e) => setHours(e.target.value)}
-            >
-              {EXPIRY_OPTIONS.map((o) => (
-                <option key={o.hours} value={String(o.hours)}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+            <Select value={hours} onValueChange={setHours}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EXPIRY_OPTIONS.map((o) => (
+                  <SelectItem key={o.hours} value={String(o.hours)}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <label className="fl" style={{ marginTop: 16 }}>
               Note (optional)
             </label>
