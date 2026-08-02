@@ -141,6 +141,9 @@ export const BotIdentityEditor = ({
 
 
   const shortBotId = bot.id.slice(0, 8).toUpperCase();
+  // Dispatch bots apply their own About Me at runtime (no manual portal step),
+  // so their copy/toasts promise ~60s instead of the manual 24-hour flow.
+  const isDispatchBot = (bot.base ?? "").toLowerCase().trim() === "dispatch";
   const copyBotId = async () => {
     try {
       await navigator.clipboard.writeText(bot.id);
@@ -484,9 +487,9 @@ export const BotIdentityEditor = ({
       }
 
       if (errors.length === 0) {
-        if (bioSubmitted) {
-          toast.success("Confirmed", {
-            description: "Allow up to 60 seconds for the change to take effect.",
+        if (bioSubmitted && !isDispatchBot) {
+          toast.success("Request submitted", {
+            description: "Our team will apply your About Me within 24 hours.",
           });
         } else {
           toast.success("Confirmed", {
@@ -762,9 +765,9 @@ export const BotIdentityEditor = ({
                 <div className="bionote">
                   <Info />
                   <span>
-                    Discord doesn't let bots change their own About Me through the API.
-                    When you save, we get the request and update it by hand in the Discord
-                    Developer Portal — usually within 24 hours.
+                    {isDispatchBot
+                      ? "Your About Me applies automatically — allow up to 60 seconds for it to appear on your bot's profile."
+                      : "Discord doesn't let bots change their own About Me through the API. When you save, we send the request to our team and apply it manually — usually within 24 hours."}
                   </span>
                 </div>
                 <div className="biocount">{bio.length}/190</div>
