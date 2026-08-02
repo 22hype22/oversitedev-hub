@@ -60,6 +60,21 @@ export function ImageCropModal({ src, mode, bannerRatio = BANNER_RATIO, busy, on
     im.src = source;
   }, [source]);
 
+  // Lock the page and disable overscroll while the editor is open, so dragging
+  // the image can never trigger the browser's pull-to-refresh or swipe-back.
+  useEffect(() => {
+    const body = document.body.style;
+    const root = document.documentElement.style;
+    const prevOverflow = body.overflow;
+    const prevOB = root.overscrollBehavior;
+    body.overflow = "hidden";
+    root.overscrollBehavior = "none";
+    return () => {
+      body.overflow = prevOverflow;
+      root.overscrollBehavior = prevOB;
+    };
+  }, []);
+
   const scale = coverScale() * zoom;
   const transform =
     `translate(-50%,-50%) translate(${off.x}px, ${off.y}px) rotate(${rot}deg) ` +
@@ -68,6 +83,7 @@ export function ImageCropModal({ src, mode, bannerRatio = BANNER_RATIO, busy, on
   // drag to pan
   const drag = useRef<{ x: number; y: number } | null>(null);
   const onDown = (e: React.PointerEvent) => {
+    e.preventDefault();
     drag.current = { x: e.clientX, y: e.clientY };
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
@@ -138,6 +154,7 @@ export function ImageCropModal({ src, mode, bannerRatio = BANNER_RATIO, busy, on
             onPointerMove={onMove}
             onPointerUp={onUp}
             onPointerCancel={onUp}
+            onDragStart={(e) => e.preventDefault()}
             onWheel={onWheel}
           >
             <img ref={imgRef} src={source} alt="" draggable={false} style={{ transform }} />
@@ -186,7 +203,8 @@ export function ImageCropModal({ src, mode, bannerRatio = BANNER_RATIO, busy, on
 
 const CSS = `
 .oscrop-overlay{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;
-  padding:20px;background:rgba(6,9,12,.72);backdrop-filter:blur(3px)}
+  padding:20px;background:rgba(6,9,12,.72);backdrop-filter:blur(3px);
+  overscroll-behavior:none;touch-action:none}
 .oscrop-hidden{display:none}
 .oscrop{width:min(680px,100%);background:rgb(var(--os-surface,22 27 34));
   border:1px solid rgba(255,255,255,.09);border-radius:16px;overflow:hidden;
@@ -206,7 +224,8 @@ const CSS = `
   background-size:22px 22px;background-position:0 0,0 11px,11px -11px,-11px 0;touch-action:none;cursor:grab;user-select:none}
 .oscrop .stage:active{cursor:grabbing}
 .oscrop .stage img{position:absolute;left:50%;top:50%;transform-origin:center center;
-  will-change:transform;pointer-events:none;max-width:none}
+  will-change:transform;pointer-events:none;max-width:none;
+  -webkit-user-drag:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .oscrop .frame{position:absolute;inset:0;pointer-events:none;border-radius:6px;
   box-shadow:0 0 0 2px rgba(255,255,255,.92) inset}
 .oscrop .frame.round::after{content:"";position:absolute;inset:0;border-radius:50%;
