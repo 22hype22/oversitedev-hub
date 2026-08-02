@@ -2,6 +2,15 @@ import { useEffect, useMemo } from "react";
 import { RefreshCw, Server, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
   useBotGuilds,
@@ -85,28 +94,38 @@ export function GuildChannelPicker({
       {/* Guild picker */}
       <div className="space-y-1.5">
         <Label className="text-sm">{guildLabel}</Label>
-        <label className="relative block">
-          <Server className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <select
-            value={selectedGuild?.guild_id ?? ""}
-            onChange={(event) => {
-              const next = guilds.find((g) => g.guild_id === event.target.value) ?? null;
-              onGuildChange(next);
-              if (event.target.value !== guildId) onChannelChange(null);
-            }}
-            disabled={loadingGuilds || guilds.length === 0}
-            className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <option value="">
-              {loadingGuilds ? "Loading servers…" : guilds.length === 0 ? "Bot not in any servers yet" : "Select a server…"}
-            </option>
+        <Select
+          value={selectedGuild?.guild_id ?? ""}
+          onValueChange={(v) => {
+            const next = guilds.find((g) => g.guild_id === v) ?? null;
+            onGuildChange(next);
+            if (v !== guildId) onChannelChange(null);
+          }}
+          disabled={loadingGuilds || guilds.length === 0}
+        >
+          <SelectTrigger>
+            <div className="flex min-w-0 items-center gap-2">
+              <Server className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
+              <SelectValue
+                placeholder={
+                  loadingGuilds
+                    ? "Loading servers…"
+                    : guilds.length === 0
+                      ? "Bot not in any servers yet"
+                      : "Select a server…"
+                }
+              />
+            </div>
+          </SelectTrigger>
+          <SelectContent>
             {guilds.map((g) => (
-              <option key={g.guild_id} value={g.guild_id}>
-                {g.guild_name ?? g.guild_id}{g.member_count != null ? ` · ${g.member_count.toLocaleString()} members` : ""}
-              </option>
+              <SelectItem key={g.guild_id} value={g.guild_id}>
+                {g.guild_name ?? g.guild_id}
+                {g.member_count != null ? ` · ${g.member_count.toLocaleString()} members` : ""}
+              </SelectItem>
             ))}
-          </select>
-        </label>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Channel picker */}
@@ -126,37 +145,43 @@ export function GuildChannelPicker({
               {refreshing ? "Refreshing…" : "Refresh from Discord"}
             </Button>
           </div>
-          <label className="relative block">
-            <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <select
-              value={selectedChannel?.channel_id ?? ""}
-              onChange={(event) => {
-                const next = filteredChannels.find((c) => c.channel_id === event.target.value) ?? null;
-                onChannelChange(next);
-              }}
-              disabled={!guildId || loadingChannels || filteredChannels.length === 0}
-              className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="">
-                {!guildId
-                  ? "Select a server first"
-                  : loadingChannels
-                    ? "Loading channels…"
-                    : filteredChannels.length === 0
-                      ? "No channels cached — click Refresh"
-                      : "Select a channel…"}
-              </option>
+          <Select
+            value={selectedChannel?.channel_id ?? ""}
+            onValueChange={(v) => {
+              const next = filteredChannels.find((c) => c.channel_id === v) ?? null;
+              onChannelChange(next);
+            }}
+            disabled={!guildId || loadingChannels || filteredChannels.length === 0}
+          >
+            <SelectTrigger>
+              <div className="flex min-w-0 items-center gap-2">
+                <Hash className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
+                <SelectValue
+                  placeholder={
+                    !guildId
+                      ? "Select a server first"
+                      : loadingChannels
+                        ? "Loading channels…"
+                        : filteredChannels.length === 0
+                          ? "No channels cached — click Refresh"
+                          : "Select a channel…"
+                  }
+                />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
               {channelGroups.map((group) => (
-                <optgroup key={group.key} label={group.label}>
+                <SelectGroup key={group.key}>
+                  <SelectLabel>{group.label}</SelectLabel>
                   {group.channels.map((c) => (
-                    <option key={c.channel_id} value={c.channel_id}>
+                    <SelectItem key={c.channel_id} value={c.channel_id}>
                       {c.channel_name}
-                    </option>
+                    </SelectItem>
                   ))}
-                </optgroup>
+                </SelectGroup>
               ))}
-            </select>
-          </label>
+            </SelectContent>
+          </Select>
           {lastFetchedAt && (
             <p className="text-[11px] text-muted-foreground">
               Channel list updated {formatDistanceToNow(new Date(lastFetchedAt), { addSuffix: true })}.
