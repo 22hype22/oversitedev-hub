@@ -9,7 +9,9 @@ import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -3086,49 +3088,59 @@ function RecurringMessagesForm({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Channel</Label>
-                <label className="relative block">
-                  <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <select
-                    value={entry.channel_id}
-                    onChange={(e) => update(idx, { channel_id: e.target.value })}
-                    disabled={!guildId || loading}
-                    className="h-9 w-full rounded-md border border-input bg-background py-1.5 pl-9 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <option value="">
-                      {!guildId
-                        ? "Select a server first"
-                        : loading
-                          ? "Loading channels…"
-                          : textChannels.length === 0
-                            ? "No channels — click Refresh"
-                            : "Select a channel…"}
-                    </option>
+                <Select
+                  value={entry.channel_id}
+                  onValueChange={(v) => update(idx, { channel_id: v })}
+                  disabled={!guildId || loading}
+                >
+                  <SelectTrigger className="h-9">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Hash className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
+                      <SelectValue
+                        placeholder={
+                          !guildId
+                            ? "Select a server first"
+                            : loading
+                              ? "Loading channels…"
+                              : textChannels.length === 0
+                                ? "No channels — click Refresh"
+                                : "Select a channel…"
+                        }
+                      />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
                     {channelGroups.map((group) => (
-                      <optgroup key={group.key} label={group.label}>
+                      <SelectGroup key={group.key}>
+                        <SelectLabel>{group.label}</SelectLabel>
                         {group.channels.map((c) => (
-                          <option key={c.channel_id} value={c.channel_id}>
+                          <SelectItem key={c.channel_id} value={c.channel_id}>
                             {c.channel_name}
-                          </option>
+                          </SelectItem>
                         ))}
-                      </optgroup>
+                      </SelectGroup>
                     ))}
-                  </select>
-                </label>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-1.5">
                 <Label className="text-xs">Interval</Label>
-                <select
+                <Select
                   value={String(entry.interval_minutes)}
-                  onChange={(e) => update(idx, { interval_minutes: Number(e.target.value) })}
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  onValueChange={(v) => update(idx, { interval_minutes: Number(v) })}
                 >
-                  {intervals.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {intervals.map((opt) => (
+                      <SelectItem key={opt.value} value={String(opt.value)}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -3255,34 +3267,40 @@ function ChannelComboField({
           {refreshing ? "Refreshing…" : "Refresh"}
         </Button>
       </div>
-      <label className="relative block">
-        <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <select
-          value={selected?.channel_id ?? ""}
-          onChange={(event) => onChange(event.target.value)}
-          disabled={!guildId}
-          className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <option value="">
-            {!guildId
-              ? "Select a server first"
-              : loading
-                ? "Loading channels…"
-                : filtered.length === 0
-                  ? "No channels cached — click Refresh"
-                  : "Select a channel…"}
-          </option>
+      <Select
+        value={selected?.channel_id ?? ""}
+        onValueChange={(v) => onChange(v)}
+        disabled={!guildId}
+      >
+        <SelectTrigger>
+          <div className="flex min-w-0 items-center gap-2">
+            <Hash className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
+            <SelectValue
+              placeholder={
+                !guildId
+                  ? "Select a server first"
+                  : loading
+                    ? "Loading channels…"
+                    : filtered.length === 0
+                      ? "No channels cached — click Refresh"
+                      : "Select a channel…"
+              }
+            />
+          </div>
+        </SelectTrigger>
+        <SelectContent>
           {channelGroups.map((group) => (
-            <optgroup key={group.key} label={group.label}>
+            <SelectGroup key={group.key}>
+              <SelectLabel>{group.label}</SelectLabel>
               {group.channels.map((c) => (
-                <option key={c.channel_id} value={c.channel_id}>
+                <SelectItem key={c.channel_id} value={c.channel_id}>
                   {c.channel_name}
-                </option>
+                </SelectItem>
               ))}
-            </optgroup>
+            </SelectGroup>
           ))}
-        </select>
-      </label>
+        </SelectContent>
+      </Select>
       {field.help && (
         <p className="text-xs text-muted-foreground">{field.help}</p>
       )}
@@ -3344,30 +3362,31 @@ function RoleComboField({
           {refreshing ? "Refreshing…" : "Refresh"}
         </Button>
       </div>
-      <label className="relative block">
-        <AtSign className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <select
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          disabled={!guildId}
-          className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <option value="">
-            {!guildId
-              ? "Select a server first"
-              : loading
-                ? "Loading roles…"
-                : filtered.length === 0
-                  ? "No roles cached — click Refresh"
-                  : "Select a role…"}
-          </option>
+      <Select value={value} onValueChange={(v) => onChange(v)} disabled={!guildId}>
+        <SelectTrigger>
+          <div className="flex min-w-0 items-center gap-2">
+            <AtSign className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
+            <SelectValue
+              placeholder={
+                !guildId
+                  ? "Select a server first"
+                  : loading
+                    ? "Loading roles…"
+                    : filtered.length === 0
+                      ? "No roles cached — click Refresh"
+                      : "Select a role…"
+              }
+            />
+          </div>
+        </SelectTrigger>
+        <SelectContent>
           {filtered.map((r) => (
-            <option key={r.role_id} value={r.role_id}>
+            <SelectItem key={r.role_id} value={r.role_id}>
               @{r.role_name}
-            </option>
+            </SelectItem>
           ))}
-        </select>
-      </label>
+        </SelectContent>
+      </Select>
       {field.help && (
         <p className="text-xs text-muted-foreground">{field.help}</p>
       )}
@@ -3702,34 +3721,40 @@ function GiveawayForm({
               {refreshing ? "Refreshing…" : "Refresh"}
             </Button>
           </div>
-          <label className="relative block">
-            <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <select
-              value={channelId}
-              onChange={(e) => onChannelIdChange(e.target.value)}
-              disabled={!guildId || loading}
-              className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="">
-                {!guildId
-                  ? "Select a server first"
-                  : loading
-                    ? "Loading channels…"
-                    : textChannels.length === 0
-                      ? "No channels — click Refresh"
-                      : "Select a channel…"}
-              </option>
+          <Select
+            value={channelId}
+            onValueChange={(v) => onChannelIdChange(v)}
+            disabled={!guildId || loading}
+          >
+            <SelectTrigger>
+              <div className="flex min-w-0 items-center gap-2">
+                <Hash className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
+                <SelectValue
+                  placeholder={
+                    !guildId
+                      ? "Select a server first"
+                      : loading
+                        ? "Loading channels…"
+                        : textChannels.length === 0
+                          ? "No channels — click Refresh"
+                          : "Select a channel…"
+                  }
+                />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
               {channelGroups.map((group) => (
-                <optgroup key={group.key} label={group.label}>
+                <SelectGroup key={group.key}>
+                  <SelectLabel>{group.label}</SelectLabel>
                   {group.channels.map((c) => (
-                    <option key={c.channel_id} value={c.channel_id}>
+                    <SelectItem key={c.channel_id} value={c.channel_id}>
                       {c.channel_name}
-                    </option>
+                    </SelectItem>
                   ))}
-                </optgroup>
+                </SelectGroup>
               ))}
-            </select>
-          </label>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
