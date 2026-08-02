@@ -10,6 +10,7 @@
 // a deploy, and writes the new service id back to bot_orders.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { scrubGuilds } from "../_shared/discord-guilds.ts";
+import { mintWorkerToken } from "../_shared/worker-token.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -56,6 +57,8 @@ function repoSourceFor(base: string): string {
       return "22hype22/oversite-support";
     case "utilities":
       return "22hype22/oversite-utilities";
+    case "dispatch":
+      return "22hype22/oversite-dispatch";
     case "protection":
     case "scratch":
     case "all-in-one-pack":
@@ -779,9 +782,10 @@ async function applyDiscordIdentity(
   if (identity.username) {
     payload.username = identity.username.trim().slice(0, 32);
   }
+  let iconDataUrl: string | null = null;
   if (identity.iconUrl) {
-    const dataUrl = await fetchImageAsDataUrl(identity.iconUrl);
-    if (dataUrl) payload.avatar = dataUrl;
+    iconDataUrl = await fetchImageAsDataUrl(identity.iconUrl);
+    if (iconDataUrl) payload.avatar = iconDataUrl;
   }
   let ok = true;
   let status: number | undefined;
@@ -810,27 +814,35 @@ async function applyDiscordIdentity(
         console.log("[auto-deploy-bot] discord user identity applied", { keys: Object.keys(payload) });
       }
     }
-    // Description via the application endpoint (empty string clears it).
-    if (identity.bio) {
+    // Application-level identity: the description ("About Me") AND the icon
+    // shown on the OAuth "Add to server" screen. Setting the icon here — before
+    // the customer ever opens the invite — makes that screen show their icon
+    // instead of the pool app's placeholder. The application NAME is not
+    // editable via the API, so it stays the pool app's Developer Portal name.
+    const appPayload: Record<string, unknown> = {};
+    if (identity.bio) appPayload.description = identity.bio.slice(0, 400);
+    if (iconDataUrl) appPayload.icon = iconDataUrl;
+    if (Object.keys(appPayload).length > 0) {
       const aRes = await fetch("https://discord.com/api/v10/applications/@me", {
         method: "PATCH",
         headers: {
           Authorization: `Bot ${botToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ description: identity.bio.slice(0, 400) }),
+        body: JSON.stringify(appPayload),
       });
       if (!aRes.ok) {
         const text = await aRes.text();
-        console.warn("[auto-deploy-bot] discord application description patch failed", {
+        console.warn("[auto-deploy-bot] discord application patch failed", {
           status: aRes.status,
           body: text.slice(0, 300),
+          keys: Object.keys(appPayload),
         });
         ok = false;
         status = status ?? aRes.status;
         error = error ?? text.slice(0, 300);
       } else {
-        console.log("[auto-deploy-bot] discord application description applied");
+        console.log("[auto-deploy-bot] discord application identity applied", { keys: Object.keys(appPayload) });
       }
     }
     return { ok, status, error };
@@ -895,6 +907,33 @@ async function sendDeployedDM(
 
 
 
+
+// Build the env vars for a Dispatch (ER:LC voice dispatcher) bot. Unlike the
+// Discord bases, Dispatch reads real credentials at boot: the customer's ER:LC
+// server key plus which guild/voice-channel to sit in (pulled from their
+// encrypted secrets), and the Oversite-bundled voice + AI keys (from this
+// function's own env). Strictly separate from buildFeatureFlagVars — the F_*
+// feature flags don't apply to Dispatch.
+async function buildDispatchVars(): Promise<Record<string, string>> {
+  const vars: Record<string, string> = {};
+
+  // Oversite-bundled, shared across every Dispatch bot. Set these as secrets on
+  // this edge function. The customer's own values (ER:LC key, voice channel) are
+  // fetched by the bot at runtime using the BOT_ORDER_ID + WORKER_TOKEN env that
+  // every deploy already injects — so entering them later needs no redeploy.
+  const bundled: Record<string, string | undefined> = {
+    ELEVENLABS_API_KEY: Deno.env.get("DISPATCH_ELEVENLABS_API_KEY") ?? Deno.env.get("ELEVENLABS_API_KEY"),
+    ANTHROPIC_API_KEY: Deno.env.get("DISPATCH_ANTHROPIC_API_KEY") ?? Deno.env.get("ANTHROPIC_API_KEY"),
+    ELEVENLABS_VOICE_ID: Deno.env.get("DISPATCH_ELEVENLABS_VOICE_ID"),
+    DISPATCH_REGION: Deno.env.get("DISPATCH_DEFAULT_REGION"),
+    DISPATCH_TZ: Deno.env.get("DISPATCH_DEFAULT_TZ"),
+  };
+  for (const [k, v] of Object.entries(bundled)) {
+    if (v && v.trim()) vars[k] = v.trim();
+  }
+
+  return vars;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -1185,7 +1224,7 @@ Deno.serve(async (req) => {
       .eq("id", orderId);
 
 
-    const workerToken = Deno.env.get("WORKER_TOKEN") ?? "";
+    const workerToken = await mintWorkerToken(admin, orderId, order.bot_name);
     const fnUrl = `${supabaseUrl}/functions/v1`;
 
     if (!botToken || typeof botToken !== "string" || botToken.trim() === "") {
@@ -1198,7 +1237,10 @@ Deno.serve(async (req) => {
     const purchasedAddons = Array.isArray((order as any).addons)
       ? ((order as any).addons as string[])
       : [];
-    const featureFlagVars = buildFeatureFlagVars(order.base, purchasedAddons);
+    const isDispatch = (order.base ?? "").toLowerCase().trim() === "dispatch";
+    const featureFlagVars = isDispatch
+      ? await buildDispatchVars()
+      : buildFeatureFlagVars(order.base, purchasedAddons);
 
     const varsPayload: Record<string, string> = {
       DISCORD_TOKEN: botToken.trim(),
@@ -1292,7 +1334,9 @@ Deno.serve(async (req) => {
     // Provision base-included + purchased addon entitlements so the
     // dashboard renders every config block the customer paid for the
     // moment they land on the page after deploy.
-    await provisionAddonEntitlements(admin, orderId, order.base, purchasedAddons);
+    if (!isDispatch) {
+      await provisionAddonEntitlements(admin, orderId, order.base, purchasedAddons);
+    }
 
     // Send the "your bot is live" Discord DM directly from the edge function
     // using the Oversite Utilities notifier bot. This replaces the previous
