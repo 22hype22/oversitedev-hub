@@ -14,6 +14,11 @@ import { usePreferences } from "@/hooks/usePreferences";
  * ancestor). Inputs, textareas, scripts, styles, and code blocks are skipped
  * automatically. The text-input value of form fields is NEVER touched —
  * only visible text nodes are mutated.
+ *
+ * Perf: when the language is English (the default for most users) we do a
+ * single restore pass and then do NOTHING — no MutationObserver, no repeated
+ * full-document TreeWalk. Live DOM observation only runs for users who have
+ * actually chosen a non-English language.
  */
 
 const SKIP_TAGS = new Set([
@@ -58,6 +63,9 @@ export function AutoTranslator() {
   // Tracks text nodes we've mutated so we don't treat translated text as the
   // "original English" the next time the observer fires.
   const mutatedRef = useRef<WeakSet<Text>>(new WeakSet());
+  // Whether we've ever translated anything this session. Lets English skip
+  // even the one-time restore walk on a fresh load (nothing to restore).
+  const everTranslatedRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -111,6 +119,7 @@ export function AutoTranslator() {
         const cached = localStorage.getItem(cacheKey(original));
         if (cached !== null) {
           setNodeValue(node, cached);
+          everTranslatedRef.current = true;
         } else {
           if (!inFlightRef.current.has(original)) misses.add(original);
         }
@@ -147,7 +156,7 @@ export function AutoTranslator() {
         const all = collectTextNodes(document.body);
         for (const { node, original } of all) {
           const tr = results[original];
-          if (tr) setNodeValue(node, tr);
+          if (tr) { setNodeValue(node, tr); everTranslatedRef.current = true; }
         }
       } catch (e) {
         console.error("translate failed:", e);
@@ -173,10 +182,19 @@ export function AutoTranslator() {
       debounceRef.current = window.setTimeout(runPass, 150);
     };
 
+    // English: no translation and no live observation needed. Restore anything
+    // we translated earlier this session (if any), then stop. This removes the
+    // always-on full-document scanning that made the whole app janky.
+    if (lang === "en") {
+      if (everTranslatedRef.current) restoreToEnglish();
+      return;
+    }
+
     // Initial pass
     runPass();
 
-    // Watch for DOM changes (route changes, dialogs, async content)
+    // Watch for DOM changes (route changes, dialogs, async content) — only for
+    // non-English users.
     const observer = new MutationObserver(() => schedule());
     observer.observe(document.body, {
       childList: true,
