@@ -10,6 +10,7 @@
 // a deploy, and writes the new service id back to bot_orders.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { scrubGuilds } from "../_shared/discord-guilds.ts";
+import { mintWorkerToken } from "../_shared/worker-token.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1223,7 +1224,7 @@ Deno.serve(async (req) => {
       .eq("id", orderId);
 
 
-    const workerToken = Deno.env.get("WORKER_TOKEN") ?? "";
+    const workerToken = await mintWorkerToken(admin, orderId, order.bot_name);
     const fnUrl = `${supabaseUrl}/functions/v1`;
 
     if (!botToken || typeof botToken !== "string" || botToken.trim() === "") {
