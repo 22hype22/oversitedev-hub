@@ -1,13 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { KeyRound, Loader2, Server, Radio, ChevronDown, RefreshCw, Check } from "lucide-react";
+import { KeyRound, Loader2, Server, Radio, RefreshCw, Check } from "lucide-react";
 import type { OwnedBot } from "@/hooks/useOwnedBots";
 import {
   useBotGuilds,
   useBotChannels,
   sortedChannelCategoryEntries,
 } from "@/hooks/useGuildChannels";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Self-contained styling in the dashboard's own design language (mirrors
 // BotManagePanel): eyebrow + trailing hairline sections, hairline borders,
@@ -42,6 +51,8 @@ const SECRETS_CSS = `
 .oskeys .eyebrow .lbl{font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
   color:var(--faint);white-space:nowrap}
 .oskeys .eyebrow .ln{flex:1;height:1px;background:var(--line2)}
+.oskeys .mono-key{font-family:var(--mono);font-size:10px;color:var(--faint);opacity:.85;margin-left:4px;
+  text-transform:none;letter-spacing:0;font-weight:600}
 .oskeys .ed{font-size:12px;color:var(--faint);line-height:1.55;margin-bottom:13px;max-width:56ch}
 .oskeys .inprow{display:flex;gap:10px;align-items:stretch}
 .oskeys .inp{flex:1;min-width:0;background:var(--inp);border:1px solid var(--line2);border-radius:9px;
@@ -69,7 +80,7 @@ const SECRETS_CSS = `
 .oskeys .spin{animation:oskeys-spin 1s linear infinite}
 @keyframes oskeys-spin{to{transform:rotate(360deg)}}
 
-/* Voice-channel picker (dispatch bots) — styled to match the card. */
+/* Voice-channel picker (dispatch bots) — styled like the key sections. */
 .oskeys .vc{display:grid;gap:14px}
 .oskeys .vcrow{display:flex;flex-direction:column;gap:6px}
 .oskeys .vchead{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -78,9 +89,9 @@ const SECRETS_CSS = `
 .oskeys .selwrap>svg{position:absolute;top:50%;transform:translateY(-50%);width:15px;height:15px;
   color:var(--faint);pointer-events:none;left:13px}
 .oskeys .selwrap>svg.chev{left:auto;right:12px}
-.oskeys .sel{width:100%;appearance:none;-webkit-appearance:none;background:var(--inp);
-  border:1px solid var(--line2);border-radius:9px;padding:11px 36px 11px 36px;color:var(--heading);
-  font:inherit;font-size:13px;outline:none;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.oskeys .sel{width:100%;appearance:none;-webkit-appearance:none;-moz-appearance:none;background:var(--inp);
+  border:1px solid var(--line2);border-radius:9px;padding:11px 36px;color:var(--heading);font:inherit;
+  font-size:13px;outline:none;cursor:pointer;transition:border-color .15s,box-shadow .15s}
 .oskeys .sel:disabled{opacity:.55;cursor:not-allowed}
 .oskeys .sel:focus{border-color:var(--accentl);box-shadow:0 0 0 3px var(--accentd)}
 .oskeys .sel option,.oskeys .sel optgroup{background:var(--surface);color:var(--heading)}
@@ -334,10 +345,10 @@ function SecretRow({
   );
 }
 
-// Voice-channel picker for dispatch bots — lives inside the API card so the
-// channel the dispatcher sits in is set right alongside the ER:LC key. The
-// chosen channel is written to the DISPATCH_VOICE_CHANNEL_ID secret; the bot
-// picks it up on its next config refresh (~60s) with no restart.
+// Voice-channel picker for dispatch bots — sits under the API keys as its own
+// "Voice channel" section. The chosen channel is written to the
+// DISPATCH_VOICE_CHANNEL_ID secret; the bot picks it up on its next config
+// refresh (~60s) with no restart.
 function VoiceChannelSection({
   bot,
   alreadySet,
@@ -405,34 +416,38 @@ function VoiceChannelSection({
       <div className="vc">
         <div className="vcrow">
           <span className="vclbl">Server</span>
-          <span className="selwrap">
-            <Server />
-            <select
-              className="sel"
-              value={guildId ?? ""}
-              disabled={loadingGuilds || guilds.length === 0}
-              onChange={(e) => {
-                setGuildId(e.target.value || null);
-                setChannelId("");
-                setSavedName(null);
-              }}
-            >
-              <option value="">
-                {loadingGuilds
-                  ? "Loading servers…"
-                  : guilds.length === 0
-                    ? "Bot not in any servers yet"
-                    : "Select a server…"}
-              </option>
+          <Select
+            value={guildId ?? ""}
+            disabled={loadingGuilds || guilds.length === 0}
+            onValueChange={(v) => {
+              setGuildId(v || null);
+              setChannelId("");
+              setSavedName(null);
+            }}
+          >
+            <SelectTrigger aria-label="Server">
+              <div className="flex min-w-0 items-center gap-2">
+                <Server className="h-[15px] w-[15px] shrink-0 text-[rgb(var(--os-faint))]" />
+                <SelectValue
+                  placeholder={
+                    loadingGuilds
+                      ? "Loading servers…"
+                      : guilds.length === 0
+                        ? "Bot not in any servers yet"
+                        : "Select a server…"
+                  }
+                />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
               {guilds.map((g) => (
-                <option key={g.guild_id} value={g.guild_id}>
+                <SelectItem key={g.guild_id} value={g.guild_id}>
                   {g.guild_name ?? g.guild_id}
                   {g.member_count != null ? ` · ${g.member_count.toLocaleString()} members` : ""}
-                </option>
+                </SelectItem>
               ))}
-            </select>
-            <ChevronDown className="chev" />
-          </span>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="vcrow">
@@ -444,39 +459,44 @@ function VoiceChannelSection({
               disabled={refreshing || !guildId}
               onClick={() => refreshFromDiscord()}
             >
-              <RefreshCw className={refreshing ? "spin" : ""} />
+              <RefreshCw className={refreshing ? "spin" : ""} size={12} />
               {refreshing ? "Refreshing…" : "Refresh"}
             </button>
           </div>
-          <span className="selwrap">
-            <Radio />
-            <select
-              className="sel"
-              value={channelId}
-              disabled={!guildId || loadingChannels || voiceChannels.length === 0}
-              onChange={(e) => pick(e.target.value)}
-            >
-              <option value="">
-                {!guildId
-                  ? "Select a server first"
-                  : loadingChannels
-                    ? "Loading channels…"
-                    : voiceChannels.length === 0
-                      ? "No voice channels — click Refresh"
-                      : "Select a voice channel…"}
-              </option>
+          <Select
+            value={channelId}
+            disabled={!guildId || loadingChannels || voiceChannels.length === 0}
+            onValueChange={(v) => pick(v)}
+          >
+            <SelectTrigger aria-label="Voice channel">
+              <div className="flex min-w-0 items-center gap-2">
+                <Radio className="h-[15px] w-[15px] shrink-0 text-[rgb(var(--os-faint))]" />
+                <SelectValue
+                  placeholder={
+                    !guildId
+                      ? "Select a server first"
+                      : loadingChannels
+                        ? "Loading channels…"
+                        : voiceChannels.length === 0
+                          ? "No voice channels — click Refresh"
+                          : "Select a voice channel…"
+                  }
+                />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
               {groups.map((grp) => (
-                <optgroup key={grp.key} label={grp.label}>
+                <SelectGroup key={grp.key}>
+                  <SelectLabel>{grp.label}</SelectLabel>
                   {grp.channels.map((c) => (
-                    <option key={c.channel_id} value={c.channel_id}>
+                    <SelectItem key={c.channel_id} value={c.channel_id}>
                       {c.channel_name}
-                    </option>
+                    </SelectItem>
                   ))}
-                </optgroup>
+                </SelectGroup>
               ))}
-            </select>
-            <ChevronDown className="chev" />
-          </span>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
