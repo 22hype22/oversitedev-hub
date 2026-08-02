@@ -1,13 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { KeyRound, Loader2, Server, Radio, ChevronDown, RefreshCw, Check } from "lucide-react";
+import { KeyRound, Loader2, Server, Radio, RefreshCw, Check } from "lucide-react";
 import type { OwnedBot } from "@/hooks/useOwnedBots";
 import {
   useBotGuilds,
   useBotChannels,
   sortedChannelCategoryEntries,
 } from "@/hooks/useGuildChannels";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Self-contained styling in the dashboard's own design language (mirrors
 // BotManagePanel): eyebrow + trailing hairline sections, hairline borders,
@@ -407,34 +416,38 @@ function VoiceChannelSection({
       <div className="vc">
         <div className="vcrow">
           <span className="vclbl">Server</span>
-          <span className="selwrap">
-            <Server size={15} />
-            <select
-              className="sel"
-              value={guildId ?? ""}
-              disabled={loadingGuilds || guilds.length === 0}
-              onChange={(e) => {
-                setGuildId(e.target.value || null);
-                setChannelId("");
-                setSavedName(null);
-              }}
-            >
-              <option value="">
-                {loadingGuilds
-                  ? "Loading servers…"
-                  : guilds.length === 0
-                    ? "Bot not in any servers yet"
-                    : "Select a server…"}
-              </option>
+          <Select
+            value={guildId ?? ""}
+            disabled={loadingGuilds || guilds.length === 0}
+            onValueChange={(v) => {
+              setGuildId(v || null);
+              setChannelId("");
+              setSavedName(null);
+            }}
+          >
+            <SelectTrigger aria-label="Server">
+              <div className="flex min-w-0 items-center gap-2">
+                <Server className="h-[15px] w-[15px] shrink-0 text-[rgb(var(--os-faint))]" />
+                <SelectValue
+                  placeholder={
+                    loadingGuilds
+                      ? "Loading servers…"
+                      : guilds.length === 0
+                        ? "Bot not in any servers yet"
+                        : "Select a server…"
+                  }
+                />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
               {guilds.map((g) => (
-                <option key={g.guild_id} value={g.guild_id}>
+                <SelectItem key={g.guild_id} value={g.guild_id}>
                   {g.guild_name ?? g.guild_id}
                   {g.member_count != null ? ` · ${g.member_count.toLocaleString()} members` : ""}
-                </option>
+                </SelectItem>
               ))}
-            </select>
-            <ChevronDown className="chev" size={15} />
-          </span>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="vcrow">
@@ -450,35 +463,40 @@ function VoiceChannelSection({
               {refreshing ? "Refreshing…" : "Refresh"}
             </button>
           </div>
-          <span className="selwrap">
-            <Radio size={15} />
-            <select
-              className="sel"
-              value={channelId}
-              disabled={!guildId || loadingChannels || voiceChannels.length === 0}
-              onChange={(e) => pick(e.target.value)}
-            >
-              <option value="">
-                {!guildId
-                  ? "Select a server first"
-                  : loadingChannels
-                    ? "Loading channels…"
-                    : voiceChannels.length === 0
-                      ? "No voice channels — click Refresh"
-                      : "Select a voice channel…"}
-              </option>
+          <Select
+            value={channelId}
+            disabled={!guildId || loadingChannels || voiceChannels.length === 0}
+            onValueChange={(v) => pick(v)}
+          >
+            <SelectTrigger aria-label="Voice channel">
+              <div className="flex min-w-0 items-center gap-2">
+                <Radio className="h-[15px] w-[15px] shrink-0 text-[rgb(var(--os-faint))]" />
+                <SelectValue
+                  placeholder={
+                    !guildId
+                      ? "Select a server first"
+                      : loadingChannels
+                        ? "Loading channels…"
+                        : voiceChannels.length === 0
+                          ? "No voice channels — click Refresh"
+                          : "Select a voice channel…"
+                  }
+                />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
               {groups.map((grp) => (
-                <optgroup key={grp.key} label={grp.label}>
+                <SelectGroup key={grp.key}>
+                  <SelectLabel>{grp.label}</SelectLabel>
                   {grp.channels.map((c) => (
-                    <option key={c.channel_id} value={c.channel_id}>
+                    <SelectItem key={c.channel_id} value={c.channel_id}>
                       {c.channel_name}
-                    </option>
+                    </SelectItem>
                   ))}
-                </optgroup>
+                </SelectGroup>
               ))}
-            </select>
-            <ChevronDown className="chev" size={15} />
-          </span>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
