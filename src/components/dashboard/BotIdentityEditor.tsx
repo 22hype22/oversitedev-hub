@@ -1,11 +1,8 @@
 import { useRef, useState, useEffect } from "react";
-import { Bot, Image as ImageIcon, Pencil, Upload, Loader2, ChevronDown, ChevronUp, Activity, Check, X, AlertTriangle, Info, Copy } from "lucide-react";
+import { Bot, Pencil, Upload, Loader2, ChevronDown, ChevronUp, Activity, Check, X, AlertTriangle, Info, Copy, MoreVertical, RefreshCw, Image as ImageIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -13,6 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -43,8 +47,12 @@ type Props = {
   onUpdated: () => void;
   badges?: React.ReactNode;
   actions?: React.ReactNode;
+  /** Extra items rendered at the bottom of the header "⋯" menu (e.g. Cancel / Leave). */
+  menuItems?: React.ReactNode;
   /** When false, Discord-side edits (avatar/banner/username/bio/status) are hidden. */
   enableDiscordEdits?: boolean;
+  /** Re-check the bot's live status. Renders the banner Refresh button when set. */
+  onRefresh?: () => void | Promise<void>;
 };
 
 export const BotIdentityEditor = ({
@@ -52,7 +60,9 @@ export const BotIdentityEditor = ({
   onUpdated,
   badges,
   actions,
+  menuItems,
   enableDiscordEdits = true,
+  onRefresh,
 }: Props) => {
   const { user } = useAuth();
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -63,6 +73,18 @@ export const BotIdentityEditor = ({
   const [savingBanner, setSavingBanner] = useState(false);
   // When a file is picked, open the crop/zoom editor before uploading.
   const [crop, setCrop] = useState<{ src: string; mode: "avatar" | "banner" } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    if (!onRefresh || refreshing) return;
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      // Brief spin so a fast refresh still reads as an action.
+      setTimeout(() => setRefreshing(false), 500);
+    }
+  };
 
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(bot.bot_name);
@@ -229,7 +251,7 @@ export const BotIdentityEditor = ({
         author: { name: "Banner Logging" },
         title: "New Banner upload request",
         description: embedDescription,
-        footer: { text: "Every banner you change is plus 50 cents." },
+        footer: { text: "Banner update request" },
         color: 0x3b82f6,
       };
       if (bannerUrl) (embed as any).image = { url: bannerUrl };
@@ -356,6 +378,10 @@ export const BotIdentityEditor = ({
               action: "set_status",
               payload: {
                 activity_type: activityType,
+                // Send both keys: the worker reads `activity_text`, while some
+                // bot runtimes read `status_text`. Keeping both avoids the
+                // activity label being silently dropped.
+                activity_text: activityText,
                 status_text: activityText,
                 presence_status: presence,
               },
@@ -433,7 +459,7 @@ export const BotIdentityEditor = ({
                     author: { name: "Description Logging" },
                     title: "New About Me update request",
                     description: embedDescription,
-                    footer: { text: "Every description you change is plus 50 cents." },
+                    footer: { text: "Description update request" },
                     color: 0x3b82f6,
                   },
                 },
@@ -475,106 +501,140 @@ export const BotIdentityEditor = ({
   };
 
   return (
-    <Card className="overflow-hidden rounded-2xl bg-card/60 border-border shadow-lg shadow-black/5">
-      {/* Banner */}
-      <div className="relative h-36 sm:h-48 w-full bg-gradient-to-br from-primary/25 via-primary/5 to-background">
-        {bot.banner_url ? (
-          <img
-            src={bot.banner_url}
-            alt={`${bot.bot_name} banner`}
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        ) : (
-          <div className="absolute inset-0 grid place-items-center text-muted-foreground">
-            <div className="flex items-center gap-2 text-xs font-medium">
-              <ImageIcon className="h-4 w-4" />
-              No banner uploaded
-            </div>
-          </div>
+    <div className="bid">
+      <style>{BID_CSS}</style>
+      <div className="card">
+      {/* Banner — uploaded image, or an icy gradient fallback */}
+      <div className={`pbanner${bot.banner_url ? " hasimg" : ""}`}>
+        {bot.banner_url && <img src={bot.banner_url} alt={`${bot.bot_name} banner`} />}
+
+        {/* Edit banner — visible affordance, top-left */}
+        {enableDiscordEdits && (
+          <button
+            type="button"
+            onClick={() => bannerInputRef.current?.click()}
+            disabled={savingBanner}
+            className="pbtn bnedit"
+            aria-label="Edit banner"
+          >
+            {savingBanner ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon />}
+            <span>{savingBanner ? "Uploading…" : "Edit banner"}</span>
+          </button>
         )}
 
-        {/* Bottom fade so the avatar/name area reads cleanly over any banner */}
-        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-card via-card/70 to-transparent pointer-events-none" />
-
-        {enableDiscordEdits && (
-          <div className="absolute top-3 right-3">
-            <Button
+        {/* Refresh + actions + menu, top-right */}
+        <div className="pacts">
+          {onRefresh && (
+            <button
               type="button"
-              size="sm"
-              variant="secondary"
-              onClick={() => bannerInputRef.current?.click()}
-              disabled={savingBanner}
-              className="backdrop-blur bg-background/70 hover:bg-background/90 border border-border/60 shadow-sm"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="pbtn icon"
+              aria-label="Refresh status"
+              title="Refresh status"
             >
-              {savingBanner ? (
-                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-              ) : (
-                <Upload className="h-4 w-4 mr-1.5" />
+              <RefreshCw className={refreshing ? "animate-spin" : ""} />
+            </button>
+          )}
+          {actions}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className="pbtn icon" aria-label="More">
+                <MoreVertical />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onSelect={copyBotId} className="gap-2">
+                <Copy className="h-4 w-4" />
+                Copy bot ID
+                <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+                  #{shortBotId}
+                </span>
+              </DropdownMenuItem>
+              {enableDiscordEdits && (
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    bannerInputRef.current?.click();
+                  }}
+                  className="gap-2"
+                  disabled={savingBanner}
+                >
+                  {savingBanner ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  Change banner
+                </DropdownMenuItem>
               )}
-              Upload banner
-            </Button>
-            <input
-              ref={bannerInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) onBannerPick(f);
-                e.target.value = "";
-              }}
-            />
-          </div>
+              {menuItems && (
+                <>
+                  <DropdownMenuSeparator />
+                  {menuItems}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        {enableDiscordEdits && (
+          <input
+            ref={bannerInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onBannerPick(f);
+              e.target.value = "";
+            }}
+          />
         )}
       </div>
 
-      {/* Icon + name row */}
-      <div className="px-6 pb-6 -mt-12">
-        <div className="flex items-end justify-between gap-3">
-        <div className="relative shrink-0 group">
-          <div className="h-24 w-24 rounded-2xl bg-primary/10 border-4 border-card ring-1 ring-border grid place-items-center overflow-hidden shadow-xl shadow-black/20">
+      {/* Body — avatar overlaps banner, then name + meta */}
+      <div className="pbody">
+        <div className="prow">
+          {/* Avatar (with inline edit) */}
+          <div className="avatar">
             {bot.icon_url ? (
-              <img src={bot.icon_url} alt={bot.bot_name} className="h-full w-full object-cover" />
+              <img src={bot.icon_url} alt={bot.bot_name} />
             ) : (
-              <Bot className="h-9 w-9 text-primary" />
+              <Bot />
+            )}
+            {enableDiscordEdits && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={savingAvatar}
+                  aria-label="Change icon"
+                  className="edit"
+                >
+                  {savingAvatar ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Pencil className="h-3 w-3" />
+                  )}
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) onAvatarPick(f);
+                    e.target.value = "";
+                  }}
+                />
+              </>
             )}
           </div>
-          {enableDiscordEdits && (
-            <>
-              <button
-                type="button"
-                onClick={() => avatarInputRef.current?.click()}
-                disabled={savingAvatar}
-                aria-label="Change avatar"
-                className="absolute -bottom-1.5 -right-1.5 h-8 w-8 rounded-full bg-primary text-primary-foreground border-2 border-card grid place-items-center shadow-md hover:bg-primary/90 transition-smooth disabled:opacity-60"
-              >
-                {savingAvatar ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Pencil className="h-3.5 w-3.5" />
-                )}
-              </button>
-              <input
-                ref={avatarInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) onAvatarPick(f);
-                  e.target.value = "";
-                }}
-              />
-            </>
-          )}
-        </div>
-          {actions && (
-            <div className="flex flex-wrap items-center justify-end gap-2 shrink-0 pb-1.5">{actions}</div>
-          )}
-        </div>
 
-        <div className="mt-4 min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
+          {/* Name + meta */}
+          <div className="pident">
+            <div className="nrow">
               {editingName ? (
                 <div className="flex items-center gap-1.5 min-w-0 flex-1">
                   <Input
@@ -590,7 +650,7 @@ export const BotIdentityEditor = ({
                     maxLength={32}
                     minLength={2}
                     disabled={savingName}
-                    className="h-9 text-xl font-bold"
+                    className="h-9 text-lg font-bold"
                   />
                   {savingName ? (
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -619,137 +679,154 @@ export const BotIdentityEditor = ({
                 </div>
               ) : (
                 <>
-                  <h2 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">{bot.bot_name}</h2>
+                  <h1>{bot.bot_name}</h1>
                   {enableDiscordEdits && (
                     <button
                       type="button"
                       onClick={() => setEditingName(true)}
-                      className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-smooth"
+                      className="pen"
                       aria-label="Edit name"
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil />
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={copyBotId}
-                    title={`Bot ID: ${bot.id} — click to copy`}
-                    className="ml-1 inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 font-mono text-[10px] tracking-wide text-muted-foreground hover:text-foreground hover:bg-muted transition-smooth"
-                  >
-                    #{shortBotId}
-                    <Copy className="h-3 w-3" />
-                  </button>
                 </>
               )}
             </div>
-            {badges && (
-              <div className="flex flex-wrap items-center gap-2 mt-2">{badges}</div>
-            )}
+
+            {badges && <div className="metawrap">{badges}</div>}
             {recentChange && (
-              <div className="mt-2 flex items-start gap-2 text-[11px] text-amber-300">
-                <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+              <div className="warn">
+                <AlertTriangle />
                 <span>Discord limits username changes to 2 per hour.</span>
               </div>
             )}
+          </div>
+        </div>
 
-            {enableDiscordEdits && (
-            <>
-                <button
-                  type="button"
-                  onClick={() => setExpanded((v) => !v)}
-                  className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-smooth"
-                >
-                  {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                  {expanded ? "Hide bio & status" : "Edit bio & status"}
-                </button>
+      {/* Bio & status editor */}
+      {enableDiscordEdits && (
+        <div className="biorow">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="biotoggle"
+          >
+            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            {expanded ? "Hide bio & status" : "Edit bio & status"}
+          </button>
 
-                {expanded && (
-                  <div className="mt-3 space-y-4 rounded-xl border border-border bg-background/50 p-4">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="bot-bio" className="text-xs flex items-center gap-1.5">
-                        <Info className="h-3 w-3 text-primary" />
-                        About Me
-                      </Label>
-                      <Textarea
-                        id="bot-bio"
-                        value={bio}
-                        onChange={(e) => {
-                          setBio(resolveEmojis(e.target.value));
-                        }}
-
-                        maxLength={190}
-                        rows={3}
-                        placeholder="Describe what your bot does…"
-                        disabled={savingDetails}
-                      />
-                      {bioError && (
-                        <div className="flex items-start gap-2 rounded-md bg-red-500/10 border border-red-500/20 p-2 text-[11px] text-red-400">
-                          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                          <span>{bioError}</span>
-                        </div>
-                      )}
-                      <div className="flex items-start gap-2 rounded-md bg-muted/40 p-2 text-[11px] text-muted-foreground">
-                        <Info className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
-                        <span>
-                          Discord doesn't allow bots to update their own About Me via the API.
-                          When you save, your request is sent to our team and we'll update it manually
-                          in the Discord Developer Portal within 24 hours.
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-muted-foreground text-right">
-                        {bio.length}/190
-                      </div>
-                    </div>
-
-
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs flex items-center gap-1.5">
-                          <Activity className="h-3 w-3 text-primary" />
-                          Online status
-                        </Label>
-                        <Select
-                          value={presence}
-                          onValueChange={(v) => setPresence(v as PresenceStatus)}
-                          disabled={savingDetails}
-                        >
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {PRESENCE_OPTIONS.map((o) => (
-                              <SelectItem key={o.value} value={o.value}>
-                                <span className="flex items-center gap-2">
-                                  <span className={`h-2 w-2 rounded-full ${o.dot}`} />
-                                  {o.label}
-                                </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label htmlFor="bot-status-msg" className="text-xs">Status message</Label>
-                        <Input
-                          id="bot-status-msg"
-                          value={activityText}
-                          onChange={(e) => setActivityText(e.target.value)}
-                          maxLength={128}
-                          placeholder="e.g. helping out"
-                          disabled={savingDetails}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end">
-                      <Button size="sm" onClick={saveDetails} disabled={savingDetails || !!bioError}>
-                        {savingDetails ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
-                      </Button>
-                    </div>
+          {expanded && (
+            <div
+              className="bioeditor"
+              style={{
+                marginTop: 14,
+                border: "1px solid rgba(201,219,230,.22)",
+                borderRadius: 14,
+                background: "#20262d",
+                padding: "24px 28px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 18,
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.03)",
+              }}
+            >
+              <div className="biofield">
+                <label htmlFor="bot-bio" className="biolabel">
+                  <Info />
+                  About Me
+                </label>
+                <Textarea
+                  id="bot-bio"
+                  value={bio}
+                  onChange={(e) => {
+                    setBio(resolveEmojis(e.target.value));
+                  }}
+                  maxLength={190}
+                  rows={3}
+                  placeholder="Describe what your bot does…"
+                  disabled={savingDetails}
+                  className="resize-none bg-[var(--bpanel)] border-[var(--bhair)] text-[var(--bheading)]"
+                  style={{ padding: "10px 13px" }}
+                />
+                {bioError && (
+                  <div className="bioerr">
+                    <AlertTriangle />
+                    <span>{bioError}</span>
                   </div>
                 )}
-              </>
-            )}
+                <div className="bionote">
+                  <Info />
+                  <span>
+                    Discord doesn't let bots change their own About Me through the API.
+                    When you save, we get the request and update it by hand in the Discord
+                    Developer Portal — usually within 24 hours.
+                  </span>
+                </div>
+                <div className="biocount">{bio.length}/190</div>
+              </div>
+
+              <div className="biogrid">
+                <div className="biofield">
+                  <label className="biolabel">
+                    <Activity />
+                    Online status
+                  </label>
+                  <Select
+                    value={presence}
+                    onValueChange={(v) => setPresence(v as PresenceStatus)}
+                    disabled={savingDetails}
+                  >
+                    <SelectTrigger
+                      className="bg-[var(--bpanel)] border-[var(--bhair)] text-[var(--bheading)]"
+                      style={{ paddingLeft: 13, paddingRight: 12 }}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PRESENCE_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          <span className="flex items-center gap-2">
+                            <span className={`h-2 w-2 rounded-full ${o.dot}`} />
+                            {o.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="biofield">
+                  <label htmlFor="bot-status-msg" className="biolabel">Status message</label>
+                  <Input
+                    id="bot-status-msg"
+                    value={activityText}
+                    onChange={(e) => setActivityText(e.target.value)}
+                    maxLength={128}
+                    placeholder="e.g. helping out"
+                    disabled={savingDetails}
+                    className="bg-[var(--bpanel)] border-[var(--bhair)] text-[var(--bheading)]"
+                    style={{ paddingLeft: 13, paddingRight: 13 }}
+                  />
+                </div>
+              </div>
+
+              <div className="bioactions">
+                <Button
+                  size="sm"
+                  onClick={saveDetails}
+                  disabled={savingDetails || !!bioError}
+                  className="min-w-[120px]"
+                >
+                  {savingDetails ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save changes"}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
+      )}
+      </div>{/* pbody */}
+
       </div>
 
       {crop && (
@@ -762,6 +839,96 @@ export const BotIdentityEditor = ({
           onCancel={() => setCrop(null)}
         />
       )}
-    </Card>
+    </div>
   );
 };
+
+const BID_CSS = `
+.bid{
+  --bpanel:#272e36;--bpanel2:#242b32;--bsurface:#2d353e;--bsurface2:#343d46;--bhair:#3a434d;
+  --bheading:#E8EEF3;--bbody:#A8B4BF;--bfaint:#788591;--baccent:#C9DBE6;--baccentink:#1E242B;
+  --bok:#86d3a1;--bgold:#cbb277;
+  --bdisp:"Bricolage Grotesque",system-ui,sans-serif;--bbodyf:"Space Grotesk",system-ui,sans-serif;--bmono:"Space Mono",monospace;
+}
+.bid .card{position:relative;background:linear-gradient(180deg,var(--bpanel),var(--bpanel2));border:1px solid var(--bhair);
+  border-radius:18px;box-shadow:0 24px 60px -32px rgba(0,0,0,.6)}
+
+/* Banner — uploaded image, or an icy gradient fallback. Only the banner clips
+   (rounded top corners); the card itself must NOT clip, or the bio panel /
+   Save button get sliced off at the rounded bottom corners. */
+.bid .pbanner{position:relative;height:132px;border-radius:17px 17px 0 0;overflow:hidden;
+  background:radial-gradient(120% 160% at 18% -20%,rgba(201,219,230,.22),transparent 60%),
+    linear-gradient(120deg,#2c353f 0%,#323d48 45%,#3b4753 100%)}
+.bid .pbanner.hasimg{background:#20262d}
+.bid .pbanner>img{position:absolute;inset:0;height:100%;width:100%;object-fit:cover;display:block}
+.bid .pbanner::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(24,28,34,0) 40%,rgba(24,28,34,.5) 100%)}
+
+.bid .pbtn{position:relative;z-index:2;height:34px;display:inline-flex;align-items:center;gap:7px;padding:0 12px;
+  border-radius:9px;background:rgba(20,24,28,.55);border:1px solid rgba(255,255,255,.14);color:var(--bheading);
+  font-family:var(--bbodyf);font-size:12.5px;font-weight:600;cursor:pointer;backdrop-filter:blur(6px);transition:.15s}
+.bid .pbtn:hover{background:rgba(20,24,28,.72);border-color:rgba(201,219,230,.4)}
+.bid .pbtn:disabled{opacity:.6;cursor:default}
+.bid .pbtn.icon{width:34px;justify-content:center;padding:0}
+.bid .pbtn svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.9;fill:none}
+.bid .bnedit{position:absolute;top:14px;left:14px}
+.bid .pacts{position:absolute;top:14px;right:14px;z-index:2;display:flex;align-items:center;gap:8px}
+/* Let the parent-supplied "Add add-ons" button match the banner buttons */
+.bid .pacts>button{height:34px;border-radius:9px;background:rgba(20,24,28,.55);border:1px solid rgba(255,255,255,.14);
+  color:var(--bheading);backdrop-filter:blur(6px)}
+.bid .pacts>button:hover{background:rgba(20,24,28,.72);border-color:rgba(201,219,230,.4)}
+
+/* Body — avatar overlaps banner */
+.bid .pbody{position:relative;padding:0 22px 18px}
+.bid .prow{display:flex;align-items:flex-end;gap:16px;margin-top:-40px}
+.bid .avatar{position:relative;height:88px;width:88px;border-radius:20px;flex:none;overflow:hidden;
+  background:color-mix(in srgb,var(--baccent) 12%,var(--bpanel));border:4px solid var(--bpanel);
+  display:grid;place-items:center;box-shadow:0 10px 30px -10px rgba(0,0,0,.7)}
+.bid .avatar>img{height:100%;width:100%;object-fit:cover}
+.bid .avatar>svg{width:38px;height:38px;stroke:var(--baccent);stroke-width:1.6;fill:none}
+.bid .avatar .edit{position:absolute;bottom:4px;right:4px;height:26px;width:26px;border-radius:50%;background:var(--baccent);
+  color:var(--baccentink);border:2px solid var(--bpanel);display:grid;place-items:center;cursor:pointer}
+.bid .avatar .edit:disabled{opacity:.6}
+.bid .avatar .edit svg{width:12px;height:12px;stroke:currentColor;stroke-width:2.2;fill:none}
+.bid .pident{flex:1;min-width:0;padding-bottom:4px}
+.bid .nrow{display:flex;align-items:center;gap:9px;min-width:0}
+.bid .nrow h1{font-family:var(--bdisp);font-weight:800;font-size:25px;color:var(--bheading);margin:0;letter-spacing:-.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bid .nrow .pen{color:var(--bfaint);cursor:pointer;display:grid;place-items:center;padding:3px;background:none;border:0}
+.bid .nrow .pen:hover{color:var(--bbody)} .bid .nrow .pen svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.9;fill:none}
+
+/* Meta rows (supplied by parent as .meta1 / .meta2) */
+.bid .metawrap{margin-top:9px;display:flex;flex-direction:column;gap:8px}
+.bid .meta1{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bid .basetype{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--bheading)}
+.bid .basetype svg{width:14px;height:14px;stroke:var(--baccent);stroke-width:1.8;fill:none}
+.bid .meta2{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--bfaint);flex-wrap:wrap;line-height:1.2}
+.bid .meta2 svg{width:13px;height:13px}
+.bid .warn{margin-top:8px;display:flex;align-items:flex-start;gap:6px;font-size:11px;color:var(--bgold)}
+.bid .warn svg{width:12px;height:12px;margin-top:2px;flex:none;stroke:currentColor;stroke-width:1.9;fill:none}
+
+.bid .biorow{padding:16px 0 0}
+.bid .biotoggle{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--bhair);background:rgba(255,255,255,.02);
+  border-radius:9px;padding:8px 13px;font-family:var(--bbodyf);font-size:12.5px;font-weight:500;color:var(--bfaint);cursor:pointer}
+.bid .biotoggle:hover{background:var(--bsurface2);color:var(--bbody)}
+.bid .biotoggle svg{width:13px;height:13px;stroke:currentColor;stroke-width:1.9;fill:none}
+
+/* Expanded bio & status editor — matched to the card's design language */
+.bid .bioeditor{margin-top:14px;border:1px solid var(--bhair);border-radius:14px;background:var(--bpanel2);
+  padding:22px 26px;display:flex;flex-direction:column;gap:18px}
+.bid .biofield{display:flex;flex-direction:column;gap:8px;min-width:0}
+.bid .biolabel{display:inline-flex;align-items:center;gap:7px;font-family:var(--bbodyf);font-size:12px;font-weight:600;
+  color:var(--bheading);letter-spacing:.01em}
+.bid .biolabel svg{width:13px;height:13px;stroke:var(--baccent);stroke-width:2;fill:none}
+.bid .bionote{display:flex;align-items:flex-start;gap:9px;border-radius:11px;background:rgba(201,219,230,.06);
+  border:1px solid rgba(201,219,230,.14);padding:11px 13px;font-family:var(--bbodyf);font-size:11.5px;color:var(--bbody);line-height:1.55}
+.bid .bionote svg{width:14px;height:14px;flex:none;margin-top:1px;stroke:var(--baccent);stroke-width:2;fill:none}
+.bid .bioerr{display:flex;align-items:flex-start;gap:9px;border-radius:11px;background:rgba(239,68,68,.1);
+  border:1px solid rgba(239,68,68,.25);padding:10px 12px;font-size:11.5px;color:#f4a6a6}
+.bid .bioerr svg{width:14px;height:14px;flex:none;margin-top:1px;stroke:currentColor;stroke-width:2;fill:none}
+.bid .biocount{font-size:10.5px;color:var(--bfaint);text-align:right;font-variant-numeric:tabular-nums}
+.bid .biogrid{display:grid;grid-template-columns:1fr;gap:16px}
+.bid .biogrid>*{min-width:0}
+@media(min-width:560px){.bid .biogrid{grid-template-columns:1fr 1fr}}
+.bid .bioactions{display:flex;justify-content:flex-end}
+`;
