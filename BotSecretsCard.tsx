@@ -142,8 +142,11 @@ export function BotSecretsCard({ bot }: Props) {
   const scopes = useMemo(() => relevantScopes(bot), [bot]);
   const showVoice = (bot.base ?? "").toLowerCase().trim() === "dispatch";
 
-  const reload = useCallback(async () => {
-    setLoading(true);
+  const reload = useCallback(async (silent = false) => {
+    // Silent reload (e.g. after saving the voice channel) refreshes the slot
+    // metadata without flipping `loading`, so sections don't unmount and lose
+    // their local UI state (the picked channel would otherwise reset).
+    if (!silent) setLoading(true);
     const { data, error } = await (supabase as any).rpc("get_bot_secrets_metadata", {
       _bot_id: bot.id,
     });
@@ -209,7 +212,9 @@ export function BotSecretsCard({ bot }: Props) {
             {visible.map((s) => (
               <SecretRow key={s.key} bot={bot} slot={s} onChanged={reload} />
             ))}
-            {showVoice && <VoiceChannelSection bot={bot} alreadySet={voiceSet} onSaved={reload} />}
+            {showVoice && (
+              <VoiceChannelSection bot={bot} alreadySet={voiceSet} onSaved={() => reload(true)} />
+            )}
           </>
         )}
       </div>
