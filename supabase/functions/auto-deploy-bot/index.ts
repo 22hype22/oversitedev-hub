@@ -914,7 +914,11 @@ async function sendDeployedDM(
 // encrypted secrets), and the Oversite-bundled voice + AI keys (from this
 // function's own env). Strictly separate from buildFeatureFlagVars — the F_*
 // feature flags don't apply to Dispatch.
-async function buildDispatchVars(): Promise<Record<string, string>> {
+async function buildDispatchVars(
+  admin: any,
+  orderId: string,
+  workerToken: string,
+): Promise<Record<string, string>> {
   const vars: Record<string, string> = {};
 
   // Oversite-bundled, shared across every Dispatch bot. Set these as secrets on
@@ -930,6 +934,36 @@ async function buildDispatchVars(): Promise<Record<string, string>> {
   };
   for (const [k, v] of Object.entries(bundled)) {
     if (v && v.trim()) vars[k] = v.trim();
+  }
+
+  // Belt-and-suspenders: if the customer has ALREADY entered their ER:LC key
+  // (true for every redeploy/reprovision after first setup), bake it in as a
+  // real ERLC_SERVER_KEY env var — exactly like a hand-configured bot. The bot
+  // reads env first (ERLC_KEY = os.environ.get("ERLC_SERVER_KEY")) and only
+  // overwrites it if the runtime secret read succeeds, so this makes the bot
+  // work at boot even if the token-gated read ever hiccups. On the very first
+  // deploy the key isn't entered yet, so this is skipped and the bot picks it
+  // up live later using its freshly-minted (registered) WORKER_TOKEN.
+  //
+  // We read it through the same runtime_get_bot_secret RPC the bot uses,
+  // passing the just-minted worker token so decryption + token scoping happen
+  // in one audited path. Failures are non-fatal — fall through to runtime read.
+  try {
+    const { data: erlcKey, error: erlcErr } = await admin.rpc("runtime_get_bot_secret", {
+      _token: workerToken,
+      _bot_id: orderId,
+      _key: "ERLC_SERVER_KEY",
+    });
+    if (erlcErr) {
+      console.warn("[auto-deploy-bot] dispatch ERLC key prefetch RPC error", erlcErr.message);
+    } else if (typeof erlcKey === "string" && erlcKey.trim()) {
+      vars.ERLC_SERVER_KEY = erlcKey.trim();
+      console.log("[auto-deploy-bot] dispatch ERLC key baked into env vars", { orderId });
+    } else {
+      console.log("[auto-deploy-bot] dispatch ERLC key not yet entered — deferring to runtime read", { orderId });
+    }
+  } catch (e) {
+    console.warn("[auto-deploy-bot] dispatch ERLC key prefetch threw", String(e));
   }
 
   return vars;
@@ -1239,7 +1273,7 @@ Deno.serve(async (req) => {
       : [];
     const isDispatch = (order.base ?? "").toLowerCase().trim() === "dispatch";
     const featureFlagVars = isDispatch
-      ? await buildDispatchVars()
+      ? await buildDispatchVars(admin, orderId, workerToken)
       : buildFeatureFlagVars(order.base, purchasedAddons);
 
     const varsPayload: Record<string, string> = {
