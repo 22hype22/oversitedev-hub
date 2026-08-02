@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import type { OwnedBot } from "@/hooks/useOwnedBots";
+import { ImageCropModal, BANNER_RATIO } from "./ImageCropModal";
 
 type PresenceStatus = "online" | "idle" | "dnd" | "invisible";
 
@@ -60,6 +61,8 @@ export const BotIdentityEditor = ({
 
   const [savingAvatar, setSavingAvatar] = useState(false);
   const [savingBanner, setSavingBanner] = useState(false);
+  // When a file is picked, open the crop/zoom editor before uploading.
+  const [crop, setCrop] = useState<{ src: string; mode: "avatar" | "banner" } | null>(null);
 
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(bot.bot_name);
@@ -143,28 +146,37 @@ export const BotIdentityEditor = ({
     return { ok: true, data };
   };
 
+  // Picking a file no longer uploads straight away — it opens the crop/zoom
+  // editor. The cropped result is what actually gets uploaded (see onCropApply).
   const onAvatarPick = async (file: File) => {
     if (!file.type.startsWith("image/")) return toast.error("Please choose an image file");
     if (file.size > MAX_BYTES) return toast.error("Image must be under 8 MB");
-    setSavingAvatar(true);
-    try {
-      const dataUrl = await fileToDataUrl(file);
-      const { ok } = await callUpdate({ avatar: dataUrl });
-      if (ok) {
-        toast.success("Avatar updated on Discord");
-        onUpdated();
-      }
-    } finally {
-      setSavingAvatar(false);
-    }
+    setCrop({ src: await fileToDataUrl(file), mode: "avatar" });
   };
 
   const onBannerPick = async (file: File) => {
     if (!file.type.startsWith("image/")) return toast.error("Please choose an image file");
     if (file.size > MAX_BYTES) return toast.error("Image must be under 8 MB");
+    setCrop({ src: await fileToDataUrl(file), mode: "banner" });
+  };
+
+  const uploadAvatar = async (dataUrl: string) => {
+    setSavingAvatar(true);
+    try {
+      const { ok } = await callUpdate({ avatar: dataUrl });
+      if (ok) {
+        toast.success("Avatar updated on Discord");
+        onUpdated();
+      }
+      return ok;
+    } finally {
+      setSavingAvatar(false);
+    }
+  };
+
+  const uploadBanner = async (dataUrl: string) => {
     setSavingBanner(true);
     try {
-      const dataUrl = await fileToDataUrl(file);
       const { ok, data } = await callUpdate({ banner: dataUrl });
       console.log("[banner] callUpdate result", { ok, data });
       if (ok) {
@@ -172,9 +184,16 @@ export const BotIdentityEditor = ({
         onUpdated();
         await notifyBannerUploaded((data as any)?.banner_url ?? null);
       }
+      return ok;
     } finally {
       setSavingBanner(false);
     }
+  };
+
+  const onCropApply = async (dataUrl: string) => {
+    if (!crop) return;
+    const ok = crop.mode === "avatar" ? await uploadAvatar(dataUrl) : await uploadBanner(dataUrl);
+    if (ok) setCrop(null);
   };
 
   const notifyBannerUploaded = async (bannerUrl: string | null) => {
@@ -733,6 +752,16 @@ export const BotIdentityEditor = ({
         </div>
       </div>
 
+      {crop && (
+        <ImageCropModal
+          src={crop.src}
+          mode={crop.mode}
+          bannerRatio={BANNER_RATIO}
+          busy={savingAvatar || savingBanner}
+          onApply={onCropApply}
+          onCancel={() => setCrop(null)}
+        />
+      )}
     </Card>
   );
 };
