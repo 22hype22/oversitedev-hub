@@ -16,11 +16,12 @@ const SelectValue = SelectPrimitive.Value;
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, style, ...props }, ref) => (
   <SelectPrimitive.Trigger
     ref={ref}
+    style={{ paddingLeft: "2rem", paddingRight: "1.5rem", ...style }}
     className={cn(
-      "flex h-10 w-full items-center justify-between gap-2 rounded-[9px] border border-[rgba(255,255,255,0.09)] bg-[rgba(15,18,22,0.45)] py-2 pl-6 pr-5 text-sm text-[rgb(var(--os-heading))] transition-colors placeholder:text-[rgb(var(--os-faint))] focus:outline-none focus:border-[rgba(201,219,230,0.28)] focus:ring-[3px] focus:ring-[rgba(201,219,230,0.10)] disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 [&[data-state=open]>svg]:rotate-180",
+      "flex h-10 w-full items-center justify-between gap-2 rounded-[9px] border border-[rgba(255,255,255,0.09)] bg-[rgba(15,18,22,0.45)] py-2 text-sm text-[rgb(var(--os-heading))] transition-colors placeholder:text-[rgb(var(--os-faint))] focus:outline-none focus:border-[rgba(201,219,230,0.28)] focus:ring-[3px] focus:ring-[rgba(201,219,230,0.10)] disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 [&[data-state=open]>svg]:rotate-180",
       className,
     )}
     {...props}
