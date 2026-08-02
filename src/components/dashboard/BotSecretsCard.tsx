@@ -446,7 +446,7 @@ function VoiceChannelSection({
             }}
           >
             <SelectTrigger>
-              <span className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
                 <Server size={15} className="shrink-0" />
                 <SelectValue
                   placeholder={
@@ -457,7 +457,7 @@ function VoiceChannelSection({
                         : "Select a server…"
                   }
                 />
-              </span>
+              </div>
             </SelectTrigger>
             <SelectContent>
               {guilds.map((g) => (
@@ -489,7 +489,7 @@ function VoiceChannelSection({
             onValueChange={(v) => pick(v)}
           >
             <SelectTrigger>
-              <span className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
                 <Radio size={15} className="shrink-0" />
                 <SelectValue
                   placeholder={
@@ -502,7 +502,7 @@ function VoiceChannelSection({
                           : "Select a voice channel…"
                   }
                 />
-              </span>
+              </div>
             </SelectTrigger>
             <SelectContent>
               {groups.map((grp) => (
