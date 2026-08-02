@@ -29,7 +29,9 @@ export function ImageCropModal({ src, mode, bannerRatio = BANNER_RATIO, busy, on
   const [zoom, setZoom] = useState(1);
   const [rot, setRot] = useState(0);
   const [flip, setFlip] = useState(false);
-  const [off, setOff] = useState({ x: 0, y: 0 });
+  // Offset lives in a ref, not state, so dragging updates the transform
+  // imperatively (no React re-render per mousemove → smooth).
+  const offRef = useRef({ x: 0, y: 0 });
 
   const target = mode === "avatar" ? AVATAR : bannerTarget(bannerRatio);
 
@@ -54,8 +56,9 @@ export function ImageCropModal({ src, mode, bannerRatio = BANNER_RATIO, busy, on
   useEffect(() => {
     const im = new Image();
     im.onload = () => {
+      offRef.current = { x: 0, y: 0 };
       setNat({ w: im.naturalWidth, h: im.naturalHeight });
-      setZoom(1); setRot(0); setFlip(false); setOff({ x: 0, y: 0 });
+      setZoom(1); setRot(0); setFlip(false);
     };
     im.src = source;
   }, [source]);
@@ -75,12 +78,15 @@ export function ImageCropModal({ src, mode, bannerRatio = BANNER_RATIO, busy, on
     };
   }, []);
 
-  const scale = coverScale() * zoom;
-  const transform =
-    `translate(-50%,-50%) translate(${off.x}px, ${off.y}px) rotate(${rot}deg) ` +
-    `scale(${flip ? -scale : scale}, ${scale})`;
+  // Built on every render (cheap string) and applied imperatively during drag.
+  const buildTransform = () => {
+    const scale = coverScale() * zoom;
+    const o = offRef.current;
+    return `translate(-50%,-50%) translate(${o.x}px, ${o.y}px) rotate(${rot}deg) ` +
+      `scale(${flip ? -scale : scale}, ${scale})`;
+  };
 
-  // drag to pan
+  // drag to pan — imperative, so no state update fires per mousemove
   const drag = useRef<{ x: number; y: number } | null>(null);
   const onDown = (e: React.PointerEvent) => {
     e.preventDefault();
@@ -89,15 +95,19 @@ export function ImageCropModal({ src, mode, bannerRatio = BANNER_RATIO, busy, on
   };
   const onMove = (e: React.PointerEvent) => {
     if (!drag.current) return;
-    setOff((o) => ({ x: o.x + e.clientX - drag.current!.x, y: o.y + e.clientY - drag.current!.y }));
+    offRef.current = {
+      x: offRef.current.x + e.clientX - drag.current.x,
+      y: offRef.current.y + e.clientY - drag.current.y,
+    };
     drag.current = { x: e.clientX, y: e.clientY };
+    if (imgRef.current) imgRef.current.style.transform = buildTransform();
   };
   const onUp = () => { drag.current = null; };
   const onWheel = (e: React.WheelEvent) => {
     setZoom((z) => Math.min(3, Math.max(1, z - e.deltaY * 0.0012)));
   };
 
-  const reset = () => { setZoom(1); setRot(0); setFlip(false); setOff({ x: 0, y: 0 }); };
+  const reset = () => { offRef.current = { x: 0, y: 0 }; setZoom(1); setRot(0); setFlip(false); };
 
   const pickNew = () => fileRef.current?.click();
   const onNewFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,7 +129,7 @@ export function ImageCropModal({ src, mode, bannerRatio = BANNER_RATIO, busy, on
     ctx.clearRect(0, 0, target.w, target.h);
     ctx.save();
     ctx.translate(target.w / 2, target.h / 2);
-    ctx.translate(off.x * ratio, off.y * ratio);
+    ctx.translate(offRef.current.x * ratio, offRef.current.y * ratio);
     ctx.rotate((rot * Math.PI) / 180);
     const sc = coverScale() * zoom * ratio;
     ctx.scale((flip ? -1 : 1) * sc, sc);
@@ -157,7 +167,7 @@ export function ImageCropModal({ src, mode, bannerRatio = BANNER_RATIO, busy, on
             onDragStart={(e) => e.preventDefault()}
             onWheel={onWheel}
           >
-            <img ref={imgRef} src={source} alt="" draggable={false} style={{ transform }} />
+            <img ref={imgRef} src={source} alt="" draggable={false} style={{ transform: buildTransform() }} />
             <div className={`frame${target.round ? " round" : ""}`} />
           </div>
         </div>
