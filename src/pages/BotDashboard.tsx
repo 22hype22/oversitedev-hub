@@ -1505,7 +1505,7 @@ const stWord = (b: OwnedBot) => isLive(b) ? "Online" : (b.status === "submitted"
 const CHART = [[40,22],[55,30],[35,18],[70,40],[48,26],[80,44],[60,33]];
 const CDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
-type Group = { id: string; name: string; botIds: string[] };
+type Group = { id: string; name: string };
 
 const DEFAULT_DASH_ORDER = ["setup", "activity", "table", "bots", "spotlight"];
 
@@ -1730,9 +1730,34 @@ const BotDashboard = () => {
   const onDragOver = (e: React.DragEvent, overId: string) => { e.preventDefault(); const from = dragId.current; if (!from || from === overId) return; setOrder((p) => { const a = [...p]; const fi = a.indexOf(from), oi = a.indexOf(overId); if (fi < 0 || oi < 0) return p; a.splice(fi, 1); a.splice(oi, 0, from); return a; }); };
   const onDragEnd = () => { dragId.current = null; setDragActive(false); };
 
-  // ---- groups (local) ----
-  const [groups, setGroups] = useState<Group[]>(() => { try { return JSON.parse(lsGet(LS.groups) || "[]"); } catch { return []; } });
-  useEffect(() => { lsSet(LS.groups, JSON.stringify(groups)); }, [groups]);
+  // ---- groups (real, backed by the group_* RPCs — the SAME source as the
+  // Team hub, so a group made here is a real group and shows up there too).
+  const [groups, setGroups] = useState<Group[]>([]);
+  const loadGroups = useCallback(async () => {
+    try {
+      const { data, error } = await (supabase as any).rpc("group_list");
+      if (error) throw error;
+      const list = (Array.isArray(data) ? data : []) as Array<{ id: string; name: string }>;
+      setGroups(list.map((g) => ({ id: g.id, name: g.name })));
+    } catch (e: any) {
+      console.error("group_list failed", e);
+    }
+  }, []);
+  useEffect(() => { void loadGroups(); }, [loadGroups]);
+  // Which bots are in a group is the source of truth on bot_orders.group_id.
+  const groupBotIds = useCallback(
+    (gid: string) => owned.filter((b) => b.group_id === gid).map((b) => b.id),
+    [owned],
+  );
+  const toggleBotInGroup = useCallback(async (gid: string, botId: string) => {
+    const current = owned.filter((b) => b.group_id === gid).map((b) => b.id);
+    const next = current.includes(botId)
+      ? current.filter((x) => x !== botId)
+      : [...current, botId];
+    const { error } = await (supabase as any).rpc("group_set_bots", { _group_id: gid, _bot_ids: next });
+    if (error) { toast.error("Couldn't update this group's bots", { description: error.message }); return; }
+    await Promise.all([reload(), loadGroups()]);
+  }, [owned, reload, loadGroups]);
 
   const chooseMode = (m: "solo" | "team") => { setWsMode(m); lsSet(LS.ws, m); lsSet(LS.onboarded, "1"); setAppOn(true); askTour(); };
   const openBot = (id: string) => { setBotId(id); setView("bot"); window.scrollTo({ top: 0 }); };
@@ -2131,18 +2156,18 @@ const BotDashboard = () => {
             <div className={"view" + (view === "groups" ? " on" : "")}>
               <div className="ph2" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "14px", flexWrap: "wrap" }}>
                 <div><h2>Groups</h2><p>Bundle bots from a server together, then give a team access to just that bundle.</p></div>
-                <button className="cta" onClick={() => { const n = window.prompt("Name this group"); if (n && n.trim()) setGroups((g) => [...g, { id: "g_" + Date.now(), name: n.trim(), botIds: [] }]); }}>+ New group</button>
+                <button className="cta" onClick={async () => { const n = window.prompt("Name this group"); if (!n || !n.trim()) return; const { error } = await (supabase as any).rpc("group_create", { _name: n.trim(), _bot_ids: [] }); if (error) { toast.error("Couldn't create group", { description: error.message }); return; } await loadGroups(); }}>+ New group</button>
               </div>
               <div className="groups">
                 {groups.length === 0 && <div className="card" style={{ textAlign: "center", color: "var(--faint)", fontSize: "13px" }}>No groups yet. Create one to bundle bots and share access.</div>}
                 {groups.map((g) => (
                   <div className="gcard" key={g.id}>
-                    <div className="ghd"><div className="gi"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></div><div><div className="gname">{g.name}</div><div className="gmeta">{g.botIds.length} bots</div></div><span className="dots" style={{ cursor: "pointer" }} onClick={() => setGroups((gs) => gs.filter((x) => x.id !== g.id))}>×</span></div>
+                    <div className="ghd"><div className="gi"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></div><div><div className="gname">{g.name}</div><div className="gmeta">{groupBotIds(g.id).length} bots</div></div></div>
                     <div className="gbody">
                       <div>
                         <div className="gcl">Bots in this group</div>
                         <div className="chips">
-                          {owned.map((b) => { const inG = g.botIds.includes(b.id); return (<span className={"chip" + (inG ? "" : " add")} key={b.id} style={{ cursor: "pointer" }} onClick={() => setGroups((gs) => gs.map((x) => x.id === g.id ? { ...x, botIds: inG ? x.botIds.filter((y) => y !== b.id) : [...x.botIds, b.id] } : x))}>{inG ? botSvg(b.base) : null}{b.bot_name}{inG && <span className="x">×</span>}</span>); })}
+                          {owned.map((b) => { const inG = b.group_id === g.id; return (<span className={"chip" + (inG ? "" : " add")} key={b.id} style={{ cursor: "pointer" }} onClick={() => void toggleBotInGroup(g.id, b.id)}>{inG ? botSvg(b.base) : null}{b.bot_name}{inG && <span className="x">×</span>}</span>); })}
                         </div>
                       </div>
                       <div>
