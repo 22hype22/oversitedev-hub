@@ -1068,6 +1068,44 @@ Deno.serve(async (req) => {
       );
     }
 
+    // PRE-SALE GUARD (defense in depth): never deploy a bot whose storefront
+    // status is Pre-order or Coming Soon. Orders for a gated bot are held as
+    // reserved pre-orders and never reach 'ready', so this normally isn't hit —
+    // but if a deploy is triggered manually while the bot is gated, refuse it.
+    // The order stays reserved until the owner flips the bot to Available.
+    try {
+      const { data: appRow } = await admin
+        .from("app_settings")
+        .select("bot_availability")
+        .eq("id", 1)
+        .maybeSingle();
+      const availability = ((appRow as { bot_availability?: Record<string, string> } | null)
+        ?.bot_availability ?? {}) as Record<string, string>;
+      const gated = String(order.base ?? "")
+        .split(/[^a-z0-9-]+/i)
+        .filter(Boolean)
+        .some((tok) => {
+          const st = availability[tok];
+          return st === "preorder" || st === "coming_soon";
+        });
+      if (gated) {
+        console.log("[auto-deploy-bot] refusing deploy — bot is in pre-sale", {
+          orderId,
+          base: order.base,
+        });
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            held: true,
+            message: "Bot is in Pre-order/Coming Soon — not deploying until it's set to Available.",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    } catch (e) {
+      console.warn("[auto-deploy-bot] pre-sale guard check failed (continuing)", String(e));
+    }
+
     // Concurrency lock: refuse to start a new deploy if one is already in
     // flight. A stale lock older than 10 minutes is considered abandoned.
     // Skip this check when invoked by the bot_orders trigger — the trigger
