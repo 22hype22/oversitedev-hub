@@ -1547,6 +1547,12 @@ const BotDashboard = () => {
   // their own. The workspace onboarding is owner-only, so we skip it for them
   // (and, crucially, still reveal the dashboard — see `showApp`).
   const isInvitedOnly = hasDashboardAccess && !ownedBots.some((b) => !b.isDemo);
+  // An invited member only reaches Settings/appearance if their role has the
+  // `manage_settings` permission. Owners always can. Permissions are per
+  // owner+role, so any of the member's team bots resolves the same answer.
+  const firstTeamBotId = dashboardBots.find((b) => b.viaTeam && !b.isDemo)?.id ?? null;
+  const { permissions: viewerPerms } = useTeamRole(isInvitedOnly ? firstTeamBotId : null);
+  const canManageSettings = !isInvitedOnly || viewerPerms.manage_settings;
   useHostingSubscriptionSync();
   const { periods: freePeriods, reload: reloadFreePeriods } = useBotFreePeriods();
   const { items: notifications, unread } = useBotNotifications();
@@ -1769,6 +1775,9 @@ const BotDashboard = () => {
   const chooseMode = (m: "solo" | "team") => { setWsMode(m); lsSet(LS.ws, m); lsSet(LS.onboarded, "1"); setAppOn(true); askTour(); };
   const openBot = (id: string) => { setBotId(id); setView("bot"); window.scrollTo({ top: 0 }); };
   const go = (v: string) => { setView(v); window.scrollTo({ top: 0 }); };
+  // Bounce a member off Settings if their role doesn't allow it (e.g. a stale
+  // saved view), so they never land on a blank/forbidden panel.
+  useEffect(() => { if (!canManageSettings && view === "settings") setView("dashboard"); }, [canManageSettings, view]);
   const openPortal = async () => { const { data, error } = await supabase.functions.invoke("customer-portal"); if (error) { toast.error("Couldn't open billing portal", { description: error.message }); return; } const url = (data as { url?: string } | null)?.url; if (url) window.location.href = url; else toast.error("No billing portal available yet."); };
   const [confirmOut, setConfirmOut] = useState(false);
   const signOut = async () => { await supabase.auth.signOut(); navigate("/auth", { replace: true }); };
@@ -2113,7 +2122,7 @@ const BotDashboard = () => {
             {isTeam && navItem("team", <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>, "Team")}
 
             <div className="glab">More</div>
-            {navItem("settings", <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1l-.4-2.5H9.6L9.2 6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L5 11a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 2.5h4.8l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6a7 7 0 0 0 .1-1Z"/></svg>, "Settings")}
+            {canManageSettings && navItem("settings", <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1l-.4-2.5H9.6L9.2 6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L5 11a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 2.5h4.8l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6a7 7 0 0 0 .1-1Z"/></svg>, "Settings")}
             {navItem("support", <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 2.5"/><path d="M12 17h.01"/></svg>, "Support")}
 
             <div style={{ marginTop: "auto" }} />
@@ -2223,7 +2232,7 @@ const BotDashboard = () => {
             </div>
 
             {/* SETTINGS */}
-            <div className={"view" + (view === "settings" ? " on" : "")}>
+            <div className={"view" + (view === "settings" && canManageSettings ? " on" : "")}>
               <div className="ph2"><h2>Settings</h2><p>Your account, workspace, and notifications.</p></div>
               <div className="card" style={{ marginBottom: "16px" }}>
                 <div className="ch"><span className="ct">Workspace</span></div>
