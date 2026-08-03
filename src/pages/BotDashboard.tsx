@@ -1759,7 +1759,8 @@ const BotDashboard = () => {
       const { data, error } = await (supabase as any).rpc("group_list");
       if (error) throw error;
       const list = (Array.isArray(data) ? data : []) as Array<{ id: string; name: string }>;
-      setGroups(list.map((g) => ({ id: g.id, name: g.name })));
+      // Hide the auto-created default "Oversite" group — only groups the owner made.
+      setGroups(list.filter((g) => (g.name ?? "").trim().toLowerCase() !== "oversite").map((g) => ({ id: g.id, name: g.name })));
     } catch (e: any) {
       console.error("group_list failed", e);
     }
