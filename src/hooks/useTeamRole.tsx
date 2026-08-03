@@ -10,6 +10,7 @@ export type TeamPermissions = {
   view_dashboard: boolean;
   edit_bot_config: boolean;
   manage_secrets: boolean;
+  manage_settings: boolean;
   view_logs: boolean;
   edit_billing: boolean;
   manage_team: boolean;
@@ -17,15 +18,15 @@ export type TeamPermissions = {
 };
 
 export const DEFAULT_PERMISSIONS: Record<TeamRole, TeamPermissions> = {
-  owner:    { view_dashboard: true,  edit_bot_config: true,  manage_secrets: true,  view_logs: true,  edit_billing: true,  manage_team: true,  transfer_ownership: true },
-  co_owner: { view_dashboard: true,  edit_bot_config: true,  manage_secrets: true,  view_logs: true,  edit_billing: true,  manage_team: true,  transfer_ownership: false },
-  admin:    { view_dashboard: true,  edit_bot_config: true,  manage_secrets: true,  view_logs: true,  edit_billing: false, manage_team: false, transfer_ownership: false },
-  moderator:{ view_dashboard: true,  edit_bot_config: true,  manage_secrets: false, view_logs: true,  edit_billing: false, manage_team: false, transfer_ownership: false },
-  viewer:   { view_dashboard: true,  edit_bot_config: false, manage_secrets: false, view_logs: false, edit_billing: false, manage_team: false, transfer_ownership: false },
+  owner:    { view_dashboard: true,  edit_bot_config: true,  manage_secrets: true,  manage_settings: true,  view_logs: true,  edit_billing: true,  manage_team: true,  transfer_ownership: true },
+  co_owner: { view_dashboard: true,  edit_bot_config: true,  manage_secrets: true,  manage_settings: true,  view_logs: true,  edit_billing: true,  manage_team: true,  transfer_ownership: false },
+  admin:    { view_dashboard: true,  edit_bot_config: true,  manage_secrets: true,  manage_settings: true,  view_logs: true,  edit_billing: false, manage_team: false, transfer_ownership: false },
+  moderator:{ view_dashboard: true,  edit_bot_config: true,  manage_secrets: false, manage_settings: false, view_logs: true,  edit_billing: false, manage_team: false, transfer_ownership: false },
+  viewer:   { view_dashboard: true,  edit_bot_config: false, manage_secrets: false, manage_settings: false, view_logs: false, edit_billing: false, manage_team: false, transfer_ownership: false },
 };
 
 const EMPTY: TeamPermissions = {
-  view_dashboard: false, edit_bot_config: false, manage_secrets: false,
+  view_dashboard: false, edit_bot_config: false, manage_secrets: false, manage_settings: false,
   view_logs: false, edit_billing: false, manage_team: false, transfer_ownership: false,
 };
 
