@@ -92,7 +92,7 @@ serve(async (req) => {
     // together and count how many bot tokens this order needs.
     const { data: siblings, error: sibErr } = await admin
       .from("bot_orders")
-      .select("id, status, bot_name")
+      .select("id, status, bot_name, base")
       .or(`id.eq.${parentId},parent_order_id.eq.${parentId}`);
     if (sibErr || !siblings) return bad("Could not load order", 500);
 
@@ -111,6 +111,43 @@ serve(async (req) => {
     }
 
     const botsNeeded = eligible.length;
+    const now = new Date().toISOString();
+
+    // ── PRE-SALE GATE ──────────────────────────────────────────────────────
+    // If any bot in this order is set to "Pre-order" or "Coming Soon" on the
+    // storefront (per-bot `bot_availability` in app_settings), HOLD the whole
+    // order as a reserved pre-order. The card is already saved (SetupIntent) but
+    // we do NOT charge it and do NOT flip to 'ready' — so the bot never builds
+    // until the owner sets it to Available (which fulfils the held pre-orders).
+    const { data: appRow } = await admin
+      .from("app_settings")
+      .select("bot_availability")
+      .eq("id", 1)
+      .maybeSingle();
+    const availability = (appRow?.bot_availability ?? {}) as Record<string, string>;
+    const isGatedBase = (base: string | null | undefined) =>
+      !!base &&
+      String(base)
+        .split(/[^a-z0-9-]+/i)
+        .filter(Boolean)
+        .some((tok) => {
+          const st = availability[tok];
+          return st === "preorder" || st === "coming_soon";
+        });
+    if (siblings.some((r) => isGatedBase((r as { base?: string | null }).base))) {
+      // Leave the rows in their reserved 'preorder' state; charge + deploy
+      // happen later, when the owner flips the bot to Available.
+      await admin
+        .from("bot_orders")
+        .update({ status: "preorder", updated_at: now })
+        .in("id", allIds)
+        .in("status", ["paid", "preorder", "preorder_pending_card"]);
+      return new Response(
+        JSON.stringify({ ok: true, path: "presale_hold", status: "preorder" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    // ───────────────────────────────────────────────────────────────────────
 
     // Server-side stock check at the moment of confirmation.
     const { count: availableTokens, error: tokenErr } = await admin
@@ -120,7 +157,6 @@ serve(async (req) => {
     if (tokenErr) return bad("Could not verify bot availability", 500);
 
     const inStock = (availableTokens ?? 0) >= botsNeeded;
-    const now = new Date().toISOString();
 
     if (inStock) {
       // Build-start: charge the saved card NOW. If it declines / has no funds,
