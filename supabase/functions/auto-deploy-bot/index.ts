@@ -10,6 +10,7 @@
 // a deploy, and writes the new service id back to bot_orders.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { scrubGuilds } from "../_shared/discord-guilds.ts";
+import { mintWorkerToken } from "../_shared/worker-token.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -913,7 +914,11 @@ async function sendDeployedDM(
 // encrypted secrets), and the Oversite-bundled voice + AI keys (from this
 // function's own env). Strictly separate from buildFeatureFlagVars — the F_*
 // feature flags don't apply to Dispatch.
-async function buildDispatchVars(): Promise<Record<string, string>> {
+async function buildDispatchVars(
+  admin: any,
+  orderId: string,
+  workerToken: string,
+): Promise<Record<string, string>> {
   const vars: Record<string, string> = {};
 
   // Oversite-bundled, shared across every Dispatch bot. Set these as secrets on
@@ -929,6 +934,36 @@ async function buildDispatchVars(): Promise<Record<string, string>> {
   };
   for (const [k, v] of Object.entries(bundled)) {
     if (v && v.trim()) vars[k] = v.trim();
+  }
+
+  // Belt-and-suspenders: if the customer has ALREADY entered their ER:LC key
+  // (true for every redeploy/reprovision after first setup), bake it in as a
+  // real ERLC_SERVER_KEY env var — exactly like a hand-configured bot. The bot
+  // reads env first (ERLC_KEY = os.environ.get("ERLC_SERVER_KEY")) and only
+  // overwrites it if the runtime secret read succeeds, so this makes the bot
+  // work at boot even if the token-gated read ever hiccups. On the very first
+  // deploy the key isn't entered yet, so this is skipped and the bot picks it
+  // up live later using its freshly-minted (registered) WORKER_TOKEN.
+  //
+  // We read it through the same runtime_get_bot_secret RPC the bot uses,
+  // passing the just-minted worker token so decryption + token scoping happen
+  // in one audited path. Failures are non-fatal — fall through to runtime read.
+  try {
+    const { data: erlcKey, error: erlcErr } = await admin.rpc("runtime_get_bot_secret", {
+      _token: workerToken,
+      _bot_id: orderId,
+      _key: "ERLC_SERVER_KEY",
+    });
+    if (erlcErr) {
+      console.warn("[auto-deploy-bot] dispatch ERLC key prefetch RPC error", erlcErr.message);
+    } else if (typeof erlcKey === "string" && erlcKey.trim()) {
+      vars.ERLC_SERVER_KEY = erlcKey.trim();
+      console.log("[auto-deploy-bot] dispatch ERLC key baked into env vars", { orderId });
+    } else {
+      console.log("[auto-deploy-bot] dispatch ERLC key not yet entered — deferring to runtime read", { orderId });
+    }
+  } catch (e) {
+    console.warn("[auto-deploy-bot] dispatch ERLC key prefetch threw", String(e));
   }
 
   return vars;
@@ -1031,6 +1066,44 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
+    }
+
+    // PRE-SALE GUARD (defense in depth): never deploy a bot whose storefront
+    // status is Pre-order or Coming Soon. Orders for a gated bot are held as
+    // reserved pre-orders and never reach 'ready', so this normally isn't hit —
+    // but if a deploy is triggered manually while the bot is gated, refuse it.
+    // The order stays reserved until the owner flips the bot to Available.
+    try {
+      const { data: appRow } = await admin
+        .from("app_settings")
+        .select("bot_availability")
+        .eq("id", 1)
+        .maybeSingle();
+      const availability = ((appRow as { bot_availability?: Record<string, string> } | null)
+        ?.bot_availability ?? {}) as Record<string, string>;
+      const gated = String(order.base ?? "")
+        .split(/[^a-z0-9-]+/i)
+        .filter(Boolean)
+        .some((tok) => {
+          const st = availability[tok];
+          return st === "preorder" || st === "coming_soon";
+        });
+      if (gated) {
+        console.log("[auto-deploy-bot] refusing deploy — bot is in pre-sale", {
+          orderId,
+          base: order.base,
+        });
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            held: true,
+            message: "Bot is in Pre-order/Coming Soon — not deploying until it's set to Available.",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    } catch (e) {
+      console.warn("[auto-deploy-bot] pre-sale guard check failed (continuing)", String(e));
     }
 
     // Concurrency lock: refuse to start a new deploy if one is already in
@@ -1223,7 +1296,7 @@ Deno.serve(async (req) => {
       .eq("id", orderId);
 
 
-    const workerToken = Deno.env.get("WORKER_TOKEN") ?? "";
+    const workerToken = await mintWorkerToken(admin, orderId, order.bot_name);
     const fnUrl = `${supabaseUrl}/functions/v1`;
 
     if (!botToken || typeof botToken !== "string" || botToken.trim() === "") {
@@ -1238,7 +1311,7 @@ Deno.serve(async (req) => {
       : [];
     const isDispatch = (order.base ?? "").toLowerCase().trim() === "dispatch";
     const featureFlagVars = isDispatch
-      ? await buildDispatchVars()
+      ? await buildDispatchVars(admin, orderId, workerToken)
       : buildFeatureFlagVars(order.base, purchasedAddons);
 
     const varsPayload: Record<string, string> = {
