@@ -890,7 +890,7 @@ const BotSection = ({
         />
       )}
 
-      {!bot.isDemo && (!bot.viaTeam || teamPerms.manage_secrets) && <BotSecretsCard bot={bot} />}
+      {!bot.isDemo && <BotSecretsCard bot={bot} />}
 
       {/* Only the actionable deploy states get a banner now — the plain
           "Deploying…" strip is redundant with the Manage panel's live status
