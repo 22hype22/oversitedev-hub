@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { getStripe } from "@/lib/stripe";
 import { toast } from "sonner";
-import oversiteLogo from "@/assets/oversite-logo.png";
 import containers from "@/assets/containers.webp";
 
 // Self-contained "system page" shell (mountain backdrop + frosted slate glass
@@ -107,11 +106,6 @@ export default function CheckoutSetup() {
   return (
     <main className="ossys" style={{ ["--os-mtn" as any]: `url(${containers})` }}>
       <style>{OSSYS_CSS}</style>
-      <div className="ossys-top">
-        <Link to="/" aria-label="Oversite — home">
-          <img src={oversiteLogo} alt="Oversite" />
-        </Link>
-      </div>
       <div className="ossys-mid">
         <div style={{ width: "100%", maxWidth: 460 }}>
           <div className="ossys-card">
