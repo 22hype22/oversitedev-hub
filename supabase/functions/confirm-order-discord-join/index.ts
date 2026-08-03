@@ -23,6 +23,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+const INTERNAL_CHARGE_SECRET = Deno.env.get("INTERNAL_CHARGE_SECRET") ?? "";
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
@@ -31,6 +32,27 @@ function bad(msg: string, status = 400) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+// Charge the saved card off-session (build-start). Returns ok=false on decline
+// so the caller can refuse to deploy.
+async function chargeOrder(botOrderId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/charge-confirmed-order`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${ANON_KEY}`,
+        "x-internal-charge-secret": INTERNAL_CHARGE_SECRET,
+      },
+      body: JSON.stringify({ botOrderId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data?.ok) return { ok: true };
+    return { ok: false, error: data?.error || `charge_failed_${res.status}` };
+  } catch (e) {
+    return { ok: false, error: (e as any)?.message || "charge_error" };
+  }
 }
 
 serve(async (req) => {
@@ -70,7 +92,7 @@ serve(async (req) => {
     // together and count how many bot tokens this order needs.
     const { data: siblings, error: sibErr } = await admin
       .from("bot_orders")
-      .select("id, status, bot_name")
+      .select("id, status, bot_name, base")
       .or(`id.eq.${parentId},parent_order_id.eq.${parentId}`);
     if (sibErr || !siblings) return bad("Could not load order", 500);
 
@@ -89,6 +111,43 @@ serve(async (req) => {
     }
 
     const botsNeeded = eligible.length;
+    const now = new Date().toISOString();
+
+    // ── PRE-SALE GATE ──────────────────────────────────────────────────────
+    // If any bot in this order is set to "Pre-order" or "Coming Soon" on the
+    // storefront (per-bot `bot_availability` in app_settings), HOLD the whole
+    // order as a reserved pre-order. The card is already saved (SetupIntent) but
+    // we do NOT charge it and do NOT flip to 'ready' — so the bot never builds
+    // until the owner sets it to Available (which fulfils the held pre-orders).
+    const { data: appRow } = await admin
+      .from("app_settings")
+      .select("bot_availability")
+      .eq("id", 1)
+      .maybeSingle();
+    const availability = (appRow?.bot_availability ?? {}) as Record<string, string>;
+    const isGatedBase = (base: string | null | undefined) =>
+      !!base &&
+      String(base)
+        .split(/[^a-z0-9-]+/i)
+        .filter(Boolean)
+        .some((tok) => {
+          const st = availability[tok];
+          return st === "preorder" || st === "coming_soon";
+        });
+    if (siblings.some((r) => isGatedBase((r as { base?: string | null }).base))) {
+      // Leave the rows in their reserved 'preorder' state; charge + deploy
+      // happen later, when the owner flips the bot to Available.
+      await admin
+        .from("bot_orders")
+        .update({ status: "preorder", updated_at: now })
+        .in("id", allIds)
+        .in("status", ["paid", "preorder", "preorder_pending_card"]);
+      return new Response(
+        JSON.stringify({ ok: true, path: "presale_hold", status: "preorder" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    // ───────────────────────────────────────────────────────────────────────
 
     // Server-side stock check at the moment of confirmation.
     const { count: availableTokens, error: tokenErr } = await admin
@@ -98,10 +157,28 @@ serve(async (req) => {
     if (tokenErr) return bad("Could not verify bot availability", 500);
 
     const inStock = (availableTokens ?? 0) >= botsNeeded;
-    const now = new Date().toISOString();
 
     if (inStock) {
-      // In-stock path: every row -> 'ready'. The bot_orders trigger handles
+      // Build-start: charge the saved card NOW. If it declines / has no funds,
+      // do NOT deploy — flip the order to 'payment_failed' and tell the client.
+      const charge = await chargeOrder(parentId);
+      if (!charge.ok) {
+        await admin
+          .from("bot_orders")
+          .update({ status: "payment_failed", updated_at: now })
+          .in("id", allIds)
+          .in("status", ["paid", "preorder", "preorder_pending_card"]);
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            declined: true,
+            error: "Your card was declined or has insufficient funds. Update your payment method and try again.",
+          }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      // Charge succeeded → every row -> 'ready'. The bot_orders trigger handles
       // auto-deploy and the "your bot is live" DM downstream.
       const { error: updErr } = await admin
         .from("bot_orders")
