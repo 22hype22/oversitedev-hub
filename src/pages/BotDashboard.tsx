@@ -11,6 +11,7 @@ import {
   getIncludedAddonsForBase,
 } from "@/lib/botCatalog";
 import { supabase } from "@/integrations/supabase/client";
+import { SystemScreen, SystemCard, SystemBadge } from "@/pages/SystemScreen";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -1799,14 +1800,23 @@ const BotDashboard = () => {
   const hasAccess = isAdmin || hasDashboardAccess;
   if (!hasAccess) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <div className="max-w-md text-center space-y-5">
-          <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center"><Lock className="h-5 w-5 text-primary" size={20} /></div>
-          <h1 className="text-2xl font-bold">No bots yet</h1>
-          <p className="text-muted-foreground">Once you <span className="text-foreground font-medium">own a bot</span> — by buying one or having it transferred to you — it'll show up here to manage. Team members get access when an owner shares a bot with them.</p>
-          <div className="flex gap-3 justify-center"><Button asChild><Link to="/bots"><Globe className="h-4 w-4 mr-2" />Browse bots</Link></Button><Button variant="outline" asChild><Link to="/">Back to site</Link></Button></div>
-        </div>
-      </div>
+      <SystemScreen footer="You're signed in — bots you own or manage show up here.">
+        <SystemCard>
+          <SystemBadge>
+            <Lock />
+          </SystemBadge>
+          <h1 style={{ fontSize: 24, marginBottom: 10 }}>No bots yet</h1>
+          <p style={{ fontSize: 14.5, lineHeight: 1.6, marginBottom: 28 }}>
+            Own a bot — <span style={{ color: "#E8EEF3", fontWeight: 600 }}>buy one</span> or have it
+            transferred to you — and it lands here, ready to manage. Team members appear the moment an
+            owner shares one.
+          </p>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            <Link className="ossys-accent" to="/bots"><Globe className="h-4 w-4" />Browse bots</Link>
+            <Link className="ossys-ghost" to="/">Back to site</Link>
+          </div>
+        </SystemCard>
+      </SystemScreen>
     );
   }
 
