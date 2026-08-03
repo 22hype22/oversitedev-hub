@@ -890,7 +890,7 @@ const BotSection = ({
         />
       )}
 
-      {!bot.isDemo && <BotSecretsCard bot={bot} />}
+      {!bot.isDemo && (!bot.viaTeam || teamPerms.manage_secrets) && <BotSecretsCard bot={bot} />}
 
       {/* Only the actionable deploy states get a banner now — the plain
           "Deploying…" strip is redundant with the Manage panel's live status
@@ -1552,7 +1552,15 @@ const BotDashboard = () => {
   // owner+role, so any of the member's team bots resolves the same answer.
   const firstTeamBotId = dashboardBots.find((b) => b.viaTeam && !b.isDemo)?.id ?? null;
   const { permissions: viewerPerms } = useTeamRole(isInvitedOnly ? firstTeamBotId : null);
-  const canManageSettings = !isInvitedOnly || viewerPerms.manage_settings;
+  // Each permission unlocks a section of the dashboard for invited members.
+  // Owners always have everything. With NO permissions, a member sees only the
+  // Dashboard and Support pages. Groups is an owner-only organizational tool.
+  const canMyBots       = !isInvitedOnly || viewerPerms.edit_bot_config; // My Bots (see & manage bots)
+  const canActivity     = !isInvitedOnly || viewerPerms.view_logs;       // Activity / logs
+  const canBilling      = !isInvitedOnly || viewerPerms.edit_billing;    // Billing
+  const canManageTeam   = !isInvitedOnly || viewerPerms.manage_team;     // Team (invite & remove)
+  const canManageSettings = !isInvitedOnly || viewerPerms.manage_settings; // Settings & appearance
+  const canGroups       = !isInvitedOnly;                                // owner-only
   useHostingSubscriptionSync();
   const { periods: freePeriods, reload: reloadFreePeriods } = useBotFreePeriods();
   const { items: notifications, unread } = useBotNotifications();
@@ -1775,9 +1783,21 @@ const BotDashboard = () => {
   const chooseMode = (m: "solo" | "team") => { setWsMode(m); lsSet(LS.ws, m); lsSet(LS.onboarded, "1"); setAppOn(true); askTour(); };
   const openBot = (id: string) => { setBotId(id); setView("bot"); window.scrollTo({ top: 0 }); };
   const go = (v: string) => { setView(v); window.scrollTo({ top: 0 }); };
-  // Bounce a member off Settings if their role doesn't allow it (e.g. a stale
-  // saved view), so they never land on a blank/forbidden panel.
-  useEffect(() => { if (!canManageSettings && view === "settings") setView("dashboard"); }, [canManageSettings, view]);
+  // Keep invited members out of sections their role doesn't unlock (e.g. a
+  // stale saved view or a deep link). Owners can go anywhere. Dashboard and
+  // Support are always allowed.
+  useEffect(() => {
+    if (!isInvitedOnly) return;
+    const allowed =
+      view === "dashboard" || view === "support" ||
+      ((view === "bots" || view === "bot") && canMyBots) ||
+      (view === "groups" && canGroups) ||
+      (view === "activity" && canActivity) ||
+      (view === "billing" && canBilling) ||
+      (view === "team" && canManageTeam) ||
+      (view === "settings" && canManageSettings);
+    if (!allowed) setView("dashboard");
+  }, [isInvitedOnly, view, canMyBots, canGroups, canActivity, canBilling, canManageTeam, canManageSettings]);
   const openPortal = async () => { const { data, error } = await supabase.functions.invoke("customer-portal"); if (error) { toast.error("Couldn't open billing portal", { description: error.message }); return; } const url = (data as { url?: string } | null)?.url; if (url) window.location.href = url; else toast.error("No billing portal available yet."); };
   const [confirmOut, setConfirmOut] = useState(false);
   const signOut = async () => { await supabase.auth.signOut(); navigate("/auth", { replace: true }); };
@@ -2113,13 +2133,13 @@ const BotDashboard = () => {
 
             <div className="glab">Menu</div>
             {navItem("dashboard", <svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v9h14v-9"/></svg>, "Dashboard")}
-            {navItem("bots", <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>, "My Bots")}
-            {navItem("groups", <svg viewBox="0 0 24 24"><circle cx="7" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M2 19a5 5 0 0 1 10 0M12 19a5 5 0 0 1 10 0"/></svg>, "Groups")}
-            {navItem("activity", <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg>, "Activity")}
+            {canMyBots && navItem("bots", <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>, "My Bots")}
+            {canGroups && navItem("groups", <svg viewBox="0 0 24 24"><circle cx="7" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M2 19a5 5 0 0 1 10 0M12 19a5 5 0 0 1 10 0"/></svg>, "Groups")}
+            {canActivity && navItem("activity", <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg>, "Activity")}
 
             <div className="glab">Account</div>
-            {navItem("billing", <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>, "Billing")}
-            {isTeam && navItem("team", <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>, "Team")}
+            {canBilling && navItem("billing", <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>, "Billing")}
+            {(isInvitedOnly ? canManageTeam : isTeam) && navItem("team", <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>, "Team")}
 
             <div className="glab">More</div>
             {canManageSettings && navItem("settings", <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1l-.4-2.5H9.6L9.2 6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L5 11a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 2.5h4.8l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6a7 7 0 0 0 .1-1Z"/></svg>, "Settings")}
@@ -2153,7 +2173,7 @@ const BotDashboard = () => {
             </div>
 
             {/* MY BOTS */}
-            <div className={"view" + (view === "bots" ? " on" : "")}>
+            <div className={"view" + (view === "bots" && canMyBots ? " on" : "")}>
               <div className="ph2"><h2>My Bots</h2><p>{owned.length} bots in your fleet · <span className="drophint">drag to reorder</span></p></div>
               <div className={"botgrid" + (dragActive ? " dragging-active" : "")}>
                 {owned.map((b) => (
@@ -2169,7 +2189,7 @@ const BotDashboard = () => {
             </div>
 
             {/* GROUPS */}
-            <div className={"view" + (view === "groups" ? " on" : "")}>
+            <div className={"view" + (view === "groups" && canGroups ? " on" : "")}>
               <div className="ph2" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "14px", flexWrap: "wrap" }}>
                 <div><h2>Groups</h2><p>Bundle bots from a server together, then give a team access to just that bundle.</p></div>
                 <button className="cta" onClick={async () => { const n = window.prompt("Name this group"); if (!n || !n.trim()) return; const { error } = await (supabase as any).rpc("group_create", { _name: n.trim(), _bot_ids: [] }); if (error) { toast.error("Couldn't create group", { description: error.message }); return; } await loadGroups(); }}>+ New group</button>
@@ -2197,7 +2217,7 @@ const BotDashboard = () => {
             </div>
 
             {/* ACTIVITY */}
-            <div className={"view" + (view === "activity" ? " on" : "")}>
+            <div className={"view" + (view === "activity" && canActivity ? " on" : "")}>
               <div className="ph2"><h2>Activity</h2><p>Everything your bots have done, newest first.</p></div>
               <div className="feed" style={{ marginTop: "6px" }}>
                 {notifications.length === 0 && <div className="fitem"><div><div className="ttl">No activity yet</div><div className="meta">Events from your bots will show up here.</div></div></div>}
@@ -2208,7 +2228,7 @@ const BotDashboard = () => {
             </div>
 
             {/* BILLING */}
-            <div className={"view" + (view === "billing" ? " on" : "")}>
+            <div className={"view" + (view === "billing" && canBilling ? " on" : "")}>
               <div className="ph2"><h2>Billing</h2><p>Plan, payment method, and invoices.</p></div>
               <div className="bgrid">
                 <div>
@@ -2225,7 +2245,7 @@ const BotDashboard = () => {
             </div>
 
             {/* TEAM */}
-            <div className={"view" + (view === "team" ? " on" : "")}>
+            <div className={"view" + (view === "team" && (isInvitedOnly ? canManageTeam : isTeam) ? " on" : "")}>
               {firstOwned ? (
                 <div style={{ position: "relative" }}><GroupTeamHub ownerUserId={user.id} ownerEmail={user.email ?? null} /></div>
               ) : (<div className="ph2"><h2>Team</h2><p>You need an owned bot to manage a team.</p></div>)}
@@ -2279,7 +2299,7 @@ const BotDashboard = () => {
             </div>
 
             {/* PER-BOT — real working blocks */}
-            <div className={"view" + (view === "bot" ? " on" : "")}>
+            <div className={"view" + (view === "bot" && canMyBots ? " on" : "")}>
               {activeBot && (
                 <>
                   <span className="back" onClick={() => go("bots")}><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg> Back to my bots</span>
