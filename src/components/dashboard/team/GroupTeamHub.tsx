@@ -214,7 +214,11 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
     try {
       const { data, error } = await (supabase as any).rpc("group_list");
       if (error) throw error;
-      const list = (Array.isArray(data) ? data : []) as Group[];
+      // Hide the auto-created default "Oversite" group — only show groups the
+      // owner actually made.
+      const list = ((Array.isArray(data) ? data : []) as Group[]).filter(
+        (g) => (g.name ?? "").trim().toLowerCase() !== "oversite",
+      );
       setGroups(list);
       setSelectedGroupId((prev) => {
         if (prev && list.some((g) => g.id === prev)) return prev;
@@ -475,7 +479,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
 
               {/* Roles */}
               <div className={"pane" + (tab === "roles" ? " on" : "")}>
-                <RolesMatrix ownerUserId={ownerUserId} />
+                <RolesMatrix ownerUserId={ownerUserId} groupId={selectedGroupId} />
               </div>
 
               {/* Support */}
@@ -679,7 +683,11 @@ const PERM_ROWS: Array<{ key: keyof TeamPermissions; label: string }> = [
 ];
 const MATRIX_ROLES: TeamRole[] = ["admin", "moderator", "viewer"];
 
-function RolesMatrix({ ownerUserId }: { ownerUserId: string }) {
+// Sentinel group id for "no specific group" (global / ungrouped) — matches the
+// SQL default in the per-group permissions migration.
+const GLOBAL_GROUP_ID = "00000000-0000-0000-0000-000000000000";
+
+function RolesMatrix({ ownerUserId, groupId }: { ownerUserId: string; groupId: string | null }) {
   const [matrix, setMatrix] = useState<Record<string, TeamPermissions>>(() => ({
     admin: { ...DEFAULT_PERMISSIONS.admin },
     moderator: { ...DEFAULT_PERMISSIONS.moderator },
@@ -687,6 +695,7 @@ function RolesMatrix({ ownerUserId }: { ownerUserId: string }) {
   }));
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const effGroupId = groupId ?? GLOBAL_GROUP_ID;
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -695,20 +704,22 @@ function RolesMatrix({ ownerUserId }: { ownerUserId: string }) {
       moderator: { ...DEFAULT_PERMISSIONS.moderator },
       viewer: { ...DEFAULT_PERMISSIONS.viewer },
     };
+    // Permissions are per group — only load the selected group's overrides.
     const { data } = await (supabase as any)
       .from("dashboard_role_permissions")
       .select("role, permissions")
-      .eq("owner_user_id", ownerUserId);
+      .eq("owner_user_id", ownerUserId)
+      .eq("group_id", effGroupId);
     for (const row of ((data ?? []) as { role: string; permissions: Partial<TeamPermissions> }[])) {
       if (next[row.role]) next[row.role] = { ...next[row.role], ...row.permissions };
     }
     setMatrix(next);
     setLoading(false);
-  }, [ownerUserId]);
+  }, [ownerUserId, effGroupId]);
   useEffect(() => { void reload(); }, [reload]);
 
   // Toggle a single cell — optimistic, saves the whole role's permission set
-  // via team_set_role_permissions, reverts on failure.
+  // for THIS group via team_set_role_permissions, reverts on failure.
   const toggle = async (role: TeamRole, key: keyof TeamPermissions) => {
     const cellId = `${role}:${key}`;
     const prevVal = matrix[role][key];
@@ -718,6 +729,7 @@ function RolesMatrix({ ownerUserId }: { ownerUserId: string }) {
     const { data, error } = await (supabase as any).rpc("team_set_role_permissions", {
       _role: role,
       _permissions: updated,
+      _group_id: groupId,
     });
     setBusyKey(null);
     if (error || (data && data.ok === false)) {
