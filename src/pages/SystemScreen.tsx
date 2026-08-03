@@ -1,6 +1,4 @@
-import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
-import oversiteLogo from "@/assets/oversite-logo.png";
 import dashboardBg from "@/assets/dashboardBg";
 
 /**
@@ -61,13 +59,6 @@ export function SystemScreen({
       <style>{OSSYS_CSS}</style>
       <div className="ossys-bg" style={{ backgroundImage: `url(${dashboardBg})` }} aria-hidden />
       <div className="ossys-scrim" aria-hidden />
-
-      <div className="ossys-top">
-        <Link to="/" aria-label="Oversite — home">
-          <img src={oversiteLogo} alt="Oversite" />
-        </Link>
-      </div>
-
 
       <div className="ossys-mid">
         <div style={{ width: "100%", maxWidth }}>{children}</div>
