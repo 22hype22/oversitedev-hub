@@ -862,7 +862,13 @@ function BotPickerModal(
         new Set(bots.filter((b) => b.group_id === groupId).map((b) => b.id)),
       );
     }
-  }, [open, mode, bots, groupId]);
+    // Initialize ONLY when the dialog opens (or the target group changes) — NOT
+    // on every `bots` refresh. useOwnedBots polls ~every 10s and returns a new
+    // array reference each time; if `bots` were a dependency here, that poll
+    // would re-run this effect mid-edit and wipe the name you typed and the
+    // bots you selected. `bots` is intentionally read at open-time only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, mode, groupId]);
 
   if (!open) return null;
 
