@@ -69,19 +69,21 @@ const Auth = () => {
       : "";
 
   const runPostAuthActions = async () => {
+    // ALWAYS claim any pending team invites tied to this account's email, so an
+    // owner can just add someone by email and they get access on their next
+    // sign-in — no invite link or email required.
+    try {
+      await (supabase as any).rpc("team_accept_invites_for_current_user");
+    } catch (e) {
+      console.error("team_accept_invites_for_current_user failed", e);
+    }
     if (inviteToken) {
-      // Accept by token (works even if the invitee signs in with a different
-      // email than the invite was sent to). Fall back to email-based acceptance
-      // for any other pending invites tied to this user's email.
+      // Also accept by token — covers signing in with a DIFFERENT email than
+      // the invite was addressed to.
       try {
         await (supabase as any).rpc("team_accept_invite_by_token", { _token: inviteToken });
       } catch (e) {
         console.error("team_accept_invite_by_token failed", e);
-      }
-      try {
-        await (supabase as any).rpc("team_accept_invites_for_current_user");
-      } catch (e) {
-        console.error("team_accept_invites_for_current_user failed", e);
       }
     }
     if (transferToken) {
