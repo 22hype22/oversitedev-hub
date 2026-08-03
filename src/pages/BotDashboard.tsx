@@ -2000,8 +2000,15 @@ const BotDashboard = () => {
     );
   };
 
+  // The "Just me / With my team" workspace onboarding is only meaningful for
+  // people who OWN bots. An invited team/support member owns none of the bots
+  // they can see, so skip the setup screen and drop them straight in.
+  const ownsAnyBot = orderedBots.some((b) => !b.isDemo && !b.viaTeam && !b.viaSupport);
+  const isInvitedOnly = orderedBots.length > 0 && !ownsAnyBot;
+  const showApp = appOn || isInvitedOnly;
+
   return (
-    <div className={"osd" + (appOn ? " app" : "") + (instant ? " instant" : "")} style={{ ["--accent" as any]: accent.c, ["--accentink" as any]: accent.ink }}>
+    <div className={"osd" + (showApp ? " app" : "") + (instant ? " instant" : "")} style={{ ["--accent" as any]: accent.c, ["--accentink" as any]: accent.ink }}>
       <style>{OSD_CSS}</style>
       {bgKey !== "none" && bgUrl && <div className="osd-bg" style={{ backgroundImage: `url(${bgUrl})` }} />}
       {bgKey === "none" && <div className="osd-bg" style={{ background: "#1b2026" }} />}
@@ -2010,7 +2017,7 @@ const BotDashboard = () => {
 
       <div className="osd-stage">
         {/* ONBOARDING */}
-        <div className={"overlay" + (appOn ? " hide" : "")}>
+        <div className={"overlay" + (showApp ? " hide" : "")}>
           <div className="wcard">
             <div className="wmark">Oversite<span>Bot Dashboard</span></div>
             <h1>Let&apos;s get you set up, {handle}</h1>
