@@ -1,6 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
-import oversiteLogo from "@/assets/oversite-logo.png";
 import containers from "@/assets/containers.webp";
 
 // Self-contained "system page" shell — same mountain backdrop + frosted slate
@@ -53,11 +52,6 @@ class ErrorBoundary extends Component<Props, State> {
     return (
       <main className="ossys" style={{ ["--os-mtn" as any]: `url(${containers})` }}>
         <style>{OSSYS_CSS}</style>
-        <div className="ossys-top">
-          <a href="/" aria-label="Oversite — home">
-            <img src={oversiteLogo} alt="Oversite" />
-          </a>
-        </div>
         <div className="ossys-mid">
           <div style={{ width: "100%", maxWidth: 460 }}>
             <div className="ossys-card">
