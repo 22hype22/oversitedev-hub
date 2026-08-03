@@ -131,6 +131,10 @@ export function useOwnedBots() {
   const [loading, setLoading] = useState(true);
   const hasLoadedRef = useRef(false);
   const emptyRetriesRef = useRef(0);
+  // Ensures we claim pending team invites exactly once per signed-in user,
+  // independent of the snapshot cache (which can otherwise skip the claim on an
+  // in-app remount for an already-logged-in member who was just added).
+  const claimedForUserRef = useRef<string | null>(null);
 
 
   const reload = useCallback(async () => {
@@ -163,12 +167,13 @@ export function useOwnedBots() {
     }
     if (!hasLoadedRef.current) setLoading(true);
 
-    // First load of this session: claim any pending team invites addressed to
-    // this account's email, so an invited member gets access the moment they
-    // open the dashboard — no invite link or email needed. Runs before the team
-    // query below so newly-accepted bots show up on this same load. Idempotent,
-    // and skipped on the silent background refreshes to avoid needless calls.
-    if (!hasLoadedRef.current) {
+    // Claim any pending team invites addressed to this account's email, so an
+    // invited member gets access the moment they open the dashboard — no invite
+    // link or email needed. Runs ONCE per signed-in user (even when a cached
+    // snapshot was just painted) and before the team query below, so the
+    // newly-accepted bots show up on this same load. Idempotent server-side.
+    if (claimedForUserRef.current !== userId) {
+      claimedForUserRef.current = userId;
       try {
         await (supabase as any).rpc("team_accept_invites_for_current_user");
       } catch (e) {
