@@ -1542,7 +1542,11 @@ function DashSortableCard({
 
 const BotDashboard = () => {
   const { user, isAdmin, loading } = useAuth();
-  const { dashboardBots, hasDashboardAccess, loading: botsLoading, reload } = useOwnedBots();
+  const { bots: ownedBots, dashboardBots, hasDashboardAccess, loading: botsLoading, reload } = useOwnedBots();
+  // An invited team/support member has dashboard access but owns no bots of
+  // their own. The workspace onboarding is owner-only, so we skip it for them
+  // (and, crucially, still reveal the dashboard — see `showApp`).
+  const isInvitedOnly = hasDashboardAccess && !ownedBots.some((b) => !b.isDemo);
   useHostingSubscriptionSync();
   const { periods: freePeriods, reload: reloadFreePeriods } = useBotFreePeriods();
   const { items: notifications, unread } = useBotNotifications();
@@ -1616,6 +1620,9 @@ const BotDashboard = () => {
 
   const [wsMode, setWsMode] = useState<"solo" | "team">(() => (lsGet(LS.ws) === "team" ? "team" : "solo"));
   const [appOn, setAppOn] = useState(() => !!lsGet(LS.onboarded));
+  // Reveal the dashboard when onboarding is done OR when the viewer is an
+  // invited member (who never sees onboarding).
+  const showApp = appOn || isInvitedOnly;
   const [instant, setInstant] = useState(() => !!lsGet(LS.onboarded));
   const [picked, setPicked] = useState<"solo" | "team" | null>(null);
   // Floating announcement: shown each time the dashboard mounts. Dismiss hides
@@ -1648,7 +1655,7 @@ const BotDashboard = () => {
   // clear the no-animation flag after first paint
   useEffect(() => { if (instant) { const t = setTimeout(() => setInstant(false), 60); return () => clearTimeout(t); } }, []); // eslint-disable-line
   // lock page scroll while the welcome screen is up
-  useEffect(() => { document.body.style.overflow = appOn ? "" : "hidden"; return () => { document.body.style.overflow = ""; }; }, [appOn]);
+  useEffect(() => { document.body.style.overflow = showApp ? "" : "hidden"; return () => { document.body.style.overflow = ""; }; }, [showApp]);
   // Hide the native page scrollbar while the dashboard is mounted (same pattern
   // the Process page uses). Removed on unmount so other pages keep theirs.
   useEffect(() => { const r = document.documentElement; r.classList.add("dash-hide-scroll"); return () => { r.classList.remove("dash-hide-scroll"); }; }, []);
@@ -2000,13 +2007,6 @@ const BotDashboard = () => {
     );
   };
 
-  // The "Just me / With my team" workspace onboarding is only meaningful for
-  // people who OWN bots. An invited team/support member owns none of the bots
-  // they can see, so skip the setup screen and drop them straight in.
-  const ownsAnyBot = orderedBots.some((b) => !b.isDemo && !b.viaTeam && !b.viaSupport);
-  const isInvitedOnly = orderedBots.length > 0 && !ownsAnyBot;
-  const showApp = appOn || isInvitedOnly;
-
   return (
     <div className={"osd" + (showApp ? " app" : "") + (instant ? " instant" : "")} style={{ ["--accent" as any]: accent.c, ["--accentink" as any]: accent.ink }}>
       <style>{OSD_CSS}</style>
@@ -2088,7 +2088,7 @@ const BotDashboard = () => {
         </div>
 
         {/* APP */}
-        <div className={"appwrap" + (appOn ? " show" : "")}>
+        <div className={"appwrap" + (showApp ? " show" : "")}>
           {/* Admin notice — flush bar across the very top of the screen. */}
           <FixesBar />
           <div className="approw">
