@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { KeyRound, Loader2, Server, Radio, RefreshCw, Check } from "lucide-react";
 import type { OwnedBot } from "@/hooks/useOwnedBots";
+import { useTeamRole } from "@/hooks/useTeamRole";
 import {
   useBotGuilds,
   useBotChannels,
@@ -131,6 +132,11 @@ export function BotSecretsCard({ bot }: Props) {
 
   const scopes = useMemo(() => relevantScopes(bot), [bot]);
   const showVoice = (bot.base ?? "").toLowerCase().trim() === "dispatch";
+  // API keys are gated by `manage_secrets` for invited members. The voice
+  // channel is bot config, not a secret, so it ALWAYS shows (owners and any
+  // member who can reach this bot page). Owners: full access.
+  const { permissions: teamPerms } = useTeamRole(bot.viaTeam ? bot.id : null);
+  const canSecrets = !bot.viaTeam || teamPerms.manage_secrets;
 
   const reload = useCallback(async (silent = false) => {
     // Silent reload (e.g. after saving the voice channel) refreshes the slot
@@ -153,7 +159,7 @@ export function BotSecretsCard({ bot }: Props) {
     reload();
   }, [reload]);
 
-  const visible = slots
+  const visible = (canSecrets ? slots : [])
     .filter(
       (s) =>
         !s.is_managed &&
