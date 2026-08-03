@@ -2,7 +2,7 @@ import { ReactNode, createContext, useContext, useMemo, useState } from "react";
 import { Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useTeamRole, ROLE_LABEL } from "@/hooks/useTeamRole";
+import { useTeamRole } from "@/hooks/useTeamRole";
 
 type Props = {
   /** The bot being viewed. Used to resolve per-bot team membership. */
@@ -41,7 +41,7 @@ export function useBotScope() {
  * policies (`has_bot_team_perm(... 'edit_bot_config')`).
  */
 export function ReadOnlyBotScope({ botId, ownerUserId, viaTeam, children }: Props) {
-  const { role, permissions, loading } = useTeamRole(viaTeam ? botId : null);
+  const { permissions, loading } = useTeamRole(viaTeam ? botId : null);
 
   // Owners (viaTeam=false) and team members with edit perms get full UI.
   const readOnly = !!viaTeam && !loading && !permissions.edit_bot_config;
@@ -60,12 +60,10 @@ export function ReadOnlyBotScope({ botId, ownerUserId, viaTeam, children }: Prop
     return <Ctx.Provider value={ctxValue}>{children}</Ctx.Provider>;
   }
 
-  const roleLabel = role ? ROLE_LABEL[role] : "Team member";
-
   return (
     <Ctx.Provider value={ctxValue}>
       {/* Banner lives OUTSIDE the disabled fieldset so its button stays clickable. */}
-      <ReadOnlyBanner botId={botId ?? null} roleLabel={roleLabel} />
+      <ReadOnlyBanner botId={botId ?? null} />
       <fieldset
         disabled
         className="readonly-scope border-0 p-0 m-0 min-w-0 w-full"
@@ -82,7 +80,7 @@ export function ReadOnlyBotScope({ botId, ownerUserId, viaTeam, children }: Prop
  * lines up with the cards below it, and carries a real "Request Edit Access"
  * action that notifies the owner.
  */
-function ReadOnlyBanner({ botId, roleLabel }: { botId: string | null; roleLabel: string }) {
+function ReadOnlyBanner({ botId }: { botId: string | null }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
 
@@ -106,15 +104,10 @@ function ReadOnlyBanner({ botId, roleLabel }: { botId: string | null; roleLabel:
   };
 
   return (
-    <div className="w-full flex items-center gap-3 rounded-xl border border-[#cbb277]/25 border-l-[3px] border-l-[#cbb277] bg-[#2d353e] px-3.5 py-3 mb-3">
+    <div className="w-full flex items-center gap-3 rounded-xl border border-[#cbb277]/25 border-l-[3px] border-l-[#cbb277] bg-[#2d353e] pl-6 pr-4 py-3 mb-3">
       <Lock className="h-4 w-4 text-[#cbb277] shrink-0" />
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-[13px] text-[#E8EEF3]">Read-only</span>
-          <span className="text-[9.5px] font-bold uppercase tracking-wider text-[#cbb277] bg-[#cbb277]/10 border border-[#cbb277]/30 rounded px-1.5 py-0.5 leading-none">
-            {roleLabel}
-          </span>
-        </div>
+        <div className="font-semibold text-[13px] text-[#E8EEF3]">Read-only</div>
         <div className="text-[11.5px] text-muted-foreground mt-0.5 truncate">
           View only — ask the owner for edit access in Team → Roles.
         </div>
