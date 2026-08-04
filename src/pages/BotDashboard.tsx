@@ -1786,15 +1786,25 @@ const BotDashboard = () => {
   }, [owned, reload, loadGroups]);
 
   const deleteGroup = useCallback(async (gid: string, name: string) => {
-    if (!window.confirm(`Delete the group "${name}"? Its bots stay on your account and just become ungrouped. This can't be undone.`)) return;
+    if (!window.confirm(`Delete the group "${name}"? Its bots stay on your account (just ungrouped), and anyone who had access through this group's team loses that access. This can't be undone.`)) return;
+    // The bots that belong to this group — their team memberships get removed.
+    const botIds = owned.filter((b) => b.group_id === gid).map((b) => b.id);
     // Drop the card immediately so it disappears right away — a server refetch
     // can lag just after the write, which is why it used to need a manual reload.
     setGroups((prev) => prev.filter((g) => g.id !== gid));
     // Tell the Team hub (a separate component with its own group list) to drop
     // it too, so it updates instantly instead of needing a refresh.
     window.dispatchEvent(new CustomEvent("oversite:groups-changed", { detail: { removedId: gid } }));
-    // Ungroup its bots first so no bot is left pointing at a deleted group,
-    // then remove the group itself.
+    // Revoke team access: deleting the group removes everyone who had access to
+    // its bots (memberships are per-bot). Owner-only via RLS.
+    if (botIds.length > 0) {
+      await (supabase as any)
+        .from("dashboard_team")
+        .delete()
+        .in("bot_id", botIds)
+        .eq("owner_user_id", user.id);
+    }
+    // Ungroup its bots, then remove the group itself.
     await (supabase as any).rpc("group_set_bots", { _group_id: gid, _bot_ids: [] });
     const { error } = await (supabase as any).rpc("group_delete", { _group_id: gid });
     if (error) {
@@ -1806,7 +1816,7 @@ const BotDashboard = () => {
     }
     toast.success(`Deleted "${name}"`);
     await Promise.all([reload(), loadGroups()]);
-  }, [reload, loadGroups]);
+  }, [owned, user.id, reload, loadGroups]);
 
   const chooseMode = (m: "solo" | "team") => { setWsMode(m); lsSet(LS.ws, m); lsSet(LS.onboarded, "1"); setAppOn(true); askTour(); };
   const openBot = (id: string) => { setBotId(id); setView("bot"); window.scrollTo({ top: 0 }); };
