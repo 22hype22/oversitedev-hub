@@ -1781,6 +1781,8 @@ const BotDashboard = () => {
     const { error } = await (supabase as any).rpc("group_set_bots", { _group_id: gid, _bot_ids: next });
     if (error) { toast.error("Couldn't update this group's bots", { description: error.message }); return; }
     await Promise.all([reload(), loadGroups()]);
+    // Keep the Team hub's group list + bot counts in sync instantly.
+    window.dispatchEvent(new CustomEvent("oversite:groups-changed"));
   }, [owned, reload, loadGroups]);
 
   const deleteGroup = useCallback(async (gid: string, name: string) => {
@@ -2217,7 +2219,7 @@ const BotDashboard = () => {
             <div className={"view" + (view === "groups" && canGroups ? " on" : "")}>
               <div className="ph2" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "14px", flexWrap: "wrap" }}>
                 <div><h2>Groups</h2><p>Bundle bots from a server together, then give a team access to just that bundle.</p></div>
-                <button className="cta" onClick={async () => { const n = window.prompt("Name this group"); if (!n || !n.trim()) return; const { error } = await (supabase as any).rpc("group_create", { _name: n.trim(), _bot_ids: [] }); if (error) { toast.error("Couldn't create group", { description: error.message }); return; } await loadGroups(); }}>+ New group</button>
+                <button className="cta" onClick={async () => { const n = window.prompt("Name this group"); if (!n || !n.trim()) return; const { error } = await (supabase as any).rpc("group_create", { _name: n.trim(), _bot_ids: [] }); if (error) { toast.error("Couldn't create group", { description: error.message }); return; } await loadGroups(); window.dispatchEvent(new CustomEvent("oversite:groups-changed")); }}>+ New group</button>
               </div>
               <div className="groups">
                 {groups.length === 0 && <div className="card" style={{ textAlign: "center", color: "var(--faint)", fontSize: "13px" }}>No groups yet. Create one to bundle bots and share access.</div>}
