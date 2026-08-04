@@ -221,6 +221,7 @@ export function BotSecretsCard({ bot }: Props) {
                 onSaved={() => reload(true)}
               />
             )}
+            {showVoice && <RegionSection bot={bot} />}
           </>
         )}
       </div>
@@ -352,6 +353,108 @@ function SecretRow({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// Region catalog — MUST match the dispatch bot's REGION_CATALOG.
+const REGION_COUNTRIES = [
+  "the United States", "United Kingdom", "Canada", "Australia", "Germany", "Mexico",
+];
+const REGION_US_STATES = [
+  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
+  "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho",
+  "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine",
+  "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi",
+  "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey",
+  "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio",
+  "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina",
+  "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia",
+  "Washington", "West Virginia", "Wisconsin", "Wyoming",
+];
+
+// Region picker for dispatch bots — the real-world area the dispatcher talks
+// like (its radio codes, signals, phonetics). Stored via the dispatch-region
+// edge function; the bot adopts it on its next config refresh (~60s), and the
+// bot's /region command writes back here, so the two stay in sync.
+function RegionSection({ bot }: { bot: OwnedBot }) {
+  const [region, setRegion] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.functions.invoke("dispatch-region", {
+        body: { botId: bot.id },
+      });
+      if (!cancelled) {
+        if ((data as any)?.region) setRegion((data as any).region);
+        setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [bot.id]);
+
+  const pick = async (value: string) => {
+    if (!value || value === region) return;
+    const prev = region;
+    setRegion(value);
+    setSaving(true);
+    const { data, error } = await supabase.functions.invoke("dispatch-region", {
+      body: { botId: bot.id, region: value },
+    });
+    setSaving(false);
+    if (error || !(data as any)?.ok) {
+      setRegion(prev);
+      toast.error("Couldn't save region", {
+        description: (data as any)?.error ?? (error as any)?.message,
+      });
+      return;
+    }
+    toast.success("Dispatch region set", { description: value });
+  };
+
+  return (
+    <div className="sec">
+      <div className="eyebrow">
+        <span className="lbl">Region</span>
+        <span className="ln" />
+        {region && <span className="chip ok">Set</span>}
+      </div>
+      <div className="ed">
+        The real-world area your dispatcher talks like — its radio codes, signals, and
+        phonetic alphabet. Applies within a minute of saving, no restart.
+      </div>
+      <div className="vc">
+        <div className="vcrow">
+          <span className="vclbl">Area</span>
+          <Select value={region} disabled={loading || saving} onValueChange={pick}>
+            <SelectTrigger>
+              <div className="flex items-center gap-2 min-w-0">
+                <Radio size={15} className="shrink-0" />
+                <SelectValue placeholder={loading ? "Loading…" : "Select a state or country…"} />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Countries</SelectLabel>
+                {REGION_COUNTRIES.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {r.replace(/^the /, "")}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+              <SelectGroup>
+                <SelectLabel>US States</SelectLabel>
+                {REGION_US_STATES.map((r) => (
+                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
     </div>
   );
 }
