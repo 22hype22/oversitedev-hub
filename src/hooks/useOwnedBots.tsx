@@ -179,6 +179,14 @@ export function useOwnedBots() {
       } catch (e) {
         console.error("team_accept_invites_for_current_user (dashboard) failed", e);
       }
+      // Repair any bot whose data was transferred before the fixed transfer
+      // flow existed — re-points orphaned bot-scoped rows to the current owner.
+      // Only touches bots the caller owns; a no-op once everything matches.
+      try {
+        await (supabase as any).rpc("heal_bot_ownership_data");
+      } catch (e) {
+        console.error("heal_bot_ownership_data failed", e);
+      }
     }
 
     // 1) Own bots — fetch ALL of the user's orders. We filter to live ones
