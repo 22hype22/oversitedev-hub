@@ -1548,7 +1548,7 @@ const BotDashboard = () => {
   // An invited team/support member has dashboard access but owns no bots of
   // their own. The workspace onboarding is owner-only, so we skip it for them
   // (and, crucially, still reveal the dashboard — see `showApp`).
-  const isInvitedOnly = hasDashboardAccess && !ownedBots.some((b) => !b.isDemo);
+  const isInvitedOnly = hasDashboardAccess && !isAdmin && !ownedBots.some((b) => !b.isDemo);
   // An invited member only reaches Settings/appearance if their role has the
   // `manage_settings` permission. Owners always can. Permissions are per
   // owner+role, so any of the member's team bots resolves the same answer.
