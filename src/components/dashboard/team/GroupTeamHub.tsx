@@ -974,10 +974,25 @@ function InviteModal({
     if (!groupId) return;
     setSending(true);
     try {
-      const { error } = await supabase.functions.invoke("team-invite-send", {
+      const { data, error } = await supabase.functions.invoke("team-invite-send", {
         body: { email: trimmed, role, groupId },
       });
-      if (error) throw error;
+      // functions.invoke reports any non-2xx as a generic "non-2xx status code"
+      // error and hides the JSON body — dig the real reason out of it so the
+      // toast is actionable instead of "an edge function".
+      let realError: string | null = null;
+      if (error) {
+        try {
+          const body = await (error as any)?.context?.json?.();
+          realError = body?.error ?? null;
+        } catch {
+          /* body not JSON */
+        }
+        if (!realError) realError = (error as any)?.message ?? "invite failed";
+      } else if (data && (data as any).ok === false) {
+        realError = (data as any).error ?? "invite failed";
+      }
+      if (realError) throw new Error(realError);
       toast.success(`Invite sent to ${trimmed}`);
       onClose();
       onInvited();
