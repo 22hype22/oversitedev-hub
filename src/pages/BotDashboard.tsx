@@ -2334,11 +2334,14 @@ const BotDashboard = () => {
 
       <NewOwnerBillingDialog forceOpen={
         new URLSearchParams(window.location.search).get("team_transfer") === "accepted"
-        // Only demand billing details when the newly-owned account actually has
-        // a monthly-hosted bot. A dispatch bot is a one-time upfront purchase
-        // with no recurring charge, so a transfer of it must NOT trap the new
-        // owner on the mandatory billing form.
-        && owned.some((b) => !b.viaTeam && !b.viaSupport && b.monthly_hosting)
+        // Only demand billing details when the newly-owned account carries a bot
+        // with recurring billing. Dispatch is a one-time upfront purchase with no
+        // monthly charge, so transferring one must NOT trap the new owner on the
+        // mandatory billing form. Every other base (support, protection,
+        // utilities, scratch) is monthly-hosted, so it does ask.
+        // NB: the `monthly_hosting` column is hardcoded true at checkout for
+        // every bot incl. dispatch, so it can't be used here — key on the base.
+        && owned.some((b) => !b.viaTeam && !b.viaSupport && b.base !== "dispatch")
       } />
       <AlertDialog open={!!cancelTarget} onOpenChange={(o) => !o && setCancelTarget(null)}>
         <AlertDialogContent>
