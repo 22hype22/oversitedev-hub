@@ -144,6 +144,12 @@ const XIcon = () => (
     <path d="M18 6 6 18M6 6l12 12" />
   </svg>
 );
+const TransferIcon = () => (
+  <svg viewBox="0 0 24 24">
+    <path d="M4 8h13M13 4l4 4-4 4" />
+    <path d="M20 16H7M11 20l-4-4 4-4" />
+  </svg>
+);
 const NopeIcon = () => (
   <svg viewBox="0 0 24 24">
     <path d="M6 6l12 12M18 6 6 18" />
@@ -732,20 +738,6 @@ function MemberRow({
                 {r.label}
               </div>
             ))}
-            {member.accepted && (
-              <>
-                <div className="rmdiv" />
-                <div
-                  className="xfer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTransfer(member.member_email);
-                  }}
-                >
-                  Transfer ownership…
-                </div>
-              </>
-            )}
           </span>
         )}
       </span>
@@ -786,6 +778,19 @@ function MemberRow({
             >
               <PencilIcon />
             </button>
+            {member.accepted && (
+              <button
+                className="ib"
+                type="button"
+                title="Transfer ownership"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTransfer(member.member_email);
+                }}
+              >
+                <TransferIcon />
+              </button>
+            )}
             <button
               className="ib del"
               type="button"
