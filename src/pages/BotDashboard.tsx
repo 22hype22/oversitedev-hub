@@ -1785,13 +1785,17 @@ const BotDashboard = () => {
 
   const deleteGroup = useCallback(async (gid: string, name: string) => {
     if (!window.confirm(`Delete the group "${name}"? Its bots stay on your account and just become ungrouped. This can't be undone.`)) return;
+    // Drop the card immediately so it disappears right away — a server refetch
+    // can lag just after the write, which is why it used to need a manual reload.
+    setGroups((prev) => prev.filter((g) => g.id !== gid));
     // Ungroup its bots first so no bot is left pointing at a deleted group,
     // then remove the group itself.
     await (supabase as any).rpc("group_set_bots", { _group_id: gid, _bot_ids: [] });
     const { error } = await (supabase as any).rpc("group_delete", { _group_id: gid });
     if (error) {
       toast.error("Couldn't delete this group", { description: error.message });
-      await Promise.all([reload(), loadGroups()]);
+      // The delete didn't take — restore the list so the card comes back.
+      await loadGroups();
       return;
     }
     toast.success(`Deleted "${name}"`);
