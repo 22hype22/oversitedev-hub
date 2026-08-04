@@ -578,7 +578,6 @@ function TransferModal({
   onDone: () => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [link, setLink] = useState<string | null>(null);
 
   const start = async () => {
     if (groupBotIds.length === 0) {
@@ -598,16 +597,19 @@ function TransferModal({
       const memberId = rows?.[0]?.id;
       if (!memberId) throw new Error("Couldn't find that member.");
 
+      // Immediate transfer — the bots move to the member right now.
       const { data, error } = await supabase.functions.invoke("team-transfer-send", {
-        body: { memberId, siteUrl: window.location.origin, botIds: groupBotIds },
+        body: { memberId, botIds: groupBotIds },
       });
       if (error || !(data as any)?.ok) {
         throw new Error((error as any)?.message ?? (data as any)?.error ?? "Transfer failed");
       }
-      setLink((data as any).confirm_url ?? null);
+      const n = ((data as any).bot_ids ?? []).length || groupBotIds.length;
+      toast.success(`Transferred ${n === 1 ? "the bot" : `${n} bots`} to ${email}`);
       onDone();
+      onClose();
     } catch (e: any) {
-      toast.error("Couldn't start the transfer", { description: e?.message });
+      toast.error("Couldn't transfer", { description: e?.message });
     } finally {
       setBusy(false);
     }
@@ -626,37 +628,20 @@ function TransferModal({
               <h3>Transfer ownership</h3>
             </div>
 
-            {link ? (
-              <>
-                <p className="ms indent">
-                  Send this link to <b>{email}</b>. When they open it and sign in, ownership of{" "}
-                  <b>{groupLabel}</b>'s {groupBotIds.length === 1 ? "bot" : `${groupBotIds.length} bots`}{" "}
-                  transfers to them. It expires in 7 days.
-                </p>
-                <div className="xlink">{link}</div>
-                <div className="mfoot">
-                  <button className="btnp" type="button" onClick={async () => { await navigator.clipboard.writeText(link); toast.success("Link copied"); }}>
-                    Copy link
-                  </button>
-                  <button className="ghost" type="button" onClick={onClose}>Done</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="ms indent">
-                  Hand <b>{groupLabel}</b>'s{" "}
-                  {groupBotIds.length === 1 ? "bot" : `${groupBotIds.length} bots`} to{" "}
-                  <b>{email}</b>. They'll get a confirmation link; once they accept, those bots — and
-                  their billing — move to their account. You'll become a co-owner. This can't be undone.
-                </p>
-                <div className="mfoot">
-                  <button className="ghost" type="button" onClick={onClose} disabled={busy}>Cancel</button>
-                  <button className="btnp" type="button" onClick={start} disabled={busy}>
-                    {busy ? "Preparing…" : "Transfer ownership"}
-                  </button>
-                </div>
-              </>
-            )}
+            <>
+              <p className="ms indent">
+                Hand <b>{groupLabel}</b>'s{" "}
+                {groupBotIds.length === 1 ? "bot" : `${groupBotIds.length} bots`} to{" "}
+                <b>{email}</b>. This happens immediately: they become the owner and it
+                leaves your account. This can't be undone.
+              </p>
+              <div className="mfoot">
+                <button className="ghost" type="button" onClick={onClose} disabled={busy}>Cancel</button>
+                <button className="btnp" type="button" onClick={start} disabled={busy}>
+                  {busy ? "Transferring…" : "Transfer ownership"}
+                </button>
+              </div>
+            </>
           </div>
         </div>
       </div>
