@@ -121,6 +121,28 @@ type OwnedBotsSnapshot = {
 };
 const snapshotCache = new Map<string, OwnedBotsSnapshot>();
 
+// Persist the snapshot to sessionStorage too, so a HARD REFRESH (which wipes the
+// in-memory Map) can still paint the last-known bots instantly and refresh
+// silently — instead of showing the full-screen loader every time.
+const snapKey = (uid: string) => `oversite:bots:${uid}`;
+function readSnapshot(uid: string): OwnedBotsSnapshot | undefined {
+  const mem = snapshotCache.get(uid);
+  if (mem) return mem;
+  try {
+    const raw = sessionStorage.getItem(snapKey(uid));
+    if (raw) {
+      const snap = JSON.parse(raw) as OwnedBotsSnapshot;
+      snapshotCache.set(uid, snap);
+      return snap;
+    }
+  } catch { /* ignore */ }
+  return undefined;
+}
+function writeSnapshot(uid: string, snap: OwnedBotsSnapshot) {
+  snapshotCache.set(uid, snap);
+  try { sessionStorage.setItem(snapKey(uid), JSON.stringify(snap)); } catch { /* ignore */ }
+}
+
 export function useOwnedBots() {
   const { user, isAdmin, loading: authLoading } = useAuth();
   const userId = user?.id ?? null;
@@ -155,7 +177,7 @@ export function useOwnedBots() {
     // Serve the cached snapshot instantly on remount, then refresh silently
     // below — the loader only ever shows on the first load of a session.
     if (!hasLoadedRef.current) {
-      const cached = snapshotCache.get(userId);
+      const cached = readSnapshot(userId);
       if (cached) {
         setBots(cached.bots);
         setSupportBots(cached.supportBots);
@@ -167,28 +189,10 @@ export function useOwnedBots() {
     }
     if (!hasLoadedRef.current) setLoading(true);
 
-    // Claim any pending team invites addressed to this account's email, so an
-    // invited member gets access the moment they open the dashboard — no invite
-    // link or email needed. Runs ONCE per signed-in user (even when a cached
-    // snapshot was just painted) and before the team query below, so the
-    // newly-accepted bots show up on this same load. Idempotent server-side.
-    if (claimedForUserRef.current !== userId) {
-      claimedForUserRef.current = userId;
-      try {
-        await (supabase as any).rpc("team_accept_invites_for_current_user");
-      } catch (e) {
-        console.error("team_accept_invites_for_current_user (dashboard) failed", e);
-      }
-      // Repair any bot whose data was transferred before the fixed transfer
-      // flow existed — re-points orphaned bot-scoped rows to the current owner.
-      // Runs in an auto-deployed edge function (service role); only touches bots
-      // the caller owns; a no-op once everything matches.
-      try {
-        await supabase.functions.invoke("heal-bot-data", { body: {} });
-      } catch (e) {
-        console.error("heal-bot-data failed", e);
-      }
-    }
+    // Background maintenance runs ONCE per signed-in user and does NOT block the
+    // dashboard from painting — these used to be awaited up front, which meant
+    // waiting on edge-function cold starts before any bot showed. Fire them off
+    // after we've already fetched below (see the end of this function).
 
     // 1) Own bots — fetch ALL of the user's orders. We filter to live ones
     // for `bots`, but we keep the full list around so account-wide perks
@@ -304,7 +308,7 @@ export function useOwnedBots() {
       emptyRetriesRef.current = 0;
       // Cache only non-empty results: an auth-race "empty" must never poison
       // the next mount with a bot-less dashboard.
-      snapshotCache.set(userId, {
+      writeSnapshot(userId, {
         bots: ownMapped,
         supportBots: supportMapped,
         teamBots: teamMapped,
@@ -314,6 +318,31 @@ export function useOwnedBots() {
 
     hasLoadedRef.current = true;
     setLoading(false);
+
+    // Background maintenance (once per signed-in user), fire-and-forget so it
+    // never delays the dashboard:
+    //   * claim any pending team invites addressed to this account's email;
+    //   * repair any bot whose data was transferred before the fixed flow.
+    // If claiming actually accepted an invite, silently re-fetch so the new bot
+    // appears without the user refreshing.
+    if (claimedForUserRef.current !== userId) {
+      claimedForUserRef.current = userId;
+      void (async () => {
+        let acceptedCount = 0;
+        try {
+          const { data } = await (supabase as any).rpc("team_accept_invites_for_current_user");
+          acceptedCount = typeof data === "number" ? data : 0;
+        } catch (e) {
+          console.error("team_accept_invites_for_current_user (dashboard) failed", e);
+        }
+        try {
+          await supabase.functions.invoke("heal-bot-data", { body: {} });
+        } catch (e) {
+          console.error("heal-bot-data failed", e);
+        }
+        if (acceptedCount > 0) void reload();
+      })();
+    }
   }, [userId, authLoading]);
 
   useEffect(() => {
