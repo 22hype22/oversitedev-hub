@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { KeyRound, Loader2, Server, Radio, RefreshCw, Check } from "lucide-react";
+import { KeyRound, Loader2, Server, Radio, RefreshCw, Check, ChevronsUpDown } from "lucide-react";
 import type { OwnedBot } from "@/hooks/useOwnedBots";
 import { useTeamRole } from "@/hooks/useTeamRole";
 import {
@@ -18,6 +18,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 // Self-contained styling in the dashboard's own design language (mirrors
 // BotManagePanel): eyebrow + trailing hairline sections, hairline borders,
@@ -48,6 +57,11 @@ const SECRETS_CSS = `
 .oskeys .chip.warn,.oskeys .chip.req{color:var(--warn);background:var(--warnd);border:1px solid var(--warnl)}
 .oskeys .chip.ok{color:var(--ok);background:var(--okd);border:1px solid var(--okl)}
 .oskeys .sec{padding:18px 22px;border-top:1px solid var(--line)}
+.oskeys .rgtrig{flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:var(--inp);border:1px solid var(--line2);border-radius:9px;padding:11px 13px;
+  color:var(--heading);font-size:13px;cursor:pointer;text-align:left}
+.oskeys .rgtrig:disabled{opacity:.6;cursor:default}
+.oskeys .rgtrig .rgph{color:var(--faint)}
 .oskeys .eyebrow{display:flex;align-items:center;gap:12px;margin-bottom:12px}
 .oskeys .eyebrow .lbl{font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
   color:var(--faint);white-space:nowrap}
@@ -381,22 +395,36 @@ function RegionSection({ bot }: { bot: OwnedBot }) {
   const [region, setRegion] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  // Read the current region. Also re-run when the tab/window regains focus, so a
+  // change made elsewhere (e.g. the bot's /region command in Discord) shows up
+  // here without a manual refresh.
+  const fetchRegion = useCallback(async () => {
+    const { data } = await supabase.functions.invoke("dispatch-region", {
+      body: { botId: bot.id },
+    });
+    if ((data as any)?.region) setRegion((data as any).region);
+  }, [bot.id]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data } = await supabase.functions.invoke("dispatch-region", {
-        body: { botId: bot.id },
-      });
-      if (!cancelled) {
-        if ((data as any)?.region) setRegion((data as any).region);
-        setLoading(false);
-      }
+      await fetchRegion();
+      if (!cancelled) setLoading(false);
     })();
-    return () => { cancelled = true; };
-  }, [bot.id]);
+    const refresh = () => { if (!document.hidden) void fetchRegion(); };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [fetchRegion]);
 
   const pick = async (value: string) => {
+    setOpen(false);
     if (!value || value === region) return;
     const prev = region;
     setRegion(value);
@@ -415,6 +443,8 @@ function RegionSection({ bot }: { bot: OwnedBot }) {
     toast.success("Dispatch region set", { description: value });
   };
 
+  const label = region ? region.replace(/^the /, "") : "";
+
   return (
     <div className="sec">
       <div className="eyebrow">
@@ -429,30 +459,46 @@ function RegionSection({ bot }: { bot: OwnedBot }) {
       <div className="vc">
         <div className="vcrow">
           <span className="vclbl">Area</span>
-          <Select value={region} disabled={loading || saving} onValueChange={pick}>
-            <SelectTrigger>
-              <div className="flex items-center gap-2 min-w-0">
-                <Radio size={15} className="shrink-0" />
-                <SelectValue placeholder={loading ? "Loading…" : "Select a state or country…"} />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Countries</SelectLabel>
-                {REGION_COUNTRIES.map((r) => (
-                  <SelectItem key={r} value={r}>
-                    {r.replace(/^the /, "")}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-              <SelectGroup>
-                <SelectLabel>US States</SelectLabel>
-                {REGION_US_STATES.map((r) => (
-                  <SelectItem key={r} value={r}>{r}</SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <button type="button" className="rgtrig" disabled={loading || saving}>
+                <span className="flex items-center gap-2 min-w-0">
+                  <Radio size={15} className="shrink-0" />
+                  <span className="truncate">
+                    {loading ? "Loading…" : (label || <span className="rgph">Select a state or country…</span>)}
+                  </span>
+                </span>
+                <ChevronsUpDown size={14} className="shrink-0 opacity-60" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="p-0 w-[--radix-popover-trigger-width] min-w-[220px]" align="start">
+              <Command>
+                <CommandInput placeholder="Type to search… e.g. al" />
+                <CommandList>
+                  <CommandEmpty>No match.</CommandEmpty>
+                  <CommandGroup heading="Countries">
+                    {REGION_COUNTRIES.map((r) => {
+                      const text = r.replace(/^the /, "");
+                      return (
+                        <CommandItem key={r} value={text} onSelect={() => pick(r)}>
+                          {text}
+                          {region === r && <Check size={14} className="ml-auto" />}
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                  <CommandGroup heading="US States">
+                    {REGION_US_STATES.map((r) => (
+                      <CommandItem key={r} value={r} onSelect={() => pick(r)}>
+                        {r}
+                        {region === r && <Check size={14} className="ml-auto" />}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
     </div>
