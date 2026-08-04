@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOwnedBots, type OwnedBot } from "@/hooks/useOwnedBots";
+import { DEFAULT_PERMISSIONS, type TeamRole, type TeamPermissions } from "@/hooks/useTeamRole";
 import { BOT_BASE_LABELS } from "@/lib/botCatalog";
 import { toast } from "sonner";
 import {
@@ -213,7 +214,11 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
     try {
       const { data, error } = await (supabase as any).rpc("group_list");
       if (error) throw error;
-      const list = (Array.isArray(data) ? data : []) as Group[];
+      // Hide the auto-created default "Oversite" group — only show groups the
+      // owner actually made.
+      const list = ((Array.isArray(data) ? data : []) as Group[]).filter(
+        (g) => (g.name ?? "").trim().toLowerCase() !== "oversite",
+      );
       setGroups(list);
       setSelectedGroupId((prev) => {
         if (prev && list.some((g) => g.id === prev)) return prev;
@@ -474,7 +479,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
 
               {/* Roles */}
               <div className={"pane" + (tab === "roles" ? " on" : "")}>
-                <RolesMatrix />
+                <RolesMatrix ownerUserId={ownerUserId} groupId={selectedGroupId} />
               </div>
 
               {/* Support */}
@@ -665,51 +670,115 @@ function MemberRow({
 
 /* ------------------------------ roles matrix ------------------------------ */
 
-function RolesMatrix() {
-  const rows = [
-    { label: "Edit bot config", admin: true, mod: true, viewer: false },
-    { label: "Manage billing", admin: true, mod: false, viewer: false },
-    { label: "Invite & remove members", admin: true, mod: false, viewer: false },
-    { label: "View logs & activity", admin: true, mod: true, viewer: true },
-  ];
-  const Cell = ({ on }: { on: boolean }) =>
-    on ? (
-      <span className="yes">
-        <TickIcon />
-      </span>
-    ) : (
-      <span className="nope">
-        <NopeIcon />
-      </span>
-    );
+// Which permission each matrix row toggles, mapped to the real keys the RLS
+// (has_bot_team_perm) and useTeamRole read. Only the assignable roles get
+// columns — owner is always full, co_owner is edited elsewhere.
+const PERM_ROWS: Array<{ key: keyof TeamPermissions; label: string }> = [
+  { key: "edit_bot_config", label: "Edit bot config" },
+  { key: "manage_secrets",  label: "Manage API keys & secrets" },
+  { key: "manage_settings", label: "Settings & appearance" },
+  { key: "edit_billing",    label: "Manage billing" },
+  { key: "manage_team",     label: "Invite & remove members" },
+  { key: "view_logs",       label: "View logs & activity" },
+];
+const MATRIX_ROLES: TeamRole[] = ["admin", "moderator", "viewer"];
+
+// Sentinel group id for "no specific group" (global / ungrouped) — matches the
+// SQL default in the per-group permissions migration.
+const GLOBAL_GROUP_ID = "00000000-0000-0000-0000-000000000000";
+
+function RolesMatrix({ ownerUserId, groupId }: { ownerUserId: string; groupId: string | null }) {
+  const [matrix, setMatrix] = useState<Record<string, TeamPermissions>>(() => ({
+    admin: { ...DEFAULT_PERMISSIONS.admin },
+    moderator: { ...DEFAULT_PERMISSIONS.moderator },
+    viewer: { ...DEFAULT_PERMISSIONS.viewer },
+  }));
+  const [loading, setLoading] = useState(true);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const effGroupId = groupId ?? GLOBAL_GROUP_ID;
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    const next: Record<string, TeamPermissions> = {
+      admin: { ...DEFAULT_PERMISSIONS.admin },
+      moderator: { ...DEFAULT_PERMISSIONS.moderator },
+      viewer: { ...DEFAULT_PERMISSIONS.viewer },
+    };
+    // Permissions are per group — only load the selected group's overrides.
+    const { data } = await (supabase as any)
+      .from("dashboard_role_permissions")
+      .select("role, permissions")
+      .eq("owner_user_id", ownerUserId)
+      .eq("group_id", effGroupId);
+    for (const row of ((data ?? []) as { role: string; permissions: Partial<TeamPermissions> }[])) {
+      if (next[row.role]) next[row.role] = { ...next[row.role], ...row.permissions };
+    }
+    setMatrix(next);
+    setLoading(false);
+  }, [ownerUserId, effGroupId]);
+  useEffect(() => { void reload(); }, [reload]);
+
+  // Toggle a single cell — optimistic, saves the whole role's permission set
+  // for THIS group via team_set_role_permissions, reverts on failure.
+  const toggle = async (role: TeamRole, key: keyof TeamPermissions) => {
+    const cellId = `${role}:${key}`;
+    const prevVal = matrix[role][key];
+    const updated = { ...matrix[role], [key]: !prevVal };
+    setMatrix((m) => ({ ...m, [role]: updated }));
+    setBusyKey(cellId);
+    const { data, error } = await (supabase as any).rpc("team_set_role_permissions", {
+      _role: role,
+      _permissions: updated,
+      _group_id: groupId,
+    });
+    setBusyKey(null);
+    if (error || (data && data.ok === false)) {
+      setMatrix((m) => ({ ...m, [role]: { ...m[role], [key]: prevVal } }));
+      toast.error("Couldn't save that permission", { description: error?.message });
+    }
+  };
+
   return (
     <div>
       <div className="note">
-        Roles mean the same in every group. Assign a member's role on the Members
-        tab. Owner always has full access.
+        Click any ✓ or ✗ to change what a role can do — it saves instantly. Owner
+        always has full access.
       </div>
-      <div className="rmtx">
-        <div className="rrow head">
-          <div>Permission</div>
-          <div className="c">Admin</div>
-          <div className="c">Mod</div>
-          <div className="c">Viewer</div>
-        </div>
-        {rows.map((r) => (
-          <div className="rrow" key={r.label}>
-            <div className="p">{r.label}</div>
-            <div className="c">
-              <Cell on={r.admin} />
-            </div>
-            <div className="c">
-              <Cell on={r.mod} />
-            </div>
-            <div className="c">
-              <Cell on={r.viewer} />
-            </div>
+      {loading ? (
+        <div className="loading sm">Loading permissions…</div>
+      ) : (
+        <div className="rmtx">
+          <div className="rrow head">
+            <div>Permission</div>
+            <div className="c">Admin</div>
+            <div className="c">Mod</div>
+            <div className="c">Viewer</div>
           </div>
-        ))}
-      </div>
+          {PERM_ROWS.map((r) => (
+            <div className="rrow" key={r.key}>
+              <div className="p">{r.label}</div>
+              {MATRIX_ROLES.map((role) => {
+                const on = matrix[role][r.key];
+                const cellId = `${role}:${r.key}`;
+                return (
+                  <div className="c" key={role}>
+                    <button
+                      type="button"
+                      className={"pcell " + (on ? "yes" : "nope")}
+                      disabled={busyKey === cellId}
+                      aria-pressed={on}
+                      aria-label={`${r.label} for ${role}: ${on ? "allowed" : "blocked"} — click to toggle`}
+                      onClick={() => void toggle(role, r.key)}
+                    >
+                      {on ? <TickIcon /> : <NopeIcon />}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1469,7 +1538,7 @@ const GTH_CSS = `
 .gth .tab{position:relative;padding:0 1px 13px;font-family:var(--gdisp);font-weight:700;font-size:13px;color:var(--gfaint);cursor:pointer;background:none;border:0}
 .gth .tab:hover{color:var(--gbody)} .gth .tab.on{color:var(--gheading)}
 .gth .tab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:2px;background:var(--gaccent)}
-.gth .pane{display:none;padding-top:22px}.gth .pane.on{display:block;animation:gthfade .25s ease}
+.gth .pane{display:none;padding-top:8px}.gth .pane.on{display:block;animation:gthfade .25s ease}
 @keyframes gthfade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 
 .gth .loading{padding:40px 0;text-align:center;font-size:13px;color:var(--gfaint)}
@@ -1518,8 +1587,13 @@ const GTH_CSS = `
 .gth .resend:hover{background:var(--gsurface2);color:var(--gheading)}
 .gth .dash{color:var(--gfaint);font-size:12px}
 
-.gth .note{font-size:11.5px;color:var(--gfaint);margin-bottom:18px;line-height:1.5}
+.gth .note{font-size:11.5px;color:var(--gfaint);margin-bottom:12px;line-height:1.5}
 .gth .rmtx{display:flex;flex-direction:column}
+.gth .pcell{background:none;border:0;cursor:pointer;padding:6px 12px;border-radius:8px;display:inline-grid;place-items:center;color:#4a545d;transition:background .12s,transform .1s}
+.gth .pcell:hover{background:rgba(201,219,230,.09)} .gth .pcell:active{transform:scale(.88)}
+.gth .pcell:disabled{opacity:.45;cursor:default}
+.gth .pcell.yes{color:var(--gok)} .gth .pcell.yes svg{width:17px;height:17px;stroke:currentColor;stroke-width:2.4;fill:none}
+.gth .pcell.nope svg{width:14px;height:14px;stroke:currentColor;stroke-width:2.4;fill:none}
 .gth .rrow{display:grid;grid-template-columns:1.5fr repeat(3,1fr);align-items:center;padding:13px 4px;border-top:1px solid var(--ghair)}
 .gth .rrow.head{border-top:0;font-family:var(--gdisp);font-weight:700;color:var(--gheading);font-size:12px}
 .gth .rrow.head .c{text-align:center}.gth .rrow .p{font-size:13px;color:var(--gbody)}.gth .rrow .c{text-align:center}
