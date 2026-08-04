@@ -97,7 +97,6 @@ import {
   Gift,
   ChevronDown,
   ChevronUp,
-  Search,
   Loader2,
   LayoutGrid,
   Users,
@@ -1395,6 +1394,9 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .gname{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:16px}
 .osd .gmeta{font-size:11.5px;color:var(--faint);margin-top:1px}
 .osd .ghd .dots{margin-left:auto}
+.osd .gcard .gdel{position:absolute;top:12px;right:12px;height:26px;width:26px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--faint);display:grid;place-items:center;cursor:pointer;transition:color .12s ease,background .12s ease,border-color .12s ease}
+.osd .gcard .gdel svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round}
+.osd .gcard .gdel:hover{color:#e6b7b7;background:rgba(190,120,120,.12);border-color:rgba(190,120,120,.28)}
 .osd .gbody{display:grid;grid-template-columns:1fr 1fr;gap:22px}
 .osd .gcl{font-family:var(--disp);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:11px}
 .osd .chips{display:flex;flex-wrap:wrap;gap:8px}
@@ -1781,6 +1783,21 @@ const BotDashboard = () => {
     await Promise.all([reload(), loadGroups()]);
   }, [owned, reload, loadGroups]);
 
+  const deleteGroup = useCallback(async (gid: string, name: string) => {
+    if (!window.confirm(`Delete the group "${name}"? Its bots stay on your account and just become ungrouped. This can't be undone.`)) return;
+    // Ungroup its bots first so no bot is left pointing at a deleted group,
+    // then remove the group itself.
+    await (supabase as any).rpc("group_set_bots", { _group_id: gid, _bot_ids: [] });
+    const { error } = await (supabase as any).rpc("group_delete", { _group_id: gid });
+    if (error) {
+      toast.error("Couldn't delete this group", { description: error.message });
+      await Promise.all([reload(), loadGroups()]);
+      return;
+    }
+    toast.success(`Deleted "${name}"`);
+    await Promise.all([reload(), loadGroups()]);
+  }, [reload, loadGroups]);
+
   const chooseMode = (m: "solo" | "team") => { setWsMode(m); lsSet(LS.ws, m); lsSet(LS.onboarded, "1"); setAppOn(true); askTour(); };
   const openBot = (id: string) => { setBotId(id); setView("bot"); window.scrollTo({ top: 0 }); };
   const go = (v: string) => { setView(v); window.scrollTo({ top: 0 }); };
@@ -2159,7 +2176,6 @@ const BotDashboard = () => {
                 <div className="sub">{owned.length} bots · <b>{liveCount} live</b></div>
               </div>
               <div className="htools">
-                <label className="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Search</label>
                 <div className="bell" id="tour-bell" onClick={() => go("activity")}><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>{unread > 0 && <span className="d" />}</div>
                 <button className="cta" id="tour-add" onClick={() => go("bots")}>+ Add a bot</button>
               </div>
@@ -2198,7 +2214,8 @@ const BotDashboard = () => {
               <div className="groups">
                 {groups.length === 0 && <div className="card" style={{ textAlign: "center", color: "var(--faint)", fontSize: "13px" }}>No groups yet. Create one to bundle bots and share access.</div>}
                 {groups.map((g) => (
-                  <div className="gcard" key={g.id}>
+                  <div className="gcard" key={g.id} style={{ position: "relative" }}>
+                    <button className="gdel" type="button" title="Delete group" aria-label={`Delete ${g.name}`} onClick={() => void deleteGroup(g.id, g.name)}><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
                     <div className="ghd"><div className="gi"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></div><div><div className="gname">{g.name}</div><div className="gmeta">{groupBotIds(g.id).length} bots</div></div></div>
                     <div className="gbody">
                       <div>
