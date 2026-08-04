@@ -2161,7 +2161,7 @@ const BotDashboard = () => {
 
             <div className="glab">Account</div>
             {canBilling && navItem("billing", <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>, "Billing")}
-            {(isInvitedOnly ? canManageTeam : isTeam) && navItem("team", <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>, "Team")}
+            {(isInvitedOnly ? canManageTeam : true) && navItem("team", <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>, "Team")}
 
             <div className="glab">More</div>
             {canManageSettings && navItem("settings", <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1l-.4-2.5H9.6L9.2 6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L5 11a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 2.5h4.8l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6a7 7 0 0 0 .1-1Z"/></svg>, "Settings")}
@@ -2267,7 +2267,7 @@ const BotDashboard = () => {
             </div>
 
             {/* TEAM */}
-            <div className={"view" + (view === "team" && (isInvitedOnly ? canManageTeam : isTeam) ? " on" : "")}>
+            <div className={"view" + (view === "team" && (isInvitedOnly ? canManageTeam : true) ? " on" : "")}>
               {firstOwned ? (
                 <div style={{ position: "relative" }}><GroupTeamHub ownerUserId={user.id} ownerEmail={user.email ?? null} /></div>
               ) : (<div className="ph2"><h2>Team</h2><p>You need an owned bot to manage a team.</p></div>)}
