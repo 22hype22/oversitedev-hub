@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Mono, Reveal } from "@/components/marketing/primitives";
@@ -54,6 +54,9 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [oauthBusy, setOauthBusy] = useState<"discord" | "google" | null>(null);
+  // The post-auth effect can fire more than once; guard so we only claim
+  // invites / confirm a transfer a single time per mount.
+  const postAuthRan = useRef(false);
 
   const inviteToken = params.get("team_invite");
   const transferToken = params.get("team_transfer");
@@ -102,6 +105,24 @@ const Auth = () => {
           title: "Ownership transferred",
           description: "You are now the owner of this account.",
         });
+        // The team hub is group-scoped: the new owner can only see/manage a
+        // bot's team once that bot sits in a group THEY own. The transfer
+        // detaches the bot from the previous owner's group, so drop the moved
+        // bots into a fresh group here (idempotent-friendly: only when the
+        // confirm actually moved bots this time, not on a repeat confirm).
+        try {
+          const movedBotIds: string[] = Array.isArray((data as any)?.bot_ids)
+            ? (data as any).bot_ids
+            : [];
+          if (movedBotIds.length > 0 && !(data as any)?.already) {
+            await (supabase as any).rpc("group_create", {
+              _name: "Transferred bots",
+              _bot_ids: movedBotIds,
+            });
+          }
+        } catch (e) {
+          console.error("post-transfer grouping failed", e);
+        }
         try {
           const { data: userResp } = await supabase.auth.getUser();
           const newOwnerEmail = userResp?.user?.email;
@@ -134,7 +155,10 @@ const Auth = () => {
         // Always navigate, even if post-auth actions fail — otherwise the page
         // can hang forever on a silent RPC error.
         try {
-          await runPostAuthActions();
+          if (!postAuthRan.current) {
+            postAuthRan.current = true;
+            await runPostAuthActions();
+          }
         } catch (e) {
           console.error("post-auth actions failed", e);
         }
