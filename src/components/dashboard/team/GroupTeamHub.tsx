@@ -264,11 +264,20 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
     const onGroupsChanged = (e: Event) => {
       const removedId = (e as CustomEvent)?.detail?.removedId as string | undefined;
       if (removedId) {
-        // Drop it immediately, and move the selection off it if it was active.
-        setGroups((prev) => prev.filter((g) => g.id !== removedId));
-        setSelectedGroupId((prev) => (prev === removedId ? null : prev));
+        // Drop it immediately and, if it was the selected one, move to the next
+        // remaining group. Do NOT re-fetch here: a server read right after the
+        // delete can still return the just-removed group (write lag) and re-add
+        // it. The optimistic state is correct; a rollback fires a plain event
+        // that DOES re-fetch.
+        setGroups((prev) => {
+          const next = prev.filter((g) => g.id !== removedId);
+          setSelectedGroupId((sel) => (sel === removedId ? (next[0]?.id ?? null) : sel));
+          return next;
+        });
+        return;
       }
-      // Resync with the server so a create/rename/delete all reflect here too.
+      // No removedId → a create / rename / bot-count change (or a delete
+      // rollback). Resync with the server.
       void loadGroups();
     };
     window.addEventListener("oversite:groups-changed", onGroupsChanged);
