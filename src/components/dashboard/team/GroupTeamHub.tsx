@@ -182,8 +182,6 @@ const ClockIcon = () => (
 /* ------------------------------- component -------------------------------- */
 
 export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
-  void ownerUserId;
-  void ownerEmail;
   const { dashboardBots, loading: botsLoading, reload: reloadBots } =
     useOwnedBots();
 
@@ -198,6 +196,24 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
 
   const [members, setMembers] = useState<Member[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
+
+  // The owner (you) isn't a team-member row — ownership lives on the bot itself —
+  // so team_group_members never returns you. Always show yourself at the top as
+  // the Owner unless the RPC already surfaced an owner row.
+  const displayMembers = useMemo<Member[]>(() => {
+    if (members.some((m) => m.is_owner || m.role === "owner")) return members;
+    const ownerRow: Member = {
+      member_email: ownerEmail ?? "You",
+      member_user_id: ownerUserId,
+      role: "owner",
+      is_owner: true,
+      accepted: true,
+      accepted_at: null,
+      invited_at: null,
+      invite_token: null,
+    };
+    return [ownerRow, ...members];
+  }, [members, ownerEmail, ownerUserId]);
 
   const [tab, setTab] = useState<TabKey>("members");
 
@@ -462,11 +478,11 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
 
                 {membersLoading ? (
                   <div className="loading sm">Loading members…</div>
-                ) : members.length === 0 ? (
+                ) : displayMembers.length === 0 ? (
                   <div className="loading sm">No members yet.</div>
                 ) : (
                   <div className="list">
-                    {members.map((m) => (
+                    {displayMembers.map((m) => (
                       <MemberRow
                         key={m.member_email}
                         member={m}
