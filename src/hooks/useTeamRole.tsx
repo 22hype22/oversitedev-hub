@@ -73,12 +73,14 @@ export function useTeamRole(botId?: string | null) {
       setLoading(false);
       return;
     }
-    const { data, error } = await (supabase as any).rpc("team_get_effective_role", {
-      _bot_id: botId,
+    // Resolved by an auto-deploying edge function (service role) so it works
+    // regardless of whether the old team_get_effective_role migration deployed.
+    const { data, error } = await supabase.functions.invoke("team-effective-role", {
+      body: { botId },
     });
     if (!error && data) {
-      setRole((data.role as TeamRole) ?? null);
-      setPermissions({ ...EMPTY, ...(data.permissions ?? {}) });
+      setRole(((data as any).role as TeamRole) ?? null);
+      setPermissions({ ...EMPTY, ...((data as any).permissions ?? {}) });
     } else {
       setRole(null);
       setPermissions(EMPTY);
