@@ -258,6 +258,23 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
     void loadGroups();
   }, [loadGroups]);
 
+  // The Groups tab (a separate component) deletes/creates groups. Listen for its
+  // broadcast so this hub updates instantly instead of needing a refresh.
+  useEffect(() => {
+    const onGroupsChanged = (e: Event) => {
+      const removedId = (e as CustomEvent)?.detail?.removedId as string | undefined;
+      if (removedId) {
+        // Drop it immediately, and move the selection off it if it was active.
+        setGroups((prev) => prev.filter((g) => g.id !== removedId));
+        setSelectedGroupId((prev) => (prev === removedId ? null : prev));
+      }
+      // Resync with the server so a create/rename/delete all reflect here too.
+      void loadGroups();
+    };
+    window.addEventListener("oversite:groups-changed", onGroupsChanged);
+    return () => window.removeEventListener("oversite:groups-changed", onGroupsChanged);
+  }, [loadGroups]);
+
   const loadMembers = useCallback(async (groupId: string) => {
     setMembersLoading(true);
     try {
