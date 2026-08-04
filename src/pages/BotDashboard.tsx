@@ -1802,7 +1802,7 @@ const BotDashboard = () => {
         .from("dashboard_team")
         .delete()
         .in("bot_id", botIds)
-        .eq("owner_user_id", user.id);
+        .eq("owner_user_id", user?.id);
     }
     // Ungroup its bots, then remove the group itself.
     await (supabase as any).rpc("group_set_bots", { _group_id: gid, _bot_ids: [] });
@@ -1816,7 +1816,7 @@ const BotDashboard = () => {
     }
     toast.success(`Deleted "${name}"`);
     await Promise.all([reload(), loadGroups()]);
-  }, [owned, user.id, reload, loadGroups]);
+  }, [owned, user?.id, reload, loadGroups]);
 
   const chooseMode = (m: "solo" | "team") => { setWsMode(m); lsSet(LS.ws, m); lsSet(LS.onboarded, "1"); setAppOn(true); askTour(); };
   const openBot = (id: string) => { setBotId(id); setView("bot"); window.scrollTo({ top: 0 }); };
