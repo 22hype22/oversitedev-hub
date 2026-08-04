@@ -90,9 +90,11 @@ const Auth = () => {
       }
     }
     if (transferToken) {
-      const { data, error } = await (supabase as any).rpc(
-        "team_confirm_ownership_transfer",
-        { _token: transferToken },
+      // Runs the whole transfer in an auto-deployed edge function (service
+      // role) — no database function / SQL migration to apply.
+      const { data, error } = await supabase.functions.invoke(
+        "team-transfer-confirm",
+        { body: { token: transferToken } },
       );
       if (error || !data?.ok) {
         toast({
