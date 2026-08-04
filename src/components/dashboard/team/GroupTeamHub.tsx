@@ -200,6 +200,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [transferEmail, setTransferEmail] = useState<string | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
 
   const rootRef = useRef<HTMLDivElement>(null);
@@ -471,6 +472,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
                         }
                         onChangeRole={handleChangeRole}
                         onRemove={handleRemove}
+                        onTransfer={(email) => { setRoleMenuEmail(null); setTransferEmail(email); }}
                       />
                     ))}
                   </div>
@@ -521,7 +523,122 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
         groupName={groupName}
         onManaged={onBotsManaged}
       />
+
+      {transferEmail && (
+        <TransferModal
+          email={transferEmail}
+          ownerUserId={ownerUserId}
+          groupLabel={groupName(selectedGroupId) ?? "this group"}
+          groupBotIds={ownedBots.filter((b) => b.group_id === selectedGroupId).map((b) => b.id)}
+          onClose={() => setTransferEmail(null)}
+          onDone={() => selectedGroupId && loadMembers(selectedGroupId)}
+        />
+      )}
     </div>
+  );
+}
+
+/* --------------------------- transfer ownership --------------------------- */
+
+function TransferModal({
+  email,
+  ownerUserId,
+  groupLabel,
+  groupBotIds,
+  onClose,
+  onDone,
+}: {
+  email: string;
+  ownerUserId: string;
+  groupLabel: string;
+  groupBotIds: string[];
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [link, setLink] = useState<string | null>(null);
+
+  const start = async () => {
+    if (groupBotIds.length === 0) {
+      toast.error("This group has no bots to transfer yet.");
+      return;
+    }
+    setBusy(true);
+    try {
+      // Resolve the member's dashboard_team row id (transfer is keyed by it).
+      const { data: rows, error: lookupErr } = await (supabase as any)
+        .from("dashboard_team")
+        .select("id")
+        .eq("owner_user_id", ownerUserId)
+        .ilike("member_email", email)
+        .limit(1);
+      if (lookupErr) throw new Error(lookupErr.message);
+      const memberId = rows?.[0]?.id;
+      if (!memberId) throw new Error("Couldn't find that member.");
+
+      const { data, error } = await supabase.functions.invoke("team-transfer-send", {
+        body: { memberId, siteUrl: window.location.origin, botIds: groupBotIds },
+      });
+      if (error || !(data as any)?.ok) {
+        throw new Error((error as any)?.message ?? (data as any)?.error ?? "Transfer failed");
+      }
+      setLink((data as any).confirm_url ?? null);
+      onDone();
+    } catch (e: any) {
+      toast.error("Couldn't start the transfer", { description: e?.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Portal>
+      <div className="gthm">
+        <style>{GTH_CSS}</style>
+        <div className="scrim open" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+          <div className="modal">
+            <div className="mhd">
+              <span className="mic">
+                <svg viewBox="0 0 24 24"><path d="M4 12h13M13 6l6 6-6 6" /></svg>
+              </span>
+              <h3>Transfer ownership</h3>
+            </div>
+
+            {link ? (
+              <>
+                <p className="ms indent">
+                  Send this link to <b>{email}</b>. When they open it and sign in, ownership of{" "}
+                  <b>{groupLabel}</b>'s {groupBotIds.length === 1 ? "bot" : `${groupBotIds.length} bots`}{" "}
+                  transfers to them. It expires in 7 days.
+                </p>
+                <div className="xlink">{link}</div>
+                <div className="mfoot">
+                  <button className="btnp" type="button" onClick={async () => { await navigator.clipboard.writeText(link); toast.success("Link copied"); }}>
+                    Copy link
+                  </button>
+                  <button className="ghost" type="button" onClick={onClose}>Done</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="ms indent">
+                  Hand <b>{groupLabel}</b>'s{" "}
+                  {groupBotIds.length === 1 ? "bot" : `${groupBotIds.length} bots`} to{" "}
+                  <b>{email}</b>. They'll get a confirmation link; once they accept, those bots — and
+                  their billing — move to their account. You'll become a co-owner. This can't be undone.
+                </p>
+                <div className="mfoot">
+                  <button className="ghost" type="button" onClick={onClose} disabled={busy}>Cancel</button>
+                  <button className="btnp" type="button" onClick={start} disabled={busy}>
+                    {busy ? "Preparing…" : "Transfer ownership"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </Portal>
   );
 }
 
@@ -554,12 +671,14 @@ function MemberRow({
   onToggleMenu,
   onChangeRole,
   onRemove,
+  onTransfer,
 }: {
   member: Member;
   menuOpen: boolean;
   onToggleMenu: () => void;
   onChangeRole: (email: string, role: RoleKey) => void;
   onRemove: (email: string) => void;
+  onTransfer: (email: string) => void;
 }) {
   const initial = (member.member_email[0] ?? "?").toUpperCase();
   const isPending = !member.accepted && !member.is_owner;
@@ -613,6 +732,20 @@ function MemberRow({
                 {r.label}
               </div>
             ))}
+            {member.accepted && (
+              <>
+                <div className="rmdiv" />
+                <div
+                  className="xfer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTransfer(member.member_email);
+                  }}
+                >
+                  Transfer ownership…
+                </div>
+              </>
+            )}
           </span>
         )}
       </span>
@@ -1579,6 +1712,11 @@ const GTH_CSS = `
 .gth .rolemenu.open{display:block}
 .gth .rolemenu div{padding:7px 10px;border-radius:7px;font-size:12px;color:var(--gbody);cursor:pointer;font-family:var(--gbodyf);font-weight:600}
 .gth .rolemenu div:hover{background:var(--gsurface);color:var(--gheading)}
+.gth .rolemenu .rmdiv{height:1px;padding:0;margin:5px 4px;background:var(--ghair);border-radius:0;cursor:default}
+.gth .rolemenu .rmdiv:hover{background:var(--ghair)}
+.gth .rolemenu .xfer{color:var(--gaccent)}
+.gth .rolemenu .xfer:hover{background:color-mix(in srgb,var(--gaccent) 12%,transparent);color:var(--gaccent)}
+.gthm .xlink{font-family:var(--gmono,ui-monospace,monospace);font-size:11.5px;color:var(--gbody);word-break:break-all;background:var(--gbg);border:1px solid var(--ghair);border-radius:9px;padding:10px 12px;margin-top:6px}
 .gth .act{display:flex;gap:6px;justify-content:flex-end;min-width:74px}
 .gth .ib{height:30px;width:30px;border-radius:8px;border:1px solid var(--ghair);background:transparent;color:var(--gfaint);display:grid;place-items:center;cursor:pointer;transition:.14s}
 .gth .ib:hover{background:var(--gsurface2);color:var(--gheading)} .gth .ib.del:hover{color:var(--gbad);border-color:color-mix(in srgb,var(--gbad) 40%,var(--ghair))}
