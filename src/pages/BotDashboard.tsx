@@ -2332,7 +2332,14 @@ const BotDashboard = () => {
         </div>
       </div>
 
-      <NewOwnerBillingDialog forceOpen={new URLSearchParams(window.location.search).get("team_transfer") === "accepted"} />
+      <NewOwnerBillingDialog forceOpen={
+        new URLSearchParams(window.location.search).get("team_transfer") === "accepted"
+        // Only demand billing details when the newly-owned account actually has
+        // a monthly-hosted bot. A dispatch bot is a one-time upfront purchase
+        // with no recurring charge, so a transfer of it must NOT trap the new
+        // owner on the mandatory billing form.
+        && owned.some((b) => !b.viaTeam && !b.viaSupport && b.monthly_hosting)
+      } />
       <AlertDialog open={!!cancelTarget} onOpenChange={(o) => !o && setCancelTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Cancel subscription for "{cancelTarget?.bot_name}"?</AlertDialogTitle><AlertDialogDescription>This stops recurring payments and hosting, takes the bot offline, and removes it from your dashboard.</AlertDialogDescription></AlertDialogHeader>
