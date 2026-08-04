@@ -181,11 +181,12 @@ export function useOwnedBots() {
       }
       // Repair any bot whose data was transferred before the fixed transfer
       // flow existed — re-points orphaned bot-scoped rows to the current owner.
-      // Only touches bots the caller owns; a no-op once everything matches.
+      // Runs in an auto-deployed edge function (service role); only touches bots
+      // the caller owns; a no-op once everything matches.
       try {
-        await (supabase as any).rpc("heal_bot_ownership_data");
+        await supabase.functions.invoke("heal-bot-data", { body: {} });
       } catch (e) {
-        console.error("heal_bot_ownership_data failed", e);
+        console.error("heal-bot-data failed", e);
       }
     }
 
