@@ -1,10 +1,11 @@
 // team-transfer-send
 //
-// The owner initiates an ownership transfer of a set of bots to a team member.
-// Fully self-contained: it validates and stores the handshake with the
-// service-role client (no database function / SQL migration), then emails the
-// recipient a confirmation link. The handshake lives on dashboard_team's
-// existing transfer_* columns; team-transfer-confirm reads it back.
+// IMMEDIATE ownership transfer. The owner picks a team member and the bots move
+// to that member right away — no email, no confirmation link, no second step.
+// Runs entirely with the service-role client (bypasses RLS), so there is no
+// database function or SQL migration to apply — deploying this edge function IS
+// the fix. The moment it returns, the bot is gone from the old owner's account
+// and fully owned by the recipient.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -13,6 +14,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers':
     'authorization, x-client-info, apikey, content-type',
 }
+
+// Every bot-scoped table that carries its own user_id (RLS keys off it).
+const CHILD_TABLES = [
+  'bot_secrets', 'bot_logs', 'bot_notifications', 'bot_runtime_status',
+  'bot_commands', 'bot_active_guilds', 'bot_channel_cache', 'bot_role_cache',
+  'bot_server_slots', 'bot_say_drafts', 'bot_credits', 'bot_free_periods',
+  'bot_free_period_redemptions', 'bot_dashboard_redemptions',
+  'bot_pending_discounts', 'bot_usage_metrics',
+]
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
@@ -25,123 +35,107 @@ Deno.serve(async (req) => {
 
   const authHeader = req.headers.get('Authorization') ?? ''
   if (!authHeader.startsWith('Bearer ')) {
-    return json({ ok: false, error: 'not authenticated' }, 401)
+    return json({ ok: false, error: 'not authenticated' })
   }
 
   let memberId = ''
-  let siteUrl = ''
   let botIds: string[] = []
   try {
     const body = await req.json()
     memberId = String(body.memberId ?? '').trim()
-    siteUrl = String(body.siteUrl ?? '').trim()
     if (Array.isArray(body.botIds)) {
       botIds = body.botIds.map((v: unknown) => String(v)).filter(Boolean)
     }
   } catch {
-    return json({ ok: false, error: 'invalid body' }, 400)
+    return json({ ok: false, error: 'invalid body' })
   }
-  if (!memberId) return json({ ok: false, error: 'memberId required' }, 400)
-  if (botIds.length === 0) return json({ ok: false, error: 'select at least one bot' }, 400)
+  if (!memberId) return json({ ok: false, error: 'memberId required' })
+  if (botIds.length === 0) return json({ ok: false, error: 'select at least one bot' })
 
   // Who is initiating (must own the bots).
   const userClient = createClient(SUPABASE_URL, ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
   })
   const { data: userResp, error: userErr } = await userClient.auth.getUser()
-  if (userErr || !userResp.user) return json({ ok: false, error: 'not authenticated' }, 401)
-  const owner = userResp.user.id
-  const ownerEmail = userResp.user.email ?? null
+  if (userErr || !userResp.user) return json({ ok: false, error: 'not authenticated' })
+  const from = userResp.user.id
 
   const admin = createClient(SUPABASE_URL, serviceKey)
 
-  // The target member row.
+  // The target member (the new owner) — must be an accepted member of this owner.
   const { data: member } = await admin
     .from('dashboard_team')
     .select('id, owner_user_id, member_user_id, member_email, accepted_at')
     .eq('id', memberId)
     .maybeSingle()
-  if (!member) return json({ ok: false, error: 'member not found' }, 400)
-  if (member.owner_user_id !== owner) return json({ ok: false, error: 'not owner' }, 400)
+  if (!member) return json({ ok: false, error: 'member not found' })
+  if (member.owner_user_id !== from) return json({ ok: false, error: 'not owner' })
   if (!member.accepted_at || !member.member_user_id) {
-    return json({ ok: false, error: 'member has not accepted their invite yet' }, 400)
+    return json({ ok: false, error: 'that member has not accepted their invite yet' })
   }
-  if (member.member_user_id === owner) {
-    return json({ ok: false, error: 'cannot transfer to yourself' }, 400)
-  }
+  const to = member.member_user_id as string
+  const toEmail = (member.member_email ?? '').toLowerCase()
+  if (to === from) return json({ ok: false, error: 'cannot transfer to yourself' })
 
-  // Keep only bots the caller actually owns.
+  // Keep only bots the caller actually owns right now.
   const { data: ownRows } = await admin
     .from('bot_orders')
-    .select('id, bot_name')
+    .select('id')
     .in('id', botIds)
-    .eq('user_id', owner)
-  const validBots = (ownRows ?? []) as Array<{ id: string; bot_name: string | null }>
-  if (validBots.length === 0) {
-    return json({ ok: false, error: 'no transferable bots selected' }, 400)
-  }
-  const validIds = validBots.map((b) => b.id)
+    .eq('user_id', from)
+  const validIds = (ownRows ?? []).map((b: { id: string }) => b.id)
+  if (validIds.length === 0) return json({ ok: false, error: 'no transferable bots selected' })
 
-  const token =
-    crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '')
+  const moved: string[] = []
+  for (const bot of validIds) {
+    // Move real ownership + detach from the old owner's group.
+    const { data: movedRows } = await admin
+      .from('bot_orders')
+      .update({ user_id: to, group_id: null, updated_at: new Date().toISOString() })
+      .eq('id', bot)
+      .eq('user_id', from)
+      .select('id')
+    if (!movedRows || movedRows.length === 0) continue
 
-  // Store the handshake on the recipient's dashboard_team row.
-  const { error: storeErr } = await admin
-    .from('dashboard_team')
-    .update({
-      transfer_token: token,
-      transfer_bot_ids: validIds,
-      transfer_requested_at: new Date().toISOString(),
-      transfer_requested_by: owner,
-    })
-    .eq('id', memberId)
-  if (storeErr) return json({ ok: false, error: storeErr.message }, 400)
-
-  const origin = siteUrl || req.headers.get('origin') || 'https://oversite.shop'
-  const confirmUrl = `${origin.replace(/\/$/, '')}/auth?team_transfer=${token}`
-  const botNames = validBots.map((b) => b.bot_name).filter(Boolean) as string[]
-
-  // Fire-and-forget emails (don't fail the transfer if email is down).
-  const sendEmail = async (payload: Record<string, unknown>) => {
-    try {
-      const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-transactional-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: authHeader,
-          apikey: ANON_KEY,
-        },
-        body: JSON.stringify(payload),
-      })
-      await resp.text().catch(() => '')
-    } catch (e) {
-      console.error('transfer email failed', e)
+    // Move every bot-scoped child row so the new owner can see all of it.
+    for (const tbl of CHILD_TABLES) {
+      const { error } = await admin.from(tbl)
+        .update({ user_id: to })
+        .eq('bot_id', bot)
+        .eq('user_id', from)
+      if (error && !/does not exist|could not find|relation|schema cache/i.test(error.message)) {
+        console.error(`child move failed on ${tbl} for bot ${bot}:`, error.message)
+      }
     }
+
+    // Clean break: the previous owner keeps NO access. Remove any row tying the
+    // old owner to this bot and the new owner's old member row (they own it now).
+    await admin.from('dashboard_team').delete()
+      .eq('bot_id', bot).eq('member_user_id', from)
+    if (toEmail) {
+      await admin.from('dashboard_team').delete()
+        .eq('bot_id', bot).ilike('member_email', toEmail)
+    }
+    // Re-point remaining team members (admins/mods/viewers) to the new owner.
+    await admin.from('dashboard_team')
+      .update({ owner_user_id: to, updated_at: new Date().toISOString() })
+      .eq('bot_id', bot).eq('owner_user_id', from)
+
+    moved.push(bot)
   }
 
-  await Promise.all([
-    sendEmail({
-      templateName: 'team-transfer-confirm',
-      recipientEmail: member.member_email,
-      templateData: { ownerEmail, confirmUrl, botNames },
-      idempotencyKey: `team-transfer-confirm:${token}`,
-    }),
-    ownerEmail
-      ? sendEmail({
-          templateName: 'team-transfer-notice',
-          recipientEmail: ownerEmail,
-          templateData: { memberEmail: member.member_email, botNames },
-          idempotencyKey: `team-transfer-notice:${token}`,
-        })
-      : Promise.resolve(),
-  ])
+  if (moved.length === 0) {
+    return json({ ok: false, error: 'these bots are no longer owned by you' })
+  }
 
-  return json({ ok: true, confirm_url: confirmUrl })
+  return json({ ok: true, bot_ids: moved, recipient_email: member.member_email })
 })
 
-function json(body: unknown, status = 200) {
+function json(body: unknown) {
+  // Always 200 so the client reads { ok, error } instead of a generic
+  // "edge function returned a non-2xx" with the real reason hidden.
   return new Response(JSON.stringify(body), {
-    status,
+    status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 }
