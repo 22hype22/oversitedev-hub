@@ -668,6 +668,15 @@ export function BotForge() {
         return next;
       }
       const next = [...discord, id];
+      // Selecting all three Discord singles collapses into the All-in-One Pack
+      // (same three bots, same $199) instead of stacking them separately.
+      if (["protection", "support", "utilities"].every((s) => next.includes(s))) {
+        setActivePackTab("protection");
+        sonnerToast.success("Switched to the All-in-One Pack", {
+          description: "All three bots together — best value.",
+        });
+        return ["scratch"];
+      }
       setActivePackTab(id);
       return next;
     });
