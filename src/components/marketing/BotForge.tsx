@@ -648,8 +648,16 @@ export function BotForge() {
     }
 
     if (id === "scratch") {
-      // The pack replaces the other Discord bots but keeps any ER:LC bot.
-      setBases((prev) => ["scratch", ...prev.filter((b) => isRobloxBase(b))]);
+      setBases((prev) => {
+        // Clicking the pack while it's already selected turns it off (keeping
+        // any ER:LC bot that's selected alongside it).
+        if (prev.includes("scratch")) {
+          return prev.filter((b) => isRobloxBase(b));
+        }
+        // Otherwise select it — the pack replaces the Discord singles but keeps
+        // any ER:LC bot.
+        return ["scratch", ...prev.filter((b) => isRobloxBase(b))];
+      });
       setActivePackTab("protection");
       return;
     }
