@@ -463,6 +463,11 @@ export function BotForge() {
   // Managed hosting is always included on every bot — pricing is tiered
   // per bot the user already owns ($5 for bot 1, $5 for bot 2, 3rd is free).
   const monthlyHosting = true;
+  // Hosting is billed for Discord bots only — ER:LC / Roblox bots are hosted
+  // free. So the monthly fee is waived for a comped account OR any order with
+  // no Discord bot in it (e.g. Dispatch on its own).
+  const hasDiscordBot = bases.some((b) => !isRobloxBase(b));
+  const hostingWaived = comped || !hasDiscordBot;
   const [discountCodeInput, setDiscountCodeInput] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState<{
     code: string;
@@ -1667,7 +1672,7 @@ export function BotForge() {
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <span className="text-sm font-medium text-os-heading">Managed hosting included</span>
                   <span className="text-sm font-semibold text-os-heading">
-                    {comped ? (
+                    {hostingWaived ? (
                       <>
                         <span className="text-os-faint line-through font-normal mr-1.5">
                           +$5/month
@@ -1682,8 +1687,12 @@ export function BotForge() {
                   </span>
                 </div>
                 <p className="text-xs text-os-faint mt-1">
-                  {comped ? (
-                    <>We host and keep your bot online 24/7 — hosting is waived for this account.</>
+                  {hostingWaived ? (
+                    comped ? (
+                      <>We host and keep your bot online 24/7 — hosting is waived for this account.</>
+                    ) : (
+                      <>We host and keep your bot online 24/7 — ER:LC bots include hosting free, so there's no monthly charge.</>
+                    )
                   ) : (
                     <>
                       We host and keep your bot online 24/7. <strong>Buy a 3rd bot and its
