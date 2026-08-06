@@ -625,8 +625,9 @@ export function BotForge() {
     setAddons([]);
     setShowAllAddons({});
 
-    // ER:LC / Roblox bots are standalone: toggle them without disturbing the
-    // Discord selection or the pack.
+    // ER:LC / Roblox bots are their own category — they never mix with the
+    // Discord bots or the pack. Selecting one clears every Discord bot / the
+    // pack; ER:LC bots may still stack with each other.
     if (isRobloxBase(id)) {
       setBases((prev) => {
         if (prev.includes(id)) {
@@ -638,34 +639,35 @@ export function BotForge() {
           }
           return prev.filter((b) => b !== id);
         }
-        return [...prev, id];
+        // Add — drop every Discord bot / pack, keep only the ER:LC selection.
+        return [...prev.filter((b) => isRobloxBase(b)), id];
       });
       return;
     }
 
     if (id === "scratch") {
-      // The pack replaces the other Discord bots but keeps any ER:LC bot.
-      setBases((prev) => ["scratch", ...prev.filter((b) => isRobloxBase(b))]);
+      // The pack is a Discord product — selecting it clears any ER:LC bot too.
+      setBases(["scratch"]);
       setActivePackTab("protection");
       return;
     }
 
     setBases((prev) => {
-      // A Discord single drops the pack but keeps everything else selected.
-      const withoutPack = prev.filter((b) => b !== "scratch");
-      if (withoutPack.includes(id)) {
-        if (prev.length === 1) {
+      // A Discord single drops the pack AND any ER:LC bot (categories never
+      // mix), but keeps the other Discord bots so they can still stack.
+      const discord = prev.filter((b) => b !== "scratch" && !isRobloxBase(b));
+      if (discord.includes(id)) {
+        if (discord.length === 1) {
           sonnerToast.info("Pick at least one bot", {
             description: "You need to keep one bot selected.",
           });
           return prev;
         }
-        const next = withoutPack.filter((b) => b !== id);
-        const firstDiscord = next.find((b) => !isRobloxBase(b));
-        if (firstDiscord && !next.includes(activePackTab)) setActivePackTab(firstDiscord);
+        const next = discord.filter((b) => b !== id);
+        if (!next.includes(activePackTab)) setActivePackTab(next[0]);
         return next;
       }
-      const next = [...withoutPack, id];
+      const next = [...discord, id];
       setActivePackTab(id);
       return next;
     });
