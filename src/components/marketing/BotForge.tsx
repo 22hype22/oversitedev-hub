@@ -625,9 +625,10 @@ export function BotForge() {
     setAddons([]);
     setShowAllAddons({});
 
-    // ER:LC / Roblox bots are their own category — they never mix with the
-    // Discord bots or the pack. Selecting one clears every Discord bot / the
-    // pack; ER:LC bots may still stack with each other.
+    // ER:LC / Roblox bots coexist with the Discord bots. Selecting one only
+    // clears the auto-selected Protection default (so an ER:LC-only pick isn't
+    // stuck with the placeholder) — otherwise it just adds alongside the
+    // current selection.
     if (isRobloxBase(id)) {
       setBases((prev) => {
         if (prev.includes(id)) {
@@ -639,43 +640,45 @@ export function BotForge() {
           }
           return prev.filter((b) => b !== id);
         }
-        // Add — drop every Discord bot / pack, keep only the ER:LC selection.
-        return [...prev.filter((b) => isRobloxBase(b)), id];
+        // Drop the untouched default Protection, then add the ER:LC bot.
+        const base = prev.length === 1 && prev[0] === "protection" ? [] : prev;
+        return [...base, id];
       });
       return;
     }
 
     if (id === "scratch") {
-      // The pack is a Discord product — selecting it clears any ER:LC bot too.
-      setBases(["scratch"]);
+      // The pack replaces the other Discord bots but keeps any ER:LC bot.
+      setBases((prev) => ["scratch", ...prev.filter((b) => isRobloxBase(b))]);
       setActivePackTab("protection");
       return;
     }
 
     setBases((prev) => {
-      // A Discord single drops the pack AND any ER:LC bot (categories never
-      // mix), but keeps the other Discord bots so they can still stack.
-      const discord = prev.filter((b) => b !== "scratch" && !isRobloxBase(b));
-      if (discord.includes(id)) {
-        if (discord.length === 1) {
+      // A Discord single drops the pack but keeps everything else selected.
+      const withoutPack = prev.filter((b) => b !== "scratch");
+      if (withoutPack.includes(id)) {
+        if (prev.length === 1) {
           sonnerToast.info("Pick at least one bot", {
             description: "You need to keep one bot selected.",
           });
           return prev;
         }
-        const next = discord.filter((b) => b !== id);
-        if (!next.includes(activePackTab)) setActivePackTab(next[0]);
+        const next = withoutPack.filter((b) => b !== id);
+        const firstDiscord = next.find((b) => !isRobloxBase(b));
+        if (firstDiscord && !next.includes(activePackTab)) setActivePackTab(firstDiscord);
         return next;
       }
-      const next = [...discord, id];
-      // Selecting all three Discord singles collapses into the All-in-One Pack
-      // (same three bots, same $199) instead of stacking them separately.
-      if (["protection", "support", "utilities"].every((s) => next.includes(s))) {
+      const next = [...withoutPack, id];
+      // All three Discord singles collapse into the All-in-One Pack (same three
+      // bots, same $199), keeping any ER:LC bot selected alongside it.
+      const DISCORD_SINGLES = ["protection", "support", "utilities"];
+      if (DISCORD_SINGLES.every((s) => next.includes(s))) {
         setActivePackTab("protection");
         sonnerToast.success("Switched to the All-in-One Pack", {
           description: "All three bots together — best value.",
         });
-        return ["scratch"];
+        return ["scratch", ...next.filter((b) => isRobloxBase(b))];
       }
       setActivePackTab(id);
       return next;
