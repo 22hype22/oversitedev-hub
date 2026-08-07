@@ -218,6 +218,20 @@ const BASES: Base[] = [
       "Custom in-game command binds",
     ],
   },
+  {
+    id: "customs",
+    name: "Oversite Customs",
+    tagline: "Tickets, messaging, credits, and join logs — all dashboard-driven.",
+    icon: Ticket,
+    price: 99,
+    included: [
+      "Ticket system with transcripts",
+      "Components V2 message builder",
+      "Join logs with welcome cards",
+      "Credits system (give / remove / track)",
+      "Live member-count status",
+    ],
+  },
 ];
 
 const SHARED_ADDONS: Addon[] = [
@@ -271,7 +285,7 @@ const ADDONS_BY_BASE: Record<string, Addon[]> = {
   dispatch: [],
 };
 
-const ROBLOX_BASE_IDS = new Set<string>(["dispatch", "erlc-spec"]);
+const ROBLOX_BASE_IDS = new Set<string>(["dispatch", "erlc-spec", "customs"]);
 const isRobloxBase = (id: string) => ROBLOX_BASE_IDS.has(id);
 const DEFAULT_STATUS: Record<string, BotStatus> = { "erlc-spec": "coming_soon" };
 
@@ -284,7 +298,7 @@ const getAddonsForBase = (baseId: string): Addon[] => {
       ...SHARED_ADDONS,
     ];
   }
-  if (baseId === "dispatch") return [];
+  if (baseId === "dispatch" || baseId === "customs") return [];
   return [...(ADDONS_BY_BASE[baseId] ?? []), ...SHARED_ADDONS];
 };
 
