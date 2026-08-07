@@ -978,26 +978,24 @@ const BotSection = ({
             const GroupIcon = group.icon;
             return (
               <div key={group.key} className="space-y-4">
-                <div className="flex items-center gap-3 mb-1">
-                  <span className="h-6 w-6 rounded-md flex items-center justify-center shrink-0 bg-[rgba(201,219,230,0.1)] border border-[rgba(201,219,230,0.42)] text-primary">
-                    <GroupIcon className="h-3.5 w-3.5" size={14} />
-                  </span>
-                  <span className="text-[11px] font-extrabold tracking-[0.14em] uppercase text-muted-foreground font-['Manrope',system-ui,sans-serif]">
-                    {group.label}
-                  </span>
-                  <span className="text-[11px] font-bold text-foreground bg-white/[0.04] border border-border rounded-full px-2 py-0.5">
-                    {group.owned.length}
-                  </span>
-                  <span className="flex-1 h-px bg-white/[0.055]" />
-                </div>
+                {group.key !== "shared" && (
+                  <div className="flex items-center gap-3 mb-1">
+                    <span className="h-6 w-6 rounded-md flex items-center justify-center shrink-0 bg-[rgba(201,219,230,0.1)] border border-[rgba(201,219,230,0.42)] text-primary">
+                      <GroupIcon className="h-3.5 w-3.5" size={14} />
+                    </span>
+                    <span className="text-[11px] font-extrabold tracking-[0.14em] uppercase text-muted-foreground font-['Manrope',system-ui,sans-serif]">
+                      {group.label}
+                    </span>
+                    <span className="text-[11px] font-bold text-foreground bg-white/[0.04] border border-border rounded-full px-2 py-0.5">
+                      {group.owned.length}
+                    </span>
+                    <span className="flex-1 h-px bg-white/[0.055]" />
+                  </div>
+                )}
                 {group.key === "shared" ? (
                   <div className="space-y-5">
-                    <div className="xtras">
-                      <RequestCustomFeatureCard />
-                      <ReportBugCard />
-                    </div>
                     {group.owned.length > 0 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     {group.owned.map((id) => {
                       const isHighlighted = highlightedAddonId === id;
                       return (
@@ -1040,6 +1038,19 @@ const BotSection = ({
                     })}
                       </div>
                     )}
+                    <div className="flex items-center gap-3 mb-1">
+                      <span className="h-6 w-6 rounded-md flex items-center justify-center shrink-0 bg-[rgba(201,219,230,0.1)] border border-[rgba(201,219,230,0.42)] text-primary">
+                        <GroupIcon className="h-3.5 w-3.5" size={14} />
+                      </span>
+                      <span className="text-[11px] font-extrabold tracking-[0.14em] uppercase text-muted-foreground font-['Manrope',system-ui,sans-serif]">
+                        {group.label}
+                      </span>
+                      <span className="flex-1 h-px bg-white/[0.055]" />
+                    </div>
+                    <div className="xtras">
+                      <RequestCustomFeatureCard />
+                      <ReportBugCard />
+                    </div>
                   </div>
                 ) : (
                   <>
