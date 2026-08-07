@@ -129,6 +129,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isRemindme = addonId === "remindme";
   const isServerStats = addonId === "server-stats-channels";
   const isPostSystem = addonId === "post-system";
+  const isInviteMessage = addonId === "invite-message";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
@@ -137,6 +138,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const verifyV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [verifyV2Items, setVerifyV2Items] = useState<V2Item[]>([]);
   const [verifyV2MountKey, setVerifyV2MountKey] = useState(0);
+  const inviteV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [inviteV2Items, setInviteV2Items] = useState<V2Item[]>([]);
+  const [inviteV2MountKey, setInviteV2MountKey] = useState(0);
 
   const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
   useEffect(() => {
@@ -349,6 +353,35 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       cancelled = true;
     };
   }, [isVerification, open, botId]);
+
+  // Load existing invite-message config from bot_config when dialog opens.
+  useEffect(() => {
+    if (!isInviteMessage || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "invite")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        channel_id: cfg.channel_id ?? "",
+      }));
+      const components = Array.isArray((cfg as any).components)
+        ? ((cfg as any).components as V2Item[])
+        : [];
+      setInviteV2Items(components);
+      setInviteV2MountKey((k) => k + 1);
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isInviteMessage, open, botId]);
 
   // Load existing advanced-logging config when dialog opens.
   useEffect(() => {
@@ -816,6 +849,46 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     } else {
       toast.success("Verification settings saved & applied");
+    }
+    setOpen(false);
+  };
+
+  const saveInviteMessage = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    const liveV2 = inviteV2Ref.current?.getItems() ?? inviteV2Items;
+    const v2Components = normalizeV2Items(liveV2 ?? []);
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "invite",
+      config: {
+        channel_id: String(values.channel_id ?? ""),
+        components: v2Components,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "invite",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("Invite message saved & applied");
     }
     setOpen(false);
   };
@@ -2667,7 +2740,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -2818,6 +2891,21 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               embedColor={giveawayEmbedColor}
               onEmbedColorChange={setGiveawayEmbedColor}
             />
+          ) : isInviteMessage ? (
+            <div className="space-y-5 py-2">
+              {config.fields.map((f) => (
+                <div key={f.key}>{renderField(f)}</div>
+              ))}
+              <MessagesV2Builder
+                key={`invite-v2-${inviteV2MountKey}`}
+                ref={inviteV2Ref}
+                embedded
+                botId={botId}
+                botName={botName}
+                botAvatarUrl={botAvatarUrl}
+                initialItems={inviteV2Items}
+              />
+            </div>
           ) : isVerification ? (
             <VerificationForm
               values={values}
@@ -2917,7 +3005,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     }
                     return;
                   }
-                  if (isVerification) {
+                  if (isInviteMessage) {
+                    void saveInviteMessage();
+                  } else if (isVerification) {
                     void saveVerification();
                   } else if (isAdvancedLogging) {
                     void saveAdvancedLogging();
