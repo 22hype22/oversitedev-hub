@@ -59,6 +59,8 @@ function repoSourceFor(base: string): string {
       return "22hype22/oversite-utilities";
     case "dispatch":
       return "22hype22/oversite-dispatch";
+    case "customs":
+      return "22hype22/oversite-customs";
     case "protection":
     case "scratch":
     case "all-in-one-pack":
@@ -177,9 +179,9 @@ const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
   ],
 };
 
-function normalizeBase(base: string): "protection" | "support" | "utilities" | "scratch" {
+function normalizeBase(base: string): "protection" | "support" | "utilities" | "scratch" | "customs" {
   const b = (base ?? "").toLowerCase().trim();
-  if (b === "support" || b === "utilities") return b;
+  if (b === "support" || b === "utilities" || b === "customs") return b;
   if (
     b === "scratch" ||
     b === "all-in-one-pack" ||
