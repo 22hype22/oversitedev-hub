@@ -807,6 +807,15 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     fields: [],
   },
 
+  "invite-message": {
+    title: "Invite Message",
+    summary: "Design the message posted when a new member joins, using the same builder as Messages.",
+    icon: UserPlus,
+    fields: [
+      channel("channel_id", "Invite channel", "Where new-member invite messages are posted."),
+    ],
+  },
+
   "staff-performance": {
     title: "Staff Performance Tracking",
     summary: "Track tickets handled, response times, and activity per staff member.",
