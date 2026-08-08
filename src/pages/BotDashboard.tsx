@@ -998,7 +998,7 @@ const BotSection = ({
                 {group.key === "shared" ? (
                   <div className="space-y-5">
                     {group.owned.length > 0 && (
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
                         {group.owned.map((id) => (
                           <div
                             key={`${bot.id}-${id}`}
@@ -1011,13 +1011,22 @@ const BotSection = ({
                             }`}
                           >
                             <Suspense fallback={<div className="h-24 rounded-xl border border-border/40 bg-card/40 animate-pulse" />}>
-                              <AddonConfigCard
-                                addonId={id}
-                                botId={bot.id}
-                                botName={bot.bot_name}
-                                botAvatarUrl={bot.icon_url}
-                                engineVersion={bot.engine_version}
-                              />
+                              {id === "ticket-editor" ? (
+                                <TicketEditorCard
+                                  botId={bot.id}
+                                  botName={bot.bot_name}
+                                  botAvatarUrl={bot.icon_url}
+                                  engineVersion={bot.engine_version}
+                                />
+                              ) : (
+                                <AddonConfigCard
+                                  addonId={id}
+                                  botId={bot.id}
+                                  botName={bot.bot_name}
+                                  botAvatarUrl={bot.icon_url}
+                                  engineVersion={bot.engine_version}
+                                />
+                              )}
                             </Suspense>
                           </div>
                         ))}
