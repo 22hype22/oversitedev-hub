@@ -2946,9 +2946,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     <div className="px-3 py-2 border-t border-border/60 space-y-1">
                       <p className="text-[11px] font-semibold text-foreground">Emojis</p>
                       <p className="text-[11px] text-muted-foreground leading-snug">
-                        Paste any emoji directly. For a custom server emoji, right-click it in Discord →
-                        Copy Link and paste the link here — it auto-converts to{" "}
-                        <code className="font-mono text-os-accent">{"<:name:id>"}</code>.
+                        Paste any emoji directly. For a custom server emoji, type its name in colons like{" "}
+                        <code className="font-mono text-os-accent">:ovs:</code> — the bot swaps in the correct
+                        emoji when it posts (pasting the copied{" "}
+                        <code className="font-mono text-os-accent">:name~1:</code> works too).
                       </p>
                     </div>
                   </PopoverContent>
