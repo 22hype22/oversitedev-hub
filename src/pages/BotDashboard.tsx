@@ -411,6 +411,7 @@ const BotSection = ({
   onCancel,
   onAddAddons,
   onReload,
+  onEngineSwitch,
   searchQuery,
   highlightedAddonId,
 }: {
@@ -422,6 +423,7 @@ const BotSection = ({
   onCancel: (bot: OwnedBot) => void;
   onAddAddons: (bot: OwnedBot) => void;
   onReload: () => void;
+  onEngineSwitch?: (id: string, target: "v1" | "v2") => void;
   searchQuery?: string;
   highlightedAddonId?: string | null;
 }) => {
@@ -886,6 +888,7 @@ const BotSection = ({
           highlightSlots={highlightSlots}
           onCommandSent={handleCommandSent}
           onReload={onReload}
+          onEngineSwitch={onEngineSwitch}
         />
       )}
 
@@ -1937,7 +1940,21 @@ const BotDashboard = () => {
     (user.email ? user.email.split("@")[0] : "") ||
     "you";
   const initial = (user.email?.[0] ?? "U").toUpperCase();
-  const activeBot = botId ? byId[botId] : null;
+  const [engineOpt, setEngineOpt] = useState<Record<string, "v1" | "v2">>({});
+  const rawActiveBot = botId ? byId[botId] : null;
+  const activeBot =
+    rawActiveBot && engineOpt[rawActiveBot.id]
+      ? { ...rawActiveBot, engine_version: engineOpt[rawActiveBot.id] }
+      : rawActiveBot;
+  useEffect(() => {
+    if (rawActiveBot && engineOpt[rawActiveBot.id] === rawActiveBot.engine_version) {
+      setEngineOpt((prev) => {
+        const next = { ...prev };
+        delete next[rawActiveBot.id];
+        return next;
+      });
+    }
+  }, [rawActiveBot?.id, rawActiveBot?.engine_version, engineOpt]);
   const firstOwned = dashboardBots.find((b) => !b.isDemo && !b.viaTeam && !b.viaSupport);
   const spotlight = owned[0];
   const isTeam = wsMode === "team";
@@ -2353,7 +2370,7 @@ const BotDashboard = () => {
                 <>
                   <span className="back" onClick={() => go("bots")}><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg> Back to my bots</span>
                   <ReadOnlyBotScope botId={activeBot.id} ownerUserId={activeBot.ownerUserId} viaTeam={activeBot.viaTeam}>
-                    <BotSection bot={activeBot} allBots={dashboardBots} userId={user.id} ownerEmail={user.email} freePeriod={freePeriods[activeBot.id]} onCancel={setCancelTarget} onAddAddons={setAddonsTarget} searchQuery="" highlightedAddonId={null} onReload={() => { reload(); reloadFreePeriods(); }} />
+                    <BotSection bot={activeBot} allBots={dashboardBots} userId={user.id} ownerEmail={user.email} freePeriod={freePeriods[activeBot.id]} onCancel={setCancelTarget} onAddAddons={setAddonsTarget} searchQuery="" highlightedAddonId={null} onReload={() => { reload(); reloadFreePeriods(); }} onEngineSwitch={(id, target) => setEngineOpt((prev) => ({ ...prev, [id]: target }))} />
                   </ReadOnlyBotScope>
                 </>
               )}
