@@ -88,9 +88,15 @@ export function BotManagePanel({
   const locked = isOffline || isDeploying;
 
   // ── engine ──
-  const engine = bot.engine_version === "v2" ? "v2" : "v1";
+  // Reflect the switch instantly; the override clears once the reloaded
+  // bot prop catches up, so we never depend on the reload round-trip timing.
+  const [engineOverride, setEngineOverride] = useState<"v1" | "v2" | null>(null);
+  const engine = engineOverride ?? (bot.engine_version === "v2" ? "v2" : "v1");
   const [engineTarget, setEngineTarget] = useState<"v1" | "v2" | null>(null);
   const [engineSaving, setEngineSaving] = useState(false);
+  useEffect(() => {
+    if (engineOverride && bot.engine_version === engineOverride) setEngineOverride(null);
+  }, [bot.engine_version, engineOverride]);
   const switchEngine = async (target: "v1" | "v2") => {
     setEngineSaving(true);
     const { error } = await (supabase as any)
@@ -106,6 +112,7 @@ export function BotManagePanel({
     toast.success(`Switching to Components ${target.toUpperCase()}`, {
       description: "Your bot may have a short period of downtime while the engine swaps over.",
     });
+    setEngineOverride(target);
     onReload();
   };
 
