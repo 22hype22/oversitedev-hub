@@ -300,7 +300,8 @@ export function BotManagePanel({
               V2 brings richer layouts and the newest Discord UI. V1 is the battle-tested stable engine.
             </div>
           </div>
-          <div className="seg">
+          <div className="seg" data-engine={engine}>
+            <span className="seg-ind" aria-hidden="true" />
             {(["v1", "v2"] as const).map((id) => (
               <button
                 key={id}
@@ -590,15 +591,19 @@ const MANAGE_CSS = `
 .mng2 .engrow .etx{flex:1;min-width:0}
 .mng2 .engrow .en{font-size:14px;font-weight:700;color:var(--heading)}
 .mng2 .engrow .ed{font-size:12px;color:var(--faint);margin-top:3px;line-height:1.5}
-.mng2 .seg{display:flex;background:rgba(0,0,0,.22);border:1px solid var(--hair);border-radius:12px;padding:4px;flex:none;
+.mng2 .seg{position:relative;display:flex;background:rgba(0,0,0,.22);border:1px solid var(--hair);border-radius:12px;padding:4px;flex:none;
   box-shadow:inset 0 1px 3px rgba(0,0,0,.25)}
-.mng2 .seg button{border:0;background:transparent;color:var(--body);cursor:pointer;border-radius:9px;padding:9px 20px;
-  font:inherit;font-size:13px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:1px;transition:.16s}
+.mng2 .seg-ind{position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 4px);border-radius:9px;z-index:0;pointer-events:none;
+  background:linear-gradient(180deg,#d6e4ee,#c1d4e0);box-shadow:0 2px 8px -2px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.5);
+  transform:translateX(0);transition:transform .24s cubic-bezier(.4,0,.2,1);will-change:transform}
+.mng2 .seg[data-engine="v2"] .seg-ind{transform:translateX(100%)}
+.mng2 .seg button{position:relative;z-index:1;flex:1;border:0;background:transparent;color:var(--body);cursor:pointer;border-radius:9px;padding:9px 20px;
+  font:inherit;font-size:13px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:1px;transition:color .16s ease}
 .mng2 .seg button .cap{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;opacity:.6}
 .mng2 .seg button:hover:not(:disabled):not(.on){color:var(--heading)}
-.mng2 .seg button.on{background:linear-gradient(180deg,#d6e4ee,#c1d4e0);color:#1E242B;cursor:default;
-  box-shadow:0 2px 8px -2px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.5)}
+.mng2 .seg button.on{color:#1E242B;cursor:default}
 .mng2 .seg button:disabled:not(.on){opacity:.55;cursor:not-allowed}
+@media (prefers-reduced-motion:reduce){.mng2 .seg-ind{transition:none}}
 
 /* power */
 .mng2 .ctlbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
