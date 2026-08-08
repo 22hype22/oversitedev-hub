@@ -87,7 +87,8 @@ type V2ButtonStyle = "primary" | "secondary" | "success" | "danger" | "link";
 type V2ButtonRowButton =
   | { id: string; label: string; url: string; style?: V2ButtonStyle }
   | { id: string; label: string; category: string; style?: V2ButtonStyle }
-  | { id: string; label: string; channel_id: string; style?: V2ButtonStyle };
+  | { id: string; label: string; channel_id: string; style?: V2ButtonStyle }
+  | { id: string; label: string; disabled: true; style?: V2ButtonStyle };
 
 type V2ButtonRow = {
   id: string;
@@ -113,6 +114,9 @@ const isCategoryButton2 = (
 const isChannelButton2 = (
   b: V2ButtonRowButton,
 ): b is { id: string; label: string; channel_id: string; style?: V2ButtonStyle } => "channel_id" in b;
+const isDisplayButton = (
+  b: V2ButtonRowButton,
+): b is { id: string; label: string; disabled: true; style?: V2ButtonStyle } => "disabled" in b;
 const isCategoryOption = (
   o: V2SelectMenuOption,
 ): o is { label: string; description?: string; category: string } => "category" in o;
@@ -776,7 +780,11 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
       <div className="space-y-3">
         <Label className="text-xs">Buttons (up to 5)</Label>
         {buttons.map((b, i) => {
-          const mode: "link" | "channel" = isChannelButton2(b) ? "channel" : "link";
+          const mode: "link" | "channel" | "display" = isDisplayButton(b)
+            ? "display"
+            : isChannelButton2(b)
+            ? "channel"
+            : "link";
           const style: V2ButtonStyle = b.style ?? "link";
           const update = (next: V2ButtonRowButton) => {
             const list = buttons.slice();
@@ -805,6 +813,15 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     />
                     Channel
                   </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`btn-mode-${b.id}`}
+                      checked={mode === "display"}
+                      onChange={() => update({ id: b.id, label: b.label, disabled: true, style: "secondary" })}
+                    />
+                    Display
+                  </label>
                 </div>
                 <Button
                   type="button"
@@ -823,7 +840,9 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                   onChange={(e) => {
                     const lbl = e.target.value;
                     update(
-                      isChannelButton2(b)
+                      isDisplayButton(b)
+                        ? { id: b.id, label: lbl, disabled: true, style }
+                        : isChannelButton2(b)
                         ? { id: b.id, label: lbl, channel_id: b.channel_id, style }
                         : { id: b.id, label: lbl, url: (b as { url: string }).url, style },
                     );
@@ -835,7 +854,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     value={(b as { url: string }).url}
                     onChange={(e) => update({ id: b.id, label: b.label, url: e.target.value, style })}
                   />
-                ) : (
+                ) : mode === "channel" ? (
                   <Select
                     value={(b as { channel_id: string }).channel_id || ""}
                     onValueChange={(v) => update({ id: b.id, label: b.label, channel_id: v, style })}
@@ -849,6 +868,10 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       ))}
                     </SelectContent>
                   </Select>
+                ) : (
+                  <div className="flex items-center px-2 text-xs text-muted-foreground italic">
+                    Not clickable — label only
+                  </div>
                 )}
               </div>
             </div>
@@ -1156,6 +1179,16 @@ function PreviewItem({ item }: { item: V2Item }) {
       <div className="flex flex-wrap gap-2">
         {item.buttons.map((b) => {
           const styleClass = BUTTON_STYLE_PREVIEW[b.style ?? "link"];
+          if (isDisplayButton(b)) {
+            return (
+              <span
+                key={b.id}
+                className={cn("inline-flex items-center px-3 py-1.5 text-xs font-medium rounded opacity-60", styleClass)}
+              >
+                {b.label || "Button"}
+              </span>
+            );
+          }
           return isCategoryButton2(b) || isChannelButton2(b) ? (
             <span
               key={b.id}
@@ -1166,7 +1199,7 @@ function PreviewItem({ item }: { item: V2Item }) {
           ) : (
             <a
               key={b.id}
-              href={b.url || "#"}
+              href={(b as { url: string }).url || "#"}
               target="_blank"
               rel="noreferrer"
               className={cn("inline-flex items-center px-3 py-1.5 text-xs font-medium rounded", styleClass)}
