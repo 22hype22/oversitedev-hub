@@ -807,6 +807,67 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     fields: [],
   },
 
+  "invite-message": {
+    title: "Join Message",
+    summary: "Design the message posted when a new member joins, using the same builder as Messages.",
+    icon: UserPlus,
+    fields: [
+      channel("channel_id", "Join channel", "Where new-member join messages are posted."),
+    ],
+  },
+
+  "customs-messages": {
+    title: "Messages",
+    summary: "Send custom messages and rich embeds to any channel with the Discohook-style builder.",
+    icon: Megaphone,
+    fields: [],
+  },
+
+  "customs-tickets": {
+    title: "Tickets",
+    summary: "Support ticket categories, staff roles, and transcript logging.",
+    icon: ClipboardList,
+    fields: [
+      {
+        key: "category_id",
+        label: "Ticket category ID",
+        type: "text",
+        placeholder: "e.g. 1520971919355023411",
+        help: "Right-click the Discord category → Copy ID. New ticket channels open under it.",
+      },
+      multirole("support_role_ids", "Support roles", "Roles that can see and respond to tickets."),
+      channel("log_channel_id", "Transcript log channel", "Where closed-ticket transcripts are posted."),
+      {
+        key: "open_message",
+        label: "Ticket opening message",
+        type: "textarea",
+        markdown: true,
+        placeholder: "Hey {user}, a staff member will be with you shortly.",
+        help: "Posted at the top of every new ticket. {user} mentions the opener.",
+      },
+      toggle("ping_support", "Ping support roles when a ticket opens", true),
+      toggle("one_per_user", "Limit each member to one open ticket", true),
+    ],
+  },
+
+  "customs-credits": {
+    title: "Credits",
+    summary: "Server credit balances — manager roles, currency name, and a log channel.",
+    icon: Coins,
+    fields: [
+      multirole("manager_role_ids", "Credit manager roles", "Roles allowed to grant, remove, and adjust credits."),
+      {
+        key: "currency_name",
+        label: "Currency name",
+        type: "text",
+        defaultValue: "credits",
+        placeholder: "credits",
+        help: "What one unit is called (e.g. credits, points, tokens).",
+      },
+      channel("log_channel_id", "Credit log channel", "Where credit grants/removals are logged."),
+    ],
+  },
+
   "staff-performance": {
     title: "Staff Performance Tracking",
     summary: "Track tickets handled, response times, and activity per staff member.",
