@@ -231,6 +231,19 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
       return () => window.removeEventListener("mouseup", onUp);
     }, [updateToolbar]);
 
+    // Hard guarantee: the moment this field's selection collapses (a click to
+    // deselect, arrow key, etc.) the toolbar goes away — independent of which
+    // textarea event fired.
+    React.useEffect(() => {
+      const onSelChange = () => {
+        const el = innerRef.current;
+        if (!el || document.activeElement !== el) return;
+        if (el.selectionStart === el.selectionEnd) setToolbar(null);
+      };
+      document.addEventListener("selectionchange", onSelChange);
+      return () => document.removeEventListener("selectionchange", onSelChange);
+    }, []);
+
     // Recompute active state whenever the value changes while a selection
     // is open (e.g. after clicking a toolbar button).
     React.useEffect(() => {
