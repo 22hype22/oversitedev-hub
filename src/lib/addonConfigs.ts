@@ -816,6 +816,13 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "customs-messages": {
+    title: "Messages",
+    summary: "Send custom messages and rich embeds to any channel with the Discohook-style builder.",
+    icon: Megaphone,
+    fields: [],
+  },
+
   "customs-tickets": {
     title: "Tickets",
     summary: "Support ticket categories, staff roles, and transcript logging.",
