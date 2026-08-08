@@ -808,11 +808,11 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
   },
 
   "invite-message": {
-    title: "Invite Message",
+    title: "Join Message",
     summary: "Design the message posted when a new member joins, using the same builder as Messages.",
     icon: UserPlus,
     fields: [
-      channel("channel_id", "Invite channel", "Where new-member invite messages are posted."),
+      channel("channel_id", "Join channel", "Where new-member join messages are posted."),
     ],
   },
 
