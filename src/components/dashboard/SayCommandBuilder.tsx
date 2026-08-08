@@ -101,10 +101,14 @@ export const SayCommandBuilder = forwardRef<
     botId?: string;
     botName: string;
     botAvatarUrl?: string | null;
-    /** "send" posts to a channel via the queue; "rules" saves to bot_config(feature='rules') for the /rules command. */
+    /** "send" posts to a channel via the queue; "rules" saves to bot_config(feature=`feature`) as a reusable template. */
     mode?: "send" | "rules";
+    /** In "rules" mode, the bot_config feature to save/hydrate. Defaults to "rules". */
+    feature?: string;
+    /** In "rules" mode, extra keys merged into the saved config (e.g. { channel_id }). */
+    extraConfig?: Record<string, unknown>;
   }
->(function SayCommandBuilder({ botId, botName, botAvatarUrl, mode = "send" }, ref) {
+>(function SayCommandBuilder({ botId, botName, botAvatarUrl, mode = "send", feature = "rules", extraConfig }, ref) {
   const { guild: activeGuild, setGuild: setActiveGuild } = useActiveGuild();
   const [guild, setGuildLocal] = useState<BotGuild | null>(activeGuild);
   // Keep our local picker in sync if the dashboard-wide active server changes.
@@ -260,7 +264,7 @@ export const SayCommandBuilder = forwardRef<
         .from("bot_config")
         .select("config")
         .eq("bot_id", botId)
-        .eq("feature", "rules")
+        .eq("feature", feature)
         .maybeSingle();
       if (cancelled || !data?.config) return;
       const cfg = data.config as any;
@@ -280,7 +284,7 @@ export const SayCommandBuilder = forwardRef<
     return () => {
       cancelled = true;
     };
-  }, [mode, botId]);
+  }, [mode, botId, feature]);
 
   const saveRules = async (): Promise<boolean> => {
     if (!botId) {
@@ -297,8 +301,8 @@ export const SayCommandBuilder = forwardRef<
         .filter((t) => t.trim().length > 0);
       const payload = {
         bot_id: botId,
-        feature: "rules",
-        config: { embeds, messages } as any,
+        feature,
+        config: { ...(extraConfig ?? {}), embeds, messages } as any,
         updated_at: new Date().toISOString(),
       };
       const { error } = await supabase
@@ -307,9 +311,9 @@ export const SayCommandBuilder = forwardRef<
       if (error) throw error;
       await supabase.rpc("enqueue_apply_config" as any, {
         _bot_id: botId,
-        _feature: "rules",
+        _feature: feature,
       });
-      toast.success("Rules saved — /rules will use this in your server.");
+      toast.success(feature === "rules" ? "Rules saved — /rules will use this in your server." : "Invite message saved & applied");
       return true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to save rules.";
