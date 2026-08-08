@@ -565,7 +565,7 @@ function ItemBlock({
             <Label className="text-xs">Container children</Label>
             <div
               className="space-y-2 rounded-md border-l-4 pl-3 py-2 bg-muted/30"
-              style={{ borderLeftColor: item.accentColor }}
+              style={{ borderLeftColor: item.accentColor || "transparent" }}
             >
               {item.children.length === 0 && (
                 <div className="text-xs text-muted-foreground italic">
@@ -733,22 +733,38 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
     );
   }
   if (item.type === "container") {
+    const hasColor = !!item.accentColor;
     return (
       <div className="space-y-1.5">
-        <Label className="text-xs">Accent color</Label>
-        <div className="flex items-center gap-2">
-          <input
-            type="color"
-            value={item.accentColor}
-            onChange={(e) => onUpdate({ accentColor: e.target.value } as Partial<V2Item>)}
-            className="h-9 w-12 rounded border border-border bg-background"
-          />
-          <Input
-            value={item.accentColor}
-            onChange={(e) => onUpdate({ accentColor: e.target.value } as Partial<V2Item>)}
-            className="font-mono text-xs"
-          />
+        <div className="flex items-center justify-between">
+          <Label className="text-xs">Accent color</Label>
+          <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={hasColor}
+              onChange={(e) =>
+                onUpdate({ accentColor: e.target.checked ? "#C9DBE6" : "" } as Partial<V2Item>)
+              }
+              className="accent-os-accent"
+            />
+            {hasColor ? "On" : "No color"}
+          </label>
         </div>
+        {hasColor && (
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={item.accentColor || "#C9DBE6"}
+              onChange={(e) => onUpdate({ accentColor: e.target.value } as Partial<V2Item>)}
+              className="h-9 w-12 rounded border border-border bg-background"
+            />
+            <Input
+              value={item.accentColor}
+              onChange={(e) => onUpdate({ accentColor: e.target.value } as Partial<V2Item>)}
+              className="font-mono text-xs"
+            />
+          </div>
+        )}
       </div>
     );
   }
@@ -1166,7 +1182,7 @@ function PreviewItem({ item }: { item: V2Item }) {
     return (
       <div
         className="rounded border-l-4 bg-[#2b2d31] p-3 space-y-2"
-        style={{ borderLeftColor: item.accentColor }}
+        style={{ borderLeftColor: item.accentColor || "transparent" }}
       >
         {item.children.length === 0 ? (
           <div className="text-xs text-[#949ba4] italic">[empty container]</div>
