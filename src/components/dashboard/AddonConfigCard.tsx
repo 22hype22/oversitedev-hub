@@ -2925,7 +2925,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                       <p className="text-xs font-semibold">Variables</p>
                       <p className="text-[11px] text-muted-foreground">Click to copy, then paste into your message.</p>
                     </div>
-                    <div className="max-h-72 overflow-y-auto py-1">
+                    <div className="py-1">
                       {INVITE_VARIABLES.map((v) => (
                         <button
                           key={v.token}
