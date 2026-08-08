@@ -36,6 +36,7 @@ interface BotManagePanelProps {
   highlightSlots?: boolean;
   onCommandSent: (action: Action) => void;
   onReload: () => void;
+  onEngineSwitch?: (id: string, target: "v1" | "v2") => void;
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -84,19 +85,20 @@ export function BotManagePanel({
   highlightSlots = false,
   onCommandSent,
   onReload,
+  onEngineSwitch,
 }: BotManagePanelProps) {
   const locked = isOffline || isDeploying;
 
   // ── engine ──
-  // Reflect the switch instantly; the override clears once the reloaded
-  // bot prop catches up, so we never depend on the reload round-trip timing.
-  const [engineOverride, setEngineOverride] = useState<"v1" | "v2" | null>(null);
-  const engine = engineOverride ?? (bot.engine_version === "v2" ? "v2" : "v1");
+  // The switch reflects instantly via the shared optimistic bot state
+  // (onEngineSwitch), so both this toggle and the message builder update
+  // together without waiting on the reload round-trip.
+  const engine = bot.engine_version === "v2" ? "v2" : "v1";
   const [engineSaving, setEngineSaving] = useState(false);
-  useEffect(() => {
-    if (engineOverride && bot.engine_version === engineOverride) setEngineOverride(null);
-  }, [bot.engine_version, engineOverride]);
   const switchEngine = async (target: "v1" | "v2") => {
+    const previous = bot.engine_version === "v2" ? "v2" : "v1";
+    if (target === previous) return;
+    onEngineSwitch?.(bot.id, target);
     setEngineSaving(true);
     const { error } = await (supabase as any)
       .from("bot_orders")
@@ -104,13 +106,13 @@ export function BotManagePanel({
       .eq("id", bot.id);
     setEngineSaving(false);
     if (error) {
+      onEngineSwitch?.(bot.id, previous);
       toast.error("Couldn't switch engine version", { description: error.message });
       return;
     }
     toast.success(`Switching to Components ${target.toUpperCase()}`, {
       description: "Your bot may have a short period of downtime while the engine swaps over.",
     });
-    setEngineOverride(target);
     onReload();
   };
 
