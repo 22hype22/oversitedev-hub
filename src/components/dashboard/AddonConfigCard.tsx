@@ -2752,7 +2752,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Icon className="h-5 w-5 text-primary" />
+              <Icon className="h-5 w-5 text-os-accent" />
               {config.title}
             </DialogTitle>
             <DialogDescription>
@@ -2967,6 +2967,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               </Button>
               {!isPostSystem && (
               <Button
+                className="bg-os-accent text-os-accent-ink hover:brightness-105 disabled:opacity-50"
                 disabled={saving || !canEdit}
                 title={!canEdit ? `Your role (${role ?? "viewer"}) doesn't allow editing bot config` : undefined}
                 onClick={async () => {
