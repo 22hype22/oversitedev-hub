@@ -9,7 +9,9 @@ import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -53,7 +55,20 @@ import { PostTypesManager } from "./PostTypesManager";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildChannels";
 import { useBotRoles } from "@/hooks/useBotRoles";
-import { AtSign } from "lucide-react";
+import { AtSign, Braces } from "lucide-react";
+
+const INVITE_VARIABLES: { token: string; desc: string }[] = [
+  { token: "{user}", desc: "Mentions the new member" },
+  { token: "{username}", desc: "Their display name" },
+  { token: "{server}", desc: "Server name" },
+  { token: "{count}", desc: "Total members" },
+  { token: "{human_count}", desc: "Members excluding bots" },
+  { token: "{bot_count}", desc: "Number of bots" },
+  { token: "{boosts}", desc: "Total server boosts" },
+  { token: "{boost_level}", desc: "Boost tier (0–3)" },
+  { token: "{channel_count}", desc: "Number of channels" },
+  { token: "{role_count}", desc: "Number of roles" },
+];
 import { supabase } from "@/integrations/supabase/client";
 import { RoleMultiSelect } from "./RoleMultiSelect";
 import { useTeamRole } from "@/hooks/useTeamRole";
@@ -90,7 +105,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const { permissions, role } = useTeamRole(viaTeam ? (scopeBotId ?? botId ?? null) : null);
   const canEdit = viaTeam ? permissions.edit_bot_config : true;
   const readOnly = scopeReadOnly || (viaTeam && !permissions.edit_bot_config);
-  const isSayCommand = addonId === "messages";
+  const isSayCommand = addonId === "messages" || addonId === "customs-messages";
   const isRules = addonId === "rules";
   const isTicketPanel = addonId === "ticket-message-customization";
   const isTicketLifecycleMessages = addonId === "ticket-lifecycle-messages";
@@ -127,6 +142,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isRemindme = addonId === "remindme";
   const isServerStats = addonId === "server-stats-channels";
   const isPostSystem = addonId === "post-system";
+  const isInviteMessage = addonId === "invite-message";
+  const isCustomsCredits = addonId === "customs-credits";
+  const isCustomsTickets = addonId === "customs-tickets";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
@@ -135,6 +153,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const verifyV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [verifyV2Items, setVerifyV2Items] = useState<V2Item[]>([]);
   const [verifyV2MountKey, setVerifyV2MountKey] = useState(0);
+  const inviteV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const inviteSayRef = useRef<SayCommandBuilderHandle>(null);
+  const [inviteV2Items, setInviteV2Items] = useState<V2Item[]>([]);
+  const [inviteV2MountKey, setInviteV2MountKey] = useState(0);
 
   const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
   useEffect(() => {
@@ -171,31 +193,26 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
 
   const persistEnabledFlag = async (next: boolean) => {
     const feature = TOGGLE_FEATURE_MAP[addonId];
-    console.log("[toggle] persistEnabledFlag start", { addonId, feature, botId, next });
     if (!feature || !botId) {
       console.warn("[toggle] aborting — missing feature or botId", { feature, botId });
       return;
     }
     try {
       // 1) Server-side JSONB merge: config = COALESCE(config,'{}') || {"enabled": next}
-      console.log("[toggle] calling set_bot_config_enabled", { botId, feature, next });
       const { error: mergeError } = await supabase.rpc("set_bot_config_enabled" as any, {
         _bot_id: botId,
         _feature: feature,
         _enabled: next,
       });
-      console.log("[toggle] set_bot_config_enabled result", { mergeError });
       if (mergeError) {
         toast.error(`Failed to save toggle: ${mergeError.message}`);
         return;
       }
       // 2) ALWAYS enqueue apply_config so the bot picks up the change immediately.
-      console.log("[toggle] BEFORE enqueue_apply_config", { botId, feature });
       const { data: cmdData, error: cmdError } = await supabase.rpc(
         "enqueue_apply_config" as any,
         { _bot_id: botId, _feature: feature },
       );
-      console.log("[toggle] AFTER enqueue_apply_config", { cmdData, cmdError });
       const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
       if (cmdError) {
         toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
@@ -210,7 +227,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   };
 
   const handleToggleEnabled = (next: boolean) => {
-    console.log("[toggle] handleToggleEnabled fired", { addonId, next });
     onToggleEnabled?.(next);
     void persistEnabledFlag(next);
   };
@@ -353,6 +369,35 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       cancelled = true;
     };
   }, [isVerification, open, botId]);
+
+  // Load existing invite-message config from bot_config when dialog opens.
+  useEffect(() => {
+    if (!isInviteMessage || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "invite")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        channel_id: cfg.channel_id ?? "",
+      }));
+      const components = Array.isArray((cfg as any).components)
+        ? ((cfg as any).components as V2Item[])
+        : [];
+      setInviteV2Items(components);
+      setInviteV2MountKey((k) => k + 1);
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isInviteMessage, open, botId]);
 
   // Load existing advanced-logging config when dialog opens.
   useEffect(() => {
@@ -824,6 +869,152 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     setOpen(false);
   };
 
+  const saveInviteMessage = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    const liveV2 = inviteV2Ref.current?.getItems() ?? inviteV2Items;
+    const v2Components = normalizeV2Items(liveV2 ?? []);
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "invite",
+      config: {
+        channel_id: String(values.channel_id ?? ""),
+        components: v2Components,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "invite",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("Invite message saved & applied");
+    }
+    setOpen(false);
+  };
+
+  // ---------- customs: credits ----------
+  useEffect(() => {
+    if (!isCustomsCredits || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "credits")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        manager_role_ids: Array.isArray(cfg.manager_role_ids) ? cfg.manager_role_ids.map(String) : [],
+        currency_name: cfg.currency_name ?? "credits",
+        log_channel_id: cfg.log_channel_id ? String(cfg.log_channel_id) : "",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsCredits, open, botId]);
+
+  const saveCustomsCredits = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "credits",
+      config: {
+        manager_role_ids: Array.isArray(values.manager_role_ids) ? (values.manager_role_ids as string[]).map(String) : [],
+        currency_name: String(values.currency_name ?? "credits") || "credits",
+        log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "credits",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Credits saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: tickets ----------
+  useEffect(() => {
+    if (!isCustomsTickets || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "tickets")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        category_id: cfg.category_id ? String(cfg.category_id) : "",
+        support_role_ids: Array.isArray(cfg.support_role_ids) ? cfg.support_role_ids.map(String) : [],
+        log_channel_id: cfg.log_channel_id ? String(cfg.log_channel_id) : "",
+        open_message: cfg.open_message ?? "",
+        ping_support: cfg.ping_support ?? true,
+        one_per_user: cfg.one_per_user ?? true,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsTickets, open, botId]);
+
+  const saveCustomsTickets = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "tickets",
+      config: {
+        category_id: values.category_id ? String(values.category_id) : null,
+        support_role_ids: Array.isArray(values.support_role_ids) ? (values.support_role_ids as string[]).map(String) : [],
+        log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
+        open_message: values.open_message ? String(values.open_message) : "",
+        ping_support: values.ping_support ?? true,
+        one_per_user: values.one_per_user ?? true,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "tickets",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Tickets saved & applied");
+    setOpen(false);
+  };
+
   // Load existing nsfw-invite-scanner config when dialog opens.
   useEffect(() => {
     if (!isNsfwInviteScanner || !open || !botId) return;
@@ -1226,7 +1417,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   }, [isBioPhrase, open, botId]);
 
   const saveBioPhrase = async () => {
-    console.log("[bio-phrase] saveBioPhrase called", { botId, values, enabled });
     if (!botId) {
       console.warn("[bio-phrase] aborting — missing botId");
       return toast.error("Missing bot id.");
@@ -1248,21 +1438,17 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         },
         updated_at: new Date().toISOString(),
       };
-      console.log("[bio-phrase] upserting bot_config", payload);
       const { data: upsertData, error } = await supabase
         .from("bot_config")
         .upsert(payload, { onConflict: "bot_id,feature" })
         .select();
-      console.log("[bio-phrase] upsert result", { upsertData, error });
       if (error) {
         toast.error(`Save failed: ${error.message}`);
         return;
       }
-      console.log("[bio-phrase] enqueueing apply_config", { botId });
       const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
         _bot_id: botId, _feature: "bio-phrase",
       });
-      console.log("[bio-phrase] enqueue_apply_config result", { cmdData, cmdError });
       const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
       if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
       else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
@@ -2414,7 +2600,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
 
   if (!config) {
     return (
-      <Card className="bg-card/40 border-dashed border-border p-6 flex flex-col h-[210px]">
+      <Card className="bg-card/40 border-dashed border-border p-4 flex flex-col h-[158px]">
         <div className="flex items-start gap-3 mb-3">
           <div className="h-10 w-10 rounded-lg bg-muted/40 border border-border grid place-items-center shrink-0">
             <Settings2 className="h-5 w-5 text-muted-foreground" />
@@ -2611,27 +2797,39 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
 
   return (
     <>
+      <style>{`
+        .acard.acard{position:relative;height:158px;padding:15px;display:flex;flex-direction:column;border-radius:14px;
+          font-family:'Manrope',system-ui,-apple-system,"Segoe UI",sans-serif;border:1px solid #3a434d;
+          background:linear-gradient(180deg,#2d353e,#29313a);box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+          transition:transform .17s cubic-bezier(.22,1,.36,1),border-color .17s,box-shadow .17s;cursor:pointer}
+        .acard.on:hover{transform:translateY(-2px);border-color:rgba(201,219,230,.42);
+          box-shadow:0 16px 34px -18px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05)}
+        .acard.off{opacity:.5;filter:grayscale(.6);cursor:default;background:#272e36}
+        .acard .ac-head{display:flex;align-items:flex-start;gap:10px}
+        .acard .ac-ico{height:34px;width:34px;border-radius:10px;flex:none;display:grid;place-items:center;
+          background:rgba(201,219,230,.10);border:1px solid rgba(201,219,230,.42);color:#C9DBE6;transition:.17s}
+        .acard.on:hover .ac-ico{background:rgba(201,219,230,.16)}
+        .acard.off .ac-ico{background:#343d46;border-color:#3a434d;color:#788591}
+        .acard .ac-ico svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none}
+        .acard .ac-title{flex:1;min-width:0;font-size:14px;font-weight:700;line-height:1.25;letter-spacing:-.01em;color:#E8EEF3;padding-top:2px}
+        .acard.off .ac-title{color:#A8B4BF}
+        .acard .ac-sw{padding-top:2px;flex:none}
+        .acard .ac-summary{flex:1;margin-top:10px;font-size:12px;line-height:1.45;color:#788591;
+          overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3}
+        .acard .ac-foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+        .acard .ac-count{font-size:11.5px;font-weight:600;color:#788591}
+        .acard .ac-arrow{height:16px;width:16px;color:#788591;transition:transform .17s,color .17s}
+        .acard.on:hover .ac-arrow{color:#C9DBE6;transform:translateX(3px)}
+      `}</style>
       <Card
         onClick={() => enabled && setOpen(true)}
-        className={cn(
-          "group/card border-border transition-smooth p-6 flex flex-col h-[210px] relative",
-          enabled
-            ? "cursor-pointer bg-card hover:bg-card/80 hover:border-primary/50 hover:shadow-elegant"
-            : "bg-muted/30 opacity-60 grayscale cursor-default",
-        )}
+        className={cn("acard", enabled ? "on" : "off")}
       >
-        <div className="flex items-start gap-3 mb-3">
-          <div className={cn(
-            "h-10 w-10 rounded-lg border grid place-items-center shrink-0 transition-smooth",
-            enabled
-              ? "bg-primary/10 border-primary/20 group-hover/card:bg-primary/15"
-              : "bg-muted border-border",
-          )}>
-            <Icon className={cn("h-5 w-5", enabled ? "text-primary" : "text-muted-foreground")} />
-          </div>
-          <h3 className="font-semibold text-base leading-tight pt-1.5 flex-1">
-            {config.title}
-          </h3>
+        <div className="ac-head">
+          <span className="ac-ico">
+            <Icon />
+          </span>
+          <h3 className="ac-title">{config.title}</h3>
           {onToggleEnabled && (
             <div
               onClick={(e) => e.stopPropagation()}
@@ -2639,7 +2837,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               onPointerDownCapture={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
               onTouchStart={(e) => e.stopPropagation()}
-              className="pt-1"
+              className="ac-sw"
             >
               <Switch
                 checked={enabled}
@@ -2649,16 +2847,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
             </div>
           )}
         </div>
-        <p className="text-sm text-muted-foreground flex-1">{config.summary}</p>
-        <div className="flex items-center justify-between mt-3">
-          <span className="text-xs text-muted-foreground">
+        <p className="ac-summary">{config.summary}</p>
+        <div className="ac-foot">
+          <span className="ac-count">
             {enabled
               ? `${config.fields.length} setting${config.fields.length === 1 ? "" : "s"}`
               : "Disabled"}
           </span>
-          {enabled && (
-            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover/card:text-primary group-hover/card:translate-x-1 transition-smooth" />
-          )}
+          {enabled && <ArrowRight className="ac-arrow" />}
         </div>
       </Card>
 
@@ -2667,7 +2863,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -2679,7 +2875,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Icon className="h-5 w-5 text-primary" />
+              <Icon className="h-5 w-5 text-os-accent" />
               {config.title}
             </DialogTitle>
             <DialogDescription>
@@ -2818,6 +3014,78 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               embedColor={giveawayEmbedColor}
               onEmbedColorChange={setGiveawayEmbedColor}
             />
+          ) : isInviteMessage ? (
+            <div className="space-y-5 py-2">
+              {config.fields.map((f) => (
+                <div key={f.key}>{renderField(f)}</div>
+              ))}
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">
+                  Type variables like <code className="font-mono text-os-accent">{"{count}"}</code> anywhere — they fill in when someone joins.
+                </p>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" size="sm" className="gap-1.5 shrink-0">
+                      <Braces className="h-3.5 w-3.5" /> Variables
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-72 p-0">
+                    <div className="px-3 py-2 border-b border-border/60">
+                      <p className="text-xs font-semibold">Variables</p>
+                      <p className="text-[11px] text-muted-foreground">Click to copy, then paste into your message.</p>
+                    </div>
+                    <div className="py-1">
+                      {INVITE_VARIABLES.map((v) => (
+                        <button
+                          key={v.token}
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard?.writeText(v.token);
+                            toast.success(`Copied ${v.token}`);
+                          }}
+                          className="w-full flex items-start gap-2 px-3 py-1.5 text-left hover:bg-muted/60 transition-colors"
+                        >
+                          <code className="text-[11px] font-mono text-os-accent bg-os-accent/10 border border-os-accent/25 rounded px-1.5 py-0.5 shrink-0">
+                            {v.token}
+                          </code>
+                          <span className="text-[11px] text-muted-foreground leading-snug">{v.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="px-3 py-2 border-t border-border/60 space-y-1">
+                      <p className="text-[11px] font-semibold text-foreground">Emojis</p>
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        Paste any emoji directly. For a custom server emoji, type its name in colons like{" "}
+                        <code className="font-mono text-os-accent">:ovs:</code> — the bot swaps in the correct
+                        emoji when it posts (pasting the copied{" "}
+                        <code className="font-mono text-os-accent">:name~1:</code> works too).
+                      </p>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              {engineVersion === "v2" ? (
+                <MessagesV2Builder
+                  key={`invite-v2-${inviteV2MountKey}`}
+                  ref={inviteV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={inviteV2Items}
+                />
+              ) : (
+                <SayCommandBuilder
+                  ref={inviteSayRef}
+                  mode="rules"
+                  feature="invite"
+                  extraConfig={{ channel_id: String(values.channel_id ?? "") }}
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                />
+              )}
+            </div>
           ) : isVerification ? (
             <VerificationForm
               values={values}
@@ -2879,10 +3147,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               </Button>
               {!isPostSystem && (
               <Button
+                className="bg-os-accent text-os-accent-ink hover:brightness-105 disabled:opacity-50"
                 disabled={saving || !canEdit}
                 title={!canEdit ? `Your role (${role ?? "viewer"}) doesn't allow editing bot config` : undefined}
                 onClick={async () => {
-                  console.log("[AddonConfigCard] Save clicked", { addonId, isBioPhrase, isAntiSpam, canEdit, saving });
                   if (isSayCommand || isRules) {
                     setSaving(true);
                     try {
@@ -2892,6 +3160,20 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                       if (ok) setOpen(false);
                     } finally {
                       setSaving(false);
+                    }
+                    return;
+                  }
+                  if (isInviteMessage) {
+                    if (engineVersion === "v2") {
+                      void saveInviteMessage();
+                    } else {
+                      setSaving(true);
+                      try {
+                        const ok = await inviteSayRef.current?.send();
+                        if (ok) setOpen(false);
+                      } finally {
+                        setSaving(false);
+                      }
                     }
                     return;
                   }
@@ -2909,11 +3191,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     return;
                   }
                   if (isTicketEditor) {
-                    console.log("[AddonConfigCard] TicketEditor ref:", ticketEditorRef.current);
                     setSaving(true);
                     try {
                       const ok = await ticketEditorRef.current?.save();
-                      console.log("[AddonConfigCard] ticketEditorRef.save() returned:", ok);
                       if (ok) setOpen(false);
                     } finally {
                       setSaving(false);
@@ -2980,6 +3260,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveRemindme();
                   } else if (isServerStats) {
                     void saveServerStats();
+                  } else if (isCustomsCredits) {
+                    void saveCustomsCredits();
+                  } else if (isCustomsTickets) {
+                    void saveCustomsTickets();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
@@ -3091,49 +3375,59 @@ function RecurringMessagesForm({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Channel</Label>
-                <label className="relative block">
-                  <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <select
-                    value={entry.channel_id}
-                    onChange={(e) => update(idx, { channel_id: e.target.value })}
-                    disabled={!guildId || loading}
-                    className="h-9 w-full rounded-md border border-input bg-background py-1.5 pl-9 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <option value="">
-                      {!guildId
-                        ? "Select a server first"
-                        : loading
-                          ? "Loading channels…"
-                          : textChannels.length === 0
-                            ? "No channels — click Refresh"
-                            : "Select a channel…"}
-                    </option>
+                <Select
+                  value={entry.channel_id}
+                  onValueChange={(v) => update(idx, { channel_id: v })}
+                  disabled={!guildId || loading}
+                >
+                  <SelectTrigger className="h-9">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Hash className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
+                      <SelectValue
+                        placeholder={
+                          !guildId
+                            ? "Select a server first"
+                            : loading
+                              ? "Loading channels…"
+                              : textChannels.length === 0
+                                ? "No channels — click Refresh"
+                                : "Select a channel…"
+                        }
+                      />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
                     {channelGroups.map((group) => (
-                      <optgroup key={group.key} label={group.label}>
+                      <SelectGroup key={group.key}>
+                        <SelectLabel>{group.label}</SelectLabel>
                         {group.channels.map((c) => (
-                          <option key={c.channel_id} value={c.channel_id}>
+                          <SelectItem key={c.channel_id} value={c.channel_id}>
                             {c.channel_name}
-                          </option>
+                          </SelectItem>
                         ))}
-                      </optgroup>
+                      </SelectGroup>
                     ))}
-                  </select>
-                </label>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-1.5">
                 <Label className="text-xs">Interval</Label>
-                <select
+                <Select
                   value={String(entry.interval_minutes)}
-                  onChange={(e) => update(idx, { interval_minutes: Number(e.target.value) })}
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  onValueChange={(v) => update(idx, { interval_minutes: Number(v) })}
                 >
-                  {intervals.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {intervals.map((opt) => (
+                      <SelectItem key={opt.value} value={String(opt.value)}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -3260,34 +3554,40 @@ function ChannelComboField({
           {refreshing ? "Refreshing…" : "Refresh"}
         </Button>
       </div>
-      <label className="relative block">
-        <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <select
-          value={selected?.channel_id ?? ""}
-          onChange={(event) => onChange(event.target.value)}
-          disabled={!guildId}
-          className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <option value="">
-            {!guildId
-              ? "Select a server first"
-              : loading
-                ? "Loading channels…"
-                : filtered.length === 0
-                  ? "No channels cached — click Refresh"
-                  : "Select a channel…"}
-          </option>
+      <Select
+        value={selected?.channel_id ?? ""}
+        onValueChange={(v) => onChange(v)}
+        disabled={!guildId}
+      >
+        <SelectTrigger>
+          <div className="flex min-w-0 items-center gap-2">
+            <Hash className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
+            <SelectValue
+              placeholder={
+                !guildId
+                  ? "Select a server first"
+                  : loading
+                    ? "Loading channels…"
+                    : filtered.length === 0
+                      ? "No channels cached — click Refresh"
+                      : "Select a channel…"
+              }
+            />
+          </div>
+        </SelectTrigger>
+        <SelectContent>
           {channelGroups.map((group) => (
-            <optgroup key={group.key} label={group.label}>
+            <SelectGroup key={group.key}>
+              <SelectLabel>{group.label}</SelectLabel>
               {group.channels.map((c) => (
-                <option key={c.channel_id} value={c.channel_id}>
+                <SelectItem key={c.channel_id} value={c.channel_id}>
                   {c.channel_name}
-                </option>
+                </SelectItem>
               ))}
-            </optgroup>
+            </SelectGroup>
           ))}
-        </select>
-      </label>
+        </SelectContent>
+      </Select>
       {field.help && (
         <p className="text-xs text-muted-foreground">{field.help}</p>
       )}
@@ -3349,30 +3649,31 @@ function RoleComboField({
           {refreshing ? "Refreshing…" : "Refresh"}
         </Button>
       </div>
-      <label className="relative block">
-        <AtSign className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <select
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          disabled={!guildId}
-          className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <option value="">
-            {!guildId
-              ? "Select a server first"
-              : loading
-                ? "Loading roles…"
-                : filtered.length === 0
-                  ? "No roles cached — click Refresh"
-                  : "Select a role…"}
-          </option>
+      <Select value={value} onValueChange={(v) => onChange(v)} disabled={!guildId}>
+        <SelectTrigger>
+          <div className="flex min-w-0 items-center gap-2">
+            <AtSign className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
+            <SelectValue
+              placeholder={
+                !guildId
+                  ? "Select a server first"
+                  : loading
+                    ? "Loading roles…"
+                    : filtered.length === 0
+                      ? "No roles cached — click Refresh"
+                      : "Select a role…"
+              }
+            />
+          </div>
+        </SelectTrigger>
+        <SelectContent>
           {filtered.map((r) => (
-            <option key={r.role_id} value={r.role_id}>
+            <SelectItem key={r.role_id} value={r.role_id}>
               @{r.role_name}
-            </option>
+            </SelectItem>
           ))}
-        </select>
-      </label>
+        </SelectContent>
+      </Select>
       {field.help && (
         <p className="text-xs text-muted-foreground">{field.help}</p>
       )}
@@ -3707,34 +4008,40 @@ function GiveawayForm({
               {refreshing ? "Refreshing…" : "Refresh"}
             </Button>
           </div>
-          <label className="relative block">
-            <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <select
-              value={channelId}
-              onChange={(e) => onChannelIdChange(e.target.value)}
-              disabled={!guildId || loading}
-              className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="">
-                {!guildId
-                  ? "Select a server first"
-                  : loading
-                    ? "Loading channels…"
-                    : textChannels.length === 0
-                      ? "No channels — click Refresh"
-                      : "Select a channel…"}
-              </option>
+          <Select
+            value={channelId}
+            onValueChange={(v) => onChannelIdChange(v)}
+            disabled={!guildId || loading}
+          >
+            <SelectTrigger>
+              <div className="flex min-w-0 items-center gap-2">
+                <Hash className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
+                <SelectValue
+                  placeholder={
+                    !guildId
+                      ? "Select a server first"
+                      : loading
+                        ? "Loading channels…"
+                        : textChannels.length === 0
+                          ? "No channels — click Refresh"
+                          : "Select a channel…"
+                  }
+                />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
               {channelGroups.map((group) => (
-                <optgroup key={group.key} label={group.label}>
+                <SelectGroup key={group.key}>
+                  <SelectLabel>{group.label}</SelectLabel>
                   {group.channels.map((c) => (
-                    <option key={c.channel_id} value={c.channel_id}>
+                    <SelectItem key={c.channel_id} value={c.channel_id}>
                       {c.channel_name}
-                    </option>
+                    </SelectItem>
                   ))}
-                </optgroup>
+                </SelectGroup>
               ))}
-            </select>
-          </label>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
