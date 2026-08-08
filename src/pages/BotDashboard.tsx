@@ -998,7 +998,14 @@ const BotSection = ({
                 {group.key === "shared" ? (
                   <div className="space-y-5">
                     {group.owned.length > 0 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-5">
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                          gap: "20px",
+                          alignItems: "stretch",
+                        }}
+                      >
                         {group.owned.map((id) => (
                           <div
                             key={`${bot.id}-${id}`}
