@@ -8,8 +8,9 @@ export const BOT_BASE_LABELS: Record<string, string> = {
   protection: "Oversite Protection",
   support: "Oversite Support",
   utilities: "Oversite Utilities",
-  scratch: "All-in-One Pack",
+  scratch: "All in One Pack",
   dispatch: "Oversite Dispatch",
+  customs: "Oversite Customs",
 };
 
 export const BOT_BASE_TAGLINES: Record<string, string> = {
@@ -18,6 +19,7 @@ export const BOT_BASE_TAGLINES: Record<string, string> = {
   utilities: "Announcements, roles, Roblox, music, more.",
   scratch: "Protection + Support + Utilities — every base in one bot.",
   dispatch: "AI voice dispatcher for ER:LC — reads 911 calls and talks back.",
+  customs: "Tickets, messaging, credits, and join logs — all dashboard-driven.",
 };
 
 export const BOT_ADDON_LABELS: Record<string, string> = {
@@ -202,6 +204,7 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
     ...ADDON_IDS_BY_BASE.support.filter((id) => id !== "ticket-message-customization"),
   ],
   utilities: [...ADDON_IDS_BY_BASE.utilities, "messages"],
+  customs: ["invite-message", "customs-messages", "customs-tickets", "customs-credits"],
 };
 
 export function getIncludedAddonsForBase(baseId: string): string[] {
@@ -228,8 +231,10 @@ export function getAddonIdsForBase(baseId: string): string[] {
   return [...(ADDON_IDS_BY_BASE[baseId] ?? []), ...SHARED_ADDON_IDS];
 }
 
-export function getAddonPrice(id: string): number {
-  return BOT_ADDON_PRICES[id] ?? 0;
+export function getAddonPrice(_id: string): number {
+  // Every add-on is included for free now — nothing costs anything.
+  // The BOT_ADDON_PRICES map is kept for reference only.
+  return 0;
 }
 
 export type AddonCategory = "protection" | "support" | "utilities" | "shared";
