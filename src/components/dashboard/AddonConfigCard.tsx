@@ -2492,7 +2492,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
 
   if (!config) {
     return (
-      <Card className="bg-card/40 border-dashed border-border p-6 flex flex-col h-[210px]">
+      <Card className="bg-card/40 border-dashed border-border p-4 flex flex-col h-[158px]">
         <div className="flex items-start gap-3 mb-3">
           <div className="h-10 w-10 rounded-lg bg-muted/40 border border-border grid place-items-center shrink-0">
             <Settings2 className="h-5 w-5 text-muted-foreground" />
@@ -2690,24 +2690,25 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   return (
     <>
       <style>{`
-        .acard.acard{position:relative;height:210px;padding:18px;display:flex;flex-direction:column;border-radius:15px;
+        .acard.acard{position:relative;height:158px;padding:15px;display:flex;flex-direction:column;border-radius:14px;
           font-family:'Manrope',system-ui,-apple-system,"Segoe UI",sans-serif;border:1px solid #3a434d;
           background:linear-gradient(180deg,#2d353e,#29313a);box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
           transition:transform .17s cubic-bezier(.22,1,.36,1),border-color .17s,box-shadow .17s;cursor:pointer}
         .acard.on:hover{transform:translateY(-2px);border-color:rgba(201,219,230,.42);
           box-shadow:0 16px 34px -18px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05)}
         .acard.off{opacity:.5;filter:grayscale(.6);cursor:default;background:#272e36}
-        .acard .ac-head{display:flex;align-items:flex-start;gap:12px}
-        .acard .ac-ico{height:38px;width:38px;border-radius:11px;flex:none;display:grid;place-items:center;
+        .acard .ac-head{display:flex;align-items:flex-start;gap:10px}
+        .acard .ac-ico{height:34px;width:34px;border-radius:10px;flex:none;display:grid;place-items:center;
           background:rgba(201,219,230,.10);border:1px solid rgba(201,219,230,.42);color:#C9DBE6;transition:.17s}
         .acard.on:hover .ac-ico{background:rgba(201,219,230,.16)}
         .acard.off .ac-ico{background:#343d46;border-color:#3a434d;color:#788591}
-        .acard .ac-ico svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.8;fill:none}
-        .acard .ac-title{flex:1;min-width:0;font-size:14.5px;font-weight:700;line-height:1.25;letter-spacing:-.01em;color:#E8EEF3;padding-top:2px}
+        .acard .ac-ico svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none}
+        .acard .ac-title{flex:1;min-width:0;font-size:14px;font-weight:700;line-height:1.25;letter-spacing:-.01em;color:#E8EEF3;padding-top:2px}
         .acard.off .ac-title{color:#A8B4BF}
         .acard .ac-sw{padding-top:2px;flex:none}
-        .acard .ac-summary{flex:1;margin-top:13px;font-size:12.5px;line-height:1.5;color:#788591}
-        .acard .ac-foot{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
+        .acard .ac-summary{flex:1;margin-top:10px;font-size:12px;line-height:1.45;color:#788591;
+          overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3}
+        .acard .ac-foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
         .acard .ac-count{font-size:11.5px;font-weight:600;color:#788591}
         .acard .ac-arrow{height:16px;width:16px;color:#788591;transition:transform .17s,color .17s}
         .acard.on:hover .ac-arrow{color:#C9DBE6;transform:translateX(3px)}
