@@ -53,6 +53,9 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
     };
 
     const [toolbar, setToolbar] = React.useState<{ top: number; left: number } | null>(null);
+    // True while the mouse is actively dragging out a selection — the toolbar
+    // stays hidden until the drag finishes (mouseup).
+    const draggingRef = React.useRef(false);
     const [activeKeys, setActiveKeys] = React.useState<Set<string>>(new Set());
     const selectionRef = React.useRef<{ start: number; end: number } | null>(null);
 
@@ -216,6 +219,18 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
       setActiveKeys(computeActive(el.value, selectionStart, selectionEnd));
     }, [computeActive]);
 
+    // Show the toolbar only once a mouse selection is finished — release can
+    // happen anywhere on the page, so listen on the window.
+    React.useEffect(() => {
+      const onUp = () => {
+        if (!draggingRef.current) return;
+        draggingRef.current = false;
+        updateToolbar();
+      };
+      window.addEventListener("mouseup", onUp);
+      return () => window.removeEventListener("mouseup", onUp);
+    }, [updateToolbar]);
+
     // Recompute active state whenever the value changes while a selection
     // is open (e.g. after clicking a toolbar button).
     React.useEffect(() => {
@@ -352,8 +367,17 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
             onValueChange(e.target.value);
             onChange?.(e);
           }}
-          onSelect={updateToolbar}
-          onMouseUp={updateToolbar}
+          onMouseDown={() => {
+            // Starting a new selection (or clicking away) — hide the current
+            // toolbar and suppress it until this drag finishes.
+            draggingRef.current = true;
+            setToolbar(null);
+          }}
+          onSelect={() => {
+            // Ignore selection changes during a mouse drag; keyboard and
+            // programmatic selections (e.g. after a format button) still update.
+            if (!draggingRef.current) updateToolbar();
+          }}
           onBlur={() => {
             // Toolbar uses onMouseDown preventDefault so clicks don't blur.
             // Hide immediately to avoid two toolbars showing across textareas.
