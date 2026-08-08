@@ -139,6 +139,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const [verifyV2Items, setVerifyV2Items] = useState<V2Item[]>([]);
   const [verifyV2MountKey, setVerifyV2MountKey] = useState(0);
   const inviteV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const inviteSayRef = useRef<SayCommandBuilderHandle>(null);
   const [inviteV2Items, setInviteV2Items] = useState<V2Item[]>([]);
   const [inviteV2MountKey, setInviteV2MountKey] = useState(0);
 
@@ -2896,15 +2897,27 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               {config.fields.map((f) => (
                 <div key={f.key}>{renderField(f)}</div>
               ))}
-              <MessagesV2Builder
-                key={`invite-v2-${inviteV2MountKey}`}
-                ref={inviteV2Ref}
-                embedded
-                botId={botId}
-                botName={botName}
-                botAvatarUrl={botAvatarUrl}
-                initialItems={inviteV2Items}
-              />
+              {engineVersion === "v2" ? (
+                <MessagesV2Builder
+                  key={`invite-v2-${inviteV2MountKey}`}
+                  ref={inviteV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={inviteV2Items}
+                />
+              ) : (
+                <SayCommandBuilder
+                  ref={inviteSayRef}
+                  mode="rules"
+                  feature="invite"
+                  extraConfig={{ channel_id: String(values.channel_id ?? "") }}
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                />
+              )}
             </div>
           ) : isVerification ? (
             <VerificationForm
@@ -2983,6 +2996,20 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     }
                     return;
                   }
+                  if (isInviteMessage) {
+                    if (engineVersion === "v2") {
+                      void saveInviteMessage();
+                    } else {
+                      setSaving(true);
+                      try {
+                        const ok = await inviteSayRef.current?.send();
+                        if (ok) setOpen(false);
+                      } finally {
+                        setSaving(false);
+                      }
+                    }
+                    return;
+                  }
                   if (isTicketPanel) {
                     setSaving(true);
                     try {
@@ -3006,9 +3033,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     }
                     return;
                   }
-                  if (isInviteMessage) {
-                    void saveInviteMessage();
-                  } else if (isVerification) {
+                  if (isVerification) {
                     void saveVerification();
                   } else if (isAdvancedLogging) {
                     void saveAdvancedLogging();
