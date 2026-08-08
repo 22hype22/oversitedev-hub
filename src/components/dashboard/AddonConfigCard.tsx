@@ -105,7 +105,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const { permissions, role } = useTeamRole(viaTeam ? (scopeBotId ?? botId ?? null) : null);
   const canEdit = viaTeam ? permissions.edit_bot_config : true;
   const readOnly = scopeReadOnly || (viaTeam && !permissions.edit_bot_config);
-  const isSayCommand = addonId === "messages";
+  const isSayCommand = addonId === "messages" || addonId === "customs-messages";
   const isRules = addonId === "rules";
   const isTicketPanel = addonId === "ticket-message-customization";
   const isTicketLifecycleMessages = addonId === "ticket-lifecycle-messages";
