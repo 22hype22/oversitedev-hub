@@ -998,7 +998,7 @@ const BotSection = ({
                 {group.key === "shared" ? (
                   <div className="space-y-5">
                     {group.owned.length > 0 && (
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {group.owned.map((id) => {
                       const isHighlighted = highlightedAddonId === id;
                       return (
