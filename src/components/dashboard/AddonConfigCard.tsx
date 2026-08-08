@@ -143,6 +143,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isServerStats = addonId === "server-stats-channels";
   const isPostSystem = addonId === "post-system";
   const isInviteMessage = addonId === "invite-message";
+  const isCustomsCredits = addonId === "customs-credits";
+  const isCustomsTickets = addonId === "customs-tickets";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
@@ -904,6 +906,112 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     } else {
       toast.success("Invite message saved & applied");
     }
+    setOpen(false);
+  };
+
+  // ---------- customs: credits ----------
+  useEffect(() => {
+    if (!isCustomsCredits || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "credits")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        manager_role_ids: Array.isArray(cfg.manager_role_ids) ? cfg.manager_role_ids.map(String) : [],
+        currency_name: cfg.currency_name ?? "credits",
+        log_channel_id: cfg.log_channel_id ? String(cfg.log_channel_id) : "",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsCredits, open, botId]);
+
+  const saveCustomsCredits = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "credits",
+      config: {
+        manager_role_ids: Array.isArray(values.manager_role_ids) ? (values.manager_role_ids as string[]).map(String) : [],
+        currency_name: String(values.currency_name ?? "credits") || "credits",
+        log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "credits",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Credits saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: tickets ----------
+  useEffect(() => {
+    if (!isCustomsTickets || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "tickets")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        category_id: cfg.category_id ? String(cfg.category_id) : "",
+        support_role_ids: Array.isArray(cfg.support_role_ids) ? cfg.support_role_ids.map(String) : [],
+        log_channel_id: cfg.log_channel_id ? String(cfg.log_channel_id) : "",
+        open_message: cfg.open_message ?? "",
+        ping_support: cfg.ping_support ?? true,
+        one_per_user: cfg.one_per_user ?? true,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsTickets, open, botId]);
+
+  const saveCustomsTickets = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "tickets",
+      config: {
+        category_id: values.category_id ? String(values.category_id) : null,
+        support_role_ids: Array.isArray(values.support_role_ids) ? (values.support_role_ids as string[]).map(String) : [],
+        log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
+        open_message: values.open_message ? String(values.open_message) : "",
+        ping_support: values.ping_support ?? true,
+        one_per_user: values.one_per_user ?? true,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "tickets",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Tickets saved & applied");
     setOpen(false);
   };
 
@@ -3152,6 +3260,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveRemindme();
                   } else if (isServerStats) {
                     void saveServerStats();
+                  } else if (isCustomsCredits) {
+                    void saveCustomsCredits();
+                  } else if (isCustomsTickets) {
+                    void saveCustomsTickets();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
