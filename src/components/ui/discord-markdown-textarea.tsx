@@ -398,6 +398,32 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
             setActiveKeys(new Set());
             selectionRef.current = null;
           }}
+          onPaste={(e) => {
+            // Pasting a copied Discord custom-emoji link auto-converts to the
+            // <:name:id> code the bot needs (<a:name:id> for animated gifs).
+            const text = e.clipboardData?.getData("text") ?? "";
+            const m = text.match(/discord(?:app)?\.(?:com|net)\/emojis\/(\d+)\.(\w+)(?:\?([^\s]*))?/i);
+            if (!m) return;
+            e.preventDefault();
+            const id = m[1];
+            const animated = (m[2] || "").toLowerCase() === "gif";
+            const nameMatch = (m[3] || "").match(/name=([A-Za-z0-9_]+)/i);
+            const name = nameMatch ? nameMatch[1] : "emoji";
+            const code = `<${animated ? "a" : ""}:${name}:${id}>`;
+            const el = innerRef.current;
+            if (!el) return;
+            const start = el.selectionStart ?? value.length;
+            const end = el.selectionEnd ?? value.length;
+            onValueChange(value.slice(0, start) + code + value.slice(end));
+            const caret = start + code.length;
+            requestAnimationFrame(() => {
+              const t = innerRef.current;
+              if (t) {
+                t.focus();
+                t.setSelectionRange(caret, caret);
+              }
+            });
+          }}
           className={cn(className)}
           {...props}
         />
