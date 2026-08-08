@@ -92,7 +92,6 @@ export function BotManagePanel({
   // bot prop catches up, so we never depend on the reload round-trip timing.
   const [engineOverride, setEngineOverride] = useState<"v1" | "v2" | null>(null);
   const engine = engineOverride ?? (bot.engine_version === "v2" ? "v2" : "v1");
-  const [engineTarget, setEngineTarget] = useState<"v1" | "v2" | null>(null);
   const [engineSaving, setEngineSaving] = useState(false);
   useEffect(() => {
     if (engineOverride && bot.engine_version === engineOverride) setEngineOverride(null);
@@ -104,7 +103,6 @@ export function BotManagePanel({
       .update({ engine_version: target, updated_at: new Date().toISOString() })
       .eq("id", bot.id);
     setEngineSaving(false);
-    setEngineTarget(null);
     if (error) {
       toast.error("Couldn't switch engine version", { description: error.message });
       return;
@@ -308,7 +306,7 @@ export function BotManagePanel({
                 type="button"
                 disabled={engineSaving || engine === id}
                 className={engine === id ? "on" : ""}
-                onClick={() => setEngineTarget(id)}
+                onClick={() => switchEngine(id)}
               >
                 {id.toUpperCase()}
                 <span className="cap">{id === "v1" ? "Stable" : "Newest"}</span>
@@ -492,16 +490,6 @@ export function BotManagePanel({
         </div>
       </div>
 
-      {/* ── engine confirm ── */}
-      <ConfirmModal
-        open={engineTarget !== null}
-        title={`Switch to Components ${engineTarget?.toUpperCase() ?? ""}?`}
-        body="Your bot may have a short period of downtime while the engine swaps over. Commands and events may be briefly unavailable."
-        confirmLabel={engineSaving ? "Switching…" : "Switch version"}
-        busy={engineSaving}
-        onCancel={() => !engineSaving && setEngineTarget(null)}
-        onConfirm={() => engineTarget && switchEngine(engineTarget)}
-      />
 
       {/* ── control confirm ── */}
       <ConfirmModal
