@@ -1737,6 +1737,21 @@ const BotDashboard = () => {
   }, [idsKey]);
   useEffect(() => { if (order.length) lsSet(LS.order, JSON.stringify(order)); }, [order]);
   const byId = useMemo(() => { const m: Record<string, OwnedBot> = {}; dashboardBots.forEach((b) => { m[b.id] = b; }); return m; }, [dashboardBots]);
+  // Optimistic engine switch — reflect V1/V2 across the toggle AND the message
+  // builder instantly, clearing once the reloaded bot data catches up. Declared
+  // here (above the conditional returns below) to keep hook order stable.
+  const [engineOpt, setEngineOpt] = useState<Record<string, "v1" | "v2">>({});
+  useEffect(() => {
+    if (!botId) return;
+    const real = byId[botId];
+    if (real && engineOpt[botId] && engineOpt[botId] === real.engine_version) {
+      setEngineOpt((prev) => {
+        const next = { ...prev };
+        delete next[botId];
+        return next;
+      });
+    }
+  }, [botId, byId, engineOpt]);
 
   // Remember where the user is across refreshes: persist the active view and
   // the open bot, and recover gracefully if the remembered bot is gone.
@@ -1940,21 +1955,11 @@ const BotDashboard = () => {
     (user.email ? user.email.split("@")[0] : "") ||
     "you";
   const initial = (user.email?.[0] ?? "U").toUpperCase();
-  const [engineOpt, setEngineOpt] = useState<Record<string, "v1" | "v2">>({});
   const rawActiveBot = botId ? byId[botId] : null;
   const activeBot =
     rawActiveBot && engineOpt[rawActiveBot.id]
       ? { ...rawActiveBot, engine_version: engineOpt[rawActiveBot.id] }
       : rawActiveBot;
-  useEffect(() => {
-    if (rawActiveBot && engineOpt[rawActiveBot.id] === rawActiveBot.engine_version) {
-      setEngineOpt((prev) => {
-        const next = { ...prev };
-        delete next[rawActiveBot.id];
-        return next;
-      });
-    }
-  }, [rawActiveBot?.id, rawActiveBot?.engine_version, engineOpt]);
   const firstOwned = dashboardBots.find((b) => !b.isDemo && !b.viaTeam && !b.viaSupport);
   const spotlight = owned[0];
   const isTeam = wsMode === "team";
