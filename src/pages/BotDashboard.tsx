@@ -97,7 +97,6 @@ import {
   Gift,
   ChevronDown,
   ChevronUp,
-  Search,
   Loader2,
   LayoutGrid,
   Users,
@@ -229,7 +228,7 @@ const UTILITIES_ADDON_IDS = [
 ];
 // Shared/extras add-ons (none currently — Multi-Server License & Custom
 // Branding combined card was removed per product decision).
-const SHARED_ADDON_IDS: string[] = [];
+const SHARED_ADDON_IDS: string[] = ["invite-message", "customs-messages", "customs-tickets", "customs-credits"];
 
 // Owners can cancel/remove a bot from any pre-live state OR once it's live
 // ("paid"/"ready"). Cancelling flips the order to "cancelled", which hides it
@@ -412,6 +411,7 @@ const BotSection = ({
   onCancel,
   onAddAddons,
   onReload,
+  onEngineSwitch,
   searchQuery,
   highlightedAddonId,
 }: {
@@ -423,6 +423,7 @@ const BotSection = ({
   onCancel: (bot: OwnedBot) => void;
   onAddAddons: (bot: OwnedBot) => void;
   onReload: () => void;
+  onEngineSwitch?: (id: string, target: "v1" | "v2") => void;
   searchQuery?: string;
   highlightedAddonId?: string | null;
 }) => {
@@ -887,6 +888,7 @@ const BotSection = ({
           highlightSlots={highlightSlots}
           onCommandSent={handleCommandSent}
           onReload={onReload}
+          onEngineSwitch={onEngineSwitch}
         />
       )}
 
@@ -979,68 +981,47 @@ const BotSection = ({
             const GroupIcon = group.icon;
             return (
               <div key={group.key} className="space-y-4">
-                <div className="flex items-center gap-3 mb-1">
-                  <span className="h-6 w-6 rounded-md flex items-center justify-center shrink-0 bg-[rgba(201,219,230,0.1)] border border-[rgba(201,219,230,0.42)] text-primary">
-                    <GroupIcon className="h-3.5 w-3.5" size={14} />
-                  </span>
-                  <span className="text-[11px] font-extrabold tracking-[0.14em] uppercase text-muted-foreground font-['Manrope',system-ui,sans-serif]">
-                    {group.label}
-                  </span>
-                  <span className="text-[11px] font-bold text-foreground bg-white/[0.04] border border-border rounded-full px-2 py-0.5">
-                    {group.owned.length}
-                  </span>
-                  <span className="flex-1 h-px bg-white/[0.055]" />
-                </div>
+                {group.key !== "shared" && (
+                  <div className="flex items-center gap-3 mb-1">
+                    <span className="h-6 w-6 rounded-md flex items-center justify-center shrink-0 bg-[rgba(201,219,230,0.1)] border border-[rgba(201,219,230,0.42)] text-primary">
+                      <GroupIcon className="h-3.5 w-3.5" size={14} />
+                    </span>
+                    <span className="text-[11px] font-extrabold tracking-[0.14em] uppercase text-muted-foreground font-['Manrope',system-ui,sans-serif]">
+                      {group.label}
+                    </span>
+                    <span className="text-[11px] font-bold text-foreground bg-white/[0.04] border border-border rounded-full px-2 py-0.5">
+                      {group.owned.length}
+                    </span>
+                    <span className="flex-1 h-px bg-white/[0.055]" />
+                  </div>
+                )}
                 {group.key === "shared" ? (
                   <div className="space-y-5">
+                    {group.owned.length > 0 && (
+                      <SortableAddonGrid
+                        userId={userId}
+                        botId={bot.id}
+                        botName={bot.bot_name}
+                        botAvatarUrl={bot.icon_url}
+                        engineVersion={bot.engine_version}
+                        groupKey={group.key}
+                        ids={group.owned}
+                        highlightedAddonId={highlightedAddonId}
+                      />
+                    )}
+                    <div className="flex items-center gap-3 mb-1">
+                      <span className="h-6 w-6 rounded-md flex items-center justify-center shrink-0 bg-[rgba(201,219,230,0.1)] border border-[rgba(201,219,230,0.42)] text-primary">
+                        <GroupIcon className="h-3.5 w-3.5" size={14} />
+                      </span>
+                      <span className="text-[11px] font-extrabold tracking-[0.14em] uppercase text-muted-foreground font-['Manrope',system-ui,sans-serif]">
+                        {group.label}
+                      </span>
+                      <span className="flex-1 h-px bg-white/[0.055]" />
+                    </div>
                     <div className="xtras">
                       <RequestCustomFeatureCard />
                       <ReportBugCard />
                     </div>
-                    {group.owned.length > 0 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                    {group.owned.map((id) => {
-                      const isHighlighted = highlightedAddonId === id;
-                      return (
-                        <div
-                          key={`${bot.id}-${id}`}
-                          id={`addon-card-${bot.id}-${id}`}
-                          data-addon-id={id}
-                          className={`scroll-mt-28 rounded-xl transition-all ${
-                            isHighlighted
-                              ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg shadow-primary/20"
-                              : ""
-                          }`}
-                        >
-                          <Suspense fallback={<div className="h-24 rounded-xl border border-border/40 bg-card/40 animate-pulse" />}>
-                            {id === "ticket-editor" ? (
-                              <TicketEditorCard
-                                botId={bot.id}
-                                botName={bot.bot_name}
-                                botAvatarUrl={bot.icon_url}
-                                engineVersion={bot.engine_version}
-                              />
-                            ) : (
-                              <AddonConfigCard
-                                addonId={id}
-                                botId={bot.id}
-                                botName={bot.bot_name}
-                                botAvatarUrl={bot.icon_url}
-                                engineVersion={bot.engine_version}
-                              />
-                            )}
-
-                          </Suspense>
-                          {id === "giveaway-system" && (
-                            <div className="mt-3">
-                              <GiveawayLaunchCard botId={bot.id} />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                      </div>
-                    )}
                   </div>
                 ) : (
                   <>
@@ -1395,6 +1376,9 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .gname{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:16px}
 .osd .gmeta{font-size:11.5px;color:var(--faint);margin-top:1px}
 .osd .ghd .dots{margin-left:auto}
+.osd .gcard .gdel{position:absolute;top:12px;right:12px;height:26px;width:26px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--faint);display:grid;place-items:center;cursor:pointer;transition:color .12s ease,background .12s ease,border-color .12s ease}
+.osd .gcard .gdel svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round}
+.osd .gcard .gdel:hover{color:#e6b7b7;background:rgba(190,120,120,.12);border-color:rgba(190,120,120,.28)}
 .osd .gbody{display:grid;grid-template-columns:1fr 1fr;gap:22px}
 .osd .gcl{font-family:var(--disp);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:11px}
 .osd .chips{display:flex;flex-wrap:wrap;gap:8px}
@@ -1546,7 +1530,7 @@ const BotDashboard = () => {
   // An invited team/support member has dashboard access but owns no bots of
   // their own. The workspace onboarding is owner-only, so we skip it for them
   // (and, crucially, still reveal the dashboard — see `showApp`).
-  const isInvitedOnly = hasDashboardAccess && !ownedBots.some((b) => !b.isDemo);
+  const isInvitedOnly = hasDashboardAccess && !isAdmin && !ownedBots.some((b) => !b.isDemo);
   // An invited member only reaches Settings/appearance if their role has the
   // `manage_settings` permission. Owners always can. Permissions are per
   // owner+role, so any of the member's team bots resolves the same answer.
@@ -1721,6 +1705,21 @@ const BotDashboard = () => {
   }, [idsKey]);
   useEffect(() => { if (order.length) lsSet(LS.order, JSON.stringify(order)); }, [order]);
   const byId = useMemo(() => { const m: Record<string, OwnedBot> = {}; dashboardBots.forEach((b) => { m[b.id] = b; }); return m; }, [dashboardBots]);
+  // Optimistic engine switch — reflect V1/V2 across the toggle AND the message
+  // builder instantly, clearing once the reloaded bot data catches up. Declared
+  // here (above the conditional returns below) to keep hook order stable.
+  const [engineOpt, setEngineOpt] = useState<Record<string, "v1" | "v2">>({});
+  useEffect(() => {
+    if (!botId) return;
+    const real = byId[botId];
+    if (real && engineOpt[botId] && engineOpt[botId] === real.engine_version) {
+      setEngineOpt((prev) => {
+        const next = { ...prev };
+        delete next[botId];
+        return next;
+      });
+    }
+  }, [botId, byId, engineOpt]);
 
   // Remember where the user is across refreshes: persist the active view and
   // the open bot, and recover gracefully if the remembered bot is gone.
@@ -1779,7 +1778,42 @@ const BotDashboard = () => {
     const { error } = await (supabase as any).rpc("group_set_bots", { _group_id: gid, _bot_ids: next });
     if (error) { toast.error("Couldn't update this group's bots", { description: error.message }); return; }
     await Promise.all([reload(), loadGroups()]);
+    // Keep the Team hub's group list + bot counts in sync instantly.
+    window.dispatchEvent(new CustomEvent("oversite:groups-changed"));
   }, [owned, reload, loadGroups]);
+
+  const deleteGroup = useCallback(async (gid: string, name: string) => {
+    if (!window.confirm(`Delete the group "${name}"? Its bots stay on your account (just ungrouped), and anyone who had access through this group's team loses that access. This can't be undone.`)) return;
+    // The bots that belong to this group — their team memberships get removed.
+    const botIds = owned.filter((b) => b.group_id === gid).map((b) => b.id);
+    // Drop the card immediately so it disappears right away — a server refetch
+    // can lag just after the write, which is why it used to need a manual reload.
+    setGroups((prev) => prev.filter((g) => g.id !== gid));
+    // Tell the Team hub (a separate component with its own group list) to drop
+    // it too, so it updates instantly instead of needing a refresh.
+    window.dispatchEvent(new CustomEvent("oversite:groups-changed", { detail: { removedId: gid } }));
+    // Revoke team access: deleting the group removes everyone who had access to
+    // its bots (memberships are per-bot). Owner-only via RLS.
+    if (botIds.length > 0) {
+      await (supabase as any)
+        .from("dashboard_team")
+        .delete()
+        .in("bot_id", botIds)
+        .eq("owner_user_id", user?.id);
+    }
+    // Ungroup its bots, then remove the group itself.
+    await (supabase as any).rpc("group_set_bots", { _group_id: gid, _bot_ids: [] });
+    const { error } = await (supabase as any).rpc("group_delete", { _group_id: gid });
+    if (error) {
+      toast.error("Couldn't delete this group", { description: error.message });
+      // The delete didn't take — restore the list so the card comes back.
+      await loadGroups();
+      window.dispatchEvent(new CustomEvent("oversite:groups-changed"));
+      return;
+    }
+    toast.success(`Deleted "${name}"`);
+    await Promise.all([reload(), loadGroups()]);
+  }, [owned, user?.id, reload, loadGroups]);
 
   const chooseMode = (m: "solo" | "team") => { setWsMode(m); lsSet(LS.ws, m); lsSet(LS.onboarded, "1"); setAppOn(true); askTour(); };
   const openBot = (id: string) => { setBotId(id); setView("bot"); window.scrollTo({ top: 0 }); };
@@ -1889,7 +1923,11 @@ const BotDashboard = () => {
     (user.email ? user.email.split("@")[0] : "") ||
     "you";
   const initial = (user.email?.[0] ?? "U").toUpperCase();
-  const activeBot = botId ? byId[botId] : null;
+  const rawActiveBot = botId ? byId[botId] : null;
+  const activeBot =
+    rawActiveBot && engineOpt[rawActiveBot.id]
+      ? { ...rawActiveBot, engine_version: engineOpt[rawActiveBot.id] }
+      : rawActiveBot;
   const firstOwned = dashboardBots.find((b) => !b.isDemo && !b.viaTeam && !b.viaSupport);
   const spotlight = owned[0];
   const isTeam = wsMode === "team";
@@ -2140,7 +2178,7 @@ const BotDashboard = () => {
 
             <div className="glab">Account</div>
             {canBilling && navItem("billing", <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>, "Billing")}
-            {(isInvitedOnly ? canManageTeam : isTeam) && navItem("team", <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>, "Team")}
+            {(isInvitedOnly ? canManageTeam : true) && navItem("team", <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>, "Team")}
 
             <div className="glab">More</div>
             {canManageSettings && navItem("settings", <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1l-.4-2.5H9.6L9.2 6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L5 11a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 2.5h4.8l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6a7 7 0 0 0 .1-1Z"/></svg>, "Settings")}
@@ -2159,7 +2197,6 @@ const BotDashboard = () => {
                 <div className="sub">{owned.length} bots · <b>{liveCount} live</b></div>
               </div>
               <div className="htools">
-                <label className="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Search</label>
                 <div className="bell" id="tour-bell" onClick={() => go("activity")}><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>{unread > 0 && <span className="d" />}</div>
                 <button className="cta" id="tour-add" onClick={() => go("bots")}>+ Add a bot</button>
               </div>
@@ -2193,12 +2230,13 @@ const BotDashboard = () => {
             <div className={"view" + (view === "groups" && canGroups ? " on" : "")}>
               <div className="ph2" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "14px", flexWrap: "wrap" }}>
                 <div><h2>Groups</h2><p>Bundle bots from a server together, then give a team access to just that bundle.</p></div>
-                <button className="cta" onClick={async () => { const n = window.prompt("Name this group"); if (!n || !n.trim()) return; const { error } = await (supabase as any).rpc("group_create", { _name: n.trim(), _bot_ids: [] }); if (error) { toast.error("Couldn't create group", { description: error.message }); return; } await loadGroups(); }}>+ New group</button>
+                <button className="cta" onClick={async () => { const n = window.prompt("Name this group"); if (!n || !n.trim()) return; const { error } = await (supabase as any).rpc("group_create", { _name: n.trim(), _bot_ids: [] }); if (error) { toast.error("Couldn't create group", { description: error.message }); return; } await loadGroups(); window.dispatchEvent(new CustomEvent("oversite:groups-changed")); }}>+ New group</button>
               </div>
               <div className="groups">
                 {groups.length === 0 && <div className="card" style={{ textAlign: "center", color: "var(--faint)", fontSize: "13px" }}>No groups yet. Create one to bundle bots and share access.</div>}
                 {groups.map((g) => (
-                  <div className="gcard" key={g.id}>
+                  <div className="gcard" key={g.id} style={{ position: "relative" }}>
+                    <button className="gdel" type="button" title="Delete group" aria-label={`Delete ${g.name}`} onClick={() => void deleteGroup(g.id, g.name)}><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
                     <div className="ghd"><div className="gi"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></div><div><div className="gname">{g.name}</div><div className="gmeta">{groupBotIds(g.id).length} bots</div></div></div>
                     <div className="gbody">
                       <div>
@@ -2246,7 +2284,7 @@ const BotDashboard = () => {
             </div>
 
             {/* TEAM */}
-            <div className={"view" + (view === "team" && (isInvitedOnly ? canManageTeam : isTeam) ? " on" : "")}>
+            <div className={"view" + (view === "team" && (isInvitedOnly ? canManageTeam : true) ? " on" : "")}>
               {firstOwned ? (
                 <div style={{ position: "relative" }}><GroupTeamHub ownerUserId={user.id} ownerEmail={user.email ?? null} /></div>
               ) : (<div className="ph2"><h2>Team</h2><p>You need an owned bot to manage a team.</p></div>)}
@@ -2305,7 +2343,7 @@ const BotDashboard = () => {
                 <>
                   <span className="back" onClick={() => go("bots")}><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg> Back to my bots</span>
                   <ReadOnlyBotScope botId={activeBot.id} ownerUserId={activeBot.ownerUserId} viaTeam={activeBot.viaTeam}>
-                    <BotSection bot={activeBot} allBots={dashboardBots} userId={user.id} ownerEmail={user.email} freePeriod={freePeriods[activeBot.id]} onCancel={setCancelTarget} onAddAddons={setAddonsTarget} searchQuery="" highlightedAddonId={null} onReload={() => { reload(); reloadFreePeriods(); }} />
+                    <BotSection bot={activeBot} allBots={dashboardBots} userId={user.id} ownerEmail={user.email} freePeriod={freePeriods[activeBot.id]} onCancel={setCancelTarget} onAddAddons={setAddonsTarget} searchQuery="" highlightedAddonId={null} onReload={() => { reload(); reloadFreePeriods(); }} onEngineSwitch={(id, target) => setEngineOpt((prev) => ({ ...prev, [id]: target }))} />
                   </ReadOnlyBotScope>
                 </>
               )}
@@ -2315,7 +2353,17 @@ const BotDashboard = () => {
         </div>
       </div>
 
-      <NewOwnerBillingDialog forceOpen={new URLSearchParams(window.location.search).get("team_transfer") === "accepted"} />
+      <NewOwnerBillingDialog forceOpen={
+        new URLSearchParams(window.location.search).get("team_transfer") === "accepted"
+        // Only demand billing details when the newly-owned account carries a bot
+        // with recurring billing. Dispatch is a one-time upfront purchase with no
+        // monthly charge, so transferring one must NOT trap the new owner on the
+        // mandatory billing form. Every other base (support, protection,
+        // utilities, scratch) is monthly-hosted, so it does ask.
+        // NB: the `monthly_hosting` column is hardcoded true at checkout for
+        // every bot incl. dispatch, so it can't be used here — key on the base.
+        && owned.some((b) => !b.viaTeam && !b.viaSupport && b.base !== "dispatch")
+      } />
       <AlertDialog open={!!cancelTarget} onOpenChange={(o) => !o && setCancelTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Cancel subscription for "{cancelTarget?.bot_name}"?</AlertDialogTitle><AlertDialogDescription>This stops recurring payments and hosting, takes the bot offline, and removes it from your dashboard.</AlertDialogDescription></AlertDialogHeader>
