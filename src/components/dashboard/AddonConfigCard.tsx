@@ -166,6 +166,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const messagesV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [messagesV2Items, setMessagesV2Items] = useState<V2Item[]>([]);
   const [messagesV2MountKey, setMessagesV2MountKey] = useState(0);
+  // Customs "Verification" — the V2 builder for the Verify panel message.
+  const verifyPanelV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [verifyPanelV2Items, setVerifyPanelV2Items] = useState<V2Item[]>([]);
+  const [verifyPanelV2MountKey, setVerifyPanelV2MountKey] = useState(0);
 
   const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
   useEffect(() => {
@@ -1020,6 +1024,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         roblox_client_id: cfg.roblox_client_id ?? "",
         roblox_client_secret: cfg.roblox_client_secret ?? "",
       }));
+      setVerifyPanelV2Items(Array.isArray(cfg.components) ? (cfg.components as V2Item[]) : []);
+      setVerifyPanelV2MountKey((k) => k + 1);
       setAppliedAt((data as any).applied_at ?? null);
     })();
     return () => { cancelled = true; };
@@ -1038,6 +1044,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
         roblox_client_id: String(values.roblox_client_id ?? "").trim(),
         roblox_client_secret: String(values.roblox_client_secret ?? "").trim(),
+        components: normalizeV2Items(verifyPanelV2Ref.current?.getItems() ?? verifyPanelV2Items ?? []),
       },
       updated_at: new Date().toISOString(),
     };
@@ -2965,7 +2972,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -3116,14 +3123,18 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               embedColor={giveawayEmbedColor}
               onEmbedColorChange={setGiveawayEmbedColor}
             />
-          ) : isInviteMessage || isCustomsMessages ? (
+          ) : isInviteMessage || isCustomsMessages || isCustomsVerification ? (
             <div className="space-y-5 py-2">
-              {config.fields.map((f) => (
-                <div key={f.key}>{renderField(f)}</div>
-              ))}
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs text-muted-foreground">
-                  Type variables like <code className="font-mono text-os-accent">{"{count}"}</code> anywhere — they fill in {isCustomsMessages ? "when the message is posted." : "when someone joins."}
+                  {isCustomsVerification
+                    ? "Design the panel members see below. A Verify button is added automatically underneath it."
+                    : (<>Type variables like <code className="font-mono text-os-accent">{"{count}"}</code> anywhere — they fill in {isCustomsMessages ? "when the message is posted." : "when someone joins."}</>)}
                 </p>
                 <Popover>
                   <PopoverTrigger asChild>
@@ -3166,15 +3177,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   </PopoverContent>
                 </Popover>
               </div>
-              {engineVersion === "v2" || isCustomsMessages ? (
+              {engineVersion === "v2" || isCustomsMessages || isCustomsVerification ? (
                 <MessagesV2Builder
-                  key={isCustomsMessages ? `customs-msg-v2-${messagesV2MountKey}` : `invite-v2-${inviteV2MountKey}`}
-                  ref={isCustomsMessages ? messagesV2Ref : inviteV2Ref}
+                  key={isCustomsVerification ? `verify-panel-v2-${verifyPanelV2MountKey}` : isCustomsMessages ? `customs-msg-v2-${messagesV2MountKey}` : `invite-v2-${inviteV2MountKey}`}
+                  ref={isCustomsVerification ? verifyPanelV2Ref : isCustomsMessages ? messagesV2Ref : inviteV2Ref}
                   embedded
                   botId={botId}
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
-                  initialItems={isCustomsMessages ? messagesV2Items : inviteV2Items}
+                  initialItems={isCustomsVerification ? verifyPanelV2Items : isCustomsMessages ? messagesV2Items : inviteV2Items}
                 />
               ) : (
                 <SayCommandBuilder
