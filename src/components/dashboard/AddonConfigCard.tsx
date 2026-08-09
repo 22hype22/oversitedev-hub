@@ -31,6 +31,7 @@ import {
 import {
   ArrowRight,
   Save,
+  Send,
   Settings2,
   Megaphone,
   Hash,
@@ -1061,8 +1062,51 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
-    else toast.success("Verification saved & applied");
+    else toast.success("Verification saved");
     setOpen(false);
+  };
+
+  // Post (or re-post) the Verify panel to the channel on demand. Saving config
+  // no longer auto-posts, so this is how the panel actually gets sent.
+  const postVerifyPanel = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    if (!values.channel_id) return toast.error("Pick a Verify channel first.");
+    // Persist the latest design/settings before posting so the bot posts what's
+    // on screen, then tell the bot to post the panel.
+    await saveCustomsVerificationSilently();
+    const { data, error } = await supabase.rpc("enqueue_post_message" as any, {
+      _bot_id: botId,
+      _payload: { channel_id: String(values.channel_id), verify_panel: true } as any,
+    });
+    if (error) return toast.error(`Failed to post: ${error.message}`);
+    const result = data as { ok?: boolean; error?: string } | null;
+    if (!result?.ok) return toast.error(result?.error || "Could not queue the panel.");
+    toast.success("Panel queued — your bot will post it shortly.");
+    setOpen(false);
+  };
+
+  // Save config + refresh the bot's in-memory config without a success toast or
+  // closing the dialog (used right before posting the panel).
+  const saveCustomsVerificationSilently = async () => {
+    if (!botId) return;
+    const payload = {
+      bot_id: botId,
+      feature: "roblox-verify",
+      config: {
+        channel_id: values.channel_id ? String(values.channel_id) : null,
+        verified_role_id: values.verified_role_id ? String(values.verified_role_id) : null,
+        set_nickname: values.set_nickname ?? true,
+        log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
+        roblox_client_id: String(values.roblox_client_id ?? "").trim(),
+        roblox_client_secret: String(values.roblox_client_secret ?? "").trim(),
+        verify_button_label: String(values.verify_button_label ?? "Verify").trim() || "Verify",
+        verify_button_style: String(values.verify_button_style ?? "primary"),
+        components: normalizeV2Items(verifyPanelV2Ref.current?.getItems() ?? verifyPanelV2Items ?? []),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    await supabase.rpc("enqueue_apply_config" as any, { _bot_id: botId, _feature: "roblox-verify" });
   };
 
   // ---------- customs: tickets ----------
@@ -3262,6 +3306,21 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               <Button variant="outline" onClick={() => setOpen(false)} data-readonly-allow>
                 Cancel
               </Button>
+              {isCustomsVerification && (
+                <Button
+                  variant="outline"
+                  className="gap-1.5"
+                  disabled={saving || !canEdit}
+                  title={!canEdit ? `Your role (${role ?? "viewer"}) doesn't allow editing bot config` : "Post (or re-post) this panel to the channel now"}
+                  onClick={() => {
+                    setSaving(true);
+                    void postVerifyPanel().finally(() => setSaving(false));
+                  }}
+                >
+                  <Send className="h-4 w-4" />
+                  Post panel
+                </Button>
+              )}
               {!isPostSystem && (
               <Button
                 className="bg-os-accent text-os-accent-ink hover:brightness-105 disabled:opacity-50"
