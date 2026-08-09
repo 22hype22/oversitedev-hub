@@ -167,7 +167,10 @@ export function normalizeV2Items(items: V2Item[]): V2Item[] {
     buffer = [];
   };
   for (const it of items) {
-    if (it.type === "container") {
+    // Containers stay top-level, and media galleries are allowed to live
+    // OUTSIDE a container (a full-width image, not boxed inside an embed).
+    // Everything else buffers into an auto-container for the embed look.
+    if (it.type === "container" || it.type === "gallery") {
       flush();
       out.push(it);
     } else {
