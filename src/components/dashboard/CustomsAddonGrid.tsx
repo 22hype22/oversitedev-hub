@@ -1,12 +1,14 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   closestCenter,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -32,8 +34,12 @@ import { useBotAddonStates } from "@/hooks/useBotAddonStates";
  *   - Only the owner can drag to reorder (`canReorder`).
  *   - The order they set is read by every team member — the existing
  *     dashboard_addon_order RLS already allows any team member to SELECT and
- *     only `edit_bot_config` (the owner) to write, so reading the owner's row
- *     gives the whole team the same, owner-defined layout.
+ *     only `edit_bot_config` (the owner) to write.
+ *
+ * Dragging uses a <DragOverlay>: the dragged card is rendered ONCE in a
+ * floating layer that dnd-kit moves with the pointer via transform, so it
+ * never re-renders mid-drag and tracks the cursor smoothly. The card left
+ * behind in the grid is just a faded placeholder holding the gap.
  *
  * Columns use an inline `grid-template-columns` (not the Tailwind `grid`
  * class) so the scoped `.osd .grid{grid-template-columns:2fr 1fr}` rule in
@@ -53,6 +59,55 @@ function reconcile(saved: string[] | null, current: string[]): string[] {
   const keptSet = new Set(kept);
   const appended = current.filter((id) => !keptSet.has(id));
   return [...kept, ...appended];
+}
+
+/** The card face (icon/title/summary/toggle). Shared by the in-grid sortable
+ *  item and the floating drag overlay so they look identical. */
+function CardFace({
+  id,
+  botId,
+  botName,
+  botAvatarUrl,
+  engineVersion,
+  enabled,
+  onToggleEnabled,
+  open,
+  onOpenChange,
+}: {
+  id: string;
+  botId: string;
+  botName: string;
+  botAvatarUrl?: string | null;
+  engineVersion?: "v1" | "v2";
+  enabled: boolean;
+  onToggleEnabled: (next: boolean) => void;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+}) {
+  return (
+    <Suspense fallback={<div className="h-24 rounded-xl border border-border/40 bg-card/40 animate-pulse" />}>
+      {id === "ticket-editor" ? (
+        <TicketEditorCard
+          botId={botId}
+          botName={botName}
+          botAvatarUrl={botAvatarUrl}
+          engineVersion={engineVersion}
+        />
+      ) : (
+        <AddonConfigCard
+          addonId={id}
+          botId={botId}
+          botName={botName}
+          botAvatarUrl={botAvatarUrl}
+          engineVersion={engineVersion}
+          open={open}
+          onOpenChange={onOpenChange}
+          enabled={enabled}
+          onToggleEnabled={onToggleEnabled}
+        />
+      )}
+    </Suspense>
+  );
 }
 
 function SortableCard({
@@ -83,19 +138,15 @@ function SortableCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({
-    id,
-    disabled: dragDisabled,
-    transition: { duration: 180, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
-  });
+  } = useSortable({ id, disabled: dragDisabled });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition: isDragging ? "none" : transition,
-    opacity: isDragging ? 0.4 : 1,
-    zIndex: isDragging ? 50 : undefined,
-    cursor: isDragging ? "grabbing" : canReorder ? "grab" : undefined,
-    willChange: isDragging ? "transform" : undefined,
+    transition,
+    // While this item is the one being dragged, it stays put as a faint
+    // placeholder — the DragOverlay is what follows the cursor.
+    opacity: isDragging ? 0.25 : 1,
+    cursor: canReorder ? "grab" : undefined,
     touchAction: canReorder ? "none" : undefined,
   };
 
@@ -110,28 +161,17 @@ function SortableCard({
       style={style}
       {...dragProps}
     >
-      <Suspense fallback={<div className="h-24 rounded-xl border border-border/40 bg-card/40 animate-pulse" />}>
-        {id === "ticket-editor" ? (
-          <TicketEditorCard
-            botId={botId}
-            botName={botName}
-            botAvatarUrl={botAvatarUrl}
-            engineVersion={engineVersion}
-          />
-        ) : (
-          <AddonConfigCard
-            addonId={id}
-            botId={botId}
-            botName={botName}
-            botAvatarUrl={botAvatarUrl}
-            engineVersion={engineVersion}
-            open={dialogOpen}
-            onOpenChange={setDialogOpen}
-            enabled={enabled}
-            onToggleEnabled={onToggleEnabled}
-          />
-        )}
-      </Suspense>
+      <CardFace
+        id={id}
+        botId={botId}
+        botName={botName}
+        botAvatarUrl={botAvatarUrl}
+        engineVersion={engineVersion}
+        enabled={enabled}
+        onToggleEnabled={onToggleEnabled}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
     </div>
   );
 }
@@ -167,6 +207,8 @@ export function CustomsAddonGrid({
       return ids;
     }
   });
+  // The id currently being dragged — drives the DragOverlay.
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const skipSaveRef = useRef(true);
   const justLoadedRef = useRef(false);
@@ -241,7 +283,13 @@ export function CustomsAddonGrid({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
+  const onDragStart = (e: DragStartEvent) => {
+    if (!canReorder) return;
+    setActiveId(String(e.active.id));
+  };
+
   const onDragEnd = (e: DragEndEvent) => {
+    setActiveId(null);
     if (!canReorder) return;
     const { active, over } = e;
     if (!over || active.id === over.id) return;
@@ -256,7 +304,7 @@ export function CustomsAddonGrid({
   const { isEnabled, setEnabled } = useBotAddonStates(botId);
 
   // Disabled cards sink to the back; enabled cards keep their (owner) order —
-  // so toggling a card back on returns it to its spot. Stable sort via filter.
+  // so toggling a card back on returns it to its spot. Stable via filter.
   const displayOrder = useMemo(() => {
     const enabled = order.filter((id) => isEnabled(id));
     const disabled = order.filter((id) => !isEnabled(id));
@@ -271,7 +319,13 @@ export function CustomsAddonGrid({
   };
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragCancel={() => setActiveId(null)}
+    >
       <SortableContext items={displayOrder} strategy={rectSortingStrategy}>
         <div style={gridStyle}>
           {displayOrder.map((id) => (
@@ -289,6 +343,26 @@ export function CustomsAddonGrid({
           ))}
         </div>
       </SortableContext>
+
+      {/* Floating card that tracks the cursor smoothly while dragging. */}
+      <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }}>
+        {activeId ? (
+          <div
+            className="rounded-xl"
+            style={{ cursor: "grabbing", boxShadow: "0 22px 60px -16px rgba(0,0,0,.65)" }}
+          >
+            <CardFace
+              id={activeId}
+              botId={botId}
+              botName={botName}
+              botAvatarUrl={botAvatarUrl}
+              engineVersion={engineVersion}
+              enabled={isEnabled(activeId)}
+              onToggleEnabled={() => {}}
+            />
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }
