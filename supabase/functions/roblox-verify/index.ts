@@ -37,6 +37,11 @@ const json = (body: unknown, status = 200) =>
     headers: { ...cors, "Content-Type": "application/json" },
   });
 
+// Send the member's browser somewhere real (their Discord server) instead of
+// rendering a page — a 302 can never be shown as raw HTML and reads as legit.
+const redirect = (to: string) =>
+  new Response(null, { status: 302, headers: { ...cors, Location: to } });
+
 const page = (title: string, message: string, ok: boolean) =>
   new Response(
     `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -208,6 +213,11 @@ async function handleCallback(url: URL): Promise<Response> {
     });
   }
 
+  // Success — bounce the member straight back into their Discord server so
+  // they never see a raw page. Falls back to a clean rendered page only if we
+  // somehow don't have a guild to return them to.
+  const guildId = String(sess.guild_id ?? "").trim();
+  if (guildId) return redirect(`https://discord.com/channels/${guildId}`);
   return page("You're verified!", `Linked to Roblox as <b>${robloxUsername}</b>. Head back to Discord — your nickname and role update in a few seconds.`, true);
 }
 
