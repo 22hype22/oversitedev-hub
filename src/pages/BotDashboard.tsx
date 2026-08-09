@@ -29,6 +29,7 @@ import {
 import { toast } from "sonner";
 import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
 import { SortableAddonGrid } from "@/components/dashboard/SortableAddonGrid";
+import { useBotAddonStates } from "@/hooks/useBotAddonStates";
 import {
   DndContext,
   PointerSensor,
@@ -486,6 +487,10 @@ const BotSection = ({
   const { guilds: connectedGuilds, loading: guildsLoading } = useBotServerSlots(
     !bot.isDemo ? bot.id : undefined,
   );
+  // Enable/disable state for the Customs "Extras" cards, which render outside
+  // SortableAddonGrid (so they don't get its toggle for free). Same backing
+  // store the other groups use, so the on/off toggle persists identically.
+  const customsAddonStates = useBotAddonStates(bot.id);
   // Only show the "no servers" lockout when we're confident the bot is fully
   // online AND the guild fetch returned zero. During Starting / deploying /
   // offline phases the guild count can't be trusted (runtime_status hasn't
@@ -1028,6 +1033,8 @@ const BotSection = ({
                                   botName={bot.bot_name}
                                   botAvatarUrl={bot.icon_url}
                                   engineVersion={bot.engine_version}
+                                  enabled={customsAddonStates.isEnabled(id)}
+                                  onToggleEnabled={(next) => customsAddonStates.setEnabled(id, next)}
                                 />
                               )}
                             </Suspense>
