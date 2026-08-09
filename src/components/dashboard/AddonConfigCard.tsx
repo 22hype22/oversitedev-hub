@@ -105,7 +105,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const { permissions, role } = useTeamRole(viaTeam ? (scopeBotId ?? botId ?? null) : null);
   const canEdit = viaTeam ? permissions.edit_bot_config : true;
   const readOnly = scopeReadOnly || (viaTeam && !permissions.edit_bot_config);
-  const isSayCommand = addonId === "messages" || addonId === "customs-messages";
+  const isSayCommand = addonId === "messages";
+  // Customs "Messages" uses the SAME rich builder as Join Message (invite):
+  // external channel field + Variables + embedded MessagesV2Builder, then posts
+  // the composed message to the chosen channel via enqueue_post_message.
+  const isCustomsMessages = addonId === "customs-messages";
   const isRules = addonId === "rules";
   const isTicketPanel = addonId === "ticket-message-customization";
   const isTicketLifecycleMessages = addonId === "ticket-lifecycle-messages";
@@ -157,6 +161,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const inviteSayRef = useRef<SayCommandBuilderHandle>(null);
   const [inviteV2Items, setInviteV2Items] = useState<V2Item[]>([]);
   const [inviteV2MountKey, setInviteV2MountKey] = useState(0);
+  // Customs "Messages" — its own V2 builder ref/state (send-only, starts empty).
+  const messagesV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [messagesV2Items, setMessagesV2Items] = useState<V2Item[]>([]);
+  const [messagesV2MountKey, setMessagesV2MountKey] = useState(0);
 
   const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
   useEffect(() => {
@@ -906,6 +914,36 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     } else {
       toast.success("Invite message saved & applied");
     }
+    setOpen(false);
+  };
+
+  // ---------- customs: messages (send-to-channel) ----------
+  // Start each open with an empty composer (this is a "send now", not a saved
+  // template) and remount the builder so no stale draft carries over.
+  useEffect(() => {
+    if (!isCustomsMessages || !open) return;
+    setMessagesV2Items([]);
+    setMessagesV2MountKey((k) => k + 1);
+  }, [isCustomsMessages, open]);
+
+  const sendCustomsMessages = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    if (!values.channel_id) return toast.error("Pick a channel to post in.");
+    const liveV2 = messagesV2Ref.current?.getItems() ?? messagesV2Items;
+    const components_v2 = normalizeV2Items(liveV2 ?? []);
+    if (!components_v2 || components_v2.length === 0) {
+      return toast.error("Add at least one component first.");
+    }
+    setSaving(true);
+    const { data, error } = await supabase.rpc("enqueue_post_message" as any, {
+      _bot_id: botId,
+      _payload: { channel_id: String(values.channel_id), components_v2 } as any,
+    });
+    setSaving(false);
+    if (error) return toast.error(`Failed to send: ${error.message}`);
+    const result = data as { ok?: boolean; error?: string } | null;
+    if (!result?.ok) return toast.error(result?.error || "Could not queue the message.");
+    toast.success("Message queued — your bot will post it shortly.");
     setOpen(false);
   };
 
@@ -2870,7 +2908,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -3021,14 +3059,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               embedColor={giveawayEmbedColor}
               onEmbedColorChange={setGiveawayEmbedColor}
             />
-          ) : isInviteMessage ? (
+          ) : isInviteMessage || isCustomsMessages ? (
             <div className="space-y-5 py-2">
               {config.fields.map((f) => (
                 <div key={f.key}>{renderField(f)}</div>
               ))}
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs text-muted-foreground">
-                  Type variables like <code className="font-mono text-os-accent">{"{count}"}</code> anywhere — they fill in when someone joins.
+                  Type variables like <code className="font-mono text-os-accent">{"{count}"}</code> anywhere — they fill in {isCustomsMessages ? "when the message is posted." : "when someone joins."}
                 </p>
                 <Popover>
                   <PopoverTrigger asChild>
@@ -3071,15 +3109,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   </PopoverContent>
                 </Popover>
               </div>
-              {engineVersion === "v2" ? (
+              {engineVersion === "v2" || isCustomsMessages ? (
                 <MessagesV2Builder
-                  key={`invite-v2-${inviteV2MountKey}`}
-                  ref={inviteV2Ref}
+                  key={isCustomsMessages ? `customs-msg-v2-${messagesV2MountKey}` : `invite-v2-${inviteV2MountKey}`}
+                  ref={isCustomsMessages ? messagesV2Ref : inviteV2Ref}
                   embedded
                   botId={botId}
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
-                  initialItems={inviteV2Items}
+                  initialItems={isCustomsMessages ? messagesV2Items : inviteV2Items}
                 />
               ) : (
                 <SayCommandBuilder
@@ -3168,6 +3206,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     } finally {
                       setSaving(false);
                     }
+                    return;
+                  }
+                  if (isCustomsMessages) {
+                    void sendCustomsMessages();
                     return;
                   }
                   if (isInviteMessage) {
@@ -3284,7 +3326,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     ? "Saving…"
                     : isRules
                       ? "Save rules"
-                      : isSayCommand
+                      : isSayCommand || isCustomsMessages
                         ? "Send message"
                         : "Save changes"}
               </Button>
