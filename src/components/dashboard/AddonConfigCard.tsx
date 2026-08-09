@@ -31,7 +31,6 @@ import {
 import {
   ArrowRight,
   Save,
-  Send,
   Settings2,
   Megaphone,
   Hash,
@@ -171,6 +170,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const verifyPanelV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [verifyPanelV2Items, setVerifyPanelV2Items] = useState<V2Item[]>([]);
   const [verifyPanelV2MountKey, setVerifyPanelV2MountKey] = useState(0);
+  // Customs "Tickets" — two V2 builders: the panel (with an Open Ticket button)
+  // and the message shown inside a ticket when it opens.
+  const ticketPanelV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [ticketPanelV2Items, setTicketPanelV2Items] = useState<V2Item[]>([]);
+  const [ticketPanelV2MountKey, setTicketPanelV2MountKey] = useState(0);
+  const ticketOpenV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [ticketOpenV2Items, setTicketOpenV2Items] = useState<V2Item[]>([]);
+  const [ticketOpenV2MountKey, setTicketOpenV2MountKey] = useState(0);
 
   const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
   useEffect(() => {
@@ -1062,51 +1069,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
-    else toast.success("Verification saved");
+    else toast.success("Verification saved & applied");
     setOpen(false);
-  };
-
-  // Post (or re-post) the Verify panel to the channel on demand. Saving config
-  // no longer auto-posts, so this is how the panel actually gets sent.
-  const postVerifyPanel = async () => {
-    if (!botId) return toast.error("Missing bot id.");
-    if (!values.channel_id) return toast.error("Pick a Verify channel first.");
-    // Persist the latest design/settings before posting so the bot posts what's
-    // on screen, then tell the bot to post the panel.
-    await saveCustomsVerificationSilently();
-    const { data, error } = await supabase.rpc("enqueue_post_message" as any, {
-      _bot_id: botId,
-      _payload: { channel_id: String(values.channel_id), verify_panel: true } as any,
-    });
-    if (error) return toast.error(`Failed to post: ${error.message}`);
-    const result = data as { ok?: boolean; error?: string } | null;
-    if (!result?.ok) return toast.error(result?.error || "Could not queue the panel.");
-    toast.success("Panel queued — your bot will post it shortly.");
-    setOpen(false);
-  };
-
-  // Save config + refresh the bot's in-memory config without a success toast or
-  // closing the dialog (used right before posting the panel).
-  const saveCustomsVerificationSilently = async () => {
-    if (!botId) return;
-    const payload = {
-      bot_id: botId,
-      feature: "roblox-verify",
-      config: {
-        channel_id: values.channel_id ? String(values.channel_id) : null,
-        verified_role_id: values.verified_role_id ? String(values.verified_role_id) : null,
-        set_nickname: values.set_nickname ?? true,
-        log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
-        roblox_client_id: String(values.roblox_client_id ?? "").trim(),
-        roblox_client_secret: String(values.roblox_client_secret ?? "").trim(),
-        verify_button_label: String(values.verify_button_label ?? "Verify").trim() || "Verify",
-        verify_button_style: String(values.verify_button_style ?? "primary"),
-        components: normalizeV2Items(verifyPanelV2Ref.current?.getItems() ?? verifyPanelV2Items ?? []),
-      },
-      updated_at: new Date().toISOString(),
-    };
-    await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
-    await supabase.rpc("enqueue_apply_config" as any, { _bot_id: botId, _feature: "roblox-verify" });
   };
 
   // ---------- customs: tickets ----------
@@ -1130,7 +1094,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         open_message: cfg.open_message ?? "",
         ping_support: cfg.ping_support ?? true,
         one_per_user: cfg.one_per_user ?? true,
+        panel_channel_id: cfg.panel_channel_id ? String(cfg.panel_channel_id) : "",
+        open_button_label: cfg.open_button_label ?? "Open Ticket",
+        open_button_style: cfg.open_button_style ?? "primary",
       }));
+      setTicketPanelV2Items(Array.isArray(cfg.panel_components) ? (cfg.panel_components as V2Item[]) : []);
+      setTicketPanelV2MountKey((k) => k + 1);
+      setTicketOpenV2Items(Array.isArray(cfg.open_components) ? (cfg.open_components as V2Item[]) : []);
+      setTicketOpenV2MountKey((k) => k + 1);
       setAppliedAt((data as any).applied_at ?? null);
     })();
     return () => { cancelled = true; };
@@ -1149,6 +1120,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         open_message: values.open_message ? String(values.open_message) : "",
         ping_support: values.ping_support ?? true,
         one_per_user: values.one_per_user ?? true,
+        panel_channel_id: values.panel_channel_id ? String(values.panel_channel_id) : null,
+        open_button_label: String(values.open_button_label ?? "Open Ticket").trim() || "Open Ticket",
+        open_button_style: String(values.open_button_style ?? "primary"),
+        panel_components: normalizeV2Items(ticketPanelV2Ref.current?.getItems() ?? ticketPanelV2Items ?? []),
+        open_components: normalizeV2Items(ticketOpenV2Ref.current?.getItems() ?? ticketOpenV2Items ?? []),
       },
       updated_at: new Date().toISOString(),
     };
@@ -1161,7 +1137,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
-    else toast.success("Tickets saved & applied");
+    else toast.success("Tickets saved — panel posted");
     setOpen(false);
   };
 
@@ -3020,7 +2996,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -3247,6 +3223,44 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 />
               )}
             </div>
+          ) : isCustomsTickets ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Ticket panel message</p>
+                <p className="text-xs text-muted-foreground">
+                  Posted to your panel channel above. An <span className="font-medium">Open Ticket</span> button is added automatically underneath. Posts on Save.
+                </p>
+                <MessagesV2Builder
+                  key={`ticket-panel-v2-${ticketPanelV2MountKey}`}
+                  ref={ticketPanelV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={ticketPanelV2Items}
+                />
+              </div>
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Ticket opening message</p>
+                <p className="text-xs text-muted-foreground">
+                  Shown inside the ticket when it opens. A <span className="font-medium">Close ticket</span> button is added automatically. Type <code className="font-mono text-os-accent">{"{user}"}</code> to mention the opener.
+                </p>
+                <MessagesV2Builder
+                  key={`ticket-open-v2-${ticketOpenV2MountKey}`}
+                  ref={ticketOpenV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={ticketOpenV2Items}
+                />
+              </div>
+            </div>
           ) : isVerification ? (
             <VerificationForm
               values={values}
@@ -3306,21 +3320,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               <Button variant="outline" onClick={() => setOpen(false)} data-readonly-allow>
                 Cancel
               </Button>
-              {isCustomsVerification && (
-                <Button
-                  variant="outline"
-                  className="gap-1.5"
-                  disabled={saving || !canEdit}
-                  title={!canEdit ? `Your role (${role ?? "viewer"}) doesn't allow editing bot config` : "Post (or re-post) this panel to the channel now"}
-                  onClick={() => {
-                    setSaving(true);
-                    void postVerifyPanel().finally(() => setSaving(false));
-                  }}
-                >
-                  <Send className="h-4 w-4" />
-                  Post panel
-                </Button>
-              )}
               {!isPostSystem && (
               <Button
                 className="bg-os-accent text-os-accent-ink hover:brightness-105 disabled:opacity-50"
