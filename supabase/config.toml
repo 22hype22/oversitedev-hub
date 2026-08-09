@@ -29,5 +29,7 @@ project_id = "kqhyjxtylvigrezlxzpl"
     verify_jwt = false
   [functions.admin-link-bot]
     verify_jwt = true
+  [functions.roblox-verify]
+    verify_jwt = false
 
 # trigger function deploy
