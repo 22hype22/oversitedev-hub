@@ -1011,7 +1011,17 @@ const BotSection = ({
                           alignItems: "stretch",
                         }}
                       >
-                        {group.owned.map((id) => (
+                        {group.owned
+                          .slice()
+                          // Disabled cards sink to the back of the line; enabled
+                          // cards keep their original relative order — so toggling
+                          // a card back on returns it to where it was. (Stable sort.)
+                          .sort(
+                            (a, b) =>
+                              Number(customsAddonStates.isEnabled(b)) -
+                              Number(customsAddonStates.isEnabled(a)),
+                          )
+                          .map((id) => (
                           <div
                             key={`${bot.id}-${id}`}
                             id={`addon-card-${bot.id}-${id}`}
