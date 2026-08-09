@@ -49,7 +49,7 @@ const page = (title: string, message: string, ok: boolean) =>
          <p style="color:#788591;font-size:12px;margin-top:18px">You can close this tab and return to Discord.</p>
        </div>
      </body></html>`,
-    { status: ok ? 200 : 400, headers: { ...cors, "Content-Type": "text/html" } },
+    { status: ok ? 200 : 400, headers: { ...cors, "Content-Type": "text/html; charset=utf-8" } },
   );
 
 function normToken(v: string | null): string {
