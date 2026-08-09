@@ -149,6 +149,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isInviteMessage = addonId === "invite-message";
   const isCustomsCredits = addonId === "customs-credits";
   const isCustomsTickets = addonId === "customs-tickets";
+  const isCustomsVerification = addonId === "customs-verification";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
@@ -994,6 +995,62 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Credits saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: verification (Roblox OAuth) ----------
+  useEffect(() => {
+    if (!isCustomsVerification || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "roblox-verify")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        channel_id: cfg.channel_id ? String(cfg.channel_id) : "",
+        verified_role_id: cfg.verified_role_id ? String(cfg.verified_role_id) : "",
+        set_nickname: cfg.set_nickname ?? true,
+        log_channel_id: cfg.log_channel_id ? String(cfg.log_channel_id) : "",
+        roblox_client_id: cfg.roblox_client_id ?? "",
+        roblox_client_secret: cfg.roblox_client_secret ?? "",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsVerification, open, botId]);
+
+  const saveCustomsVerification = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "roblox-verify",
+      config: {
+        channel_id: values.channel_id ? String(values.channel_id) : null,
+        verified_role_id: values.verified_role_id ? String(values.verified_role_id) : null,
+        set_nickname: values.set_nickname ?? true,
+        log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
+        roblox_client_id: String(values.roblox_client_id ?? "").trim(),
+        roblox_client_secret: String(values.roblox_client_secret ?? "").trim(),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "roblox-verify",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Verification saved & applied");
     setOpen(false);
   };
 
@@ -3311,6 +3368,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveServerStats();
                   } else if (isCustomsCredits) {
                     void saveCustomsCredits();
+                  } else if (isCustomsVerification) {
+                    void saveCustomsVerification();
                   } else if (isCustomsTickets) {
                     void saveCustomsTickets();
                   } else {
