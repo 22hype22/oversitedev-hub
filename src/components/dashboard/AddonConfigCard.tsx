@@ -2811,7 +2811,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         .acard.on:hover .ac-ico{background:rgba(201,219,230,.16)}
         .acard.off .ac-ico{background:#343d46;border-color:#3a434d;color:#788591}
         .acard .ac-ico svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none}
-        .acard .ac-title{flex:1;min-width:0;font-size:17px;font-weight:700;line-height:1.2;letter-spacing:-.01em;color:#E8EEF3;padding-top:0}
+        .acard .ac-title{flex:1;min-width:0;font-size:20px;font-weight:700;line-height:1.2;letter-spacing:-.01em;color:#E8EEF3;padding-top:0}
         .acard.off .ac-title{color:#A8B4BF}
         .acard .ac-sw{padding-top:0;flex:none}
         .acard .ac-summary{flex:1;margin-top:10px;font-size:12px;line-height:1.45;color:#788591;
