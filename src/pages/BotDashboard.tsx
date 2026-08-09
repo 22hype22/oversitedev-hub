@@ -29,7 +29,7 @@ import {
 import { toast } from "sonner";
 import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
 import { SortableAddonGrid } from "@/components/dashboard/SortableAddonGrid";
-import { useBotAddonStates } from "@/hooks/useBotAddonStates";
+import { CustomsAddonGrid } from "@/components/dashboard/CustomsAddonGrid";
 import {
   DndContext,
   PointerSensor,
@@ -487,10 +487,6 @@ const BotSection = ({
   const { guilds: connectedGuilds, loading: guildsLoading } = useBotServerSlots(
     !bot.isDemo ? bot.id : undefined,
   );
-  // Enable/disable state for the Customs "Extras" cards, which render outside
-  // SortableAddonGrid (so they don't get its toggle for free). Same backing
-  // store the other groups use, so the on/off toggle persists identically.
-  const customsAddonStates = useBotAddonStates(bot.id);
   // Only show the "no servers" lockout when we're confident the bot is fully
   // online AND the guild fetch returned zero. During Starting / deploying /
   // offline phases the guild count can't be trusted (runtime_status hasn't
@@ -1003,54 +999,15 @@ const BotSection = ({
                 {group.key === "shared" ? (
                   <div className="space-y-5">
                     {group.owned.length > 0 && (
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                          gap: "20px",
-                          alignItems: "stretch",
-                        }}
-                      >
-                        {group.owned
-                          .slice()
-                          // Disabled cards sink to the back of the line; enabled
-                          // cards keep their original relative order — so toggling
-                          // a card back on returns it to where it was. (Stable sort.)
-                          .sort(
-                            (a, b) =>
-                              Number(customsAddonStates.isEnabled(b)) -
-                              Number(customsAddonStates.isEnabled(a)),
-                          )
-                          .map((id) => (
-                          <div
-                            key={`${bot.id}-${id}`}
-                            id={`addon-card-${bot.id}-${id}`}
-                            data-addon-id={id}
-                            className="scroll-mt-28 rounded-xl"
-                          >
-                            <Suspense fallback={<div className="h-24 rounded-xl border border-border/40 bg-card/40 animate-pulse" />}>
-                              {id === "ticket-editor" ? (
-                                <TicketEditorCard
-                                  botId={bot.id}
-                                  botName={bot.bot_name}
-                                  botAvatarUrl={bot.icon_url}
-                                  engineVersion={bot.engine_version}
-                                />
-                              ) : (
-                                <AddonConfigCard
-                                  addonId={id}
-                                  botId={bot.id}
-                                  botName={bot.bot_name}
-                                  botAvatarUrl={bot.icon_url}
-                                  engineVersion={bot.engine_version}
-                                  enabled={customsAddonStates.isEnabled(id)}
-                                  onToggleEnabled={(next) => customsAddonStates.setEnabled(id, next)}
-                                />
-                              )}
-                            </Suspense>
-                          </div>
-                        ))}
-                      </div>
+                      <CustomsAddonGrid
+                        botId={bot.id}
+                        ownerUserId={bot.ownerUserId ?? userId}
+                        botName={bot.bot_name}
+                        botAvatarUrl={bot.icon_url}
+                        engineVersion={bot.engine_version}
+                        ids={group.owned}
+                        canReorder={!bot.isDemo && !bot.viaTeam && !bot.viaSupport}
+                      />
                     )}
                     <div className="flex items-center gap-3 mb-1">
                       <span className="h-6 w-6 rounded-md flex items-center justify-center shrink-0 bg-[rgba(201,219,230,0.1)] border border-[rgba(201,219,230,0.42)] text-primary">
