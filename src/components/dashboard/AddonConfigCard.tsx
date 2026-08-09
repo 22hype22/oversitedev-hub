@@ -1023,6 +1023,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         log_channel_id: cfg.log_channel_id ? String(cfg.log_channel_id) : "",
         roblox_client_id: cfg.roblox_client_id ?? "",
         roblox_client_secret: cfg.roblox_client_secret ?? "",
+        verify_button_label: cfg.verify_button_label ?? "Verify",
+        verify_button_style: cfg.verify_button_style ?? "primary",
       }));
       setVerifyPanelV2Items(Array.isArray(cfg.components) ? (cfg.components as V2Item[]) : []);
       setVerifyPanelV2MountKey((k) => k + 1);
@@ -1044,6 +1046,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
         roblox_client_id: String(values.roblox_client_id ?? "").trim(),
         roblox_client_secret: String(values.roblox_client_secret ?? "").trim(),
+        verify_button_label: String(values.verify_button_label ?? "Verify").trim() || "Verify",
+        verify_button_style: String(values.verify_button_style ?? "primary"),
         components: normalizeV2Items(verifyPanelV2Ref.current?.getItems() ?? verifyPanelV2Items ?? []),
       },
       updated_at: new Date().toISOString(),
