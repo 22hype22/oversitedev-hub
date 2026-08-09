@@ -870,6 +870,33 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "customs-verification": {
+    title: "Verification",
+    summary: "Roblox verification — members link their Roblox account, get a role, and their nickname is set to their Roblox name.",
+    icon: ShieldCheck,
+    fields: [
+      channel("channel_id", "Verify channel", "Where the Verify button is posted."),
+      role("verified_role_id", "Verified role", "Given to members once they link their Roblox account."),
+      toggle("set_nickname", "Set nickname to Roblox username", true, "Rename the member to their Roblox display name after they verify."),
+      channel("log_channel_id", "Verification log channel", "Where successful verifications are logged. Optional."),
+      header("Roblox OAuth app"),
+      {
+        key: "roblox_client_id",
+        label: "Roblox OAuth Client ID",
+        type: "text",
+        placeholder: "e.g. 1234567890123456789",
+        help: "From create.roblox.com → Credentials. Set the app's redirect URL to your bot's verify callback.",
+      },
+      {
+        key: "roblox_client_secret",
+        label: "Roblox OAuth Client Secret",
+        type: "text",
+        placeholder: "RBX-…",
+        help: "Keep this private — it's the secret from your Roblox OAuth app.",
+      },
+    ],
+  },
+
   "staff-performance": {
     title: "Staff Performance Tracking",
     summary: "Track tickets handled, response times, and activity per staff member.",
