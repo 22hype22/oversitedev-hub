@@ -170,14 +170,19 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const verifyPanelV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [verifyPanelV2Items, setVerifyPanelV2Items] = useState<V2Item[]>([]);
   const [verifyPanelV2MountKey, setVerifyPanelV2MountKey] = useState(0);
-  // Customs "Tickets" — two V2 builders: the panel (with an Open Ticket button)
-  // and the message shown inside a ticket when it opens.
+  // Customs "Tickets" — a shared panel builder, plus a list of ticket TYPES,
+  // each with its own button + its own opening-message components. One picker
+  // chooses which type the opening-message builder is currently editing.
   const ticketPanelV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [ticketPanelV2Items, setTicketPanelV2Items] = useState<V2Item[]>([]);
   const [ticketPanelV2MountKey, setTicketPanelV2MountKey] = useState(0);
   const ticketOpenV2Ref = useRef<MessagesV2BuilderHandle>(null);
-  const [ticketOpenV2Items, setTicketOpenV2Items] = useState<V2Item[]>([]);
   const [ticketOpenV2MountKey, setTicketOpenV2MountKey] = useState(0);
+  type TicketType = { id: string; name: string; button_label: string; button_style: string };
+  const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
+  const [ticketOpenByType, setTicketOpenByType] = useState<Record<string, V2Item[]>>({});
+  const [activeTicketType, setActiveTicketType] = useState<string>("");
+  const newTicketTypeId = () => `t_${Math.random().toString(36).slice(2, 9)}`;
 
   const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
   useEffect(() => {
@@ -1095,21 +1100,94 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         ping_support: cfg.ping_support ?? true,
         one_per_user: cfg.one_per_user ?? true,
         panel_channel_id: cfg.panel_channel_id ? String(cfg.panel_channel_id) : "",
-        open_button_label: cfg.open_button_label ?? "Open Ticket",
-        open_button_style: cfg.open_button_style ?? "primary",
       }));
       setTicketPanelV2Items(Array.isArray(cfg.panel_components) ? (cfg.panel_components as V2Item[]) : []);
       setTicketPanelV2MountKey((k) => k + 1);
-      setTicketOpenV2Items(Array.isArray(cfg.open_components) ? (cfg.open_components as V2Item[]) : []);
+      // Ticket types — new multi-type shape, with legacy single-message fallback.
+      const rawTypes: any[] = Array.isArray(cfg.ticket_types) ? cfg.ticket_types : [];
+      if (rawTypes.length) {
+        const tt: TicketType[] = rawTypes.map((t) => ({
+          id: String(t.id || newTicketTypeId()),
+          name: String(t.name || "Ticket"),
+          button_label: String(t.button_label || "Open Ticket"),
+          button_style: String(t.button_style || "primary"),
+        }));
+        const map: Record<string, V2Item[]> = {};
+        rawTypes.forEach((t, i) => {
+          map[tt[i].id] = Array.isArray(t.open_components) ? (t.open_components as V2Item[]) : [];
+        });
+        setTicketTypes(tt);
+        setTicketOpenByType(map);
+        setActiveTicketType(tt[0].id);
+      } else {
+        const id = newTicketTypeId();
+        setTicketTypes([{ id, name: "Support", button_label: cfg.open_button_label || "Open Ticket", button_style: cfg.open_button_style || "primary" }]);
+        setTicketOpenByType({ [id]: Array.isArray(cfg.open_components) ? (cfg.open_components as V2Item[]) : [] });
+        setActiveTicketType(id);
+      }
       setTicketOpenV2MountKey((k) => k + 1);
       setAppliedAt((data as any).applied_at ?? null);
     })();
     return () => { cancelled = true; };
   }, [isCustomsTickets, open, botId]);
 
+  // Snapshot the opening-message builder into the per-type map for the active
+  // type. Returns the merged map so callers can use it immediately.
+  const captureActiveTicketOpen = (): Record<string, V2Item[]> => {
+    if (!activeTicketType) return ticketOpenByType;
+    const items = ticketOpenV2Ref.current?.getItems();
+    const merged = { ...ticketOpenByType, [activeTicketType]: items ?? ticketOpenByType[activeTicketType] ?? [] };
+    setTicketOpenByType(merged);
+    return merged;
+  };
+
+  const selectTicketType = (id: string) => {
+    if (id === activeTicketType) return;
+    captureActiveTicketOpen();
+    setActiveTicketType(id);
+    setTicketOpenV2MountKey((k) => k + 1);
+  };
+
+  const addTicketType = () => {
+    const merged = captureActiveTicketOpen();
+    const id = newTicketTypeId();
+    setTicketOpenByType({ ...merged, [id]: [] });
+    setTicketTypes((t) => [...t, { id, name: `Type ${t.length + 1}`, button_label: "Open Ticket", button_style: "primary" }]);
+    setActiveTicketType(id);
+    setTicketOpenV2MountKey((k) => k + 1);
+  };
+
+  const removeTicketType = (id: string) => {
+    if (ticketTypes.length <= 1) return toast.error("Keep at least one ticket type.");
+    const remaining = ticketTypes.filter((x) => x.id !== id);
+    setTicketTypes(remaining);
+    setTicketOpenByType((m) => {
+      const n = { ...m };
+      delete n[id];
+      return n;
+    });
+    if (activeTicketType === id) {
+      setActiveTicketType(remaining[0]?.id ?? "");
+      setTicketOpenV2MountKey((k) => k + 1);
+    }
+  };
+
+  const updateTicketType = (id: string, patch: Partial<TicketType>) => {
+    setTicketTypes((t) => t.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  };
+
   const saveCustomsTickets = async () => {
     if (!botId) return toast.error("Missing bot id.");
+    if (ticketTypes.length === 0) return toast.error("Add at least one ticket type.");
     setSaving(true);
+    const openMap = captureActiveTicketOpen();
+    const ticket_types = ticketTypes.map((t) => ({
+      id: t.id,
+      name: String(t.name || "Ticket").trim() || "Ticket",
+      button_label: String(t.button_label || "Open Ticket").trim() || "Open Ticket",
+      button_style: String(t.button_style || "primary"),
+      open_components: normalizeV2Items(openMap[t.id] ?? []),
+    }));
     const payload = {
       bot_id: botId,
       feature: "tickets",
@@ -1121,10 +1199,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         ping_support: values.ping_support ?? true,
         one_per_user: values.one_per_user ?? true,
         panel_channel_id: values.panel_channel_id ? String(values.panel_channel_id) : null,
-        open_button_label: String(values.open_button_label ?? "Open Ticket").trim() || "Open Ticket",
-        open_button_style: String(values.open_button_style ?? "primary"),
         panel_components: normalizeV2Items(ticketPanelV2Ref.current?.getItems() ?? ticketPanelV2Items ?? []),
-        open_components: normalizeV2Items(ticketOpenV2Ref.current?.getItems() ?? ticketOpenV2Items ?? []),
+        ticket_types,
       },
       updated_at: new Date().toISOString(),
     };
@@ -3246,18 +3322,81 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 />
               </div>
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Ticket opening message</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Ticket types</p>
+                  <Button type="button" variant="outline" size="sm" onClick={addTicketType}>
+                    + Add type
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Shown inside the ticket when it opens. A <span className="font-medium">Close ticket</span> button is added automatically. Type <code className="font-mono text-os-accent">{"{user}"}</code> to mention the opener.
+                  Each type gets its own button on the panel and its own opening message.
+                </p>
+                <div className="space-y-2">
+                  {ticketTypes.map((t) => (
+                    <div key={t.id} className="flex flex-wrap items-center gap-2 rounded-md border border-border/60 p-2">
+                      <Input
+                        value={t.name}
+                        onChange={(e) => updateTicketType(t.id, { name: e.target.value })}
+                        placeholder="Name (e.g. Support)"
+                        className="h-8 flex-1 min-w-[110px]"
+                      />
+                      <Input
+                        value={t.button_label}
+                        onChange={(e) => updateTicketType(t.id, { button_label: e.target.value })}
+                        placeholder="Button label"
+                        className="h-8 flex-1 min-w-[110px]"
+                      />
+                      <select
+                        value={t.button_style}
+                        onChange={(e) => updateTicketType(t.id, { button_style: e.target.value })}
+                        className="h-8 rounded-md border border-border bg-background px-2 text-sm"
+                      >
+                        <option value="primary">Blurple</option>
+                        <option value="success">Green</option>
+                        <option value="secondary">Grey</option>
+                        <option value="danger">Red</option>
+                      </select>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => removeTicketType(t.id)}
+                        disabled={ticketTypes.length <= 1}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Ticket opening message</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Editing:</span>
+                    <select
+                      value={activeTicketType}
+                      onChange={(e) => selectTicketType(e.target.value)}
+                      className="h-8 max-w-[200px] rounded-md border border-border bg-background px-2 text-sm"
+                    >
+                      {ticketTypes.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name || "Ticket"}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Shown inside the ticket when this type opens. A <span className="font-medium">Close ticket</span> button is added automatically. Type <code className="font-mono text-os-accent">{"{user}"}</code> to mention the opener.
                 </p>
                 <MessagesV2Builder
-                  key={`ticket-open-v2-${ticketOpenV2MountKey}`}
+                  key={`ticket-open-v2-${activeTicketType}-${ticketOpenV2MountKey}`}
                   ref={ticketOpenV2Ref}
                   embedded
                   botId={botId}
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
-                  initialItems={ticketOpenV2Items}
+                  initialItems={ticketOpenByType[activeTicketType] ?? []}
                 />
               </div>
             </div>
