@@ -2805,15 +2805,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         .acard.on:hover{transform:translateY(-2px);border-color:rgba(201,219,230,.42);
           box-shadow:0 16px 34px -18px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05)}
         .acard.off{opacity:.5;filter:grayscale(.6);cursor:default;background:#272e36}
-        .acard .ac-head{display:flex;align-items:flex-start;gap:10px}
+        .acard .ac-head{display:flex;align-items:center;gap:10px}
         .acard .ac-ico{height:34px;width:34px;border-radius:10px;flex:none;display:grid;place-items:center;
           background:rgba(201,219,230,.10);border:1px solid rgba(201,219,230,.42);color:#C9DBE6;transition:.17s}
         .acard.on:hover .ac-ico{background:rgba(201,219,230,.16)}
         .acard.off .ac-ico{background:#343d46;border-color:#3a434d;color:#788591}
         .acard .ac-ico svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none}
-        .acard .ac-title{flex:1;min-width:0;font-size:14px;font-weight:700;line-height:1.25;letter-spacing:-.01em;color:#E8EEF3;padding-top:2px}
+        .acard .ac-title{flex:1;min-width:0;font-size:17px;font-weight:700;line-height:1.2;letter-spacing:-.01em;color:#E8EEF3;padding-top:0}
         .acard.off .ac-title{color:#A8B4BF}
-        .acard .ac-sw{padding-top:2px;flex:none}
+        .acard .ac-sw{padding-top:0;flex:none}
         .acard .ac-summary{flex:1;margin-top:10px;font-size:12px;line-height:1.45;color:#788591;
           overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3}
         .acard .ac-foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
