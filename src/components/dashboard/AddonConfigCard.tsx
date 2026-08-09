@@ -2813,7 +2813,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         .acard .ac-ico svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none}
         .acard .ac-title{flex:1;min-width:0;font-size:20px;font-weight:700;line-height:1.2;letter-spacing:-.01em;color:#E8EEF3;padding-top:0}
         .acard.off .ac-title{color:#A8B4BF}
-        .acard .ac-sw{padding-top:0;flex:none}
+        /* Enable/disable toggle — sits quietly in the top-right and blends into
+           the card, brightening only on hover so it never reads as a sore thumb.
+           Stays fully visible when the card is OFF so its state is obvious. */
+        .acard .ac-sw{padding-top:0;flex:none;opacity:.38;transform:scale(.82);transform-origin:right center;
+          transition:opacity .16s ease,transform .16s ease}
+        .acard:hover .ac-sw{opacity:.85}
+        .acard .ac-sw:hover{opacity:1}
+        .acard.off .ac-sw{opacity:1}
         .acard .ac-summary{flex:1;margin-top:10px;font-size:12px;line-height:1.45;color:#788591;
           overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3}
         .acard .ac-foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
