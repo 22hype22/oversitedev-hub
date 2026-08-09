@@ -879,6 +879,27 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       role("verified_role_id", "Verified role", "Given to members once they link their Roblox account."),
       toggle("set_nickname", "Set nickname to Roblox username", true, "Rename the member to their Roblox display name after they verify."),
       channel("log_channel_id", "Verification log channel", "Where successful verifications are logged. Optional."),
+      header("Verify button"),
+      {
+        key: "verify_button_label",
+        label: "Button label",
+        type: "text",
+        defaultValue: "Verify",
+        placeholder: "Verify",
+        help: "Text on the Verify button. Add an emoji by typing it in, e.g. ✅ Verify.",
+      },
+      {
+        key: "verify_button_style",
+        label: "Button color",
+        type: "select",
+        defaultValue: "primary",
+        options: [
+          { value: "primary", label: "Blurple" },
+          { value: "success", label: "Green" },
+          { value: "secondary", label: "Grey" },
+          { value: "danger", label: "Red" },
+        ],
+      },
       header("Roblox OAuth app"),
       {
         key: "roblox_client_id",
