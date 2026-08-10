@@ -2,6 +2,7 @@ import {
   createContext,
   forwardRef,
   useContext,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useState,
@@ -70,6 +71,7 @@ type V2Section = {
 
 const CategoryNamesContext = createContext<string[]>([]);
 const ChannelsContext = createContext<BotChannel[]>([]);
+const BotInfoContext = createContext<{ botId?: string; botName: string; botAvatarUrl?: string | null }>({ botName: "Bot" });
 
 const isChannelSectionButton = (
   b: V2SectionButton | null | undefined,
@@ -88,8 +90,8 @@ type V2ButtonRowButton =
   | { id: string; label: string; url: string; style?: V2ButtonStyle }
   | { id: string; label: string; category: string; style?: V2ButtonStyle }
   | { id: string; label: string; channel_id: string; style?: V2ButtonStyle }
-  | { id: string; label: string; ticket: string; style?: V2ButtonStyle }
-  | { id: string; label: string; ephemeral: string; style?: V2ButtonStyle }
+  | { id: string; label: string; ticket: string; open_components?: V2Item[]; style?: V2ButtonStyle }
+  | { id: string; label: string; ephemeral: string; open_components?: V2Item[]; style?: V2ButtonStyle }
   | { id: string; label: string; disabled: true; style?: V2ButtonStyle };
 
 type V2ButtonRow = {
@@ -260,13 +262,15 @@ export type MessagesV2BuilderProps = {
   categoryNames?: string[];
   /** When true, hides the built-in live preview pane (parent supplies its own). */
   hidePreview?: boolean;
+  /** Controlled callback — fires whenever the editable items change (raw, un-normalized). */
+  onItemsChange?: (items: V2Item[]) => void;
 };
 
 export const MessagesV2Builder = forwardRef<
   MessagesV2BuilderHandle,
   MessagesV2BuilderProps
 >(function MessagesV2Builder(
-  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [], hidePreview = false },
+  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [], hidePreview = false, onItemsChange },
 
   ref,
 ) {
@@ -283,6 +287,12 @@ export const MessagesV2Builder = forwardRef<
   const [items, setItems] = useState<V2Item[]>(
     initialItems && initialItems.length > 0 ? initialItems : [newItem("text")],
   );
+  // Controlled mode: push editable items up to a parent (used when this builder
+  // is nested inside another button's Ticket/Ephemeral message editor).
+  useEffect(() => {
+    onItemsChange?.(items);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
 
   const addItem = (type: V2Item["type"]) =>
     setItems((prev) => [...prev, newItem(type)]);
@@ -397,6 +407,7 @@ export const MessagesV2Builder = forwardRef<
   return (
     <CategoryNamesContext.Provider value={categoryNames}>
     <ChannelsContext.Provider value={guildChannels}>
+    <BotInfoContext.Provider value={{ botId, botName, botAvatarUrl }}>
     <div className={hidePreview ? "grid grid-cols-1 gap-6" : "grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(440px,500px)] gap-6"}>
       {/* Editor */}
       <div className="space-y-3">
@@ -474,6 +485,7 @@ export const MessagesV2Builder = forwardRef<
       )}
 
     </div>
+    </BotInfoContext.Provider>
     </ChannelsContext.Provider>
     </CategoryNamesContext.Provider>
   );
@@ -787,6 +799,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
     const buttons = item.buttons;
     const categoryNames = useContext(CategoryNamesContext);
     const channels = useContext(ChannelsContext);
+    const botInfo = useContext(BotInfoContext);
     return (
       <div className="space-y-3">
         <Label className="text-xs">Buttons (up to 5)</Label>
@@ -874,9 +887,9 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     const lbl = e.target.value;
                     update(
                       isTicketButton(b)
-                        ? { id: b.id, label: lbl, ticket: b.ticket, style }
+                        ? { id: b.id, label: lbl, ticket: b.ticket, open_components: b.open_components, style }
                         : isEphemeralButton(b)
-                        ? { id: b.id, label: lbl, ephemeral: b.ephemeral, style }
+                        ? { id: b.id, label: lbl, ephemeral: b.ephemeral, open_components: b.open_components, style }
                         : isDisplayButton(b)
                         ? { id: b.id, label: lbl, disabled: true, style }
                         : isChannelButton2(b)
@@ -920,26 +933,17 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                   <Label className="text-xs">
                     {mode === "ticket" ? "Ticket opening message" : "Ephemeral message"}
                   </Label>
-                  <DiscordMarkdownTextarea
-                    value={mode === "ticket" ? (b as { ticket: string }).ticket : (b as { ephemeral: string }).ephemeral}
-                    onValueChange={(v) =>
-                      update(
-                        mode === "ticket"
-                          ? { id: b.id, label: b.label, ticket: v, style }
-                          : { id: b.id, label: b.label, ephemeral: v, style },
-                      )
+                  <MessagesV2Builder
+                    key={`btnmsg-${b.id}`}
+                    embedded
+                    botId={botInfo.botId}
+                    botName={botInfo.botName}
+                    botAvatarUrl={botInfo.botAvatarUrl}
+                    initialItems={(b as { open_components?: V2Item[] }).open_components ?? []}
+                    onItemsChange={(next) =>
+                      update({ ...b, open_components: next } as V2ButtonRowButton)
                     }
-                    rows={3}
-                    placeholder={mode === "ticket" ? "Shown inside the ticket when it opens…" : "Shown only to the person who clicks…"}
                   />
-                  <div className="rounded-md bg-[#313338] p-3">
-                    <PreviewMarkdown
-                      text={
-                        (mode === "ticket" ? (b as { ticket: string }).ticket : (b as { ephemeral: string }).ephemeral) ||
-                        "*Nothing yet — type a message above.*"
-                      }
-                    />
-                  </div>
                 </div>
               )}
             </div>
