@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { DiscordMarkdownTextarea } from "@/components/ui/discord-markdown-textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -800,6 +801,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
     const categoryNames = useContext(CategoryNamesContext);
     const channels = useContext(ChannelsContext);
     const botInfo = useContext(BotInfoContext);
+    const [designingId, setDesigningId] = useState<string | null>(null);
     return (
       <div className="space-y-3">
         <Label className="text-xs">Buttons (up to 5)</Label>
@@ -929,22 +931,18 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                 )}
               </div>
               {(mode === "ticket" || mode === "ephemeral") && (
-                <div className="space-y-2 rounded-md border border-border/60 bg-background/60 p-2">
-                  <Label className="text-xs">
-                    {mode === "ticket" ? "Ticket opening message" : "Ephemeral message"}
-                  </Label>
-                  <MessagesV2Builder
-                    key={`btnmsg-${b.id}`}
-                    embedded
-                    botId={botInfo.botId}
-                    botName={botInfo.botName}
-                    botAvatarUrl={botInfo.botAvatarUrl}
-                    initialItems={(b as { open_components?: V2Item[] }).open_components ?? []}
-                    onItemsChange={(next) =>
-                      update({ ...b, open_components: next } as V2ButtonRowButton)
-                    }
-                  />
-                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => setDesigningId(b.id)}
+                >
+                  {mode === "ticket" ? "Design ticket message →" : "Design ephemeral message →"}
+                  {((b as { open_components?: V2Item[] }).open_components?.length ?? 0) > 0 && (
+                    <span className="ml-2 text-xs text-muted-foreground">· edited</span>
+                  )}
+                </Button>
               )}
             </div>
           );
@@ -967,6 +965,37 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             Add button
           </Button>
         )}
+        {designingId && (() => {
+          const dIdx = buttons.findIndex((x) => x.id === designingId);
+          const bd = dIdx >= 0 ? buttons[dIdx] : null;
+          if (!bd || !(isTicketButton(bd) || isEphemeralButton(bd))) return null;
+          const isTicket = isTicketButton(bd);
+          return (
+            <Dialog open onOpenChange={(o) => { if (!o) setDesigningId(null); }}>
+              <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>{isTicket ? "Ticket opening message" : "Ephemeral message"}</DialogTitle>
+                </DialogHeader>
+                <MessagesV2Builder
+                  key={`btnmsg-${bd.id}`}
+                  embedded
+                  botId={botInfo.botId}
+                  botName={botInfo.botName}
+                  botAvatarUrl={botInfo.botAvatarUrl}
+                  initialItems={(bd as { open_components?: V2Item[] }).open_components ?? []}
+                  onItemsChange={(next) => {
+                    const list = buttons.slice();
+                    list[dIdx] = { ...bd, open_components: next } as V2ButtonRowButton;
+                    onUpdate({ buttons: list } as Partial<V2Item>);
+                  }}
+                />
+                <div className="flex justify-end pt-2">
+                  <Button type="button" onClick={() => setDesigningId(null)}>Done</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          );
+        })()}
       </div>
     );
   }
