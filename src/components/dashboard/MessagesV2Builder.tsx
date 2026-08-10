@@ -88,6 +88,8 @@ type V2ButtonRowButton =
   | { id: string; label: string; url: string; style?: V2ButtonStyle }
   | { id: string; label: string; category: string; style?: V2ButtonStyle }
   | { id: string; label: string; channel_id: string; style?: V2ButtonStyle }
+  | { id: string; label: string; ticket: string; style?: V2ButtonStyle }
+  | { id: string; label: string; ephemeral: string; style?: V2ButtonStyle }
   | { id: string; label: string; disabled: true; style?: V2ButtonStyle };
 
 type V2ButtonRow = {
@@ -117,6 +119,12 @@ const isChannelButton2 = (
 const isDisplayButton = (
   b: V2ButtonRowButton,
 ): b is { id: string; label: string; disabled: true; style?: V2ButtonStyle } => "disabled" in b;
+const isTicketButton = (
+  b: V2ButtonRowButton,
+): b is { id: string; label: string; ticket: string; style?: V2ButtonStyle } => "ticket" in b;
+const isEphemeralButton = (
+  b: V2ButtonRowButton,
+): b is { id: string; label: string; ephemeral: string; style?: V2ButtonStyle } => "ephemeral" in b;
 const isCategoryOption = (
   o: V2SelectMenuOption,
 ): o is { label: string; description?: string; category: string } => "category" in o;
@@ -783,7 +791,11 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
       <div className="space-y-3">
         <Label className="text-xs">Buttons (up to 5)</Label>
         {buttons.map((b, i) => {
-          const mode: "link" | "channel" | "display" = isDisplayButton(b)
+          const mode: "link" | "channel" | "display" | "ticket" | "ephemeral" = isTicketButton(b)
+            ? "ticket"
+            : isEphemeralButton(b)
+            ? "ephemeral"
+            : isDisplayButton(b)
             ? "display"
             : isChannelButton2(b)
             ? "channel"
@@ -825,6 +837,24 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     />
                     Display
                   </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`btn-mode-${b.id}`}
+                      checked={mode === "ticket"}
+                      onChange={() => update({ id: b.id, label: b.label, ticket: "", style })}
+                    />
+                    Ticket
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`btn-mode-${b.id}`}
+                      checked={mode === "ephemeral"}
+                      onChange={() => update({ id: b.id, label: b.label, ephemeral: "", style })}
+                    />
+                    Ephemeral message
+                  </label>
                 </div>
                 <Button
                   type="button"
@@ -843,7 +873,11 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                   onChange={(e) => {
                     const lbl = e.target.value;
                     update(
-                      isDisplayButton(b)
+                      isTicketButton(b)
+                        ? { id: b.id, label: lbl, ticket: b.ticket, style }
+                        : isEphemeralButton(b)
+                        ? { id: b.id, label: lbl, ephemeral: b.ephemeral, style }
+                        : isDisplayButton(b)
                         ? { id: b.id, label: lbl, disabled: true, style }
                         : isChannelButton2(b)
                         ? { id: b.id, label: lbl, channel_id: b.channel_id, style }
@@ -871,6 +905,18 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       ))}
                     </SelectContent>
                   </Select>
+                ) : mode === "ticket" ? (
+                  <Input
+                    placeholder="Ticket type name (e.g. Support)"
+                    value={(b as { ticket: string }).ticket}
+                    onChange={(e) => update({ id: b.id, label: b.label, ticket: e.target.value, style })}
+                  />
+                ) : mode === "ephemeral" ? (
+                  <Input
+                    placeholder="Message shown only to the clicker"
+                    value={(b as { ephemeral: string }).ephemeral}
+                    onChange={(e) => update({ id: b.id, label: b.label, ephemeral: e.target.value, style })}
+                  />
                 ) : (
                   <div className="flex items-center px-2 text-xs text-muted-foreground italic">
                     Not clickable — label only
