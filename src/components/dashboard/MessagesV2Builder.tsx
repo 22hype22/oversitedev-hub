@@ -905,24 +905,43 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       ))}
                     </SelectContent>
                   </Select>
-                ) : mode === "ticket" ? (
-                  <Input
-                    placeholder="Ticket type name (e.g. Support)"
-                    value={(b as { ticket: string }).ticket}
-                    onChange={(e) => update({ id: b.id, label: b.label, ticket: e.target.value, style })}
-                  />
-                ) : mode === "ephemeral" ? (
-                  <Input
-                    placeholder="Message shown only to the clicker"
-                    value={(b as { ephemeral: string }).ephemeral}
-                    onChange={(e) => update({ id: b.id, label: b.label, ephemeral: e.target.value, style })}
-                  />
+                ) : mode === "ticket" || mode === "ephemeral" ? (
+                  <div className="flex items-center px-2 text-xs text-muted-foreground italic">
+                    Edit the message below ↓
+                  </div>
                 ) : (
                   <div className="flex items-center px-2 text-xs text-muted-foreground italic">
                     Not clickable — label only
                   </div>
                 )}
               </div>
+              {(mode === "ticket" || mode === "ephemeral") && (
+                <div className="space-y-2 rounded-md border border-border/60 bg-background/60 p-2">
+                  <Label className="text-xs">
+                    {mode === "ticket" ? "Ticket opening message" : "Ephemeral message"}
+                  </Label>
+                  <DiscordMarkdownTextarea
+                    value={mode === "ticket" ? (b as { ticket: string }).ticket : (b as { ephemeral: string }).ephemeral}
+                    onValueChange={(v) =>
+                      update(
+                        mode === "ticket"
+                          ? { id: b.id, label: b.label, ticket: v, style }
+                          : { id: b.id, label: b.label, ephemeral: v, style },
+                      )
+                    }
+                    rows={3}
+                    placeholder={mode === "ticket" ? "Shown inside the ticket when it opens…" : "Shown only to the person who clicks…"}
+                  />
+                  <div className="rounded-md bg-[#313338] p-3">
+                    <PreviewMarkdown
+                      text={
+                        (mode === "ticket" ? (b as { ticket: string }).ticket : (b as { ephemeral: string }).ephemeral) ||
+                        "*Nothing yet — type a message above.*"
+                      }
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
