@@ -820,9 +820,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     title: "Messages",
     summary: "Send custom messages and rich embeds to any channel with the Discohook-style builder.",
     icon: Megaphone,
-    fields: [
-      channel("channel_id", "Post channel", "Where this message will be sent."),
-    ],
+    fields: [],
   },
 
   "customs-tickets": {
@@ -832,17 +830,22 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     fields: [
       {
         key: "category_id",
-        label: "Ticket category ID",
-        type: "text",
-        placeholder: "e.g. 1520971919355023411",
-        help: "Right-click the Discord category → Copy ID. New ticket channels open under it.",
+        label: "Ticket category",
+        type: "channel",
+        channelTypes: ["category"],
+        help: "New ticket channels open under this category.",
       },
-      multirole("support_role_ids", "Support roles", "Roles that can see and respond to tickets."),
       channel("log_channel_id", "Transcript log channel", "Where closed-ticket transcripts are posted."),
+      {
+        key: "open_message",
+        label: "Ticket opening message",
+        type: "textarea",
+        markdown: true,
+        placeholder: "Hey {user}, a staff member will be with you shortly.",
+        help: "Posted at the top of every new ticket. {user} mentions the opener.",
+      },
       toggle("ping_support", "Ping support roles when a ticket opens", true),
       toggle("one_per_user", "Limit each member to one open ticket", true),
-      header("Ticket panel"),
-      channel("panel_channel_id", "Panel channel", "Where the ticket panel is posted. Design it below; it posts here on Save."),
     ],
   },
 
@@ -861,54 +864,6 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         help: "What one unit is called (e.g. credits, points, tokens).",
       },
       channel("log_channel_id", "Credit log channel", "Where credit grants/removals are logged."),
-    ],
-  },
-
-  "customs-verification": {
-    title: "Verification",
-    summary: "Roblox verification — members link their Roblox account, get a role, and their nickname is set to their Roblox name.",
-    icon: ShieldCheck,
-    fields: [
-      channel("channel_id", "Verify channel", "Where the Verify button is posted."),
-      role("verified_role_id", "Verified role", "Given to members once they link their Roblox account."),
-      toggle("set_nickname", "Set nickname to Roblox username", true, "Rename the member to their Roblox display name after they verify."),
-      channel("log_channel_id", "Verification log channel", "Where successful verifications are logged. Optional."),
-      header("Verify button"),
-      {
-        key: "verify_button_label",
-        label: "Button label",
-        type: "text",
-        defaultValue: "Verify",
-        placeholder: "Verify",
-        help: "Text on the Verify button. Add an emoji by typing it in, e.g. ✅ Verify.",
-      },
-      {
-        key: "verify_button_style",
-        label: "Button color",
-        type: "select",
-        defaultValue: "primary",
-        options: [
-          { value: "primary", label: "Blurple" },
-          { value: "success", label: "Green" },
-          { value: "secondary", label: "Grey" },
-          { value: "danger", label: "Red" },
-        ],
-      },
-      header("Roblox OAuth app"),
-      {
-        key: "roblox_client_id",
-        label: "Roblox OAuth Client ID",
-        type: "text",
-        placeholder: "e.g. 1234567890123456789",
-        help: "From create.roblox.com → Credentials. Set the app's redirect URL to your bot's verify callback.",
-      },
-      {
-        key: "roblox_client_secret",
-        label: "Roblox OAuth Client Secret",
-        type: "text",
-        placeholder: "RBX-…",
-        help: "Keep this private — it's the secret from your Roblox OAuth app.",
-      },
     ],
   },
 
