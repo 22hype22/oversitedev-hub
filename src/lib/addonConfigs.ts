@@ -832,20 +832,12 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     fields: [
       {
         key: "category_id",
-        label: "Ticket category",
+        label: "Ticket Channel",
         type: "channel",
         channelTypes: ["category"],
         help: "New ticket channels open under this category.",
       },
-      channel("log_channel_id", "Transcript log channel", "Where closed-ticket transcripts are posted."),
-      {
-        key: "open_message",
-        label: "Ticket opening message",
-        type: "textarea",
-        markdown: true,
-        placeholder: "Hey {user}, a staff member will be with you shortly.",
-        help: "Posted at the top of every new ticket. {user} mentions the opener.",
-      },
+      channel("log_channel_id", "Ticket Log Channel", "Where closed-ticket transcripts are posted."),
       toggle("ping_support", "Ping support roles when a ticket opens", true),
       toggle("one_per_user", "Limit each member to one open ticket", true),
     ],
