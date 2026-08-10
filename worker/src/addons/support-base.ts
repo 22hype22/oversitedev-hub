@@ -14,12 +14,43 @@ import {
   TextChannel,
   GuildMember,
   ChannelType,
+  Guild,
 } from "discord.js";
 import type { Addon, AddonContext } from "./index.js";
 import { supabase } from "../supabase.js";
 
 // ── In-memory stores ──
 const ticketCategories = new Map<string, { categories: string[]; roles: Record<string, string[]> }>();
+
+// If a category is configured to delete-when-empty, remove the Discord category
+// once its last ticket channel is gone. It's recreated on the next ticket.
+async function maybeDeleteEmptyCategory(
+  guild: Guild,
+  parentId: string | null | undefined,
+  categoryName: string | null,
+  botId: string,
+): Promise<void> {
+  if (!parentId || !categoryName) return;
+  try {
+    const { data } = await supabase
+      .from("bot_config")
+      .select("config")
+      .eq("bot_id", botId)
+      .eq("feature", "tickets")
+      .maybeSingle();
+    const cfg = ((data as any)?.config ?? {}) as Record<string, any>;
+    const map = cfg.category_delete_when_empty;
+    const del = map && typeof map === "object" ? Boolean(map[categoryName]) : false;
+    if (!del) return;
+    const parent = guild.channels.cache.get(parentId);
+    if (!parent) return;
+    const remaining = guild.channels.cache.filter((c) => c.parentId === parentId);
+    if (remaining.size > 0) return;
+    await parent.delete().catch(() => {});
+  } catch {
+    /* ignore */
+  }
+}
 const openTickets = new Map<string, string>(); // userId-category -> channelId
 const welcomeConfig = new Map<string, { channelId: string; message: string; goodbyeChannelId?: string; goodbyeMessage?: string }>();
 
@@ -116,8 +147,37 @@ export const supportBaseAddon: Addon = {
         const safeName = member.user.username.toLowerCase().replace(/[^a-z0-9-]/g, "-");
         const channelName = `ticket-${safeCat}-${safeName}`;
 
+        // Per-category settings configured in the dashboard (bot_config "tickets").
+        let openingMessage = "";
+        let threadEnabled = false;
+        let threadMessage = "";
+        let configRoles: string[] | null = null;
+        try {
+          const { data: cfgRow } = await supabase
+            .from("bot_config")
+            .select("config")
+            .eq("bot_id", ctx.botId)
+            .eq("feature", "tickets")
+            .maybeSingle();
+          const cfg = ((cfgRow as any)?.config ?? {}) as Record<string, any>;
+          const msgs = cfg.category_messages;
+          if (msgs && typeof msgs === "object") openingMessage = String(msgs[category] ?? "");
+          const roles = cfg.category_roles;
+          if (roles && typeof roles === "object" && Array.isArray(roles[category])) {
+            configRoles = (roles[category] as any[]).map(String);
+          }
+          const threads = cfg.category_threads;
+          const t = threads && typeof threads === "object" ? threads[category] : null;
+          if (t && typeof t === "object") {
+            threadEnabled = Boolean(t.enabled);
+            threadMessage = String(t.message ?? "");
+          }
+        } catch (e) {
+          void ctx.log("warn", `ticket open: config read failed: ${(e as Error).message}`);
+        }
+
         const guildConfig = ticketCategories.get(guild.id);
-        const allowedRoles = guildConfig?.roles[category] ?? [];
+        const allowedRoles = configRoles ?? guildConfig?.roles[category] ?? [];
 
         const permOverwrites: any[] = [
           { id: guild.roles.everyone.id as string, deny: ["ViewChannel"] },
@@ -182,9 +242,11 @@ export const supportBaseAddon: Addon = {
         const embed = new EmbedBuilder()
           .setTitle(`Ticket — ${category}`)
           .setDescription(
-            `Thank you for your interest in our **${category}**. This ticket will be used to review your request.\n\n` +
-            `Please describe your issue and staff will be with you shortly.\n\n` +
-            `All submissions will be carefully reviewed by our staff. Submission does not guarantee acceptance.`
+            openingMessage && openingMessage.length
+              ? openingMessage
+              : `Thank you for your interest in our **${category}**. This ticket will be used to review your request.\n\n` +
+                `Please describe your issue and staff will be with you shortly.\n\n` +
+                `All submissions will be carefully reviewed by our staff. Submission does not guarantee acceptance.`
           )
           .setColor(0x5865f2)
           .setFooter({ text: `Opened by ${member.user.username}` });
@@ -196,6 +258,21 @@ export const supportBaseAddon: Addon = {
         );
 
         await (ticketChannel as any).send({ content: pingParts.join(" "), embeds: [embed], components: [row] });
+
+        if (threadEnabled) {
+          try {
+            const thread = await (ticketChannel as any).threads.create({
+              name: `${category}-discussion`.slice(0, 90),
+              autoArchiveDuration: 1440,
+            });
+            if (threadMessage && threadMessage.length) {
+              await thread.send({ content: threadMessage });
+            }
+          } catch (e) {
+            void ctx.log("warn", `ticket thread create failed: ${(e as Error).message}`);
+          }
+        }
+
         await interaction.reply({ content: `✅ Your ticket has been created: <#${ticketChannel.id}>`, ephemeral: true });
 
         setTimeout(async () => {
@@ -346,8 +423,10 @@ export const supportBaseAddon: Addon = {
         if (openerId && categoryName) {
           openTickets.delete(`${openerId}-${categoryName}`);
         }
+        const closeParentId = (interaction.channel as any)?.parentId ?? null;
         setTimeout(async () => {
           await interaction.channel?.delete().catch(() => {});
+          await maybeDeleteEmptyCategory(guild, closeParentId, categoryName, ctx.botId);
         }, 5000);
       }
 
@@ -366,8 +445,16 @@ export const supportBaseAddon: Addon = {
             .update({ status: "closed", closed_at: new Date().toISOString() })
             .eq("channel_id", delChannelId);
         }
+        const delParentId = (interaction.channel as any)?.parentId ?? null;
+        let delCategoryName: string | null = null;
+        const delTopic = (interaction.channel as any)?.topic as string | undefined;
+        if (delTopic) {
+          const m = delTopic.match(/category:([^|]+)/);
+          if (m) delCategoryName = m[1].trim();
+        }
         setTimeout(async () => {
           await interaction.channel?.delete().catch(() => {});
+          await maybeDeleteEmptyCategory(guild, delParentId, delCategoryName, ctx.botId);
         }, 2000);
       }
 
