@@ -11,12 +11,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -46,6 +45,9 @@ type Category = {
   openingMessage: string;
   closeAction: CloseAction;
   archiveCategoryId: string | null;
+  threadEnabled: boolean;
+  threadMessage: string;
+  deleteWhenEmpty: boolean;
 };
 
 
@@ -162,7 +164,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   const [cooldownMinutes, setCooldownMinutes] = useState<number>(10);
   const [embedColor, setEmbedColor] = useState("#5865F2");
   const [categories, setCategories] = useState<Category[]>([
-    { id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null },
+    { id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null, threadEnabled: false, threadMessage: "", deleteWhenEmpty: false },
   ]);
 
   // ---- Ticket Logging (formerly a separate "Ticket Logs" addon) ----
@@ -267,11 +269,15 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
               const roles = (cfg.category_roles ?? {})[name] ?? [];
               const opening = (cfg.category_messages ?? {})[name] ?? "";
               const close = readClose(null, name);
+              const thread = (cfg.category_threads ?? {})[name] ?? {};
               return {
                 id: uid(),
                 name,
                 roles: roles.map(String),
                 openingMessage: String(opening),
+                threadEnabled: Boolean(thread.enabled),
+                threadMessage: String(thread.message ?? ""),
+                deleteWhenEmpty: Boolean((cfg.category_delete_when_empty ?? {})[name]),
                 ...close,
               };
             }
@@ -281,6 +287,9 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
               name,
               roles: Array.isArray(c.roles) ? c.roles.map(String) : [],
               openingMessage: String(c.opening_message ?? ""),
+              threadEnabled: Boolean(c.thread_enabled),
+              threadMessage: String(c.thread_message ?? ""),
+              deleteWhenEmpty: Boolean(c.delete_when_empty),
               ...readClose(c, name),
             };
           })
@@ -315,7 +324,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       let nextCategories: Category[] =
         baseCategories.length > 0
           ? baseCategories
-          : [{ id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null }];
+          : [{ id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null, threadEnabled: false, threadMessage: "", deleteWhenEmpty: false }];
       let nextPanelChannel: BotChannel | null = cfg.channel_id
         ? ({
             channel_id: String(cfg.channel_id),
@@ -359,7 +368,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
               }));
               if (nextCategories.length === 0)
                 nextCategories = [
-                  { id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null },
+                  { id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null, threadEnabled: false, threadMessage: "", deleteWhenEmpty: false },
                 ];
             }
             if (d.panelChannel === null) nextPanelChannel = null;
@@ -567,7 +576,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     setPanelDescription("");
     setCooldownMinutes(10);
     setEmbedColor("#5865F2");
-    setCategories([{ id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null }]);
+    setCategories([{ id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null, threadEnabled: false, threadMessage: "", deleteWhenEmpty: false }]);
     setLogChannelId("");
     setLogTicketOpened(true);
     setLogTicketClosed(true);
@@ -587,7 +596,7 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
   const addCategory = () =>
     setCategories((prev) => [
       ...prev,
-      { id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null },
+      { id: uid(), name: "", roles: [], openingMessage: "", closeAction: "delete", archiveCategoryId: null, threadEnabled: false, threadMessage: "", deleteWhenEmpty: false },
     ]);
 
   const removeCategory = (id: string) =>
@@ -641,6 +650,9 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           opening_message: c.openingMessage.trim(),
           close_action: closeAction,
           archive_category_id: archiveId,
+          thread_enabled: c.threadEnabled,
+          thread_message: c.threadMessage.trim(),
+          delete_when_empty: c.deleteWhenEmpty,
         };
       })
       .filter((c) => c.name.length > 0);
@@ -659,6 +671,8 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
     const categoryMessages: Record<string, string> = {};
     const categoryRoles: Record<string, string[]> = {};
     const categoryClose: Record<string, { close_action: CloseAction; archive_category_id: string | null }> = {};
+    const categoryThreads: Record<string, { enabled: boolean; message: string }> = {};
+    const categoryDeleteWhenEmpty: Record<string, boolean> = {};
     for (const c of cleanedCategories) {
       categoryMessages[c.name] = c.opening_message;
       categoryRoles[c.name] = c.roles;
@@ -666,6 +680,8 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         close_action: c.close_action,
         archive_category_id: c.archive_category_id,
       };
+      categoryThreads[c.name] = { enabled: c.thread_enabled, message: c.thread_message };
+      categoryDeleteWhenEmpty[c.name] = c.delete_when_empty;
     }
 
     return {
@@ -687,6 +703,8 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
         category_messages: isV2 ? categoryMessages : null,
         category_roles: isV2 ? categoryRoles : null,
         category_close: categoryClose,
+        category_threads: categoryThreads,
+        category_delete_when_empty: categoryDeleteWhenEmpty,
         ticket_panel_v2: isV2 ? v2Items : null,
         components_v2: null,
       },
@@ -964,38 +982,32 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           <p className="text-xs text-muted-foreground">
             Where transcripts and event logs are posted when tickets are opened, claimed, or closed.
           </p>
-          <Select
-            value={logChannelId}
-            onValueChange={setLogChannelId}
-            disabled={!guild?.guild_id || textChannels.length === 0}
-          >
-            <SelectTrigger>
-              <div className="flex min-w-0 items-center gap-2">
-                <Hash className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
-                <SelectValue
-                  placeholder={
-                    !guild?.guild_id
-                      ? "Select a server first"
-                      : textChannels.length === 0
-                        ? "No channels cached — refresh from the panel picker"
-                        : "Select a log channel…"
-                  }
-                />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
+          <label className="relative block">
+            <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <select
+              value={logChannelId}
+              onChange={(e) => setLogChannelId(e.target.value)}
+              disabled={!guild?.guild_id || textChannels.length === 0}
+              className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">
+                {!guild?.guild_id
+                  ? "Select a server first"
+                  : textChannels.length === 0
+                    ? "No channels cached — refresh from the panel picker"
+                    : "Select a log channel…"}
+              </option>
               {channelGroups.map((group) => (
-                <SelectGroup key={group.key}>
-                  <SelectLabel>{group.label}</SelectLabel>
+                <optgroup key={group.key} label={group.label}>
                   {group.channels.map((c) => (
-                    <SelectItem key={c.channel_id} value={c.channel_id}>
+                    <option key={c.channel_id} value={c.channel_id}>
                       {c.channel_name}
-                    </SelectItem>
+                    </option>
                   ))}
-                </SelectGroup>
+                </optgroup>
               ))}
-            </SelectContent>
-          </Select>
+            </select>
+          </label>
         </div>
       )}
 
@@ -1200,6 +1212,54 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
                     updateCategory(cat.id, { openingMessage: e.target.value })
                   }
                   rows={3}
+                />
+              </div>
+
+              <div className="space-y-2 rounded-md border border-border bg-background/40 p-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor={`cat-thread-${cat.id}`} className="text-sm cursor-pointer">
+                      Open a thread inside the ticket
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Creates a thread in the ticket channel when it opens.
+                    </p>
+                  </div>
+                  <Switch
+                    id={`cat-thread-${cat.id}`}
+                    checked={cat.threadEnabled}
+                    onCheckedChange={(v) => updateCategory(cat.id, { threadEnabled: v })}
+                  />
+                </div>
+                {cat.threadEnabled && (
+                  <div className="space-y-2 pt-1">
+                    <Label htmlFor={`cat-thread-msg-${cat.id}`} className="text-xs text-muted-foreground">
+                      Thread message
+                    </Label>
+                    <Textarea
+                      id={`cat-thread-msg-${cat.id}`}
+                      placeholder="Message posted in the thread when it opens…"
+                      value={cat.threadMessage}
+                      onChange={(e) => updateCategory(cat.id, { threadMessage: e.target.value })}
+                      rows={2}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-start justify-between gap-4 rounded-md border border-border bg-background/40 p-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor={`cat-delempty-${cat.id}`} className="text-sm cursor-pointer">
+                    Delete the category when empty
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    When the last ticket here closes, remove the Discord category. It is recreated on the next ticket. Off = keep it.
+                  </p>
+                </div>
+                <Switch
+                  id={`cat-delempty-${cat.id}`}
+                  checked={cat.deleteWhenEmpty}
+                  onCheckedChange={(v) => updateCategory(cat.id, { deleteWhenEmpty: v })}
                 />
               </div>
 
