@@ -178,10 +178,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const [ticketPanelV2MountKey, setTicketPanelV2MountKey] = useState(0);
   const ticketOpenV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [ticketOpenV2MountKey, setTicketOpenV2MountKey] = useState(0);
-  type TicketType = { id: string; name: string; button_label: string; button_style: string };
+  type TicketType = { id: string; name: string; button_label: string; button_style: string; presentation: "button" | "dropdown" };
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [ticketOpenByType, setTicketOpenByType] = useState<Record<string, V2Item[]>>({});
   const [activeTicketType, setActiveTicketType] = useState<string>("");
+  const [ticketMenuPlaceholder, setTicketMenuPlaceholder] = useState<string>("Select a ticket type…");
   const newTicketTypeId = () => `t_${Math.random().toString(36).slice(2, 9)}`;
 
   const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
@@ -1111,6 +1112,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           name: String(t.name || "Ticket"),
           button_label: String(t.button_label || "Open Ticket"),
           button_style: String(t.button_style || "primary"),
+          presentation: t.presentation === "dropdown" ? "dropdown" : "button",
         }));
         const map: Record<string, V2Item[]> = {};
         rawTypes.forEach((t, i) => {
@@ -1121,10 +1123,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         setActiveTicketType(tt[0].id);
       } else {
         const id = newTicketTypeId();
-        setTicketTypes([{ id, name: "Support", button_label: cfg.open_button_label || "Open Ticket", button_style: cfg.open_button_style || "primary" }]);
+        setTicketTypes([{ id, name: "Support", button_label: cfg.open_button_label || "Open Ticket", button_style: cfg.open_button_style || "primary", presentation: "button" }]);
         setTicketOpenByType({ [id]: Array.isArray(cfg.open_components) ? (cfg.open_components as V2Item[]) : [] });
         setActiveTicketType(id);
       }
+      setTicketMenuPlaceholder(String(cfg.ticket_menu_placeholder || "Select a ticket type…"));
       setTicketOpenV2MountKey((k) => k + 1);
       setAppliedAt((data as any).applied_at ?? null);
     })();
@@ -1152,7 +1155,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     const merged = captureActiveTicketOpen();
     const id = newTicketTypeId();
     setTicketOpenByType({ ...merged, [id]: [] });
-    setTicketTypes((t) => [...t, { id, name: `Type ${t.length + 1}`, button_label: "Open Ticket", button_style: "primary" }]);
+    setTicketTypes((t) => [...t, { id, name: `Type ${t.length + 1}`, button_label: "Open Ticket", button_style: "primary", presentation: "button" }]);
     setActiveTicketType(id);
     setTicketOpenV2MountKey((k) => k + 1);
   };
@@ -1186,12 +1189,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       name: String(t.name || "Ticket").trim() || "Ticket",
       button_label: String(t.button_label || "Open Ticket").trim() || "Open Ticket",
       button_style: String(t.button_style || "primary"),
+      presentation: t.presentation === "dropdown" ? "dropdown" : "button",
       open_components: normalizeV2Items(openMap[t.id] ?? []),
     }));
     const payload = {
       bot_id: botId,
       feature: "tickets",
       config: {
+        ticket_menu_placeholder: ticketMenuPlaceholder.trim() || "Select a ticket type…",
         category_id: values.category_id ? String(values.category_id) : null,
         support_role_ids: Array.isArray(values.support_role_ids) ? (values.support_role_ids as string[]).map(String) : [],
         log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
@@ -3356,6 +3361,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                         <option value="secondary">Grey</option>
                         <option value="danger">Red</option>
                       </select>
+                      <select
+                        value={t.presentation}
+                        onChange={(e) => updateTicketType(t.id, { presentation: e.target.value === "dropdown" ? "dropdown" : "button" })}
+                        className="h-8 rounded-md border border-border bg-background px-2 text-sm"
+                        title="How this type appears on the panel"
+                      >
+                        <option value="button">Button</option>
+                        <option value="dropdown">In dropdown</option>
+                      </select>
                       <Button
                         type="button"
                         variant="ghost"
@@ -3369,7 +3383,22 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     </div>
                   ))}
                 </div>
+                {ticketTypes.some((t) => t.presentation === "dropdown") && (
+                  <div className="space-y-1 pt-2">
+                    <p className="text-xs font-medium text-foreground">Dropdown placeholder</p>
+                    <Input
+                      value={ticketMenuPlaceholder}
+                      onChange={(e) => setTicketMenuPlaceholder(e.target.value)}
+                      placeholder="Select a ticket type…"
+                      className="h-8"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Types set to <span className="font-medium">In dropdown</span> are grouped into one menu with this placeholder. Types set to <span className="font-medium">Button</span> open straight to a ticket.
+                    </p>
+                  </div>
+                )}
               </div>
+              {ticketTypes.length > 0 && activeTicketType && (
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-foreground">Ticket opening message</p>
@@ -3399,6 +3428,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   initialItems={ticketOpenByType[activeTicketType] ?? []}
                 />
               </div>
+              )}
             </div>
           ) : isVerification ? (
             <VerificationForm
