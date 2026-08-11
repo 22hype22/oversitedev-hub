@@ -1100,6 +1100,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         open_message: cfg.open_message ?? "",
         ping_support: cfg.ping_support ?? true,
         one_per_user: cfg.one_per_user ?? true,
+        delete_category_when_empty: cfg.delete_category_when_empty ?? false,
         panel_channel_id: cfg.panel_channel_id ? String(cfg.panel_channel_id) : "",
       }));
       setTicketPanelV2Items(Array.isArray(cfg.panel_components) ? (cfg.panel_components as V2Item[]) : []);
@@ -1203,6 +1204,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         open_message: values.open_message ? String(values.open_message) : "",
         ping_support: values.ping_support ?? true,
         one_per_user: values.one_per_user ?? true,
+        delete_category_when_empty: values.delete_category_when_empty ?? false,
         panel_channel_id: values.panel_channel_id ? String(values.panel_channel_id) : null,
         panel_components: normalizeV2Items(ticketPanelV2Ref.current?.getItems() ?? ticketPanelV2Items ?? []),
         ticket_types,
@@ -3314,7 +3316,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               <div className="space-y-2 pt-1">
                 <p className="text-sm font-semibold text-foreground">Ticket panel message</p>
                 <p className="text-xs text-muted-foreground">
-                  Posted to your panel channel above. An <span className="font-medium">Open Ticket</span> button is added automatically underneath. Posts on Save.
+                  Posted to your panel channel above on Save. Add a <span className="font-medium">Button Row</span> or <span className="font-medium">Select Menu</span> below and set buttons/options to <span className="font-medium">Ticket</span> — each one designs its own opening message.
                 </p>
                 <MessagesV2Builder
                   key={`ticket-panel-v2-${ticketPanelV2MountKey}`}
@@ -3326,109 +3328,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   initialItems={ticketPanelV2Items}
                 />
               </div>
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-foreground">Ticket types</p>
-                  <Button type="button" variant="outline" size="sm" onClick={addTicketType}>
-                    + Add type
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Each type gets its own button on the panel and its own opening message.
-                </p>
-                <div className="space-y-2">
-                  {ticketTypes.map((t) => (
-                    <div key={t.id} className="flex flex-wrap items-center gap-2 rounded-md border border-border/60 p-2">
-                      <Input
-                        value={t.name}
-                        onChange={(e) => updateTicketType(t.id, { name: e.target.value })}
-                        placeholder="Name (e.g. Support)"
-                        className="h-8 flex-1 min-w-[110px]"
-                      />
-                      <Input
-                        value={t.button_label}
-                        onChange={(e) => updateTicketType(t.id, { button_label: e.target.value })}
-                        placeholder="Button label"
-                        className="h-8 flex-1 min-w-[110px]"
-                      />
-                      <select
-                        value={t.button_style}
-                        onChange={(e) => updateTicketType(t.id, { button_style: e.target.value })}
-                        className="h-8 rounded-md border border-border bg-background px-2 text-sm"
-                      >
-                        <option value="primary">Blurple</option>
-                        <option value="success">Green</option>
-                        <option value="secondary">Grey</option>
-                        <option value="danger">Red</option>
-                      </select>
-                      <select
-                        value={t.presentation}
-                        onChange={(e) => updateTicketType(t.id, { presentation: e.target.value === "dropdown" ? "dropdown" : "button" })}
-                        className="h-8 rounded-md border border-border bg-background px-2 text-sm"
-                        title="How this type appears on the panel"
-                      >
-                        <option value="button">Button</option>
-                        <option value="dropdown">In dropdown</option>
-                      </select>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive"
-                        onClick={() => removeTicketType(t.id)}
-                        disabled={ticketTypes.length <= 1}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-                {ticketTypes.some((t) => t.presentation === "dropdown") && (
-                  <div className="space-y-1 pt-2">
-                    <p className="text-xs font-medium text-foreground">Dropdown placeholder</p>
-                    <Input
-                      value={ticketMenuPlaceholder}
-                      onChange={(e) => setTicketMenuPlaceholder(e.target.value)}
-                      placeholder="Select a ticket type…"
-                      className="h-8"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Types set to <span className="font-medium">In dropdown</span> are grouped into one menu with this placeholder. Types set to <span className="font-medium">Button</span> open straight to a ticket.
-                    </p>
-                  </div>
-                )}
-              </div>
-              {ticketTypes.length > 0 && activeTicketType && (
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-foreground">Ticket opening message</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Editing:</span>
-                    <select
-                      value={activeTicketType}
-                      onChange={(e) => selectTicketType(e.target.value)}
-                      className="h-8 max-w-[200px] rounded-md border border-border bg-background px-2 text-sm"
-                    >
-                      {ticketTypes.map((t) => (
-                        <option key={t.id} value={t.id}>{t.name || "Ticket"}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Shown inside the ticket when this type opens. A <span className="font-medium">Close ticket</span> button is added automatically. Type <code className="font-mono text-os-accent">{"{user}"}</code> to mention the opener.
-                </p>
-                <MessagesV2Builder
-                  key={`ticket-open-v2-${activeTicketType}-${ticketOpenV2MountKey}`}
-                  ref={ticketOpenV2Ref}
-                  embedded
-                  botId={botId}
-                  botName={botName}
-                  botAvatarUrl={botAvatarUrl}
-                  initialItems={ticketOpenByType[activeTicketType] ?? []}
-                />
-              </div>
-              )}
             </div>
           ) : isVerification ? (
             <VerificationForm
@@ -3863,49 +3762,62 @@ function ChannelComboField({
   // Default to the standard text-channel set; fields can opt into other
   // channel types (e.g. voice) via field.channelTypes.
   const allowedTypes = field.channelTypes ?? ["text", "announcement", "forum"];
-  const wantsCategories = allowedTypes.some(
-    (t) => t === "category" || t.toLowerCase().includes("categ"),
+  const isCategoryType = (t: string) => t === "category" || t.toLowerCase().includes("categ");
+  const wantsCategories = allowedTypes.some(isCategoryType);
+  const channelAllowed = useMemo(
+    () => allowedTypes.filter((t) => !isCategoryType(t)),
+    [allowedTypes],
   );
-  const filtered = useMemo(() => {
-    if (wantsCategories) {
-      // Categories often aren't stored as their own rows (and the bot may label
-      // them differently). Derive them: use any real category rows, plus the
-      // distinct parent categories carried on every child channel.
-      const map = new Map<string, any>();
-      for (const c of channels) {
-        if (c.channel_type && c.channel_type.toLowerCase().includes("categ")) {
-          map.set(c.channel_id, c);
-        } else if (c.parent_id && c.parent_name) {
-          if (!map.has(c.parent_id)) {
-            map.set(c.parent_id, {
-              channel_id: c.parent_id,
-              channel_name: c.parent_name,
-              channel_type: "category",
-              parent_id: null,
-              parent_name: null,
-              position: c.parent_position ?? 0,
-              parent_position: c.parent_position ?? 0,
-            });
-          }
-        }
+  const wantsChannels = channelAllowed.length > 0;
+  // Derived category rows: real category rows, plus the distinct parent
+  // categories carried on every child channel (bots often don't cache
+  // category rows, or label them differently).
+  const derivedCategories = useMemo(() => {
+    if (!wantsCategories) return [] as any[];
+    const map = new Map<string, any>();
+    for (const c of channels) {
+      if (c.channel_type && isCategoryType(c.channel_type)) {
+        map.set(c.channel_id, c);
+      } else if (c.parent_id && c.parent_name && !map.has(c.parent_id)) {
+        map.set(c.parent_id, {
+          channel_id: c.parent_id,
+          channel_name: c.parent_name,
+          channel_type: "category",
+          parent_id: null,
+          parent_name: null,
+          position: c.parent_position ?? 0,
+          parent_position: c.parent_position ?? 0,
+        });
       }
-      return [...map.values()];
     }
-    return channels.filter((c) => allowedTypes.includes(c.channel_type));
-  }, [channels, allowedTypes, wantsCategories]);
+    return [...map.values()].sort(
+      (a, b) => a.position - b.position || a.channel_name.localeCompare(b.channel_name),
+    );
+  }, [channels, wantsCategories]);
+  const plainChannels = useMemo(
+    () => (wantsChannels ? channels.filter((c) => channelAllowed.includes(c.channel_type)) : []),
+    [channels, channelAllowed, wantsChannels],
+  );
+  const filtered = useMemo(
+    () => [...derivedCategories, ...plainChannels],
+    [derivedCategories, plainChannels],
+  );
   const selected = useMemo(
     () => filtered.find((c) => c.channel_id === value) ?? null,
     [filtered, value],
   );
   const channelGroups = useMemo(() => {
-    if (wantsCategories) {
-      const sorted = [...filtered].sort(
-        (a, b) => a.position - b.position || a.channel_name.localeCompare(b.channel_name),
-      );
-      return [{ key: "categories", label: "Categories", channels: sorted }];
+    const groups: { key: string; label: string; channels: any[] }[] = [];
+    if (wantsCategories && derivedCategories.length > 0) {
+      groups.push({ key: "__categories", label: "Categories", channels: derivedCategories });
     }
-    return sortedChannelCategoryEntries(filtered);
-  }, [filtered, wantsCategories]);
+    if (wantsChannels) {
+      groups.push(...sortedChannelCategoryEntries(plainChannels));
+    } else if (!wantsCategories) {
+      groups.push(...sortedChannelCategoryEntries(filtered));
+    }
+    return groups;
+  }, [derivedCategories, plainChannels, filtered, wantsCategories, wantsChannels]);
 
   const handleRefresh = async () => {
     if (!guildId) {
