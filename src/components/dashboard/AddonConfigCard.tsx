@@ -105,7 +105,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const { permissions, role } = useTeamRole(viaTeam ? (scopeBotId ?? botId ?? null) : null);
   const canEdit = viaTeam ? permissions.edit_bot_config : true;
   const readOnly = scopeReadOnly || (viaTeam && !permissions.edit_bot_config);
-  const isSayCommand = addonId === "messages" || addonId === "customs-messages";
+  const isSayCommand = addonId === "messages";
+  // Customs "Messages" uses the SAME rich builder as Join Message (invite):
+  // external channel field + Variables + embedded MessagesV2Builder, then posts
+  // the composed message to the chosen channel via enqueue_post_message.
+  const isCustomsMessages = addonId === "customs-messages";
   const isRules = addonId === "rules";
   const isTicketPanel = addonId === "ticket-message-customization";
   const isTicketLifecycleMessages = addonId === "ticket-lifecycle-messages";
@@ -145,6 +149,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isInviteMessage = addonId === "invite-message";
   const isCustomsCredits = addonId === "customs-credits";
   const isCustomsTickets = addonId === "customs-tickets";
+  const isCustomsVerification = addonId === "customs-verification";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
@@ -157,6 +162,28 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const inviteSayRef = useRef<SayCommandBuilderHandle>(null);
   const [inviteV2Items, setInviteV2Items] = useState<V2Item[]>([]);
   const [inviteV2MountKey, setInviteV2MountKey] = useState(0);
+  // Customs "Messages" — its own V2 builder ref/state (send-only, starts empty).
+  const messagesV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [messagesV2Items, setMessagesV2Items] = useState<V2Item[]>([]);
+  const [messagesV2MountKey, setMessagesV2MountKey] = useState(0);
+  // Customs "Verification" — the V2 builder for the Verify panel message.
+  const verifyPanelV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [verifyPanelV2Items, setVerifyPanelV2Items] = useState<V2Item[]>([]);
+  const [verifyPanelV2MountKey, setVerifyPanelV2MountKey] = useState(0);
+  // Customs "Tickets" — a shared panel builder, plus a list of ticket TYPES,
+  // each with its own button + its own opening-message components. One picker
+  // chooses which type the opening-message builder is currently editing.
+  const ticketPanelV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [ticketPanelV2Items, setTicketPanelV2Items] = useState<V2Item[]>([]);
+  const [ticketPanelV2MountKey, setTicketPanelV2MountKey] = useState(0);
+  const ticketOpenV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [ticketOpenV2MountKey, setTicketOpenV2MountKey] = useState(0);
+  type TicketType = { id: string; name: string; button_label: string; button_style: string; presentation: "button" | "dropdown" };
+  const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
+  const [ticketOpenByType, setTicketOpenByType] = useState<Record<string, V2Item[]>>({});
+  const [activeTicketType, setActiveTicketType] = useState<string>("");
+  const [ticketMenuPlaceholder, setTicketMenuPlaceholder] = useState<string>("Select a ticket type…");
+  const newTicketTypeId = () => `t_${Math.random().toString(36).slice(2, 9)}`;
 
   const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
   useEffect(() => {
@@ -909,6 +936,36 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     setOpen(false);
   };
 
+  // ---------- customs: messages (send-to-channel) ----------
+  // Start each open with an empty composer (this is a "send now", not a saved
+  // template) and remount the builder so no stale draft carries over.
+  useEffect(() => {
+    if (!isCustomsMessages || !open) return;
+    setMessagesV2Items([]);
+    setMessagesV2MountKey((k) => k + 1);
+  }, [isCustomsMessages, open]);
+
+  const sendCustomsMessages = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    if (!values.channel_id) return toast.error("Pick a channel to post in.");
+    const liveV2 = messagesV2Ref.current?.getItems() ?? messagesV2Items;
+    const components_v2 = normalizeV2Items(liveV2 ?? []);
+    if (!components_v2 || components_v2.length === 0) {
+      return toast.error("Add at least one component first.");
+    }
+    setSaving(true);
+    const { data, error } = await supabase.rpc("enqueue_post_message" as any, {
+      _bot_id: botId,
+      _payload: { channel_id: String(values.channel_id), components_v2 } as any,
+    });
+    setSaving(false);
+    if (error) return toast.error(`Failed to send: ${error.message}`);
+    const result = data as { ok?: boolean; error?: string } | null;
+    if (!result?.ok) return toast.error(result?.error || "Could not queue the message.");
+    toast.success("Message queued — your bot will post it shortly.");
+    setOpen(false);
+  };
+
   // ---------- customs: credits ----------
   useEffect(() => {
     if (!isCustomsCredits || !open || !botId) return;
@@ -959,6 +1016,69 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     setOpen(false);
   };
 
+  // ---------- customs: verification (Roblox OAuth) ----------
+  useEffect(() => {
+    if (!isCustomsVerification || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "roblox-verify")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        channel_id: cfg.channel_id ? String(cfg.channel_id) : "",
+        verified_role_id: cfg.verified_role_id ? String(cfg.verified_role_id) : "",
+        set_nickname: cfg.set_nickname ?? true,
+        log_channel_id: cfg.log_channel_id ? String(cfg.log_channel_id) : "",
+        roblox_client_id: cfg.roblox_client_id ?? "",
+        roblox_client_secret: cfg.roblox_client_secret ?? "",
+        verify_button_label: cfg.verify_button_label ?? "Verify",
+        verify_button_style: cfg.verify_button_style ?? "primary",
+      }));
+      setVerifyPanelV2Items(Array.isArray(cfg.components) ? (cfg.components as V2Item[]) : []);
+      setVerifyPanelV2MountKey((k) => k + 1);
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsVerification, open, botId]);
+
+  const saveCustomsVerification = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "roblox-verify",
+      config: {
+        channel_id: values.channel_id ? String(values.channel_id) : null,
+        verified_role_id: values.verified_role_id ? String(values.verified_role_id) : null,
+        set_nickname: values.set_nickname ?? true,
+        log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
+        roblox_client_id: String(values.roblox_client_id ?? "").trim(),
+        roblox_client_secret: String(values.roblox_client_secret ?? "").trim(),
+        verify_button_label: String(values.verify_button_label ?? "Verify").trim() || "Verify",
+        verify_button_style: String(values.verify_button_style ?? "primary"),
+        components: normalizeV2Items(verifyPanelV2Ref.current?.getItems() ?? verifyPanelV2Items ?? []),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "roblox-verify",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Verification saved & applied");
+    setOpen(false);
+  };
+
   // ---------- customs: tickets ----------
   useEffect(() => {
     if (!isCustomsTickets || !open || !botId) return;
@@ -980,25 +1100,112 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         open_message: cfg.open_message ?? "",
         ping_support: cfg.ping_support ?? true,
         one_per_user: cfg.one_per_user ?? true,
+        panel_channel_id: cfg.panel_channel_id ? String(cfg.panel_channel_id) : "",
       }));
+      setTicketPanelV2Items(Array.isArray(cfg.panel_components) ? (cfg.panel_components as V2Item[]) : []);
+      setTicketPanelV2MountKey((k) => k + 1);
+      // Ticket types — new multi-type shape, with legacy single-message fallback.
+      const rawTypes: any[] = Array.isArray(cfg.ticket_types) ? cfg.ticket_types : [];
+      if (rawTypes.length) {
+        const tt: TicketType[] = rawTypes.map((t) => ({
+          id: String(t.id || newTicketTypeId()),
+          name: String(t.name || "Ticket"),
+          button_label: String(t.button_label || "Open Ticket"),
+          button_style: String(t.button_style || "primary"),
+          presentation: t.presentation === "dropdown" ? "dropdown" : "button",
+        }));
+        const map: Record<string, V2Item[]> = {};
+        rawTypes.forEach((t, i) => {
+          map[tt[i].id] = Array.isArray(t.open_components) ? (t.open_components as V2Item[]) : [];
+        });
+        setTicketTypes(tt);
+        setTicketOpenByType(map);
+        setActiveTicketType(tt[0].id);
+      } else {
+        const id = newTicketTypeId();
+        setTicketTypes([{ id, name: "Support", button_label: cfg.open_button_label || "Open Ticket", button_style: cfg.open_button_style || "primary", presentation: "button" }]);
+        setTicketOpenByType({ [id]: Array.isArray(cfg.open_components) ? (cfg.open_components as V2Item[]) : [] });
+        setActiveTicketType(id);
+      }
+      setTicketMenuPlaceholder(String(cfg.ticket_menu_placeholder || "Select a ticket type…"));
+      setTicketOpenV2MountKey((k) => k + 1);
       setAppliedAt((data as any).applied_at ?? null);
     })();
     return () => { cancelled = true; };
   }, [isCustomsTickets, open, botId]);
 
+  // Snapshot the opening-message builder into the per-type map for the active
+  // type. Returns the merged map so callers can use it immediately.
+  const captureActiveTicketOpen = (): Record<string, V2Item[]> => {
+    if (!activeTicketType) return ticketOpenByType;
+    const items = ticketOpenV2Ref.current?.getItems();
+    const merged = { ...ticketOpenByType, [activeTicketType]: items ?? ticketOpenByType[activeTicketType] ?? [] };
+    setTicketOpenByType(merged);
+    return merged;
+  };
+
+  const selectTicketType = (id: string) => {
+    if (id === activeTicketType) return;
+    captureActiveTicketOpen();
+    setActiveTicketType(id);
+    setTicketOpenV2MountKey((k) => k + 1);
+  };
+
+  const addTicketType = () => {
+    const merged = captureActiveTicketOpen();
+    const id = newTicketTypeId();
+    setTicketOpenByType({ ...merged, [id]: [] });
+    setTicketTypes((t) => [...t, { id, name: `Type ${t.length + 1}`, button_label: "Open Ticket", button_style: "primary", presentation: "button" }]);
+    setActiveTicketType(id);
+    setTicketOpenV2MountKey((k) => k + 1);
+  };
+
+  const removeTicketType = (id: string) => {
+    if (ticketTypes.length <= 1) return toast.error("Keep at least one ticket type.");
+    const remaining = ticketTypes.filter((x) => x.id !== id);
+    setTicketTypes(remaining);
+    setTicketOpenByType((m) => {
+      const n = { ...m };
+      delete n[id];
+      return n;
+    });
+    if (activeTicketType === id) {
+      setActiveTicketType(remaining[0]?.id ?? "");
+      setTicketOpenV2MountKey((k) => k + 1);
+    }
+  };
+
+  const updateTicketType = (id: string, patch: Partial<TicketType>) => {
+    setTicketTypes((t) => t.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  };
+
   const saveCustomsTickets = async () => {
     if (!botId) return toast.error("Missing bot id.");
+    if (ticketTypes.length === 0) return toast.error("Add at least one ticket type.");
     setSaving(true);
+    const openMap = captureActiveTicketOpen();
+    const ticket_types = ticketTypes.map((t) => ({
+      id: t.id,
+      name: String(t.name || "Ticket").trim() || "Ticket",
+      button_label: String(t.button_label || "Open Ticket").trim() || "Open Ticket",
+      button_style: String(t.button_style || "primary"),
+      presentation: t.presentation === "dropdown" ? "dropdown" : "button",
+      open_components: normalizeV2Items(openMap[t.id] ?? []),
+    }));
     const payload = {
       bot_id: botId,
       feature: "tickets",
       config: {
+        ticket_menu_placeholder: ticketMenuPlaceholder.trim() || "Select a ticket type…",
         category_id: values.category_id ? String(values.category_id) : null,
         support_role_ids: Array.isArray(values.support_role_ids) ? (values.support_role_ids as string[]).map(String) : [],
         log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
         open_message: values.open_message ? String(values.open_message) : "",
         ping_support: values.ping_support ?? true,
         one_per_user: values.one_per_user ?? true,
+        panel_channel_id: values.panel_channel_id ? String(values.panel_channel_id) : null,
+        panel_components: normalizeV2Items(ticketPanelV2Ref.current?.getItems() ?? ticketPanelV2Items ?? []),
+        ticket_types,
       },
       updated_at: new Date().toISOString(),
     };
@@ -1011,7 +1218,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
-    else toast.success("Tickets saved & applied");
+    else toast.success("Tickets saved — panel posted");
     setOpen(false);
   };
 
@@ -2805,15 +3012,22 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         .acard.on:hover{transform:translateY(-2px);border-color:rgba(201,219,230,.42);
           box-shadow:0 16px 34px -18px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05)}
         .acard.off{opacity:.5;filter:grayscale(.6);cursor:default;background:#272e36}
-        .acard .ac-head{display:flex;align-items:flex-start;gap:10px}
+        .acard .ac-head{display:flex;align-items:center;gap:10px}
         .acard .ac-ico{height:34px;width:34px;border-radius:10px;flex:none;display:grid;place-items:center;
           background:rgba(201,219,230,.10);border:1px solid rgba(201,219,230,.42);color:#C9DBE6;transition:.17s}
         .acard.on:hover .ac-ico{background:rgba(201,219,230,.16)}
         .acard.off .ac-ico{background:#343d46;border-color:#3a434d;color:#788591}
         .acard .ac-ico svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none}
-        .acard .ac-title{flex:1;min-width:0;font-size:14px;font-weight:700;line-height:1.25;letter-spacing:-.01em;color:#E8EEF3;padding-top:2px}
+        .acard .ac-title{flex:1;min-width:0;font-size:20px;font-weight:700;line-height:1.2;letter-spacing:-.01em;color:#E8EEF3;padding-top:0}
         .acard.off .ac-title{color:#A8B4BF}
-        .acard .ac-sw{padding-top:2px;flex:none}
+        /* Enable/disable toggle — sits quietly in the top-right and blends into
+           the card, brightening only on hover so it never reads as a sore thumb.
+           Stays fully visible when the card is OFF so its state is obvious. */
+        .acard .ac-sw{padding-top:0;flex:none;opacity:.38;transform:scale(.82);transform-origin:right center;
+          transition:opacity .16s ease,transform .16s ease}
+        .acard:hover .ac-sw{opacity:.85}
+        .acard .ac-sw:hover{opacity:1}
+        .acard.off .ac-sw{opacity:1}
         .acard .ac-summary{flex:1;margin-top:10px;font-size:12px;line-height:1.45;color:#788591;
           overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3}
         .acard .ac-foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
@@ -2863,7 +3077,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -3014,14 +3228,18 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               embedColor={giveawayEmbedColor}
               onEmbedColorChange={setGiveawayEmbedColor}
             />
-          ) : isInviteMessage ? (
+          ) : isInviteMessage || isCustomsMessages || isCustomsVerification ? (
             <div className="space-y-5 py-2">
-              {config.fields.map((f) => (
-                <div key={f.key}>{renderField(f)}</div>
-              ))}
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs text-muted-foreground">
-                  Type variables like <code className="font-mono text-os-accent">{"{count}"}</code> anywhere — they fill in when someone joins.
+                  {isCustomsVerification
+                    ? "Design the panel members see below. A Verify button is added automatically underneath it."
+                    : (<>Type variables like <code className="font-mono text-os-accent">{"{count}"}</code> anywhere — they fill in {isCustomsMessages ? "when the message is posted." : "when someone joins."}</>)}
                 </p>
                 <Popover>
                   <PopoverTrigger asChild>
@@ -3064,15 +3282,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   </PopoverContent>
                 </Popover>
               </div>
-              {engineVersion === "v2" ? (
+              {engineVersion === "v2" || isCustomsMessages || isCustomsVerification ? (
                 <MessagesV2Builder
-                  key={`invite-v2-${inviteV2MountKey}`}
-                  ref={inviteV2Ref}
+                  key={isCustomsVerification ? `verify-panel-v2-${verifyPanelV2MountKey}` : isCustomsMessages ? `customs-msg-v2-${messagesV2MountKey}` : `invite-v2-${inviteV2MountKey}`}
+                  ref={isCustomsVerification ? verifyPanelV2Ref : isCustomsMessages ? messagesV2Ref : inviteV2Ref}
                   embedded
                   botId={botId}
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
-                  initialItems={inviteV2Items}
+                  initialItems={isCustomsVerification ? verifyPanelV2Items : isCustomsMessages ? messagesV2Items : inviteV2Items}
                 />
               ) : (
                 <SayCommandBuilder
@@ -3084,6 +3302,132 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
                 />
+              )}
+            </div>
+          ) : isCustomsTickets ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Ticket panel message</p>
+                <p className="text-xs text-muted-foreground">
+                  Posted to your panel channel above. An <span className="font-medium">Open Ticket</span> button is added automatically underneath. Posts on Save.
+                </p>
+                <MessagesV2Builder
+                  key={`ticket-panel-v2-${ticketPanelV2MountKey}`}
+                  ref={ticketPanelV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={ticketPanelV2Items}
+                />
+              </div>
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Ticket types</p>
+                  <Button type="button" variant="outline" size="sm" onClick={addTicketType}>
+                    + Add type
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Each type gets its own button on the panel and its own opening message.
+                </p>
+                <div className="space-y-2">
+                  {ticketTypes.map((t) => (
+                    <div key={t.id} className="flex flex-wrap items-center gap-2 rounded-md border border-border/60 p-2">
+                      <Input
+                        value={t.name}
+                        onChange={(e) => updateTicketType(t.id, { name: e.target.value })}
+                        placeholder="Name (e.g. Support)"
+                        className="h-8 flex-1 min-w-[110px]"
+                      />
+                      <Input
+                        value={t.button_label}
+                        onChange={(e) => updateTicketType(t.id, { button_label: e.target.value })}
+                        placeholder="Button label"
+                        className="h-8 flex-1 min-w-[110px]"
+                      />
+                      <select
+                        value={t.button_style}
+                        onChange={(e) => updateTicketType(t.id, { button_style: e.target.value })}
+                        className="h-8 rounded-md border border-border bg-background px-2 text-sm"
+                      >
+                        <option value="primary">Blurple</option>
+                        <option value="success">Green</option>
+                        <option value="secondary">Grey</option>
+                        <option value="danger">Red</option>
+                      </select>
+                      <select
+                        value={t.presentation}
+                        onChange={(e) => updateTicketType(t.id, { presentation: e.target.value === "dropdown" ? "dropdown" : "button" })}
+                        className="h-8 rounded-md border border-border bg-background px-2 text-sm"
+                        title="How this type appears on the panel"
+                      >
+                        <option value="button">Button</option>
+                        <option value="dropdown">In dropdown</option>
+                      </select>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => removeTicketType(t.id)}
+                        disabled={ticketTypes.length <= 1}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                {ticketTypes.some((t) => t.presentation === "dropdown") && (
+                  <div className="space-y-1 pt-2">
+                    <p className="text-xs font-medium text-foreground">Dropdown placeholder</p>
+                    <Input
+                      value={ticketMenuPlaceholder}
+                      onChange={(e) => setTicketMenuPlaceholder(e.target.value)}
+                      placeholder="Select a ticket type…"
+                      className="h-8"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Types set to <span className="font-medium">In dropdown</span> are grouped into one menu with this placeholder. Types set to <span className="font-medium">Button</span> open straight to a ticket.
+                    </p>
+                  </div>
+                )}
+              </div>
+              {ticketTypes.length > 0 && activeTicketType && (
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Ticket opening message</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Editing:</span>
+                    <select
+                      value={activeTicketType}
+                      onChange={(e) => selectTicketType(e.target.value)}
+                      className="h-8 max-w-[200px] rounded-md border border-border bg-background px-2 text-sm"
+                    >
+                      {ticketTypes.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name || "Ticket"}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Shown inside the ticket when this type opens. A <span className="font-medium">Close ticket</span> button is added automatically. Type <code className="font-mono text-os-accent">{"{user}"}</code> to mention the opener.
+                </p>
+                <MessagesV2Builder
+                  key={`ticket-open-v2-${activeTicketType}-${ticketOpenV2MountKey}`}
+                  ref={ticketOpenV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={ticketOpenByType[activeTicketType] ?? []}
+                />
+              </div>
               )}
             </div>
           ) : isVerification ? (
@@ -3161,6 +3505,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     } finally {
                       setSaving(false);
                     }
+                    return;
+                  }
+                  if (isCustomsMessages) {
+                    void sendCustomsMessages();
                     return;
                   }
                   if (isInviteMessage) {
@@ -3262,6 +3610,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveServerStats();
                   } else if (isCustomsCredits) {
                     void saveCustomsCredits();
+                  } else if (isCustomsVerification) {
+                    void saveCustomsVerification();
                   } else if (isCustomsTickets) {
                     void saveCustomsTickets();
                   } else {
@@ -3277,7 +3627,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     ? "Saving…"
                     : isRules
                       ? "Save rules"
-                      : isSayCommand
+                      : isSayCommand || isCustomsMessages
                         ? "Send message"
                         : "Save changes"}
               </Button>
@@ -3513,18 +3863,49 @@ function ChannelComboField({
   // Default to the standard text-channel set; fields can opt into other
   // channel types (e.g. voice) via field.channelTypes.
   const allowedTypes = field.channelTypes ?? ["text", "announcement", "forum"];
-  const filtered = useMemo(
-    () => channels.filter((c) => allowedTypes.includes(c.channel_type)),
-    [channels, allowedTypes],
+  const wantsCategories = allowedTypes.some(
+    (t) => t === "category" || t.toLowerCase().includes("categ"),
   );
+  const filtered = useMemo(() => {
+    if (wantsCategories) {
+      // Categories often aren't stored as their own rows (and the bot may label
+      // them differently). Derive them: use any real category rows, plus the
+      // distinct parent categories carried on every child channel.
+      const map = new Map<string, any>();
+      for (const c of channels) {
+        if (c.channel_type && c.channel_type.toLowerCase().includes("categ")) {
+          map.set(c.channel_id, c);
+        } else if (c.parent_id && c.parent_name) {
+          if (!map.has(c.parent_id)) {
+            map.set(c.parent_id, {
+              channel_id: c.parent_id,
+              channel_name: c.parent_name,
+              channel_type: "category",
+              parent_id: null,
+              parent_name: null,
+              position: c.parent_position ?? 0,
+              parent_position: c.parent_position ?? 0,
+            });
+          }
+        }
+      }
+      return [...map.values()];
+    }
+    return channels.filter((c) => allowedTypes.includes(c.channel_type));
+  }, [channels, allowedTypes, wantsCategories]);
   const selected = useMemo(
     () => filtered.find((c) => c.channel_id === value) ?? null,
     [filtered, value],
   );
-  const channelGroups = useMemo(
-    () => sortedChannelCategoryEntries(filtered),
-    [filtered],
-  );
+  const channelGroups = useMemo(() => {
+    if (wantsCategories) {
+      const sorted = [...filtered].sort(
+        (a, b) => a.position - b.position || a.channel_name.localeCompare(b.channel_name),
+      );
+      return [{ key: "categories", label: "Categories", channels: sorted }];
+    }
+    return sortedChannelCategoryEntries(filtered);
+  }, [filtered, wantsCategories]);
 
   const handleRefresh = async () => {
     if (!guildId) {
