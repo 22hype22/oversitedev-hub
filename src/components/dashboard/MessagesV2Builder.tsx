@@ -104,7 +104,10 @@ type V2ButtonRow = {
 type V2SelectMenuOption =
   | { label: string; description?: string; url: string }
   | { label: string; description?: string; category: string }
-  | { label: string; description?: string; channel_id: string };
+  | { label: string; description?: string; channel_id: string }
+  | { label: string; description?: string; display: true }
+  | { label: string; description?: string; ticket: string; open_components?: V2Item[] }
+  | { label: string; description?: string; ephemeral: string; open_components?: V2Item[] };
 
 type V2SelectMenu = {
   id: string;
@@ -134,6 +137,15 @@ const isCategoryOption = (
 const isChannelOption = (
   o: V2SelectMenuOption,
 ): o is { label: string; description?: string; channel_id: string } => "channel_id" in o;
+const isDisplayOption = (
+  o: V2SelectMenuOption,
+): o is { label: string; description?: string; display: true } => "display" in o;
+const isTicketOption = (
+  o: V2SelectMenuOption,
+): o is { label: string; description?: string; ticket: string; open_components?: V2Item[] } => "ticket" in o;
+const isEphemeralOption = (
+  o: V2SelectMenuOption,
+): o is { label: string; description?: string; ephemeral: string; open_components?: V2Item[] } => "ephemeral" in o;
 
 const BUTTON_STYLE_PREVIEW: Record<V2ButtonStyle, string> = {
   primary: "bg-[#5865F2] hover:bg-[#4752C4] text-white",
@@ -1002,6 +1014,8 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
   if (item.type === "select_menu") {
     const options = item.options;
     const channels = useContext(ChannelsContext);
+    const botInfo = useContext(BotInfoContext);
+    const [designingIdx, setDesigningIdx] = useState<number | null>(null);
     return (
       <div className="space-y-3">
         <div className="space-y-1.5">
@@ -1014,7 +1028,15 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
         </div>
         <Label className="text-xs">Options (up to 25)</Label>
         {options.map((o, i) => {
-          const mode: "link" | "channel" = isChannelOption(o) ? "channel" : "link";
+          const mode: "link" | "channel" | "display" | "ticket" | "ephemeral" = isTicketOption(o)
+            ? "ticket"
+            : isEphemeralOption(o)
+            ? "ephemeral"
+            : isDisplayOption(o)
+            ? "display"
+            : isChannelOption(o)
+            ? "channel"
+            : "link";
           const update = (next: V2SelectMenuOption) => {
             const list = options.slice();
             list[i] = next;
@@ -1042,6 +1064,33 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     />
                     Channel
                   </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`opt-mode-${i}`}
+                      checked={mode === "display"}
+                      onChange={() => update({ label: o.label, display: true })}
+                    />
+                    Display
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`opt-mode-${i}`}
+                      checked={mode === "ticket"}
+                      onChange={() => update({ label: o.label, ticket: "" })}
+                    />
+                    Ticket
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`opt-mode-${i}`}
+                      checked={mode === "ephemeral"}
+                      onChange={() => update({ label: o.label, ephemeral: "" })}
+                    />
+                    Ephemeral message
+                  </label>
                 </div>
                 <Button
                   type="button"
@@ -1060,7 +1109,13 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                   onChange={(e) => {
                     const lbl = e.target.value;
                     update(
-                      isChannelOption(o)
+                      isTicketOption(o)
+                        ? { label: lbl, ticket: o.ticket, open_components: o.open_components }
+                        : isEphemeralOption(o)
+                        ? { label: lbl, ephemeral: o.ephemeral, open_components: o.open_components }
+                        : isDisplayOption(o)
+                        ? { label: lbl, display: true }
+                        : isChannelOption(o)
                         ? { label: lbl, channel_id: o.channel_id }
                         : { label: lbl, url: (o as { url: string }).url },
                     );
@@ -1072,7 +1127,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     value={(o as { url: string }).url}
                     onChange={(e) => update({ label: o.label, url: e.target.value })}
                   />
-                ) : (
+                ) : mode === "channel" ? (
                   <Select
                     value={(o as { channel_id: string }).channel_id || ""}
                     onValueChange={(v) => update({ label: o.label, channel_id: v })}
@@ -1086,8 +1141,30 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       ))}
                     </SelectContent>
                   </Select>
+                ) : mode === "ticket" || mode === "ephemeral" ? (
+                  <div className="flex items-center px-2 text-xs text-muted-foreground italic">
+                    Edit the message below ↓
+                  </div>
+                ) : (
+                  <div className="flex items-center px-2 text-xs text-muted-foreground italic">
+                    Info only — no link
+                  </div>
                 )}
               </div>
+              {(mode === "ticket" || mode === "ephemeral") && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => setDesigningIdx(i)}
+                >
+                  {mode === "ticket" ? "Design ticket message →" : "Design ephemeral message →"}
+                  {((o as { open_components?: V2Item[] }).open_components?.length ?? 0) > 0 && (
+                    <span className="ml-2 text-xs text-muted-foreground">· edited</span>
+                  )}
+                </Button>
+              )}
             </div>
           );
         })}
@@ -1109,6 +1186,36 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             Add option
           </Button>
         )}
+        {designingIdx !== null && (() => {
+          const od = options[designingIdx];
+          if (!od || !(isTicketOption(od) || isEphemeralOption(od))) return null;
+          const isTicket = isTicketOption(od);
+          return (
+            <Dialog open onOpenChange={(o) => { if (!o) setDesigningIdx(null); }}>
+              <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>{isTicket ? "Ticket opening message" : "Ephemeral message"}</DialogTitle>
+                </DialogHeader>
+                <MessagesV2Builder
+                  key={`optmsg-${designingIdx}`}
+                  embedded
+                  botId={botInfo.botId}
+                  botName={botInfo.botName}
+                  botAvatarUrl={botInfo.botAvatarUrl}
+                  initialItems={(od as { open_components?: V2Item[] }).open_components ?? []}
+                  onItemsChange={(next) => {
+                    const list = options.slice();
+                    list[designingIdx] = { ...od, open_components: next } as V2SelectMenuOption;
+                    onUpdate({ options: list } as Partial<V2Item>);
+                  }}
+                />
+                <div className="flex justify-end pt-2">
+                  <Button type="button" onClick={() => setDesigningIdx(null)}>Done</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          );
+        })()}
       </div>
     );
   }
