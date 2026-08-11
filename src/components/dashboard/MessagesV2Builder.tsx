@@ -204,6 +204,29 @@ export function normalizeV2Items(items: V2Item[]): V2Item[] {
   return out;
 }
 
+// Discord requires a `url` for link-style buttons. Ticket / Ephemeral / Display
+// buttons are interaction buttons (not links), so force them off the link style
+// and strip any stray url — otherwise the send 400s with "A url is required".
+function sanitizeButtonRowButton(b: V2ButtonRowButton): V2ButtonRowButton {
+  const isInteraction = "ticket" in b || "ephemeral" in b || "disabled" in b;
+  if (!isInteraction) return b;
+  const anyB = b as any;
+  const { url: _dropUrl, ...rest } = anyB;
+  const style: V2ButtonStyle = !anyB.style || anyB.style === "link" ? "secondary" : anyB.style;
+  return { ...rest, style } as V2ButtonRowButton;
+}
+function sanitizeItems(items: V2Item[]): V2Item[] {
+  return items.map((it) => {
+    if (it.type === "buttonRow") {
+      return { ...it, buttons: it.buttons.map(sanitizeButtonRowButton) };
+    }
+    if (it.type === "container") {
+      return { ...it, children: sanitizeItems(it.children) as V2Leaf[] };
+    }
+    return it;
+  });
+}
+
 const newItem = (type: V2Item["type"]): V2Item => {
   switch (type) {
     case "text":
@@ -303,7 +326,7 @@ export const MessagesV2Builder = forwardRef<
   // Controlled mode: push editable items up to a parent (used when this builder
   // is nested inside another button's Ticket/Ephemeral message editor).
   useEffect(() => {
-    onItemsChange?.(items);
+    onItemsChange?.(sanitizeItems(items));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
 
@@ -413,7 +436,7 @@ export const MessagesV2Builder = forwardRef<
 
   useImperativeHandle(ref, () => ({
     send,
-    getItems: () => normalizeV2Items(items),
+    getItems: () => normalizeV2Items(sanitizeItems(items)),
     setItems: (next: V2Item[]) => setItems(next),
   }));
 
