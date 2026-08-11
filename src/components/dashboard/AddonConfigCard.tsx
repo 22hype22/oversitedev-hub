@@ -3865,49 +3865,62 @@ function ChannelComboField({
   // Default to the standard text-channel set; fields can opt into other
   // channel types (e.g. voice) via field.channelTypes.
   const allowedTypes = field.channelTypes ?? ["text", "announcement", "forum"];
-  const wantsCategories = allowedTypes.some(
-    (t) => t === "category" || t.toLowerCase().includes("categ"),
+  const isCategoryType = (t: string) => t === "category" || t.toLowerCase().includes("categ");
+  const wantsCategories = allowedTypes.some(isCategoryType);
+  const channelAllowed = useMemo(
+    () => allowedTypes.filter((t) => !isCategoryType(t)),
+    [allowedTypes],
   );
-  const filtered = useMemo(() => {
-    if (wantsCategories) {
-      // Categories often aren't stored as their own rows (and the bot may label
-      // them differently). Derive them: use any real category rows, plus the
-      // distinct parent categories carried on every child channel.
-      const map = new Map<string, any>();
-      for (const c of channels) {
-        if (c.channel_type && c.channel_type.toLowerCase().includes("categ")) {
-          map.set(c.channel_id, c);
-        } else if (c.parent_id && c.parent_name) {
-          if (!map.has(c.parent_id)) {
-            map.set(c.parent_id, {
-              channel_id: c.parent_id,
-              channel_name: c.parent_name,
-              channel_type: "category",
-              parent_id: null,
-              parent_name: null,
-              position: c.parent_position ?? 0,
-              parent_position: c.parent_position ?? 0,
-            });
-          }
-        }
+  const wantsChannels = channelAllowed.length > 0;
+  // Derived category rows: real category rows, plus the distinct parent
+  // categories carried on every child channel (bots often don't cache
+  // category rows, or label them differently).
+  const derivedCategories = useMemo(() => {
+    if (!wantsCategories) return [] as any[];
+    const map = new Map<string, any>();
+    for (const c of channels) {
+      if (c.channel_type && isCategoryType(c.channel_type)) {
+        map.set(c.channel_id, c);
+      } else if (c.parent_id && c.parent_name && !map.has(c.parent_id)) {
+        map.set(c.parent_id, {
+          channel_id: c.parent_id,
+          channel_name: c.parent_name,
+          channel_type: "category",
+          parent_id: null,
+          parent_name: null,
+          position: c.parent_position ?? 0,
+          parent_position: c.parent_position ?? 0,
+        });
       }
-      return [...map.values()];
     }
-    return channels.filter((c) => allowedTypes.includes(c.channel_type));
-  }, [channels, allowedTypes, wantsCategories]);
+    return [...map.values()].sort(
+      (a, b) => a.position - b.position || a.channel_name.localeCompare(b.channel_name),
+    );
+  }, [channels, wantsCategories]);
+  const plainChannels = useMemo(
+    () => (wantsChannels ? channels.filter((c) => channelAllowed.includes(c.channel_type)) : []),
+    [channels, channelAllowed, wantsChannels],
+  );
+  const filtered = useMemo(
+    () => [...derivedCategories, ...plainChannels],
+    [derivedCategories, plainChannels],
+  );
   const selected = useMemo(
     () => filtered.find((c) => c.channel_id === value) ?? null,
     [filtered, value],
   );
   const channelGroups = useMemo(() => {
-    if (wantsCategories) {
-      const sorted = [...filtered].sort(
-        (a, b) => a.position - b.position || a.channel_name.localeCompare(b.channel_name),
-      );
-      return [{ key: "categories", label: "Categories", channels: sorted }];
+    const groups: { key: string; label: string; channels: any[] }[] = [];
+    if (wantsCategories && derivedCategories.length > 0) {
+      groups.push({ key: "__categories", label: "Categories", channels: derivedCategories });
     }
-    return sortedChannelCategoryEntries(filtered);
-  }, [filtered, wantsCategories]);
+    if (wantsChannels) {
+      groups.push(...sortedChannelCategoryEntries(plainChannels));
+    } else if (!wantsCategories) {
+      groups.push(...sortedChannelCategoryEntries(filtered));
+    }
+    return groups;
+  }, [derivedCategories, plainChannels, filtered, wantsCategories, wantsChannels]);
 
   const handleRefresh = async () => {
     if (!guildId) {
