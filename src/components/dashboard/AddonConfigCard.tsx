@@ -3316,7 +3316,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               <div className="space-y-2 pt-1">
                 <p className="text-sm font-semibold text-foreground">Ticket panel message</p>
                 <p className="text-xs text-muted-foreground">
-                  Posted to your panel channel above. An <span className="font-medium">Open Ticket</span> button is added automatically underneath. Posts on Save.
+                  Posted to your panel channel above on Save. Add a <span className="font-medium">Button Row</span> or <span className="font-medium">Select Menu</span> below and set buttons/options to <span className="font-medium">Ticket</span> — each one designs its own opening message.
                 </p>
                 <MessagesV2Builder
                   key={`ticket-panel-v2-${ticketPanelV2MountKey}`}
@@ -3328,109 +3328,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   initialItems={ticketPanelV2Items}
                 />
               </div>
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-foreground">Ticket types</p>
-                  <Button type="button" variant="outline" size="sm" onClick={addTicketType}>
-                    + Add type
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Each type gets its own button on the panel and its own opening message.
-                </p>
-                <div className="space-y-2">
-                  {ticketTypes.map((t) => (
-                    <div key={t.id} className="flex flex-wrap items-center gap-2 rounded-md border border-border/60 p-2">
-                      <Input
-                        value={t.name}
-                        onChange={(e) => updateTicketType(t.id, { name: e.target.value })}
-                        placeholder="Name (e.g. Support)"
-                        className="h-8 flex-1 min-w-[110px]"
-                      />
-                      <Input
-                        value={t.button_label}
-                        onChange={(e) => updateTicketType(t.id, { button_label: e.target.value })}
-                        placeholder="Button label"
-                        className="h-8 flex-1 min-w-[110px]"
-                      />
-                      <select
-                        value={t.button_style}
-                        onChange={(e) => updateTicketType(t.id, { button_style: e.target.value })}
-                        className="h-8 rounded-md border border-border bg-background px-2 text-sm"
-                      >
-                        <option value="primary">Blurple</option>
-                        <option value="success">Green</option>
-                        <option value="secondary">Grey</option>
-                        <option value="danger">Red</option>
-                      </select>
-                      <select
-                        value={t.presentation}
-                        onChange={(e) => updateTicketType(t.id, { presentation: e.target.value === "dropdown" ? "dropdown" : "button" })}
-                        className="h-8 rounded-md border border-border bg-background px-2 text-sm"
-                        title="How this type appears on the panel"
-                      >
-                        <option value="button">Button</option>
-                        <option value="dropdown">In dropdown</option>
-                      </select>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive"
-                        onClick={() => removeTicketType(t.id)}
-                        disabled={ticketTypes.length <= 1}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-                {ticketTypes.some((t) => t.presentation === "dropdown") && (
-                  <div className="space-y-1 pt-2">
-                    <p className="text-xs font-medium text-foreground">Dropdown placeholder</p>
-                    <Input
-                      value={ticketMenuPlaceholder}
-                      onChange={(e) => setTicketMenuPlaceholder(e.target.value)}
-                      placeholder="Select a ticket type…"
-                      className="h-8"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Types set to <span className="font-medium">In dropdown</span> are grouped into one menu with this placeholder. Types set to <span className="font-medium">Button</span> open straight to a ticket.
-                    </p>
-                  </div>
-                )}
-              </div>
-              {ticketTypes.length > 0 && activeTicketType && (
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-foreground">Ticket opening message</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Editing:</span>
-                    <select
-                      value={activeTicketType}
-                      onChange={(e) => selectTicketType(e.target.value)}
-                      className="h-8 max-w-[200px] rounded-md border border-border bg-background px-2 text-sm"
-                    >
-                      {ticketTypes.map((t) => (
-                        <option key={t.id} value={t.id}>{t.name || "Ticket"}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Shown inside the ticket when this type opens. A <span className="font-medium">Close ticket</span> button is added automatically. Type <code className="font-mono text-os-accent">{"{user}"}</code> to mention the opener.
-                </p>
-                <MessagesV2Builder
-                  key={`ticket-open-v2-${activeTicketType}-${ticketOpenV2MountKey}`}
-                  ref={ticketOpenV2Ref}
-                  embedded
-                  botId={botId}
-                  botName={botName}
-                  botAvatarUrl={botAvatarUrl}
-                  initialItems={ticketOpenByType[activeTicketType] ?? []}
-                />
-              </div>
-              )}
             </div>
           ) : isVerification ? (
             <VerificationForm
