@@ -3863,18 +3863,49 @@ function ChannelComboField({
   // Default to the standard text-channel set; fields can opt into other
   // channel types (e.g. voice) via field.channelTypes.
   const allowedTypes = field.channelTypes ?? ["text", "announcement", "forum"];
-  const filtered = useMemo(
-    () => channels.filter((c) => allowedTypes.includes(c.channel_type)),
-    [channels, allowedTypes],
+  const wantsCategories = allowedTypes.some(
+    (t) => t === "category" || t.toLowerCase().includes("categ"),
   );
+  const filtered = useMemo(() => {
+    if (wantsCategories) {
+      // Categories often aren't stored as their own rows (and the bot may label
+      // them differently). Derive them: use any real category rows, plus the
+      // distinct parent categories carried on every child channel.
+      const map = new Map<string, any>();
+      for (const c of channels) {
+        if (c.channel_type && c.channel_type.toLowerCase().includes("categ")) {
+          map.set(c.channel_id, c);
+        } else if (c.parent_id && c.parent_name) {
+          if (!map.has(c.parent_id)) {
+            map.set(c.parent_id, {
+              channel_id: c.parent_id,
+              channel_name: c.parent_name,
+              channel_type: "category",
+              parent_id: null,
+              parent_name: null,
+              position: c.parent_position ?? 0,
+              parent_position: c.parent_position ?? 0,
+            });
+          }
+        }
+      }
+      return [...map.values()];
+    }
+    return channels.filter((c) => allowedTypes.includes(c.channel_type));
+  }, [channels, allowedTypes, wantsCategories]);
   const selected = useMemo(
     () => filtered.find((c) => c.channel_id === value) ?? null,
     [filtered, value],
   );
-  const channelGroups = useMemo(
-    () => sortedChannelCategoryEntries(filtered),
-    [filtered],
-  );
+  const channelGroups = useMemo(() => {
+    if (wantsCategories) {
+      const sorted = [...filtered].sort(
+        (a, b) => a.position - b.position || a.channel_name.localeCompare(b.channel_name),
+      );
+      return [{ key: "categories", label: "Categories", channels: sorted }];
+    }
+    return sortedChannelCategoryEntries(filtered);
+  }, [filtered, wantsCategories]);
 
   const handleRefresh = async () => {
     if (!guildId) {
