@@ -837,6 +837,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         channelTypes: ["category", "text", "announcement"],
         help: "Where tickets go — pick a category (tickets open under it) or a channel.",
       },
+      channel("panel_channel_id", "Panel channel", "The channel the ticket panel message is posted to on Save."),
       channel("log_channel_id", "Ticket Log Channel", "Where closed-ticket transcripts are posted."),
       toggle("ping_support", "Ping support roles when a ticket opens", true),
       toggle("one_per_user", "Limit each member to one open ticket", true),
