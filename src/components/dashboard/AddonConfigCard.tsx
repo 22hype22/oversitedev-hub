@@ -1100,6 +1100,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         open_message: cfg.open_message ?? "",
         ping_support: cfg.ping_support ?? true,
         one_per_user: cfg.one_per_user ?? true,
+        delete_category_when_empty: cfg.delete_category_when_empty ?? false,
         panel_channel_id: cfg.panel_channel_id ? String(cfg.panel_channel_id) : "",
       }));
       setTicketPanelV2Items(Array.isArray(cfg.panel_components) ? (cfg.panel_components as V2Item[]) : []);
@@ -1203,6 +1204,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         open_message: values.open_message ? String(values.open_message) : "",
         ping_support: values.ping_support ?? true,
         one_per_user: values.one_per_user ?? true,
+        delete_category_when_empty: values.delete_category_when_empty ?? false,
         panel_channel_id: values.panel_channel_id ? String(values.panel_channel_id) : null,
         panel_components: normalizeV2Items(ticketPanelV2Ref.current?.getItems() ?? ticketPanelV2Items ?? []),
         ticket_types,
