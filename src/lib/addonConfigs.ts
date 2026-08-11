@@ -840,6 +840,12 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       channel("log_channel_id", "Ticket Log Channel", "Where closed-ticket transcripts are posted."),
       toggle("ping_support", "Ping support roles when a ticket opens", true),
       toggle("one_per_user", "Limit each member to one open ticket", true),
+      toggle(
+        "delete_category_when_empty",
+        "Delete the ticket category when empty",
+        false,
+        "On: the category is removed when it has no open tickets and recreated when the next ticket opens. Off: it's always kept — and created as soon as you save.",
+      ),
     ],
   },
 
