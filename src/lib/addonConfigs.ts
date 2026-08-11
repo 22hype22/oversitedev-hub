@@ -830,13 +830,6 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Support ticket categories, staff roles, and transcript logging.",
     icon: ClipboardList,
     fields: [
-      {
-        key: "category_id",
-        label: "Ticket Channel",
-        type: "channel",
-        channelTypes: ["category", "text", "announcement"],
-        help: "Where tickets go — pick a category (tickets open under it) or a channel.",
-      },
       channel("panel_channel_id", "Panel channel", "The channel the ticket panel message is posted to on Save."),
       channel("log_channel_id", "Ticket Log Channel", "Where closed-ticket transcripts are posted."),
       toggle("ping_support", "Ping support roles when a ticket opens", true),
