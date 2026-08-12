@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { DiscordMarkdownTextarea } from "@/components/ui/discord-markdown-textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -92,6 +92,7 @@ type V2ButtonRowButton =
   | { id: string; label: string; category: string; style?: V2ButtonStyle }
   | { id: string; label: string; channel_id: string; style?: V2ButtonStyle }
   | { id: string; label: string; ticket: string; open_components?: V2Item[]; style?: V2ButtonStyle }
+  | { id: string; label: string; form: string; open_components?: V2Item[]; style?: V2ButtonStyle }
   | { id: string; label: string; ephemeral: string; open_components?: V2Item[]; style?: V2ButtonStyle }
   | { id: string; label: string; disabled: true; style?: V2ButtonStyle };
 
@@ -107,6 +108,7 @@ type V2SelectMenuOption =
   | { label: string; description?: string; channel_id: string }
   | { label: string; description?: string; display: true }
   | { label: string; description?: string; ticket: string; open_components?: V2Item[] }
+  | { label: string; description?: string; form: string; open_components?: V2Item[] }
   | { label: string; description?: string; ephemeral: string; open_components?: V2Item[] };
 
 type V2SelectMenu = {
@@ -131,6 +133,9 @@ const isTicketButton = (
 const isEphemeralButton = (
   b: V2ButtonRowButton,
 ): b is { id: string; label: string; ephemeral: string; style?: V2ButtonStyle } => "ephemeral" in b;
+const isFormButton = (
+  b: V2ButtonRowButton,
+): b is { id: string; label: string; form: string; open_components?: V2Item[]; style?: V2ButtonStyle } => "form" in b;
 const isCategoryOption = (
   o: V2SelectMenuOption,
 ): o is { label: string; description?: string; category: string } => "category" in o;
@@ -146,6 +151,9 @@ const isTicketOption = (
 const isEphemeralOption = (
   o: V2SelectMenuOption,
 ): o is { label: string; description?: string; ephemeral: string; open_components?: V2Item[] } => "ephemeral" in o;
+const isFormOption = (
+  o: V2SelectMenuOption,
+): o is { label: string; description?: string; form: string; open_components?: V2Item[] } => "form" in o;
 
 const BUTTON_STYLE_PREVIEW: Record<V2ButtonStyle, string> = {
   primary: "bg-[#5865F2] hover:bg-[#4752C4] text-white",
@@ -208,17 +216,26 @@ export function normalizeV2Items(items: V2Item[]): V2Item[] {
 // buttons are interaction buttons (not links), so force them off the link style
 // and strip any stray url — otherwise the send 400s with "A url is required".
 function sanitizeButtonRowButton(b: V2ButtonRowButton): V2ButtonRowButton {
-  const isInteraction = "ticket" in b || "ephemeral" in b || "disabled" in b;
+  const isInteraction = "ticket" in b || "form" in b || "ephemeral" in b || "disabled" in b;
   if (!isInteraction) return b;
   const anyB = b as any;
   const { url: _dropUrl, ...rest } = anyB;
   const style: V2ButtonStyle = !anyB.style || anyB.style === "link" ? "secondary" : anyB.style;
   return { ...rest, style } as V2ButtonRowButton;
 }
+// A link button with an empty url is invalid and 400s the whole message, so drop
+// those (they're the default "Add button" left unconfigured).
+function isSendableButton(b: V2ButtonRowButton): boolean {
+  if ("url" in b) return !!(b as any).url;
+  return true;
+}
 function sanitizeItems(items: V2Item[]): V2Item[] {
   return items.map((it) => {
     if (it.type === "buttonRow") {
-      return { ...it, buttons: it.buttons.map(sanitizeButtonRowButton) };
+      return {
+        ...it,
+        buttons: it.buttons.map(sanitizeButtonRowButton).filter(isSendableButton),
+      };
     }
     if (it.type === "container") {
       return { ...it, children: sanitizeItems(it.children) as V2Leaf[] };
@@ -841,8 +858,10 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
       <div className="space-y-3">
         <Label className="text-xs">Buttons (up to 5)</Label>
         {buttons.map((b, i) => {
-          const mode: "link" | "channel" | "display" | "ticket" | "ephemeral" = isTicketButton(b)
+          const mode: "link" | "channel" | "display" | "ticket" | "form" | "ephemeral" = isTicketButton(b)
             ? "ticket"
+            : isFormButton(b)
+            ? "form"
             : isEphemeralButton(b)
             ? "ephemeral"
             : isDisplayButton(b)
@@ -892,7 +911,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       type="radio"
                       name={`btn-mode-${b.id}`}
                       checked={mode === "ticket"}
-                      onChange={() => update({ id: b.id, label: b.label, ticket: "", style })}
+                      onChange={() => update({ id: b.id, label: b.label, ticket: "", open_components: (b as { open_components?: V2Item[] }).open_components, style })}
                     />
                     Ticket
                   </label>
@@ -900,8 +919,17 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     <input
                       type="radio"
                       name={`btn-mode-${b.id}`}
+                      checked={mode === "form"}
+                      onChange={() => update({ id: b.id, label: b.label, form: "", open_components: (b as { open_components?: V2Item[] }).open_components, style })}
+                    />
+                    Form
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`btn-mode-${b.id}`}
                       checked={mode === "ephemeral"}
-                      onChange={() => update({ id: b.id, label: b.label, ephemeral: "", style })}
+                      onChange={() => update({ id: b.id, label: b.label, ephemeral: "", open_components: (b as { open_components?: V2Item[] }).open_components, style })}
                     />
                     Ephemeral message
                   </label>
@@ -925,6 +953,8 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     update(
                       isTicketButton(b)
                         ? { id: b.id, label: lbl, ticket: b.ticket, open_components: b.open_components, style }
+                        : isFormButton(b)
+                        ? { id: b.id, label: lbl, form: b.form, open_components: b.open_components, style }
                         : isEphemeralButton(b)
                         ? { id: b.id, label: lbl, ephemeral: b.ephemeral, open_components: b.open_components, style }
                         : isDisplayButton(b)
@@ -955,7 +985,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       ))}
                     </SelectContent>
                   </Select>
-                ) : mode === "ticket" || mode === "ephemeral" ? (
+                ) : mode === "ticket" || mode === "form" || mode === "ephemeral" ? (
                   <div className="flex items-center px-2 text-xs text-muted-foreground italic">
                     Edit the message below ↓
                   </div>
@@ -965,7 +995,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                   </div>
                 )}
               </div>
-              {(mode === "ticket" || mode === "ephemeral") && (
+              {(mode === "ticket" || mode === "form" || mode === "ephemeral") && (
                 <Button
                   type="button"
                   variant="outline"
@@ -973,7 +1003,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                   className="w-full justify-start"
                   onClick={() => setDesigningId(b.id)}
                 >
-                  {mode === "ticket" ? "Design ticket message →" : "Design ephemeral message →"}
+                  {mode === "ticket" ? "Design ticket message →" : mode === "form" ? "Design form message →" : "Design ephemeral message →"}
                   {((b as { open_components?: V2Item[] }).open_components?.length ?? 0) > 0 && (
                     <span className="ml-2 text-xs text-muted-foreground">· edited</span>
                   )}
@@ -1003,13 +1033,22 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
         {designingId && (() => {
           const dIdx = buttons.findIndex((x) => x.id === designingId);
           const bd = dIdx >= 0 ? buttons[dIdx] : null;
-          if (!bd || !(isTicketButton(bd) || isEphemeralButton(bd))) return null;
+          if (!bd || !(isTicketButton(bd) || isFormButton(bd) || isEphemeralButton(bd))) return null;
           const isTicket = isTicketButton(bd);
+          const isForm = isFormButton(bd);
           return (
             <Dialog open onOpenChange={(o) => { if (!o) setDesigningId(null); }}>
               <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>{isTicket ? "Ticket opening message" : "Ephemeral message"}</DialogTitle>
+                  <DialogTitle>{isTicket ? "Ticket opening message" : isForm ? "Form message" : "Ephemeral message"}</DialogTitle>
+                  {isForm && (
+                    <DialogDescription>
+                      Write the ticket message as normal. Anywhere you put{" "}
+                      <code className="rounded bg-black/30 px-1">{"{Question: Your label}"}</code>{" "}
+                      becomes a field in a popup form the user fills in before the ticket opens — their
+                      answer replaces the token in the message. Up to 5 questions (Discord's modal limit).
+                    </DialogDescription>
+                  )}
                 </DialogHeader>
                 <MessagesV2Builder
                   key={`btnmsg-${bd.id}`}
@@ -1051,8 +1090,10 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
         </div>
         <Label className="text-xs">Options (up to 25)</Label>
         {options.map((o, i) => {
-          const mode: "link" | "channel" | "display" | "ticket" | "ephemeral" = isTicketOption(o)
+          const mode: "link" | "channel" | "display" | "ticket" | "form" | "ephemeral" = isTicketOption(o)
             ? "ticket"
+            : isFormOption(o)
+            ? "form"
             : isEphemeralOption(o)
             ? "ephemeral"
             : isDisplayOption(o)
@@ -1101,7 +1142,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       type="radio"
                       name={`opt-mode-${i}`}
                       checked={mode === "ticket"}
-                      onChange={() => update({ label: o.label, ticket: "" })}
+                      onChange={() => update({ label: o.label, ticket: "", open_components: (o as { open_components?: V2Item[] }).open_components })}
                     />
                     Ticket
                   </label>
@@ -1109,8 +1150,17 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     <input
                       type="radio"
                       name={`opt-mode-${i}`}
+                      checked={mode === "form"}
+                      onChange={() => update({ label: o.label, form: "", open_components: (o as { open_components?: V2Item[] }).open_components })}
+                    />
+                    Form
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`opt-mode-${i}`}
                       checked={mode === "ephemeral"}
-                      onChange={() => update({ label: o.label, ephemeral: "" })}
+                      onChange={() => update({ label: o.label, ephemeral: "", open_components: (o as { open_components?: V2Item[] }).open_components })}
                     />
                     Ephemeral message
                   </label>
@@ -1134,6 +1184,8 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     update(
                       isTicketOption(o)
                         ? { label: lbl, ticket: o.ticket, open_components: o.open_components }
+                        : isFormOption(o)
+                        ? { label: lbl, form: o.form, open_components: o.open_components }
                         : isEphemeralOption(o)
                         ? { label: lbl, ephemeral: o.ephemeral, open_components: o.open_components }
                         : isDisplayOption(o)
@@ -1164,7 +1216,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       ))}
                     </SelectContent>
                   </Select>
-                ) : mode === "ticket" || mode === "ephemeral" ? (
+                ) : mode === "ticket" || mode === "form" || mode === "ephemeral" ? (
                   <div className="flex items-center px-2 text-xs text-muted-foreground italic">
                     Edit the message below ↓
                   </div>
@@ -1174,7 +1226,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                   </div>
                 )}
               </div>
-              {(mode === "ticket" || mode === "ephemeral") && (
+              {(mode === "ticket" || mode === "form" || mode === "ephemeral") && (
                 <Button
                   type="button"
                   variant="outline"
@@ -1182,7 +1234,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                   className="w-full justify-start"
                   onClick={() => setDesigningIdx(i)}
                 >
-                  {mode === "ticket" ? "Design ticket message →" : "Design ephemeral message →"}
+                  {mode === "ticket" ? "Design ticket message →" : mode === "form" ? "Design form message →" : "Design ephemeral message →"}
                   {((o as { open_components?: V2Item[] }).open_components?.length ?? 0) > 0 && (
                     <span className="ml-2 text-xs text-muted-foreground">· edited</span>
                   )}
@@ -1211,13 +1263,22 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
         )}
         {designingIdx !== null && (() => {
           const od = options[designingIdx];
-          if (!od || !(isTicketOption(od) || isEphemeralOption(od))) return null;
+          if (!od || !(isTicketOption(od) || isFormOption(od) || isEphemeralOption(od))) return null;
           const isTicket = isTicketOption(od);
+          const isForm = isFormOption(od);
           return (
             <Dialog open onOpenChange={(o) => { if (!o) setDesigningIdx(null); }}>
               <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>{isTicket ? "Ticket opening message" : "Ephemeral message"}</DialogTitle>
+                  <DialogTitle>{isTicket ? "Ticket opening message" : isForm ? "Form message" : "Ephemeral message"}</DialogTitle>
+                  {isForm && (
+                    <DialogDescription>
+                      Write the ticket message as normal. Anywhere you put{" "}
+                      <code className="rounded bg-black/30 px-1">{"{Question: Your label}"}</code>{" "}
+                      becomes a field in a popup form the user fills in before the ticket opens — their
+                      answer replaces the token in the message. Up to 5 questions (Discord's modal limit).
+                    </DialogDescription>
+                  )}
                 </DialogHeader>
                 <MessagesV2Builder
                   key={`optmsg-${designingIdx}`}
