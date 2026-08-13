@@ -12,6 +12,8 @@
 //   ROBLOX_PLACE_ID        a place id in the game that hosts the gamepasses
 //   ROBLOX_GAMEPASS_IDS    comma-separated gamepass ids for items 1..6
 //   ROBLOX_SHIRT_IDS       comma-separated shirt (asset) ids for items 1..6
+//   ROBLOX_SHIRT_COLLECTIBLE_IDS  comma-separated collectibleItemId UUIDs for
+//                          items 1..6 (new-system shirts; required to set price)
 //   STRIPE_SECRET_KEY      sk_live_... or sk_test_...
 //   STRIPE_CURRENCY        optional, default "usd"
 
@@ -31,6 +33,11 @@ const PLACE_ID = Deno.env.get("ROBLOX_PLACE_ID") ?? "";
 const GAMEPASS_IDS = (Deno.env.get("ROBLOX_GAMEPASS_IDS") ?? "")
   .split(",").map((s) => s.trim()).filter(Boolean);
 const SHIRT_IDS = (Deno.env.get("ROBLOX_SHIRT_IDS") ?? "")
+  .split(",").map((s) => s.trim()).filter(Boolean);
+// New-system shirts are priced by their collectibleItemId (a UUID). Optional —
+// if set (comma-separated, aligned to items 1..6) we use it directly; otherwise
+// we resolve it from the asset id at runtime.
+const SHIRT_COLLECTIBLE_IDS = (Deno.env.get("ROBLOX_SHIRT_COLLECTIBLE_IDS") ?? "")
   .split(",").map((s) => s.trim()).filter(Boolean);
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 const STRIPE_CURRENCY = (Deno.env.get("STRIPE_CURRENCY") ?? "usd").toLowerCase();
@@ -143,23 +150,94 @@ async function assetDetails(assetId: string): Promise<string> {
   }
 }
 
-async function updateShirtPrice(assetId: string, priceRobux: number): Promise<void> {
-  // Assets already on sale update via /update-price; ones not yet released 404
-  // there and need /release (which puts them on sale AND sets the price). Try
-  // update first, then fall back to release — same logic noblox.js uses.
-  const priceConfiguration = { priceInRobux: priceRobux };
-  let res = await itemConfigPost(assetId, "update-price", { priceConfiguration });
-  if (!res.ok) {
-    const firstErr = `${res.status}: ${(await res.text()).slice(0, 160)}`;
-    const rel = await itemConfigPost(assetId, "release", { saleStatus: "OnSale", priceConfiguration });
-    if (!rel.ok) {
-      const relErr = `${rel.status}: ${(await rel.text()).slice(0, 160)}`;
-      const info = await assetDetails(assetId);
-      throw new Error(
-        `Shirt price update failed for asset ${assetId} [${info}]. update-price -> ${firstErr}; release -> ${relErr}`,
-      );
-    }
+// New-system avatar items (big 15+ digit ids) are "collectibles" — their price
+// lives under a collectibleItemId, not the plain asset id. Resolve it first.
+async function resolveCollectibleId(assetId: string): Promise<string | null> {
+  try {
+    const csrf = await getCsrfToken();
+    const res = await fetch("https://catalog.roblox.com/v1/catalog/items/details", {
+      method: "POST",
+      headers: {
+        Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}`,
+        "x-csrf-token": csrf,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ items: [{ itemType: "Asset", id: Number(assetId) }] }),
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    return d?.data?.[0]?.collectibleItemId ?? null;
+  } catch {
+    return null;
   }
+}
+
+// New-system clothing ("collectibles") is priced through this endpoint. Body
+// matches Roblox's own creator-page PATCH exactly — a partial body 400s, so we
+// send the full sale configuration with the new price.
+async function collectiblePatch(collectibleItemId: string, priceRobux: number): Promise<Response> {
+  let csrf = await getCsrfToken();
+  const doReq = (token: string) =>
+    fetch(`https://itemconfiguration.roblox.com/v1/collectibles/${collectibleItemId}`, {
+      method: "PATCH",
+      headers: {
+        Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}`,
+        "x-csrf-token": token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        saleLocationConfiguration: { saleLocationType: 1, places: [] },
+        saleStatus: 0,
+        quantityLimitPerUser: 0,
+        resaleRestriction: 2,
+        priceInRobux: priceRobux,
+        priceOffset: 0,
+        isFree: false,
+      }),
+    });
+  let res = await doReq(csrf);
+  if (res.status === 403) {
+    const refreshed = res.headers.get("x-csrf-token");
+    if (refreshed) { csrf = refreshed; res = await doReq(csrf); }
+  }
+  return res;
+}
+
+async function updateShirtPrice(
+  assetId: string,
+  priceRobux: number,
+  collectibleId?: string,
+): Promise<void> {
+  // New-system shirts are collectibles: price lives under a collectibleItemId
+  // (a UUID). Use the configured one if present, else resolve it from the asset
+  // id at runtime, then PATCH the collectibles endpoint.
+  const cid = collectibleId || (await resolveCollectibleId(assetId));
+  if (cid) {
+    const res = await collectiblePatch(cid, priceRobux);
+    if (res.ok) return;
+    const bodyText = (await res.text()).slice(0, 160);
+    const info = await assetDetails(assetId);
+    throw new Error(
+      `Shirt price update failed for asset ${assetId} via collectible ${cid} ` +
+      `(HTTP ${res.status}: ${bodyText}) [${info}]`,
+    );
+  }
+
+  // Fallback for older classic assets that still use the asset-scoped endpoints.
+  const priceConfiguration = { priceInRobux: priceRobux };
+  const attempts: string[] = [];
+  let res = await itemConfigPost(assetId, "update-price", { priceConfiguration });
+  if (res.ok) return;
+  attempts.push(`update-price -> ${res.status}: ${(await res.text()).slice(0, 120)}`);
+  res = await itemConfigPost(assetId, "release", { saleStatus: "OnSale", priceConfiguration });
+  if (res.ok) return;
+  attempts.push(`release -> ${res.status}: ${(await res.text()).slice(0, 120)}`);
+
+  const info = await assetDetails(assetId);
+  throw new Error(
+    `Shirt price update failed for asset ${assetId} — no collectibleItemId could ` +
+    `be resolved (set ROBLOX_SHIRT_COLLECTIBLE_IDS). [${info}]. ${attempts.join(" || ")}`,
+  );
 }
 
 // ---------------- Stripe (Payment Link for an ad-hoc amount) ----------------
@@ -269,7 +347,8 @@ Deno.serve(async (req) => {
 
       const id = SHIRT_IDS[item - 1];
       if (!id) return json({ error: `No shirt configured for item ${item} (set ROBLOX_SHIRT_IDS).` }, 400);
-      await updateShirtPrice(id, robux);
+      const cid = SHIRT_COLLECTIBLE_IDS[item - 1];
+      await updateShirtPrice(id, robux, cid);
       return json({ ok: true, method, item, url: `https://www.roblox.com/catalog/${id}/`, label: `Shirt #${item} — ${robux} Robux` });
     }
 
