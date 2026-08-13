@@ -195,6 +195,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const verifyPanelV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [verifyPanelV2Items, setVerifyPanelV2Items] = useState<V2Item[]>([]);
   const [verifyPanelV2MountKey, setVerifyPanelV2MountKey] = useState(0);
+  // Customs "Giveaway" — the V2 builder for the giveaway layout.
+  const giveawayV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [giveawayV2Items, setGiveawayV2Items] = useState<V2Item[]>([]);
+  const [giveawayV2MountKey, setGiveawayV2MountKey] = useState(0);
   // Customs "Tickets" — a shared panel builder, plus a list of ticket TYPES,
   // each with its own button + its own opening-message components. One picker
   // chooses which type the opening-message builder is currently editing.
@@ -1077,6 +1081,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         default_duration: cfg.default_duration ?? "1d",
         manager_role_ids: Array.isArray(cfg.manager_role_ids) ? cfg.manager_role_ids.map(String) : [],
       }));
+      setGiveawayV2Items(Array.isArray(cfg.components) ? (cfg.components as V2Item[]) : []);
+      setGiveawayV2MountKey((k) => k + 1);
       setAppliedAt((data as any).applied_at ?? null);
     })();
     return () => { cancelled = true; };
@@ -1096,6 +1102,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         default_winners: Math.max(1, Number(values.default_winners) || 1),
         default_duration: String(values.default_duration ?? "1d").trim() || "1d",
         manager_role_ids: Array.isArray(values.manager_role_ids) ? (values.manager_role_ids as string[]).map(String) : [],
+        components: normalizeV2Items(giveawayV2Ref.current?.getItems() ?? giveawayV2Items ?? []),
       },
       updated_at: new Date().toISOString(),
     };
@@ -3342,7 +3349,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -3562,6 +3569,38 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               embedColor={giveawayEmbedColor}
               onEmbedColorChange={setGiveawayEmbedColor}
             />
+          ) : isCustomsGiveaway ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Giveaway design</p>
+                <p className="text-xs text-muted-foreground">
+                  Design how each giveaway looks with the same builder as Messages. An{" "}
+                  <span className="font-medium">Enter</span> button is added automatically underneath.
+                  Type variables anywhere — they fill in when a giveaway is posted:{" "}
+                  <code className="font-mono text-os-accent">{"{prize}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{winners}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{entries}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{end}"}</code> (live countdown),{" "}
+                  <code className="font-mono text-os-accent">{"{host}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{winner_list}"}</code>. Leave the builder
+                  empty to use the built-in default look.
+                </p>
+                <MessagesV2Builder
+                  key={`customs-giveaway-v2-${giveawayV2MountKey}`}
+                  ref={giveawayV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={giveawayV2Items}
+                />
+              </div>
+            </div>
           ) : isInviteMessage || isCustomsMessages || isCustomsVerification ? (
             <div className="space-y-5 py-2">
               {config.fields
