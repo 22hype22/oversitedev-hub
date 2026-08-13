@@ -73,6 +73,9 @@ type V2Section = {
 const CategoryNamesContext = createContext<string[]>([]);
 const ChannelsContext = createContext<BotChannel[]>([]);
 const BotInfoContext = createContext<{ botId?: string; botName: string; botAvatarUrl?: string | null }>({ botName: "Bot" });
+// True inside the Giveaway builder — swaps the button kinds for a "Counter"
+// (enter) button and hides ticket/channel kinds that don't apply.
+const GiveawayContext = createContext<boolean>(false);
 
 const isChannelSectionButton = (
   b: V2SectionButton | null | undefined,
@@ -94,6 +97,7 @@ type V2ButtonRowButton =
   | { id: string; label: string; ticket: string; category_name?: string; access_roles?: string; open_components?: V2Item[]; style?: V2ButtonStyle }
   | { id: string; label: string; form: string; category_name?: string; access_roles?: string; open_components?: V2Item[]; style?: V2ButtonStyle }
   | { id: string; label: string; ephemeral: string; open_components?: V2Item[]; style?: V2ButtonStyle }
+  | { id: string; label: string; counter: true; style?: V2ButtonStyle }
   | { id: string; label: string; disabled: true; style?: V2ButtonStyle };
 
 type V2ButtonRow = {
@@ -127,6 +131,9 @@ const isChannelButton2 = (
 const isDisplayButton = (
   b: V2ButtonRowButton,
 ): b is { id: string; label: string; disabled: true; style?: V2ButtonStyle } => "disabled" in b;
+const isCounterButton = (
+  b: V2ButtonRowButton,
+): b is { id: string; label: string; counter: true; style?: V2ButtonStyle } => "counter" in b;
 const isTicketButton = (
   b: V2ButtonRowButton,
 ): b is { id: string; label: string; ticket: string; style?: V2ButtonStyle } => "ticket" in b;
@@ -216,7 +223,7 @@ export function normalizeV2Items(items: V2Item[]): V2Item[] {
 // buttons are interaction buttons (not links), so force them off the link style
 // and strip any stray url — otherwise the send 400s with "A url is required".
 function sanitizeButtonRowButton(b: V2ButtonRowButton): V2ButtonRowButton {
-  const isInteraction = "ticket" in b || "form" in b || "ephemeral" in b || "disabled" in b;
+  const isInteraction = "ticket" in b || "form" in b || "ephemeral" in b || "disabled" in b || "counter" in b;
   if (!isInteraction) return b;
   const anyB = b as any;
   const { url: _dropUrl, ...rest } = anyB;
@@ -317,13 +324,16 @@ export type MessagesV2BuilderProps = {
   hidePreview?: boolean;
   /** Controlled callback — fires whenever the editable items change (raw, un-normalized). */
   onItemsChange?: (items: V2Item[]) => void;
+  /** Giveaway mode — button rows offer a "Counter" (enter) button instead of
+   *  Channel/Ticket/Form/Ephemeral. Clicking a Counter enters the giveaway (+1). */
+  giveaway?: boolean;
 };
 
 export const MessagesV2Builder = forwardRef<
   MessagesV2BuilderHandle,
   MessagesV2BuilderProps
 >(function MessagesV2Builder(
-  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [], hidePreview = false, onItemsChange },
+  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [], hidePreview = false, onItemsChange, giveaway = false },
 
   ref,
 ) {
@@ -458,6 +468,7 @@ export const MessagesV2Builder = forwardRef<
   }));
 
   return (
+    <GiveawayContext.Provider value={giveaway}>
     <CategoryNamesContext.Provider value={categoryNames}>
     <ChannelsContext.Provider value={guildChannels}>
     <BotInfoContext.Provider value={{ botId, botName, botAvatarUrl }}>
@@ -541,6 +552,7 @@ export const MessagesV2Builder = forwardRef<
     </BotInfoContext.Provider>
     </ChannelsContext.Provider>
     </CategoryNamesContext.Provider>
+    </GiveawayContext.Provider>
   );
 });
 
@@ -853,17 +865,20 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
     const categoryNames = useContext(CategoryNamesContext);
     const channels = useContext(ChannelsContext);
     const botInfo = useContext(BotInfoContext);
+    const giveaway = useContext(GiveawayContext);
     const [designingId, setDesigningId] = useState<string | null>(null);
     return (
       <div className="space-y-3">
         <Label className="text-xs">Buttons (up to 5)</Label>
         {buttons.map((b, i) => {
-          const mode: "link" | "channel" | "display" | "ticket" | "form" | "ephemeral" = isTicketButton(b)
+          const mode: "link" | "channel" | "display" | "ticket" | "form" | "ephemeral" | "counter" = isTicketButton(b)
             ? "ticket"
             : isFormButton(b)
             ? "form"
             : isEphemeralButton(b)
             ? "ephemeral"
+            : isCounterButton(b)
+            ? "counter"
             : isDisplayButton(b)
             ? "display"
             : isChannelButton2(b)
@@ -888,15 +903,27 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     />
                     Link
                   </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="radio"
-                      name={`btn-mode-${b.id}`}
-                      checked={mode === "channel"}
-                      onChange={() => update({ id: b.id, label: b.label, channel_id: channels[0]?.channel_id ?? "", style })}
-                    />
-                    Channel
-                  </label>
+                  {giveaway ? (
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name={`btn-mode-${b.id}`}
+                        checked={mode === "counter"}
+                        onChange={() => update({ id: b.id, label: b.label, counter: true, style: style === "link" ? "primary" : style })}
+                      />
+                      Counter
+                    </label>
+                  ) : (
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name={`btn-mode-${b.id}`}
+                        checked={mode === "channel"}
+                        onChange={() => update({ id: b.id, label: b.label, channel_id: channels[0]?.channel_id ?? "", style })}
+                      />
+                      Channel
+                    </label>
+                  )}
                   <label className="flex items-center gap-1.5 cursor-pointer">
                     <input
                       type="radio"
@@ -906,33 +933,37 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     />
                     Display
                   </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="radio"
-                      name={`btn-mode-${b.id}`}
-                      checked={mode === "ticket"}
-                      onChange={() => update({ id: b.id, label: b.label, ticket: "", category_name: (b as { category_name?: string }).category_name, access_roles: (b as { access_roles?: string }).access_roles, open_components: (b as { open_components?: V2Item[] }).open_components, style })}
-                    />
-                    Ticket
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="radio"
-                      name={`btn-mode-${b.id}`}
-                      checked={mode === "form"}
-                      onChange={() => update({ id: b.id, label: b.label, form: "", category_name: (b as { category_name?: string }).category_name, access_roles: (b as { access_roles?: string }).access_roles, open_components: (b as { open_components?: V2Item[] }).open_components, style })}
-                    />
-                    Form
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="radio"
-                      name={`btn-mode-${b.id}`}
-                      checked={mode === "ephemeral"}
-                      onChange={() => update({ id: b.id, label: b.label, ephemeral: "", open_components: (b as { open_components?: V2Item[] }).open_components, style })}
-                    />
-                    Ephemeral message
-                  </label>
+                  {!giveaway && (
+                    <>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name={`btn-mode-${b.id}`}
+                          checked={mode === "ticket"}
+                          onChange={() => update({ id: b.id, label: b.label, ticket: "", category_name: (b as { category_name?: string }).category_name, access_roles: (b as { access_roles?: string }).access_roles, open_components: (b as { open_components?: V2Item[] }).open_components, style })}
+                        />
+                        Ticket
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name={`btn-mode-${b.id}`}
+                          checked={mode === "form"}
+                          onChange={() => update({ id: b.id, label: b.label, form: "", category_name: (b as { category_name?: string }).category_name, access_roles: (b as { access_roles?: string }).access_roles, open_components: (b as { open_components?: V2Item[] }).open_components, style })}
+                        />
+                        Form
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name={`btn-mode-${b.id}`}
+                          checked={mode === "ephemeral"}
+                          onChange={() => update({ id: b.id, label: b.label, ephemeral: "", open_components: (b as { open_components?: V2Item[] }).open_components, style })}
+                        />
+                        Ephemeral message
+                      </label>
+                    </>
+                  )}
                 </div>
                 <Button
                   type="button"
@@ -959,6 +990,8 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                         ? { id: b.id, label: lbl, ephemeral: b.ephemeral, open_components: b.open_components, style }
                         : isDisplayButton(b)
                         ? { id: b.id, label: lbl, disabled: true, style }
+                        : isCounterButton(b)
+                        ? { id: b.id, label: lbl, counter: true, style }
                         : isChannelButton2(b)
                         ? { id: b.id, label: lbl, channel_id: b.channel_id, style }
                         : { id: b.id, label: lbl, url: (b as { url: string }).url, style },
@@ -994,6 +1027,10 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                 ) : mode === "ephemeral" ? (
                   <div className="flex items-center px-2 text-xs text-muted-foreground italic">
                     Edit the message below ↓
+                  </div>
+                ) : mode === "counter" ? (
+                  <div className="flex items-center px-2 text-xs text-muted-foreground italic">
+                    Each click enters the giveaway (+1). Put {"{entries}"} in the label for a live count.
                   </div>
                 ) : (
                   <div className="flex items-center px-2 text-xs text-muted-foreground italic">
@@ -1507,7 +1544,7 @@ function PreviewItem({ item }: { item: V2Item }) {
               </span>
             );
           }
-          return isCategoryButton2(b) || isChannelButton2(b) ? (
+          return isCategoryButton2(b) || isChannelButton2(b) || isCounterButton(b) ? (
             <span
               key={b.id}
               className={cn("inline-flex items-center px-3 py-1.5 text-xs font-medium rounded", styleClass)}
