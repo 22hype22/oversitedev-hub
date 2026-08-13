@@ -130,6 +130,19 @@ async function itemConfigPost(assetId: string, path: string, payload: unknown): 
   return res;
 }
 
+async function assetDetails(assetId: string): Promise<string> {
+  // Public endpoint — confirms the id is a real, on-sale-able asset and its type.
+  try {
+    const res = await fetch(`https://economy.roblox.com/v2/assets/${assetId}/details`);
+    if (!res.ok) return `details HTTP ${res.status} (id may be wrong/not an asset)`;
+    const d = await res.json();
+    const typeNames: Record<number, string> = { 2: "T-Shirt", 11: "Shirt", 12: "Pants" };
+    return `name="${d?.Name}", type=${typeNames[d?.AssetTypeId] ?? d?.AssetTypeId}, creator=${d?.Creator?.Name}(${d?.Creator?.CreatorType}), forSale=${d?.IsForSale}, price=${d?.PriceInRobux}`;
+  } catch (e) {
+    return `details fetch error: ${String(e).slice(0, 80)}`;
+  }
+}
+
 async function updateShirtPrice(assetId: string, priceRobux: number): Promise<void> {
   // Assets already on sale update via /update-price; ones not yet released 404
   // there and need /release (which puts them on sale AND sets the price). Try
@@ -137,14 +150,13 @@ async function updateShirtPrice(assetId: string, priceRobux: number): Promise<vo
   const priceConfiguration = { priceInRobux: priceRobux };
   let res = await itemConfigPost(assetId, "update-price", { priceConfiguration });
   if (!res.ok) {
-    const firstErr = `${res.status}: ${(await res.text()).slice(0, 200)}`;
-    const rel = await itemConfigPost(assetId, "release", {
-      saleStatus: "OnSale",
-      priceConfiguration,
-    });
+    const firstErr = `${res.status}: ${(await res.text()).slice(0, 160)}`;
+    const rel = await itemConfigPost(assetId, "release", { saleStatus: "OnSale", priceConfiguration });
     if (!rel.ok) {
+      const relErr = `${rel.status}: ${(await rel.text()).slice(0, 160)}`;
+      const info = await assetDetails(assetId);
       throw new Error(
-        `Shirt price update failed. update-price -> ${firstErr}; release -> ${rel.status}: ${(await rel.text()).slice(0, 200)}`,
+        `Shirt price update failed for asset ${assetId} [${info}]. update-price -> ${firstErr}; release -> ${relErr}`,
       );
     }
   }
