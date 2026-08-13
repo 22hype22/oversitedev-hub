@@ -1060,7 +1060,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       setValues((prev) => ({
         ...prev,
         channel_id: cfg.channel_id ? String(cfg.channel_id) : "",
-        verified_role_id: cfg.verified_role_id ? String(cfg.verified_role_id) : "",
+        verified_role_ids: Array.isArray(cfg.verified_role_ids)
+          ? cfg.verified_role_ids.map(String)
+          : cfg.verified_role_id
+          ? [String(cfg.verified_role_id)]
+          : [],
+        remove_role_ids: Array.isArray(cfg.remove_role_ids) ? cfg.remove_role_ids.map(String) : [],
         set_nickname: cfg.set_nickname ?? true,
         log_channel_id: cfg.log_channel_id ? String(cfg.log_channel_id) : "",
         roblox_client_id: cfg.roblox_client_id ?? "",
@@ -1083,7 +1088,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       feature: "roblox-verify",
       config: {
         channel_id: values.channel_id ? String(values.channel_id) : null,
-        verified_role_id: values.verified_role_id ? String(values.verified_role_id) : null,
+        verified_role_ids: Array.isArray(values.verified_role_ids)
+          ? (values.verified_role_ids as string[]).map(String)
+          : [],
+        remove_role_ids: Array.isArray(values.remove_role_ids)
+          ? (values.remove_role_ids as string[]).map(String)
+          : [],
         set_nickname: values.set_nickname ?? true,
         log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
         roblox_client_id: String(values.roblox_client_id ?? "").trim(),
