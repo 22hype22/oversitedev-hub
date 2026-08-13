@@ -839,7 +839,6 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       },
       multirole("support_role_ids", "Global support roles (see ALL tickets)", "Optional — roles that can see & manage EVERY ticket (e.g. admins/managers). Leave empty to keep each ticket restricted to its own Access roles, which you set per Ticket/Form in the panel below."),
       channel("log_channel_id", "Transcript log channel", "Where closed-ticket transcripts are posted."),
-      toggle("ping_support", "Ping support roles when a ticket opens", true),
       toggle("one_per_user", "Limit each member to 2 open tickets per section", true),
       header("Ticket panel"),
       channel("panel_channel_id", "Panel channel", "Where the ticket panel is posted. Design it below; it posts here on Save."),
