@@ -70,6 +70,17 @@ const INVITE_VARIABLES: { token: string; desc: string }[] = [
   { token: "{channel_count}", desc: "Number of channels" },
   { token: "{role_count}", desc: "Number of roles" },
 ];
+
+const GIVEAWAY_VARIABLES: { token: string; desc: string }[] = [
+  { token: "{prize}", desc: "What's being given away" },
+  { token: "{winners}", desc: "Number of winners" },
+  { token: "{entries}", desc: "Live entry count (updates as people join)" },
+  { token: "{participants}", desc: "List of everyone who entered" },
+  { token: "{end}", desc: "Live countdown to the end" },
+  { token: "{end_full}", desc: "Exact end date & time" },
+  { token: "{host}", desc: "Who started the giveaway" },
+  { token: "{winner_list}", desc: "The winners (fills in when it ends)" },
+];
 import { supabase } from "@/integrations/supabase/client";
 import { RoleMultiSelect } from "./RoleMultiSelect";
 import { useTeamRole } from "@/hooks/useTeamRole";
@@ -1073,12 +1084,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       const cfg = (data.config ?? {}) as Record<string, any>;
       setValues((prev) => ({
         ...prev,
-        title: cfg.title ?? "🎉 GIVEAWAY 🎉",
-        button_label: cfg.button_label ?? "🎉 Enter",
-        host_line: cfg.host_line ?? "",
-        ping: cfg.ping ?? "",
-        default_winners: Number.isFinite(Number(cfg.default_winners)) ? Number(cfg.default_winners) : 1,
-        default_duration: cfg.default_duration ?? "1d",
         manager_role_ids: Array.isArray(cfg.manager_role_ids) ? cfg.manager_role_ids.map(String) : [],
       }));
       setGiveawayV2Items(Array.isArray(cfg.components) ? (cfg.components as V2Item[]) : []);
@@ -1095,12 +1100,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       bot_id: botId,
       feature: "customs-giveaway",
       config: {
-        title: String(values.title ?? "🎉 GIVEAWAY 🎉").trim() || "🎉 GIVEAWAY 🎉",
-        button_label: String(values.button_label ?? "🎉 Enter").trim() || "🎉 Enter",
-        host_line: String(values.host_line ?? ""),
-        ping: String(values.ping ?? "").trim(),
-        default_winners: Math.max(1, Number(values.default_winners) || 1),
-        default_duration: String(values.default_duration ?? "1d").trim() || "1d",
         manager_role_ids: Array.isArray(values.manager_role_ids) ? (values.manager_role_ids as string[]).map(String) : [],
         components: normalizeV2Items(giveawayV2Ref.current?.getItems() ?? giveawayV2Items ?? []),
       },
@@ -3577,23 +3576,52 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Giveaway design</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Giveaway design</p>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" size="sm" className="gap-1.5 shrink-0">
+                        <Braces className="h-3.5 w-3.5" /> Variables
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-80 p-0">
+                      <div className="px-3 py-2 border-b border-border/60">
+                        <p className="text-xs font-semibold">Variables</p>
+                        <p className="text-[11px] text-muted-foreground">Click to copy, then paste into your design.</p>
+                      </div>
+                      <div className="py-1">
+                        {GIVEAWAY_VARIABLES.map((v) => (
+                          <button
+                            key={v.token}
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard?.writeText(v.token);
+                              toast.success(`Copied ${v.token}`);
+                            }}
+                            className="w-full flex items-start gap-2 px-3 py-1.5 text-left hover:bg-muted/60 transition-colors"
+                          >
+                            <code className="text-[11px] font-mono text-os-accent bg-os-accent/10 border border-os-accent/25 rounded px-1.5 py-0.5 shrink-0">
+                              {v.token}
+                            </code>
+                            <span className="text-[11px] text-muted-foreground leading-snug">{v.desc}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Design how each giveaway looks with the same builder as Messages. An{" "}
-                  <span className="font-medium">Enter</span> button is added automatically underneath.
-                  Type variables anywhere — they fill in when a giveaway is posted:{" "}
-                  <code className="font-mono text-os-accent">{"{prize}"}</code>,{" "}
-                  <code className="font-mono text-os-accent">{"{winners}"}</code>,{" "}
-                  <code className="font-mono text-os-accent">{"{entries}"}</code>,{" "}
-                  <code className="font-mono text-os-accent">{"{end}"}</code> (live countdown),{" "}
-                  <code className="font-mono text-os-accent">{"{host}"}</code>,{" "}
-                  <code className="font-mono text-os-accent">{"{winner_list}"}</code>. Leave the builder
+                  Design how each giveaway looks with the same builder as Messages. Add a{" "}
+                  <span className="font-medium">Button Row</span> and set a button to{" "}
+                  <span className="font-medium">Counter</span> — clicking it enters the giveaway (+1).
+                  Drop variables anywhere; they fill in when a giveaway is posted. Leave the builder
                   empty to use the built-in default look.
                 </p>
                 <MessagesV2Builder
                   key={`customs-giveaway-v2-${giveawayV2MountKey}`}
                   ref={giveawayV2Ref}
                   embedded
+                  giveaway
                   botId={botId}
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
