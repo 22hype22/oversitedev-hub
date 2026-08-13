@@ -200,6 +200,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const ticketPanelV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [ticketPanelV2Items, setTicketPanelV2Items] = useState<V2Item[]>([]);
   const [ticketPanelV2MountKey, setTicketPanelV2MountKey] = useState(0);
+  // All saved ticket panels (each = its own channel + design). The builder above
+  // edits ONE at a time; saving upserts it into this list so every panel persists.
+  type TicketPanel = { id: string; channel_id: string; components: V2Item[] };
+  const [ticketPanels, setTicketPanels] = useState<TicketPanel[]>([]);
+  const newPanelId = () => `pnl_${Math.random().toString(36).slice(2, 9)}`;
   const ticketOpenV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [ticketOpenV2MountKey, setTicketOpenV2MountKey] = useState(0);
   type TicketType = { id: string; name: string; button_label: string; button_style: string; presentation: "button" | "dropdown" };
@@ -287,6 +292,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   };
   const { guild } = useActiveGuild();
   const targetServerName = guild?.guild_name ?? guild?.guild_id ?? botName;
+  // Channel names for the saved-panels list (Tickets).
+  const { channels: panelChannels } = useBotChannels(botId, guild?.guild_id);
+  const panelChannelName = (id: string) =>
+    panelChannels.find((c) => c.channel_id === id)?.channel_name ?? id;
   const [internalOpen, setInternalOpen] = useState(false);
   const open = openProp ?? internalOpen;
   const [ticketBuilderRemountKey, setTicketBuilderRemountKey] = useState(0);
@@ -1141,7 +1150,27 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         delete_category_when_empty: cfg.delete_category_when_empty ?? false,
         panel_channel_id: cfg.panel_channel_id ? String(cfg.panel_channel_id) : "",
       }));
-      setTicketPanelV2Items(Array.isArray(cfg.panel_components) ? (cfg.panel_components as V2Item[]) : []);
+      // Load every saved panel (new multi-panel shape), falling back to the
+      // single panel_channel_id + panel_components for older configs.
+      const rawPanels: any[] = Array.isArray(cfg.panels) ? cfg.panels : [];
+      let panels: TicketPanel[] = rawPanels
+        .map((p) => ({
+          id: newPanelId(),
+          channel_id: String(p?.channel_id || ""),
+          components: Array.isArray(p?.components) ? (p.components as V2Item[]) : [],
+        }))
+        .filter((p) => p.channel_id || p.components.length);
+      if (panels.length === 0 && (cfg.panel_channel_id || (Array.isArray(cfg.panel_components) && cfg.panel_components.length))) {
+        panels = [{
+          id: newPanelId(),
+          channel_id: String(cfg.panel_channel_id || ""),
+          components: Array.isArray(cfg.panel_components) ? (cfg.panel_components as V2Item[]) : [],
+        }];
+      }
+      setTicketPanels(panels);
+      const active = panels[0];
+      setValues((prev) => ({ ...prev, panel_channel_id: active?.channel_id ?? (cfg.panel_channel_id ? String(cfg.panel_channel_id) : "") }));
+      setTicketPanelV2Items(active?.components ?? (Array.isArray(cfg.panel_components) ? (cfg.panel_components as V2Item[]) : []));
       setTicketPanelV2MountKey((k) => k + 1);
       // Ticket types — new multi-type shape, with legacy single-message fallback.
       const rawTypes: any[] = Array.isArray(cfg.ticket_types) ? cfg.ticket_types : [];
@@ -1231,6 +1260,18 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       presentation: t.presentation === "dropdown" ? "dropdown" : "button",
       open_components: normalizeV2Items(openMap[t.id] ?? []),
     }));
+    // Upsert the panel currently in the builder into the saved-panels list
+    // (keyed by channel) so posting a new panel doesn't wipe the others.
+    const currentComponents = normalizeV2Items(ticketPanelV2Ref.current?.getItems() ?? ticketPanelV2Items ?? []);
+    const currentChannel = values.panel_channel_id ? String(values.panel_channel_id) : "";
+    const mergedPanels: TicketPanel[] = ticketPanels.filter((p) => p.channel_id !== currentChannel);
+    if (currentChannel) {
+      mergedPanels.push({ id: newPanelId(), channel_id: currentChannel, components: currentComponents });
+    }
+    setTicketPanels(mergedPanels);
+    const panelsPayload = mergedPanels
+      .filter((p) => p.channel_id)
+      .map((p) => ({ channel_id: p.channel_id, components: normalizeV2Items(p.components ?? []) }));
     const payload = {
       bot_id: botId,
       feature: "tickets",
@@ -1243,8 +1284,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         ping_support: values.ping_support ?? true,
         one_per_user: values.one_per_user ?? true,
         delete_category_when_empty: values.delete_category_when_empty ?? false,
-        panel_channel_id: values.panel_channel_id ? String(values.panel_channel_id) : null,
-        panel_components: normalizeV2Items(ticketPanelV2Ref.current?.getItems() ?? ticketPanelV2Items ?? []),
+        panel_channel_id: currentChannel || null,
+        panel_components: currentComponents,
+        panels: panelsPayload,
         ticket_types,
       },
       updated_at: new Date().toISOString(),
@@ -1260,6 +1302,35 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Tickets saved — panel posted");
     setOpen(false);
+  };
+
+  // ---- Multiple ticket panels (each = its own channel + design) ----
+  // Snapshot whatever's in the builder into the saved-panels list (keyed by
+  // channel), returning the merged list.
+  const captureCurrentPanel = (): TicketPanel[] => {
+    const comps = ticketPanelV2Ref.current?.getItems() ?? ticketPanelV2Items ?? [];
+    const ch = values.panel_channel_id ? String(values.panel_channel_id) : "";
+    const rest = ticketPanels.filter((p) => p.channel_id !== ch);
+    const merged = ch ? [...rest, { id: newPanelId(), channel_id: ch, components: comps }] : rest;
+    setTicketPanels(merged);
+    return merged;
+  };
+  const editPanel = (panel: TicketPanel) => {
+    captureCurrentPanel();
+    setValues((prev) => ({ ...prev, panel_channel_id: panel.channel_id }));
+    setTicketPanelV2Items(panel.components);
+    setTicketPanelV2MountKey((k) => k + 1);
+  };
+  const addNewPanel = () => {
+    captureCurrentPanel();
+    setValues((prev) => ({ ...prev, panel_channel_id: "" }));
+    setTicketPanelV2Items([]);
+    setTicketPanelV2MountKey((k) => k + 1);
+    toast.success("New panel — design it, pick its channel, then Save.");
+  };
+  const deletePanel = (id: string) => {
+    setTicketPanels((prev) => prev.filter((p) => p.id !== id));
+    toast.success("Panel removed. Save to apply. (Delete the posted message in Discord by hand.)");
   };
 
   // ---- Ticket setup templates (save / load / start over) ----
@@ -3516,9 +3587,35 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Ticket panel message</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Ticket panels</p>
+                  <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addNewPanel}>
+                    <Plus className="h-3.5 w-3.5" /> New panel
+                  </Button>
+                </div>
+                {(() => {
+                  const currentCh = values.panel_channel_id ? String(values.panel_channel_id) : "";
+                  const others = ticketPanels.filter((p) => p.channel_id && p.channel_id !== currentCh);
+                  if (others.length === 0) return null;
+                  return (
+                    <div className="space-y-1 rounded border border-border bg-background/40 p-2">
+                      <p className="text-[11px] text-muted-foreground">Your saved panels — each posts to its own channel and stays live:</p>
+                      {others.map((p) => (
+                        <div key={p.id} className="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-muted/50">
+                          <span className="truncate text-xs">#{panelChannelName(p.channel_id)}</span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => editPanel(p)}>Edit</Button>
+                            <button type="button" className="text-destructive hover:text-destructive/80" onClick={() => deletePanel(p.id)} title="Remove panel">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
                 <p className="text-xs text-muted-foreground">
-                  Posted to your panel channel above on Save. Add a <span className="font-medium">Button Row</span> or <span className="font-medium">Select Menu</span> below and set buttons/options to <span className="font-medium">Ticket</span> — each one designs its own opening message.
+                  Editing the panel for the channel selected above. Add a <span className="font-medium">Button Row</span> or <span className="font-medium">Select Menu</span> below and set buttons/options to <span className="font-medium">Ticket</span> / <span className="font-medium">Form</span>. Click <span className="font-medium">New panel</span> to make another for a different channel — saving keeps them all.
                 </p>
                 <MessagesV2Builder
                   key={`ticket-panel-v2-${ticketPanelV2MountKey}`}
