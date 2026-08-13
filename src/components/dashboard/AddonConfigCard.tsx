@@ -39,6 +39,7 @@ import {
   ChevronsUpDown,
   Check,
   RefreshCw,
+  RotateCcw,
   Plus,
   Trash2,
   ShieldCheck,
@@ -92,6 +93,29 @@ type Props = {
   enabled?: boolean;
   onToggleEnabled?: (enabled: boolean) => void;
 };
+
+// Ticket setup templates — named snapshots of the whole Tickets editor (panel
+// design, ticket types, placeholder, and settings) so a layout can be saved and
+// reused. Stored in the browser (localStorage); they're editor presets, not
+// server config, and apply nothing until the user hits Save.
+type TicketTemplate = { id: string; name: string; savedAt: string; data: any };
+const TICKET_TEMPLATES_KEY = "oversite:ticket-templates:v1";
+function loadTicketTemplates(): TicketTemplate[] {
+  try {
+    const raw = localStorage.getItem(TICKET_TEMPLATES_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+function persistTicketTemplates(list: TicketTemplate[]) {
+  try {
+    localStorage.setItem(TICKET_TEMPLATES_KEY, JSON.stringify(list));
+  } catch {
+    /* storage unavailable — ignore */
+  }
+}
 
 /**
  * One configuration "box" per add-on. Click → opens a dialog whose form
@@ -184,6 +208,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const [activeTicketType, setActiveTicketType] = useState<string>("");
   const [ticketMenuPlaceholder, setTicketMenuPlaceholder] = useState<string>("Select a ticket type…");
   const newTicketTypeId = () => `t_${Math.random().toString(36).slice(2, 9)}`;
+  // Ticket setup templates (save / load / start over).
+  const [ticketTemplates, setTicketTemplates] = useState<TicketTemplate[]>([]);
+  const [tplName, setTplName] = useState("");
+  const [tplOpen, setTplOpen] = useState(false);
 
   const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
   useEffect(() => {
@@ -1032,7 +1060,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       setValues((prev) => ({
         ...prev,
         channel_id: cfg.channel_id ? String(cfg.channel_id) : "",
-        verified_role_id: cfg.verified_role_id ? String(cfg.verified_role_id) : "",
+        verified_role_ids: Array.isArray(cfg.verified_role_ids)
+          ? cfg.verified_role_ids.map(String)
+          : cfg.verified_role_id
+          ? [String(cfg.verified_role_id)]
+          : [],
+        remove_role_ids: Array.isArray(cfg.remove_role_ids) ? cfg.remove_role_ids.map(String) : [],
         set_nickname: cfg.set_nickname ?? true,
         log_channel_id: cfg.log_channel_id ? String(cfg.log_channel_id) : "",
         roblox_client_id: cfg.roblox_client_id ?? "",
@@ -1055,7 +1088,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       feature: "roblox-verify",
       config: {
         channel_id: values.channel_id ? String(values.channel_id) : null,
-        verified_role_id: values.verified_role_id ? String(values.verified_role_id) : null,
+        verified_role_ids: Array.isArray(values.verified_role_ids)
+          ? (values.verified_role_ids as string[]).map(String)
+          : [],
+        remove_role_ids: Array.isArray(values.remove_role_ids)
+          ? (values.remove_role_ids as string[]).map(String)
+          : [],
         set_nickname: values.set_nickname ?? true,
         log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
         roblox_client_id: String(values.roblox_client_id ?? "").trim(),
@@ -1222,6 +1260,101 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Tickets saved — panel posted");
     setOpen(false);
+  };
+
+  // ---- Ticket setup templates (save / load / start over) ----
+  useEffect(() => {
+    if (isCustomsTickets && open) setTicketTemplates(loadTicketTemplates());
+  }, [isCustomsTickets, open]);
+
+  // Snapshot the whole Tickets editor into a plain object for a template.
+  const captureCurrentTicketConfig = () => ({
+    values: { ...values },
+    panel_components: ticketPanelV2Ref.current?.getItems() ?? ticketPanelV2Items ?? [],
+    ticket_types: ticketTypes,
+    open_by_type: captureActiveTicketOpen(),
+    menu_placeholder: ticketMenuPlaceholder,
+  });
+
+  // Restore the Tickets editor from a template snapshot (mirrors the DB loader).
+  const applyTicketConfig = (data: any) => {
+    setValues((prev) => ({ ...prev, ...(data?.values ?? {}) }));
+    setTicketPanelV2Items(Array.isArray(data?.panel_components) ? (data.panel_components as V2Item[]) : []);
+    setTicketPanelV2MountKey((k) => k + 1);
+    const tt: TicketType[] = Array.isArray(data?.ticket_types) && data.ticket_types.length
+      ? data.ticket_types.map((t: any) => ({
+          id: String(t.id || newTicketTypeId()),
+          name: String(t.name || "Ticket"),
+          button_label: String(t.button_label || "Open Ticket"),
+          button_style: String(t.button_style || "primary"),
+          presentation: t.presentation === "dropdown" ? "dropdown" : "button",
+        }))
+      : [{ id: newTicketTypeId(), name: "Support", button_label: "Open Ticket", button_style: "primary", presentation: "button" }];
+    const map: Record<string, V2Item[]> = {};
+    tt.forEach((t) => {
+      map[t.id] = Array.isArray(data?.open_by_type?.[t.id]) ? (data.open_by_type[t.id] as V2Item[]) : [];
+    });
+    setTicketTypes(tt);
+    setTicketOpenByType(map);
+    setActiveTicketType(tt[0].id);
+    setTicketMenuPlaceholder(String(data?.menu_placeholder || "Select a ticket type…"));
+    setTicketOpenV2MountKey((k) => k + 1);
+  };
+
+  const saveCurrentAsTemplate = () => {
+    const name = tplName.trim();
+    if (!name) return toast.error("Give the template a name first.");
+    const tpl: TicketTemplate = {
+      id: `tpl_${Math.random().toString(36).slice(2, 9)}`,
+      name,
+      savedAt: new Date().toISOString(),
+      data: captureCurrentTicketConfig(),
+    };
+    const next = [tpl, ...ticketTemplates.filter((x) => x.name.toLowerCase() !== name.toLowerCase())];
+    setTicketTemplates(next);
+    persistTicketTemplates(next);
+    setTplName("");
+    toast.success(`Template “${name}” saved.`);
+  };
+
+  const loadTemplate = (id: string) => {
+    const tpl = ticketTemplates.find((x) => x.id === id);
+    if (!tpl) return;
+    applyTicketConfig(tpl.data);
+    setTplOpen(false);
+    toast.success(`Loaded “${tpl.name}”. Review it, then hit Save to apply.`);
+  };
+
+  const deleteTemplate = (id: string) => {
+    const next = ticketTemplates.filter((x) => x.id !== id);
+    setTicketTemplates(next);
+    persistTicketTemplates(next);
+  };
+
+  // Wipe the editor back to a blank ticket setup. Doesn't touch the saved
+  // server config until the user clicks Save.
+  const startOverTickets = () => {
+    if (!window.confirm("Erase the current ticket setup and start fresh? This clears the panel design, ticket types, and settings in this editor. Nothing is saved until you click Save.")) return;
+    const id = newTicketTypeId();
+    setValues((prev) => ({
+      ...prev,
+      category_id: "",
+      support_role_ids: [],
+      log_channel_id: "",
+      open_message: "",
+      ping_support: true,
+      one_per_user: true,
+      delete_category_when_empty: false,
+      panel_channel_id: "",
+    }));
+    setTicketPanelV2Items([]);
+    setTicketPanelV2MountKey((k) => k + 1);
+    setTicketTypes([{ id, name: "Support", button_label: "Open Ticket", button_style: "primary", presentation: "button" }]);
+    setTicketOpenByType({ [id]: [] });
+    setActiveTicketType(id);
+    setTicketMenuPlaceholder("Select a ticket type…");
+    setTicketOpenV2MountKey((k) => k + 1);
+    toast.success("Cleared. Start fresh — nothing is saved until you hit Save.");
   };
 
   // Load existing nsfw-invite-scanner config when dialog opens.
@@ -3099,6 +3232,75 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               <span className="text-foreground font-medium">{targetServerName}</span>.
             </DialogDescription>
           </DialogHeader>
+
+          {isCustomsTickets && (
+            <div className="flex items-center justify-end gap-2 pr-8 -mt-1">
+              <Popover open={tplOpen} onOpenChange={setTplOpen}>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" size="sm" className="gap-1.5">
+                    <Save className="h-3.5 w-3.5" />
+                    Templates
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-80 p-3 space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Save this setup as a template</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={tplName}
+                        onChange={(e) => setTplName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveCurrentAsTemplate(); } }}
+                        placeholder="Template name"
+                        className="h-8 text-xs"
+                      />
+                      <Button type="button" size="sm" className="h-8 shrink-0" onClick={saveCurrentAsTemplate}>
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="border-t border-border pt-2 space-y-1">
+                    <Label className="text-xs text-muted-foreground">Saved templates</Label>
+                    {ticketTemplates.length === 0 ? (
+                      <p className="py-1 text-xs italic text-muted-foreground">No templates yet — save one above.</p>
+                    ) : (
+                      <div className="max-h-56 space-y-1 overflow-y-auto">
+                        {ticketTemplates.map((t) => (
+                          <div key={t.id} className="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-muted/50">
+                            <button
+                              type="button"
+                              className="flex-1 truncate text-left text-xs"
+                              onClick={() => loadTemplate(t.id)}
+                              title="Load this template into the editor"
+                            >
+                              {t.name}
+                            </button>
+                            <button
+                              type="button"
+                              className="shrink-0 text-destructive hover:text-destructive/80"
+                              onClick={() => deleteTemplate(t.id)}
+                              title="Delete template"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-destructive hover:text-destructive"
+                onClick={startOverTickets}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Start over
+              </Button>
+            </div>
+          )}
 
           {isSayCommand ? (
             <div className="py-2">
