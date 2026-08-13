@@ -110,24 +110,44 @@ async function updateGamepassPrice(gamepassId: string, priceRobux: number): Prom
   if (!res.ok) throw new Error(`Gamepass price update failed (HTTP ${res.status}): ${await res.text()}`);
 }
 
-async function updateShirtPrice(assetId: string, priceRobux: number): Promise<void> {
+async function itemConfigPost(assetId: string, path: string, payload: unknown): Promise<Response> {
   let csrf = await getCsrfToken();
-  const doUpdate = (token: string) =>
-    fetch(`https://itemconfiguration.roblox.com/v1/assets/${assetId}/update-price`, {
+  const doReq = (token: string) =>
+    fetch(`https://itemconfiguration.roblox.com/v1/assets/${assetId}/${path}`, {
       method: "POST",
       headers: {
         Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}`,
         "x-csrf-token": token,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ priceInRobux: priceRobux, priceConfiguration: { priceInRobux: priceRobux } }),
+      body: JSON.stringify(payload),
     });
-  let res = await doUpdate(csrf);
+  let res = await doReq(csrf);
   if (res.status === 403) {
     const refreshed = res.headers.get("x-csrf-token");
-    if (refreshed) { csrf = refreshed; res = await doUpdate(csrf); }
+    if (refreshed) { csrf = refreshed; res = await doReq(csrf); }
   }
-  if (!res.ok) throw new Error(`Shirt price update failed (HTTP ${res.status}): ${await res.text()}`);
+  return res;
+}
+
+async function updateShirtPrice(assetId: string, priceRobux: number): Promise<void> {
+  // Assets already on sale update via /update-price; ones not yet released 404
+  // there and need /release (which puts them on sale AND sets the price). Try
+  // update first, then fall back to release — same logic noblox.js uses.
+  const priceConfiguration = { priceInRobux: priceRobux };
+  let res = await itemConfigPost(assetId, "update-price", { priceConfiguration });
+  if (!res.ok) {
+    const firstErr = `${res.status}: ${(await res.text()).slice(0, 200)}`;
+    const rel = await itemConfigPost(assetId, "release", {
+      saleStatus: "OnSale",
+      priceConfiguration,
+    });
+    if (!rel.ok) {
+      throw new Error(
+        `Shirt price update failed. update-price -> ${firstErr}; release -> ${rel.status}: ${(await rel.text()).slice(0, 200)}`,
+      );
+    }
+  }
 }
 
 // ---------------- Stripe (Payment Link for an ad-hoc amount) ----------------
@@ -146,17 +166,59 @@ async function stripeForm(path: string, params: Record<string, string>): Promise
   return data;
 }
 
-async function createStripePaymentLink(dollars: number, label: string): Promise<string> {
+async function stripeGet(path: string): Promise<any> {
+  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
+    headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(`Stripe GET ${path} failed: ${data?.error?.message ?? res.status}`);
+  return data;
+}
+
+// One shared product for all payments (reused across cold starts via search).
+let cachedProductId: string | null = null;
+async function getPaymentProductId(): Promise<string> {
+  if (cachedProductId) return cachedProductId;
+  try {
+    const q = encodeURIComponent("active:'true' AND metadata['app']:'oversite_payment'");
+    const search = await stripeGet(`products/search?query=${q}&limit=1`);
+    if (search?.data?.length) { cachedProductId = search.data[0].id; return cachedProductId!; }
+  } catch (_) { /* search may lag; fall through to create */ }
+  const prod = await stripeForm("products", {
+    name: "Oversite Customs Payment",
+    "metadata[app]": "oversite_payment",
+  });
+  cachedProductId = prod.id;
+  return cachedProductId!;
+}
+
+async function createStripePaymentLink(dollars: number, _label: string): Promise<string> {
   if (!STRIPE_SECRET_KEY) throw new Error("STRIPE_SECRET_KEY is not configured");
+  const amount = Math.round(dollars * 100);
+  const lookupKey = `ovs_pay_${STRIPE_CURRENCY}_${amount}`;
+
+  // Reuse: a price for this exact amount stores its payment link in metadata, so
+  // repeat amounts return the SAME link instead of piling up new products.
+  try {
+    const found = await stripeGet(`prices?lookup_keys[]=${encodeURIComponent(lookupKey)}&active=true&limit=1`);
+    const existing = found?.data?.[0];
+    if (existing?.metadata?.payment_link) return existing.metadata.payment_link as string;
+  } catch (_) { /* fall through to create */ }
+
+  const productId = await getPaymentProductId();
   const price = await stripeForm("prices", {
-    unit_amount: String(Math.round(dollars * 100)),
+    unit_amount: String(amount),
     currency: STRIPE_CURRENCY,
-    "product_data[name]": label || "Payment",
+    product: productId,
+    lookup_key: lookupKey,
+    transfer_lookup_key: "true",
   });
   const link = await stripeForm("payment_links", {
     "line_items[0][price]": price.id,
     "line_items[0][quantity]": "1",
   });
+  // Remember the link on the price so future calls for this amount reuse it.
+  try { await stripeForm(`prices/${price.id}`, { "metadata[payment_link]": link.url }); } catch (_) {}
   return link.url as string;
 }
 
