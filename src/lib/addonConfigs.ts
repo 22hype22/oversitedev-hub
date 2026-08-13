@@ -830,16 +830,19 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Support ticket categories, staff roles, and transcript logging.",
     icon: ClipboardList,
     fields: [
-      channel("panel_channel_id", "Panel channel", "The channel the ticket panel message is posted to on Save."),
-      channel("log_channel_id", "Ticket Log Channel", "Where closed-ticket transcripts are posted."),
+      {
+        key: "category_id",
+        label: "Ticket category",
+        type: "channel",
+        channelTypes: ["category"],
+        help: "New ticket channels open under this category.",
+      },
+      multirole("support_role_ids", "Support roles", "Roles that can see and respond to tickets."),
+      channel("log_channel_id", "Transcript log channel", "Where closed-ticket transcripts are posted."),
       toggle("ping_support", "Ping support roles when a ticket opens", true),
       toggle("one_per_user", "Limit each member to one open ticket", true),
-      toggle(
-        "delete_category_when_empty",
-        "Delete the ticket category when empty",
-        false,
-        "On: the category is removed when it has no open tickets and recreated when the next ticket opens. Off: it's always kept — and created as soon as you save.",
-      ),
+      header("Ticket panel"),
+      channel("panel_channel_id", "Panel channel", "Where the ticket panel is posted. Design it below; it posts here on Save."),
     ],
   },
 
@@ -867,7 +870,8 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     icon: ShieldCheck,
     fields: [
       channel("channel_id", "Verify channel", "Where the Verify button is posted."),
-      role("verified_role_id", "Verified role", "Given to members once they link their Roblox account."),
+      multirole("verified_role_ids", "Roles to add on verify", "Given to members once they link their Roblox account. Pick one or more."),
+      multirole("remove_role_ids", "Roles to remove on verify", "Taken from members when they verify — e.g. an Unverified role. Pick one or more. Optional."),
       toggle("set_nickname", "Set nickname to Roblox username", true, "Rename the member to their Roblox display name after they verify."),
       channel("log_channel_id", "Verification log channel", "Where successful verifications are logged. Optional."),
       header("Verify button"),
