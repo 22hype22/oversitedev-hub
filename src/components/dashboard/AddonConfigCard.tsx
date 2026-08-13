@@ -3617,6 +3617,16 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   Drop variables anywhere; they fill in when a giveaway is posted. Leave the builder
                   empty to use the built-in default look.
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  Write <code className="font-mono text-os-accent">{"{Question: Prize}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{Question: Winner}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{Question: Length}"}</code> and running{" "}
+                  <span className="font-medium">/giveaway</span> pops a form asking for each — the
+                  answers fill in where you placed them. Label a field with{" "}
+                  <span className="font-medium">Winner</span> and one with{" "}
+                  <span className="font-medium">Length</span> (e.g. 1d) so the bot knows how many to
+                  draw and when to end.
+                </p>
                 <MessagesV2Builder
                   key={`customs-giveaway-v2-${giveawayV2MountKey}`}
                   ref={giveawayV2Ref}
