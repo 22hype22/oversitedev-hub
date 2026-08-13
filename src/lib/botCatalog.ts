@@ -29,7 +29,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   "anti-spam": "Anti-Spam",
   "anti-raid": "Anti-Raid",
   "auto-role": "Auto Role on Join",
-  
+
   "phishing-detection": "Phishing Link Detection",
 
   // Protection
@@ -37,7 +37,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   "nsfw-invite-scanner": "NSFW Invite Scanner + Censored Logs",
   "avatar-nsfw-detection": "Avatar NSFW Detection",
   "bio-phrase-detection": "Bio Phrase Detection",
-  
+
   "auto-escalating-warnings": "Auto-Escalating Warnings",
   "softban-massban": "/softban and /massban",
   "channel-lockdown": "Channel Lockdown Command",
@@ -67,7 +67,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   // Utilities
   "music-addon": "Music Add-On",
   "auto-radio": "Auto Radio by Genre",
-  
+
   starboard: "Starboard",
   "recurring-messages": "Recurring Messages",
   "giveaway-system": "Giveaway System",
@@ -96,7 +96,7 @@ export const BOT_ADDON_PRICES: Record<string, number> = {
   "nsfw-invite-scanner": 2.99,
   "avatar-nsfw-detection": 1.99,
   "bio-phrase-detection": 0.99,
-  
+
   "auto-escalating-warnings": 1.99,
   "softban-massban": 1.99,
   "channel-lockdown": 1.99,
@@ -120,7 +120,7 @@ export const BOT_ADDON_PRICES: Record<string, number> = {
   // Utilities
   "music-addon": 1.99,
   "auto-radio": 0.99,
-  
+
   starboard: 0.99,
   "recurring-messages": 0.99,
   "giveaway-system": 0.99,
@@ -142,7 +142,7 @@ const ADDON_IDS_BY_BASE: Record<string, string[]> = {
     "nsfw-invite-scanner",
     "avatar-nsfw-detection",
     "bio-phrase-detection",
-    
+
     "auto-escalating-warnings",
     "softban-massban",
     "channel-lockdown",
@@ -164,7 +164,7 @@ const ADDON_IDS_BY_BASE: Record<string, string[]> = {
   utilities: [
     "music-addon",
     "auto-radio",
-    
+
     "starboard",
     "recurring-messages",
     "giveaway-system",
@@ -204,7 +204,7 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
     ...ADDON_IDS_BY_BASE.support.filter((id) => id !== "ticket-message-customization"),
   ],
   utilities: [...ADDON_IDS_BY_BASE.utilities, "messages"],
-  customs: ["invite-message", "customs-messages", "customs-tickets", "customs-verification"],
+  customs: ["invite-message", "customs-messages", "customs-tickets", "customs-verification", "customs-giveaway"],
 };
 
 export function getIncludedAddonsForBase(baseId: string): string[] {
@@ -254,4 +254,3 @@ export function getAddonCategory(id: string): AddonCategory {
     return "support";
   return "utilities";
 }
-
