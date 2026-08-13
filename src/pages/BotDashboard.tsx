@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, useCallback, useLayoutEffect, useMemo, type ReactNode } from "react";
+successfully downloaded text file (SHA: 490db7266701c12bdb015393a3138a51f00284d9)[Resource from github at repo://22hype22/oversitedev-hub/sha/cb0049fc7539c30f6d090262165a4ed8ca2ff31a/contents/src/pages/BotDashboard.tsx] import { lazy, Suspense, useEffect, useRef, useState, useCallback, useLayoutEffect, useMemo, type ReactNode } from "react";
 import { useBotHealth } from "@/hooks/useBotHealth";
 import { useLiveBotStatuses } from "@/hooks/useLiveBotStatuses";
 import { Link, useNavigate } from "react-router-dom";
@@ -229,7 +229,7 @@ const UTILITIES_ADDON_IDS = [
 ];
 // Shared/extras add-ons (none currently — Multi-Server License & Custom
 // Branding combined card was removed per product decision).
-const SHARED_ADDON_IDS: string[] = ["invite-message", "customs-messages", "customs-tickets", "customs-verification"];
+const SHARED_ADDON_IDS: string[] = ["invite-message", "customs-messages", "customs-tickets", "customs-verification", "customs-giveaway"];
 
 // Owners can cancel/remove a bot from any pre-live state OR once it's live
 // ("paid"/"ready"). Cancelling flips the order to "cancelled", which hides it
