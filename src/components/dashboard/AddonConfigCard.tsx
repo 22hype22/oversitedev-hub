@@ -172,6 +172,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isPostSystem = addonId === "post-system";
   const isInviteMessage = addonId === "invite-message";
   const isCustomsCredits = addonId === "customs-credits";
+  const isCustomsGiveaway = addonId === "customs-giveaway";
   const isCustomsTickets = addonId === "customs-tickets";
   const isCustomsVerification = addonId === "customs-verification";
   const config = getAddonConfig(addonId);
@@ -1050,6 +1051,64 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Credits saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: giveaway (design + /giveaway defaults) ----------
+  useEffect(() => {
+    if (!isCustomsGiveaway || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-giveaway")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        title: cfg.title ?? "🎉 GIVEAWAY 🎉",
+        button_label: cfg.button_label ?? "🎉 Enter",
+        host_line: cfg.host_line ?? "",
+        ping: cfg.ping ?? "",
+        default_winners: Number.isFinite(Number(cfg.default_winners)) ? Number(cfg.default_winners) : 1,
+        default_duration: cfg.default_duration ?? "1d",
+        manager_role_ids: Array.isArray(cfg.manager_role_ids) ? cfg.manager_role_ids.map(String) : [],
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsGiveaway, open, botId]);
+
+  const saveCustomsGiveaway = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-giveaway",
+      config: {
+        title: String(values.title ?? "🎉 GIVEAWAY 🎉").trim() || "🎉 GIVEAWAY 🎉",
+        button_label: String(values.button_label ?? "🎉 Enter").trim() || "🎉 Enter",
+        host_line: String(values.host_line ?? ""),
+        ping: String(values.ping ?? "").trim(),
+        default_winners: Math.max(1, Number(values.default_winners) || 1),
+        default_duration: String(values.default_duration ?? "1d").trim() || "1d",
+        manager_role_ids: Array.isArray(values.manager_role_ids) ? (values.manager_role_ids as string[]).map(String) : [],
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-giveaway",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Giveaway design saved & applied");
     setOpen(false);
   };
 
@@ -3808,6 +3867,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveServerStats();
                   } else if (isCustomsCredits) {
                     void saveCustomsCredits();
+                  } else if (isCustomsGiveaway) {
+                    void saveCustomsGiveaway();
                   } else if (isCustomsVerification) {
                     void saveCustomsVerification();
                   } else if (isCustomsTickets) {
