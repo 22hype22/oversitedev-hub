@@ -311,9 +311,12 @@ export function CustomsAddonGrid({
     return [...enabled, ...disabled];
   }, [order, isEnabled]);
 
+  // Fixed 4-column layout: cards fill a row of 4, then wrap to the next row.
+  // Inline (not the Tailwind `grid` class) so the scoped `.osd .grid` rule
+  // in BotDashboard's CSS can't override the columns.
   const gridStyle: React.CSSProperties = {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
     gap: "20px",
     alignItems: "stretch",
   };
