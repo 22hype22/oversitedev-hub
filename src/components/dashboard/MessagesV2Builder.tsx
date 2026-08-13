@@ -91,8 +91,8 @@ type V2ButtonRowButton =
   | { id: string; label: string; url: string; style?: V2ButtonStyle }
   | { id: string; label: string; category: string; style?: V2ButtonStyle }
   | { id: string; label: string; channel_id: string; style?: V2ButtonStyle }
-  | { id: string; label: string; ticket: string; category_name?: string; open_components?: V2Item[]; style?: V2ButtonStyle }
-  | { id: string; label: string; form: string; category_name?: string; open_components?: V2Item[]; style?: V2ButtonStyle }
+  | { id: string; label: string; ticket: string; category_name?: string; access_roles?: string; open_components?: V2Item[]; style?: V2ButtonStyle }
+  | { id: string; label: string; form: string; category_name?: string; access_roles?: string; open_components?: V2Item[]; style?: V2ButtonStyle }
   | { id: string; label: string; ephemeral: string; open_components?: V2Item[]; style?: V2ButtonStyle }
   | { id: string; label: string; disabled: true; style?: V2ButtonStyle };
 
@@ -107,8 +107,8 @@ type V2SelectMenuOption =
   | { label: string; description?: string; category: string }
   | { label: string; description?: string; channel_id: string }
   | { label: string; description?: string; display: true }
-  | { label: string; description?: string; ticket: string; category_name?: string; open_components?: V2Item[] }
-  | { label: string; description?: string; form: string; category_name?: string; open_components?: V2Item[] }
+  | { label: string; description?: string; ticket: string; category_name?: string; access_roles?: string; open_components?: V2Item[] }
+  | { label: string; description?: string; form: string; category_name?: string; access_roles?: string; open_components?: V2Item[] }
   | { label: string; description?: string; ephemeral: string; open_components?: V2Item[] };
 
 type V2SelectMenu = {
@@ -911,7 +911,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       type="radio"
                       name={`btn-mode-${b.id}`}
                       checked={mode === "ticket"}
-                      onChange={() => update({ id: b.id, label: b.label, ticket: "", category_name: (b as { category_name?: string }).category_name, open_components: (b as { open_components?: V2Item[] }).open_components, style })}
+                      onChange={() => update({ id: b.id, label: b.label, ticket: "", category_name: (b as { category_name?: string }).category_name, access_roles: (b as { access_roles?: string }).access_roles, open_components: (b as { open_components?: V2Item[] }).open_components, style })}
                     />
                     Ticket
                   </label>
@@ -920,7 +920,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       type="radio"
                       name={`btn-mode-${b.id}`}
                       checked={mode === "form"}
-                      onChange={() => update({ id: b.id, label: b.label, form: "", category_name: (b as { category_name?: string }).category_name, open_components: (b as { open_components?: V2Item[] }).open_components, style })}
+                      onChange={() => update({ id: b.id, label: b.label, form: "", category_name: (b as { category_name?: string }).category_name, access_roles: (b as { access_roles?: string }).access_roles, open_components: (b as { open_components?: V2Item[] }).open_components, style })}
                     />
                     Form
                   </label>
@@ -952,9 +952,9 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     const lbl = e.target.value;
                     update(
                       isTicketButton(b)
-                        ? { id: b.id, label: lbl, ticket: b.ticket, category_name: (b as { category_name?: string }).category_name, open_components: b.open_components, style }
+                        ? { id: b.id, label: lbl, ticket: b.ticket, category_name: (b as { category_name?: string }).category_name, access_roles: (b as { access_roles?: string }).access_roles, open_components: b.open_components, style }
                         : isFormButton(b)
-                        ? { id: b.id, label: lbl, form: b.form, category_name: (b as { category_name?: string }).category_name, open_components: b.open_components, style }
+                        ? { id: b.id, label: lbl, form: b.form, category_name: (b as { category_name?: string }).category_name, access_roles: (b as { access_roles?: string }).access_roles, open_components: b.open_components, style }
                         : isEphemeralButton(b)
                         ? { id: b.id, label: lbl, ephemeral: b.ephemeral, open_components: b.open_components, style }
                         : isDisplayButton(b)
@@ -1001,6 +1001,13 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                   </div>
                 )}
               </div>
+              {(mode === "ticket" || mode === "form") && (
+                <Input
+                  placeholder="Access roles — who can see this ticket (role names, comma-separated)"
+                  value={(b as { access_roles?: string }).access_roles ?? ""}
+                  onChange={(e) => update({ ...b, access_roles: e.target.value } as V2ButtonRowButton)}
+                />
+              )}
               {(mode === "ticket" || mode === "form" || mode === "ephemeral") && (
                 <Button
                   type="button"
@@ -1148,7 +1155,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       type="radio"
                       name={`opt-mode-${i}`}
                       checked={mode === "ticket"}
-                      onChange={() => update({ label: o.label, ticket: "", category_name: (o as { category_name?: string }).category_name, open_components: (o as { open_components?: V2Item[] }).open_components })}
+                      onChange={() => update({ label: o.label, ticket: "", category_name: (o as { category_name?: string }).category_name, access_roles: (o as { access_roles?: string }).access_roles, open_components: (o as { open_components?: V2Item[] }).open_components })}
                     />
                     Ticket
                   </label>
@@ -1157,7 +1164,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       type="radio"
                       name={`opt-mode-${i}`}
                       checked={mode === "form"}
-                      onChange={() => update({ label: o.label, form: "", category_name: (o as { category_name?: string }).category_name, open_components: (o as { open_components?: V2Item[] }).open_components })}
+                      onChange={() => update({ label: o.label, form: "", category_name: (o as { category_name?: string }).category_name, access_roles: (o as { access_roles?: string }).access_roles, open_components: (o as { open_components?: V2Item[] }).open_components })}
                     />
                     Form
                   </label>
@@ -1189,9 +1196,9 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     const lbl = e.target.value;
                     update(
                       isTicketOption(o)
-                        ? { label: lbl, ticket: o.ticket, category_name: (o as { category_name?: string }).category_name, open_components: o.open_components }
+                        ? { label: lbl, ticket: o.ticket, category_name: (o as { category_name?: string }).category_name, access_roles: (o as { access_roles?: string }).access_roles, open_components: o.open_components }
                         : isFormOption(o)
-                        ? { label: lbl, form: o.form, category_name: (o as { category_name?: string }).category_name, open_components: o.open_components }
+                        ? { label: lbl, form: o.form, category_name: (o as { category_name?: string }).category_name, access_roles: (o as { access_roles?: string }).access_roles, open_components: o.open_components }
                         : isEphemeralOption(o)
                         ? { label: lbl, ephemeral: o.ephemeral, open_components: o.open_components }
                         : isDisplayOption(o)
@@ -1238,6 +1245,13 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                   </div>
                 )}
               </div>
+              {(mode === "ticket" || mode === "form") && (
+                <Input
+                  placeholder="Access roles — who can see this ticket (role names, comma-separated)"
+                  value={(o as { access_roles?: string }).access_roles ?? ""}
+                  onChange={(e) => update({ ...o, access_roles: e.target.value } as V2SelectMenuOption)}
+                />
+              )}
               {(mode === "ticket" || mode === "form" || mode === "ephemeral") && (
                 <Button
                   type="button"
