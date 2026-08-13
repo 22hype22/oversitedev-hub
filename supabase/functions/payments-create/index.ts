@@ -143,23 +143,74 @@ async function assetDetails(assetId: string): Promise<string> {
   }
 }
 
-async function updateShirtPrice(assetId: string, priceRobux: number): Promise<void> {
-  // Assets already on sale update via /update-price; ones not yet released 404
-  // there and need /release (which puts them on sale AND sets the price). Try
-  // update first, then fall back to release — same logic noblox.js uses.
-  const priceConfiguration = { priceInRobux: priceRobux };
-  let res = await itemConfigPost(assetId, "update-price", { priceConfiguration });
-  if (!res.ok) {
-    const firstErr = `${res.status}: ${(await res.text()).slice(0, 160)}`;
-    const rel = await itemConfigPost(assetId, "release", { saleStatus: "OnSale", priceConfiguration });
-    if (!rel.ok) {
-      const relErr = `${rel.status}: ${(await rel.text()).slice(0, 160)}`;
-      const info = await assetDetails(assetId);
-      throw new Error(
-        `Shirt price update failed for asset ${assetId} [${info}]. update-price -> ${firstErr}; release -> ${relErr}`,
-      );
-    }
+// New-system avatar items (big 15+ digit ids) are "collectibles" — their price
+// lives under a collectibleItemId, not the plain asset id. Resolve it first.
+async function resolveCollectibleId(assetId: string): Promise<string | null> {
+  try {
+    const csrf = await getCsrfToken();
+    const res = await fetch("https://catalog.roblox.com/v1/catalog/items/details", {
+      method: "POST",
+      headers: {
+        Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}`,
+        "x-csrf-token": csrf,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ items: [{ itemType: "Asset", id: Number(assetId) }] }),
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    return d?.data?.[0]?.collectibleItemId ?? null;
+  } catch {
+    return null;
   }
+}
+
+async function collectiblePatch(collectibleItemId: string, priceRobux: number): Promise<Response> {
+  let csrf = await getCsrfToken();
+  const doReq = (token: string) =>
+    fetch(`https://itemconfiguration.roblox.com/v1/collectibles/${collectibleItemId}`, {
+      method: "PATCH",
+      headers: {
+        Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}`,
+        "x-csrf-token": token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ saleStatus: "OnSale", isFree: false, priceInRobux: priceRobux, priceConfiguration: { priceInRobux: priceRobux } }),
+    });
+  let res = await doReq(csrf);
+  if (res.status === 403) {
+    const refreshed = res.headers.get("x-csrf-token");
+    if (refreshed) { csrf = refreshed; res = await doReq(csrf); }
+  }
+  return res;
+}
+
+async function updateShirtPrice(assetId: string, priceRobux: number): Promise<void> {
+  // Try every known clothing-pricing path and report which responds, so a single
+  // test tells us the right endpoint. Classic assets use /update-price|/release;
+  // new-system items use the collectibles endpoint (needs collectibleItemId).
+  const priceConfiguration = { priceInRobux: priceRobux };
+  const attempts: string[] = [];
+
+  let res = await itemConfigPost(assetId, "update-price", { priceConfiguration });
+  if (res.ok) return;
+  attempts.push(`update-price -> ${res.status}: ${(await res.text()).slice(0, 120)}`);
+
+  res = await itemConfigPost(assetId, "release", { saleStatus: "OnSale", priceConfiguration });
+  if (res.ok) return;
+  attempts.push(`release -> ${res.status}: ${(await res.text()).slice(0, 120)}`);
+
+  const collectibleId = await resolveCollectibleId(assetId);
+  if (collectibleId) {
+    res = await collectiblePatch(collectibleId, priceRobux);
+    if (res.ok) return;
+    attempts.push(`collectible(${collectibleId}) -> ${res.status}: ${(await res.text()).slice(0, 120)}`);
+  } else {
+    attempts.push("collectibleId -> not resolved");
+  }
+
+  const info = await assetDetails(assetId);
+  throw new Error(`Shirt price update failed for asset ${assetId} [${info}]. ${attempts.join(" || ")}`);
 }
 
 // ---------------- Stripe (Payment Link for an ad-hoc amount) ----------------
