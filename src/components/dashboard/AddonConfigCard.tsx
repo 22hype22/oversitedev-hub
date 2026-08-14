@@ -228,6 +228,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsCredits = addonId === "customs-credits";
   const isCustomsGiveaway = addonId === "customs-giveaway";
   const isCustomsRobuxLocker = addonId === "customs-robux-locker";
+  const isCustomsOrderStatus = addonId === "customs-order-status";
   const isCustomsTickets = addonId === "customs-tickets";
   const isCustomsVerification = addonId === "customs-verification";
   const config = getAddonConfig(addonId);
@@ -1119,6 +1120,70 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Credits saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: order status ----------
+  useEffect(() => {
+    if (!isCustomsOrderStatus || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-order-status")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        title: cfg.title ?? "Order Status",
+        limited_at: typeof cfg.limited_at === "number" ? cfg.limited_at : 8,
+        closed_at: typeof cfg.closed_at === "number" ? cfg.closed_at : 10,
+        emoji_open: cfg.emoji_open ?? "",
+        label_open: cfg.label_open ?? "Open",
+        emoji_limited: cfg.emoji_limited ?? "",
+        label_limited: cfg.label_limited ?? "Oversite+ Only",
+        emoji_closed: cfg.emoji_closed ?? "",
+        label_closed: cfg.label_closed ?? "Closed",
+        services: cfg.services ?? "Liveries = Liveries\nGFX = GFX\nBot Design = Bot Design",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsOrderStatus, open, botId]);
+
+  const saveCustomsOrderStatus = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-order-status",
+      config: {
+        title: String(values.title ?? "Order Status") || "Order Status",
+        limited_at: Number(values.limited_at ?? 8) || 0,
+        closed_at: Number(values.closed_at ?? 10) || 0,
+        emoji_open: String(values.emoji_open ?? ""),
+        label_open: String(values.label_open ?? "Open") || "Open",
+        emoji_limited: String(values.emoji_limited ?? ""),
+        label_limited: String(values.label_limited ?? "Oversite+ Only") || "Oversite+ Only",
+        emoji_closed: String(values.emoji_closed ?? ""),
+        label_closed: String(values.label_closed ?? "Closed") || "Closed",
+        services: String(values.services ?? ""),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-order-status",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Order Status saved & applied");
     setOpen(false);
   };
 
@@ -4134,6 +4199,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsVerification();
                   } else if (isCustomsTickets) {
                     void saveCustomsTickets();
+                  } else if (isCustomsOrderStatus) {
+                    void saveCustomsOrderStatus();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
