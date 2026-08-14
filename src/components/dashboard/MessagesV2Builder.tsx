@@ -100,6 +100,7 @@ type V2ButtonRowButton =
   | { id: string; label: string; counter: true; style?: V2ButtonStyle }
   | { id: string; label: string; buyrobux: true; style?: V2ButtonStyle }
   | { id: string; label: string; notify_roles: string; style?: V2ButtonStyle }
+  | { id: string; label: string; orderstatus: true; style?: V2ButtonStyle }
   | { id: string; label: string; disabled: true; style?: V2ButtonStyle };
 
 type V2ButtonRow = {
@@ -142,6 +143,9 @@ const isBuyRobuxButton = (
 const isNotifyButton = (
   b: V2ButtonRowButton,
 ): b is { id: string; label: string; notify_roles: string; style?: V2ButtonStyle } => "notify_roles" in b;
+const isOrderStatusButton = (
+  b: V2ButtonRowButton,
+): b is { id: string; label: string; orderstatus: true; style?: V2ButtonStyle } => "orderstatus" in b;
 const isTicketButton = (
   b: V2ButtonRowButton,
 ): b is { id: string; label: string; ticket: string; style?: V2ButtonStyle } => "ticket" in b;
@@ -231,7 +235,7 @@ export function normalizeV2Items(items: V2Item[]): V2Item[] {
 // buttons are interaction buttons (not links), so force them off the link style
 // and strip any stray url — otherwise the send 400s with "A url is required".
 function sanitizeButtonRowButton(b: V2ButtonRowButton): V2ButtonRowButton {
-  const isInteraction = "ticket" in b || "form" in b || "ephemeral" in b || "disabled" in b || "counter" in b || "buyrobux" in b || "notify_roles" in b;
+  const isInteraction = "ticket" in b || "form" in b || "ephemeral" in b || "disabled" in b || "counter" in b || "buyrobux" in b || "notify_roles" in b || "orderstatus" in b;
   if (!isInteraction) return b;
   const anyB = b as any;
   const { url: _dropUrl, ...rest } = anyB;
@@ -879,7 +883,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
       <div className="space-y-3">
         <Label className="text-xs">Buttons (up to 5)</Label>
         {buttons.map((b, i) => {
-          const mode: "link" | "channel" | "display" | "ticket" | "form" | "ephemeral" | "counter" | "buyrobux" | "notify" = isTicketButton(b)
+          const mode: "link" | "channel" | "display" | "ticket" | "form" | "ephemeral" | "counter" | "buyrobux" | "notify" | "orderstatus" = isTicketButton(b)
             ? "ticket"
             : isFormButton(b)
             ? "form"
@@ -891,6 +895,8 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             ? "buyrobux"
             : isNotifyButton(b)
             ? "notify"
+            : isOrderStatusButton(b)
+            ? "orderstatus"
             : isDisplayButton(b)
             ? "display"
             : isChannelButton2(b)
@@ -992,6 +998,15 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                         />
                         Notification
                       </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name={`btn-mode-${b.id}`}
+                          checked={mode === "orderstatus"}
+                          onChange={() => update({ id: b.id, label: b.label || "Order Status", orderstatus: true, style: style === "link" ? "secondary" : style })}
+                        />
+                        Order Status
+                      </label>
                     </>
                   )}
                 </div>
@@ -1026,6 +1041,8 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                         ? { id: b.id, label: lbl, buyrobux: true, style }
                         : isNotifyButton(b)
                         ? { id: b.id, label: lbl, notify_roles: b.notify_roles, style }
+                        : isOrderStatusButton(b)
+                        ? { id: b.id, label: lbl, orderstatus: true, style }
                         : isChannelButton2(b)
                         ? { id: b.id, label: lbl, channel_id: b.channel_id, style }
                         : { id: b.id, label: lbl, url: (b as { url: string }).url, style },
@@ -1107,6 +1124,21 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       <SelectItem value="danger">Red</SelectItem>
                     </SelectContent>
                   </Select>
+                ) : mode === "orderstatus" ? (
+                  <Select
+                    value={style === "link" ? "secondary" : style}
+                    onValueChange={(v) => update({ id: b.id, label: b.label, orderstatus: true, style: v as V2ButtonStyle })}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Button color" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="primary">Blurple</SelectItem>
+                      <SelectItem value="success">Green</SelectItem>
+                      <SelectItem value="secondary">Grey</SelectItem>
+                      <SelectItem value="danger">Red</SelectItem>
+                    </SelectContent>
+                  </Select>
                 ) : (
                   <div className="flex items-center px-2 text-xs text-muted-foreground italic">
                     Not clickable — label only
@@ -1135,6 +1167,12 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     Clicking toggles these roles on the member (click again to remove) — a ping/opt-in button.
                   </p>
                 </>
+              )}
+              {mode === "orderstatus" && (
+                <p className="px-1 text-[11px] text-muted-foreground">
+                  Shows the live Order Status embed (open / limited / closed per service). Configure the
+                  services, thresholds, and emojis in the <span className="font-medium">Order Status</span> block.
+                </p>
               )}
               {(mode === "ticket" || mode === "form") && (
                 <Input
@@ -1654,7 +1692,7 @@ function PreviewItem({ item }: { item: V2Item }) {
               </span>
             );
           }
-          return isCategoryButton2(b) || isChannelButton2(b) || isCounterButton(b) || isNotifyButton(b) ? (
+          return isCategoryButton2(b) || isChannelButton2(b) || isCounterButton(b) || isNotifyButton(b) || isOrderStatusButton(b) ? (
             <span
               key={b.id}
               className={cn("inline-flex items-center px-3 py-1.5 text-xs font-medium rounded", styleClass)}
