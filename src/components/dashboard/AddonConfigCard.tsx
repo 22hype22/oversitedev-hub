@@ -113,6 +113,16 @@ const defaultGiveawayEndedItems = (): V2Item[] => [
   } as unknown as V2Item,
 ];
 
+// Starter design for the /pricing display. {service} = the chosen service's
+// name, {pricing} = the generated list of items and their Robux/USD prices.
+const defaultPricingItems = (): V2Item[] => [
+  {
+    id: gwUid(),
+    type: "text",
+    text: "## {service} Pricing\n\n{pricing}\n\n-# Open a ticket to order.",
+  } as unknown as V2Item,
+];
+
 // A giveaway design must have a Counter (enter) button. If one is missing
 // anywhere in the tree, append a default Enter row so it's always visible.
 const hasCounterButton = (items: any[]): boolean =>
@@ -256,6 +266,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const robuxLockerV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [robuxLockerV2Items, setRobuxLockerV2Items] = useState<V2Item[]>([]);
   const [robuxLockerV2MountKey, setRobuxLockerV2MountKey] = useState(0);
+  // Customs "Pricing" — the V2 builder for how /pricing looks (uses {pricing}).
+  const pricingV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [pricingV2Items, setPricingV2Items] = useState<V2Item[]>([]);
+  const [pricingV2MountKey, setPricingV2MountKey] = useState(0);
   // Customs "Giveaway" — two designs: the running layout and the ended (winner)
   // layout. A tab switches which one you edit; both are saved together.
   const [giveawayTab, setGiveawayTab] = useState<"running" | "ended">("running");
@@ -1208,6 +1222,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         title: cfg.title ?? "Pricing",
         services: cfg.services ?? "",
       }));
+      const savedDesign = Array.isArray(cfg.components) && cfg.components.length ? (cfg.components as V2Item[]) : null;
+      setPricingV2Items(savedDesign ?? defaultPricingItems());
+      setPricingV2MountKey((k) => k + 1);
       setAppliedAt((data as any).applied_at ?? null);
     })();
     return () => { cancelled = true; };
@@ -1224,6 +1241,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         currency: String(values.currency ?? "$") || "$",
         title: String(values.title ?? "Pricing") || "Pricing",
         services: String(values.services ?? ""),
+        components: normalizeV2Items(pricingV2Ref.current?.getItems() ?? pricingV2Items ?? []),
       },
       updated_at: new Date().toISOString(),
     };
@@ -3936,6 +3954,33 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
                   initialItems={robuxLockerV2Items}
+                />
+              </div>
+            </div>
+          ) : isCustomsPricing ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">/pricing display</p>
+                <p className="text-xs text-muted-foreground">
+                  Design how the pricing looks when a member runs{" "}
+                  <code className="font-mono">/pricing</code> and picks a service — it posts publicly.
+                  Put <code className="font-mono text-os-accent">{"{pricing}"}</code> where the price list
+                  should go, and <code className="font-mono text-os-accent">{"{service}"}</code> for the
+                  service's name. The service picker is added automatically.
+                </p>
+                <MessagesV2Builder
+                  key={`customs-pricing-v2-${pricingV2MountKey}`}
+                  ref={pricingV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={pricingV2Items}
                 />
               </div>
             </div>
