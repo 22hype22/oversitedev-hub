@@ -3804,6 +3804,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   Design the panel members see, using the same builder as Messages. It posts to the
                   channel above when you Save. (Buy buttons come next — this is the panel design.)
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  Type <code className="font-mono text-os-accent">{"{stock}"}</code> anywhere — it fills in
+                  with the current Available Stock and updates live as staff stock it with{" "}
+                  <code className="font-mono">/robuxlocker</code> or members buy. Use{" "}
+                  <code className="font-mono text-os-accent">{"{funds}"}</code> for the group balance last read.
+                </p>
                 <MessagesV2Builder
                   key={`customs-robux-locker-v2-${robuxLockerV2MountKey}`}
                   ref={robuxLockerV2Ref}
