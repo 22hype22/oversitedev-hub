@@ -892,9 +892,9 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         defaultValue: "Liveries = Liveries\nGFX = GFX\nBot Design = Bot Design",
         placeholder: "Liveries = Liveries\nGFX = GFX\nBot Design = Bot Design",
         help:
-          "One service per line as “Display Name = Ticket Category” (the Discord category its order tickets open under; leave “= Category” off to reuse the name). " +
-          "Each service also becomes a live variable you can drop in ANY message, panel, ticket, or button — the name in lowercase, letters/numbers only: “Liveries” → {liveries}, “Bot Design” → {botdesign}. " +
-          "{liveries} shows “Liveries — 🟢 Open”; {liveriesstatus} shows just “🟢 Open”.",
+          "One service per line as “Display Name = Ticket Category” (the Discord category its order tickets open under; leave “= Category” off to reuse the name). NO braces here — this is plain text. " +
+          "Each service also becomes a live variable for ANY message, panel, ticket, or button — the name (any case/spacing works): “Liveries” → {liveries}, “Bot Design” → {bot design}. " +
+          "{liveries} shows JUST the status icon (🟢). {liveriesstatus} shows the icon + word (🟢 Open). Put your own label next to it, e.g. “Liveries {liveries}”.",
       },
     ],
   },
