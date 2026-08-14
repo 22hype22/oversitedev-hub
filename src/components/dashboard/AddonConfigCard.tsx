@@ -102,6 +102,17 @@ const defaultGiveawayItems = (): V2Item[] => [
   giveawayEnterRow(),
 ];
 
+// Starter design for the ended/winner message (no entry button — the giveaway
+// is over; the bot adds a Reroll control automatically).
+const defaultGiveawayEndedItems = (): V2Item[] => [
+  {
+    id: gwUid(),
+    type: "text",
+    text:
+      "## 🎉 Giveaway Ended\n**{prize}**\n\n🏆 Winner: {winner_list}\n👥 Entries: {entries}\n\nThanks to everyone who entered!",
+  } as unknown as V2Item,
+];
+
 // A giveaway design must have a Counter (enter) button. If one is missing
 // anywhere in the tree, append a default Enter row so it's always visible.
 const hasCounterButton = (items: any[]): boolean =>
@@ -238,10 +249,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const verifyPanelV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [verifyPanelV2Items, setVerifyPanelV2Items] = useState<V2Item[]>([]);
   const [verifyPanelV2MountKey, setVerifyPanelV2MountKey] = useState(0);
-  // Customs "Giveaway" — the V2 builder for the giveaway layout.
+  // Customs "Giveaway" — two designs: the running layout and the ended (winner)
+  // layout. A tab switches which one you edit; both are saved together.
+  const [giveawayTab, setGiveawayTab] = useState<"running" | "ended">("running");
   const giveawayV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [giveawayV2Items, setGiveawayV2Items] = useState<V2Item[]>([]);
   const [giveawayV2MountKey, setGiveawayV2MountKey] = useState(0);
+  const giveawayEndedV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [giveawayEndedV2Items, setGiveawayEndedV2Items] = useState<V2Item[]>([]);
+  const [giveawayEndedV2MountKey, setGiveawayEndedV2MountKey] = useState(0);
   // Customs "Tickets" — a shared panel builder, plus a list of ticket TYPES,
   // each with its own button + its own opening-message components. One picker
   // chooses which type the opening-message builder is currently editing.
@@ -1121,6 +1137,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       const saved = Array.isArray(cfg.components) && cfg.components.length ? (cfg.components as V2Item[]) : null;
       setGiveawayV2Items(saved ? withGiveawayEnter(saved) : defaultGiveawayItems());
       setGiveawayV2MountKey((k) => k + 1);
+      const savedEnded = Array.isArray(cfg.ended_components) && cfg.ended_components.length ? (cfg.ended_components as V2Item[]) : null;
+      setGiveawayEndedV2Items(savedEnded ?? defaultGiveawayEndedItems());
+      setGiveawayEndedV2MountKey((k) => k + 1);
+      setGiveawayTab("running");
       setAppliedAt((data as any)?.applied_at ?? null);
     })();
     return () => { cancelled = true; };
@@ -1135,6 +1155,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       config: {
         manager_role_ids: Array.isArray(values.manager_role_ids) ? (values.manager_role_ids as string[]).map(String) : [],
         components: normalizeV2Items(giveawayV2Ref.current?.getItems() ?? giveawayV2Items ?? []),
+        ended_components: normalizeV2Items(giveawayEndedV2Ref.current?.getItems() ?? giveawayEndedV2Items ?? []),
       },
       updated_at: new Date().toISOString(),
     };
@@ -3663,16 +3684,56 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   <span className="font-medium">Length</span> so the bot knows how many to draw and
                   when to end (put them on their own line — they vanish from the post).
                 </p>
-                <MessagesV2Builder
-                  key={`customs-giveaway-v2-${giveawayV2MountKey}`}
-                  ref={giveawayV2Ref}
-                  embedded
-                  giveaway
-                  botId={botId}
-                  botName={botName}
-                  botAvatarUrl={botAvatarUrl}
-                  initialItems={giveawayV2Items}
-                />
+                <div className="inline-flex rounded-lg border border-border bg-background/40 p-0.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setGiveawayTab("running")}
+                    className={cn(
+                      "px-3 py-1.5 rounded-md font-medium transition-colors",
+                      giveawayTab === "running" ? "bg-os-accent/15 text-foreground" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    While running
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGiveawayTab("ended")}
+                    className={cn(
+                      "px-3 py-1.5 rounded-md font-medium transition-colors",
+                      giveawayTab === "ended" ? "bg-os-accent/15 text-foreground" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    When it ends
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {giveawayTab === "running"
+                    ? "The live giveaway message, with the Enter button."
+                    : "Shown when the giveaway ends — no entry button (the bot adds a Reroll). Use {winner_list} for the winner(s)."}
+                </p>
+                <div className={giveawayTab === "running" ? "" : "hidden"}>
+                  <MessagesV2Builder
+                    key={`customs-giveaway-v2-${giveawayV2MountKey}`}
+                    ref={giveawayV2Ref}
+                    embedded
+                    giveaway
+                    botId={botId}
+                    botName={botName}
+                    botAvatarUrl={botAvatarUrl}
+                    initialItems={giveawayV2Items}
+                  />
+                </div>
+                <div className={giveawayTab === "ended" ? "" : "hidden"}>
+                  <MessagesV2Builder
+                    key={`customs-giveaway-ended-v2-${giveawayEndedV2MountKey}`}
+                    ref={giveawayEndedV2Ref}
+                    embedded
+                    botId={botId}
+                    botName={botName}
+                    botAvatarUrl={botAvatarUrl}
+                    initialItems={giveawayEndedV2Items}
+                  />
+                </div>
               </div>
             </div>
           ) : isInviteMessage || isCustomsMessages || isCustomsVerification ? (
