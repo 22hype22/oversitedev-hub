@@ -12,7 +12,8 @@
 //
 // Secrets / env (Lovable Cloud -> Supabase -> Edge Function secrets):
 //   ROBLOX_COOKIE      .ROBLOSECURITY of the group's bot account (already set for payments)
-//   ROBLOX_GROUP_ID    the Roblox group id whose funds back the locker
+//   ROBLOX_GROUP_ID    OPTIONAL. The group id whose funds back the locker. If unset,
+//                      it's auto-detected from the cookie (the group the bot owns).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -64,11 +65,60 @@ async function resolveBotId(req: Request): Promise<string | null> {
 
 // ---------------- Roblox group funds ----------------
 
+function cookieHeaders(): Record<string, string> {
+  return { Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}` };
+}
+
+// The group id, resolved once and cached. If ROBLOX_GROUP_ID is set it wins;
+// otherwise we ask Roblox who this cookie belongs to and find the group it owns.
+let cachedGroupId = "";
+
+async function resolveGroupId(): Promise<string> {
+  if (!ROBLOX_COOKIE) throw new Error("ROBLOX_COOKIE is not configured");
+  if (GROUP_ID) return GROUP_ID;
+  if (cachedGroupId) return cachedGroupId;
+
+  // Who is this cookie?
+  const meRes = await fetch("https://users.roblox.com/v1/users/authenticated", {
+    headers: cookieHeaders(),
+  });
+  if (!meRes.ok) {
+    const body = (await meRes.text()).slice(0, 200);
+    throw new Error(`Couldn't identify the bot's Roblox account (HTTP ${meRes.status}). Is ROBLOX_COOKIE valid? ${body}`);
+  }
+  const me = await meRes.json();
+  const userId = Number(me?.id ?? 0);
+  if (!userId) throw new Error("Couldn't read the bot's Roblox user id from the cookie");
+
+  // What groups is it in, and with what rank?
+  const grpRes = await fetch(`https://groups.roblox.com/v1/users/${userId}/groups/roles`, {
+    headers: cookieHeaders(),
+  });
+  if (!grpRes.ok) {
+    const body = (await grpRes.text()).slice(0, 200);
+    throw new Error(`Couldn't list the bot's Roblox groups (HTTP ${grpRes.status}): ${body}`);
+  }
+  const grp = await grpRes.json();
+  const rows: Array<{ group?: { id?: number; name?: string }; role?: { rank?: number } }> =
+    Array.isArray(grp?.data) ? grp.data : [];
+  if (rows.length === 0) {
+    throw new Error("The bot's Roblox account isn't in any group");
+  }
+  // Prefer the group the bot OWNS (rank 255); otherwise the highest rank; if
+  // there's only one group, just use it.
+  const owned = rows.find((r) => Number(r?.role?.rank ?? 0) === 255);
+  const best = owned ?? rows.slice().sort((a, b) => Number(b?.role?.rank ?? 0) - Number(a?.role?.rank ?? 0))[0];
+  const id = String(best?.group?.id ?? "");
+  if (!id) throw new Error("Couldn't determine the group id from the bot's Roblox account");
+  cachedGroupId = id;
+  return id;
+}
+
 async function groupFunds(): Promise<number> {
   if (!ROBLOX_COOKIE) throw new Error("ROBLOX_COOKIE is not configured");
-  if (!GROUP_ID) throw new Error("ROBLOX_GROUP_ID is not configured");
-  const res = await fetch(`https://economy.roblox.com/v1/groups/${GROUP_ID}/currency`, {
-    headers: { Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}` },
+  const groupId = await resolveGroupId();
+  const res = await fetch(`https://economy.roblox.com/v1/groups/${groupId}/currency`, {
+    headers: cookieHeaders(),
   });
   if (!res.ok) {
     const body = (await res.text()).slice(0, 200);
