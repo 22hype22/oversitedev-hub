@@ -1232,7 +1232,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       Write the ticket message as normal. Anywhere you put{" "}
                       <code className="rounded bg-black/30 px-1">{"{Question: Your label}"}</code>{" "}
                       becomes a field in a popup form the user fills in before the ticket opens — their
-                      answer replaces the token in the message. Up to 5 questions (Discord's modal limit).
+                      answer replaces the token in the message. Up to 10 questions — Discord shows 5 per popup, with a Continue button for the rest.
                     </DialogDescription>
                   )}
                 </DialogHeader>
@@ -1475,7 +1475,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       Write the ticket message as normal. Anywhere you put{" "}
                       <code className="rounded bg-black/30 px-1">{"{Question: Your label}"}</code>{" "}
                       becomes a field in a popup form the user fills in before the ticket opens — their
-                      answer replaces the token in the message. Up to 5 questions (Discord's modal limit).
+                      answer replaces the token in the message. Up to 10 questions — Discord shows 5 per popup, with a Continue button for the rest.
                     </DialogDescription>
                   )}
                 </DialogHeader>
