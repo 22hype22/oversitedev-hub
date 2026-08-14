@@ -2,6 +2,7 @@
 //
 // Body: { action: "funds"|"get_stock"|"set_stock"|"add_stock"|"take_stock"|"get_rate"|"set_rate", amount?: number }
 //   - funds:       read the group's available Robux balance        -> { robux }
+//   - funds_detail:available + pending + revenue breakdown         -> { available, pending, summary }
 //   - get_stock:   current Available Stock for this bot            -> { stock }
 //   - set_stock:   set Available Stock to `amount`                 -> { stock }
 //   - add_stock:   add `amount` to Available Stock (restock)       -> { stock }
@@ -130,6 +131,23 @@ async function groupFunds(): Promise<number> {
   return Math.max(0, Math.floor(Number(data?.robux ?? 0)));
 }
 
+// Group revenue breakdown for a window (Day | Week | Month | Year). Includes
+// pendingRobux and the per-source figures (sales, payouts, etc.). Requires the
+// account to have "View group revenue" (owners have it).
+async function revenueSummary(timeFrame: string): Promise<Record<string, unknown>> {
+  const groupId = await resolveGroupId();
+  const tf = ["Day", "Week", "Month", "Year"].includes(timeFrame) ? timeFrame : "Day";
+  const res = await fetch(
+    `https://economy.roblox.com/v2/groups/${groupId}/revenue/summary/${tf}`,
+    { headers: cookieHeaders() },
+  );
+  if (!res.ok) {
+    const body = (await res.text()).slice(0, 200);
+    throw new Error(`Revenue summary failed (HTTP ${res.status}): ${body}`);
+  }
+  return await res.json();
+}
+
 // ---------------- stock + rate (bot_config feature "robux-stock") ----------------
 //
 // One row per bot holds { stock, rate_per_1k }. Reads/writes MERGE so setting
@@ -184,7 +202,7 @@ Deno.serve(async (req) => {
   const botId = await resolveBotId(req);
   if (!botId) return json({ error: "Unauthorized" }, 401);
 
-  let body: { action?: string; amount?: number };
+  let body: { action?: string; amount?: number; timeFrame?: string };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
   const action = String(body.action ?? "");
   const amount = Math.max(0, Math.floor(Number(body.amount ?? 0)));
@@ -192,6 +210,18 @@ Deno.serve(async (req) => {
   try {
     if (action === "funds") {
       return json({ ok: true, robux: await groupFunds() });
+    }
+    if (action === "funds_detail") {
+      const available = await groupFunds();
+      let summary: Record<string, unknown> | null = null;
+      let summaryError: string | null = null;
+      try {
+        summary = await revenueSummary(String(body.timeFrame ?? "Day"));
+      } catch (e) {
+        summaryError = e instanceof Error ? e.message : String(e);
+      }
+      const pending = summary ? Math.floor(Number(summary.pendingRobux ?? 0)) : null;
+      return json({ ok: true, available, pending, summary, summaryError });
     }
     if (action === "get_stock") {
       return json({ ok: true, stock: await getStock(botId) });
