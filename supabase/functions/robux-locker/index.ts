@@ -138,7 +138,7 @@ async function revenueSummary(timeFrame: string): Promise<Record<string, unknown
   const groupId = await resolveGroupId();
   const tf = ["Day", "Week", "Month", "Year"].includes(timeFrame) ? timeFrame : "Day";
   const res = await fetch(
-    `https://economy.roblox.com/v2/groups/${groupId}/revenue/summary/${tf}`,
+    `https://economy.roblox.com/v1/groups/${groupId}/revenue/summary/${tf}`,
     { headers: cookieHeaders() },
   );
   if (!res.ok) {
