@@ -894,7 +894,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         help:
           "One service per line as “Display Name = Ticket Category” (the Discord category its order tickets open under; leave “= Category” off to reuse the name). NO braces here — this is plain text. " +
           "Each service also becomes a live variable for ANY message, panel, ticket, or button — the name (any case/spacing works): “Liveries” → {liveries}, “Bot Design” → {bot design}. " +
-          "{liveries} shows JUST the status icon (🟢). {liveriesstatus} shows the icon + word (🟢 Open). Put your own label next to it, e.g. “Liveries {liveries}”.",
+          "{liveries} shows “Liveries — 🟢” (name + icon, no Open/Closed word). {liveriesstatus} shows the icon + word (🟢 Open).",
       },
     ],
   },
