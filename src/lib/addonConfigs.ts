@@ -899,6 +899,42 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "customs-pricing": {
+    title: "Pricing",
+    summary: "Services + their pricing items. Designers set the prices in Discord with /setpricing; members view them with /pricing.",
+    icon: Coins,
+    fields: [
+      multirole("designer_role_ids", "Designer roles (can run /setpricing)", "Members with any of these roles can set prices. Anyone with Manage Server can too."),
+      {
+        key: "currency",
+        label: "Currency symbol",
+        type: "text",
+        defaultValue: "$",
+        placeholder: "$",
+        help: "Shown before each price, e.g. $ or £. Just the symbol.",
+      },
+      {
+        key: "title",
+        label: "Pricing title",
+        type: "text",
+        defaultValue: "Pricing",
+        placeholder: "Pricing",
+        help: "Heading on the /pricing embed.",
+      },
+      header("Services & items"),
+      {
+        key: "services",
+        label: "Services and their items (one service per line)",
+        type: "textarea",
+        defaultValue: "Liveries: Law Enforcement, Staff, Business, Fire Department\nClothing: Uniform, Casual\nGFX: Logo, Banner, Thumbnail",
+        placeholder: "Liveries: Law Enforcement, Staff, Business, Fire Department",
+        help:
+          "One service per line as “Service: item1, item2, item3”. These are the choices in /pricing and /setpricing. " +
+          "Designers fill in the actual prices from Discord with /setpricing — prices are NOT set here. Up to 5 items per service can be edited at once in the form.",
+      },
+    ],
+  },
+
   "customs-tickets": {
     title: "Tickets",
     summary: "Support ticket categories, staff roles, and transcript logging.",
