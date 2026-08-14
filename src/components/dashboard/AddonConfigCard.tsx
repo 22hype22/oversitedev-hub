@@ -229,6 +229,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsGiveaway = addonId === "customs-giveaway";
   const isCustomsRobuxLocker = addonId === "customs-robux-locker";
   const isCustomsOrderStatus = addonId === "customs-order-status";
+  const isCustomsPricing = addonId === "customs-pricing";
   const isCustomsTickets = addonId === "customs-tickets";
   const isCustomsVerification = addonId === "customs-verification";
   const config = getAddonConfig(addonId);
@@ -1184,6 +1185,58 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Order Status saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: pricing ----------
+  useEffect(() => {
+    if (!isCustomsPricing || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-pricing")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        designer_role_ids: Array.isArray(cfg.designer_role_ids) ? cfg.designer_role_ids.map(String) : [],
+        currency: cfg.currency ?? "$",
+        title: cfg.title ?? "Pricing",
+        services: cfg.services ?? "",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsPricing, open, botId]);
+
+  const saveCustomsPricing = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-pricing",
+      config: {
+        designer_role_ids: Array.isArray(values.designer_role_ids) ? (values.designer_role_ids as string[]).map(String) : [],
+        currency: String(values.currency ?? "$") || "$",
+        title: String(values.title ?? "Pricing") || "Pricing",
+        services: String(values.services ?? ""),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-pricing",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Pricing saved & applied");
     setOpen(false);
   };
 
@@ -4201,6 +4254,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsTickets();
                   } else if (isCustomsOrderStatus) {
                     void saveCustomsOrderStatus();
+                  } else if (isCustomsPricing) {
+                    void saveCustomsPricing();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
