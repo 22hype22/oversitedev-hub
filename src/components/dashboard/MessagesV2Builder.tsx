@@ -98,6 +98,8 @@ type V2ButtonRowButton =
   | { id: string; label: string; form: string; category_name?: string; access_roles?: string; open_components?: V2Item[]; style?: V2ButtonStyle }
   | { id: string; label: string; ephemeral: string; open_components?: V2Item[]; style?: V2ButtonStyle }
   | { id: string; label: string; counter: true; style?: V2ButtonStyle }
+  | { id: string; label: string; buyrobux: true; style?: V2ButtonStyle }
+  | { id: string; label: string; notify_roles: string; style?: V2ButtonStyle }
   | { id: string; label: string; disabled: true; style?: V2ButtonStyle };
 
 type V2ButtonRow = {
@@ -134,6 +136,12 @@ const isDisplayButton = (
 const isCounterButton = (
   b: V2ButtonRowButton,
 ): b is { id: string; label: string; counter: true; style?: V2ButtonStyle } => "counter" in b;
+const isBuyRobuxButton = (
+  b: V2ButtonRowButton,
+): b is { id: string; label: string; buyrobux: true; style?: V2ButtonStyle } => "buyrobux" in b;
+const isNotifyButton = (
+  b: V2ButtonRowButton,
+): b is { id: string; label: string; notify_roles: string; style?: V2ButtonStyle } => "notify_roles" in b;
 const isTicketButton = (
   b: V2ButtonRowButton,
 ): b is { id: string; label: string; ticket: string; style?: V2ButtonStyle } => "ticket" in b;
@@ -223,7 +231,7 @@ export function normalizeV2Items(items: V2Item[]): V2Item[] {
 // buttons are interaction buttons (not links), so force them off the link style
 // and strip any stray url — otherwise the send 400s with "A url is required".
 function sanitizeButtonRowButton(b: V2ButtonRowButton): V2ButtonRowButton {
-  const isInteraction = "ticket" in b || "form" in b || "ephemeral" in b || "disabled" in b || "counter" in b;
+  const isInteraction = "ticket" in b || "form" in b || "ephemeral" in b || "disabled" in b || "counter" in b || "buyrobux" in b || "notify_roles" in b;
   if (!isInteraction) return b;
   const anyB = b as any;
   const { url: _dropUrl, ...rest } = anyB;
@@ -871,7 +879,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
       <div className="space-y-3">
         <Label className="text-xs">Buttons (up to 5)</Label>
         {buttons.map((b, i) => {
-          const mode: "link" | "channel" | "display" | "ticket" | "form" | "ephemeral" | "counter" = isTicketButton(b)
+          const mode: "link" | "channel" | "display" | "ticket" | "form" | "ephemeral" | "counter" | "buyrobux" | "notify" = isTicketButton(b)
             ? "ticket"
             : isFormButton(b)
             ? "form"
@@ -879,6 +887,10 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             ? "ephemeral"
             : isCounterButton(b)
             ? "counter"
+            : isBuyRobuxButton(b)
+            ? "buyrobux"
+            : isNotifyButton(b)
+            ? "notify"
             : isDisplayButton(b)
             ? "display"
             : isChannelButton2(b)
@@ -962,6 +974,24 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                         />
                         Ephemeral message
                       </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name={`btn-mode-${b.id}`}
+                          checked={mode === "buyrobux"}
+                          onChange={() => update({ id: b.id, label: b.label || "Buy Robux", buyrobux: true, style: style === "link" ? "success" : style })}
+                        />
+                        Buy Robux
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name={`btn-mode-${b.id}`}
+                          checked={mode === "notify"}
+                          onChange={() => update({ id: b.id, label: b.label || "Notify me", notify_roles: (b as { notify_roles?: string }).notify_roles ?? "", style: style === "link" ? "secondary" : style })}
+                        />
+                        Notification
+                      </label>
                     </>
                   )}
                 </div>
@@ -992,6 +1022,10 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                         ? { id: b.id, label: lbl, disabled: true, style }
                         : isCounterButton(b)
                         ? { id: b.id, label: lbl, counter: true, style }
+                        : isBuyRobuxButton(b)
+                        ? { id: b.id, label: lbl, buyrobux: true, style }
+                        : isNotifyButton(b)
+                        ? { id: b.id, label: lbl, notify_roles: b.notify_roles, style }
                         : isChannelButton2(b)
                         ? { id: b.id, label: lbl, channel_id: b.channel_id, style }
                         : { id: b.id, label: lbl, url: (b as { url: string }).url, style },
@@ -1043,6 +1077,36 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                       <SelectItem value="danger">Red</SelectItem>
                     </SelectContent>
                   </Select>
+                ) : mode === "buyrobux" ? (
+                  <Select
+                    value={style === "link" ? "success" : style}
+                    onValueChange={(v) => update({ id: b.id, label: b.label, buyrobux: true, style: v as V2ButtonStyle })}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Button color" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="primary">Blurple</SelectItem>
+                      <SelectItem value="success">Green</SelectItem>
+                      <SelectItem value="secondary">Grey</SelectItem>
+                      <SelectItem value="danger">Red</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : mode === "notify" ? (
+                  <Select
+                    value={style === "link" ? "secondary" : style}
+                    onValueChange={(v) => update({ id: b.id, label: b.label, notify_roles: (b as { notify_roles?: string }).notify_roles ?? "", style: v as V2ButtonStyle })}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Button color" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="primary">Blurple</SelectItem>
+                      <SelectItem value="success">Green</SelectItem>
+                      <SelectItem value="secondary">Grey</SelectItem>
+                      <SelectItem value="danger">Red</SelectItem>
+                    </SelectContent>
+                  </Select>
                 ) : (
                   <div className="flex items-center px-2 text-xs text-muted-foreground italic">
                     Not clickable — label only
@@ -1053,6 +1117,24 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                 <p className="px-1 text-[11px] text-muted-foreground">
                   Each click enters the giveaway (+1). Put <code className="font-mono">{"{entries}"}</code> in the label for a live count.
                 </p>
+              )}
+              {mode === "buyrobux" && (
+                <p className="px-1 text-[11px] text-muted-foreground">
+                  Opens the buy flow. Auto-disabled (unclickable) whenever Available Stock is 0 — members
+                  can only click it when there's Robux to purchase.
+                </p>
+              )}
+              {mode === "notify" && (
+                <>
+                  <Input
+                    placeholder="Notify roles — given when clicked (role names, comma-separated)"
+                    value={(b as { notify_roles?: string }).notify_roles ?? ""}
+                    onChange={(e) => update({ id: b.id, label: b.label, notify_roles: e.target.value, style })}
+                  />
+                  <p className="px-1 text-[11px] text-muted-foreground">
+                    Clicking toggles these roles on the member (click again to remove) — a ping/opt-in button.
+                  </p>
+                </>
               )}
               {(mode === "ticket" || mode === "form") && (
                 <Input
@@ -1561,7 +1643,18 @@ function PreviewItem({ item }: { item: V2Item }) {
               </span>
             );
           }
-          return isCategoryButton2(b) || isChannelButton2(b) || isCounterButton(b) ? (
+          if (isBuyRobuxButton(b)) {
+            return (
+              <span
+                key={b.id}
+                title="Auto-disabled when Available Stock is 0"
+                className={cn("inline-flex items-center px-3 py-1.5 text-xs font-medium rounded opacity-80", styleClass)}
+              >
+                {b.label || "Buy Robux"}
+              </span>
+            );
+          }
+          return isCategoryButton2(b) || isChannelButton2(b) || isCounterButton(b) || isNotifyButton(b) ? (
             <span
               key={b.id}
               className={cn("inline-flex items-center px-3 py-1.5 text-xs font-medium rounded", styleClass)}
