@@ -81,6 +81,38 @@ const GIVEAWAY_VARIABLES: { token: string; desc: string }[] = [
   { token: "{host}", desc: "Who started the giveaway" },
   { token: "{winner_list}", desc: "The winners (fills in when it ends)" },
 ];
+
+// Unique-ish ids for builder items generated on the dashboard.
+let __gwSeq = 0;
+const gwUid = () => `gw-${Date.now().toString(36)}-${(__gwSeq++).toString(36)}`;
+
+// The Enter (Counter) button row that every giveaway design gets by default.
+const giveawayEnterRow = (): V2Item =>
+  ({ id: gwUid(), type: "buttonRow", buttons: [{ id: gwUid(), label: "🎉 Enter", counter: true, style: "primary" }] } as unknown as V2Item);
+
+// Starter design for a brand-new giveaway: a body with the answer tokens + the
+// three questions that build the /giveaway form, plus the Enter button.
+const defaultGiveawayItems = (): V2Item[] => [
+  {
+    id: gwUid(),
+    type: "text",
+    text:
+      "## **{prize}**\nA new giveaway is here!\n\nPrize: {prize}\nWinners: {winners}\nEntries: {entries}\nEnds: {end}\n\n-# Read the requirements before entering.\n\n{Question: Prize}{Question: Winners}{Question: Length}",
+  } as unknown as V2Item,
+  giveawayEnterRow(),
+];
+
+// A giveaway design must have a Counter (enter) button. If one is missing
+// anywhere in the tree, append a default Enter row so it's always visible.
+const hasCounterButton = (items: any[]): boolean =>
+  (items || []).some(
+    (it) =>
+      (it?.type === "buttonRow" && (it.buttons || []).some((b: any) => b && "counter" in b)) ||
+      (it?.type === "container" && hasCounterButton(it.children || [])),
+  );
+
+const withGiveawayEnter = (items: V2Item[]): V2Item[] =>
+  hasCounterButton(items) ? items : [...items, giveawayEnterRow()];
 import { supabase } from "@/integrations/supabase/client";
 import { RoleMultiSelect } from "./RoleMultiSelect";
 import { useTeamRole } from "@/hooks/useTeamRole";
@@ -1080,15 +1112,16 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         .eq("bot_id", botId)
         .eq("feature", "customs-giveaway")
         .maybeSingle();
-      if (cancelled || !data) return;
-      const cfg = (data.config ?? {}) as Record<string, any>;
+      if (cancelled) return;
+      const cfg = (data?.config ?? {}) as Record<string, any>;
       setValues((prev) => ({
         ...prev,
         manager_role_ids: Array.isArray(cfg.manager_role_ids) ? cfg.manager_role_ids.map(String) : [],
       }));
-      setGiveawayV2Items(Array.isArray(cfg.components) ? (cfg.components as V2Item[]) : []);
+      const saved = Array.isArray(cfg.components) && cfg.components.length ? (cfg.components as V2Item[]) : null;
+      setGiveawayV2Items(saved ? withGiveawayEnter(saved) : defaultGiveawayItems());
       setGiveawayV2MountKey((k) => k + 1);
-      setAppliedAt((data as any).applied_at ?? null);
+      setAppliedAt((data as any)?.applied_at ?? null);
     })();
     return () => { cancelled = true; };
   }, [isCustomsGiveaway, open, botId]);
@@ -3611,11 +3644,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   </Popover>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Design how each giveaway looks with the same builder as Messages. Add a{" "}
-                  <span className="font-medium">Button Row</span> and set a button to{" "}
-                  <span className="font-medium">Counter</span> — clicking it enters the giveaway (+1).
-                  Drop variables anywhere; they fill in when a giveaway is posted. Leave the builder
-                  empty to use the built-in default look.
+                  Design how each giveaway looks with the same builder as Messages. An{" "}
+                  <span className="font-medium">Enter</span> button (a{" "}
+                  <span className="font-medium">Counter</span>) is added for you — rename or restyle
+                  it; each click enters the giveaway (+1). Drop variables anywhere; they fill in when
+                  a giveaway is posted.
                 </p>
                 <p className="text-xs text-muted-foreground">
                   <span className="font-medium">Questions vs answers:</span>{" "}
