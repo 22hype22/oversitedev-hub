@@ -825,6 +825,80 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "customs-giveaway": {
+    title: "Giveaway",
+    summary: "Design how /giveaway looks with the Messages builder. Staff run /giveaway to launch one.",
+    icon: Gift,
+    fields: [
+      multirole("manager_role_ids", "Who can run /giveaway", "Roles allowed to start giveaways, in addition to anyone with Manage Server. Optional."),
+    ],
+  },
+
+  "customs-robux-locker": {
+    title: "Robux Locker",
+    summary: "Design the Robux Locker panel where members buy Robux.",
+    icon: Lock,
+    fields: [
+      channel("channel_id", "Panel channel", "Where the Robux Locker panel is posted. Design it below; it posts here on Save."),
+    ],
+  },
+
+  "customs-order-status": {
+    title: "Order Status",
+    summary: "Live open/limited/closed status per service, based on how many order tickets are open.",
+    icon: BarChart3,
+    fields: [
+      {
+        key: "title",
+        label: "Embed title",
+        type: "text",
+        defaultValue: "Order Status",
+        placeholder: "Order Status",
+        help: "Heading shown at the top of the status embed.",
+      },
+      header("Thresholds (same for every service)"),
+      {
+        key: "limited_at",
+        label: "Oversite+ only at",
+        type: "number",
+        defaultValue: 8,
+        help: "When a service reaches this many OPEN order tickets, its status flips to the “Oversite+ only” state.",
+      },
+      {
+        key: "closed_at",
+        label: "Closed at",
+        type: "number",
+        defaultValue: 10,
+        help: "When a service reaches this many OPEN order tickets, its status flips to “Closed”.",
+      },
+      header("Statuses (emoji + label)"),
+      {
+        key: "emoji_open",
+        label: "Open — emoji",
+        type: "text",
+        placeholder: ":green:",
+        help: "Type your custom server emoji as :name: (e.g. :green:) or paste a normal emoji. Same for the others.",
+      },
+      { key: "label_open", label: "Open — label", type: "text", defaultValue: "Open", placeholder: "Open" },
+      { key: "emoji_limited", label: "Oversite+ only — emoji", type: "text", placeholder: ":yellow:" },
+      { key: "label_limited", label: "Oversite+ only — label", type: "text", defaultValue: "Oversite+ Only", placeholder: "Oversite+ Only" },
+      { key: "emoji_closed", label: "Closed — emoji", type: "text", placeholder: ":red:" },
+      { key: "label_closed", label: "Closed — label", type: "text", defaultValue: "Closed", placeholder: "Closed" },
+      header("Services"),
+      {
+        key: "services",
+        label: "Services (one per line)",
+        type: "textarea",
+        defaultValue: "Liveries = Liveries\nGFX = GFX\nBot Design = Bot Design",
+        placeholder: "Liveries = Liveries\nGFX = GFX\nBot Design = Bot Design",
+        help:
+          "One service per line as “Display Name = Ticket Category” (the Discord category its order tickets open under; leave “= Category” off to reuse the name). " +
+          "Each service also becomes a live variable you can drop in ANY message, panel, ticket, or button — the name in lowercase, letters/numbers only: “Liveries” → {liveries}, “Bot Design” → {botdesign}. " +
+          "{liveries} shows “Liveries — 🟢 Open”; {liveriesstatus} shows just “🟢 Open”.",
+      },
+    ],
+  },
+
   "customs-tickets": {
     title: "Tickets",
     summary: "Support ticket categories, staff roles, and transcript logging.",
@@ -837,10 +911,9 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         channelTypes: ["category"],
         help: "New ticket channels open under this category.",
       },
-      multirole("support_role_ids", "Support roles", "Roles that can see and respond to tickets."),
+      multirole("support_role_ids", "Global support roles (see ALL tickets)", "Optional — roles that can see & manage EVERY ticket (e.g. admins/managers). Leave empty to keep each ticket restricted to its own Access roles, which you set per Ticket/Form in the panel below."),
       channel("log_channel_id", "Transcript log channel", "Where closed-ticket transcripts are posted."),
-      toggle("ping_support", "Ping support roles when a ticket opens", true),
-      toggle("one_per_user", "Limit each member to one open ticket", true),
+      toggle("one_per_user", "Limit each member to 2 open tickets per section", true),
       header("Ticket panel"),
       channel("panel_channel_id", "Panel channel", "Where the ticket panel is posted. Design it below; it posts here on Save."),
     ],
