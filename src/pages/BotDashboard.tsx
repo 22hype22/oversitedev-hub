@@ -1,2401 +1,5632 @@
-import { lazy, Suspense, useEffect, useRef, useState, useCallback, useLayoutEffect, useMemo, type ReactNode } from "react";
-import { useBotHealth } from "@/hooks/useBotHealth";
-import { useLiveBotStatuses } from "@/hooks/useLiveBotStatuses";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
-import { useOwnedBots, type OwnedBot } from "@/hooks/useOwnedBots";
-import {
-  BOT_BASE_LABELS,
-  BOT_BASE_TAGLINES,
-  getAddonLabel,
-  getIncludedAddonsForBase,
-} from "@/lib/botCatalog";
-import { supabase } from "@/integrations/supabase/client";
-import { SystemScreen, SystemCard, SystemBadge } from "@/pages/SystemScreen";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
-import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
-import { SortableAddonGrid } from "@/components/dashboard/SortableAddonGrid";
-import { CustomsAddonGrid } from "@/components/dashboard/CustomsAddonGrid";
-import {
-  DndContext,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  rectSortingStrategy,
-  useSortable,
-} from "@dnd-kit/sortable";
-import { CSS as DndCSS } from "@dnd-kit/utilities";
-// Lazy-loaded: the add-on configuration UI pulls in a large bundle of
-// per-addon editors. Defer it so the bot header/controls paint within
-// 1-2s of navigation instead of waiting on all addon code to load.
-const AddonConfigCard = lazy(() =>
-  import("@/components/dashboard/AddonConfigCard").then((m) => ({ default: m.AddonConfigCard })),
-);
-import { TicketEditorCard } from "@/components/dashboard/TicketEditorCard";
-import { GiveawayLaunchCard } from "@/components/dashboard/GiveawayLaunchCard";
-import { FixesBar } from "@/components/dashboard/FixesBar";
-import { BotIdentityEditor } from "@/components/dashboard/BotIdentityEditor";
-
-import { HexagonLoader } from "@/components/dashboard/HexagonLoader";
-import { RedeemFreeCodeBox } from "@/components/dashboard/RedeemFreeCodeBox";
-import { BotManagePanel } from "@/components/dashboard/BotManagePanel";
-import { BotSecretsCard } from "@/components/dashboard/BotSecretsCard";
-import { GroupTeamHub } from "@/components/dashboard/team/GroupTeamHub";
-import { NewOwnerBillingDialog } from "@/components/dashboard/team/NewOwnerBillingDialog";
-import { RequestCustomFeatureDialog } from "@/components/dashboard/RequestCustomFeatureDialog";
-import { ReportBugDialog } from "@/components/dashboard/ReportBugDialog";
-import { BotHealthBadge } from "@/components/dashboard/BotHealthBadge";
-import { DashboardServerSelector } from "@/components/dashboard/DashboardServerSelector";
-import { ActiveGuildProvider } from "@/hooks/useActiveGuild";
-import { useBotFreePeriods, type BotFreePeriod } from "@/hooks/useBotFreePeriods";
-import { useBotServerSlots } from "@/hooks/useBotServerSlots";
-import {
-  LogOut,
-  Settings,
-  Bot,
-  Sparkles,
-  Clock,
-  Lock,
-  ArrowRight,
-  ArrowLeft,
-  Globe,
-  Terminal,
-  Package,
-  Layers,
-  Server,
-  XCircle,
-  Plus,
-  ShieldCheck,
-  LifeBuoy,
-  Wrench,
-  Star,
-  ArrowUpRight,
-  MessageSquare,
-  Code2,
-  RefreshCw,
-  AlertTriangle,
-  Bug,
-  Gift,
-  ChevronDown,
-  ChevronUp,
-  Loader2,
-  LayoutGrid,
-  Users,
-  CreditCard,
-  Activity as ActivityIcon,
-  Bell,
-  Image as ImageIcon,
-  Check,
-  ChevronRight,
-  Megaphone,
-  Home,
-  Network,
-} from "lucide-react";
-import heroBg from "@/assets/hero-bg.jpg";
-
-const BOTSEC_CSS = `
-.botsec{background:linear-gradient(180deg,#272e36,#242b32);border:1px solid #3a434d;border-radius:16px;overflow:hidden;
-  box-shadow:0 24px 60px -32px rgba(0,0,0,.6)}
-.botsec>.bsum{display:flex;align-items:center;gap:13px;padding:16px 20px;cursor:pointer;list-style:none}
-.botsec>.bsum::-webkit-details-marker{display:none}
-.botsec>.bsum:hover{background:rgba(255,255,255,.014)}
-.botsec .bico{height:36px;width:36px;border-radius:10px;flex:none;display:grid;place-items:center;background:#2d353e;color:#C9DBE6}
-.botsec .bico svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.8;fill:none}
-.botsec .btx{flex:1;min-width:0}
-.botsec .btx .ba{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:700;font-size:14.5px;color:#E8EEF3;
-  display:flex;align-items:center;gap:8px}
-.botsec .btx .ba .ct{font-family:"Space Mono",monospace;font-size:10px;font-weight:400;color:#788591;border:1px solid #3a434d;
-  border-radius:20px;padding:1px 8px;flex:none}
-.botsec .btx .bb{font-size:11.5px;color:#788591;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.botsec .bchev{height:20px;width:20px;color:#788591;transition:transform .2s,color .2s;flex:none}
-.botsec[open] .bchev{transform:rotate(180deg);color:#C9DBE6}
-.botsec .bbody{border-top:1px solid #3a434d;padding:12px 10px 14px}
-/* Flatten the inner panel wrappers so they don't read as cramped secondary
-   boxes inside the section; their inner tiles/content keep their own framing. */
-.botsec .bbody .bg-card\\/40{background-color:transparent;border-color:transparent;box-shadow:none}
-/* Extras action rows (Custom feature / Report a bug). Styled in the section's
-   own language — same fonts, explicit spacing and icon sizing as the header —
-   so they render predictably instead of drifting against the site like raw
-   Tailwind utilities did. */
-.botsec .xtras{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media (max-width:640px){.botsec .xtras{grid-template-columns:1fr}}
-.botsec .xrow{position:relative;display:flex;align-items:center;gap:15px;width:100%;text-align:left;
-  cursor:pointer;overflow:hidden;border:1px solid #3a434d;background:rgba(52,61,70,.32);border-radius:13px;
-  padding:15px 16px 15px 20px;font:inherit;transition:border-color .18s,background .18s}
-.botsec .xrow::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;opacity:.75}
-.botsec .xrow.acc::before{background:#C9DBE6}
-.botsec .xrow.bug::before{background:#e98b8b}
-.botsec .xrow:hover{background:rgba(52,61,70,.52)}
-.botsec .xrow.acc:hover{border-color:rgba(201,219,230,.42)}
-.botsec .xrow.bug:hover{border-color:rgba(233,139,139,.5)}
-.botsec .xrow:focus-visible{outline:2px solid #C9DBE6;outline-offset:2px}
-.botsec .xrow .xic{height:40px;width:40px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:11px}
-.botsec .xrow.acc .xic{background:rgba(201,219,230,.10);border:1px solid rgba(201,219,230,.24);color:#C9DBE6}
-.botsec .xrow.bug .xic{background:rgba(233,139,139,.10);border:1px solid rgba(233,139,139,.24);color:#e98b8b}
-.botsec .xrow .xic svg{width:18px;height:18px;display:block;stroke:currentColor;stroke-width:1.8;fill:none}
-.botsec .xrow .xtx{flex:1;min-width:0}
-.botsec .xrow .xtx b{display:block;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:700;
-  font-size:14.5px;color:#E8EEF3;line-height:1.2}
-.botsec .xrow .xtx em{display:block;font-style:normal;font-size:12px;color:#788591;line-height:1.4;margin-top:3px;
-  overflow:hidden;text-overflow:ellipsis}
-.botsec .xrow .xar{flex:none;color:#788591;transition:transform .18s,color .18s}
-.botsec .xrow .xar svg{width:18px;height:18px;display:block;stroke:currentColor;stroke-width:2;fill:none}
-.botsec .xrow.acc:hover .xar{color:#C9DBE6;transform:translate(2px,-2px)}
-.botsec .xrow.bug:hover .xar{color:#e98b8b;transform:translate(2px,-2px)}
-`;
-import { useBotNotifications, type BotNotification } from "@/hooks/useBotNotifications";
-
-// Mountain backdrop — imported as a real asset so it is a separately
-// cacheable file instead of a ~220KB base64 blob inside this JS chunk.
-import containers from "@/assets/containers.webp";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { HostingPastDueBanner } from "@/components/dashboard/HostingPastDueBanner";
-import { ReadOnlyBotScope } from "@/components/dashboard/ReadOnlyBotScope";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { DiscordMarkdownTextarea } from "@/components/ui/discord-markdown-textarea";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  ArrowRight,
+  Save,
+  Settings2,
+  Megaphone,
+  Hash,
+  Volume2,
+  MessagesSquare,
+  ChevronsUpDown,
+  Check,
+  RefreshCw,
+  RotateCcw,
+  Plus,
+  Trash2,
+  ShieldCheck,
+} from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
+import { getAddonLabel } from "@/lib/botCatalog";
+import { SayCommandBuilder, type SayCommandBuilderHandle } from "./SayCommandBuilder";
+import { MessagesV2Builder, normalizeV2Items, type MessagesV2BuilderHandle, type V2Item } from "./MessagesV2Builder";
+import { TicketPanelBuilder, type TicketPanelBuilderHandle } from "./TicketPanelBuilder";
+import { TicketEditor, type TicketEditorHandle } from "./TicketEditor";
+import { PostTypesManager } from "./PostTypesManager";
+import { useActiveGuild } from "@/hooks/useActiveGuild";
+import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildChannels";
+import { useBotRoles } from "@/hooks/useBotRoles";
+import { AtSign, Braces } from "lucide-react";
+
+const INVITE_VARIABLES: { token: string; desc: string }[] = [
+  { token: "{user}", desc: "Mentions the new member" },
+  { token: "{username}", desc: "Their display name" },
+  { token: "{server}", desc: "Server name" },
+  { token: "{count}", desc: "Total members" },
+  { token: "{human_count}", desc: "Members excluding bots" },
+  { token: "{bot_count}", desc: "Number of bots" },
+  { token: "{boosts}", desc: "Total server boosts" },
+  { token: "{boost_level}", desc: "Boost tier (0–3)" },
+  { token: "{channel_count}", desc: "Number of channels" },
+  { token: "{role_count}", desc: "Number of roles" },
+];
+
+const GIVEAWAY_VARIABLES: { token: string; desc: string }[] = [
+  { token: "{prize}", desc: "What's being given away" },
+  { token: "{winners}", desc: "Number of winners" },
+  { token: "{entries}", desc: "Live entry count (updates as people join)" },
+  { token: "{participants}", desc: "List of everyone who entered" },
+  { token: "{end}", desc: "Live countdown to the end" },
+  { token: "{end_full}", desc: "Exact end date & time" },
+  { token: "{host}", desc: "Who started the giveaway" },
+  { token: "{winner_list}", desc: "The winners (fills in when it ends)" },
+];
+
+// Unique-ish ids for builder items generated on the dashboard.
+let __gwSeq = 0;
+const gwUid = () => `gw-${Date.now().toString(36)}-${(__gwSeq++).toString(36)}`;
+
+// The Enter (Counter) button row that every giveaway design gets by default.
+const giveawayEnterRow = (): V2Item =>
+  ({ id: gwUid(), type: "buttonRow", buttons: [{ id: gwUid(), label: "🎉 Enter", counter: true, style: "primary" }] } as unknown as V2Item);
+
+// Starter design for a brand-new giveaway: a body with the answer tokens + the
+// three questions that build the /giveaway form, plus the Enter button.
+const defaultGiveawayItems = (): V2Item[] => [
+  {
+    id: gwUid(),
+    type: "text",
+    text:
+      "## **{prize}**\nA new giveaway is here!\n\nPrize: {prize}\nWinners: {winners}\nEntries: {entries}\nEnds: {end}\n\n-# Read the requirements before entering.\n\n{Question: Prize}{Question: Winners}{Question: Length}",
+  } as unknown as V2Item,
+  giveawayEnterRow(),
+];
+
+// Starter design for the ended/winner message (no entry button — the giveaway
+// is over; the bot adds a Reroll control automatically).
+const defaultGiveawayEndedItems = (): V2Item[] => [
+  {
+    id: gwUid(),
+    type: "text",
+    text:
+      "## 🎉 Giveaway Ended\n**{prize}**\n\n🏆 Winner: {winner_list}\n👥 Entries: {entries}\n\nThanks to everyone who entered!",
+  } as unknown as V2Item,
+];
+
+// A giveaway design must have a Counter (enter) button. If one is missing
+// anywhere in the tree, append a default Enter row so it's always visible.
+const hasCounterButton = (items: any[]): boolean =>
+  (items || []).some(
+    (it) =>
+      (it?.type === "buttonRow" && (it.buttons || []).some((b: any) => b && "counter" in b)) ||
+      (it?.type === "container" && hasCounterButton(it.children || [])),
+  );
+
+const withGiveawayEnter = (items: V2Item[]): V2Item[] =>
+  hasCounterButton(items) ? items : [...items, giveawayEnterRow()];
+import { supabase } from "@/integrations/supabase/client";
+import { RoleMultiSelect } from "./RoleMultiSelect";
 import { useTeamRole } from "@/hooks/useTeamRole";
-import { useHostingSubscriptionSync } from "@/hooks/useHostingSubscriptionSync";
+import { useBotScope } from "./ReadOnlyBotScope";
 
-/** Add-on ids grouped by category — used to render config boxes per group.
- *  Order here is the exact left→right, top→bottom order shown in the dashboard.
- *  Base-included features come first, then paid add-ons. */
-const PROTECTION_ADDON_IDS = [
-  // Reordered per product: Moderation History first, Advanced Logging second,
-  // Auto-Escalating Warnings third — then everything else.
-  "moderation-history",
-  "advanced-logging",
-  "auto-escalating-warnings",
-  "verification-system",
-  "mod-actions",
-  "anti-spam",
-  "anti-raid",
-  "auto-role",
-  "phishing-detection",
-  // Remaining paid add-ons
-  "nsfw-invite-scanner",
-  "avatar-nsfw-detection",
-  "bio-phrase-detection",
-  "channel-lockdown",
-  "auto-slowmode",
-  "ban-tools",
-  "messages",
-  "rules",
-];
-const SUPPORT_ADDON_IDS = [
-  "ticket-message-customization",
-  "ticket-lifecycle-messages",
-  "ticket-editor",
-  "staff-performance",
+const CHANNEL_ICON: Record<string, typeof Hash> = {
+  text: Hash,
+  announcement: Megaphone,
+  forum: MessagesSquare,
+  voice: Volume2,
+};
+
+type Props = {
+  addonId: string;
+  botId?: string;
+  botName: string;
+  botAvatarUrl?: string | null;
+  engineVersion?: "v1" | "v2";
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  enabled?: boolean;
+  onToggleEnabled?: (enabled: boolean) => void;
+};
+
+// Ticket setup templates — named snapshots of the whole Tickets editor (panel
+// design, ticket types, placeholder, and settings) so a layout can be saved and
+// reused. Stored in the browser (localStorage); they're editor presets, not
+// server config, and apply nothing until the user hits Save.
+type TicketTemplate = { id: string; name: string; savedAt: string; data: any };
+const TICKET_TEMPLATES_KEY = "oversite:ticket-templates:v1";
+function loadTicketTemplates(): TicketTemplate[] {
+  try {
+    const raw = localStorage.getItem(TICKET_TEMPLATES_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+function persistTicketTemplates(list: TicketTemplate[]) {
+  try {
+    localStorage.setItem(TICKET_TEMPLATES_KEY, JSON.stringify(list));
+  } catch {
+    /* storage unavailable — ignore */
+  }
+}
+
+/**
+ * One configuration "box" per add-on. Click → opens a dialog whose form
+ * is built from the add-on's field schema in addonConfigs.ts.
+ *
+ * Mock UI only — values live in local state and "save" shows a toast.
+ */
+export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineVersion: engineVersionProp, open: openProp, onOpenChange, enabled = true, onToggleEnabled }: Props) {
+
+  const { botId: scopeBotId, viaTeam, readOnly: scopeReadOnly } = useBotScope();
+  const { permissions, role } = useTeamRole(viaTeam ? (scopeBotId ?? botId ?? null) : null);
+  const canEdit = viaTeam ? permissions.edit_bot_config : true;
+  const readOnly = scopeReadOnly || (viaTeam && !permissions.edit_bot_config);
+  const isSayCommand = addonId === "messages";
+  // Customs "Messages" uses the SAME rich builder as Join Message (invite):
+  // external channel field + Variables + embedded MessagesV2Builder, then posts
+  // the composed message to the chosen channel via enqueue_post_message.
+  const isCustomsMessages = addonId === "customs-messages";
+  const isRules = addonId === "rules";
+  const isTicketPanel = addonId === "ticket-message-customization";
+  const isTicketLifecycleMessages = addonId === "ticket-lifecycle-messages";
+  const isTicketEditor = addonId === "ticket-editor";
+  // removed: anonymous-reporting card discontinued
+  const isVerification = addonId === "verification-system";
+  const isAdvancedLogging = addonId === "advanced-logging";
+  const isModeration = addonId === "mod-actions";
+  const isAntiSpam = addonId === "anti-spam";
+  const isAntiRaid = addonId === "anti-raid";
+  const isNsfwInviteScanner = addonId === "nsfw-invite-scanner";
+  const isAutoRole = addonId === "auto-role";
+  const isModHistory = addonId === "moderation-history";
+  const isAutoEscalate = addonId === "auto-escalating-warnings";
+  const isAvatarNsfw = addonId === "avatar-nsfw-detection";
+  const isBioPhrase = addonId === "bio-phrase-detection";
+  const isPhishingDetection = addonId === "phishing-detection";
+  const isSoftbanMassban = addonId === "softban-massban";
+  const isStaffNotes = addonId === "staff-notes";
+  const isChannelLockdown = addonId === "channel-lockdown";
+  const isBanTools = addonId === "ban-tools";
+  const isStaffPerformance = addonId === "staff-performance";
   
-  "ticket-notes",
-  "ticket-add-remove",
-  "close-all-tickets",
-  "priority-flagging",
-  "auto-close-inactive",
-  "messages",
-];
-const UTILITIES_ADDON_IDS = [
-  "music-addon",
-  "auto-radio",
-  
-  "starboard",
-  "recurring-messages",
-  "giveaway-system",
-  "server-stats-channels",
-  "live-notifications",
-  "leveling-system",
-  "economy-system",
-  "remindme",
-  "staff-notes",
-  "messages",
-];
-// Shared/extras add-ons (none currently — Multi-Server License & Custom
-// Branding combined card was removed per product decision).
-const SHARED_ADDON_IDS: string[] = ["invite-message", "customs-messages", "customs-tickets", "customs-verification", "customs-giveaway", "customs-robux-locker", "customs-order-status", "customs-pricing"];
+  const isTicketNotes = addonId === "ticket-notes";
+  const isTicketMembers = addonId === "ticket-add-remove";
+  const isCloseAll = addonId === "close-all-tickets";
+  const isPriorityFlagging = addonId === "priority-flagging";
+  const isAutoCloseInactive = addonId === "auto-close-inactive";
+  const isAutoRadio = addonId === "auto-radio";
+  const isMusicAddon = addonId === "music-addon";
+  const isStarboard = addonId === "starboard";
+  const isGiveaway = addonId === "giveaway-system";
+  const isRecurringMessages = addonId === "recurring-messages";
+  const isRemindme = addonId === "remindme";
+  const isServerStats = addonId === "server-stats-channels";
+  const isPostSystem = addonId === "post-system";
+  const isInviteMessage = addonId === "invite-message";
+  const isCustomsCredits = addonId === "customs-credits";
+  const isCustomsGiveaway = addonId === "customs-giveaway";
+  const isCustomsRobuxLocker = addonId === "customs-robux-locker";
+  const isCustomsOrderStatus = addonId === "customs-order-status";
+  const isCustomsPricing = addonId === "customs-pricing";
+  const isCustomsTickets = addonId === "customs-tickets";
+  const isCustomsVerification = addonId === "customs-verification";
+  const config = getAddonConfig(addonId);
+  const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
+  const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
+  const ticketBuilderRef = useRef<TicketPanelBuilderHandle>(null);
+  const ticketEditorRef = useRef<TicketEditorHandle>(null);
+  const verifyV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [verifyV2Items, setVerifyV2Items] = useState<V2Item[]>([]);
+  const [verifyV2MountKey, setVerifyV2MountKey] = useState(0);
+  const inviteV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const inviteSayRef = useRef<SayCommandBuilderHandle>(null);
+  const [inviteV2Items, setInviteV2Items] = useState<V2Item[]>([]);
+  const [inviteV2MountKey, setInviteV2MountKey] = useState(0);
+  // Customs "Messages" — its own V2 builder ref/state (send-only, starts empty).
+  const messagesV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [messagesV2Items, setMessagesV2Items] = useState<V2Item[]>([]);
+  const [messagesV2MountKey, setMessagesV2MountKey] = useState(0);
+  // Customs "Verification" — the V2 builder for the Verify panel message.
+  const verifyPanelV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [verifyPanelV2Items, setVerifyPanelV2Items] = useState<V2Item[]>([]);
+  const [verifyPanelV2MountKey, setVerifyPanelV2MountKey] = useState(0);
+  // Customs "Robux Locker" — the V2 builder for the Robux Locker panel message.
+  const robuxLockerV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [robuxLockerV2Items, setRobuxLockerV2Items] = useState<V2Item[]>([]);
+  const [robuxLockerV2MountKey, setRobuxLockerV2MountKey] = useState(0);
+  // Customs "Giveaway" — two designs: the running layout and the ended (winner)
+  // layout. A tab switches which one you edit; both are saved together.
+  const [giveawayTab, setGiveawayTab] = useState<"running" | "ended">("running");
+  const giveawayV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [giveawayV2Items, setGiveawayV2Items] = useState<V2Item[]>([]);
+  const [giveawayV2MountKey, setGiveawayV2MountKey] = useState(0);
+  const giveawayEndedV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [giveawayEndedV2Items, setGiveawayEndedV2Items] = useState<V2Item[]>([]);
+  const [giveawayEndedV2MountKey, setGiveawayEndedV2MountKey] = useState(0);
+  // Customs "Tickets" — a shared panel builder, plus a list of ticket TYPES,
+  // each with its own button + its own opening-message components. One picker
+  // chooses which type the opening-message builder is currently editing.
+  const ticketPanelV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [ticketPanelV2Items, setTicketPanelV2Items] = useState<V2Item[]>([]);
+  const [ticketPanelV2MountKey, setTicketPanelV2MountKey] = useState(0);
+  // All saved ticket panels (each = its own channel + design). The builder above
+  // edits ONE at a time; saving upserts it into this list so every panel persists.
+  type TicketPanel = { id: string; channel_id: string; components: V2Item[] };
+  const [ticketPanels, setTicketPanels] = useState<TicketPanel[]>([]);
+  const newPanelId = () => `pnl_${Math.random().toString(36).slice(2, 9)}`;
+  const ticketOpenV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [ticketOpenV2MountKey, setTicketOpenV2MountKey] = useState(0);
+  type TicketType = { id: string; name: string; button_label: string; button_style: string; presentation: "button" | "dropdown" };
+  const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
+  const [ticketOpenByType, setTicketOpenByType] = useState<Record<string, V2Item[]>>({});
+  const [activeTicketType, setActiveTicketType] = useState<string>("");
+  const [ticketMenuPlaceholder, setTicketMenuPlaceholder] = useState<string>("Select a ticket type…");
+  const newTicketTypeId = () => `t_${Math.random().toString(36).slice(2, 9)}`;
+  // Ticket setup templates (save / load / start over).
+  const [ticketTemplates, setTicketTemplates] = useState<TicketTemplate[]>([]);
+  const [tplName, setTplName] = useState("");
+  const [tplOpen, setTplOpen] = useState(false);
 
-// Owners can cancel/remove a bot from any pre-live state OR once it's live
-// ("paid"/"ready"). Cancelling flips the order to "cancelled", which hides it
-// from the dashboard (entitlements like the Web Dashboard add-on still survive
-// via ENTITLEMENT_STATUSES in useOwnedBots).
-const canCancelStatus = (status: string) =>
-  status === "draft" || status === "submitted" || status === "paid" || status === "ready";
+  const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
+  useEffect(() => {
+    if (!isSayCommand || !botId || engineVersionProp) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_orders")
+        .select("engine_version")
+        .eq("id", botId)
+        .maybeSingle();
+      if (cancelled) return;
+      setEngineVersionFetched(data?.engine_version === "v2" ? "v2" : "v1");
+    })();
+    return () => { cancelled = true; };
+  }, [isSayCommand, botId, engineVersionProp]);
+  const engineVersion: "v1" | "v2" = engineVersionProp ?? engineVersionFetched ?? "v1";
 
-/** Visual category metadata for grouped add-on config sections. */
-const ADDON_GROUPS: {
-  key: "protection" | "support" | "utilities" | "shared";
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  ids: string[];
-}[] = [
-  { key: "protection", label: "Protection", icon: ShieldCheck, ids: PROTECTION_ADDON_IDS },
-  { key: "support",    label: "Support",    icon: LifeBuoy,    ids: SUPPORT_ADDON_IDS },
-  { key: "utilities",  label: "Utilities",  icon: Wrench,      ids: UTILITIES_ADDON_IDS },
-  { key: "shared",     label: "Extras",     icon: Star,        ids: SHARED_ADDON_IDS },
-];
 
-type StatusMeta = { label: string; className: string; loading?: boolean };
-const STATUS_META: Record<string, StatusMeta> = {
-  draft:     { label: "Draft",            className: "bg-muted text-muted-foreground border-border" },
-  submitted: { label: "Confirmation",     className: "bg-primary/15 text-primary border-primary/30", loading: true },
-  paid:      { label: "Confirmation",     className: "bg-primary/15 text-primary border-primary/30", loading: true },
-  building:  { label: "Confirmation",     className: "bg-blue-500/15 text-blue-400 border-blue-500/30", loading: true },
-  ready:     { label: "Ready to invite",  className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-  live:      { label: "Live",             className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-  cancelled: { label: "Cancelled",        className: "bg-destructive/15 text-destructive border-destructive/30" },
-};
-const getStatusMeta = (s: string): StatusMeta =>
-  STATUS_META[s] ?? { label: s, className: "bg-muted text-muted-foreground border-border" };
+  // Map dashboard addon id → bot_config.feature name for toggleable features.
+  const TOGGLE_FEATURE_MAP: Record<string, string> = {
+    "verification-system": "verification",
+    "advanced-logging": "advanced-logging",
+    
+    "anti-spam": "anti-spam",
+    "anti-raid": "anti-raid",
+    "phishing-detection": "phishing-link-detection",
+    "nsfw-invite-scanner": "nsfw-invite-scanner",
+    "moderation-history": "mod-history",
+    "auto-escalating-warnings": "auto-escalate",
+    "avatar-nsfw-detection": "avatar-nsfw",
+    "bio-phrase-detection": "bio-phrase",
+  };
 
-const RequestCustomFeatureCard = () => {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button type="button" className="xrow acc" onClick={() => setOpen(true)}>
-        <span className="xic"><MessageSquare size={18} /></span>
-        <span className="xtx">
-          <b>Custom feature</b>
-          <em>Need something unique? We&rsquo;ll build it for your bot.</em>
-        </span>
-        <span className="xar"><ArrowUpRight size={18} /></span>
-      </button>
-      <RequestCustomFeatureDialog open={open} onOpenChange={setOpen} />
-    </>
-  );
-};
-
-const ReportBugCard = () => {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button type="button" className="xrow bug" onClick={() => setOpen(true)}>
-        <span className="xic"><Bug size={18} /></span>
-        <span className="xtx">
-          <b>Report a bug</b>
-          <em>Hit a snag? Send the details and we&rsquo;ll get it fixed.</em>
-        </span>
-        <span className="xar"><ArrowUpRight size={18} /></span>
-      </button>
-      <ReportBugDialog open={open} onOpenChange={setOpen} />
-    </>
-  );
-};
-
-const EngineVersionSwitcher = ({
-  bot,
-  onReload,
-}: {
-  bot: OwnedBot;
-  onReload: () => void;
-}) => {
-  const [confirmTarget, setConfirmTarget] = useState<"v1" | "v2" | null>(null);
-  const [saving, setSaving] = useState(false);
-  const current = bot.engine_version === "v2" ? "v2" : "v1";
-
-  const switchTo = async (target: "v1" | "v2") => {
-    setSaving(true);
-    const { error } = await (supabase as any)
-      .from("bot_orders")
-      .update({ engine_version: target, updated_at: new Date().toISOString() })
-      .eq("id", bot.id);
-    setSaving(false);
-    setConfirmTarget(null);
-    if (error) {
-      toast.error("Couldn't switch engine version", { description: error.message });
+  const persistEnabledFlag = async (next: boolean) => {
+    const feature = TOGGLE_FEATURE_MAP[addonId];
+    if (!feature || !botId) {
+      console.warn("[toggle] aborting — missing feature or botId", { feature, botId });
       return;
     }
-    toast.success(`Switching to Component ${target.toUpperCase()}`, {
-      description:
-        "Your bot may experience a short period of downtime while the engine swaps over.",
+    try {
+      // 1) Server-side JSONB merge: config = COALESCE(config,'{}') || {"enabled": next}
+      const { error: mergeError } = await supabase.rpc("set_bot_config_enabled" as any, {
+        _bot_id: botId,
+        _feature: feature,
+        _enabled: next,
+      });
+      if (mergeError) {
+        toast.error(`Failed to save toggle: ${mergeError.message}`);
+        return;
+      }
+      // 2) ALWAYS enqueue apply_config so the bot picks up the change immediately.
+      const { data: cmdData, error: cmdError } = await supabase.rpc(
+        "enqueue_apply_config" as any,
+        { _bot_id: botId, _feature: feature },
+      );
+      const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+      if (cmdError) {
+        toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+      } else if (cmdResult && cmdResult.ok === false) {
+        toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[toggle] persistEnabledFlag threw", err);
+      toast.error(`Toggle failed: ${msg}`);
+    }
+  };
+
+  const handleToggleEnabled = (next: boolean) => {
+    onToggleEnabled?.(next);
+    void persistEnabledFlag(next);
+  };
+  const { guild } = useActiveGuild();
+  const targetServerName = guild?.guild_name ?? guild?.guild_id ?? botName;
+  // Channel names for the saved-panels list (Tickets).
+  const { channels: panelChannels } = useBotChannels(botId, guild?.guild_id);
+  const panelChannelName = (id: string) =>
+    panelChannels.find((c) => c.channel_id === id)?.channel_name ?? id;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const [ticketBuilderRemountKey, setTicketBuilderRemountKey] = useState(0);
+  const setOpen = (v: boolean) => {
+    // Force a full remount of TicketPanelBuilder on every open so its state is
+    // guaranteed fresh from the DB (no stale draft / cached form values).
+    if (v) setTicketBuilderRemountKey((k) => k + 1);
+    if (onOpenChange) onOpenChange(v);
+    else setInternalOpen(v);
+  };
+  const [appliedAt, setAppliedAt] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Generic, untyped form state — schema-driven.
+  const [values, setValues] = useState<Record<string, string | number | boolean | string[]>>({});
+
+  // Channel lockdown embed state (separate because of nested object shape).
+  type LockEmbed = { enabled: boolean; title: string; description: string; color: string };
+  const defaultLockEmbed: LockEmbed = {
+    enabled: true,
+    title: "🔒 Channel Locked",
+    description: "This channel is now locked. We'll be back shortly.",
+    color: "0xED4245",
+  };
+  const defaultUnlockEmbed: LockEmbed = {
+    enabled: true,
+    title: "🔓 Channel Unlocked",
+    description: "Channel unlocked — thanks for your patience.",
+    color: "0x57F287",
+  };
+  const [lockEmbed, setLockEmbed] = useState<LockEmbed>(defaultLockEmbed);
+  const [unlockEmbed, setUnlockEmbed] = useState<LockEmbed>(defaultUnlockEmbed);
+
+  // Recurring Messages state — custom UI (array of entries + toggle + roles).
+  type RecurringEntry = { channel_id: string; interval_minutes: number; message: string; ping_role_ids: string[] };
+  const RECURRING_INTERVALS: { value: number; label: string }[] = [
+    { value: 5, label: "5 minutes" },
+    { value: 15, label: "15 minutes" },
+    { value: 30, label: "30 minutes" },
+    { value: 60, label: "1 hour" },
+    { value: 120, label: "2 hours" },
+    { value: 360, label: "6 hours" },
+    { value: 720, label: "12 hours" },
+    { value: 1440, label: "1 day" },
+    { value: 10080, label: "1 week" },
+  ];
+  const [recurringMessages, setRecurringMessages] = useState<RecurringEntry[]>([]);
+  const [recurringDeletePrevious, setRecurringDeletePrevious] = useState(false);
+  const [recurringAllowedRoles, setRecurringAllowedRoles] = useState<string[]>([]);
+
+  // Giveaway System — custom form state
+  const [giveawayHostRoles, setGiveawayHostRoles] = useState<string[]>([]);
+  const [giveawayChannelId, setGiveawayChannelId] = useState("");
+  const [giveawayDefaultDuration, setGiveawayDefaultDuration] = useState("1d");
+  const [giveawayEntryEmoji, setGiveawayEntryEmoji] = useState("🎉");
+  const [giveawayDefaultWinners, setGiveawayDefaultWinners] = useState(1);
+  const [giveawayEmbedTitle, setGiveawayEmbedTitle] = useState("🎉 Giveaway!");
+  const [giveawayEmbedDescription, setGiveawayEmbedDescription] = useState(
+    "React with {emoji} to enter!\n\n**Prize:** {prize}\n**Winners:** {winners}\n**Ends:** {ends}",
+  );
+  const [giveawayEmbedColor, setGiveawayEmbedColor] = useState("0x5865F2");
+
+  useEffect(() => {
+    if (!config) return;
+    const initial: Record<string, string | number | boolean | string[]> = {};
+    for (const f of config.fields) {
+      initial[f.key] =
+        f.defaultValue ??
+        (f.type === "toggle"
+          ? false
+          : f.type === "number"
+            ? 0
+            : f.type === "multiselect"
+              ? []
+              : "");
+    }
+    setValues(initial);
+  }, [config, addonId]);
+
+  // Load existing verification config from bot_config when dialog opens.
+  useEffect(() => {
+    if (!isVerification || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "verification")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        channel_id: cfg.channel_id ?? "",
+        log_channel_id: cfg.log_channel_id ?? "",
+        role_id: cfg.role_id ?? "",
+        message: cfg.message ?? prev.message ?? "",
+        button_label: cfg.button_label ?? prev.button_label ?? "Verify",
+        min_account_age_days: String(cfg.min_account_age_days ?? "0"),
+        embed_author: cfg.author ?? cfg.embed_author ?? "",
+        embed_title: cfg.title ?? cfg.embed_title ?? "",
+        embed_footer: cfg.footer ?? cfg.embed_footer ?? "",
+        embed_color: cfg.embed_color ?? "#5865f2",
+        verification_type: cfg.verification_type ?? "one_click",
+        captcha_length: cfg.captcha_length ?? 6,
+        captcha_difficulty: cfg.captcha_difficulty ?? "medium",
+        web_captcha_provider: cfg.web_captcha_provider ?? "hcaptcha",
+        web_captcha_site_key: cfg.web_captcha_site_key ?? "",
+        // Advanced security
+        rate_limit_enabled: !!cfg.rate_limit_enabled,
+        rate_limit_max_attempts: cfg.rate_limit_max_attempts ?? 3,
+        rate_limit_lockout_minutes: cfg.rate_limit_lockout_minutes ?? 10,
+        phone_verified_required: !!cfg.phone_verified_required,
+        honeypot_enabled: !!cfg.honeypot_enabled,
+        honeypot_flag_under_days: cfg.honeypot_flag_under_days ?? 7,
+        honeypot_ping_roles: Array.isArray(cfg.honeypot_ping_roles)
+          ? cfg.honeypot_ping_roles.map(String)
+          : [],
+        suspicious_join_enabled: !!cfg.suspicious_join_enabled,
+        suspicious_join_max_per_minute: cfg.suspicious_join_max_per_minute ?? 5,
+        vpn_block_enabled: !!cfg.vpn_block_enabled,
+        vpn_block_iphub_key: cfg.vpn_block_iphub_key ?? "",
+      }));
+      const components = Array.isArray((cfg as any).components)
+        ? ((cfg as any).components as V2Item[])
+        : (cfg as any).message_v2 && Array.isArray((cfg as any).message_v2.components)
+          ? ((cfg as any).message_v2.components as V2Item[])
+          : [];
+      setVerifyV2Items(components);
+      setVerifyV2MountKey((k) => k + 1);
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isVerification, open, botId]);
+
+  // Load existing invite-message config from bot_config when dialog opens.
+  useEffect(() => {
+    if (!isInviteMessage || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "invite")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        channel_id: cfg.channel_id ?? "",
+      }));
+      const components = Array.isArray((cfg as any).components)
+        ? ((cfg as any).components as V2Item[])
+        : [];
+      setInviteV2Items(components);
+      setInviteV2MountKey((k) => k + 1);
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isInviteMessage, open, botId]);
+
+  // Load existing advanced-logging config when dialog opens.
+  useEffect(() => {
+    if (!isAdvancedLogging || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "advanced-logging")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        channel: cfg.log_channel_id ?? "",
+        logMessagesSent: cfg.log_messages_sent ?? false,
+        logMessages: cfg.log_message_edits_deletes ?? true,
+        logMembers: cfg.log_member_joins_leaves ?? true,
+        logVoice: cfg.log_voice_activity ?? false,
+        logModeration: cfg.log_moderation_actions ?? true,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdvancedLogging, open, botId]);
+
+  // Load existing moderation config when dialog opens.
+  useEffect(() => {
+    if (!isModeration || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "moderation")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const rawRoles = cfg.moderator_role_ids ?? cfg.moderator_role_id;
+      const modRoles = Array.isArray(rawRoles)
+        ? rawRoles.map(String)
+        : rawRoles
+          ? [String(rawRoles)]
+          : [];
+      setValues((prev) => ({
+        ...prev,
+        modRole: modRoles,
+        logChannel: cfg.log_channel_id ?? "",
+        defaultMuteDuration: String(cfg.default_mute_minutes ?? "60"),
+        dmOnAction: cfg.dm_on_action ?? true,
+        requireReason: cfg.require_reason ?? true,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isModeration, open, botId]);
+
+  // Load existing anti-spam config when dialog opens.
+  useEffect(() => {
+    if (!isAntiSpam || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "anti-spam")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const minutes = Number(cfg.mute_duration_minutes ?? 10);
+      const muteDurationStr =
+        minutes === 5 ? "5m" : minutes === 60 ? "1h" : "10m";
+      const exempt = Array.isArray(cfg.exempt_role_ids)
+        ? cfg.exempt_role_ids.map(String)
+        : [];
+      const pingExempt = Array.isArray(cfg.exempt_ping_role_ids)
+        ? cfg.exempt_ping_role_ids.map(String)
+        : [];
+      setValues((prev) => ({
+        ...prev,
+        messageThreshold: Number(cfg.spam_threshold ?? 6),
+        action: Array.isArray(cfg.action)
+          ? cfg.action.map(String)
+          : cfg.action
+            ? [String(cfg.action)]
+            : ["mute"],
+        muteDuration: muteDurationStr,
+        logChannel: cfg.log_channel_id ?? "",
+        ignoreStaff: cfg.ignore_staff ?? true,
+        exemptRoles: exempt,
+        pingExemptRoles: pingExempt,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAntiSpam, open, botId]);
+
+  const saveAntiSpam = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    setSaving(true);
+    const muteStr = String(values.muteDuration ?? "10m");
+    const muteMinutes =
+      muteStr === "5m" ? 5 : muteStr === "1h" ? 60 : 10;
+    const payload = {
+      bot_id: botId,
+      feature: "anti-spam",
+      config: {
+        spam_threshold: Number(values.messageThreshold ?? 6),
+        action: Array.isArray(values.action)
+          ? (values.action as string[]).filter(Boolean)
+          : values.action
+            ? [String(values.action)]
+            : ["mute"],
+        mute_duration_minutes: muteMinutes,
+        log_channel_id: values.logChannel ? String(values.logChannel) : null,
+        ignore_staff: !!values.ignoreStaff,
+        exempt_role_ids: Array.isArray(values.exemptRoles)
+          ? (values.exemptRoles as string[]).filter(Boolean)
+          : [],
+        exempt_ping_role_ids: Array.isArray(values.pingExemptRoles)
+          ? (values.pingExemptRoles as string[]).filter(Boolean)
+          : [],
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "anti-spam",
     });
-    onReload();
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("Anti-Spam settings saved & applied");
+    }
+    setOpen(false);
+  };
+
+  // Load existing anti-raid config when dialog opens.
+  useEffect(() => {
+    if (!isAntiRaid || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "anti-raid")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        joinThreshold: Number(cfg.raid_threshold ?? 8),
+        actions: Array.isArray(cfg.actions)
+          ? cfg.actions.map(String)
+          : cfg.actions
+            ? [String(cfg.actions)]
+            : ["lock"],
+        alertChannel: cfg.alert_channel_id ?? "",
+        pingRole: cfg.alert_role_id ?? "",
+        autoUnlock: cfg.auto_unlock ?? true,
+        exemptRoles: Array.isArray(cfg.exempt_role_ids)
+          ? cfg.exempt_role_ids.map(String)
+          : [],
+        stripExemptRoles: Array.isArray(cfg.strip_exempt_role_ids)
+          ? cfg.strip_exempt_role_ids.map(String)
+          : [],
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAntiRaid, open, botId]);
+
+  const saveAntiRaid = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "anti-raid",
+      config: {
+        raid_threshold: Number(values.joinThreshold ?? 8),
+        actions: Array.isArray(values.actions)
+          ? (values.actions as string[]).filter(Boolean)
+          : values.actions
+            ? [String(values.actions)]
+            : ["lock"],
+        alert_channel_id: values.alertChannel ? String(values.alertChannel) : null,
+        alert_role_id: values.pingRole ? String(values.pingRole) : null,
+        auto_unlock: !!values.autoUnlock,
+        exempt_role_ids: Array.isArray(values.exemptRoles)
+          ? (values.exemptRoles as any[]).map(String).filter(Boolean)
+          : [],
+        strip_exempt_role_ids: Array.isArray(values.stripExemptRoles)
+          ? (values.stripExemptRoles as any[]).map(String).filter(Boolean)
+          : [],
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "anti-raid",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("Anti-Raid settings saved & applied");
+    }
+    setOpen(false);
+  };
+
+  // Load existing auto-role config when dialog opens.
+  useEffect(() => {
+    if (!isAutoRole || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "auto-role")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const roles = Array.isArray(cfg.role_ids)
+        ? cfg.role_ids.map(String)
+        : [];
+      setValues((prev) => ({
+        ...prev,
+        roles,
+        skipBots: cfg.skip_bots ?? true,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAutoRole, open, botId]);
+
+  const saveAutoRole = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "auto-role",
+      config: {
+        role_ids: Array.isArray(values.roles)
+          ? (values.roles as string[]).filter(Boolean)
+          : [],
+        skip_bots: !!values.skipBots,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "auto-role",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("Auto Role settings saved & applied");
+    }
+    setOpen(false);
+  };
+
+  const saveModeration = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "moderation",
+      config: {
+        moderator_role_ids: Array.isArray(values.modRole)
+          ? (values.modRole as string[]).filter(Boolean)
+          : [],
+        log_channel_id: values.logChannel ? String(values.logChannel) : null,
+        default_mute_minutes: Number(values.defaultMuteDuration ?? 60),
+        dm_on_action: !!values.dmOnAction,
+        require_reason: !!values.requireReason,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "moderation",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("Moderation settings saved & applied");
+    }
+    setOpen(false);
+  };
+
+  const saveAdvancedLogging = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "advanced-logging",
+      config: {
+        log_channel_id: String(values.channel ?? ""),
+        log_messages_sent: !!values.logMessagesSent,
+        log_message_edits_deletes: !!values.logMessages,
+        log_member_joins_leaves: !!values.logMembers,
+        log_voice_activity: !!values.logVoice,
+        log_moderation_actions: !!values.logModeration,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "advanced-logging",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("Advanced Logging settings saved & applied");
+    }
+    setOpen(false);
+  };
+
+  const saveVerification = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    const liveV2 = verifyV2Ref.current?.getItems() ?? verifyV2Items;
+    const v2Components = normalizeV2Items(liveV2 ?? []);
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "verification",
+      config: {
+        channel_id: String(values.channel_id ?? ""),
+        log_channel_id: String(values.log_channel_id ?? ""),
+        role_id: String(values.role_id ?? ""),
+        message: String(values.message ?? ""),
+        button_label: String(values.button_label ?? "Verify"),
+        min_account_age_days: Number(values.min_account_age_days ?? 0),
+        author: String(values.embed_author ?? ""),
+        title: String(values.embed_title ?? ""),
+        footer: String(values.embed_footer ?? ""),
+        embed_color: String(values.embed_color ?? "#5865f2"),
+        verification_type: String(values.verification_type ?? "one_click"),
+        captcha_length: Number(values.captcha_length ?? 6),
+        captcha_difficulty: String(values.captcha_difficulty ?? "medium"),
+        web_captcha_provider: String(values.web_captcha_provider ?? "hcaptcha"),
+        web_captcha_site_key: String(values.web_captcha_site_key ?? ""),
+        // Advanced security
+        rate_limit_enabled: !!values.rate_limit_enabled,
+        rate_limit_max_attempts: Number(values.rate_limit_max_attempts ?? 3),
+        rate_limit_lockout_minutes: Number(values.rate_limit_lockout_minutes ?? 10),
+        phone_verified_required: !!values.phone_verified_required,
+        honeypot_enabled: !!values.honeypot_enabled,
+        honeypot_flag_under_days: Number(values.honeypot_flag_under_days ?? 7),
+        honeypot_ping_roles: Array.isArray(values.honeypot_ping_roles)
+          ? (values.honeypot_ping_roles as string[]).filter(Boolean)
+          : [],
+        suspicious_join_enabled: !!values.suspicious_join_enabled,
+        suspicious_join_max_per_minute: Number(values.suspicious_join_max_per_minute ?? 5),
+        vpn_block_enabled: !!values.vpn_block_enabled,
+        vpn_block_iphub_key: String(values.vpn_block_iphub_key ?? ""),
+        components: v2Components,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "verification",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("Verification settings saved & applied");
+    }
+    setOpen(false);
+  };
+
+  const saveInviteMessage = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    const liveV2 = inviteV2Ref.current?.getItems() ?? inviteV2Items;
+    const v2Components = normalizeV2Items(liveV2 ?? []);
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "invite",
+      config: {
+        channel_id: String(values.channel_id ?? ""),
+        components: v2Components,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "invite",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("Invite message saved & applied");
+    }
+    setOpen(false);
+  };
+
+  // ---------- customs: messages (send-to-channel) ----------
+  // Start each open with an empty composer (this is a "send now", not a saved
+  // template) and remount the builder so no stale draft carries over.
+  useEffect(() => {
+    if (!isCustomsMessages || !open) return;
+    setMessagesV2Items([]);
+    setMessagesV2MountKey((k) => k + 1);
+  }, [isCustomsMessages, open]);
+
+  const sendCustomsMessages = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    if (!values.channel_id) return toast.error("Pick a channel to post in.");
+    const liveV2 = messagesV2Ref.current?.getItems() ?? messagesV2Items;
+    const components_v2 = normalizeV2Items(liveV2 ?? []);
+    if (!components_v2 || components_v2.length === 0) {
+      return toast.error("Add at least one component first.");
+    }
+    setSaving(true);
+    const { data, error } = await supabase.rpc("enqueue_post_message" as any, {
+      _bot_id: botId,
+      _payload: { channel_id: String(values.channel_id), components_v2 } as any,
+    });
+    setSaving(false);
+    if (error) return toast.error(`Failed to send: ${error.message}`);
+    const result = data as { ok?: boolean; error?: string } | null;
+    if (!result?.ok) return toast.error(result?.error || "Could not queue the message.");
+    toast.success("Message queued — your bot will post it shortly.");
+    setOpen(false);
+  };
+
+  // ---------- customs: credits ----------
+  useEffect(() => {
+    if (!isCustomsCredits || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "credits")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        manager_role_ids: Array.isArray(cfg.manager_role_ids) ? cfg.manager_role_ids.map(String) : [],
+        currency_name: cfg.currency_name ?? "credits",
+        log_channel_id: cfg.log_channel_id ? String(cfg.log_channel_id) : "",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsCredits, open, botId]);
+
+  const saveCustomsCredits = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "credits",
+      config: {
+        manager_role_ids: Array.isArray(values.manager_role_ids) ? (values.manager_role_ids as string[]).map(String) : [],
+        currency_name: String(values.currency_name ?? "credits") || "credits",
+        log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "credits",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Credits saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: order status ----------
+  useEffect(() => {
+    if (!isCustomsOrderStatus || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-order-status")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        title: cfg.title ?? "Order Status",
+        limited_at: typeof cfg.limited_at === "number" ? cfg.limited_at : 8,
+        closed_at: typeof cfg.closed_at === "number" ? cfg.closed_at : 10,
+        emoji_open: cfg.emoji_open ?? "",
+        label_open: cfg.label_open ?? "Open",
+        emoji_limited: cfg.emoji_limited ?? "",
+        label_limited: cfg.label_limited ?? "Oversite+ Only",
+        emoji_closed: cfg.emoji_closed ?? "",
+        label_closed: cfg.label_closed ?? "Closed",
+        services: cfg.services ?? "Liveries = Liveries\nGFX = GFX\nBot Design = Bot Design",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsOrderStatus, open, botId]);
+
+  const saveCustomsOrderStatus = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-order-status",
+      config: {
+        title: String(values.title ?? "Order Status") || "Order Status",
+        limited_at: Number(values.limited_at ?? 8) || 0,
+        closed_at: Number(values.closed_at ?? 10) || 0,
+        emoji_open: String(values.emoji_open ?? ""),
+        label_open: String(values.label_open ?? "Open") || "Open",
+        emoji_limited: String(values.emoji_limited ?? ""),
+        label_limited: String(values.label_limited ?? "Oversite+ Only") || "Oversite+ Only",
+        emoji_closed: String(values.emoji_closed ?? ""),
+        label_closed: String(values.label_closed ?? "Closed") || "Closed",
+        services: String(values.services ?? ""),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-order-status",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Order Status saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: pricing ----------
+  useEffect(() => {
+    if (!isCustomsPricing || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-pricing")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        designer_role_ids: Array.isArray(cfg.designer_role_ids) ? cfg.designer_role_ids.map(String) : [],
+        currency: cfg.currency ?? "$",
+        title: cfg.title ?? "Pricing",
+        services: cfg.services ?? "",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsPricing, open, botId]);
+
+  const saveCustomsPricing = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-pricing",
+      config: {
+        designer_role_ids: Array.isArray(values.designer_role_ids) ? (values.designer_role_ids as string[]).map(String) : [],
+        currency: String(values.currency ?? "$") || "$",
+        title: String(values.title ?? "Pricing") || "Pricing",
+        services: String(values.services ?? ""),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-pricing",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Pricing saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: giveaway (design + /giveaway defaults) ----------
+  useEffect(() => {
+    if (!isCustomsGiveaway || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-giveaway")
+        .maybeSingle();
+      if (cancelled) return;
+      const cfg = (data?.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        manager_role_ids: Array.isArray(cfg.manager_role_ids) ? cfg.manager_role_ids.map(String) : [],
+      }));
+      const saved = Array.isArray(cfg.components) && cfg.components.length ? (cfg.components as V2Item[]) : null;
+      setGiveawayV2Items(saved ? withGiveawayEnter(saved) : defaultGiveawayItems());
+      setGiveawayV2MountKey((k) => k + 1);
+      const savedEnded = Array.isArray(cfg.ended_components) && cfg.ended_components.length ? (cfg.ended_components as V2Item[]) : null;
+      setGiveawayEndedV2Items(savedEnded ?? defaultGiveawayEndedItems());
+      setGiveawayEndedV2MountKey((k) => k + 1);
+      setGiveawayTab("running");
+      setAppliedAt((data as any)?.applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsGiveaway, open, botId]);
+
+  const saveCustomsGiveaway = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-giveaway",
+      config: {
+        manager_role_ids: Array.isArray(values.manager_role_ids) ? (values.manager_role_ids as string[]).map(String) : [],
+        components: normalizeV2Items(giveawayV2Ref.current?.getItems() ?? giveawayV2Items ?? []),
+        ended_components: normalizeV2Items(giveawayEndedV2Ref.current?.getItems() ?? giveawayEndedV2Items ?? []),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-giveaway",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Giveaway design saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: verification (Roblox OAuth) ----------
+  useEffect(() => {
+    if (!isCustomsVerification || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "roblox-verify")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        channel_id: cfg.channel_id ? String(cfg.channel_id) : "",
+        verified_role_ids: Array.isArray(cfg.verified_role_ids)
+          ? cfg.verified_role_ids.map(String)
+          : cfg.verified_role_id
+          ? [String(cfg.verified_role_id)]
+          : [],
+        remove_role_ids: Array.isArray(cfg.remove_role_ids) ? cfg.remove_role_ids.map(String) : [],
+        set_nickname: cfg.set_nickname ?? true,
+        log_channel_id: cfg.log_channel_id ? String(cfg.log_channel_id) : "",
+        roblox_client_id: cfg.roblox_client_id ?? "",
+        roblox_client_secret: cfg.roblox_client_secret ?? "",
+        verify_button_label: cfg.verify_button_label ?? "Verify",
+        verify_button_style: cfg.verify_button_style ?? "primary",
+      }));
+      setVerifyPanelV2Items(Array.isArray(cfg.components) ? (cfg.components as V2Item[]) : []);
+      setVerifyPanelV2MountKey((k) => k + 1);
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsVerification, open, botId]);
+
+  const saveCustomsVerification = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "roblox-verify",
+      config: {
+        channel_id: values.channel_id ? String(values.channel_id) : null,
+        verified_role_ids: Array.isArray(values.verified_role_ids)
+          ? (values.verified_role_ids as string[]).map(String)
+          : [],
+        remove_role_ids: Array.isArray(values.remove_role_ids)
+          ? (values.remove_role_ids as string[]).map(String)
+          : [],
+        set_nickname: values.set_nickname ?? true,
+        log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
+        roblox_client_id: String(values.roblox_client_id ?? "").trim(),
+        roblox_client_secret: String(values.roblox_client_secret ?? "").trim(),
+        verify_button_label: String(values.verify_button_label ?? "Verify").trim() || "Verify",
+        verify_button_style: String(values.verify_button_style ?? "primary"),
+        components: normalizeV2Items(verifyPanelV2Ref.current?.getItems() ?? verifyPanelV2Items ?? []),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "roblox-verify",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Verification saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: robux locker ----------
+  useEffect(() => {
+    if (!isCustomsRobuxLocker || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-robux-locker")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        channel_id: cfg.channel_id ? String(cfg.channel_id) : "",
+      }));
+      setRobuxLockerV2Items(Array.isArray(cfg.components) ? (cfg.components as V2Item[]) : []);
+      setRobuxLockerV2MountKey((k) => k + 1);
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsRobuxLocker, open, botId]);
+
+  const saveCustomsRobuxLocker = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    if (!values.channel_id) return toast.error("Pick a channel to post the panel in.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-robux-locker",
+      config: {
+        channel_id: String(values.channel_id),
+        components: normalizeV2Items(robuxLockerV2Ref.current?.getItems() ?? robuxLockerV2Items ?? []),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-robux-locker",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Robux Locker saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: tickets ----------
+  useEffect(() => {
+    if (!isCustomsTickets || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "tickets")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        category_id: cfg.category_id ? String(cfg.category_id) : "",
+        support_role_ids: Array.isArray(cfg.support_role_ids) ? cfg.support_role_ids.map(String) : [],
+        log_channel_id: cfg.log_channel_id ? String(cfg.log_channel_id) : "",
+        open_message: cfg.open_message ?? "",
+        ping_support: cfg.ping_support ?? true,
+        one_per_user: cfg.one_per_user ?? true,
+        delete_category_when_empty: cfg.delete_category_when_empty ?? false,
+        panel_channel_id: cfg.panel_channel_id ? String(cfg.panel_channel_id) : "",
+      }));
+      // Load every saved panel (new multi-panel shape), falling back to the
+      // single panel_channel_id + panel_components for older configs.
+      const rawPanels: any[] = Array.isArray(cfg.panels) ? cfg.panels : [];
+      let panels: TicketPanel[] = rawPanels
+        .map((p) => ({
+          id: newPanelId(),
+          channel_id: String(p?.channel_id || ""),
+          components: Array.isArray(p?.components) ? (p.components as V2Item[]) : [],
+        }))
+        .filter((p) => p.channel_id || p.components.length);
+      if (panels.length === 0 && (cfg.panel_channel_id || (Array.isArray(cfg.panel_components) && cfg.panel_components.length))) {
+        panels = [{
+          id: newPanelId(),
+          channel_id: String(cfg.panel_channel_id || ""),
+          components: Array.isArray(cfg.panel_components) ? (cfg.panel_components as V2Item[]) : [],
+        }];
+      }
+      setTicketPanels(panels);
+      const active = panels[0];
+      setValues((prev) => ({ ...prev, panel_channel_id: active?.channel_id ?? (cfg.panel_channel_id ? String(cfg.panel_channel_id) : "") }));
+      setTicketPanelV2Items(active?.components ?? (Array.isArray(cfg.panel_components) ? (cfg.panel_components as V2Item[]) : []));
+      setTicketPanelV2MountKey((k) => k + 1);
+      // Ticket types — new multi-type shape, with legacy single-message fallback.
+      const rawTypes: any[] = Array.isArray(cfg.ticket_types) ? cfg.ticket_types : [];
+      if (rawTypes.length) {
+        const tt: TicketType[] = rawTypes.map((t) => ({
+          id: String(t.id || newTicketTypeId()),
+          name: String(t.name || "Ticket"),
+          button_label: String(t.button_label || "Open Ticket"),
+          button_style: String(t.button_style || "primary"),
+          presentation: t.presentation === "dropdown" ? "dropdown" : "button",
+        }));
+        const map: Record<string, V2Item[]> = {};
+        rawTypes.forEach((t, i) => {
+          map[tt[i].id] = Array.isArray(t.open_components) ? (t.open_components as V2Item[]) : [];
+        });
+        setTicketTypes(tt);
+        setTicketOpenByType(map);
+        setActiveTicketType(tt[0].id);
+      } else {
+        const id = newTicketTypeId();
+        setTicketTypes([{ id, name: "Support", button_label: cfg.open_button_label || "Open Ticket", button_style: cfg.open_button_style || "primary", presentation: "button" }]);
+        setTicketOpenByType({ [id]: Array.isArray(cfg.open_components) ? (cfg.open_components as V2Item[]) : [] });
+        setActiveTicketType(id);
+      }
+      setTicketMenuPlaceholder(String(cfg.ticket_menu_placeholder || "Select a ticket type…"));
+      setTicketOpenV2MountKey((k) => k + 1);
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsTickets, open, botId]);
+
+  // Snapshot the opening-message builder into the per-type map for the active
+  // type. Returns the merged map so callers can use it immediately.
+  const captureActiveTicketOpen = (): Record<string, V2Item[]> => {
+    if (!activeTicketType) return ticketOpenByType;
+    const items = ticketOpenV2Ref.current?.getItems();
+    const merged = { ...ticketOpenByType, [activeTicketType]: items ?? ticketOpenByType[activeTicketType] ?? [] };
+    setTicketOpenByType(merged);
+    return merged;
+  };
+
+  const selectTicketType = (id: string) => {
+    if (id === activeTicketType) return;
+    captureActiveTicketOpen();
+    setActiveTicketType(id);
+    setTicketOpenV2MountKey((k) => k + 1);
+  };
+
+  const addTicketType = () => {
+    const merged = captureActiveTicketOpen();
+    const id = newTicketTypeId();
+    setTicketOpenByType({ ...merged, [id]: [] });
+    setTicketTypes((t) => [...t, { id, name: `Type ${t.length + 1}`, button_label: "Open Ticket", button_style: "primary", presentation: "button" }]);
+    setActiveTicketType(id);
+    setTicketOpenV2MountKey((k) => k + 1);
+  };
+
+  const removeTicketType = (id: string) => {
+    if (ticketTypes.length <= 1) return toast.error("Keep at least one ticket type.");
+    const remaining = ticketTypes.filter((x) => x.id !== id);
+    setTicketTypes(remaining);
+    setTicketOpenByType((m) => {
+      const n = { ...m };
+      delete n[id];
+      return n;
+    });
+    if (activeTicketType === id) {
+      setActiveTicketType(remaining[0]?.id ?? "");
+      setTicketOpenV2MountKey((k) => k + 1);
+    }
+  };
+
+  const updateTicketType = (id: string, patch: Partial<TicketType>) => {
+    setTicketTypes((t) => t.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  };
+
+  const saveCustomsTickets = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    if (ticketTypes.length === 0) return toast.error("Add at least one ticket type.");
+    setSaving(true);
+    const openMap = captureActiveTicketOpen();
+    const ticket_types = ticketTypes.map((t) => ({
+      id: t.id,
+      name: String(t.name || "Ticket").trim() || "Ticket",
+      button_label: String(t.button_label || "Open Ticket").trim() || "Open Ticket",
+      button_style: String(t.button_style || "primary"),
+      presentation: t.presentation === "dropdown" ? "dropdown" : "button",
+      open_components: normalizeV2Items(openMap[t.id] ?? []),
+    }));
+    // Upsert the panel currently in the builder into the saved-panels list
+    // (keyed by channel) so posting a new panel doesn't wipe the others.
+    const currentComponents = normalizeV2Items(ticketPanelV2Ref.current?.getItems() ?? ticketPanelV2Items ?? []);
+    const currentChannel = values.panel_channel_id ? String(values.panel_channel_id) : "";
+    const mergedPanels: TicketPanel[] = ticketPanels.filter((p) => p.channel_id !== currentChannel);
+    if (currentChannel) {
+      mergedPanels.push({ id: newPanelId(), channel_id: currentChannel, components: currentComponents });
+    }
+    setTicketPanels(mergedPanels);
+    const panelsPayload = mergedPanels
+      .filter((p) => p.channel_id)
+      .map((p) => ({ channel_id: p.channel_id, components: normalizeV2Items(p.components ?? []) }));
+    const payload = {
+      bot_id: botId,
+      feature: "tickets",
+      config: {
+        ticket_menu_placeholder: ticketMenuPlaceholder.trim() || "Select a ticket type…",
+        category_id: values.category_id ? String(values.category_id) : null,
+        support_role_ids: Array.isArray(values.support_role_ids) ? (values.support_role_ids as string[]).map(String) : [],
+        log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
+        open_message: values.open_message ? String(values.open_message) : "",
+        ping_support: values.ping_support ?? true,
+        one_per_user: values.one_per_user ?? true,
+        delete_category_when_empty: values.delete_category_when_empty ?? false,
+        panel_channel_id: currentChannel || null,
+        panel_components: currentComponents,
+        panels: panelsPayload,
+        ticket_types,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "tickets",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Tickets saved — panel posted");
+    setOpen(false);
+  };
+
+  // ---- Multiple ticket panels (each = its own channel + design) ----
+  // Snapshot whatever's in the builder into the saved-panels list (keyed by
+  // channel), returning the merged list.
+  const captureCurrentPanel = (): TicketPanel[] => {
+    const comps = ticketPanelV2Ref.current?.getItems() ?? ticketPanelV2Items ?? [];
+    const ch = values.panel_channel_id ? String(values.panel_channel_id) : "";
+    const rest = ticketPanels.filter((p) => p.channel_id !== ch);
+    const merged = ch ? [...rest, { id: newPanelId(), channel_id: ch, components: comps }] : rest;
+    setTicketPanels(merged);
+    return merged;
+  };
+  const editPanel = (panel: TicketPanel) => {
+    captureCurrentPanel();
+    setValues((prev) => ({ ...prev, panel_channel_id: panel.channel_id }));
+    setTicketPanelV2Items(panel.components);
+    setTicketPanelV2MountKey((k) => k + 1);
+  };
+  const addNewPanel = () => {
+    captureCurrentPanel();
+    setValues((prev) => ({ ...prev, panel_channel_id: "" }));
+    setTicketPanelV2Items([]);
+    setTicketPanelV2MountKey((k) => k + 1);
+    toast.success("New panel — design it, pick its channel, then Save.");
+  };
+  const deletePanel = (id: string) => {
+    setTicketPanels((prev) => prev.filter((p) => p.id !== id));
+    toast.success("Panel removed. Save to apply. (Delete the posted message in Discord by hand.)");
+  };
+
+  // ---- Ticket setup templates (save / load / start over) ----
+  useEffect(() => {
+    if (isCustomsTickets && open) setTicketTemplates(loadTicketTemplates());
+  }, [isCustomsTickets, open]);
+
+  // Snapshot the whole Tickets editor into a plain object for a template.
+  const captureCurrentTicketConfig = () => ({
+    values: { ...values },
+    panel_components: ticketPanelV2Ref.current?.getItems() ?? ticketPanelV2Items ?? [],
+    ticket_types: ticketTypes,
+    open_by_type: captureActiveTicketOpen(),
+    menu_placeholder: ticketMenuPlaceholder,
+  });
+
+  // Restore the Tickets editor from a template snapshot (mirrors the DB loader).
+  const applyTicketConfig = (data: any) => {
+    setValues((prev) => ({ ...prev, ...(data?.values ?? {}) }));
+    setTicketPanelV2Items(Array.isArray(data?.panel_components) ? (data.panel_components as V2Item[]) : []);
+    setTicketPanelV2MountKey((k) => k + 1);
+    const tt: TicketType[] = Array.isArray(data?.ticket_types) && data.ticket_types.length
+      ? data.ticket_types.map((t: any) => ({
+          id: String(t.id || newTicketTypeId()),
+          name: String(t.name || "Ticket"),
+          button_label: String(t.button_label || "Open Ticket"),
+          button_style: String(t.button_style || "primary"),
+          presentation: t.presentation === "dropdown" ? "dropdown" : "button",
+        }))
+      : [{ id: newTicketTypeId(), name: "Support", button_label: "Open Ticket", button_style: "primary", presentation: "button" }];
+    const map: Record<string, V2Item[]> = {};
+    tt.forEach((t) => {
+      map[t.id] = Array.isArray(data?.open_by_type?.[t.id]) ? (data.open_by_type[t.id] as V2Item[]) : [];
+    });
+    setTicketTypes(tt);
+    setTicketOpenByType(map);
+    setActiveTicketType(tt[0].id);
+    setTicketMenuPlaceholder(String(data?.menu_placeholder || "Select a ticket type…"));
+    setTicketOpenV2MountKey((k) => k + 1);
+  };
+
+  const saveCurrentAsTemplate = () => {
+    const name = tplName.trim();
+    if (!name) return toast.error("Give the template a name first.");
+    const tpl: TicketTemplate = {
+      id: `tpl_${Math.random().toString(36).slice(2, 9)}`,
+      name,
+      savedAt: new Date().toISOString(),
+      data: captureCurrentTicketConfig(),
+    };
+    const next = [tpl, ...ticketTemplates.filter((x) => x.name.toLowerCase() !== name.toLowerCase())];
+    setTicketTemplates(next);
+    persistTicketTemplates(next);
+    setTplName("");
+    toast.success(`Template “${name}” saved.`);
+  };
+
+  const loadTemplate = (id: string) => {
+    const tpl = ticketTemplates.find((x) => x.id === id);
+    if (!tpl) return;
+    applyTicketConfig(tpl.data);
+    setTplOpen(false);
+    toast.success(`Loaded “${tpl.name}”. Review it, then hit Save to apply.`);
+  };
+
+  const deleteTemplate = (id: string) => {
+    const next = ticketTemplates.filter((x) => x.id !== id);
+    setTicketTemplates(next);
+    persistTicketTemplates(next);
+  };
+
+  // Wipe the editor back to a blank ticket setup. Doesn't touch the saved
+  // server config until the user clicks Save.
+  const startOverTickets = () => {
+    if (!window.confirm("Erase the current ticket setup and start fresh? This clears the panel design, ticket types, and settings in this editor. Nothing is saved until you click Save.")) return;
+    const id = newTicketTypeId();
+    setValues((prev) => ({
+      ...prev,
+      category_id: "",
+      support_role_ids: [],
+      log_channel_id: "",
+      open_message: "",
+      ping_support: true,
+      one_per_user: true,
+      delete_category_when_empty: false,
+      panel_channel_id: "",
+    }));
+    setTicketPanelV2Items([]);
+    setTicketPanelV2MountKey((k) => k + 1);
+    setTicketTypes([{ id, name: "Support", button_label: "Open Ticket", button_style: "primary", presentation: "button" }]);
+    setTicketOpenByType({ [id]: [] });
+    setActiveTicketType(id);
+    setTicketMenuPlaceholder("Select a ticket type…");
+    setTicketOpenV2MountKey((k) => k + 1);
+    toast.success("Cleared. Start fresh — nothing is saved until you hit Save.");
+  };
+
+  // Load existing nsfw-invite-scanner config when dialog opens.
+  useEffect(() => {
+    if (!isNsfwInviteScanner || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "nsfw-invite-scanner")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        alertChannel: cfg.alert_channel_id ?? "",
+        alertRole: cfg.alert_role_id ?? "",
+        action: cfg.action ?? "delete",
+        censorLogs: cfg.censor_in_logs ?? true,
+        scanDms: cfg.scan_dms ?? false,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isNsfwInviteScanner, open, botId]);
+
+  // Load existing phishing-detection config when dialog opens.
+  useEffect(() => {
+    if (!isPhishingDetection || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "phishing-link-detection")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        action: cfg.action ?? "delete",
+        logChannel: cfg.log_channel_id ?? "",
+        alertRole: cfg.alert_role_id ?? "",
+        extraDomains: Array.isArray(cfg.extra_domains)
+          ? cfg.extra_domains.join("\n")
+          : String(cfg.extra_domains ?? ""),
+        scanEdits: cfg.scan_edits ?? false,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isPhishingDetection, open, botId]);
+
+  const saveNsfwInviteScanner = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "nsfw-invite-scanner",
+      config: {
+        alert_channel_id: values.alertChannel ? String(values.alertChannel) : null,
+        alert_role_id: values.alertRole ? String(values.alertRole) : null,
+        action: String(values.action ?? "delete"),
+        censor_in_logs: !!values.censorLogs,
+        scan_dms: !!values.scanDms,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "nsfw-invite-scanner",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("NSFW Invite Scanner settings saved & applied");
+    }
+    setOpen(false);
+  };
+
+  const savePhishingDetection = async () => {
+    if (!botId) {
+      toast.error("Missing bot id.");
+      return;
+    }
+    setSaving(true);
+    const extraDomainsText = String(values.extraDomains ?? "");
+    const extraDomainsArr = extraDomainsText
+      .split("\n")
+      .map((d) => d.trim())
+      .filter(Boolean);
+    const payload = {
+      bot_id: botId,
+      feature: "phishing-link-detection",
+      config: {
+        action: String(values.action ?? "delete"),
+        log_channel_id: values.logChannel ? String(values.logChannel) : null,
+        alert_role_id: values.alertRole ? String(values.alertRole) : null,
+        extra_domains: extraDomainsArr,
+        scan_edits: !!values.scanEdits,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "phishing-link-detection",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    } else if (cmdResult && cmdResult.ok === false) {
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    } else {
+      toast.success("Phishing Link Detection settings saved & applied");
+    }
+    setOpen(false);
+  };
+
+  // ---------- mod-history ----------
+  useEffect(() => {
+    if (!isModHistory || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "mod-history")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const viewerRoles = Array.isArray(cfg.viewer_role_ids)
+        ? cfg.viewer_role_ids.map(String)
+        : [];
+      setValues((prev) => ({
+        ...prev,
+        enabled: cfg.enabled ?? true,
+        viewerRole: viewerRoles,
+        includeExpired: cfg.include_expired ?? false,
+        retentionDays: Number(cfg.retention_days ?? 0),
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isModHistory, open, botId]);
+
+  const saveModHistory = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "mod-history",
+      config: {
+        enabled: enabled,
+        viewer_role_ids: Array.isArray(values.viewerRole)
+          ? (values.viewerRole as string[]).filter(Boolean)
+          : [],
+        include_expired: !!values.includeExpired,
+        retention_days: Number(values.retentionDays ?? 0),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "mod-history",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Moderation History settings saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- softban-massban ----------
+  useEffect(() => {
+    if (!isSoftbanMassban || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "softban-massban")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const softbanRoles = Array.isArray(cfg.softban_role_ids)
+        ? cfg.softban_role_ids.map(String)
+        : [];
+      const massbanRoles = Array.isArray(cfg.massban_role_ids)
+        ? cfg.massban_role_ids.map(String)
+        : [];
+      setValues((prev) => ({
+        ...prev,
+        softbanRole: softbanRoles,
+        massbanRole: massbanRoles,
+        logChannel: cfg.log_channel_id ?? "",
+        softbanDeleteDays: Number(cfg.softban_delete_days ?? 1),
+        requireReason: cfg.require_reason ?? true,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isSoftbanMassban, open, botId]);
+
+  const saveSoftbanMassban = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "softban-massban",
+      config: {
+        softban_role_ids: Array.isArray(values.softbanRole)
+          ? (values.softbanRole as string[]).filter(Boolean)
+          : [],
+        massban_role_ids: Array.isArray(values.massbanRole)
+          ? (values.massbanRole as string[]).filter(Boolean)
+          : [],
+        log_channel_id: values.logChannel ? String(values.logChannel) : null,
+        softban_delete_days: Number(values.softbanDeleteDays ?? 1),
+        require_reason: !!values.requireReason,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "softban-massban",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Softban / Massban settings saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- auto-escalate ----------
+  const MUTE_DURATION_TO_MIN: Record<string, number> = { "10m": 10, "1h": 60, "6h": 360, "1d": 1440 };
+  useEffect(() => {
+    if (!isAutoEscalate || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "auto-escalate")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const minutes = Number(cfg.mute_duration_minutes ?? 60);
+      const muteStr = minutes === 10 ? "10m" : minutes === 360 ? "6h" : minutes === 1440 ? "1d" : "1h";
+      setValues((prev) => ({
+        ...prev,
+        muteAt: Number(cfg.warn_threshold_mute ?? 3),
+        banAt: Number(cfg.warn_threshold_ban ?? 7),
+        muteDuration: muteStr,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isAutoEscalate, open, botId]);
+
+  const saveAutoEscalate = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const muteStr = String(values.muteDuration ?? "1h");
+    const payload = {
+      bot_id: botId,
+      feature: "auto-escalate",
+      config: {
+        enabled: enabled,
+        warn_threshold_mute: Number(values.muteAt ?? 3),
+        warn_threshold_ban: Number(values.banAt ?? 7),
+        mute_duration_minutes: MUTE_DURATION_TO_MIN[muteStr] ?? 60,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "auto-escalate",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Auto-Escalating Warnings saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- avatar-nsfw ----------
+  useEffect(() => {
+    if (!isAvatarNsfw || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "avatar-nsfw")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        action: cfg.action ?? "delete",
+        channel: cfg.log_channel_id ?? "",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isAvatarNsfw, open, botId]);
+
+  const saveAvatarNsfw = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "avatar-nsfw",
+      config: {
+        enabled: enabled,
+        action: String(values.action ?? "delete"),
+        log_channel_id: values.channel ? String(values.channel) : null,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "avatar-nsfw",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Avatar NSFW Detection saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- bio-phrase ----------
+  useEffect(() => {
+    if (!isBioPhrase || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "bio-phrase")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const phrasesArr = Array.isArray(cfg.phrases) ? cfg.phrases : [];
+      setValues((prev) => ({
+        ...prev,
+        channel: cfg.log_channel_id ?? "",
+        phrases: phrasesArr.join("\n"),
+        action: cfg.action ?? "delete",
+        strikeLimit: Number(cfg.strike_limit ?? 3),
+        muteDurationMinutes: Number(cfg.mute_duration_minutes ?? 60),
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isBioPhrase, open, botId]);
+
+  const saveBioPhrase = async () => {
+    if (!botId) {
+      console.warn("[bio-phrase] aborting — missing botId");
+      return toast.error("Missing bot id.");
+    }
+    setSaving(true);
+    try {
+      const phrasesText = String(values.phrases ?? "");
+      const phrasesArr = phrasesText.split("\n").map((p) => p.trim()).filter(Boolean);
+      const payload = {
+        bot_id: botId,
+        feature: "bio-phrase",
+        config: {
+          enabled: enabled,
+          phrases: phrasesArr,
+          strike_limit: Number(values.strikeLimit ?? 3),
+          mute_duration_minutes: Number(values.muteDurationMinutes ?? 60),
+          action: String(values.action ?? "delete"),
+          log_channel_id: values.channel ? String(values.channel) : null,
+        },
+        updated_at: new Date().toISOString(),
+      };
+      const { data: upsertData, error } = await supabase
+        .from("bot_config")
+        .upsert(payload, { onConflict: "bot_id,feature" })
+        .select();
+      if (error) {
+        toast.error(`Save failed: ${error.message}`);
+        return;
+      }
+      const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+        _bot_id: botId, _feature: "bio-phrase",
+      });
+      const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+      if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+      else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+      else toast.success("Bio Phrase Detection saved & applied");
+      setOpen(false);
+    } catch (e) {
+      console.error("[bio-phrase] saveBioPhrase threw", e);
+      toast.error(`Save failed: ${(e as Error).message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ---------- staff-notes ----------
+  useEffect(() => {
+    if (!isStaffNotes || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "staff-notes")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const allowed = Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [];
+      setValues((prev) => ({ ...prev, allowedRoles: allowed }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isStaffNotes, open, botId]);
+
+  const saveStaffNotes = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "staff-notes",
+      config: {
+        allowed_role_ids: Array.isArray(values.allowedRoles)
+          ? (values.allowedRoles as string[]).filter(Boolean)
+          : [],
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "staff-notes",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+  };
+
+  // ---------- remindme ----------
+  useEffect(() => {
+    if (!isRemindme || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "remindme")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        maxPerUser: typeof cfg.max_per_user === "number" ? cfg.max_per_user : (prev.maxPerUser ?? 25),
+        deliveryMethod: ["dm", "channel", "both"].includes(cfg.delivery_method) ? cfg.delivery_method : "dm",
+        allowRecurring: !!cfg.allow_recurring,
+        embed_color: typeof cfg.embed_color === "string" ? cfg.embed_color : "#5865f2",
+        embed_title: typeof cfg.embed_title === "string" ? cfg.embed_title : "Reminder",
+        footer_text: typeof cfg.footer_text === "string" ? cfg.footer_text : "",
+        show_original: cfg.show_original !== false,
+        ping_user: cfg.ping_user !== false,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isRemindme, open, botId]);
+
+  const saveRemindme = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const rawMethod = String(values.deliveryMethod ?? "dm");
+    const delivery_method: "dm" | "channel" | "both" = ["dm", "channel", "both"].includes(rawMethod) ? (rawMethod as "dm" | "channel" | "both") : "dm";
+    const max_per_user = Math.max(1, Number(values.maxPerUser ?? 25) || 25);
+    const payload = {
+      bot_id: botId,
+      feature: "remindme",
+      config: {
+        max_per_user,
+        delivery_method,
+        allow_recurring: !!values.allowRecurring,
+        embed_color: String(values.embed_color ?? "#5865f2"),
+        embed_title: String(values.embed_title ?? "Reminder"),
+        footer_text: String(values.footer_text ?? ""),
+        show_original: !!values.show_original,
+        ping_user: !!values.ping_user,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "remindme",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("/remindme saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- server-stats-channels ----------
+  useEffect(() => {
+    if (!isServerStats || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "server-stats")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        showTotalMembers: cfg.show_members ?? prev.showTotalMembers ?? true,
+        showOnlineMembers: cfg.show_online ?? prev.showOnlineMembers ?? true,
+        showBots: cfg.show_bots ?? prev.showBots ?? false,
+        showBoosts: cfg.show_boosts ?? prev.showBoosts ?? true,
+        format: cfg.channel_name_format ?? prev.format ?? "📊 Members: {count}",
+        updateMinutes:
+          typeof cfg.update_interval_minutes === "number"
+            ? Math.max(10, cfg.update_interval_minutes)
+            : (prev.updateMinutes ?? 10),
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isServerStats, open, botId]);
+
+  const saveServerStats = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "server-stats",
+      config: {
+        show_members: !!values.showTotalMembers,
+        show_online: !!values.showOnlineMembers,
+        show_bots: !!values.showBots,
+        show_boosts: !!values.showBoosts,
+        channel_name_format: String(values.format ?? "📊 Members: {count}"),
+        update_interval_minutes: Math.max(10, Number(values.updateMinutes ?? 10) || 10),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "server-stats",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Server Stats Channels saved & applied");
+
+    // Also enqueue a setup_stats command so the utilities bot creates the
+    // channels automatically without the user running /setupstats.
+    const { error: setupErr } = await supabase.functions.invoke("enqueue-setup-stats", {
+      body: { botId },
+    });
+    if (setupErr) {
+      toast.warning(`Saved, but failed to queue channel setup: ${setupErr.message}`);
+    }
+
+    setOpen(false);
+  };
+
+  useEffect(() => {
+    if (!isAutoRadio || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "auto-radio")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        voice_channel_id: cfg.voice_channel_id ? String(cfg.voice_channel_id) : "",
+        genre: cfg.genre ?? "lofi",
+        auto_start: cfg.auto_start ?? false,
+        allow_vote: cfg.allow_vote ?? false,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isAutoRadio, open, botId]);
+
+  const saveAutoRadio = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "auto-radio",
+      config: {
+        voice_channel_id: values.voice_channel_id ? String(values.voice_channel_id) : null,
+        genre: String(values.genre ?? "lofi"),
+        auto_start: !!values.auto_start,
+        allow_vote: !!values.allow_vote,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "auto-radio",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Auto Radio saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- music-addon ----------
+  useEffect(() => {
+    if (!isMusicAddon || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "music-addon")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        dj_role_ids: Array.isArray(cfg.dj_role_ids) ? cfg.dj_role_ids.map(String) : [],
+        everyone_can_queue: cfg.everyone_can_queue ?? false,
+        max_queue_length: typeof cfg.max_queue_length === "number" ? cfg.max_queue_length : 100,
+        default_volume: typeof cfg.default_volume === "number" ? cfg.default_volume : 50,
+        auto_leave: cfg.auto_leave ?? false,
+        now_playing_v2: cfg.now_playing_v2 ?? false,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isMusicAddon, open, botId]);
+
+  const saveMusicAddon = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "music-addon",
+      config: {
+        dj_role_ids: Array.isArray(values.dj_role_ids) ? values.dj_role_ids.map(String) : [],
+        everyone_can_queue: !!values.everyone_can_queue,
+        max_queue_length: Number(values.max_queue_length ?? 100),
+        default_volume: Number(values.default_volume ?? 50),
+        auto_leave: !!values.auto_leave,
+        now_playing_v2: !!values.now_playing_v2,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "music-addon",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Music settings saved & applied");
+    setOpen(false);
+  };
+
+  useEffect(() => {
+    if (!isGiveaway || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "giveaway")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const hostRoles = Array.isArray(cfg.host_role_ids)
+        ? cfg.host_role_ids.map(String)
+        : cfg.host_role_ids
+          ? [String(cfg.host_role_ids)]
+          : [];
+      setGiveawayHostRoles(hostRoles);
+      setGiveawayChannelId(cfg.default_channel_id ? String(cfg.default_channel_id) : "");
+      setGiveawayDefaultDuration(
+        typeof cfg.default_duration === "string" && cfg.default_duration
+          ? cfg.default_duration
+          : "1d",
+      );
+      setGiveawayEntryEmoji(typeof cfg.entry_emoji === "string" && cfg.entry_emoji ? cfg.entry_emoji : "🎉");
+      setGiveawayDefaultWinners(Math.max(1, Number(cfg.default_winners ?? 1)));
+      if (typeof cfg.embed_title === "string") setGiveawayEmbedTitle(cfg.embed_title);
+      if (typeof cfg.embed_description === "string") setGiveawayEmbedDescription(cfg.embed_description);
+      if (typeof cfg.embed_color === "string" && cfg.embed_color) setGiveawayEmbedColor(cfg.embed_color);
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isGiveaway, open, botId]);
+
+  const saveGiveaway = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "giveaway",
+      config: {
+        host_role_ids: giveawayHostRoles.filter(Boolean),
+        default_channel_id: giveawayChannelId || null,
+        default_duration: giveawayDefaultDuration.trim() || "1d",
+        entry_emoji: giveawayEntryEmoji || "🎉",
+        default_winners: Math.max(1, giveawayDefaultWinners),
+        embed_title: giveawayEmbedTitle,
+        embed_description: giveawayEmbedDescription,
+        embed_color: giveawayEmbedColor,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "giveaway",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Giveaway settings saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- starboard ----------
+  useEffect(() => {
+    if (!isStarboard || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "starboard")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        starboard_channel_id: cfg.starboard_channel_id ? String(cfg.starboard_channel_id) : "",
+        showcase_channel_id: cfg.showcase_channel_id ? String(cfg.showcase_channel_id) : "",
+        threshold: Number(cfg.threshold ?? 5),
+        reaction_emoji: cfg.reaction_emoji ?? "⭐",
+        spotlight_message: cfg.spotlight_message ?? "",
+        allow_self_star: cfg.allow_self_star ?? false,
+        ignore_nsfw: cfg.ignore_nsfw ?? true,
+        mode: cfg.mode === "timed" ? "timed" : "threshold",
+        timed_interval: cfg.timed_interval ?? "weekly",
+        spotlight_ping_role_id: cfg.spotlight_ping_role_id ? String(cfg.spotlight_ping_role_id) : "",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isStarboard, open, botId]);
+
+  const saveStarboard = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const mode = values.mode === "timed" ? "timed" : "threshold";
+    const payload = {
+      bot_id: botId,
+      feature: "starboard",
+      config: {
+        starboard_channel_id: values.starboard_channel_id ? String(values.starboard_channel_id) : null,
+        showcase_channel_id: values.showcase_channel_id ? String(values.showcase_channel_id) : null,
+        threshold: Number(values.threshold ?? 5),
+        reaction_emoji: String(values.reaction_emoji ?? "⭐"),
+        spotlight_message: values.spotlight_message ? String(values.spotlight_message) : null,
+        allow_self_star: !!values.allow_self_star,
+        ignore_nsfw: !!values.ignore_nsfw,
+        mode,
+        timed_interval: String(values.timed_interval ?? "weekly"),
+        spotlight_ping_role_id: values.spotlight_ping_role_id ? String(values.spotlight_ping_role_id) : null,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "starboard",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Starboard saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- recurring messages ----------
+  useEffect(() => {
+    if (!isRecurringMessages || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "recurring-messages")
+        .maybeSingle();
+      if (cancelled || !data) {
+        setRecurringMessages([]);
+        setRecurringDeletePrevious(false);
+        setRecurringAllowedRoles([]);
+        return;
+      }
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const list = Array.isArray(cfg.messages) ? cfg.messages : [];
+      setRecurringMessages(
+        list.map((m: any) => ({
+          channel_id: m?.channel_id ? String(m.channel_id) : "",
+          interval_minutes: Number(m?.interval_minutes ?? 60),
+          message: typeof m?.message === "string" ? m.message : "",
+          ping_role_ids: Array.isArray(m?.ping_role_ids) ? m.ping_role_ids.map(String) : [],
+        })),
+      );
+      setRecurringDeletePrevious(!!cfg.delete_previous);
+      setRecurringAllowedRoles(
+        Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [],
+      );
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isRecurringMessages, open, botId]);
+
+  const saveRecurringMessages = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "recurring-messages",
+      config: {
+        messages: recurringMessages
+          .filter((m) => m.channel_id && m.message.trim())
+          .map((m) => ({
+            channel_id: String(m.channel_id),
+            interval_minutes: Number(m.interval_minutes) || 60,
+            message: String(m.message),
+            ping_role_ids: Array.isArray(m.ping_role_ids) ? m.ping_role_ids.map(String) : [],
+          })),
+        delete_previous: !!recurringDeletePrevious,
+        allowed_role_ids: recurringAllowedRoles.map(String),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "recurring-messages",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Recurring Messages saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- ticket-lifecycle-messages (V2 builder per event) ----------
+  const LIFECYCLE_KEYS = [
+    "claim_message",
+    "priority_message",
+    "close_message",
+  ] as const;
+  type LifecycleKey = typeof LIFECYCLE_KEYS[number];
+  const LIFECYCLE_LABELS: Record<LifecycleKey, string> = {
+    claim_message: "Claim message",
+    priority_message: "Priority message",
+    close_message: "Close message",
+  };
+  const lifecycleV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [lifecycleEvent, setLifecycleEvent] = useState<LifecycleKey>("claim_message");
+  const [lifecycleConfigs, setLifecycleConfigs] = useState<Record<LifecycleKey, V2Item[]>>({
+    claim_message: [],
+    priority_message: [],
+    close_message: [],
+  });
+  const [lifecycleMountKey, setLifecycleMountKey] = useState(0);
+
+  useEffect(() => {
+    if (!isTicketLifecycleMessages || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "ticket-lifecycle-messages")
+        .maybeSingle();
+      if (cancelled) return;
+      const cfg = ((data?.config ?? {}) as Record<string, any>) || {};
+      const nextConfigs: Record<LifecycleKey, V2Item[]> = {
+        claim_message: [],
+        priority_message: [],
+        close_message: [],
+      };
+      for (const k of LIFECYCLE_KEYS) {
+        const entry = cfg[k];
+        if (entry && entry.v2 === true && Array.isArray(entry.components)) {
+          nextConfigs[k] = entry.components as V2Item[];
+        }
+      }
+      setLifecycleConfigs(nextConfigs);
+      setLifecycleEvent("claim_message");
+      setLifecycleMountKey((k) => k + 1);
+      setAppliedAt((data as any)?.applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isTicketLifecycleMessages, open, botId]);
+
+  const captureLifecycleCurrent = () => {
+    const current = lifecycleV2Ref.current?.getItems();
+    if (!current) return;
+    setLifecycleConfigs((prev) => ({ ...prev, [lifecycleEvent]: current }));
+  };
+
+  const switchLifecycleEvent = (next: LifecycleKey) => {
+    if (next === lifecycleEvent) return;
+    const current = lifecycleV2Ref.current?.getItems();
+    setLifecycleConfigs((prev) => ({
+      ...prev,
+      [lifecycleEvent]: current ?? prev[lifecycleEvent],
+    }));
+    setLifecycleEvent(next);
+    setLifecycleMountKey((k) => k + 1);
+  };
+
+  const saveTicketLifecycleMessages = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    // Snapshot the currently-edited event before serializing.
+    const liveItems = lifecycleV2Ref.current?.getItems();
+    const merged: Record<LifecycleKey, V2Item[]> = {
+      ...lifecycleConfigs,
+      [lifecycleEvent]: liveItems ?? lifecycleConfigs[lifecycleEvent],
+    };
+    setSaving(true);
+    const config: Record<string, { v2: true; components: V2Item[] }> = {};
+    for (const k of LIFECYCLE_KEYS) {
+      const items = merged[k] ?? [];
+      if (items.length === 0) continue;
+      config[k] = { v2: true, components: normalizeV2Items(items) };
+    }
+    const payload = {
+      bot_id: botId,
+      feature: "ticket-lifecycle-messages",
+      config,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("bot_config")
+      .upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId,
+      _feature: "ticket-lifecycle-messages",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false)
+      toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Ticket lifecycle messages saved & applied");
+    setOpen(false);
+  };
+
+
+
+  useEffect(() => {
+    if (!isTicketNotes || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "ticket-notes")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const allowed = Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [];
+      setValues((prev) => ({
+        ...prev,
+        allowedRoleIds: allowed,
+        pingStaff: cfg.ping_staff ?? false,
+        includeInTranscript: cfg.include_in_transcript ?? false,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isTicketNotes, open, botId]);
+
+  const saveTicketNotes = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "ticket-notes",
+      config: {
+        allowed_role_ids: Array.isArray(values.allowedRoleIds)
+          ? (values.allowedRoleIds as string[]).filter(Boolean)
+          : [],
+        ping_staff: !!values.pingStaff,
+        include_in_transcript: !!values.includeInTranscript,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "ticket-notes",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Ticket Notes settings saved & applied");
+    setOpen(false);
+  };
+
+  // ticket-logs config now lives inside the Ticket Settings card (TicketPanelBuilder).
+
+
+  // ---------- ticket-members ----------
+  useEffect(() => {
+    if (!isTicketMembers || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "ticket-members")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const allowed = Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [];
+      setValues((prev) => ({
+        ...prev,
+        allowedRoleIds: allowed,
+        logActions: cfg.log_actions ?? true,
+        openerCanAdd: cfg.opener_can_add ?? false,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isTicketMembers, open, botId]);
+
+  const saveTicketMembers = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "ticket-members",
+      config: {
+        allowed_role_ids: Array.isArray(values.allowedRoleIds)
+          ? (values.allowedRoleIds as string[]).filter(Boolean)
+          : [],
+        log_actions: !!values.logActions,
+        opener_can_add: !!values.openerCanAdd,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "ticket-members",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Add / Remove Members settings saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- close-all ----------
+  useEffect(() => {
+    if (!isCloseAll || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "close-all")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const allowed = Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [];
+      setValues((prev) => ({
+        ...prev,
+        allowedRoleIds: allowed,
+        requireConfirmation: cfg.require_confirmation ?? true,
+        saveTranscripts: cfg.save_transcripts ?? true,
+        closingMessage: cfg.closing_message ?? prev.closingMessage ?? "This ticket is being closed as part of a mass close. Reopen if needed.",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCloseAll, open, botId]);
+
+  const saveCloseAll = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "close-all",
+      config: {
+        allowed_role_ids: Array.isArray(values.allowedRoleIds)
+          ? (values.allowedRoleIds as string[]).filter(Boolean)
+          : [],
+        require_confirmation: !!values.requireConfirmation,
+        save_transcripts: !!values.saveTranscripts,
+        closing_message: String(values.closingMessage ?? ""),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "close-all",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Close All Tickets settings saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- priority-flagging ----------
+  useEffect(() => {
+    if (!isPriorityFlagging || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "priority-tickets")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const setterRoles = Array.isArray(cfg.setter_role_ids) ? cfg.setter_role_ids.map(String) : [];
+      const pingRoles = Array.isArray(cfg.ping_role_ids) ? cfg.ping_role_ids.map(String) : [];
+      setValues((prev) => ({
+        ...prev,
+        setterRoleIds: setterRoles,
+        pingRoleIds: pingRoles,
+        urgentChannel: String(cfg.alert_channel_id ?? ""),
+        colorCodeNames: cfg.color_code_names ?? false,
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isPriorityFlagging, open, botId]);
+
+  const savePriorityFlagging = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "priority-tickets",
+      config: {
+        setter_role_ids: Array.isArray(values.setterRoleIds)
+          ? (values.setterRoleIds as string[]).filter(Boolean)
+          : [],
+        ping_role_ids: Array.isArray(values.pingRoleIds)
+          ? (values.pingRoleIds as string[]).filter(Boolean)
+          : [],
+        alert_channel_id: values.urgentChannel ? String(values.urgentChannel) : null,
+        color_code_names: !!values.colorCodeNames,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "priority-tickets",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Priority Ticket Flagging settings saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- auto-close-inactive ----------
+  useEffect(() => {
+    if (!isAutoCloseInactive || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "auto-close")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        close_after_hours: Number(cfg.close_after_hours ?? 48),
+        warn_before_hours: Number(cfg.warn_before_hours ?? 12),
+        embed_author: String(cfg.embed_author ?? ""),
+        embed_title: String(cfg.embed_title ?? ""),
+        warning_message: String(cfg.warning_message ?? prev.warning_message ?? "This ticket will close soon due to inactivity. Reply to keep it open."),
+        save_transcript: Boolean(cfg.save_transcript ?? false),
+        embed_footer: String(cfg.embed_footer ?? ""),
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isAutoCloseInactive, open, botId]);
+
+  const saveAutoCloseInactive = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "auto-close",
+      config: {
+        close_after_hours: Number(values.close_after_hours ?? 48),
+        warn_before_hours: Number(values.warn_before_hours ?? 12),
+        embed_author: String(values.embed_author ?? ""),
+        embed_title: String(values.embed_title ?? ""),
+        warning_message: String(values.warning_message ?? ""),
+        save_transcript: Boolean(values.save_transcript ?? false),
+        embed_footer: String(values.embed_footer ?? ""),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "auto-close",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Auto-Close Inactive Tickets settings saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- staff-performance ----------
+  useEffect(() => {
+    if (!isStaffPerformance || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "staff-performance")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const staffRoles = Array.isArray(cfg.staff_role_ids) ? cfg.staff_role_ids.map(String) : [];
+      const viewerRoleIds = Array.isArray(cfg.viewer_role_ids) ? cfg.viewer_role_ids.map(String) : [];
+      setValues((prev) => ({
+        ...prev,
+        staffRoles,
+        viewerRoleIds,
+        reportChannel: String(cfg.report_channel_id ?? ""),
+        reportFrequency: String(cfg.report_frequency ?? "weekly"),
+        trackClaimed: Boolean(cfg.track_claimed ?? true),
+        trackClosed: Boolean(cfg.track_closed ?? true),
+        trackMessages: Boolean(cfg.track_messages ?? false),
+        trackCommands: Boolean(cfg.track_commands ?? false),
+        trackProactive: Boolean(cfg.track_proactive ?? false),
+        trackResponseTime: Boolean(cfg.track_response_time ?? true),
+        trackResolutionTime: Boolean(cfg.track_resolution_time ?? true),
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isStaffPerformance, open, botId]);
+
+  const saveStaffPerformance = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+
+    const metrics = [
+      values.trackClaimed,
+      values.trackClosed,
+      values.trackMessages,
+      values.trackCommands,
+      values.trackProactive,
+      values.trackResponseTime,
+      values.trackResolutionTime,
+    ];
+    if (!metrics.some(Boolean)) {
+      toast.error("At least one tracked metric must be selected.");
+      return;
+    }
+
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "staff-performance",
+      config: {
+        staff_role_ids: Array.isArray(values.staffRoles)
+          ? (values.staffRoles as string[]).filter(Boolean)
+          : [],
+        viewer_role_ids: Array.isArray(values.viewerRoleIds)
+          ? (values.viewerRoleIds as string[]).filter(Boolean)
+          : [],
+        report_channel_id: String(values.reportChannel ?? ""),
+        report_frequency: String(values.reportFrequency ?? "weekly"),
+        track_claimed: Boolean(values.trackClaimed ?? true),
+        track_closed: Boolean(values.trackClosed ?? true),
+        track_messages: Boolean(values.trackMessages ?? false),
+        track_commands: Boolean(values.trackCommands ?? false),
+        track_proactive: Boolean(values.trackProactive ?? false),
+        track_response_time: Boolean(values.trackResponseTime ?? true),
+        track_resolution_time: Boolean(values.trackResolutionTime ?? true),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "staff-performance",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Staff Performance settings saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- channel-lockdown ----------
+  useEffect(() => {
+    if (!isChannelLockdown || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "channel-lockdown")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const allowed = Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [];
+      setValues((prev) => ({
+        ...prev,
+        allowedRoles: allowed,
+        lockMessage: String(cfg.lock_message ?? ""),
+        unlockMessage: String(cfg.unlock_message ?? ""),
+      }));
+      const le = (cfg.lock_embed ?? {}) as Partial<LockEmbed>;
+      const ue = (cfg.unlock_embed ?? {}) as Partial<LockEmbed>;
+      setLockEmbed({
+        enabled: le.enabled ?? defaultLockEmbed.enabled,
+        title: le.title ?? defaultLockEmbed.title,
+        description: le.description ?? defaultLockEmbed.description,
+        color: le.color ?? defaultLockEmbed.color,
+      });
+      setUnlockEmbed({
+        enabled: ue.enabled ?? defaultUnlockEmbed.enabled,
+        title: ue.title ?? defaultUnlockEmbed.title,
+        description: ue.description ?? defaultUnlockEmbed.description,
+        color: ue.color ?? defaultUnlockEmbed.color,
+      });
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isChannelLockdown, open, botId]);
+
+  const saveChannelLockdown = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "channel-lockdown",
+      config: {
+        allowed_role_ids: Array.isArray(values.allowedRoles)
+          ? (values.allowedRoles as string[]).filter(Boolean)
+          : [],
+        lock_message: String(values.lockMessage ?? ""),
+        unlock_message: String(values.unlockMessage ?? ""),
+        lock_embed: { ...lockEmbed },
+        unlock_embed: { ...unlockEmbed },
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "channel-lockdown",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Channel Lockdown settings saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- ban-tools (merged softban-massban + temp-ban) ----------
+  useEffect(() => {
+    if (!isBanTools || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const [{ data: sm }, { data: tb }] = await Promise.all([
+        supabase
+          .from("bot_config")
+          .select("config, applied_at")
+          .eq("bot_id", botId)
+          .eq("feature", "softban-massban")
+          .maybeSingle(),
+        supabase
+          .from("bot_config")
+          .select("config, applied_at")
+          .eq("bot_id", botId)
+          .eq("feature", "temp-ban")
+          .maybeSingle(),
+      ]);
+      if (cancelled) return;
+      const smCfg = (sm?.config ?? {}) as Record<string, any>;
+      const tbCfg = (tb?.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        softbanRole: Array.isArray(smCfg.softban_role_ids) ? smCfg.softban_role_ids.map(String) : [],
+        massbanRole: Array.isArray(smCfg.massban_role_ids) ? smCfg.massban_role_ids.map(String) : [],
+        logChannel: smCfg.log_channel_id ?? "",
+        softbanDeleteDays: Number(smCfg.softban_delete_days ?? 1),
+        requireReason: smCfg.require_reason ?? true,
+        tempbanAllowedRole: Array.isArray(tbCfg.allowed_role_ids) ? tbCfg.allowed_role_ids.map(String) : [],
+        tempbanDefaultDuration: (() => {
+          const mins = Number(tbCfg.default_duration_minutes ?? 1440);
+          if (mins === 60) return "1h";
+          if (mins === 1440) return "1d";
+          if (mins === 10080) return "7d";
+          if (mins === 43200) return "30d";
+          return "1d";
+        })(),
+        tempbanLogChannel: tbCfg.log_channel_id ?? "",
+        tempbanDmOnBan: tbCfg.dm_on_ban ?? true,
+        tempbanDmOnUnban: tbCfg.dm_on_unban ?? false,
+      }));
+      setAppliedAt(((sm as any)?.applied_at ?? (tb as any)?.applied_at) ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isBanTools, open, botId]);
+
+  const saveBanTools = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const smPayload = {
+      bot_id: botId,
+      feature: "softban-massban",
+      config: {
+        softban_role_ids: Array.isArray(values.softbanRole)
+          ? (values.softbanRole as string[]).filter(Boolean)
+          : [],
+        massban_role_ids: Array.isArray(values.massbanRole)
+          ? (values.massbanRole as string[]).filter(Boolean)
+          : [],
+        log_channel_id: values.logChannel ? String(values.logChannel) : null,
+        softban_delete_days: Number(values.softbanDeleteDays ?? 1),
+        require_reason: !!values.requireReason,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const tbPayload = {
+      bot_id: botId,
+      feature: "temp-ban",
+      config: {
+        allowed_role_ids: Array.isArray(values.tempbanAllowedRole)
+          ? (values.tempbanAllowedRole as string[]).filter(Boolean)
+          : [],
+        log_channel_id: values.tempbanLogChannel ? String(values.tempbanLogChannel) : null,
+        default_duration_minutes: (() => {
+          const dur = String(values.tempbanDefaultDuration ?? "1d");
+          if (dur === "1h") return 60;
+          if (dur === "1d") return 1440;
+          if (dur === "7d") return 10080;
+          if (dur === "30d") return 43200;
+          return 1440;
+        })(),
+        dm_on_ban: !!values.tempbanDmOnBan,
+        dm_on_unban: !!values.tempbanDmOnUnban,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const [smRes, tbRes] = await Promise.all([
+      supabase.from("bot_config").upsert(smPayload, { onConflict: "bot_id,feature" }),
+      supabase.from("bot_config").upsert(tbPayload, { onConflict: "bot_id,feature" }),
+    ]);
+    setSaving(false);
+    if (smRes.error) return toast.error(`Save failed (softban/massban): ${smRes.error.message}`);
+    if (tbRes.error) return toast.error(`Save failed (temp-ban): ${tbRes.error.message}`);
+    const [smCmd, tbCmd] = await Promise.all([
+      supabase.rpc("enqueue_apply_config" as any, { _bot_id: botId, _feature: "softban-massban" }),
+      supabase.rpc("enqueue_apply_config" as any, { _bot_id: botId, _feature: "temp-ban" }),
+    ]);
+    const failures: string[] = [];
+    if (smCmd.error) failures.push(`softban/massban: ${smCmd.error.message}`);
+    else if ((smCmd.data as any)?.ok === false) failures.push(`softban/massban: ${(smCmd.data as any)?.error ?? "unknown"}`);
+    if (tbCmd.error) failures.push(`temp-ban: ${tbCmd.error.message}`);
+    else if ((tbCmd.data as any)?.ok === false) failures.push(`temp-ban: ${(tbCmd.data as any)?.error ?? "unknown"}`);
+    if (failures.length) toast.warning(`Saved, but failed to notify bot: ${failures.join("; ")}`);
+    else toast.success("Ban Tools settings saved & applied");
+    setOpen(false);
+  };
+
+  // it's owned but configuration is still wired up.
+
+  if (!config) {
+    return (
+      <Card className="bg-card/40 border-dashed border-border p-4 flex flex-col h-[158px]">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="h-10 w-10 rounded-lg bg-muted/40 border border-border grid place-items-center shrink-0">
+            <Settings2 className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <h3 className="font-semibold text-base leading-tight pt-1.5">
+            {getAddonLabel(addonId)}
+          </h3>
+        </div>
+        <p className="text-sm text-muted-foreground flex-1">
+          Configuration coming soon for this add-on.
+        </p>
+      </Card>
+    );
+  }
+
+  const Icon = config.icon;
+
+  const setValue = (k: string, v: string | number | boolean | string[]) =>
+    setValues((prev) => ({ ...prev, [k]: v }));
+
+  const toggleMulti = (k: string, optionValue: string) =>
+    setValues((prev) => {
+      const current = Array.isArray(prev[k]) ? (prev[k] as string[]) : [];
+      const next = current.includes(optionValue)
+        ? current.filter((v) => v !== optionValue)
+        : [...current, optionValue];
+      return { ...prev, [k]: next };
+    });
+
+  const renderField = (f: AddonField) => {
+    const value = values[f.key];
+
+    if (f.type === "header") {
+      return (
+        <div className="pt-2 pb-1">
+          <h4 className="text-sm font-semibold text-foreground">{f.label}</h4>
+          <div className="mt-1 h-px bg-border" />
+        </div>
+      );
+    }
+
+    if (f.type === "toggle") {
+      return (
+        <div className="flex items-start justify-between gap-4 py-1">
+          <div className="space-y-1">
+            <Label htmlFor={f.key} className="cursor-pointer">{f.label}</Label>
+            {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
+          </div>
+          <Switch
+            id={f.key}
+            checked={!!value}
+            onCheckedChange={(v) => setValue(f.key, v)}
+          />
+        </div>
+      );
+    }
+
+    if (f.type === "select") {
+      return (
+        <div className="space-y-2">
+          <Label htmlFor={f.key}>{f.label}</Label>
+          <Select
+            value={String(value ?? "")}
+            onValueChange={(v) => setValue(f.key, v)}
+          >
+            <SelectTrigger id={f.key}>
+              <SelectValue placeholder="Select…" />
+            </SelectTrigger>
+            <SelectContent>
+              {f.options?.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
+        </div>
+      );
+    }
+
+    if (f.type === "multiselect") {
+      const selected = Array.isArray(value) ? (value as string[]) : [];
+      return (
+        <div className="space-y-2">
+          <Label>{f.label}</Label>
+          <div className="grid gap-2 rounded-md border border-border p-3">
+            {f.options?.map((o) => {
+              const checked = selected.includes(o.value);
+              return (
+                <label
+                  key={o.value}
+                  className="flex items-center gap-2 cursor-pointer text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    checked={checked}
+                    onChange={() => toggleMulti(f.key, o.value)}
+                  />
+                  <span>{o.label}</span>
+                </label>
+              );
+            })}
+          </div>
+          {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
+        </div>
+      );
+    }
+
+    if (f.type === "textarea") {
+      return (
+        <div className="space-y-2">
+          <Label htmlFor={f.key}>{f.label}</Label>
+          {f.markdown ? (
+            <DiscordMarkdownTextarea
+              id={f.key}
+              value={String(value ?? "")}
+              placeholder={f.placeholder}
+              onValueChange={(v) => setValue(f.key, v)}
+              rows={3}
+            />
+          ) : (
+            <Textarea
+              id={f.key}
+              value={String(value ?? "")}
+              placeholder={f.placeholder}
+              onChange={(e) => setValue(f.key, e.target.value)}
+              rows={4}
+            />
+          )}
+          {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
+        </div>
+      );
+    }
+
+    if (f.type === "channel") {
+      return (
+        <ChannelComboField
+          field={f}
+          value={String(value ?? "")}
+          onChange={(v) => setValue(f.key, v)}
+          botId={botId}
+        />
+      );
+    }
+
+    if (f.type === "role") {
+      return (
+        <RoleComboField
+          field={f}
+          value={String(value ?? "")}
+          onChange={(v) => setValue(f.key, v)}
+          botId={botId}
+        />
+      );
+    }
+
+    if (f.type === "multirole") {
+      const selected = Array.isArray(value) ? (value as string[]) : [];
+      return (
+        <MultiRoleField
+          field={f}
+          value={selected}
+          onChange={(v) => setValue(f.key, v)}
+          botId={botId}
+        />
+      );
+    }
+
+    // text / number
+    return (
+      <div className="space-y-2">
+        <Label htmlFor={f.key}>{f.label}</Label>
+        <Input
+          id={f.key}
+          type={f.type === "number" ? "number" : "text"}
+          min={f.type === "number" && f.key === "updateMinutes" ? 10 : undefined}
+          value={String(value ?? "")}
+          placeholder={f.placeholder}
+          onChange={(e) =>
+            setValue(
+              f.key,
+              f.type === "number" && f.key === "updateMinutes"
+                ? Math.max(10, Number(e.target.value) || 10)
+                : f.type === "number" ? Number(e.target.value) : e.target.value,
+            )
+          }
+        />
+        {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
+      </div>
+    );
   };
 
   return (
     <>
-      <Card className="p-4">
-        <div className="flex items-start gap-3 mb-3">
-          <Code2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-          <div className="text-sm flex-1">
-            <div className="font-semibold text-foreground">Bot engine version</div>
-            <p className="text-muted-foreground mt-1 text-xs">
-              Switch between Component V1 (stable) and V2 (newest features).
-              Switching causes a short period of downtime while we swap engines.
-            </p>
-          </div>
+      <style>{`
+        .acard.acard{position:relative;height:158px;padding:15px;display:flex;flex-direction:column;border-radius:14px;
+          font-family:'Manrope',system-ui,-apple-system,"Segoe UI",sans-serif;border:1px solid #3a434d;
+          background:linear-gradient(180deg,#2d353e,#29313a);box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+          transition:transform .17s cubic-bezier(.22,1,.36,1),border-color .17s,box-shadow .17s;cursor:pointer}
+        .acard.on:hover{transform:translateY(-2px);border-color:rgba(201,219,230,.42);
+          box-shadow:0 16px 34px -18px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05)}
+        .acard.off{opacity:.5;filter:grayscale(.6);cursor:default;background:#272e36}
+        .acard .ac-head{display:flex;align-items:center;gap:10px}
+        .acard .ac-ico{height:34px;width:34px;border-radius:10px;flex:none;display:grid;place-items:center;
+          background:rgba(201,219,230,.10);border:1px solid rgba(201,219,230,.42);color:#C9DBE6;transition:.17s}
+        .acard.on:hover .ac-ico{background:rgba(201,219,230,.16)}
+        .acard.off .ac-ico{background:#343d46;border-color:#3a434d;color:#788591}
+        .acard .ac-ico svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none}
+        .acard .ac-title{flex:1;min-width:0;font-size:20px;font-weight:700;line-height:1.2;letter-spacing:-.01em;color:#E8EEF3;padding-top:0}
+        .acard.off .ac-title{color:#A8B4BF}
+        /* Enable/disable toggle — sits quietly in the top-right and blends into
+           the card, brightening only on hover so it never reads as a sore thumb.
+           Stays fully visible when the card is OFF so its state is obvious. */
+        .acard .ac-sw{padding-top:0;flex:none;opacity:.38;transform:scale(.82);transform-origin:right center;
+          transition:opacity .16s ease,transform .16s ease}
+        .acard:hover .ac-sw{opacity:.85}
+        .acard .ac-sw:hover{opacity:1}
+        .acard.off .ac-sw{opacity:1}
+        .acard .ac-summary{flex:1;margin-top:10px;font-size:12px;line-height:1.45;color:#788591;
+          overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3}
+        .acard .ac-foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+        .acard .ac-count{font-size:11.5px;font-weight:600;color:#788591}
+        .acard .ac-arrow{height:16px;width:16px;color:#788591;transition:transform .17s,color .17s}
+        .acard.on:hover .ac-arrow{color:#C9DBE6;transform:translateX(3px)}
+      `}</style>
+      <Card
+        onClick={() => enabled && setOpen(true)}
+        className={cn("acard", enabled ? "on" : "off")}
+      >
+        <div className="ac-head">
+          <span className="ac-ico">
+            <Icon />
+          </span>
+          <h3 className="ac-title">{config.title}</h3>
+          {onToggleEnabled && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              onPointerDownCapture={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              className="ac-sw"
+            >
+              <Switch
+                checked={enabled}
+                onCheckedChange={handleToggleEnabled}
+                aria-label={`${enabled ? "Disable" : "Enable"} ${config.title}`}
+              />
+            </div>
+          )}
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          {(["v1", "v2"] as const).map((id) => {
-            const active = current === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                disabled={saving || active}
-                onClick={() => setConfirmTarget(id)}
-                className={`text-left rounded-lg border p-3 transition-all ${
-                  active
-                    ? "border-primary bg-primary/10 ring-1 ring-primary/40"
-                    : "border-border hover:border-primary/40 hover:bg-card disabled:opacity-50"
-                }`}
-              >
-                <div className="text-sm font-medium text-foreground flex items-center justify-between">
-                  Component {id.toUpperCase()}
-                  {active && (
-                    <Badge variant="secondary" className="text-[10px]">Active</Badge>
-                  )}
-                </div>
-                <div className="text-[11px] text-muted-foreground mt-0.5">
-                  {id === "v1" ? "Stable — recommended" : "Newest — latest features"}
-                </div>
-              </button>
-            );
-          })}
+        <p className="ac-summary">{config.summary}</p>
+        <div className="ac-foot">
+          <span className="ac-count">
+            {enabled
+              ? `${config.fields.length} setting${config.fields.length === 1 ? "" : "s"}`
+              : "Disabled"}
+          </span>
+          {enabled && <ArrowRight className="ac-arrow" />}
         </div>
       </Card>
 
-      <AlertDialog
-        open={confirmTarget !== null}
-        onOpenChange={(o) => !o && !saving && setConfirmTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-400" />
-              Switch to Component {confirmTarget?.toUpperCase()}?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Your bot may experience a short period of downtime while the engine
-              swaps over. Commands and events may be briefly unavailable. Continue?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={saving}
-              onClick={() => confirmTarget && switchTo(confirmTarget)}
-            >
-              <RefreshCw className="h-4 w-4 mr-1.5" />
-              {saving ? "Switching…" : "Switch version"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  );
-};
-
-
-const BotSection = ({
-  bot,
-  allBots,
-  userId,
-  ownerEmail,
-  freePeriod,
-  onCancel,
-  onAddAddons,
-  onReload,
-  onEngineSwitch,
-  searchQuery,
-  highlightedAddonId,
-}: {
-  bot: OwnedBot;
-  allBots: OwnedBot[];
-  userId: string;
-  ownerEmail?: string | null;
-  freePeriod?: BotFreePeriod;
-  onCancel: (bot: OwnedBot) => void;
-  onAddAddons: (bot: OwnedBot) => void;
-  onReload: () => void;
-  onEngineSwitch?: (id: string, target: "v1" | "v2") => void;
-  searchQuery?: string;
-  highlightedAddonId?: string | null;
-}) => {
-  const { health, loading: healthLoading, reload: reloadHealth } = useBotHealth(bot.isDemo ? null : bot.id);
-  // Optimistic lockout: only "stop" forces offline until health confirms
-  // offline. We deliberately do NOT lock the UI on "start"/"restart"/"redeploy"
-  // — the Start action returns as soon as Railway accepts the request, and the
-  // dashboard should flip from offline → online on its own once the next
-  // heartbeat lands (useBotHealth polls every 10s).
-  const [optimisticAction, setOptimisticAction] = useState<"stop" | null>(null);
-  // Non-blocking "starting" indicator — set when the user clicks
-  // Start/Restart/Redeploy and Railway accepts the request. Cleared as soon
-  // as the worker's heartbeat confirms it's online. The dashboard is NOT
-  // locked while starting — the user can still browse settings.
-  const [isStarting, setIsStarting] = useState(false);
-  useEffect(() => {
-    if (!optimisticAction || !health?.effective_status) return;
-    if (optimisticAction === "stop" && health.effective_status === "offline") {
-      setOptimisticAction(null);
-    }
-  }, [optimisticAction, health?.effective_status]);
-  useEffect(() => {
-    if (!isStarting) return;
-    // Clear as soon as the bot reports any non-offline status (online, ready,
-    // live, starting, etc.) — the heartbeat is back, so the "Starting…" banner
-    // has served its purpose.
-    const status = health?.effective_status;
-    if (status && status !== "offline") setIsStarting(false);
-  }, [isStarting, health?.effective_status]);
-  // Safety net: never let the "Starting…" banner stick around longer than
-  // 90 seconds, even if the heartbeat never lands.
-  useEffect(() => {
-    if (!isStarting) return;
-    const t = setTimeout(() => setIsStarting(false), 90_000);
-    return () => clearTimeout(t);
-  }, [isStarting]);
-  // Offline lockout is based ONLY on actual runtime status. Loading or null
-  // health (e.g., RPC error, first paint) must NOT trigger the lockout —
-  // we only lock when we have confirmed effective_status === "offline".
-  // A bot is "deploying" when auto-deploy hasn't finished yet — either it's
-  // actively deploying, it's queued waiting on a token from the pool, it
-  // failed, or it succeeded but the worker hasn't sent its first heartbeat yet.
-  const isQueued = !bot.isDemo && bot.deployment_status === "queued";
-  // Only show the deploying banner when the order is actively mid-deploy.
-  // Once deployment_status flips to 'deployed' (with a railway_service_id),
-  // never show it again — even if a heartbeat hasn't landed yet.
-  const isDeploying =
-    !bot.isDemo &&
-    bot.deployment_status !== "deployed" &&
-    (bot.deployment_status === "deploying" ||
-      bot.deployment_status === "failed" ||
-      isQueued);
-  const deployFailed = !bot.isDemo && bot.deployment_status === "failed";
-  const isOffline =
-    !bot.isDemo &&
-    !isDeploying &&
-    !isStarting &&
-    (optimisticAction !== null ||
-      (!healthLoading && health?.effective_status === "offline"));
-  const { guilds: connectedGuilds, loading: guildsLoading } = useBotServerSlots(
-    !bot.isDemo ? bot.id : undefined,
-  );
-  // Only show the "no servers" lockout when we're confident the bot is fully
-  // online AND the guild fetch returned zero. During Starting / deploying /
-  // offline phases the guild count can't be trusted (runtime_status hasn't
-  // been refreshed yet), so we skip the lockout in those cases.
-  const hasNoServers =
-    !bot.isDemo &&
-    !isDeploying &&
-    !isOffline &&
-    !isStarting &&
-    !guildsLoading &&
-    health?.effective_status === "online" &&
-    connectedGuilds.length === 0;
-  const [retrying, setRetrying] = useState(false);
-  const retryInFlight = useRef(false);
-  const retryDeploy = async () => {
-    if (retryInFlight.current) return;
-    retryInFlight.current = true;
-    setRetrying(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("auto-deploy-bot", {
-        body: { orderId: bot.id },
-      });
-      if (error) {
-        // supabase-js buries the function's real error body inside
-        // error.context — surface it instead of the generic non-2xx line.
-        let msg = error.message as string;
-        const ctx = (error as { context?: Response }).context;
-        if (ctx && typeof ctx.json === "function") {
-          try {
-            const body = await ctx.clone().json();
-            if (body?.error) msg = String(body.error);
-          } catch {
-            /* keep generic message */
-          }
-        }
-        toast.error("Retry failed", { description: msg });
-      } else if ((data as { alreadyInProgress?: boolean } | null)?.alreadyInProgress) {
-        toast.info("A deployment is already in progress for this bot.");
-        onReload();
-      } else {
-        toast.success("Deployment retried — refreshing…");
-        onReload();
-      }
-    } finally {
-      setRetrying(false);
-      // Brief cooldown to absorb rapid double-clicks across re-renders.
-      setTimeout(() => {
-        retryInFlight.current = false;
-      }, 2000);
-    }
-  };
-
-  const handleCommandSent = (action: "start" | "stop" | "restart" | "redeploy") => {
-    if (action === "stop") {
-      setOptimisticAction("stop");
-      setIsStarting(false);
-    } else {
-      // Show non-blocking "Starting…" indicator until the heartbeat lands.
-      setIsStarting(true);
-    }
-    reloadHealth();
-  };
-  const baseLabel = BOT_BASE_LABELS[bot.base] ?? bot.base;
-  const baseTagline = BOT_BASE_TAGLINES[bot.base];
-  const cancellable = !bot.isDemo && canCancelStatus(bot.status);
-  const statusMeta = getStatusMeta(bot.status);
-  // Owned add-ons + features that ship with the base — both get config boxes.
-  // The combined Multi-Server / Branding card is always shown here because the
-  // dashboard page itself is gated to users who own the Web Dashboard add-on.
-  const ownedAddons = new Set<string>([
-    ...bot.addons,
-    ...getIncludedAddonsForBase(bot.base),
-  ]);
-  // Merged "Ban Tools" pseudo-card represents both /softban-massban and
-  // /temp-ban. Show it whenever the user owns either underlying add-on.
-  if (ownedAddons.has("softban-massban") || ownedAddons.has("temp-ban")) {
-    ownedAddons.add("ban-tools");
-  }
-  // Group owned add-ons by category for the configuration boxes section.
-  // "messages" lives inside every category list so it shows under the bot's
-  // main section, but we don't want a standalone group (e.g. "Utilities") to
-  // appear just because of Messages — drop groups whose only item is Messages.
-  // Only show groups that match this bot's base (plus the shared "Extras" group).
-  // "scratch" (All-in-One) shows every category.
-  const allowedGroupKeys = new Set<string>(
-    bot.base === "scratch"
-      ? ["protection", "support", "utilities", "shared"]
-      : [bot.base, "shared"],
-  );
-  const groupedAddons = ADDON_GROUPS
-    .filter((g) => allowedGroupKeys.has(g.key))
-    .map((g) => ({ ...g, owned: g.ids.filter((id) => ownedAddons.has(id)) }))
-    // Keep the "shared" group even when empty so the Source code card still renders.
-    .filter((g) => g.owned.length > 0 || (g.key === "shared" && !bot.isDemo));
-  const totalConfigurable =
-    groupedAddons.reduce((n, g) => n + g.owned.length, 0) + (!bot.isDemo ? 1 : 0);
-
-  // ── Search-driven section auto-expand ──────────────────────────────────────
-  // When the user types in the dashboard search bar, expand whichever section
-  // (Manage / Add-on config) contains a match for their query, and collapse
-  // the one that doesn't. User clicks still override afterwards.
-  const [manageOpen, setManageOpen] = useState(false);
-  const [summaryOpen, setSummaryOpen] = useState(false);
-  const [addonsOpen, setAddonsOpen] = useState(false);
-  const [highlightSlots, setHighlightSlots] = useState(false);
-  const q = (searchQuery ?? "").trim().toLowerCase();
-
-  useEffect(() => {
-    if (!q) return; // keep whatever the user had — don't auto-collapse on clear
-    const manageKeywords = [
-      "manage", "banner", "engine", "secret", "control", "log", "metric",
-      "version", "delivery", "hosting", "summary", "build",
-      (BOT_BASE_LABELS[bot.base] ?? bot.base ?? "").toLowerCase(),
-      bot.base?.toLowerCase() ?? "",
-    ];
-    const addonTerms = Array.from(ownedAddons).flatMap((id) => [
-      id.toLowerCase(),
-      getAddonLabel(id).toLowerCase(),
-    ]);
-    const addonKeywords = [
-      "add-on", "addon", "configuration", "config",
-      "ticket", "say", "protection", "utilities", "utility", "extras",
-      ...addonTerms,
-    ];
-    const inManage = manageKeywords.some((k) => k && k.includes(q));
-    const inAddons = addonKeywords.some((k) => k && k.includes(q));
-    setManageOpen(inManage);
-    setAddonsOpen(inAddons);
-  }, [q, bot.base, bot.addons.join("|")]);
-  // ───────────────────────────────────────────────────────────────────────────
-
-  const showPreorderBanner = !bot.isDemo && (bot.status === "submitted" || bot.status === "paid");
-  const showReadyBanner = !bot.isDemo && bot.status === "ready" && bot.delivery_url;
-  const freeActive =
-    freePeriod && new Date(freePeriod.free_until).getTime() > Date.now();
-  const freeUntilLabel = freeActive
-    ? new Date(freePeriod!.free_until).toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      })
-    : null;
-
-  // Icon for the bot's base ("what it originally was").
-  const BaseIcon =
-    bot.base === "support" ? LifeBuoy
-    : bot.base === "utilities" ? Wrench
-    : bot.base === "scratch" ? Sparkles
-    : ShieldCheck;
-
-  // Secondary meta chips (engine · hosting · free · health) shown on row two.
-  const secondaryMeta: ReactNode[] = [];
-  if (!bot.isDemo) {
-    secondaryMeta.push(
-      <span key="engine" className="inline-flex items-center gap-1">
-        <Code2 className="h-3 w-3" />
-        Component {bot.engine_version === "v2" ? "V2" : "V1"}
-      </span>,
-    );
-  }
-  if (bot.monthly_hosting) {
-    secondaryMeta.push(
-      <span key="hosting" className="inline-flex items-center gap-1">
-        <Server className="h-3 w-3" />
-        Hosting
-      </span>,
-    );
-  }
-  if (freeActive) {
-    secondaryMeta.push(
-      <span key="free" className="inline-flex items-center gap-1 text-emerald-400">
-        <Gift className="h-3 w-3" />
-        Free until {freeUntilLabel}
-      </span>,
-    );
-  }
-  if (!bot.isDemo) {
-    secondaryMeta.push(<BotHealthBadge key="health" botId={bot.id} />);
-  }
-
-  const headerBadges = (
-    <>
-      <div className="meta1">
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${statusMeta.className}`}
-          /* Inline padding: the .osd *{padding:0} reset zeroes Tailwind px-*
-             utilities here, which made the label rub the pill edges. */
-          style={{ padding: "3px 11px" }}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent
+          className={cn(
+            isSayCommand && engineVersion === "v2"
+              ? "max-w-6xl max-h-[90vh] overflow-y-auto"
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker
+                ? "max-w-6xl max-h-[90vh] overflow-y-auto"
+                : isSayCommand || isRules || isGiveaway || isRemindme
+                  ? "max-w-5xl max-h-[90vh] overflow-y-auto"
+                  : isChannelLockdown
+                    ? "max-w-3xl max-h-[90vh] overflow-y-auto"
+                    : "max-w-lg max-h-[85vh] overflow-y-auto",
+            readOnly && "readonly-scope",
+          )}
         >
-          {statusMeta.loading && !bot.isDemo && <HexagonLoader size={10} />}
-          {statusMeta.label}
-        </span>
-        <span className="basetype">
-          <BaseIcon />
-          {baseLabel}
-        </span>
-        {bot.isDemo && (
-          <span className="text-primary text-xs font-medium">Practice bot</span>
-        )}
-        {bot.viaSupport && (
-          <span className="inline-flex items-center gap-1 text-amber-400 text-xs font-medium">
-            <LifeBuoy className="h-3 w-3" />
-            Support session
-          </span>
-        )}
-      </div>
-      {secondaryMeta.length > 0 && (
-        <div className="meta2">
-          {secondaryMeta.map((node, i) => (
-            <span key={i} className="inline-flex items-center gap-2">
-              {i > 0 && <span className="text-muted-foreground/40">·</span>}
-              {node}
-            </span>
-          ))}
-        </div>
-      )}
-    </>
-  );
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Icon className="h-5 w-5 text-os-accent" />
+              {config.title}
+            </DialogTitle>
+            <DialogDescription>
+              Configure <span className="text-foreground font-medium">{config.title}</span> for{" "}
+              <span className="text-foreground font-medium">{targetServerName}</span>.
+            </DialogDescription>
+          </DialogHeader>
 
-  // Effective perms on this bot. For non-team viewers (owners, admins,
-  // support sessions) this resolves to full perms.
-  const { permissions: teamPerms } = useTeamRole(bot.viaTeam ? bot.id : null);
-  const canEditBilling = !bot.viaTeam || teamPerms.edit_billing;
-
-
-  const [leaving, setLeaving] = useState(false);
-  const leaveBot = async () => {
-    if (leaving) return;
-    if (!window.confirm(`Leave "${bot.bot_name}"? You'll lose access to this bot's dashboard. The owner will need to re-invite you to get back in.`)) return;
-    setLeaving(true);
-    const { data, error } = await (supabase as any).rpc("team_leave_bot", { _bot_id: bot.id });
-    setLeaving(false);
-    if (error || !data?.ok) {
-      toast.error(error?.message ?? data?.error ?? "Failed to leave bot");
-      return;
-    }
-    toast.success(`You left "${bot.bot_name}"`);
-    onReload();
-  };
-
-  const headerActions =
-    !bot.isDemo && !bot.viaTeam && canEditBilling ? (
-      <button type="button" className="pbtn" onClick={() => onAddAddons(bot)}>
-        <Plus />
-        Add-ons
-      </button>
-    ) : null;
-
-  const showCancel = !bot.isDemo && !bot.viaTeam && cancellable && canEditBilling;
-  const showLeave = !bot.isDemo && bot.viaTeam;
-  const headerMenuItems =
-    showCancel || showLeave ? (
-      <>
-        {showCancel && (
-          <DropdownMenuItem
-            onSelect={() => onCancel(bot)}
-            className="gap-2 text-destructive focus:text-destructive"
-          >
-            <XCircle className="h-4 w-4" />
-            Cancel subscription
-          </DropdownMenuItem>
-        )}
-        {showLeave && (
-          <DropdownMenuItem
-            onSelect={(e) => {
-              e.preventDefault();
-              leaveBot();
-            }}
-            disabled={leaving}
-            className="gap-2 text-destructive focus:text-destructive"
-          >
-            <LogOut className="h-4 w-4" />
-            {leaving ? "Leaving…" : "Leave bot"}
-          </DropdownMenuItem>
-        )}
-      </>
-    ) : null;
-
-  // Deploy-failed state: the brand ridge, interrupted. The line draws up to
-  // the launch step and stops at a glowing break point on a red wash; retry
-  // resumes the climb. Rendered in two spots, so built once here.
-  const deployFailedBanner = deployFailed ? (
-    <div className="rounded-2xl border border-destructive/40 bg-destructive/20 px-6 py-7 sm:px-9">
-      <style>{`
-        .os-ridge-break{animation:os-ridge-break 2.2s ease-out infinite}
-        @keyframes os-ridge-break{0%,100%{opacity:1}50%{opacity:.25}}
-        @media (prefers-reduced-motion: reduce){.os-ridge-break{animation:none}}
-      `}</style>
-      <div className="flex flex-wrap items-center gap-x-10 gap-y-5">
-        <svg
-          width="148"
-          height="58"
-          viewBox="0 0 190 74"
-          style={{ overflow: "visible" }}
-          aria-hidden
-          className="shrink-0"
-        >
-          <path
-            d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70"
-            fill="none"
-            stroke="rgba(201,219,230,.22)"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M4 70 L44 26 L62 44 L95 6"
-            fill="none"
-            stroke="#C9DBE6"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <circle className="os-ridge-break" cx="95" cy="6" r="4.5" fill="#FF9C82" />
-        </svg>
-        <div className="min-w-[240px] flex-1">
-          <div className="text-base font-semibold text-foreground">The launch stopped partway.</div>
-          <p className="mt-1.5 max-w-[52ch] text-sm leading-relaxed text-muted-foreground">
-            Nothing is lost. Retrying picks the climb back up exactly where it stopped.
-          </p>
-        </div>
-        <Button className="shrink-0 rounded-full px-7" onClick={retryDeploy} disabled={retrying}>
-          {retrying ? "Resuming…" : "Resume launch"}
-        </Button>
-      </div>
-    </div>
-  ) : null;
-
-  const sectionInner = (
-    <section className="space-y-5">
-      <style>{BOTSEC_CSS}</style>
-      <BotIdentityEditor
-        bot={bot}
-        onUpdated={onReload}
-        badges={headerBadges}
-        actions={headerActions}
-        menuItems={headerMenuItems}
-        enableDiscordEdits={!bot.isDemo}
-        onRefresh={() => { reloadHealth(); onReload(); }}
-      />
-
-      {deployFailedBanner}
-
-      <details
-        open={manageOpen}
-        onToggle={(e) => setManageOpen((e.target as HTMLDetailsElement).open)}
-        className="botsec"
-      >
-        <summary className="bsum">
-          <span className="bico">
-            <Settings />
-          </span>
-          <div className="btx">
-            <div className="ba">Manage this bot</div>
-            <div className="bb">Engine, power controls, servers, usage &amp; logs</div>
-          </div>
-          <ChevronDown className="bchev" />
-        </summary>
-        <div className="bbody space-y-5">
-
-      {showPreorderBanner && (
-        <Card className="p-4 bg-primary/5 border-primary/30">
-          <div className="flex items-start gap-3">
-            <HexagonLoader size={22} className="mt-0.5" />
-            <div className="text-sm">
-              <div className="font-semibold text-primary">Your bot is being built</div>
-              <p className="text-muted-foreground mt-1">
-                We're putting your bot together. You'll get an email the moment it's
-                ready to invite — no action needed from you right now.
-              </p>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {showReadyBanner && (
-        <Card className="p-4 bg-emerald-500/5 border-emerald-500/30">
-          <div className="flex items-start gap-3">
-            <Sparkles className="h-5 w-5 text-emerald-400 mt-0.5 shrink-0" />
-            <div className="text-sm flex-1">
-              <div className="font-semibold text-emerald-300">Your bot is ready</div>
-              <Button asChild variant="outline" size="sm" className="mt-3">
-                <a href={bot.delivery_url ?? "#"} target="_blank" rel="noopener noreferrer">
-                  <ArrowRight className="h-4 w-4 mr-1.5" />
-                  Open delivery link
-                </a>
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {!bot.isDemo && (
-        <BotManagePanel
-          bot={bot}
-          health={health}
-          isOffline={isOffline}
-          isDeploying={isDeploying}
-          isStarting={isStarting}
-          highlightSlots={highlightSlots}
-          onCommandSent={handleCommandSent}
-          onReload={onReload}
-          onEngineSwitch={onEngineSwitch}
-        />
-      )}
-
-      {!bot.isDemo && <BotSecretsCard bot={bot} />}
-
-      {/* Only the actionable deploy states get a banner now — the plain
-          "Deploying…" strip is redundant with the Manage panel's live status
-          beam, so we no longer render it. */}
-      {deployFailedBanner}
-      {!deployFailed && isQueued && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm flex items-center justify-center gap-3 text-amber-200">
-          <span className="h-2 w-2 rounded-full bg-amber-300 animate-pulse" />
-          <span className="font-medium text-center">
-            We're currently preparing your bot — our team is on it and you'll receive a Discord DM as soon as it's live. Thank you for your patience!
-          </span>
-        </div>
-      )}
-
-      {isOffline && !isStarting && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center text-xs text-amber-300 font-medium">
-          Bot is offline — start the bot to make changes.
-        </div>
-      )}
-
-      {isStarting && (
-        <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-2.5 text-center text-xs text-blue-300 font-medium flex items-center justify-center gap-2">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          Starting… your bot will be online in ~30 seconds. You can keep editing settings.
-        </div>
-      )}
-
-      {hasNoServers && (
-        <div className="rounded-lg border border-[#C9DBE6]/20 bg-[#C9DBE6]/[0.06] px-4 py-2.5 text-center text-xs font-medium text-[#C9DBE6]/90">
-          These settings unlock once your bot joins a server — invite it from Manage this bot, under Servers.
-        </div>
-      )}
-
-        </div>
-      </details>
-
-      <div
-        className={(isOffline || isDeploying || hasNoServers) ? "opacity-40 pointer-events-none select-none" : ""}
-        aria-disabled={isOffline || hasNoServers}
-      >
-      <details
-        open={addonsOpen && !isOffline && !hasNoServers}
-        onToggle={(e) => setAddonsOpen((e.target as HTMLDetailsElement).open)}
-        className="botsec"
-      >
-        <summary className="bsum">
-          <span className="bico">
-            <Layers />
-          </span>
-          <div className="btx">
-            <div className="ba">
-              Add-on configuration
-              {totalConfigurable > 0 && (
-                <span className="ct">
-                  {totalConfigurable} block{totalConfigurable === 1 ? "" : "s"}
-                </span>
-              )}
-            </div>
-            <div className="bb">Tickets, say command, protection, utilities</div>
-          </div>
-          <ChevronDown className="bchev" />
-        </summary>
-        <div className="bbody space-y-5">
-      {!bot.isDemo && <DashboardServerSelector botId={bot.id} />}
-      <div className="space-y-10">
-
-        {totalConfigurable === 0 ? (
-          <Card className="bg-card/40 border-dashed border-border p-8 text-center">
-            <p className="text-sm text-muted-foreground">
-              No add-ons on this bot yet. Add one to unlock its configuration box.
-            </p>
-            {!bot.isDemo && canEditBilling && (
+          {isCustomsTickets && (
+            <div className="flex items-center justify-end gap-2 pr-8 -mt-1">
+              <Popover open={tplOpen} onOpenChange={setTplOpen}>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" size="sm" className="gap-1.5">
+                    <Save className="h-3.5 w-3.5" />
+                    Templates
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-80 p-3 space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Save this setup as a template</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={tplName}
+                        onChange={(e) => setTplName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveCurrentAsTemplate(); } }}
+                        placeholder="Template name"
+                        className="h-8 text-xs"
+                      />
+                      <Button type="button" size="sm" className="h-8 shrink-0" onClick={saveCurrentAsTemplate}>
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="border-t border-border pt-2 space-y-1">
+                    <Label className="text-xs text-muted-foreground">Saved templates</Label>
+                    {ticketTemplates.length === 0 ? (
+                      <p className="py-1 text-xs italic text-muted-foreground">No templates yet — save one above.</p>
+                    ) : (
+                      <div className="max-h-56 space-y-1 overflow-y-auto">
+                        {ticketTemplates.map((t) => (
+                          <div key={t.id} className="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-muted/50">
+                            <button
+                              type="button"
+                              className="flex-1 truncate text-left text-xs"
+                              onClick={() => loadTemplate(t.id)}
+                              title="Load this template into the editor"
+                            >
+                              {t.name}
+                            </button>
+                            <button
+                              type="button"
+                              className="shrink-0 text-destructive hover:text-destructive/80"
+                              onClick={() => deleteTemplate(t.id)}
+                              title="Delete template"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
               <Button
+                type="button"
                 variant="outline"
                 size="sm"
-                className="mt-4"
-                onClick={() => onAddAddons(bot)}
+                className="gap-1.5 text-destructive hover:text-destructive"
+                onClick={startOverTickets}
               >
-                <Plus className="h-4 w-4 mr-1.5" />
-                Browse add-ons
+                <RotateCcw className="h-3.5 w-3.5" />
+                Start over
               </Button>
-            )}
-          </Card>
-        ) : (
-          groupedAddons.map((group) => {
-            const GroupIcon = group.icon;
-            return (
-              <div key={group.key} className="space-y-4">
-                {group.key !== "shared" && (
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="h-6 w-6 rounded-md flex items-center justify-center shrink-0 bg-[rgba(201,219,230,0.1)] border border-[rgba(201,219,230,0.42)] text-primary">
-                      <GroupIcon className="h-3.5 w-3.5" size={14} />
-                    </span>
-                    <span className="text-[11px] font-extrabold tracking-[0.14em] uppercase text-muted-foreground font-['Manrope',system-ui,sans-serif]">
-                      {group.label}
-                    </span>
-                    <span className="text-[11px] font-bold text-foreground bg-white/[0.04] border border-border rounded-full px-2 py-0.5">
-                      {group.owned.length}
-                    </span>
-                    <span className="flex-1 h-px bg-white/[0.055]" />
-                  </div>
-                )}
-                {group.key === "shared" ? (
-                  <div className="space-y-5">
-                    {group.owned.length > 0 && (
-                      <CustomsAddonGrid
-                        botId={bot.id}
-                        ownerUserId={bot.ownerUserId ?? userId}
-                        botName={bot.bot_name}
-                        botAvatarUrl={bot.icon_url}
-                        engineVersion={bot.engine_version}
-                        ids={group.owned}
-                        canReorder={!bot.isDemo && !bot.viaTeam && !bot.viaSupport}
-                      />
-                    )}
-                    <div className="flex items-center gap-3 mb-1">
-                      <span className="h-6 w-6 rounded-md flex items-center justify-center shrink-0 bg-[rgba(201,219,230,0.1)] border border-[rgba(201,219,230,0.42)] text-primary">
-                        <GroupIcon className="h-3.5 w-3.5" size={14} />
-                      </span>
-                      <span className="text-[11px] font-extrabold tracking-[0.14em] uppercase text-muted-foreground font-['Manrope',system-ui,sans-serif]">
-                        {group.label}
-                      </span>
-                      <span className="flex-1 h-px bg-white/[0.055]" />
-                    </div>
-                    <div className="xtras">
-                      <RequestCustomFeatureCard />
-                      <ReportBugCard />
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <SortableAddonGrid
-                      userId={userId}
-                      botId={bot.id}
-                      botName={bot.bot_name}
-                      botAvatarUrl={bot.icon_url}
-                      engineVersion={bot.engine_version}
-                      groupKey={group.key}
-                      ids={group.owned}
-                      highlightedAddonId={highlightedAddonId}
-                    />
+            </div>
+          )}
 
-                    {group.owned.includes("giveaway-system") && (
-                      <GiveawayLaunchCard botId={bot.id} />
-                    )}
-                  </>
-                )}
+          {isSayCommand ? (
+            <div className="py-2">
+              {engineVersion === "v2" ? (
+                <MessagesV2Builder ref={v2BuilderRef} botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
+              ) : (
+                <SayCommandBuilder ref={sayBuilderRef} botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
+              )}
+            </div>
+          ) : isRules ? (
+            <div className="py-2">
+              <SayCommandBuilder ref={sayBuilderRef} mode="rules" botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
+            </div>
+          ) : isTicketPanel ? (
+            <TicketPanelBuilder
+              key={`ticket-builder-${ticketBuilderRemountKey}`}
+              ref={ticketBuilderRef}
+              botId={botId}
+              botName={botName}
+              botAvatarUrl={botAvatarUrl}
+              variant="ticket"
+              engineVersion={engineVersion}
+            />
+
+          ) : isTicketEditor ? (
+            <TicketEditor
+              ref={ticketEditorRef}
+              botId={botId}
+              botName={botName}
+              botAvatarUrl={botAvatarUrl}
+              engineVersion={engineVersion}
+            />
+
+          ) : isTicketLifecycleMessages ? (
+            <div className="space-y-4 py-2">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="flex-1 min-w-0">
+                  <Label className="mb-1.5 block">Lifecycle event</Label>
+                  <Select
+                    value={lifecycleEvent}
+                    onValueChange={(v) => switchLifecycleEvent(v as LifecycleKey)}
+                  >
+                    <SelectTrigger className="w-full sm:w-[360px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LIFECYCLE_KEYS.map((k) => (
+                        <SelectItem key={k} value={k}>
+                          {LIFECYCLE_LABELS[k]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            );
-          })
-        )}
-      </div>
-        </div>
-      </details>
-      </div>
-      {/* Team panel rendered once at the bottom of the dashboard, not per bot. */}
-    </section>
+              <p className="text-xs text-muted-foreground">
+                Build the message with the V2 component editor. Available tokens in any text:{" "}
+                <code className="rounded bg-muted px-1">{"{user}"}</code>{" "}
+                <code className="rounded bg-muted px-1">{"{staff}"}</code>{" "}
+                <code className="rounded bg-muted px-1">{"{category}"}</code>{" "}
+                <code className="rounded bg-muted px-1">{"{server}"}</code>{" "}
+                <code className="rounded bg-muted px-1">{"{ticket}"}</code>. Leave blank to use the bot's built-in default.
+              </p>
+              <MessagesV2Builder
+                key={`lifecycle-${lifecycleEvent}-${lifecycleMountKey}`}
+                ref={lifecycleV2Ref}
+                embedded
+                botId={botId}
+                botName={botName}
+                botAvatarUrl={botAvatarUrl}
+                initialItems={lifecycleConfigs[lifecycleEvent] ?? []}
+              />
+            </div>
+
+
+
+
+
+          ) : isChannelLockdown ? (
+            <div className="space-y-5 py-2">
+              {config.fields.map((f) => (
+                <div key={f.key}>{renderField(f)}</div>
+              ))}
+              <LockEmbedEditor
+                label="Lock embed"
+                value={lockEmbed}
+                onChange={setLockEmbed}
+                botName={botName}
+                botAvatarUrl={botAvatarUrl ?? undefined}
+              />
+              <LockEmbedEditor
+                label="Unlock embed"
+                value={unlockEmbed}
+                onChange={setUnlockEmbed}
+                botName={botName}
+                botAvatarUrl={botAvatarUrl ?? undefined}
+              />
+            </div>
+          ) : isRecurringMessages ? (
+            <RecurringMessagesForm
+              botId={botId}
+              entries={recurringMessages}
+              onEntriesChange={setRecurringMessages}
+              deletePrevious={recurringDeletePrevious}
+              onDeletePreviousChange={setRecurringDeletePrevious}
+              allowedRoleIds={recurringAllowedRoles}
+              onAllowedRoleIdsChange={setRecurringAllowedRoles}
+              intervals={RECURRING_INTERVALS}
+            />
+          ) : isGiveaway ? (
+            <GiveawayForm
+              botId={botId}
+              botName={botName}
+              botAvatarUrl={botAvatarUrl ?? undefined}
+              hostRoles={giveawayHostRoles}
+              onHostRolesChange={setGiveawayHostRoles}
+              channelId={giveawayChannelId}
+              onChannelIdChange={setGiveawayChannelId}
+              defaultDuration={giveawayDefaultDuration}
+              onDefaultDurationChange={setGiveawayDefaultDuration}
+              entryEmoji={giveawayEntryEmoji}
+              onEntryEmojiChange={setGiveawayEntryEmoji}
+              defaultWinners={giveawayDefaultWinners}
+              onDefaultWinnersChange={setGiveawayDefaultWinners}
+              embedTitle={giveawayEmbedTitle}
+              onEmbedTitleChange={setGiveawayEmbedTitle}
+              embedDescription={giveawayEmbedDescription}
+              onEmbedDescriptionChange={setGiveawayEmbedDescription}
+              embedColor={giveawayEmbedColor}
+              onEmbedColorChange={setGiveawayEmbedColor}
+            />
+          ) : isCustomsGiveaway ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Giveaway design</p>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" size="sm" className="gap-1.5 shrink-0">
+                        <Braces className="h-3.5 w-3.5" /> Variables
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-80 p-0">
+                      <div className="px-3 py-2 border-b border-border/60">
+                        <p className="text-xs font-semibold">Variables</p>
+                        <p className="text-[11px] text-muted-foreground">Click to copy, then paste into your design.</p>
+                      </div>
+                      <div className="py-1">
+                        {GIVEAWAY_VARIABLES.map((v) => (
+                          <button
+                            key={v.token}
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard?.writeText(v.token);
+                              toast.success(`Copied ${v.token}`);
+                            }}
+                            className="w-full flex items-start gap-2 px-3 py-1.5 text-left hover:bg-muted/60 transition-colors"
+                          >
+                            <code className="text-[11px] font-mono text-os-accent bg-os-accent/10 border border-os-accent/25 rounded px-1.5 py-0.5 shrink-0">
+                              {v.token}
+                            </code>
+                            <span className="text-[11px] text-muted-foreground leading-snug">{v.desc}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Design how each giveaway looks with the same builder as Messages. An{" "}
+                  <span className="font-medium">Enter</span> button (a{" "}
+                  <span className="font-medium">Counter</span>) is added for you — rename or restyle
+                  it; each click enters the giveaway (+1). Drop variables anywhere; they fill in when
+                  a giveaway is posted.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium">Questions vs answers:</span>{" "}
+                  <code className="font-mono text-os-accent">{"{Question: Prize}"}</code> is the
+                  question — running <span className="font-medium">/giveaway</span> pops a form asking
+                  for each one, and the question tokens themselves show nothing. Display the answers
+                  with <code className="font-mono text-os-accent">{"{prize}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{winners}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{entries}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{end}"}</code>. Include a question
+                  labelled <span className="font-medium">Winner</span> and one labelled{" "}
+                  <span className="font-medium">Length</span> so the bot knows how many to draw and
+                  when to end (put them on their own line — they vanish from the post).
+                </p>
+                <div className="inline-flex rounded-lg border border-border bg-background/40 p-0.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setGiveawayTab("running")}
+                    className={cn(
+                      "px-3 py-1.5 rounded-md font-medium transition-colors",
+                      giveawayTab === "running" ? "bg-os-accent/15 text-foreground" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    While running
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGiveawayTab("ended")}
+                    className={cn(
+                      "px-3 py-1.5 rounded-md font-medium transition-colors",
+                      giveawayTab === "ended" ? "bg-os-accent/15 text-foreground" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    When it ends
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {giveawayTab === "running"
+                    ? "The live giveaway message, with the Enter button."
+                    : "Shown when the giveaway ends — no entry button (the bot adds a Reroll). Use {winner_list} for the winner(s)."}
+                </p>
+                <div className={giveawayTab === "running" ? "" : "hidden"}>
+                  <MessagesV2Builder
+                    key={`customs-giveaway-v2-${giveawayV2MountKey}`}
+                    ref={giveawayV2Ref}
+                    embedded
+                    giveaway
+                    botId={botId}
+                    botName={botName}
+                    botAvatarUrl={botAvatarUrl}
+                    initialItems={giveawayV2Items}
+                  />
+                </div>
+                <div className={giveawayTab === "ended" ? "" : "hidden"}>
+                  <MessagesV2Builder
+                    key={`customs-giveaway-ended-v2-${giveawayEndedV2MountKey}`}
+                    ref={giveawayEndedV2Ref}
+                    embedded
+                    botId={botId}
+                    botName={botName}
+                    botAvatarUrl={botAvatarUrl}
+                    initialItems={giveawayEndedV2Items}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : isCustomsRobuxLocker ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Robux Locker panel</p>
+                <p className="text-xs text-muted-foreground">
+                  Design the panel members see, using the same builder as Messages. It posts to the
+                  channel above when you Save. (Buy buttons come next — this is the panel design.)
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Type <code className="font-mono text-os-accent">{"{stock}"}</code> anywhere — it fills in
+                  with the current Available Stock and updates live as staff stock it with{" "}
+                  <code className="font-mono">/robuxlocker</code> or members buy. Use{" "}
+                  <code className="font-mono text-os-accent">{"{funds}"}</code> for the group balance last read.
+                </p>
+                <MessagesV2Builder
+                  key={`customs-robux-locker-v2-${robuxLockerV2MountKey}`}
+                  ref={robuxLockerV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={robuxLockerV2Items}
+                />
+              </div>
+            </div>
+          ) : isInviteMessage || isCustomsMessages || isCustomsVerification ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">
+                  {isCustomsVerification
+                    ? "Design the panel members see below. A Verify button is added automatically underneath it."
+                    : (<>Type variables like <code className="font-mono text-os-accent">{"{count}"}</code> anywhere — they fill in {isCustomsMessages ? "when the message is posted." : "when someone joins."}</>)}
+                </p>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" size="sm" className="gap-1.5 shrink-0">
+                      <Braces className="h-3.5 w-3.5" /> Variables
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-72 p-0">
+                    <div className="px-3 py-2 border-b border-border/60">
+                      <p className="text-xs font-semibold">Variables</p>
+                      <p className="text-[11px] text-muted-foreground">Click to copy, then paste into your message.</p>
+                    </div>
+                    <div className="py-1">
+                      {INVITE_VARIABLES.map((v) => (
+                        <button
+                          key={v.token}
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard?.writeText(v.token);
+                            toast.success(`Copied ${v.token}`);
+                          }}
+                          className="w-full flex items-start gap-2 px-3 py-1.5 text-left hover:bg-muted/60 transition-colors"
+                        >
+                          <code className="text-[11px] font-mono text-os-accent bg-os-accent/10 border border-os-accent/25 rounded px-1.5 py-0.5 shrink-0">
+                            {v.token}
+                          </code>
+                          <span className="text-[11px] text-muted-foreground leading-snug">{v.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="px-3 py-2 border-t border-border/60 space-y-1">
+                      <p className="text-[11px] font-semibold text-foreground">Emojis</p>
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        Paste any emoji directly. For a custom server emoji, type its name in colons like{" "}
+                        <code className="font-mono text-os-accent">:ovs:</code> — the bot swaps in the correct
+                        emoji when it posts (pasting the copied{" "}
+                        <code className="font-mono text-os-accent">:name~1:</code> works too).
+                      </p>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              {engineVersion === "v2" || isCustomsMessages || isCustomsVerification ? (
+                <MessagesV2Builder
+                  key={isCustomsVerification ? `verify-panel-v2-${verifyPanelV2MountKey}` : isCustomsMessages ? `customs-msg-v2-${messagesV2MountKey}` : `invite-v2-${inviteV2MountKey}`}
+                  ref={isCustomsVerification ? verifyPanelV2Ref : isCustomsMessages ? messagesV2Ref : inviteV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={isCustomsVerification ? verifyPanelV2Items : isCustomsMessages ? messagesV2Items : inviteV2Items}
+                />
+              ) : (
+                <SayCommandBuilder
+                  ref={inviteSayRef}
+                  mode="rules"
+                  feature="invite"
+                  extraConfig={{ channel_id: String(values.channel_id ?? "") }}
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                />
+              )}
+            </div>
+          ) : isCustomsTickets ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Ticket panels</p>
+                  <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addNewPanel}>
+                    <Plus className="h-3.5 w-3.5" /> New panel
+                  </Button>
+                </div>
+                {(() => {
+                  const currentCh = values.panel_channel_id ? String(values.panel_channel_id) : "";
+                  const others = ticketPanels.filter((p) => p.channel_id && p.channel_id !== currentCh);
+                  if (others.length === 0) return null;
+                  return (
+                    <div className="space-y-1 rounded border border-border bg-background/40 p-2">
+                      <p className="text-[11px] text-muted-foreground">Your saved panels — each posts to its own channel and stays live:</p>
+                      {others.map((p) => (
+                        <div key={p.id} className="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-muted/50">
+                          <span className="truncate text-xs">#{panelChannelName(p.channel_id)}</span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => editPanel(p)}>Edit</Button>
+                            <button type="button" className="text-destructive hover:text-destructive/80" onClick={() => deletePanel(p.id)} title="Remove panel">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+                <p className="text-xs text-muted-foreground">
+                  Editing the panel for the channel selected above. Add a <span className="font-medium">Button Row</span> or <span className="font-medium">Select Menu</span> below and set buttons/options to <span className="font-medium">Ticket</span> / <span className="font-medium">Form</span>. Click <span className="font-medium">New panel</span> to make another for a different channel — saving keeps them all.
+                </p>
+                <MessagesV2Builder
+                  key={`ticket-panel-v2-${ticketPanelV2MountKey}`}
+                  ref={ticketPanelV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={ticketPanelV2Items}
+                />
+              </div>
+            </div>
+          ) : isVerification ? (
+            <VerificationForm
+              values={values}
+              setValue={setValue}
+              renderField={renderField}
+              config={config}
+              botName={botName}
+              botAvatarUrl={botAvatarUrl ?? undefined}
+              botId={botId}
+              v2BuilderRef={verifyV2Ref}
+              v2InitialItems={verifyV2Items}
+              v2MountKey={verifyV2MountKey}
+            />
+          ) : isRemindme ? (
+            <RemindmeForm
+              values={values}
+              setValue={setValue}
+              renderField={renderField}
+              config={config}
+              botName={botName}
+              botAvatarUrl={botAvatarUrl ?? undefined}
+            />
+          ) : isPostSystem ? (
+            <div className="py-2">
+              <PostTypesManager botId={botId} />
+            </div>
+          ) : (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+            </div>
+          )}
+
+          <DialogFooter className="flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            {isVerification && appliedAt ? (
+              <span className="text-xs text-muted-foreground">
+                Last applied {new Date(appliedAt).toLocaleString()}
+              </span>
+            ) : isAdvancedLogging && appliedAt ? (
+              <span className="text-xs text-muted-foreground">
+                Last applied {new Date(appliedAt).toLocaleString()}
+              </span>
+            ) : <span />}
+            <div className="flex gap-2">
+              {isTicketPanel && (
+                <Button
+                  variant="ghost"
+                  onClick={() => ticketBuilderRef.current?.clear()}
+                  data-readonly-allow
+                >
+                  Clear
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => setOpen(false)} data-readonly-allow>
+                Cancel
+              </Button>
+              {!isPostSystem && (
+              <Button
+                className="bg-os-accent text-os-accent-ink hover:brightness-105 disabled:opacity-50"
+                disabled={saving || !canEdit}
+                title={!canEdit ? `Your role (${role ?? "viewer"}) doesn't allow editing bot config` : undefined}
+                onClick={async () => {
+                  if (isSayCommand || isRules) {
+                    setSaving(true);
+                    try {
+                      const ok = isSayCommand && engineVersion === "v2"
+                        ? await v2BuilderRef.current?.send()
+                        : await sayBuilderRef.current?.send();
+                      if (ok) setOpen(false);
+                    } finally {
+                      setSaving(false);
+                    }
+                    return;
+                  }
+                  if (isCustomsMessages) {
+                    void sendCustomsMessages();
+                    return;
+                  }
+                  if (isInviteMessage) {
+                    if (engineVersion === "v2") {
+                      void saveInviteMessage();
+                    } else {
+                      setSaving(true);
+                      try {
+                        const ok = await inviteSayRef.current?.send();
+                        if (ok) setOpen(false);
+                      } finally {
+                        setSaving(false);
+                      }
+                    }
+                    return;
+                  }
+                  if (isTicketPanel) {
+                    setSaving(true);
+                    try {
+                      const ok = await ticketBuilderRef.current?.save();
+                      if (ok) {
+                        setOpen(false);
+                        window.dispatchEvent(new CustomEvent("ticket-panels-changed"));
+                      }
+                    } finally {
+                      setSaving(false);
+                    }
+                    return;
+                  }
+                  if (isTicketEditor) {
+                    setSaving(true);
+                    try {
+                      const ok = await ticketEditorRef.current?.save();
+                      if (ok) setOpen(false);
+                    } finally {
+                      setSaving(false);
+                    }
+                    return;
+                  }
+                  if (isVerification) {
+                    void saveVerification();
+                  } else if (isAdvancedLogging) {
+                    void saveAdvancedLogging();
+                  } else if (isModeration) {
+                    void saveModeration();
+                  } else if (isAntiSpam) {
+                    void saveAntiSpam();
+                  } else if (isAntiRaid) {
+                    void saveAntiRaid();
+                  } else if (isNsfwInviteScanner) {
+                    void saveNsfwInviteScanner();
+                  } else if (isAutoRole) {
+                    void saveAutoRole();
+                  } else if (isModHistory) {
+                    void saveModHistory();
+                  } else if (isAutoEscalate) {
+                    void saveAutoEscalate();
+                  } else if (isAvatarNsfw) {
+                    void saveAvatarNsfw();
+                  } else if (isBioPhrase) {
+                    void saveBioPhrase();
+                  } else if (isPhishingDetection) {
+                    void savePhishingDetection();
+                  } else if (isSoftbanMassban) {
+                    void saveSoftbanMassban();
+                  } else if (isStaffNotes) {
+                    void saveStaffNotes();
+                  } else if (isChannelLockdown) {
+                    void saveChannelLockdown();
+                  } else if (isBanTools) {
+                    void saveBanTools();
+                  } else if (isStaffPerformance) {
+                    void saveStaffPerformance();
+                  } else if (isTicketLifecycleMessages) {
+                    void saveTicketLifecycleMessages();
+                  } else if (isTicketNotes) {
+                    void saveTicketNotes();
+                  } else if (isTicketMembers) {
+                    void saveTicketMembers();
+                  } else if (isCloseAll) {
+                    void saveCloseAll();
+                  } else if (isPriorityFlagging) {
+                    void savePriorityFlagging();
+                  } else if (isAutoCloseInactive) {
+                    void saveAutoCloseInactive();
+                  } else if (isAutoRadio) {
+                    void saveAutoRadio();
+                  } else if (isMusicAddon) {
+                    void saveMusicAddon();
+                  } else if (isGiveaway) {
+                    void saveGiveaway();
+                  } else if (isStarboard) {
+                    void saveStarboard();
+                  } else if (isRecurringMessages) {
+                    void saveRecurringMessages();
+                  } else if (isRemindme) {
+                    void saveRemindme();
+                  } else if (isServerStats) {
+                    void saveServerStats();
+                  } else if (isCustomsCredits) {
+                    void saveCustomsCredits();
+                  } else if (isCustomsGiveaway) {
+                    void saveCustomsGiveaway();
+                  } else if (isCustomsRobuxLocker) {
+                    void saveCustomsRobuxLocker();
+                  } else if (isCustomsVerification) {
+                    void saveCustomsVerification();
+                  } else if (isCustomsTickets) {
+                    void saveCustomsTickets();
+                  } else if (isCustomsOrderStatus) {
+                    void saveCustomsOrderStatus();
+                  } else if (isCustomsPricing) {
+                    void saveCustomsPricing();
+                  } else {
+                    toast.success(`${config.title} settings saved`);
+                    setOpen(false);
+                  }
+                }}
+              >
+                <Save className="h-4 w-4 mr-1.5" />
+                {!canEdit
+                  ? "Read only"
+                  : saving
+                    ? "Saving…"
+                    : isRules
+                      ? "Save rules"
+                      : isSayCommand || isCustomsMessages
+                        ? "Send message"
+                        : "Save changes"}
+              </Button>
+              )}
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
+}
 
+type RecurringEntryInput = { channel_id: string; interval_minutes: number; message: string; ping_role_ids: string[] };
 
-  if (bot.isDemo) return sectionInner;
-  return (
-    <ActiveGuildProvider userId={userId} botId={bot.id}>
-      {sectionInner}
-    </ActiveGuildProvider>
-  );
-};
-
-
-// ============================================================================
-//  Dashboard — 1:1 port of the approved preview. The preview's exact (scoped)
-//  CSS lives in OSD_CSS; markup below mirrors the preview with live data.
-//  The per-bot configuration screen reuses the real <BotSection> block.
-// ============================================================================
-
-const OSD_CSS = `.osd{font-family:var(--bodyf);color:var(--body);min-height:100vh;position:relative;--bg:#21272e;--panel:#272e36;--surface:#2d353e;--surface2:#343d46;--hair:#3a434d;--heading:#E8EEF3;--body:#A8B4BF;--faint:#788591;--accent:#C9DBE6;--accentink:#1E242B;--ok:#86d3a1;--bad:#e98b8b;--gold:#cbb277;--disp:"Bricolage Grotesque",system-ui,sans-serif;--bodyf:"Space Grotesk",system-ui,sans-serif;--mono:"Space Mono",monospace}
-.osd-bg{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center 20%;background-repeat:no-repeat}
-.osd-scrim{position:fixed;inset:0;z-index:0;background:linear-gradient(180deg,rgba(18,22,27,.42),rgba(18,22,27,.6) 60%,rgba(18,22,27,.74))}
-.osd-dim{position:fixed;inset:0;z-index:0;background:rgba(14,18,23,.62);opacity:0;transition:opacity 1.1s ease}
-.osd.app .osd-dim{opacity:1}
-.osd.instant .osd-dim,.osd.instant .appwrap,.osd.instant .side{transition:none!important}
-.osd-stage{position:relative;z-index:10}
-/* Remap shadcn/Tailwind theme tokens to the muted palette for every inner
-   panel rendered inside the dashboard — visual only, no component changes. */
-.osd{--background:212 16% 15%;--foreground:206 33% 93%;--card:213 16% 18%;--card-foreground:206 33% 93%;--popover:213 16% 18%;--popover-foreground:206 33% 93%;--primary:202 40% 85%;--primary-foreground:213 18% 14%;--primary-glow:202 40% 85%;--secondary:212 16% 21%;--secondary-foreground:206 33% 93%;--muted:212 16% 21%;--muted-foreground:209 16% 70%;--accent-foreground:206 33% 93%;--border:213 14% 26%;--input:213 14% 26%;--ring:202 40% 85%}
-/* Neutralize hardcoded blue utility classes inside the dashboard to the accent */
-.osd .text-blue-400,.osd .text-blue-300{color:#C9DBE6}
-.osd .border-blue-500\\/30{border-color:rgba(201,219,230,.32)}
-.osd .bg-blue-500\\/15{background-color:rgba(201,219,230,.14)}
-.osd .bg-blue-500\\/10{background-color:rgba(201,219,230,.10)}
-.osd .bg-blue-400{background-color:#C9DBE6}
-.osd :root{--bg:#21272e;--panel:#272e36;--surface:#2d353e;--surface2:#343d46;--hair:#3a434d;
-        --heading:#E8EEF3;--body:#A8B4BF;--faint:#788591;--accent:#C9DBE6;--accentink:#1E242B;
-        --ok:#86d3a1;--bad:#e98b8b;--gold:#cbb277;
-        --disp:"Bricolage Grotesque",system-ui,sans-serif;--bodyf:"Space Grotesk",system-ui,sans-serif;--mono:"Space Mono",monospace}
-.osd *{box-sizing:border-box;margin:0;padding:0}
-.osd.instant::after, .osd.instant .appwrap, .osd.instant .side{transition:none!important}
-.osd .appwrap{display:flex;flex-direction:column;min-height:100vh;opacity:0;transform:translateY(16px);pointer-events:none;
-    transition:opacity .9s ease .18s,transform 1s cubic-bezier(.22,1,.36,1) .18s}
-.osd .appwrap.show{opacity:1;transform:none;pointer-events:auto}
-.osd .approw{display:flex;flex:1;min-height:0}
-.osd a{color:inherit;text-decoration:none}
-.osd svg{display:block}
-.osd .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
-.osd .overlay{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;overflow-y:auto;
-    background:transparent;transition:opacity .65s ease,visibility .65s}
-.osd .overlay.hide{opacity:0;visibility:hidden;pointer-events:none}
-.osd .overlay.hide .wcard{transform:translateY(-16px) scale(.965);opacity:0}
-.osd .wcard{transition:transform .65s cubic-bezier(.22,1,.36,1),opacity .5s ease}
-.osd .wcard{width:100%;max-width:560px;border:1px solid rgba(168,180,191,.16);border-radius:22px;text-align:center;
-    background:linear-gradient(180deg,rgba(45,53,62,.74),rgba(39,46,54,.8));backdrop-filter:blur(18px);
-    padding:36px;box-shadow:0 44px 100px -44px rgba(0,0,0,.85)}
-.osd .wcard .wmark{font-family:var(--disp);font-weight:800;color:var(--heading);font-size:18px;letter-spacing:-.01em;margin-bottom:20px}
-.osd .wcard .wmark span{display:block;margin-top:5px;color:var(--faint);font-weight:700;font-size:10px;letter-spacing:.2em;text-transform:uppercase}
-.osd .wcard h1{font-family:var(--disp);font-weight:800;color:var(--heading);font-size:clamp(24px,3.4vw,30px);letter-spacing:-.022em;line-height:1.05}
-.osd .wcard .lead{font-size:13.5px;color:var(--body);line-height:1.55;margin-top:11px}
-.osd .wcard .lead b{color:var(--heading);font-weight:600}
-.osd .qlab{font-family:var(--disp);font-weight:700;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:26px 0 13px}
-.osd .choices{display:grid;grid-template-columns:1fr 1fr;gap:13px;text-align:left}
-.osd .choice{position:relative;border:1.5px solid var(--hair);border-radius:16px;background:rgba(32,38,45,.5);padding:18px;cursor:pointer;transition:.16s}
-.osd .choice:hover{border-color:color-mix(in srgb,var(--accent) 45%,transparent);transform:translateY(-2px)}
-.osd .choice.sel{border-color:var(--accent);background:rgba(201,219,230,.08)}
-.osd .choice .ci{height:42px;width:42px;border-radius:12px;background:var(--panel);display:grid;place-items:center;color:var(--accent);margin-bottom:12px;transition:.16s}
-.osd .choice.sel .ci{background:var(--accent);color:var(--accentink)}
-.osd .choice .ci svg{width:20px;height:20px;stroke:currentColor;stroke-width:1.7;fill:none}
-.osd .choice .ct2{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:15px}
-.osd .choice .cd{font-size:11.5px;color:var(--faint);line-height:1.45;margin-top:5px}
-.osd .choice .tick{position:absolute;top:14px;right:14px;height:18px;width:18px;border-radius:999px;border:1.5px solid var(--hair);display:grid;place-items:center;color:var(--accentink);transition:.16s}
-.osd .choice .tick svg{width:11px;height:11px;stroke:currentColor;stroke-width:3;fill:none;opacity:0}
-.osd .choice.sel .tick{background:var(--accent);border-color:var(--accent)}
-.osd .choice.sel .tick svg{opacity:1}
-.osd .wgo{width:100%;margin-top:20px;background:var(--accent);color:var(--accentink);border:0;border-radius:13px;padding:13px;font-family:var(--bodyf);font-weight:700;font-size:14px;cursor:pointer;transition:.15s;opacity:.45;pointer-events:none}
-.osd .wgo.ready{opacity:1;pointer-events:auto}
-.osd .wgo.ready:hover{filter:brightness(1.06)}
-.osd .wnote{font-size:11.5px;color:var(--faint);margin-top:14px}
-@media(max-width:520px){.osd .choices{grid-template-columns:1fr}.osd .wcard{padding:26px 20px}}
-.osd .side{width:236px;flex:none;display:flex;flex-direction:column;gap:6px;padding:18px 14px;
-        background:rgba(34,40,47,.66);backdrop-filter:blur(16px);border-right:1px solid rgba(168,180,191,.12);position:sticky;top:0;height:100vh;overflow-y:auto;
-        transform:translateX(-20px);transition:transform .95s cubic-bezier(.22,1,.36,1) .22s}
-.osd .appwrap.show .side{transform:none}
-.osd .side{scrollbar-width:none;-ms-overflow-style:none}
-.osd .side::-webkit-scrollbar{width:0;height:0;display:none}
-/* Kill the custom scrollbar BAR everywhere in the dashboard (viewport + any inner
-   scroller). Overrides the global index.css scrollbar. Scrolling still works via
-   wheel/trackpad; any dot/indicator UI is unaffected. */
-html:has(.osd.app),body:has(.osd.app),.osd.app,.osd.app *{scrollbar-width:none !important;-ms-overflow-style:none !important}
-html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd.app::-webkit-scrollbar,.osd.app *::-webkit-scrollbar{width:0 !important;height:0 !important;display:none !important}
-.osd .prof{display:flex;align-items:center;gap:10px;padding:8px 8px 14px;border-bottom:1px solid var(--hair);margin-bottom:8px}
-.osd .prof .av{height:38px;width:38px;border-radius:11px;background:linear-gradient(135deg,#46525E,#343D46);
-            display:grid;place-items:center;color:var(--heading);font-weight:800;font-family:var(--disp);font-size:15px;flex:none}
-.osd .prof .nm{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:13.5px;display:flex;align-items:center;gap:6px}
-.osd .prof .pro{font-family:var(--disp);font-size:8px;font-weight:800;letter-spacing:.08em;color:var(--accentink);background:var(--accent);border-radius:5px;padding:1px 5px}
-.osd .prof .h{font-size:11px;color:var(--faint);margin-top:1px}
-.osd .prof .ed{margin-left:auto;color:var(--faint);cursor:pointer}
-.osd .glab{font-family:var(--disp);font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:12px 10px 5px}
-.osd .nav{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:11px;color:var(--body);font-size:13.5px;cursor:pointer;transition:.14s}
-.osd .nav svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.7;fill:none;flex:none}
-.osd .nav:hover{background:var(--surface);color:var(--heading)}
-.osd .nav.on{background:var(--surface2);color:var(--heading);font-weight:600}
-.osd .annc{position:fixed;bottom:22px;right:22px;z-index:140;width:330px;max-width:calc(100vw - 36px);border:1px solid var(--hair);border-radius:18px;background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 7%,var(--surface)),var(--panel));box-shadow:0 26px 64px -20px rgba(0,0,0,.75);overflow:hidden;animation:annc-in .42s cubic-bezier(.22,1,.36,1)}
-@keyframes annc-in{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
-.osd .annc .bar{height:3px;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 25%,transparent))}
-.osd .annc .in{padding:15px 16px 14px}
-.osd .annc .hd{display:flex;align-items:center;gap:10px}
-.osd .annc .ic{height:34px;width:34px;border-radius:11px;flex:none;display:grid;place-items:center;background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 24%,transparent)}
-.osd .annc .ic svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none}
-.osd .annc .ht{min-width:0}
-.osd .annc .ht .t{font-family:var(--disp);font-weight:700;font-size:13px;color:var(--heading);display:flex;align-items:center;gap:7px;line-height:1.1}
-.osd .annc .ht .t .ndot{height:6px;width:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 24%,transparent);animation:annc-pulse 2.4s ease-in-out infinite}
-@keyframes annc-pulse{0%,100%{opacity:1}50%{opacity:.45}}
-.osd .annc .ht .s{font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:3px;letter-spacing:.02em;text-transform:uppercase}
-.osd .annc .x{margin-left:auto;height:27px;width:27px;border-radius:8px;flex:none;border:1px solid var(--hair);background:transparent;color:var(--faint);display:grid;place-items:center;cursor:pointer;transition:.15s;padding:0}
-.osd .annc .x:hover{background:var(--surface2);color:var(--heading);border-color:var(--surface2)}
-.osd .annc .x svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none}
-.osd .annc .bd{margin-top:14px}
-.osd .annc .bd .h{font-family:var(--disp);font-weight:700;font-size:14.5px;color:var(--heading);line-height:1.3;letter-spacing:-.01em}
-.osd .annc .bd .p{font-size:12px;color:var(--body);line-height:1.5;margin-top:5px}
-.osd .annc .ft{display:flex;align-items:center;gap:9px;margin-top:15px;padding-top:13px;border-top:1px solid var(--hair)}
-.osd .annc .by{display:flex;align-items:center;gap:8px;min-width:0}
-.osd .annc .av{height:26px;width:26px;border-radius:8px;flex:none;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 55%,#000));color:var(--accentink);font-family:var(--disp);font-weight:800;font-size:10.5px}
-.osd .annc .by .nm{font-size:11.5px;color:var(--heading);font-weight:600;line-height:1.15}
-.osd .annc .by .tm{font-size:10px;color:var(--faint);margin-top:1px}
-.osd .annc .act{margin-left:auto;flex:none;display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:var(--accentink);border:0;border-radius:9px;padding:7px 13px;font-family:var(--bodyf);font-weight:700;font-size:11.5px;cursor:pointer;transition:.15s}
-.osd .annc .act:hover{filter:brightness(1.07)}
-.osd .annc .act svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.2;fill:none;transition:transform .15s}
-.osd .annc .act:hover svg{transform:translateX(2px)}
-@media(max-width:760px){.osd .annc{left:14px;right:14px;width:auto}}
-.osd .main{flex:1;min-width:0;padding:24px 26px 50px}
-.osd .head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
-.osd .crumb{font-size:12px;color:var(--faint)}
-.osd .crumb b{color:var(--heading);font-weight:600}
-.osd .head h1{font-family:var(--disp);font-size:clamp(26px,3.2vw,38px);color:var(--heading);letter-spacing:-.025em;margin-top:7px;line-height:1}
-.osd .head .sub{font-size:12.5px;color:var(--faint);margin-top:8px}
-.osd .head .sub b{color:var(--ok);font-weight:600}
-.osd .htools{display:flex;align-items:center;gap:11px}
-.osd .search{display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--hair);border-radius:11px;padding:9px 13px;color:var(--faint);font-size:13px;min-width:170px}
-.osd .search svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.8;fill:none}
-.osd .bell{height:40px;width:40px;border-radius:11px;background:var(--panel);border:1px solid var(--hair);display:grid;place-items:center;color:var(--body);cursor:pointer;position:relative}
-.osd .bell svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.7;fill:none}
-.osd .bell .d{position:absolute;top:9px;right:11px;height:6px;width:6px;border-radius:999px;background:var(--accent)}
-.osd .cta{background:var(--accent);color:var(--accentink);border:0;border-radius:11px;padding:11px 20px;font-family:var(--bodyf);font-weight:700;font-size:13px;cursor:pointer;transition:.15s;white-space:nowrap}
-.osd .cta:hover{filter:brightness(1.06)}
-.osd .view{display:none;animation:osd-fade .3s ease}
-.osd .view.on{display:block}
-@keyframes osd-fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.osd .grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;align-items:start}
-.osd .left{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.osd .right{display:flex;flex-direction:column;gap:16px}
-.osd .dashgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
-.osd .dashgrid .dashcell{min-width:0}
-.osd .dashgrid .dashcell.wide{grid-column:1/-1}
-.osd .dashgrid .dashcell.dragging{box-shadow:0 22px 60px -16px rgba(0,0,0,.65);border-radius:18px}
-.osd .card{border:1px solid rgba(168,180,191,.14);border-radius:18px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);padding:18px}
-.osd .ch{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
-.osd .ct{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:14.5px}
-.osd .dots{color:var(--faint);cursor:pointer;font-size:18px;line-height:0}
-.osd .cust .ph{height:96px;border-radius:13px;background:
-     linear-gradient(90deg,transparent,rgba(168,180,191,.08) 40%,transparent),
-     repeating-linear-gradient(180deg,transparent 0 16px,rgba(168,180,191,.06) 16px 17px),var(--panel);
-     display:flex;align-items:center;justify-content:center;color:var(--faint);margin-bottom:16px}
-.osd .cust .ph svg{width:30px;height:30px;stroke:currentColor;stroke-width:1.5;fill:none;opacity:.5}
-.osd .cust h3{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:17px;margin-bottom:7px}
-.osd .cust p{font-size:12.5px;color:var(--faint);line-height:1.5;margin-bottom:16px}
-.osd .ghost{width:100%;background:var(--panel);border:1px solid var(--hair);color:var(--heading);border-radius:11px;padding:11px;font-family:var(--bodyf);font-weight:600;font-size:13px;cursor:pointer;transition:.15s}
-.osd .ghost:hover{background:var(--surface2)}
-.osd .leg{display:flex;gap:14px;font-size:11px;color:var(--faint)}
-.osd .leg span{display:inline-flex;align-items:center;gap:6px}
-.osd .leg i{height:8px;width:8px;border-radius:3px;display:inline-block}
-.osd .chart{display:flex;align-items:flex-end;gap:8px;height:120px;margin:6px 0 14px}
-.osd .chart .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
-.osd .chart .bars{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;gap:3px}
-.osd .chart .bar{width:7px;border-radius:3px;transition:height .3s}
-.osd .chart .bar.buy{background:var(--accent)}
-.osd .chart .bar.sell{background:var(--surface2)}
-.osd .chart .x{font-size:9.5px;color:var(--faint)}
-.osd .kpis{display:flex;align-items:center;gap:12px}
-.osd .kpis .big{font-family:var(--disp);font-size:30px;font-weight:800;color:var(--heading);letter-spacing:-.02em}
-.osd .kpis .big sup{font-size:15px;color:var(--faint);font-weight:600}
-.osd .updelta{font-size:11px;color:var(--ok);background:rgba(134,211,161,.12);border-radius:999px;padding:3px 9px;font-weight:700}
-.osd .kpis .vs{font-size:11px;color:var(--faint);margin-left:auto}
-.osd .tabs{display:flex;gap:5px;background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:4px;margin-bottom:14px;flex-wrap:wrap}
-.osd .tabs button{border:0;background:transparent;color:var(--faint);font-family:var(--bodyf);font-size:11.5px;font-weight:600;padding:6px 11px;border-radius:7px;cursor:pointer;transition:.14s}
-.osd .tabs button.on{background:var(--surface2);color:var(--heading)}
-.osd .tok{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--hair)}
-.osd .tok:last-child{border-bottom:0}
-.osd .tok .ic{height:34px;width:34px;border-radius:10px;background:var(--panel);display:grid;place-items:center;color:var(--accent);flex:none}
-.osd .tok .ic svg{width:16px;height:16px;stroke:currentColor;stroke-width:1.7;fill:none}
-.osd .tok .v{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:13.5px}
-.osd .tok .s{font-size:11px;color:var(--faint);margin-top:1px}
-.osd .tok .act{margin-left:auto;border:1px solid var(--hair);background:transparent;color:var(--heading);border-radius:9px;padding:7px 13px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:var(--bodyf);transition:.14s}
-.osd .tok .act:hover{background:var(--accent);color:var(--accentink);border-color:transparent}
-.osd .assets{grid-column:1 / -1}
-.osd .thead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
-.osd .seg{display:flex;gap:3px;background:var(--panel);border:1px solid var(--hair);border-radius:9px;padding:3px}
-.osd .seg button{border:0;background:transparent;color:var(--faint);font-family:var(--bodyf);font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer}
-.osd .seg button.on{background:var(--surface2);color:var(--heading)}
-.osd .tscroll{overflow-x:auto;margin:0 -4px}
-.osd table{width:100%;border-collapse:collapse;min-width:560px}
-.osd thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:600;padding:12px 14px;font-family:var(--disp)}
-.osd tbody td{padding:13px 14px;border-top:1px solid var(--hair);font-size:13px}
-.osd .coin{display:flex;align-items:center;gap:11px}
-.osd .coin .a{height:30px;width:30px;border-radius:9px;background:var(--panel);display:grid;place-items:center;color:var(--accent);flex:none}
-.osd .coin .a svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.8;fill:none}
-.osd .coin .nm{color:var(--heading);font-weight:600}
-.osd .coin .tk{font-size:11px;color:var(--faint)}
-.osd .dyn{font-family:var(--mono);font-size:12px;font-weight:700;border-radius:7px;padding:3px 8px}
-.osd .dyn.up{color:var(--ok);background:rgba(134,211,161,.12)}
-.osd .dyn.dn{color:var(--bad);background:rgba(233,139,139,.12)}
-.osd .trade{border:1px solid var(--hair);background:transparent;color:var(--heading);border-radius:9px;padding:6px 16px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:var(--bodyf);transition:.14s}
-.osd .trade:hover{background:var(--accent);color:var(--accentink);border-color:transparent}
-.osd .mhead{display:flex;align-items:flex-start;justify-content:space-between}
-.osd .mout{height:34px;width:34px;border-radius:10px;border:1px solid var(--hair);display:grid;place-items:center;color:var(--body);cursor:pointer}
-.osd .mout svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.8;fill:none}
-.osd .mname{font-family:var(--disp);font-weight:800;color:var(--heading);font-size:21px;margin-top:14px;display:flex;align-items:baseline;gap:7px}
-.osd .mname .x{font-size:12px;color:var(--faint);font-weight:600}
-.osd .mhot{font-size:11.5px;color:var(--faint);margin-top:3px}
-.osd .mrow{display:flex;justify-content:space-between;font-size:12.5px;padding:12px 0;border-bottom:1px solid var(--hair)}
-.osd .mrow .k{color:var(--faint)}
-.osd .mrow .v{color:var(--heading);font-family:var(--mono)}
-.osd .mbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
-.osd .ph2{margin-bottom:18px}
-.osd .ph2 h2{font-family:var(--disp);font-size:24px;color:var(--heading);letter-spacing:-.02em}
-.osd .ph2 p{font-size:12.5px;color:var(--faint);margin-top:5px}
-.osd .botgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.osd .bcard{border:1px solid rgba(168,180,191,.14);border-radius:16px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);padding:18px;cursor:pointer;transition:.16s;display:flex;flex-direction:column;min-height:262px}
-.osd .bcard:hover{border-color:color-mix(in srgb,var(--accent) 35%,transparent);transform:translateY(-2px)}
-.osd .bcard .a{height:46px;width:46px;border-radius:13px;background:var(--panel);display:grid;place-items:center;color:var(--accent);flex:none;margin-bottom:15px}
-.osd .bcard .a svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.7;fill:none}
-.osd .bcard .nm{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:16px}
-.osd .bcard .st{font-size:11px;margin-top:3px}
-.osd .bstats{display:flex;flex-direction:column;gap:8px;margin:16px 0}
-.osd .bstats .bx{display:flex;align-items:center;justify-content:space-between;background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:9px 12px}
-.osd .bstats .k{font-size:11px;color:var(--faint)}
-.osd .bstats .v{font-family:var(--disp);font-weight:800;color:var(--heading);font-size:15px}
-.osd .bcard .ghost{margin-top:auto}
-.osd .addbot{border:1.5px dashed var(--hair);border-radius:16px;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--faint);cursor:pointer;min-height:262px;transition:.16s}
-.osd .addbot:hover{border-color:var(--accent);color:var(--heading)}
-.osd .addbot svg{width:26px;height:26px;stroke:currentColor;stroke-width:1.6;fill:none}
-.osd .feed{border:1px solid rgba(168,180,191,.14);border-radius:16px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);overflow:hidden}
-.osd .fitem{display:flex;gap:13px;padding:14px 18px;border-top:1px solid var(--hair)}
-.osd .fitem:first-child{border-top:0}
-.osd .fitem .fi{height:32px;width:32px;border-radius:9px;display:grid;place-items:center;flex:none}
-.osd .fitem .fi svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.8;fill:none}
-.osd .fitem .ttl{color:var(--heading);font-size:13px;font-weight:600}
-.osd .fitem .meta{font-size:11px;color:var(--faint);margin-top:2px}
-.osd .fitem .tm{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
-.osd .bgrid{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;align-items:start}
-.osd .planrow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
-.osd .planname{font-family:var(--disp);font-weight:800;color:var(--heading);font-size:22px}
-.osd .pillok{font-size:11px;color:var(--ok);background:rgba(134,211,161,.12);border-radius:999px;padding:4px 11px;font-weight:700}
-.osd .pm{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--hair);border-radius:12px;padding:14px}
-.osd .pm .cc{height:34px;width:46px;border-radius:7px;background:linear-gradient(135deg,#46525E,#343D46);flex:none}
-.osd .pmno{font-family:var(--mono);color:var(--heading);font-size:13px}
-.osd .lvl{font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px}
-.osd .lvl.ok{color:var(--ok);background:rgba(134,211,161,.12)}
-.osd .lvl.warn{color:var(--gold);background:rgba(203,178,119,.14)}
-.osd .lvl.err{color:var(--bad);background:rgba(233,139,139,.12)}
-.osd .cfg{font-size:11px;color:var(--accent);cursor:pointer;font-weight:600}
-.osd .role{font-family:var(--mono);font-size:10px;font-weight:700;padding:3px 9px;border-radius:7px;color:var(--accent);background:rgba(201,219,230,.1)}
-.osd .role.admin{color:var(--gold);background:rgba(203,178,119,.13)}
-.osd .form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.osd .field label{display:block;font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;font-family:var(--disp);font-weight:600}
-.osd .field input{width:100%;background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:11px 13px;color:var(--heading);font-family:var(--bodyf);font-size:13px}
-.osd .field.full{grid-column:1 / -1}
-.osd .togrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-top:1px solid var(--hair)}
-.osd .togrow:first-child{border-top:0}
-.osd .togrow .tl{color:var(--heading);font-size:13px;font-weight:600}
-.osd .togrow .td{font-size:11.5px;color:var(--faint);margin-top:2px}
-.osd .modeopts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.osd .modeopt{border:1px solid var(--hair);border-radius:13px;background:var(--panel);padding:15px;cursor:pointer;transition:.15s}
-.osd .modeopt.on{border-color:var(--accent);background:rgba(201,219,230,.07)}
-.osd .modeopt .mt{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:14px;display:flex;align-items:center;justify-content:space-between}
-.osd .modeopt .check{height:16px;width:16px;border-radius:999px;border:1.5px solid var(--hair);display:grid;place-items:center;color:var(--accentink)}
-.osd .modeopt .check svg{width:10px;height:10px;stroke:currentColor;stroke-width:3;fill:none;opacity:0}
-.osd .modeopt.on .check{border-color:var(--accent);background:var(--accent)}
-.osd .modeopt.on .check svg{opacity:1}
-.osd .modeopt .md{font-size:11.5px;color:var(--faint);margin-top:6px;line-height:1.45}
-.osd .bgopts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
-.osd .bgopt{position:relative;height:78px;border-radius:12px;border:1.5px solid var(--hair);cursor:pointer;overflow:hidden;
-    background-image:var(--thumb,none);background-color:var(--panel);background-size:cover;background-position:center 22%;transition:.15s}
-.osd .bgopt:hover{border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
-.osd .bgopt.sel{border-color:var(--accent)}
-.osd .bgopt.none{background-image:repeating-linear-gradient(45deg,#2a323b 0 8px,#252c34 8px 16px)}
-.osd .bgopt .lbl{position:absolute;left:0;right:0;bottom:0;padding:6px 9px;font-family:var(--disp);font-size:10.5px;font-weight:700;color:var(--heading);background:linear-gradient(transparent,rgba(0,0,0,.65))}
-.osd .bgopt .tk2{position:absolute;top:7px;right:7px;height:18px;width:18px;border-radius:999px;background:var(--accent);display:grid;place-items:center;opacity:0;transition:.15s}
-.osd .bgopt.sel .tk2{opacity:1}
-.osd .bgopt .tk2 svg{width:11px;height:11px;stroke:var(--accentink);stroke-width:3;fill:none}
-.osd .swt{position:relative;width:40px;height:23px;flex:none}
-.osd .swt input{display:none}
-.osd .swt .tk{position:absolute;inset:0;border-radius:999px;background:var(--surface2);cursor:pointer;transition:.2s}
-.osd .swt .tk:before{content:"";position:absolute;height:17px;width:17px;left:3px;top:3px;border-radius:999px;background:#cfd8df;transition:.2s}
-.osd .swt input:checked + .tk{background:var(--accent)}
-.osd .swt input:checked + .tk:before{transform:translateX(17px);background:#1E242B}
-.osd .strip{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
-.osd .stat{border:1px solid rgba(168,180,191,.14);border-radius:14px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);padding:15px 16px}
-.osd .stat .k{font-family:var(--disp);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
-.osd .stat .v{font-family:var(--disp);font-size:23px;font-weight:800;color:var(--heading);margin-top:6px}
-.osd .stat .d{font-size:11px;color:var(--faint);margin-top:2px}
-.osd .feat{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.osd .fcard{border:1px solid rgba(168,180,191,.14);border-radius:14px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);padding:18px;display:flex;flex-direction:column;min-height:208px}
-.osd .fcard .fi{height:42px;width:42px;border-radius:12px;background:var(--panel);display:grid;place-items:center;color:var(--accent);flex:none;margin-bottom:13px}
-.osd .fcard .fi svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.7;fill:none}
-.osd .fcard .nm{font-family:var(--disp);font-size:14px;color:var(--heading);font-weight:700}
-.osd .fcard .ds{font-size:11.5px;color:var(--faint);margin-top:6px;line-height:1.45}
-.osd .fcard .re{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:9px;padding-top:14px}
-.osd .back{font-size:12px;color:var(--faint);cursor:pointer;margin-bottom:13px;display:inline-flex;gap:6px;align-items:center}
-.osd .back svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none}
-.osd .sech{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:15px;margin:24px 0 12px}
-.osd .bcard, .osd .fcard{cursor:grab}
-.osd .bcard:active, .osd .fcard:active{cursor:grabbing}
-.osd .dragging{opacity:.35;transform:scale(.98)!important}
-.osd .drophint{font-size:11px;color:var(--faint)}
-.osd .dragging-active .bcard:not(.dragging), .osd .dragging-active .fcard:not(.dragging){pointer-events:none}
-.osd .dragging-active .bcard:hover, .osd .dragging-active .fcard:hover{transform:none;border-color:rgba(168,180,191,.14);box-shadow:none}
-.osd .groups{display:flex;flex-direction:column;gap:16px}
-.osd .gcard{border:1px solid rgba(168,180,191,.14);border-radius:16px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);padding:18px}
-.osd .ghd{display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--hair);padding-bottom:14px;margin-bottom:16px}
-.osd .ghd .gi{height:36px;width:36px;border-radius:10px;background:var(--panel);display:grid;place-items:center;color:var(--accent);flex:none}
-.osd .ghd .gi svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.7;fill:none}
-.osd .gname{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:16px}
-.osd .gmeta{font-size:11.5px;color:var(--faint);margin-top:1px}
-.osd .ghd .dots{margin-left:auto}
-.osd .gcard .gdel{position:absolute;top:12px;right:12px;height:26px;width:26px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--faint);display:grid;place-items:center;cursor:pointer;transition:color .12s ease,background .12s ease,border-color .12s ease}
-.osd .gcard .gdel svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round}
-.osd .gcard .gdel:hover{color:#e6b7b7;background:rgba(190,120,120,.12);border-color:rgba(190,120,120,.28)}
-.osd .gbody{display:grid;grid-template-columns:1fr 1fr;gap:22px}
-.osd .gcl{font-family:var(--disp);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:11px}
-.osd .chips{display:flex;flex-wrap:wrap;gap:8px}
-.osd .chip{display:inline-flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--hair);border-radius:999px;padding:7px 12px;font-size:12.5px;color:var(--heading)}
-.osd .chip svg{width:14px;height:14px;stroke:var(--accent);stroke-width:1.8;fill:none}
-.osd .chip .x{color:var(--faint);cursor:pointer;font-size:13px;line-height:1;margin-left:1px}
-.osd .chip.add{cursor:pointer;color:var(--faint);border-style:dashed}
-.osd .chip.add:hover{color:var(--heading);border-color:var(--accent)}
-.osd .gmem{display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--hair);border-radius:999px;padding:5px 11px 5px 5px;font-size:12.5px;color:var(--heading)}
-.osd .gmem .pa{height:22px;width:22px;border-radius:7px;background:linear-gradient(135deg,#46525E,#343D46);display:grid;place-items:center;font-family:var(--disp);font-weight:800;font-size:9px;color:var(--heading)}
-.osd .tourask{position:fixed;bottom:22px;right:22px;z-index:150;max-width:300px;border:1px solid rgba(168,180,191,.16);border-radius:16px;
-    background:linear-gradient(180deg,rgba(46,54,63,.96),rgba(39,46,54,.98));backdrop-filter:blur(14px);padding:18px;
-    box-shadow:0 26px 64px -26px rgba(0,0,0,.85);opacity:0;transform:translateY(14px);pointer-events:none;transition:.45s cubic-bezier(.22,1,.36,1)}
-.osd .tourask.show{opacity:1;transform:none;pointer-events:auto}
-.osd .tourask .tt{font-family:var(--disp);font-weight:800;color:var(--heading);font-size:15px;display:flex;align-items:center;gap:8px}
-.osd .tourask .tb{font-size:12.5px;color:var(--body);line-height:1.5;margin:8px 0 14px}
-.osd .row{display:flex;gap:9px}
-.osd .btn-sm{border:1px solid var(--hair);background:transparent;color:var(--heading);border-radius:10px;padding:9px 14px;font-family:var(--bodyf);font-weight:700;font-size:12.5px;cursor:pointer;transition:.15s}
-.osd .btn-sm:hover{background:var(--surface2)}
-.osd .btn-pri{background:var(--accent);color:var(--accentink);border:0}
-.osd .btn-pri:hover{filter:brightness(1.06)}
-.osd .tourblock{position:fixed;inset:0;z-index:199;display:none}
-.osd .tourblock.on{display:block}
-.osd .tourring{position:fixed;z-index:200;border:2px solid var(--accent);border-radius:14px;box-shadow:0 0 0 9999px rgba(8,11,15,.72);
-    pointer-events:none;display:none;transition:top .42s cubic-bezier(.22,1,.36,1),left .42s cubic-bezier(.22,1,.36,1),width .42s cubic-bezier(.22,1,.36,1),height .42s cubic-bezier(.22,1,.36,1)}
-.osd .tourring.on{display:block}
-.osd .tourpop{position:fixed;z-index:201;max-width:300px;border:1px solid rgba(168,180,191,.16);border-radius:14px;
-    background:linear-gradient(180deg,rgba(46,54,63,.98),rgba(39,46,54,.99));backdrop-filter:blur(14px);padding:16px;
-    box-shadow:0 26px 64px -26px rgba(0,0,0,.9);display:none;
-    transition:top .42s cubic-bezier(.22,1,.36,1),left .42s cubic-bezier(.22,1,.36,1),opacity .25s ease}
-.osd .tourpop.on{display:block}
-.osd .tourring.notrans, .osd .tourpop.notrans{transition:none}
-.osd .tourpop .tt{font-family:var(--disp);font-weight:800;color:var(--heading);font-size:14.5px}
-.osd .tourpop .tb{font-size:12.5px;color:var(--body);line-height:1.5;margin:7px 0 14px}
-.osd .tourpop .nav{display:flex;align-items:center;gap:9px}
-.osd .tourpop .ct3{font-family:var(--mono);font-size:11px;color:var(--faint)}
-.osd .tourpop .skip{font-size:11.5px;color:var(--faint);cursor:pointer}
-.osd .tourpop .sp{margin-left:auto}
-@media(max-width:1180px){.osd .grid, .osd .bgrid{grid-template-columns:1fr}}
-@media(max-width:1180px){.osd .botgrid{grid-template-columns:repeat(3,1fr)}.osd .feat{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:980px){.osd .botgrid{grid-template-columns:repeat(2,1fr)}.osd .strip{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:760px){.osd .side{position:fixed;left:-260px;transition:.2s;z-index:50}.osd .main{padding:18px 14px 40px}.osd .left, .osd .form, .osd .feat, .osd .choices, .osd .gbody, .osd .dashgrid{grid-template-columns:1fr}.osd .dashgrid .dashcell.wide{grid-column:auto}.osd .head h1{font-size:24px}}
-@media(max-width:560px){.osd .botgrid{grid-template-columns:1fr}.osd .search{display:none}}`;
-
-const LS = { ws: "os_ws_mode", onboarded: "os_onboarded", tour: "os_tour_seen", bg: "os_bg", order: "os_bot_order", groups: "os_groups", accent: "os_accent", accentHex: "os_accent_hex", view: "os_view", bot: "os_bot" };
-
-// readable text color (dark/light) for an arbitrary accent hex
-const inkFor = (hex: string) => {
-  const m = (hex || "").replace("#", "");
-  const n = m.length === 3 ? m.split("").map((x) => x + x).join("") : m;
-  if (!/^[0-9a-fA-F]{6}$/.test(n)) return "#1E242B";
-  const r = parseInt(n.slice(0, 2), 16), g = parseInt(n.slice(2, 4), 16), b = parseInt(n.slice(4, 6), 16);
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? "#1E242B" : "#E8EEF3";
-};
-
-// Primary (accent) color presets — recolor buttons, highlights, badges across the dashboard.
-const ACCENTS: { key: string; label: string; c: string; ink: string }[] = [
-  { key: "icy", label: "Icy", c: "#C9DBE6", ink: "#1E242B" },
-  { key: "gold", label: "Gold", c: "#cbb277", ink: "#241e12" },
-  { key: "mint", label: "Mint", c: "#86d3a1", ink: "#10231a" },
-  { key: "sky", label: "Sky", c: "#8fbce8", ink: "#0f1f2b" },
-  { key: "lavender", label: "Lavender", c: "#b9a8e6", ink: "#1b1430" },
-  { key: "rose", label: "Rose", c: "#e6a8bf", ink: "#2b1019" },
-  { key: "coral", label: "Coral", c: "#e8a487", ink: "#2b1410" },
-];
-const lsGet = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
-const lsSet = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } };
-const lsDel = (k: string) => { try { localStorage.removeItem(k); } catch { /* ignore */ } };
-const ssGet = (k: string) => { try { return sessionStorage.getItem(k); } catch { return null; } };
-const ssSet = (k: string, v: string) => { try { sessionStorage.setItem(k, v); } catch { /* ignore */ } };
-const ssDel = (k: string) => { try { sessionStorage.removeItem(k); } catch { /* ignore */ } };
-
-// Position restore policy: bring the user back to where they were ONLY on a
-// page refresh. sessionStorage keeps position out of other/new tabs, the
-// navigation-type check makes leave-and-come-back start fresh, and the
-// consumed flag limits the restore to the first dashboard mount of the load.
-const PAGE_IS_RELOAD = (() => {
-  try {
-    const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
-    return nav?.type === "reload";
-  } catch { return false; }
-})();
-let positionRestoreConsumed = false;
-const restoredPosition = (k: string) => (PAGE_IS_RELOAD && !positionRestoreConsumed ? ssGet(k) : null);
-
-const BG_PRESETS: { key: string; label: string; url: string | null }[] = [
-  { key: "mountain", label: "Mountain", url: containers },
-  { key: "dusk", label: "Dusk", url: heroBg },
-  { key: "none", label: "None", url: null },
-];
-
-const osTimeAgo = (iso: string) => {
-  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return "now";
-  const m = Math.floor(s / 60); if (m < 60) return m + "m";
-  const h = Math.floor(m / 60); if (h < 24) return h + "h";
-  return Math.floor(h / 24) + "d";
-};
-
-const IconShield = () => (<svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.5 7.5 8 9 4.5-1.5 8-4 8-9V6Z"/></svg>);
-const IconChat = () => (<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>);
-const IconGear = () => (<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>);
-const botSvg = (base: string) => base === "support" ? <IconChat /> : base === "utilities" ? <IconGear /> : <IconShield />;
-const isLive = (b: OwnedBot) => b.status === "live" || b.status === "ready";
-const stColor = (b: OwnedBot) => isLive(b) ? "var(--ok)" : (b.status === "submitted" || b.status === "paid" || b.status === "building") ? "var(--gold)" : "var(--faint)";
-const stWord = (b: OwnedBot) => isLive(b) ? "Online" : (b.status === "submitted" || b.status === "paid" || b.status === "building") ? "Building" : (getStatusMeta(b.status).label);
-
-const CHART = [[40,22],[55,30],[35,18],[70,40],[48,26],[80,44],[60,33]];
-const CDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-
-type Group = { id: string; name: string };
-
-const DEFAULT_DASH_ORDER = ["setup", "activity", "table", "bots", "spotlight"];
-
-// One draggable dashboard box. Whole card is the grab area; a small movement
-// threshold on the sensor lets clicks on inner buttons/rows still register.
-function DashSortableCard({
-  id,
-  wide,
-  children,
+function RecurringMessagesForm({
+  botId,
+  entries,
+  onEntriesChange,
+  deletePrevious,
+  onDeletePreviousChange,
+  allowedRoleIds,
+  onAllowedRoleIdsChange,
+  intervals,
 }: {
-  id: string;
-  wide?: boolean;
-  children: ReactNode;
+  botId?: string;
+  entries: RecurringEntryInput[];
+  onEntriesChange: (next: RecurringEntryInput[]) => void;
+  deletePrevious: boolean;
+  onDeletePreviousChange: (next: boolean) => void;
+  allowedRoleIds: string[];
+  onAllowedRoleIdsChange: (next: string[]) => void;
+  intervals: { value: number; label: string }[];
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const { guild } = useActiveGuild();
+  const guildId = guild?.guild_id;
+  const { channels, loading, refreshing, refreshFromDiscord } = useBotChannels(botId, guildId);
+  const textChannels = useMemo(
+    () => channels.filter((c) => ["text", "announcement"].includes(c.channel_type)),
+    [channels],
+  );
+  const channelGroups = useMemo(() => sortedChannelCategoryEntries(textChannels), [textChannels]);
+
+  const update = (idx: number, patch: Partial<RecurringEntryInput>) => {
+    onEntriesChange(entries.map((e, i) => (i === idx ? { ...e, ...patch } : e)));
+  };
+  const remove = (idx: number) => onEntriesChange(entries.filter((_, i) => i !== idx));
+  const add = () =>
+    onEntriesChange([...entries, { channel_id: "", interval_minutes: 60, message: "", ping_role_ids: [] }]);
+
   return (
-    <div
-      ref={setNodeRef}
-      className={"dashcell" + (wide ? " wide" : "") + (isDragging ? " dragging" : "")}
-      style={{
-        transform: DndCSS.Transform.toString(transform),
-        transition,
-        zIndex: isDragging ? 60 : undefined,
-        opacity: isDragging ? 0.9 : 1,
-        cursor: "grab",
-      }}
-      {...attributes}
-      {...listeners}
-    >
-      {children}
+    <div className="space-y-5 py-2">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm">Scheduled messages</Label>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => refreshFromDiscord()}
+            disabled={refreshing || !guildId}
+            className="h-7 px-2 text-xs gap-1.5"
+          >
+            <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+            {refreshing ? "Refreshing…" : "Refresh channels"}
+          </Button>
+        </div>
+
+        {entries.length === 0 && (
+          <p className="text-xs text-muted-foreground rounded-md border border-dashed border-input px-3 py-4 text-center">
+            No scheduled messages yet. Click "Add message" to create one.
+          </p>
+        )}
+
+        {entries.map((entry, idx) => (
+          <div
+            key={idx}
+            className="rounded-md border border-input bg-muted/20 p-3 space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">
+                Message #{idx + 1}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => remove(idx)}
+                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                Remove
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Channel</Label>
+                <Select
+                  value={entry.channel_id}
+                  onValueChange={(v) => update(idx, { channel_id: v })}
+                  disabled={!guildId || loading}
+                >
+                  <SelectTrigger className="h-9">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Hash className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
+                      <SelectValue
+                        placeholder={
+                          !guildId
+                            ? "Select a server first"
+                            : loading
+                              ? "Loading channels…"
+                              : textChannels.length === 0
+                                ? "No channels — click Refresh"
+                                : "Select a channel…"
+                        }
+                      />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {channelGroups.map((group) => (
+                      <SelectGroup key={group.key}>
+                        <SelectLabel>{group.label}</SelectLabel>
+                        {group.channels.map((c) => (
+                          <SelectItem key={c.channel_id} value={c.channel_id}>
+                            {c.channel_name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Interval</Label>
+                <Select
+                  value={String(entry.interval_minutes)}
+                  onValueChange={(v) => update(idx, { interval_minutes: Number(v) })}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {intervals.map((opt) => (
+                      <SelectItem key={opt.value} value={String(opt.value)}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Message</Label>
+              <Textarea
+                value={entry.message}
+                onChange={(e) => update(idx, { message: e.target.value })}
+                placeholder="What should the bot post? Use {roles} to ping the selected roles."
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">
+                Tip: type <code className="px-1 rounded bg-muted">{"{roles}"}</code> anywhere to insert the role pings.
+              </p>
+            </div>
+
+            <RoleMultiSelect
+              label="Roles to ping"
+              help="These roles will replace {roles} in the message text when posted."
+              value={entry.ping_role_ids ?? []}
+              onChange={(next) => update(idx, { ping_role_ids: next })}
+              botId={botId}
+              guildId={guildId}
+            />
+          </div>
+        ))}
+
+        <Button type="button" variant="outline" size="sm" onClick={add} className="w-full">
+          <Plus className="h-4 w-4 mr-1.5" />
+          Add message
+        </Button>
+      </div>
+
+      <div className="flex items-center justify-between rounded-md border border-input bg-muted/20 px-3 py-2">
+        <div>
+          <Label className="text-sm">Delete previous post before posting again</Label>
+          <p className="text-xs text-muted-foreground">
+            Keeps the channel from filling up with repeats.
+          </p>
+        </div>
+        <Switch checked={deletePrevious} onCheckedChange={onDeletePreviousChange} />
+      </div>
+
+      <RoleMultiSelect
+        label="Roles allowed to use /repeating"
+        help="Members with any of these roles can run the /repeating command."
+        value={allowedRoleIds}
+        onChange={onAllowedRoleIdsChange}
+        botId={botId}
+        guildId={guildId}
+      />
     </div>
   );
 }
 
-const BotDashboard = () => {
-  const { user, isAdmin, loading } = useAuth();
-  const { bots: ownedBots, dashboardBots, hasDashboardAccess, loading: botsLoading, reload } = useOwnedBots();
-  // An invited team/support member has dashboard access but owns no bots of
-  // their own. The workspace onboarding is owner-only, so we skip it for them
-  // (and, crucially, still reveal the dashboard — see `showApp`).
-  const isInvitedOnly = hasDashboardAccess && !isAdmin && !ownedBots.some((b) => !b.isDemo);
-  // An invited member only reaches Settings/appearance if their role has the
-  // `manage_settings` permission. Owners always can. Permissions are per
-  // owner+role, so any of the member's team bots resolves the same answer.
-  const firstTeamBotId = dashboardBots.find((b) => b.viaTeam && !b.isDemo)?.id ?? null;
-  const { permissions: viewerPerms } = useTeamRole(isInvitedOnly ? firstTeamBotId : null);
-  // Each permission unlocks a section of the dashboard for invited members.
-  // Owners always have everything. With NO permissions, a member sees only the
-  // Dashboard and Support pages. Groups is an owner-only organizational tool.
-  const canMyBots       = !isInvitedOnly || viewerPerms.edit_bot_config; // My Bots (see & manage bots)
-  const canActivity     = !isInvitedOnly || viewerPerms.view_logs;       // Activity / logs
-  const canBilling      = !isInvitedOnly || viewerPerms.edit_billing;    // Billing
-  const canManageTeam   = !isInvitedOnly || viewerPerms.manage_team;     // Team (invite & remove)
-  const canManageSettings = !isInvitedOnly || viewerPerms.manage_settings; // Settings & appearance
-  const canGroups       = !isInvitedOnly;                                // owner-only
-  useHostingSubscriptionSync();
-  const { periods: freePeriods, reload: reloadFreePeriods } = useBotFreePeriods();
-  const { items: notifications, unread } = useBotNotifications();
-  const navigate = useNavigate();
 
-  // Persist the active view + open bot so a refresh keeps you exactly where
-  // you were instead of dropping you back on the dashboard home.
-  const [view, setView] = useState(() => restoredPosition(LS.view) || "dashboard");
-  // Shared, owner-set dashboard box layout (an ordered array of card ids).
-  const [dashOrder, setDashOrder] = useState<string[]>(DEFAULT_DASH_ORDER);
-  const dashSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+/**
+ * Channel picker for schema-driven addon fields.
+ *
+ * Pulls the live channel list for the dashboard's *active guild* (set by
+ * the server selector at the top of the page) using the bot's cached
+ * channels. Subscribes to realtime updates so newly created/deleted
+ * channels appear without a page reload, and offers a manual refresh
+ * that asks the worker to re-fetch from Discord.
+ */
+function ChannelComboField({
+  field,
+  value,
+  onChange,
+  botId,
+}: {
+  field: AddonField;
+  value: string;
+  onChange: (v: string) => void;
+  botId?: string;
+}) {
+  const { guild } = useActiveGuild();
+  const guildId = guild?.guild_id;
+  const { channels, loading, refreshing, refreshFromDiscord } = useBotChannels(
+    botId,
+    guildId,
   );
-  const [botId, setBotId] = useState<string | null>(() => restoredPosition(LS.bot) || null);
-  const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
-  // Bots the user just cancelled — hidden from the dashboard instantly while the
-  // teardown completes (rolled back if the cancel actually fails).
-  const [cancelledIds, setCancelledIds] = useState<Set<string>>(() => new Set());
-  const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
-
-  // The currently-rendered dashboard order (subset of dashOrder that has a
-  // visible card); the drag handler reorders against this.
-  const dashOrderedRef = useRef<string[]>(DEFAULT_DASH_ORDER);
-
-  // Load the shared layout and keep it live — an owner change applies for
-  // everyone. Defensive: bad/missing data just keeps the default order.
-  useEffect(() => {
-    let alive = true;
-    (supabase as any)
-      .from("app_settings")
-      .select("dashboard_layout")
-      .eq("id", 1)
-      .maybeSingle()
-      .then(({ data }: any) => {
-        if (alive && Array.isArray(data?.dashboard_layout) && data.dashboard_layout.length) {
-          setDashOrder(data.dashboard_layout as string[]);
-        }
-      });
-    const ch = (supabase as any)
-      .channel("dash-layout-shared")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "app_settings", filter: "id=eq.1" },
-        (payload: any) => {
-          const dl = payload?.new?.dashboard_layout;
-          if (Array.isArray(dl) && dl.length) setDashOrder(dl as string[]);
-        },
-      )
-      .subscribe();
-    return () => {
-      alive = false;
-      (supabase as any).removeChannel(ch);
-    };
-  }, []);
-
-  // Admin drags a box → reorder the rendered set and persist globally.
-  const onDashDragEnd = (e: DragEndEvent) => {
-    const { active, over } = e;
-    if (!over || active.id === over.id) return;
-    const cur = dashOrderedRef.current;
-    const from = cur.indexOf(String(active.id));
-    const to = cur.indexOf(String(over.id));
-    if (from < 0 || to < 0) return;
-    const next = arrayMove(cur, from, to);
-    setDashOrder(next);
-    (supabase as any)
-      .from("app_settings")
-      .update({ dashboard_layout: next, updated_at: new Date().toISOString() })
-      .eq("id", 1)
-      .then(({ error }: any) => {
-        if (error) toast.error("Couldn't save layout", { description: error.message });
-      });
-  };
-
-  const [wsMode, setWsMode] = useState<"solo" | "team">(() => (lsGet(LS.ws) === "team" ? "team" : "solo"));
-  const [appOn, setAppOn] = useState(() => !!lsGet(LS.onboarded));
-  // Reveal the dashboard when onboarding is done OR when the viewer is an
-  // invited member (who never sees onboarding).
-  const showApp = appOn || isInvitedOnly;
-  const [instant, setInstant] = useState(() => !!lsGet(LS.onboarded));
-  const [picked, setPicked] = useState<"solo" | "team" | null>(null);
-  // Floating announcement: shown each time the dashboard mounts. Dismiss hides
-  // it for this visit only — it deliberately returns on the next launch.
-  const [annOpen, setAnnOpen] = useState(true);
-  const [bgKey, setBgKey] = useState<string>(() => lsGet(LS.bg) || "mountain");
-  const bgUrl = BG_PRESETS.find((p) => p.key === bgKey)?.url ?? null;
-  // profile name fallback: preferred name → display name → discord username → email
-  const [profile, setProfile] = useState<{ preferred_name?: string | null; display_name?: string | null; discord_username?: string | null }>({});
-  const [accentKey, setAccentKey] = useState<string>(() => lsGet(LS.accent) || "icy");
-  const [customHex, setCustomHex] = useState<string>(() => lsGet(LS.accentHex) || "#C9DBE6");
-  const accent = accentKey === "custom"
-    ? { key: "custom", label: "Custom", c: customHex, ink: inkFor(customHex) }
-    : (ACCENTS.find((a) => a.key === accentKey) ?? ACCENTS[0]);
-  const applyCustom = (v: string) => { setCustomHex(v); setAccentKey("custom"); lsSet(LS.accent, "custom"); lsSet(LS.accentHex, v); };
-  useEffect(() => {
-    if (!user) return;
-    let alive = true;
-    (async () => {
-      const { data } = await (supabase as any).from("profiles").select("preferred_name, display_name, discord_username").eq("user_id", user.id).maybeSingle();
-      if (alive && data) setProfile(data);
-    })();
-    return () => { alive = false; };
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [tableFilter, setTableFilter] = useState("all");
-  const [listFilter, setListFilter] = useState("all");
-  const [actTab, setActTab] = useState("All");
-  const [chartRange, setChartRange] = useState("1M");
-
-  // clear the no-animation flag after first paint
-  useEffect(() => { if (instant) { const t = setTimeout(() => setInstant(false), 60); return () => clearTimeout(t); } }, []); // eslint-disable-line
-  // lock page scroll while the welcome screen is up
-  useEffect(() => { document.body.style.overflow = showApp ? "" : "hidden"; return () => { document.body.style.overflow = ""; }; }, [showApp]);
-  // Hide the native page scrollbar while the dashboard is mounted (same pattern
-  // the Process page uses). Removed on unmount so other pages keep theirs.
-  useEffect(() => { const r = document.documentElement; r.classList.add("dash-hide-scroll"); return () => { r.classList.remove("dash-hide-scroll"); }; }, []);
-
-  // ---- tour ----
-  const TOUR = useMemo(() => ([
-    { sel: ".osd .side", title: "Your menu", body: "Jump between your bots, groups, activity, billing and settings from here.", place: "right" },
-    { sel: "#tour-bots", title: "Your bots", body: "Every bot you own lives here — click one to open its control panel.", place: "left" },
-    { sel: "#tour-activity", title: "Fleet activity", body: "A quick pulse of what your bots have been up to.", place: "top" },
-    { sel: "#tour-bell", title: "Notifications", body: "Service alerts, billing, and team announcements land here.", place: "bottom" },
-    { sel: "#tour-add", title: "Add a bot", body: "Grow your fleet anytime.", place: "bottom" },
-  ]), []);
-  const [tourAsk, setTourAsk] = useState(false);
-  const [tourOn, setTourOn] = useState(false);
-  const [ti, setTi] = useState(0);
-  const ringRef = useRef<HTMLDivElement>(null);
-  const popRef = useRef<HTMLDivElement>(null);
-  const askTour = useCallback(() => { if (!lsGet(LS.tour)) setTimeout(() => setTourAsk(true), 850); }, []);
-  useEffect(() => { if (appOn && !lsGet(LS.tour)) askTour(); }, [appOn, askTour]);
-  const placeTour = useCallback(() => {
-    const step = TOUR[ti]; if (!step) return;
-    const el = document.querySelector(step.sel) as HTMLElement | null;
-    const ring = ringRef.current, pop = popRef.current;
-    if (!el || !ring || !pop) return;
-    const b = el.getBoundingClientRect(), pad = 6;
-    ring.style.top = (b.top - pad) + "px"; ring.style.left = (b.left - pad) + "px";
-    ring.style.width = (b.width + pad * 2) + "px"; ring.style.height = (b.height + pad * 2) + "px";
-    const pw = pop.offsetWidth, ph = pop.offsetHeight, gap = 14, vw = window.innerWidth, vh = window.innerHeight;
-    let top: number, left: number;
-    if (step.place === "right") { left = b.right + gap; top = Math.max(b.top, 16); }
-    else if (step.place === "left") { left = b.left - gap - pw; top = b.top; }
-    else if (step.place === "top") { top = b.top - gap - ph; left = b.left + b.width / 2 - pw / 2; }
-    else { top = b.bottom + gap; left = b.left + b.width / 2 - pw / 2; }
-    left = Math.max(12, Math.min(left, vw - pw - 12)); top = Math.max(12, Math.min(top, vh - ph - 12));
-    pop.style.left = left + "px"; pop.style.top = top + "px";
-  }, [ti, TOUR]);
-  useLayoutEffect(() => { if (!tourOn) return; const r = requestAnimationFrame(placeTour); return () => cancelAnimationFrame(r); }, [tourOn, ti, placeTour]);
-  useEffect(() => { if (!tourOn) return; const f = () => placeTour(); window.addEventListener("resize", f); window.addEventListener("scroll", f, true); return () => { window.removeEventListener("resize", f); window.removeEventListener("scroll", f, true); }; }, [tourOn, placeTour]);
-  const startTour = () => { setTourAsk(false); setTi(0); setView("dashboard"); setTourOn(true); };
-  const endTour = () => { setTourOn(false); lsSet(LS.tour, "1"); };
-
-  // ---- ordering / drag ----
-  const idsKey = dashboardBots.map((b) => b.id).join(",");
-  const [order, setOrder] = useState<string[]>([]);
-  useEffect(() => {
-    let saved: string[] = []; try { saved = JSON.parse(lsGet(LS.order) || "[]"); } catch { saved = []; }
-    const ids = dashboardBots.map((b) => b.id);
-    setOrder([...saved.filter((id) => ids.includes(id)), ...ids.filter((id) => !saved.includes(id))]);
-  }, [idsKey]);
-  useEffect(() => { if (order.length) lsSet(LS.order, JSON.stringify(order)); }, [order]);
-  const byId = useMemo(() => { const m: Record<string, OwnedBot> = {}; dashboardBots.forEach((b) => { if (!cancelledIds.has(b.id)) m[b.id] = b; }); return m; }, [dashboardBots, cancelledIds]);
-  // Optimistic engine switch — reflect V1/V2 across the toggle AND the message
-  // builder instantly, clearing once the reloaded bot data catches up. Declared
-  // here (above the conditional returns below) to keep hook order stable.
-  const [engineOpt, setEngineOpt] = useState<Record<string, "v1" | "v2">>({});
-  useEffect(() => {
-    if (!botId) return;
-    const real = byId[botId];
-    if (real && engineOpt[botId] && engineOpt[botId] === real.engine_version) {
-      setEngineOpt((prev) => {
-        const next = { ...prev };
-        delete next[botId];
-        return next;
-      });
-    }
-  }, [botId, byId, engineOpt]);
-
-  // Remember where the user is across refreshes: persist the active view and
-  // the open bot, and recover gracefully if the remembered bot is gone.
-  useEffect(() => { ssSet(LS.view, view); }, [view]);
-  useEffect(() => {
-    if (botId) ssSet(LS.bot, botId);
-    else ssDel(LS.bot);
-  }, [botId]);
-  // One restore per page load; also clear the legacy localStorage copies so
-  // stale positions from the old always-restore behavior can't come back.
-  useEffect(() => {
-    positionRestoreConsumed = true;
-    lsDel(LS.view);
-    lsDel(LS.bot);
-  }, []);
-  useEffect(() => {
-    if (!botsLoading && view === "bot" && botId && !byId[botId]) {
-      setView("bots");
-      setBotId(null);
-    }
-  }, [botsLoading, view, botId, byId]);
-
-  const orderedBots = useMemo(() => order.map((id) => byId[id]).filter(Boolean) as OwnedBot[], [order, byId]);
-  const owned = orderedBots.filter((b) => !b.isDemo);
-  const dragId = useRef<string | null>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const onDragStart = (id: string) => { dragId.current = id; setDragActive(true); };
-  const onDragOver = (e: React.DragEvent, overId: string) => { e.preventDefault(); const from = dragId.current; if (!from || from === overId) return; setOrder((p) => { const a = [...p]; const fi = a.indexOf(from), oi = a.indexOf(overId); if (fi < 0 || oi < 0) return p; a.splice(fi, 1); a.splice(oi, 0, from); return a; }); };
-  const onDragEnd = () => { dragId.current = null; setDragActive(false); };
-
-  // ---- groups (real, backed by the group_* RPCs — the SAME source as the
-  // Team hub, so a group made here is a real group and shows up there too).
-  const [groups, setGroups] = useState<Group[]>([]);
-  const loadGroups = useCallback(async () => {
-    try {
-      const { data, error } = await (supabase as any).rpc("group_list");
-      if (error) throw error;
-      const list = (Array.isArray(data) ? data : []) as Array<{ id: string; name: string }>;
-      // Hide the auto-created default "Oversite" group — only groups the owner made.
-      setGroups(list.filter((g) => (g.name ?? "").trim().toLowerCase() !== "oversite").map((g) => ({ id: g.id, name: g.name })));
-    } catch (e: any) {
-      console.error("group_list failed", e);
-    }
-  }, []);
-  useEffect(() => { void loadGroups(); }, [loadGroups]);
-  // Which bots are in a group is the source of truth on bot_orders.group_id.
-  const groupBotIds = useCallback(
-    (gid: string) => owned.filter((b) => b.group_id === gid).map((b) => b.id),
-    [owned],
+  // Default to the standard text-channel set; fields can opt into other
+  // channel types (e.g. voice) via field.channelTypes.
+  const allowedTypes = field.channelTypes ?? ["text", "announcement", "forum"];
+  const isCategoryType = (t: string) => t === "category" || t.toLowerCase().includes("categ");
+  const wantsCategories = allowedTypes.some(isCategoryType);
+  const channelAllowed = useMemo(
+    () => allowedTypes.filter((t) => !isCategoryType(t)),
+    [allowedTypes],
   );
-  const toggleBotInGroup = useCallback(async (gid: string, botId: string) => {
-    const current = owned.filter((b) => b.group_id === gid).map((b) => b.id);
-    const next = current.includes(botId)
-      ? current.filter((x) => x !== botId)
-      : [...current, botId];
-    const { error } = await (supabase as any).rpc("group_set_bots", { _group_id: gid, _bot_ids: next });
-    if (error) { toast.error("Couldn't update this group's bots", { description: error.message }); return; }
-    await Promise.all([reload(), loadGroups()]);
-    // Keep the Team hub's group list + bot counts in sync instantly.
-    window.dispatchEvent(new CustomEvent("oversite:groups-changed"));
-  }, [owned, reload, loadGroups]);
-
-  const deleteGroup = useCallback(async (gid: string, name: string) => {
-    if (!window.confirm(`Delete the group "${name}"? Its bots stay on your account (just ungrouped), and anyone who had access through this group's team loses that access. This can't be undone.`)) return;
-    // The bots that belong to this group — their team memberships get removed.
-    const botIds = owned.filter((b) => b.group_id === gid).map((b) => b.id);
-    // Drop the card immediately so it disappears right away — a server refetch
-    // can lag just after the write, which is why it used to need a manual reload.
-    setGroups((prev) => prev.filter((g) => g.id !== gid));
-    // Tell the Team hub (a separate component with its own group list) to drop
-    // it too, so it updates instantly instead of needing a refresh.
-    window.dispatchEvent(new CustomEvent("oversite:groups-changed", { detail: { removedId: gid } }));
-    // Revoke team access: deleting the group removes everyone who had access to
-    // its bots (memberships are per-bot). Owner-only via RLS.
-    if (botIds.length > 0) {
-      await (supabase as any)
-        .from("dashboard_team")
-        .delete()
-        .in("bot_id", botIds)
-        .eq("owner_user_id", user?.id);
+  const wantsChannels = channelAllowed.length > 0;
+  // Derived category rows: real category rows, plus the distinct parent
+  // categories carried on every child channel (bots often don't cache
+  // category rows, or label them differently).
+  const derivedCategories = useMemo(() => {
+    if (!wantsCategories) return [] as any[];
+    const map = new Map<string, any>();
+    for (const c of channels) {
+      if (c.channel_type && isCategoryType(c.channel_type)) {
+        map.set(c.channel_id, c);
+      } else if (c.parent_id && c.parent_name && !map.has(c.parent_id)) {
+        map.set(c.parent_id, {
+          channel_id: c.parent_id,
+          channel_name: c.parent_name,
+          channel_type: "category",
+          parent_id: null,
+          parent_name: null,
+          position: c.parent_position ?? 0,
+          parent_position: c.parent_position ?? 0,
+        });
+      }
     }
-    // Ungroup its bots, then remove the group itself.
-    await (supabase as any).rpc("group_set_bots", { _group_id: gid, _bot_ids: [] });
-    const { error } = await (supabase as any).rpc("group_delete", { _group_id: gid });
-    if (error) {
-      toast.error("Couldn't delete this group", { description: error.message });
-      // The delete didn't take — restore the list so the card comes back.
-      await loadGroups();
-      window.dispatchEvent(new CustomEvent("oversite:groups-changed"));
+    return [...map.values()].sort(
+      (a, b) => a.position - b.position || a.channel_name.localeCompare(b.channel_name),
+    );
+  }, [channels, wantsCategories]);
+  const plainChannels = useMemo(
+    () => (wantsChannels ? channels.filter((c) => channelAllowed.includes(c.channel_type)) : []),
+    [channels, channelAllowed, wantsChannels],
+  );
+  const filtered = useMemo(
+    () => [...derivedCategories, ...plainChannels],
+    [derivedCategories, plainChannels],
+  );
+  const selected = useMemo(
+    () => filtered.find((c) => c.channel_id === value) ?? null,
+    [filtered, value],
+  );
+  const channelGroups = useMemo(() => {
+    const groups: { key: string; label: string; channels: any[] }[] = [];
+    if (wantsCategories && derivedCategories.length > 0) {
+      groups.push({ key: "__categories", label: "Categories", channels: derivedCategories });
+    }
+    if (wantsChannels) {
+      groups.push(...sortedChannelCategoryEntries(plainChannels));
+    } else if (!wantsCategories) {
+      groups.push(...sortedChannelCategoryEntries(filtered));
+    }
+    return groups;
+  }, [derivedCategories, plainChannels, filtered, wantsCategories, wantsChannels]);
+
+  const handleRefresh = async () => {
+    if (!guildId) {
+      toast.info("Select a server at the top first.");
       return;
     }
-    toast.success(`Deleted "${name}"`);
-    await Promise.all([reload(), loadGroups()]);
-  }, [owned, user?.id, reload, loadGroups]);
-
-  const chooseMode = (m: "solo" | "team") => { setWsMode(m); lsSet(LS.ws, m); lsSet(LS.onboarded, "1"); setAppOn(true); askTour(); };
-  const openBot = (id: string) => { setBotId(id); setView("bot"); window.scrollTo({ top: 0 }); };
-  const go = (v: string) => { setView(v); window.scrollTo({ top: 0 }); };
-  // Keep invited members out of sections their role doesn't unlock (e.g. a
-  // stale saved view or a deep link). Owners can go anywhere. Dashboard and
-  // Support are always allowed.
-  useEffect(() => {
-    if (!isInvitedOnly) return;
-    const allowed =
-      view === "dashboard" || view === "support" ||
-      ((view === "bots" || view === "bot") && canMyBots) ||
-      (view === "groups" && canGroups) ||
-      (view === "activity" && canActivity) ||
-      (view === "billing" && canBilling) ||
-      (view === "team" && canManageTeam) ||
-      (view === "settings" && canManageSettings);
-    if (!allowed) setView("dashboard");
-  }, [isInvitedOnly, view, canMyBots, canGroups, canActivity, canBilling, canManageTeam, canManageSettings]);
-  const openPortal = async () => { const { data, error } = await supabase.functions.invoke("customer-portal"); if (error) { toast.error("Couldn't open billing portal", { description: error.message }); return; } const url = (data as { url?: string } | null)?.url; if (url) window.location.href = url; else toast.error("No billing portal available yet."); };
-  const [confirmOut, setConfirmOut] = useState(false);
-  const signOut = async () => { await supabase.auth.signOut(); navigate("/auth", { replace: true }); };
-  // Optimistic cancel: the status update fires server-side triggers and can
-  // take many seconds, so close the dialog immediately and track the work
-  // with a toast instead of freezing the UI on the button.
-  const cancelOrder = (bot: OwnedBot) => {
-    if (!user) return;
-    setCancelTarget(null);
-    // Remove it from the dashboard IMMEDIATELY (optimistic) and leave its page.
-    setCancelledIds((s) => { const n = new Set(s); n.add(bot.id); return n; });
-    if (botId === bot.id) setBotId(null);
-    // Tear down the deployment AND cancel the order server-side: cancel-bot-deploy
-    // runs with the service role, so it kills the Railway service (or detaches a
-    // self-hosted bot) AND flips status to 'cancelled' even when a direct client
-    // UPDATE is blocked by RLS. The direct update is a harmless fallback.
-    const work = (async () => {
-      const { error: fnErr } = await supabase.functions.invoke("cancel-bot-deploy", { body: { orderId: bot.id } });
-      if (fnErr) {
-        const { error: upErr } = await (supabase as any)
-          .from("bot_orders")
-          .update({ status: "cancelled" })
-          .eq("id", bot.id)
-          .eq("user_id", user.id);
-        if (upErr) throw new Error(upErr.message);
-      }
-      reload();
-    })();
-    // If it truly failed, roll back the optimistic removal so the bot reappears.
-    work.catch(() => {
-      setCancelledIds((s) => { const n = new Set(s); n.delete(bot.id); return n; });
-    });
-    toast.promise(work, {
-      loading: `Cancelling "${bot.bot_name}"…`,
-      success: `Cancelled "${bot.bot_name}"`,
-      error: (e: Error) => "Couldn't cancel — " + e.message,
-    });
-  };
-
-  useEffect(() => { if (loading) return; if (!user) navigate("/auth", { replace: true }); }, [user, loading, navigate]);
-
-  // Live runtime statuses for the bot list. MUST be called before the early
-  // returns below — hooks after a conditional return break React's hook order
-  // and crash the page on the loading → loaded transition.
-  const liveIds = useMemo(() => owned.filter((b) => isLive(b)).map((b) => b.id), [owned]);
-  const liveStatuses = useLiveBotStatuses(liveIds);
-
-  // First data load of the session (auth restore + bot list) — same
-  // self-drawing ridge as the route loader so loading feels like one system.
-  // Revisits skip this entirely thanks to the useOwnedBots snapshot cache.
-  if (loading || botsLoading) return (
-    <div
-      role="status"
-      aria-label="Loading"
-      className="min-h-screen flex items-center justify-center"
-      style={{
-        background:
-          "radial-gradient(120% 90% at 50% 115%, rgba(201,219,230,.10), transparent 55%), linear-gradient(180deg, #293038, #1a1f25)",
-      }}
-    >
-      <style>{`
-        @keyframes os-ridge-draw{0%{stroke-dashoffset:340}55%{stroke-dashoffset:0}78%{stroke-dashoffset:0}100%{stroke-dashoffset:-340}}
-        .os-ridge path{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:2}
-        .os-ridge .draw{stroke:#C9DBE6;stroke-dasharray:340;stroke-dashoffset:340;animation:os-ridge-draw 2.6s cubic-bezier(.45,.05,.35,1) infinite;filter:drop-shadow(0 0 10px rgba(201,219,230,.35))}
-        .os-ridge .ghost{stroke:rgba(201,219,230,.14)}
-        @media (prefers-reduced-motion: reduce){.os-ridge .draw{animation:none;stroke-dashoffset:0}}
-      `}</style>
-      <svg className="os-ridge" width="190" height="74" viewBox="0 0 190 74" style={{ overflow: "visible" }} aria-hidden>
-        <path className="ghost" d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70" />
-        <path className="draw" d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70" />
-      </svg>
-    </div>
-  );
-  if (!user) return null;
-  const hasAccess = isAdmin || hasDashboardAccess;
-  if (!hasAccess) {
-    return (
-      <SystemScreen footer="You're signed in — bots you own or manage show up here.">
-        <SystemCard>
-          <SystemBadge>
-            <Lock />
-          </SystemBadge>
-          <h1 style={{ fontSize: 24, marginBottom: 10 }}>No bots yet</h1>
-          <p style={{ fontSize: 14.5, lineHeight: 1.6, marginBottom: 28 }}>
-            Own a bot — <span style={{ color: "#E8EEF3", fontWeight: 600 }}>buy one</span> or have it
-            transferred to you — and it lands here, ready to manage. Team members appear the moment an
-            owner shares one.
-          </p>
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link className="ossys-accent" to="/bots"><Globe className="h-4 w-4" />Browse bots</Link>
-            <Link className="ossys-ghost" to="/">Back to site</Link>
-          </div>
-        </SystemCard>
-      </SystemScreen>
-    );
-  }
-
-  const handle =
-    (profile.preferred_name && profile.preferred_name.trim()) ||
-    (profile.display_name && profile.display_name.trim()) ||
-    (profile.discord_username && profile.discord_username.trim()) ||
-    (user.email ? user.email.split("@")[0] : "") ||
-    "you";
-  const initial = (user.email?.[0] ?? "U").toUpperCase();
-  const rawActiveBot = botId ? byId[botId] : null;
-  const activeBot =
-    rawActiveBot && engineOpt[rawActiveBot.id]
-      ? { ...rawActiveBot, engine_version: engineOpt[rawActiveBot.id] }
-      : rawActiveBot;
-  const firstOwned = dashboardBots.find((b) => !b.isDemo && !b.viaTeam && !b.viaSupport);
-  const spotlight = owned[0];
-  const isTeam = wsMode === "team";
-
-  const navItem = (v: string, icon: React.ReactNode, label: string, extraId?: string) => (
-    <div className={"nav" + (view === v ? " on" : "")} data-view={v} id={extraId} onClick={() => go(v)}>{icon}{label}</div>
-  );
-
-  // ── Live runtime status for the list/table/cards ─────────────────────────
-  // The order-based "Online" (status = live/ready) only says the bot was
-  // delivered — not that it's actually running. Overlay the worker's live
-  // runtime status (liveStatuses, subscribed above the early returns) so
-  // Crashed / Restarting / Starting / Offline show up the moment they happen.
-  const RUNTIME_WORD: Record<string, string> = {
-    online: "Online", offline: "Offline", starting: "Starting…", stopping: "Stopping…",
-    restarting: "Restarting…", crashed: "Crashed", updating: "Redeploying…", suspended: "Suspended",
-  };
-  const RUNTIME_COLOR: Record<string, string> = {
-    online: "var(--ok)", offline: "var(--faint)", starting: "var(--gold)", stopping: "var(--gold)",
-    restarting: "var(--gold)", crashed: "var(--bad)", updating: "var(--gold)", suspended: "var(--gold)",
-  };
-  const runtimeOf = (b: OwnedBot): string | null =>
-    isLive(b) ? liveStatuses[b.id]?.effective ?? null : null;
-  const stColorLive = (b: OwnedBot) => {
-    const s = runtimeOf(b);
-    return s ? (RUNTIME_COLOR[s] ?? "var(--faint)") : stColor(b);
-  };
-  const stWordLive = (b: OwnedBot) => {
-    const s = runtimeOf(b);
-    return s ? (RUNTIME_WORD[s] ?? s) : stWord(b);
-  };
-
-  const filt = (f: string) => (b: OwnedBot) => f === "all" ? true : f === "online" ? stWordLive(b) === "Online" : stWordLive(b) !== "Online";
-  const liveCount = owned.filter((b) => stWordLive(b) === "Online").length;
-
-  // Dashboard boxes, addressable by id so they can be reordered. The shared
-  // order lives in dashOrder; admins drag to rearrange (saved for everyone),
-  // customers get the same order as plain cells (no drag code at all).
-  const renderDash = () => {
-    const cells: Record<string, ReactNode> = {
-      setup: (
-        <div className="card cust">
-          <div className="ch"><span className="ct">Setup</span><span className="dots">···</span></div>
-          <div className="ph"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg></div>
-          <h3>Almost there</h3>
-          <p>{isTeam ? "Connect billing, invite your team, then set each bot's commands." : "Connect billing, then set each bot's commands."}</p>
-          <button className="ghost" onClick={() => go("settings")}>Pick up where you left off</button>
-        </div>
-      ),
-      activity: (
-        <div className="card" id="tour-activity">
-          <div className="ch"><div><span className="ct">Fleet activity</span><div style={{ fontSize: "11px", color: "var(--faint)", marginTop: "2px" }}>This week</div></div><span className="dots">···</span></div>
-          <div className="leg"><span><i style={{ background: "var(--accent)" }} />Events</span><span><i style={{ background: "var(--surface2)" }} />Blocked</span></div>
-          <div className="chart">{CHART.map((d, i) => (<div className="col" key={i}><div className="bars"><div className="bar buy" style={{ height: d[0] + "%" }} /><div className="bar sell" style={{ height: d[1] + "%" }} /></div><div className="x">{CDAYS[i]}</div></div>))}</div>
-          <div className="kpis"><span className="big num">{owned.length ? "8.9" : "0"}<sup>%</sup></span><span className="updelta">▲ 2%</span><span className="vs">vs last week</span></div>
-        </div>
-      ),
-      table: (
-        <div className="card assets">
-          <div className="thead">
-            <div className="tabs" style={{ margin: 0 }}>
-              <button className={tableFilter === "all" ? "on" : ""} onClick={() => setTableFilter("all")}>All bots</button>
-              <button className={tableFilter === "online" ? "on" : ""} onClick={() => setTableFilter("online")}>Online</button>
-              <button className={tableFilter === "warn" ? "on" : ""} onClick={() => setTableFilter("warn")}>Needs attention</button>
-            </div>
-            <div className="seg"><button className="on">1D</button><button>2W</button><button>1M</button></div>
-          </div>
-          <div className="tscroll"><table>
-            <thead><tr><th>Bot</th><th>Status</th><th>Base</th><th>Add-ons</th><th></th></tr></thead>
-            <tbody>
-              {owned.filter(filt(tableFilter)).map((b) => (
-                <tr key={b.id} onClick={() => openBot(b.id)}>
-                  <td><div className="coin"><div className="a">{botSvg(b.base)}</div><div><div className="nm">{b.bot_name}</div><div className="tk">{BOT_BASE_LABELS[b.base] ?? b.base}</div></div></div></td>
-                  <td><span style={{ color: stColorLive(b) }}>● {stWordLive(b)}</span></td>
-                  <td className="num">{BOT_BASE_LABELS[b.base] ?? b.base}</td>
-                  <td className="num">{b.addons.length}</td>
-                  <td><button className="trade" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Manage</button></td>
-                </tr>
-              ))}
-              {owned.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--faint)" }}>No bots yet.</td></tr>}
-            </tbody>
-          </table></div>
-        </div>
-      ),
-      bots: (
-        <div className="card" id="tour-bots">
-          <div className="ch"><span className="ct">Your bots</span><span className="dots">···</span></div>
-          <div className="tabs">
-            <button className={listFilter === "all" ? "on" : ""} onClick={() => setListFilter("all")}>All</button>
-            <button className={listFilter === "online" ? "on" : ""} onClick={() => setListFilter("online")}>Online</button>
-            <button className={listFilter === "warn" ? "on" : ""} onClick={() => setListFilter("warn")}>Other</button>
-          </div>
-          <div>
-            {owned.filter(filt(listFilter)).map((b) => (
-              <div className="tok" key={b.id} onClick={() => openBot(b.id)}>
-                <div className="ic">{botSvg(b.base)}</div>
-                <div><div className="v">{b.bot_name}</div><div className="s">{stWordLive(b).toLowerCase()}</div></div>
-                <button className="act" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Open</button>
-              </div>
-            ))}
-            {owned.length === 0 && <div className="tok"><div><div className="s">No bots yet.</div></div></div>}
-          </div>
-        </div>
-      ),
-      spotlight: spotlight ? (
-        <div className="card">
-          <div className="mhead"><div /><div className="mout" onClick={() => openBot(spotlight.id)}><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></div></div>
-          <div className="mname">{spotlight.bot_name} <span className="x">{BOT_BASE_LABELS[spotlight.base] ?? spotlight.base}</span></div>
-          <div className="mhot">Your fleet</div>
-          <div style={{ marginTop: "14px" }}>
-            <div className="mrow"><span className="k">Status</span><span className="v" style={{ color: stColorLive(spotlight) }}>{stWordLive(spotlight)}</span></div>
-            <div className="mrow"><span className="k">Add-ons</span><span className="v">{spotlight.addons.length}</span></div>
-            <div className="mrow" style={{ borderBottom: 0 }}><span className="k">Engine</span><span className="v">{spotlight.engine_version === "v2" ? "V2" : "V1"}</span></div>
-          </div>
-          <div className="mbtns"><button className="ghost" onClick={() => openBot(spotlight.id)}>Configure</button><button className="cta" style={{ width: "100%" }} onClick={() => openBot(spotlight.id)}>Open bot</button></div>
-        </div>
-      ) : null,
-    };
-    const wide = new Set(["table"]);
-    const ordered = [
-      ...dashOrder.filter((id) => DEFAULT_DASH_ORDER.includes(id) && cells[id] != null),
-      ...DEFAULT_DASH_ORDER.filter((id) => !dashOrder.includes(id) && cells[id] != null),
-    ];
-    dashOrderedRef.current = ordered;
-
-    if (!isAdmin) {
-      return (
-        <div className="dashgrid">
-          {ordered.map((id) => (
-            <div key={id} className={"dashcell" + (wide.has(id) ? " wide" : "")}>{cells[id]}</div>
-          ))}
-        </div>
-      );
-    }
-    return (
-      <DndContext sensors={dashSensors} collisionDetection={closestCenter} onDragEnd={onDashDragEnd}>
-        <SortableContext items={ordered} strategy={rectSortingStrategy}>
-          <div className="dashgrid">
-            {ordered.map((id) => (
-              <DashSortableCard key={id} id={id} wide={wide.has(id)}>{cells[id]}</DashSortableCard>
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
-    );
+    const result = await refreshFromDiscord();
+    if (result.ok) toast.success("Channel list refreshed.");
+    else if (result.error === "timeout")
+      toast.warning("Refresh queued — bot may be offline.");
+    else toast.error(`Refresh failed: ${result.error}`);
   };
 
   return (
-    <div className={"osd" + (showApp ? " app" : "") + (instant ? " instant" : "")} style={{ ["--accent" as any]: accent.c, ["--accentink" as any]: accent.ink }}>
-      <style>{OSD_CSS}</style>
-      {bgKey !== "none" && bgUrl && <div className="osd-bg" style={{ backgroundImage: `url(${bgUrl})` }} />}
-      {bgKey === "none" && <div className="osd-bg" style={{ background: "#1b2026" }} />}
-      <div className="osd-scrim" />
-      <div className="osd-dim" />
-
-      <div className="osd-stage">
-        {/* ONBOARDING */}
-        <div className={"overlay" + (showApp ? " hide" : "")}>
-          <div className="wcard">
-            <div className="wmark">Oversite<span>Bot Dashboard</span></div>
-            <h1>Let&apos;s get you set up, {handle}</h1>
-            <div className="lead">Your bots are built and ready. Choose how you want to run them.</div>
-            <div className="qlab">How do you want to run them?</div>
-            <div className="choices">
-              <div className={"choice" + (picked === "solo" ? " sel" : "")} onClick={() => setPicked("solo")}>
-                <span className="tick"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-11"/></svg></span>
-                <div className="ci"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>
-                <div className="ct2">Just me</div><div className="cd">Private — only you can see and manage the bots.</div>
-              </div>
-              <div className={"choice" + (picked === "team" ? " sel" : "")} onClick={() => setPicked("team")}>
-                <span className="tick"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-11"/></svg></span>
-                <div className="ci"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9" r="2.6"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M15 20a5 5 0 0 1 6-4"/></svg></div>
-                <div className="ct2">With my team</div><div className="cd">Invite people, assign roles, and post announcements.</div>
-              </div>
-            </div>
-            <button className={"wgo" + (picked ? " ready" : "")} onClick={() => picked && chooseMode(picked)}>Continue</button>
-            <div className="wnote">You can switch this anytime in Dashboard → Settings → Workspace.</div>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>{field.label}</Label>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={refreshing || !guildId}
+          className="h-7 px-2 text-xs gap-1.5"
+        >
+          <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+          {refreshing ? "Refreshing…" : "Refresh"}
+        </Button>
+      </div>
+      <Select
+        value={selected?.channel_id ?? ""}
+        onValueChange={(v) => onChange(v)}
+        disabled={!guildId}
+      >
+        <SelectTrigger>
+          <div className="flex min-w-0 items-center gap-2">
+            <Hash className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
+            <SelectValue
+              placeholder={
+                !guildId
+                  ? "Select a server first"
+                  : loading
+                    ? "Loading channels…"
+                    : filtered.length === 0
+                      ? "No channels cached — click Refresh"
+                      : "Select a channel…"
+              }
+            />
           </div>
+        </SelectTrigger>
+        <SelectContent>
+          {channelGroups.map((group) => (
+            <SelectGroup key={group.key}>
+              <SelectLabel>{group.label}</SelectLabel>
+              {group.channels.map((c) => (
+                <SelectItem key={c.channel_id} value={c.channel_id}>
+                  {c.channel_name}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          ))}
+        </SelectContent>
+      </Select>
+      {field.help && (
+        <p className="text-xs text-muted-foreground">{field.help}</p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Role picker for schema-driven addon fields. Mirrors the channel picker UX:
+ * native `<select>`, auto-syncs from Discord on guild change, manual refresh.
+ */
+function RoleComboField({
+  field,
+  value,
+  onChange,
+  botId,
+}: {
+  field: AddonField;
+  value: string;
+  onChange: (v: string) => void;
+  botId?: string;
+}) {
+  const { guild } = useActiveGuild();
+  const guildId = guild?.guild_id;
+  const { roles, loading, refreshing, refreshFromDiscord } = useBotRoles(botId, guildId);
+
+  // Hide @everyone and managed (bot/integration) roles by default — pickable
+  // assignable roles only.
+  const filtered = useMemo(
+    () => roles.filter((r) => !r.is_everyone && !r.managed),
+    [roles],
+  );
+
+  const handleRefresh = async () => {
+    if (!guildId) {
+      toast.info("Select a server at the top first.");
+      return;
+    }
+    const result = await refreshFromDiscord();
+    if (result.ok) toast.success("Role list refreshed.");
+    else if (result.error === "timeout")
+      toast.warning("Refresh queued — bot may be offline.");
+    else toast.error(`Refresh failed: ${result.error}`);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>{field.label}</Label>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={refreshing || !guildId}
+          className="h-7 px-2 text-xs gap-1.5"
+        >
+          <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+          {refreshing ? "Refreshing…" : "Refresh"}
+        </Button>
+      </div>
+      <Select value={value} onValueChange={(v) => onChange(v)} disabled={!guildId}>
+        <SelectTrigger>
+          <div className="flex min-w-0 items-center gap-2">
+            <AtSign className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
+            <SelectValue
+              placeholder={
+                !guildId
+                  ? "Select a server first"
+                  : loading
+                    ? "Loading roles…"
+                    : filtered.length === 0
+                      ? "No roles cached — click Refresh"
+                      : "Select a role…"
+              }
+            />
+          </div>
+        </SelectTrigger>
+        <SelectContent>
+          {filtered.map((r) => (
+            <SelectItem key={r.role_id} value={r.role_id}>
+              @{r.role_name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {field.help && (
+        <p className="text-xs text-muted-foreground">{field.help}</p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Multi-select role picker. Renders a list of checkboxes for each assignable
+ * role with refresh + select all/none controls.
+ */
+function MultiRoleField({
+  field,
+  value,
+  onChange,
+  botId,
+}: {
+  field: AddonField;
+  value: string[];
+  onChange: (v: string[]) => void;
+  botId?: string;
+}) {
+  const { guild } = useActiveGuild();
+  const guildId = guild?.guild_id;
+  const { roles, loading, refreshing, refreshFromDiscord } = useBotRoles(botId, guildId);
+
+  const filtered = useMemo(
+    () => roles.filter((r) => !r.is_everyone && !r.managed),
+    [roles],
+  );
+
+  const toggle = (roleId: string) => {
+    if (value.includes(roleId)) onChange(value.filter((v) => v !== roleId));
+    else onChange([...value, roleId]);
+  };
+
+  const handleRefresh = async () => {
+    if (!guildId) {
+      toast.info("Select a server at the top first.");
+      return;
+    }
+    const result = await refreshFromDiscord();
+    if (result.ok) toast.success("Role list refreshed.");
+    else if (result.error === "timeout")
+      toast.warning("Refresh queued — bot may be offline.");
+    else toast.error(`Refresh failed: ${result.error}`);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>{field.label}</Label>
+        <div className="flex items-center gap-1">
+          {filtered.length > 0 && (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onChange(filtered.map((r) => r.role_id))}
+                className="h-7 px-2 text-xs"
+              >
+                All
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onChange([])}
+                className="h-7 px-2 text-xs"
+              >
+                None
+              </Button>
+            </>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing || !guildId}
+            className="h-7 px-2 text-xs gap-1.5"
+          >
+            <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </Button>
         </div>
-
-        {/* FLOATING ANNOUNCEMENT — bottom-right, above dashboard UI. Returns each launch. */}
-        {isTeam && annOpen && (
-          <div className="annc">
-            <div className="bar" />
-            <div className="in">
-              <div className="hd">
-                <span className="ic"><svg viewBox="0 0 24 24"><path d="m3 11 14-6v14L3 13Z"/><path d="M7 19a2 2 0 0 1-4 0v-6"/><path d="M19 9a3 3 0 0 1 0 6"/></svg></span>
-                <div className="ht">
-                  <div className="t">Announcement <span className="ndot" /></div>
-                  <div className="s">From your team</div>
-                </div>
-                <button className="x" aria-label="Dismiss" onClick={() => setAnnOpen(false)}><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
-              </div>
-              <div className="bd">
-                <div className="h">Welcome to the team</div>
-                <div className="p">Post updates here for everyone with dashboard access.</div>
-              </div>
-              <div className="ft">
-                <div className="by"><span className="av">O</span><div><div className="nm">Oversite Team</div><div className="tm">just now</div></div></div>
-                <button className="act" onClick={() => go("team")}>Post<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
-              </div>
-            </div>
-          </div>
+      </div>
+      <div className="max-h-56 overflow-y-auto rounded-md border border-input bg-background p-2 space-y-1">
+        {!guildId ? (
+          <p className="text-sm text-muted-foreground p-2">Select a server first</p>
+        ) : loading ? (
+          <p className="text-sm text-muted-foreground p-2">Loading roles…</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground p-2">
+            No roles cached — click Refresh
+          </p>
+        ) : (
+          filtered.map((r) => {
+            const checked = value.includes(r.role_id);
+            return (
+              <label
+                key={r.role_id}
+                className="flex items-center gap-2 cursor-pointer text-sm rounded px-2 py-1 hover:bg-muted/40"
+              >
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-primary"
+                  checked={checked}
+                  onChange={() => toggle(r.role_id)}
+                />
+                <AtSign className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>{r.role_name}</span>
+              </label>
+            );
+          })
         )}
+      </div>
+      {value.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {value.length} role{value.length === 1 ? "" : "s"} selected
+        </p>
+      )}
+      {field.help && (
+        <p className="text-xs text-muted-foreground">{field.help}</p>
+      )}
+    </div>
+  );
+}
 
-        {/* TOUR */}
-        <div className={"tourask" + (tourAsk ? " show" : "")}>
-          <div className="tt">Welcome in</div>
-          <div className="tb">Want a quick 30-second tour of your dashboard?</div>
-          <div className="row">
-            <button className="btn-sm btn-pri" style={{ flex: 1 }} onClick={startTour}>Show me around</button>
-            <button className="btn-sm" onClick={() => { setTourAsk(false); lsSet(LS.tour, "1"); }}>Maybe later</button>
+/**
+ * Inline editor + Discord-style preview for one of the channel-lockdown
+ * embeds (lock or unlock).
+ */
+function LockEmbedEditor({
+  label,
+  value,
+  onChange,
+  botName,
+  botAvatarUrl,
+}: {
+  label: string;
+  value: { enabled: boolean; title: string; description: string; color: string };
+  onChange: (v: { enabled: boolean; title: string; description: string; color: string }) => void;
+  botName: string;
+  botAvatarUrl?: string;
+}) {
+  // Convert "0xED4245" or "#ED4245" → "#ed4245" for <input type=color>.
+  const toHexInput = (c: string): string => {
+    const m = String(c ?? "").match(/[0-9a-f]{6}/i);
+    return m ? `#${m[0].toLowerCase()}` : "#5865f2";
+  };
+  // Convert "#ed4245" → "0xED4245" for storage.
+  const toStorage = (hex: string): string => `0x${hex.replace("#", "").toUpperCase()}`;
+  const hexInputValue = toHexInput(value.color);
+
+  return (
+    <div className="space-y-3 rounded-md border border-border p-4">
+      <div className="flex items-center justify-between">
+        <Label className="text-sm font-medium">{label}</Label>
+        <Switch
+          checked={value.enabled}
+          onCheckedChange={(v) => onChange({ ...value, enabled: v })}
+        />
+      </div>
+      {value.enabled && (
+        <>
+          <div className="space-y-2">
+            <Label className="text-xs">Title</Label>
+            <Input
+              value={value.title}
+              onChange={(e) => onChange({ ...value, title: e.target.value })}
+            />
           </div>
-        </div>
-        <div className={"tourblock" + (tourOn ? " on" : "")} />
-        <div className={"tourring" + (tourOn ? " on" : "")} ref={ringRef} />
-        <div className={"tourpop" + (tourOn ? " on" : "")} ref={popRef}>
-          <div className="tt">{TOUR[ti]?.title}</div>
-          <div className="tb">{TOUR[ti]?.body}</div>
-          <div className="nav">
-            <span className="ct3">{ti + 1} / {TOUR.length}</span>
-            <span className="skip sp" onClick={endTour}>Skip</span>
-            {ti > 0 && <button className="btn-sm" onClick={() => setTi(ti - 1)}>Back</button>}
-            <button className="btn-sm btn-pri" onClick={() => ti >= TOUR.length - 1 ? endTour() : setTi(ti + 1)}>{ti >= TOUR.length - 1 ? "Done" : "Next"}</button>
+          <div className="space-y-2">
+            <Label className="text-xs">Description</Label>
+            <Textarea
+              rows={3}
+              value={value.description}
+              onChange={(e) => onChange({ ...value, description: e.target.value })}
+            />
           </div>
-        </div>
-
-        {/* APP */}
-        <div className={"appwrap" + (showApp ? " show" : "")}>
-          {/* Admin notice — flush bar across the very top of the screen. */}
-          <FixesBar />
-          <div className="approw">
-          <aside className="side">
-            <div className="prof">
-              <div className="av">{initial}</div>
-              <div>
-                <div className="nm">{handle} <span className="pro">{firstOwned ? "OWNER" : "TEAM"}</span></div>
-                <div className="h">{user.email}</div>
-              </div>
-              <span className="ed" onClick={() => go("settings")}><svg width="14" height="14" viewBox="0 0 24 24" style={{ stroke: "currentColor", strokeWidth: 1.8, fill: "none" }}><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+          <div className="space-y-2">
+            <Label className="text-xs">Color</Label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={hexInputValue}
+                onChange={(e) => onChange({ ...value, color: toStorage(e.target.value) })}
+                className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
+              />
+              <Input
+                value={value.color}
+                onChange={(e) => onChange({ ...value, color: e.target.value })}
+                placeholder="0xED4245"
+                className="font-mono text-sm"
+              />
             </div>
-
-            <div className="glab">Menu</div>
-            {navItem("dashboard", <svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v9h14v-9"/></svg>, "Dashboard")}
-            {canMyBots && navItem("bots", <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>, "My Bots")}
-            {canGroups && navItem("groups", <svg viewBox="0 0 24 24"><circle cx="7" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M2 19a5 5 0 0 1 10 0M12 19a5 5 0 0 1 10 0"/></svg>, "Groups")}
-            {canActivity && navItem("activity", <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg>, "Activity")}
-
-            <div className="glab">Account</div>
-            {canBilling && navItem("billing", <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>, "Billing")}
-            {(isInvitedOnly ? canManageTeam : true) && navItem("team", <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>, "Team")}
-
-            <div className="glab">More</div>
-            {canManageSettings && navItem("settings", <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1l-.4-2.5H9.6L9.2 6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L5 11a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 2.5h4.8l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6a7 7 0 0 0 .1-1Z"/></svg>, "Settings")}
-            {navItem("support", <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 2.5"/><path d="M12 17h.01"/></svg>, "Support")}
-
-            <div style={{ marginTop: "auto" }} />
-            <div className="nav" onClick={() => navigate("/")}><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14.5 14.5 0 0 0 0 18 14.5 14.5 0 0 0 0-18"/></svg>Back to website</div>
-            <div className="nav" onClick={() => setConfirmOut(true)}><svg viewBox="0 0 24 24"><path d="M9 21H5V3h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</div>
-          </aside>
-
-          <div className="main">
-            <div className="head">
-              <div>
-                <div className="crumb">Oversite / <b>{view === "bot" ? "My Bots" : view.charAt(0).toUpperCase() + view.slice(1)}</b>{view === "bot" && activeBot && <> / <b>{activeBot.bot_name}</b></>}</div>
-                <h1>{view === "dashboard" ? `Hey, ${handle}` : view === "bot" ? (activeBot?.bot_name ?? "Bot") : view === "bots" ? "My Bots" : view.charAt(0).toUpperCase() + view.slice(1)}</h1>
-                <div className="sub">{owned.length} bots · <b>{liveCount} live</b></div>
+          </div>
+          {/* Preview */}
+          <div className="rounded-md bg-[#313338] p-4 text-[#dbdee1]">
+            <div className="flex gap-3">
+              <div className="h-10 w-10 rounded-full bg-[#5865F2] grid place-items-center shrink-0 overflow-hidden">
+                {botAvatarUrl ? (
+                  <img src={botAvatarUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-white text-sm font-bold">
+                    {botName.slice(0, 1).toUpperCase()}
+                  </span>
+                )}
               </div>
-              <div className="htools">
-                <div className="bell" id="tour-bell" onClick={() => go("activity")}><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>{unread > 0 && <span className="d" />}</div>
-                <button className="cta" id="tour-add" onClick={() => go("bots")}>+ Add a bot</button>
-              </div>
-            </div>
-
-            {/* Hosting payment overdue — renders nothing unless past due. */}
-            <HostingPastDueBanner />
-
-            {/* DASHBOARD */}
-            <div className={"view" + (view === "dashboard" ? " on" : "")}>
-              {renderDash()}
-            </div>
-
-            {/* MY BOTS */}
-            <div className={"view" + (view === "bots" && canMyBots ? " on" : "")}>
-              <div className="ph2"><h2>My Bots</h2><p>{owned.length} bots in your fleet · <span className="drophint">drag to reorder</span></p></div>
-              <div className={"botgrid" + (dragActive ? " dragging-active" : "")}>
-                {owned.map((b) => (
-                  <div className="bcard" key={b.id} draggable onDragStart={() => onDragStart(b.id)} onDragOver={(e) => onDragOver(e, b.id)} onDragEnd={onDragEnd} onClick={() => openBot(b.id)}>
-                    <div className="a">{botSvg(b.base)}</div>
-                    <div className="nm">{b.bot_name}</div><div className="st" style={{ color: stColorLive(b) }}>● {stWordLive(b)}</div>
-                    <div className="bstats"><div className="bx"><span className="k">Base</span><span className="v num">{BOT_BASE_LABELS[b.base] ?? b.base}</span></div><div className="bx"><span className="k">Add-ons</span><span className="v num">{b.addons.length}</span></div></div>
-                    <button className="ghost" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Open</button>
-                  </div>
-                ))}
-                <Link to="/bots" className="addbot" style={{ textDecoration: "none" }}><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add a bot</Link>
-              </div>
-            </div>
-
-            {/* GROUPS */}
-            <div className={"view" + (view === "groups" && canGroups ? " on" : "")}>
-              <div className="ph2" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "14px", flexWrap: "wrap" }}>
-                <div><h2>Groups</h2><p>Bundle bots from a server together, then give a team access to just that bundle.</p></div>
-                <button className="cta" onClick={async () => { const n = window.prompt("Name this group"); if (!n || !n.trim()) return; const { error } = await (supabase as any).rpc("group_create", { _name: n.trim(), _bot_ids: [] }); if (error) { toast.error("Couldn't create group", { description: error.message }); return; } await loadGroups(); window.dispatchEvent(new CustomEvent("oversite:groups-changed")); }}>+ New group</button>
-              </div>
-              <div className="groups">
-                {groups.length === 0 && <div className="card" style={{ textAlign: "center", color: "var(--faint)", fontSize: "13px" }}>No groups yet. Create one to bundle bots and share access.</div>}
-                {groups.map((g) => (
-                  <div className="gcard" key={g.id} style={{ position: "relative" }}>
-                    <button className="gdel" type="button" title="Delete group" aria-label={`Delete ${g.name}`} onClick={() => void deleteGroup(g.id, g.name)}><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-                    <div className="ghd"><div className="gi"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></div><div><div className="gname">{g.name}</div><div className="gmeta">{groupBotIds(g.id).length} bots</div></div></div>
-                    <div className="gbody">
-                      <div>
-                        <div className="gcl">Bots in this group</div>
-                        <div className="chips">
-                          {owned.map((b) => { const inG = b.group_id === g.id; return (<span className={"chip" + (inG ? "" : " add")} key={b.id} style={{ cursor: "pointer" }} onClick={() => void toggleBotInGroup(g.id, b.id)}>{inG ? botSvg(b.base) : null}{b.bot_name}{inG && <span className="x">×</span>}</span>); })}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="gcl">Team access</div>
-                        <div className="chips"><span className="chip add" onClick={() => go("team")}>+ Invite</span></div>
-                      </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-white font-medium">{botName}</span>
+                  <span className="bg-[#5865F2] text-white text-[10px] px-1 py-px rounded font-semibold">
+                    APP
+                  </span>
+                  <span className="text-[11px] text-[#949ba4]">Today at 12:00 PM</span>
+                </div>
+                <div
+                  className="mt-1 max-w-md rounded border-l-4 bg-[#2b2d31] p-3"
+                  style={{ borderLeftColor: hexInputValue }}
+                >
+                  {value.title && (
+                    <div className="font-semibold text-white">{value.title}</div>
+                  )}
+                  {value.description && (
+                    <div className="mt-1 whitespace-pre-wrap text-sm text-[#dbdee1]">
+                      {value.description}
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ACTIVITY */}
-            <div className={"view" + (view === "activity" && canActivity ? " on" : "")}>
-              <div className="ph2"><h2>Activity</h2><p>Everything your bots have done, newest first.</p></div>
-              <div className="feed" style={{ marginTop: "6px" }}>
-                {notifications.length === 0 && <div className="fitem"><div><div className="ttl">No activity yet</div><div className="meta">Events from your bots will show up here.</div></div></div>}
-                {notifications.map((n: BotNotification) => (
-                  <div className="fitem" key={n.id}><div className="fi" style={{ color: "var(--accent)", background: "rgba(201,219,230,.1)" }}><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg></div><div><div className="ttl">{n.title}</div><div className="meta">{n.body}</div></div><div className="tm">{osTimeAgo(n.created_at)}</div></div>
-                ))}
-              </div>
-            </div>
-
-            {/* BILLING */}
-            <div className={"view" + (view === "billing" && canBilling ? " on" : "")}>
-              <div className="ph2"><h2>Billing</h2><p>Plan, payment method, and invoices.</p></div>
-              <div className="bgrid">
-                <div>
-                  <div className="card" style={{ marginBottom: "16px" }}>
-                    <div className="planrow"><div><div className="ct">Current plan</div><div className="planname">{owned.length} bot{owned.length === 1 ? "" : "s"} · monthly</div></div><span className="pillok">Active</span></div>
-                    <div className="mrow"><span className="k">Bots</span><span className="v">{owned.length}</span></div>
-                    <div className="mrow" style={{ borderBottom: 0 }}><span className="k">Manage</span><span className="v">Stripe portal</span></div>
-                    <div className="mbtns"><button className="ghost" onClick={() => firstOwned && setCancelTarget(firstOwned)}>Cancel a bot</button><button className="cta" style={{ width: "100%" }} onClick={openPortal}>Manage in portal</button></div>
-                  </div>
-                  <div className="card"><div className="ch"><span className="ct">Invoices</span></div><p style={{ fontSize: "12.5px", color: "var(--faint)" }}>Your invoices and receipts live in the billing portal.</p></div>
-                </div>
-                <div className="card"><div className="ch"><span className="ct">Payment method</span></div><div className="pm"><div className="cc" /><div><div className="pmno">Managed in portal</div><div style={{ fontSize: "11px", color: "var(--faint)", marginTop: "2px" }}>Secure Stripe billing</div></div></div><button className="ghost" style={{ marginTop: "12px" }} onClick={openPortal}>Open portal</button></div>
-              </div>
-            </div>
-
-            {/* TEAM */}
-            <div className={"view" + (view === "team" && (isInvitedOnly ? canManageTeam : true) ? " on" : "")}>
-              {firstOwned ? (
-                <div style={{ position: "relative" }}><GroupTeamHub ownerUserId={user.id} ownerEmail={user.email ?? null} /></div>
-              ) : (<div className="ph2"><h2>Team</h2><p>You need an owned bot to manage a team.</p></div>)}
-            </div>
-
-            {/* SETTINGS */}
-            <div className={"view" + (view === "settings" && canManageSettings ? " on" : "")}>
-              <div className="ph2"><h2>Settings</h2><p>Your account, workspace, and notifications.</p></div>
-              <div className="card" style={{ marginBottom: "16px" }}>
-                <div className="ch"><span className="ct">Workspace</span></div>
-                <p style={{ fontSize: "12.5px", color: "var(--faint)", marginBottom: "14px" }}>Choose how you run your fleet. Switching to team unlocks members, roles, and announcements.</p>
-                <div className="modeopts">
-                  <div className={"modeopt" + (wsMode === "solo" ? " on" : "")} onClick={() => { setWsMode("solo"); lsSet(LS.ws, "solo"); }}><div className="mt">Just me <span className="check"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-11"/></svg></span></div><div className="md">Private. Only you can see and manage the bots.</div></div>
-                  <div className={"modeopt" + (wsMode === "team" ? " on" : "")} onClick={() => { setWsMode("team"); lsSet(LS.ws, "team"); }}><div className="mt">With my team <span className="check"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-11"/></svg></span></div><div className="md">Invite people, assign roles, and broadcast announcements.</div></div>
-                </div>
-                <div style={{ marginTop: "14px" }}><span className="cfg" onClick={() => { lsDel(LS.onboarded); setPicked(null); setInstant(false); setAppOn(false); go("dashboard"); }}>↺ Replay welcome screen</span></div>
-              </div>
-              <div className="card" style={{ marginBottom: "16px" }}>
-                <div className="ch"><span className="ct">Appearance</span></div>
-                <p style={{ fontSize: "12.5px", color: "var(--faint)", marginBottom: "14px" }}>Pick the background image for your dashboard.</p>
-                <div className="bgopts">
-                  {BG_PRESETS.map((p) => (
-                    <div className={"bgopt" + (p.key === "none" ? " none" : "") + (bgKey === p.key ? " sel" : "")} key={p.key} onClick={() => { setBgKey(p.key); lsSet(LS.bg, p.key); }} style={p.url ? { backgroundImage: `url(${p.url})` } : undefined}><span className="tk2"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-11"/></svg></span><span className="lbl">{p.label}</span></div>
-                  ))}
-                </div>
-                <button className="ghost"><svg viewBox="0 0 24 24" width="14" height="14" style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "6px", stroke: "currentColor", strokeWidth: 1.8, fill: "none" }}><path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Upload your own</button>
-                <div style={{ fontFamily: "var(--disp)", fontSize: "10px", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--faint)", margin: "20px 0 10px" }}>Primary color</div>
-                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-                  {ACCENTS.map((a) => (
-                    <button key={a.key} title={a.label} onClick={() => { setAccentKey(a.key); lsSet(LS.accent, a.key); }}
-                      style={{ height: "30px", width: "30px", borderRadius: "999px", background: a.c, cursor: "pointer", border: accentKey === a.key ? "2px solid var(--heading)" : "2px solid transparent", boxShadow: "0 0 0 1px var(--hair)" }} />
-                  ))}
-                  {/* custom color: native picker swatch + hex field */}
-                  <label title="Pick a custom color" style={{ position: "relative", height: "30px", width: "30px", borderRadius: "999px", overflow: "hidden", cursor: "pointer", display: "inline-block", background: /^#[0-9a-fA-F]{6}$/.test(customHex) ? customHex : "var(--panel)", border: accentKey === "custom" ? "2px solid var(--heading)" : "2px dashed var(--hair)", boxShadow: "0 0 0 1px var(--hair)" }}>
-                    <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(customHex) ? customHex : "#C9DBE6"} onChange={(e) => applyCustom(e.target.value)} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }} />
-                  </label>
-                  <input value={customHex} onChange={(e) => { const v = e.target.value; setCustomHex(v); if (/^#[0-9a-fA-F]{6}$/.test(v)) applyCustom(v); }} placeholder="#C9DBE6" maxLength={7} spellCheck={false}
-                    style={{ background: "var(--panel)", border: "1px solid var(--hair)", borderRadius: "8px", padding: "7px 10px", color: "var(--heading)", fontFamily: "var(--mono)", fontSize: "12px", width: "104px", textTransform: "uppercase" }} />
+                  )}
                 </div>
               </div>
-              <div className="card" style={{ marginTop: "16px" }}><div className="ch"><span className="ct">Tour</span></div><p style={{ fontSize: "12.5px", color: "var(--faint)", marginBottom: "14px" }}>Replay the guided dashboard tour.</p><button className="ghost" style={{ maxWidth: "240px" }} onClick={() => { lsDel(LS.tour); go("dashboard"); startTour(); }}>↺ Replay dashboard tour</button></div>
-            </div>
-
-            {/* SUPPORT */}
-            <div className={"view" + (view === "support" ? " on" : "")}>
-              <div className="ph2"><h2>Support</h2><p>We usually reply within a few hours.</p></div>
-              <div className="bgrid">
-                <div className="card"><div className="ch"><span className="ct">Contact us</span></div><p style={{ fontSize: "12.5px", color: "var(--faint)", lineHeight: 1.5, marginBottom: "14px" }}>Email <span style={{ color: "var(--accent)" }}>support@oversite.shop</span> or open a ticket in our Discord.</p><div className="mbtns"><a className="ghost" href="mailto:support@oversite.shop" style={{ textDecoration: "none", textAlign: "center" }}>Email us</a><a className="cta" href="https://discord.gg/oversite" target="_blank" rel="noreferrer" style={{ width: "100%", textDecoration: "none", textAlign: "center" }}>Join Discord</a></div><button className="ghost" style={{ marginTop: "10px" }} onClick={() => { lsDel(LS.tour); go("dashboard"); startTour(); }}>↺ Replay dashboard tour</button></div>
-                <div className="card"><div className="ch"><span className="ct">Quick answers</span></div><div className="togrow" style={{ cursor: "pointer" }}><div className="tl">How do I add a bot to my server?</div><span className="dots">›</span></div><div className="togrow" style={{ cursor: "pointer" }}><div className="tl">Can I cancel anytime?</div><span className="dots">›</span></div><div className="togrow" style={{ cursor: "pointer" }}><div className="tl">How do refunds work?</div><span className="dots">›</span></div></div>
-              </div>
-            </div>
-
-            {/* PER-BOT — real working blocks */}
-            <div className={"view" + (view === "bot" && canMyBots ? " on" : "")}>
-              {activeBot && (
-                <>
-                  <span className="back" onClick={() => go("bots")}><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg> Back to my bots</span>
-                  <ReadOnlyBotScope botId={activeBot.id} ownerUserId={activeBot.ownerUserId} viaTeam={activeBot.viaTeam}>
-                    <BotSection bot={activeBot} allBots={dashboardBots} userId={user.id} ownerEmail={user.email} freePeriod={freePeriods[activeBot.id]} onCancel={setCancelTarget} onAddAddons={setAddonsTarget} searchQuery="" highlightedAddonId={null} onReload={() => { reload(); reloadFreePeriods(); }} onEngineSwitch={(id, target) => setEngineOpt((prev) => ({ ...prev, [id]: target }))} />
-                  </ReadOnlyBotScope>
-                </>
-              )}
             </div>
           </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Giveaway System form ──────────────────────────────────────────────
+function GiveawayForm({
+  botId,
+  botName,
+  botAvatarUrl,
+  hostRoles,
+  onHostRolesChange,
+  channelId,
+  onChannelIdChange,
+  defaultDuration,
+  onDefaultDurationChange,
+  entryEmoji,
+  onEntryEmojiChange,
+  defaultWinners,
+  onDefaultWinnersChange,
+  embedTitle,
+  onEmbedTitleChange,
+  embedDescription,
+  onEmbedDescriptionChange,
+  embedColor,
+  onEmbedColorChange,
+}: {
+  botId?: string;
+  botName: string;
+  botAvatarUrl?: string;
+  hostRoles: string[];
+  onHostRolesChange: (v: string[]) => void;
+  channelId: string;
+  onChannelIdChange: (v: string) => void;
+  defaultDuration: string;
+  onDefaultDurationChange: (v: string) => void;
+  entryEmoji: string;
+  onEntryEmojiChange: (v: string) => void;
+  defaultWinners: number;
+  onDefaultWinnersChange: (v: number) => void;
+  embedTitle: string;
+  onEmbedTitleChange: (v: string) => void;
+  embedDescription: string;
+  onEmbedDescriptionChange: (v: string) => void;
+  embedColor: string;
+  onEmbedColorChange: (v: string) => void;
+}) {
+  const { guild } = useActiveGuild();
+  const guildId = guild?.guild_id;
+  const { channels, loading, refreshing, refreshFromDiscord } = useBotChannels(botId, guildId);
+  const textChannels = useMemo(
+    () => channels.filter((c) => ["text", "announcement"].includes(c.channel_type)),
+    [channels],
+  );
+  const channelGroups = useMemo(() => sortedChannelCategoryEntries(textChannels), [textChannels]);
+
+  const toHexInput = (c: string): string => {
+    const m = String(c ?? "").match(/[0-9a-f]{6}/i);
+    return m ? `#${m[0].toLowerCase()}` : "#5865f2";
+  };
+  const toStorage = (hex: string): string => `0x${hex.replace("#", "").toUpperCase()}`;
+  const hexInputValue = toHexInput(embedColor);
+
+  const previewSubs = (s: string) =>
+    s
+      .split("{emoji}").join(entryEmoji || "🎉")
+      .split("{prize}").join("Example Prize")
+      .split("{winners}").join(String(Math.max(1, defaultWinners)))
+      .split("{ends}").join(`in ${defaultDuration.trim() || "1d"}`);
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-2">
+      {/* Left: form fields */}
+      <div className="space-y-6">
+        <RoleMultiSelect
+          label="Roles allowed to host"
+          help="Members with any of these roles can use /giveaway."
+          value={hostRoles}
+          onChange={onHostRolesChange}
+          botId={botId}
+          guildId={guildId}
+        />
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label>Giveaway channel</Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => refreshFromDiscord()}
+              disabled={refreshing || !guildId}
+              className="h-7 px-2 text-xs gap-1.5"
+            >
+              <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+              {refreshing ? "Refreshing…" : "Refresh"}
+            </Button>
+          </div>
+          <Select
+            value={channelId}
+            onValueChange={(v) => onChannelIdChange(v)}
+            disabled={!guildId || loading}
+          >
+            <SelectTrigger>
+              <div className="flex min-w-0 items-center gap-2">
+                <Hash className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
+                <SelectValue
+                  placeholder={
+                    !guildId
+                      ? "Select a server first"
+                      : loading
+                        ? "Loading channels…"
+                        : textChannels.length === 0
+                          ? "No channels — click Refresh"
+                          : "Select a channel…"
+                  }
+                />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {channelGroups.map((group) => (
+                <SelectGroup key={group.key}>
+                  <SelectLabel>{group.label}</SelectLabel>
+                  {group.channels.map((c) => (
+                    <SelectItem key={c.channel_id} value={c.channel_id}>
+                      {c.channel_name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="space-y-2">
+            <Label>Default duration</Label>
+            <Input
+              value={defaultDuration}
+              onChange={(e) => onDefaultDurationChange(e.target.value)}
+              placeholder="1d"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              e.g. 10m, 2h, 1d, 1w, 1mo, 1y
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label>Entry emoji</Label>
+            <Input
+              value={entryEmoji}
+              onChange={(e) => onEntryEmojiChange(e.target.value)}
+              placeholder="🎉"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Default winners</Label>
+            <Input
+              type="number"
+              min={1}
+              max={100}
+              value={defaultWinners}
+              onChange={(e) => onDefaultWinnersChange(Math.max(1, Number(e.target.value)))}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-3 rounded-md border border-border p-4">
+          <Label className="text-sm font-medium">Giveaway embed</Label>
+          <div className="space-y-2">
+            <Label className="text-xs">Title</Label>
+            <Input
+              value={embedTitle}
+              onChange={(e) => onEmbedTitleChange(e.target.value)}
+              placeholder="🎉 Giveaway!"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Description</Label>
+            <Textarea
+              rows={5}
+              value={embedDescription}
+              onChange={(e) => onEmbedDescriptionChange(e.target.value)}
+              placeholder="Tip: use {emoji}, {prize}, {winners}, {ends}"
+            />
+            <p className="text-xs text-muted-foreground">
+              Placeholders: <code className="px-1 rounded bg-muted">{"{emoji}"}</code>,{" "}
+              <code className="px-1 rounded bg-muted">{"{prize}"}</code>,{" "}
+              <code className="px-1 rounded bg-muted">{"{winners}"}</code>,{" "}
+              <code className="px-1 rounded bg-muted">{"{ends}"}</code>
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Color</Label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={hexInputValue}
+                onChange={(e) => onEmbedColorChange(toStorage(e.target.value))}
+                className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
+              />
+              <Input
+                value={embedColor}
+                onChange={(e) => onEmbedColorChange(e.target.value)}
+                placeholder="0x5865F2"
+                className="font-mono text-sm"
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      <NewOwnerBillingDialog forceOpen={
-        new URLSearchParams(window.location.search).get("team_transfer") === "accepted"
-        // Only demand billing details when the newly-owned account carries a bot
-        // with recurring billing. Dispatch is a one-time upfront purchase with no
-        // monthly charge, so transferring one must NOT trap the new owner on the
-        // mandatory billing form. Every other base (support, protection,
-        // utilities, scratch) is monthly-hosted, so it does ask.
-        // NB: the `monthly_hosting` column is hardcoded true at checkout for
-        // every bot incl. dispatch, so it can't be used here — key on the base.
-        && owned.some((b) => !b.viaTeam && !b.viaSupport && b.base !== "dispatch")
-      } />
-      <AlertDialog open={!!cancelTarget} onOpenChange={(o) => !o && setCancelTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Cancel subscription for "{cancelTarget?.bot_name}"?</AlertDialogTitle><AlertDialogDescription>This stops recurring payments and hosting, takes the bot offline, and removes it from your dashboard.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Keep subscription</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(e) => { e.preventDefault(); if (cancelTarget) cancelOrder(cancelTarget); }}>Yes, cancel</AlertDialogAction></AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <AddAddonsDialog bot={addonsTarget} open={!!addonsTarget} onOpenChange={(o) => !o && setAddonsTarget(null)} />
-      <AlertDialog open={confirmOut} onOpenChange={setConfirmOut}>
-        <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Sign out?</AlertDialogTitle><AlertDialogDescription>You'll need to sign back in to access your dashboard.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={(e) => { e.preventDefault(); setConfirmOut(false); signOut(); }}>Sign out</AlertDialogAction></AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Right: live preview (sticky) */}
+      <div className="lg:sticky lg:top-2 self-start">
+        <Label className="text-sm font-medium">Preview</Label>
+        <div className="mt-2 rounded-md bg-[#313338] p-4 text-[#dbdee1]">
+          <div className="flex gap-3">
+            <div className="h-10 w-10 rounded-full bg-[#5865F2] grid place-items-center shrink-0 overflow-hidden">
+              {botAvatarUrl ? (
+                <img src={botAvatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-white text-sm font-bold">
+                  {botName.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2">
+                <span className="text-white font-medium">{botName}</span>
+                <span className="bg-[#5865F2] text-white text-[10px] px-1 py-px rounded font-semibold">APP</span>
+                <span className="text-[11px] text-[#949ba4]">Today at 12:00 PM</span>
+              </div>
+              <div
+                className="mt-1 rounded border-l-4 bg-[#2b2d31] p-3"
+                style={{ borderLeftColor: hexInputValue }}
+              >
+                {embedTitle && (
+                  <div className="font-semibold text-white">{previewSubs(embedTitle)}</div>
+                )}
+                {embedDescription && (
+                  <div className="mt-1 whitespace-pre-wrap text-sm text-[#dbdee1]">
+                    {previewSubs(embedDescription)}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
-};
+}
 
-export default BotDashboard;
+// ─── Verification System form (with live preview + advanced security) ───
+function VerificationForm({
+  values,
+  setValue,
+  renderField,
+  config,
+  botName,
+  botAvatarUrl,
+  botId,
+  v2BuilderRef,
+  v2InitialItems,
+  v2MountKey,
+}: {
+  values: Record<string, any>;
+  setValue: (k: string, v: string | number | boolean | string[]) => void;
+  renderField: (f: AddonField) => JSX.Element | null;
+  config: { fields: AddonField[] };
+  botName: string;
+  botAvatarUrl?: string;
+  botId?: string;
+  v2BuilderRef: React.RefObject<MessagesV2BuilderHandle>;
+  v2InitialItems: V2Item[];
+  v2MountKey: number;
+}) {
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  const author = String(values.embed_author ?? "");
+  const title = String(values.embed_title ?? "");
+  const message = String(values.message ?? "Click the button below to verify and unlock the server.");
+  const footer = String(values.embed_footer ?? "");
+  const buttonLabel = String(values.button_label ?? "Verify");
+  const embedColor = String(values.embed_color ?? "#5865f2");
+  const colorHex = /^#[0-9a-fA-F]{6}$/.test(embedColor) ? embedColor : "#5865f2";
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-2">
+      {/* Left: form fields */}
+      <div className="space-y-5">
+
+        {config.fields
+          .filter((f) => f.key !== "message" && f.key !== "embed_author" && f.key !== "embed_title" && f.key !== "embed_footer")
+          .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+          .map((f) => (
+            <div key={f.key}>{renderField(f)}</div>
+          ))}
+
+        {/* V2 Verification message builder */}
+        <div className="space-y-2 rounded-md border border-border p-3">
+          <Label className="text-sm font-medium">Verification message</Label>
+          <p className="text-xs text-muted-foreground">
+            Build the verification message with containers, sections, text, buttons, images, separators, and select menus. Available tokens in any text:{" "}
+            <code className="rounded bg-muted px-1">{"{user}"}</code>{" "}
+            <code className="rounded bg-muted px-1">{"{server}"}</code>.
+          </p>
+          <MessagesV2Builder
+            key={`verify-v2-${v2MountKey}`}
+            ref={v2BuilderRef}
+            embedded
+            hidePreview
+            botId={botId}
+            botName={botName}
+            botAvatarUrl={botAvatarUrl}
+            initialItems={v2InitialItems}
+          />
+
+        </div>
+
+
+        {/* Embed color */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Embed color</Label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={colorHex}
+              onChange={(e) => setValue("embed_color", e.target.value)}
+              className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
+            />
+            <Input
+              value={embedColor}
+              onChange={(e) => setValue("embed_color", e.target.value)}
+              placeholder="#5865f2"
+              className="font-mono text-sm"
+            />
+          </div>
+        </div>
+
+
+        {/* Advanced Security collapsible */}
+        <div className="rounded-md border border-border">
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/40 transition-smooth"
+          >
+            <span className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              Advanced Security
+            </span>
+            <ChevronsUpDown className={cn("h-4 w-4 transition-transform", advancedOpen && "rotate-180")} />
+          </button>
+          {advancedOpen && (
+            <div className="px-4 pb-4 pt-2 space-y-5 border-t border-border">
+              {/* Rate limiting */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-medium">Rate Limiting</Label>
+                    <p className="text-xs text-muted-foreground">Lock users out after too many failed attempts.</p>
+                  </div>
+                  <Switch
+                    checked={!!values.rate_limit_enabled}
+                    onCheckedChange={(v) => setValue("rate_limit_enabled", v)}
+                  />
+                </div>
+                {values.rate_limit_enabled && (
+                  <div className="grid grid-cols-2 gap-3 pl-1">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Max attempts before lockout</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={Number(values.rate_limit_max_attempts ?? 3)}
+                        onChange={(e) => setValue("rate_limit_max_attempts", Number(e.target.value) || 1)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Lockout duration</Label>
+                      <Select
+                        value={String(values.rate_limit_lockout_minutes ?? 10)}
+                        onValueChange={(v) => setValue("rate_limit_lockout_minutes", Number(v))}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5 minutes</SelectItem>
+                          <SelectItem value="10">10 minutes</SelectItem>
+                          <SelectItem value="30">30 minutes</SelectItem>
+                          <SelectItem value="60">1 hour</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Phone verified required */}
+              <div className="flex items-center justify-between">
+                <div className="pr-3">
+                  <Label className="text-sm font-medium">Phone Verified Required</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Requires Discord phone verification before users can verify.
+                  </p>
+                </div>
+                <Switch
+                  checked={!!values.phone_verified_required}
+                  onCheckedChange={(v) => setValue("phone_verified_required", v)}
+                />
+              </div>
+
+              {/* Honeypot */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="pr-3">
+                    <Label className="text-sm font-medium">New Account Honeypot</Label>
+                    <p className="text-xs text-muted-foreground">Silently flag suspiciously new accounts.</p>
+                  </div>
+                  <Switch
+                    checked={!!values.honeypot_enabled}
+                    onCheckedChange={(v) => setValue("honeypot_enabled", v)}
+                  />
+                </div>
+                {values.honeypot_enabled && (
+                  <div className="pl-1 space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Flag accounts under X days</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={values.honeypot_flag_under_days ?? ""}
+                        onChange={(e) =>
+                          setValue(
+                            "honeypot_flag_under_days",
+                            e.target.value === "" ? "" : Number(e.target.value)
+                          )
+                        }
+                        onBlur={(e) => {
+                          if (e.target.value === "") {
+                            setValue("honeypot_flag_under_days", 7);
+                          }
+                        }}
+                      />
+                    </div>
+                    <MultiRoleField
+                      field={{ label: "Staff roles to ping", key: "honeypot_ping_roles", type: "multiselect", help: "Roles to mention when a suspicious new account is flagged." }}
+                      value={Array.isArray(values.honeypot_ping_roles) ? values.honeypot_ping_roles as string[] : []}
+                      onChange={(v) => setValue("honeypot_ping_roles", v)}
+                      botId={botId}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Suspicious joins */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="pr-3">
+                    <Label className="text-sm font-medium">Suspicious Join Detection</Label>
+                    <p className="text-xs text-muted-foreground">Flag bursts of verification attempts.</p>
+                  </div>
+                  <Switch
+                    checked={!!values.suspicious_join_enabled}
+                    onCheckedChange={(v) => setValue("suspicious_join_enabled", v)}
+                  />
+                </div>
+                {values.suspicious_join_enabled && (
+                  <div className="pl-1 space-y-1.5">
+                    <Label className="text-xs">Max verifications per minute before flagging</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={values.suspicious_join_max_per_minute ?? ""}
+                      onChange={(e) =>
+                        setValue(
+                          "suspicious_join_max_per_minute",
+                          e.target.value === "" ? "" : Number(e.target.value)
+                        )
+                      }
+                      onBlur={(e) => {
+                        if (e.target.value === "") {
+                          setValue("suspicious_join_max_per_minute", 5);
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* VPN Blocking */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="pr-3">
+                    <Label className="text-sm font-medium">VPN Blocking</Label>
+                    <p className="text-xs text-muted-foreground">Block users connecting through VPNs during verification.</p>
+                  </div>
+                  <Switch
+                    checked={!!values.vpn_block_enabled}
+                    onCheckedChange={(v) => setValue("vpn_block_enabled", v)}
+                  />
+                </div>
+                {values.vpn_block_enabled && (
+                  <div className="pl-1 space-y-1.5">
+                    <Label className="text-xs">IPHub API Key</Label>
+                    <Input
+                      type="text"
+                      placeholder="Your IPHub API key"
+                      value={String(values.vpn_block_iphub_key ?? "")}
+                      onChange={(e) => setValue("vpn_block_iphub_key", e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">API key for IPHub VPN detection service.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right: live embed preview */}
+      <div className="lg:sticky lg:top-0 self-start">
+        <Label className="text-xs text-muted-foreground mb-2 block">Live preview</Label>
+        <div className="rounded-md bg-[#313338] p-4 text-[#dbdee1]">
+          <div className="flex gap-3">
+            <div className="h-10 w-10 rounded-full bg-[#5865F2] grid place-items-center shrink-0 overflow-hidden">
+              {botAvatarUrl ? (
+                <img src={botAvatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-white text-sm font-bold">
+                  {botName.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2">
+                <span className="text-white font-medium">{botName}</span>
+                <span className="bg-[#5865F2] text-white text-[10px] px-1 py-px rounded font-semibold">APP</span>
+                <span className="text-[11px] text-[#949ba4]">Today at 12:00 PM</span>
+              </div>
+              <div
+                className="mt-1 max-w-md rounded border-l-4 bg-[#2b2d31] p-3"
+                style={{ borderLeftColor: colorHex }}
+              >
+                {author && (
+                  <div className="text-xs text-[#dbdee1] mb-1">{author}</div>
+                )}
+                {title && (
+                  <div className="font-semibold text-white">{title}</div>
+                )}
+                {message && (
+                  <div className="mt-1 whitespace-pre-wrap text-sm text-[#dbdee1]">{message}</div>
+                )}
+                {footer && (
+                  <div className="mt-2 text-[11px] text-[#949ba4]">{footer}</div>
+                )}
+                <div className="mt-3">
+                  <span className="inline-flex items-center rounded bg-[#248046] text-white text-sm font-medium px-3 py-1.5 cursor-default">
+                    {buttonLabel || "Verify"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+// ─── Remindme form (with live embed preview) ───
+function RemindmeForm({
+  values,
+  setValue,
+  renderField,
+  config,
+  botName,
+  botAvatarUrl,
+}: {
+  values: Record<string, any>;
+  setValue: (k: string, v: string | number | boolean | string[]) => void;
+  renderField: (f: AddonField) => JSX.Element | null;
+  config: { fields: AddonField[] };
+  botName: string;
+  botAvatarUrl?: string;
+}) {
+  const embedColor = String(values.embed_color ?? "#5865f2");
+  const colorHex = /^#[0-9a-fA-F]{6}$/.test(embedColor) ? embedColor : "#5865f2";
+  const embedTitle = String(values.embed_title ?? "Reminder");
+  const footerText = String(values.footer_text ?? "");
+  const showOriginal = values.show_original !== false;
+  const pingUser = values.ping_user !== false;
+  const sampleReminder = "Take out the trash 🗑️";
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-2">
+      {/* Left: fields */}
+      <div className="space-y-5">
+        {config.fields
+          .filter((f) => f.key !== "embed_title" && f.key !== "footer_text" && f.key !== "show_original" && f.key !== "ping_user")
+          .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+          .map((f) => (
+            <div key={f.key}>{renderField(f)}</div>
+          ))}
+
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Embed color</Label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={colorHex}
+              onChange={(e) => setValue("embed_color", e.target.value)}
+              className="h-9 w-12 cursor-pointer rounded border border-input bg-background"
+            />
+            <Input
+              value={embedColor}
+              onChange={(e) => setValue("embed_color", e.target.value)}
+              placeholder="#5865f2"
+              className="font-mono text-sm"
+            />
+          </div>
+        </div>
+
+        {config.fields
+          .filter((f) => f.key === "embed_title" || f.key === "footer_text" || f.key === "show_original" || f.key === "ping_user")
+          .map((f) => (
+            <div key={f.key}>{renderField(f)}</div>
+          ))}
+      </div>
+
+      {/* Right: preview */}
+      <div className="lg:sticky lg:top-2 self-start">
+        <Label className="text-sm font-medium">Preview</Label>
+        <div className="mt-2 rounded-md bg-[#313338] p-4 text-[#dbdee1]">
+          <div className="flex gap-3">
+            <div className="h-10 w-10 rounded-full bg-[#5865F2] grid place-items-center shrink-0 overflow-hidden">
+              {botAvatarUrl ? (
+                <img src={botAvatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-white text-sm font-bold">
+                  {botName.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2">
+                <span className="text-white font-medium">{botName}</span>
+                <span className="bg-[#5865F2] text-white text-[10px] px-1 py-px rounded font-semibold">APP</span>
+                <span className="text-[11px] text-[#949ba4]">Today at 12:00 PM</span>
+              </div>
+              {pingUser && (
+                <div className="mt-1 text-sm text-[#dbdee1]">
+                  <span className="bg-[#3c4270] text-[#c9cdfb] px-1 rounded">@user</span> ⏰
+                </div>
+              )}
+              <div
+                className="mt-1 rounded border-l-4 bg-[#2b2d31] p-3"
+                style={{ borderLeftColor: colorHex }}
+              >
+                {embedTitle && (
+                  <div className="font-semibold text-white">{embedTitle}</div>
+                )}
+                {showOriginal && (
+                  <div className="mt-1 whitespace-pre-wrap text-sm text-[#dbdee1]">
+                    {sampleReminder}
+                  </div>
+                )}
+                {!showOriginal && (
+                  <div className="mt-1 whitespace-pre-wrap text-sm text-[#dbdee1]">
+                    Your reminder is ready!
+                  </div>
+                )}
+                {footerText && (
+                  <div className="mt-2 text-[11px] text-[#949ba4]">{footerText}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
