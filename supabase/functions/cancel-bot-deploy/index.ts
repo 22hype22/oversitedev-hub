@@ -93,7 +93,12 @@ Deno.serve(async (req) => {
       console.log("[cancel-bot-deploy] linked bot (manual token) — teardown skipped", orderId);
       await admin
         .from("bot_orders")
-        .update({ deployment_status: "cancelled" })
+        .update({
+          deployment_status: "cancelled",
+          status: "cancelled",
+          cancelled_at: new Date().toISOString(),
+          cancellation_reason: "owner_cancel",
+        })
         .eq("id", orderId);
       return new Response(
         JSON.stringify({ ok: true, skipped: "linked-bot", teardown: null, deleted: false }),
@@ -217,6 +222,9 @@ Deno.serve(async (req) => {
         railway_service_id: null,
         deployment_status: "cancelled",
         deployment_error: null,
+        status: "cancelled",
+        cancelled_at: new Date().toISOString(),
+        cancellation_reason: "owner_cancel",
       })
       .eq("id", orderId);
 
