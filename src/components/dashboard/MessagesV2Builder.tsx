@@ -1029,15 +1029,31 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     Edit the message below ↓
                   </div>
                 ) : mode === "counter" ? (
-                  <div className="flex items-center px-2 text-xs text-muted-foreground italic">
-                    Each click enters the giveaway (+1). Put {"{entries}"} in the label for a live count.
-                  </div>
+                  <Select
+                    value={style === "link" ? "primary" : style}
+                    onValueChange={(v) => update({ id: b.id, label: b.label, counter: true, style: v as V2ButtonStyle })}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Button color" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="primary">Blurple</SelectItem>
+                      <SelectItem value="success">Green</SelectItem>
+                      <SelectItem value="secondary">Grey</SelectItem>
+                      <SelectItem value="danger">Red</SelectItem>
+                    </SelectContent>
+                  </Select>
                 ) : (
                   <div className="flex items-center px-2 text-xs text-muted-foreground italic">
                     Not clickable — label only
                   </div>
                 )}
               </div>
+              {mode === "counter" && (
+                <p className="px-1 text-[11px] text-muted-foreground">
+                  Each click enters the giveaway (+1). Put <code className="font-mono">{"{entries}"}</code> in the label for a live count.
+                </p>
+              )}
               {(mode === "ticket" || mode === "form") && (
                 <Input
                   placeholder="Access roles — who can see this ticket (role names, comma-separated)"
