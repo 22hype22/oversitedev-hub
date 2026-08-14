@@ -3593,7 +3593,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
