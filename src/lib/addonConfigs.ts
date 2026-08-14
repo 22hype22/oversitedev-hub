@@ -891,7 +891,10 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         type: "textarea",
         defaultValue: "Liveries = Liveries\nGFX = GFX\nBot Design = Bot Design",
         placeholder: "Liveries = Liveries\nGFX = GFX\nBot Design = Bot Design",
-        help: "One service per line as “Display Name = Ticket Category”. The category is the Discord category its order tickets open under. Leave “= Category” off to use the name as the category too.",
+        help:
+          "One service per line as “Display Name = Ticket Category” (the Discord category its order tickets open under; leave “= Category” off to reuse the name). " +
+          "Each service also becomes a live variable you can drop in ANY message, panel, ticket, or button — the name in lowercase, letters/numbers only: “Liveries” → {liveries}, “Bot Design” → {botdesign}. " +
+          "{liveries} shows “Liveries — 🟢 Open”; {liveriesstatus} shows just “🟢 Open”.",
       },
     ],
   },
