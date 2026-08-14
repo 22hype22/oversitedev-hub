@@ -930,7 +930,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         placeholder: "Liveries: Law Enforcement, Staff, Business, Fire Department",
         help:
           "One service per line as “Service: item1, item2, item3”. These are the choices in /pricing and /setpricing. " +
-          "Designers set the prices from Discord with /setpricing (NOT here) — pick a service, pick an item, then enter its Robux and USD price. Both are optional per item.",
+          "Each designer sets THEIR OWN prices from Discord with /setpricing (NOT here) — pick a service, pick an item, then enter its Robux and USD price. /pricing then lists every designer for that service (their @mention + prices), oldest member first.",
       },
     ],
   },
