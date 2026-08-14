@@ -3617,6 +3617,19 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   Drop variables anywhere; they fill in when a giveaway is posted. Leave the builder
                   empty to use the built-in default look.
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium">Questions vs answers:</span>{" "}
+                  <code className="font-mono text-os-accent">{"{Question: Prize}"}</code> is the
+                  question — running <span className="font-medium">/giveaway</span> pops a form asking
+                  for each one, and the question tokens themselves show nothing. Display the answers
+                  with <code className="font-mono text-os-accent">{"{prize}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{winners}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{entries}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{end}"}</code>. Include a question
+                  labelled <span className="font-medium">Winner</span> and one labelled{" "}
+                  <span className="font-medium">Length</span> so the bot knows how many to draw and
+                  when to end (put them on their own line — they vanish from the post).
+                </p>
                 <MessagesV2Builder
                   key={`customs-giveaway-v2-${giveawayV2MountKey}`}
                   ref={giveawayV2Ref}
