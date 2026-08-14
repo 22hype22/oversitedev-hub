@@ -520,6 +520,7 @@ export const MessagesV2Builder = forwardRef<
 
       {/* Preview */}
       {hidePreview ? null : (
+      <div className="space-y-4">
       <div className="rounded-lg border border-border bg-[#313338] p-4 text-white min-h-[300px]">
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-full bg-muted overflow-hidden shrink-0">
@@ -545,6 +546,41 @@ export const MessagesV2Builder = forwardRef<
 
           </div>
         </div>
+      </div>
+
+      {/* Second preview: how it looks once the giveaway has ended (winner shown). */}
+      {giveaway && (
+        <div className="rounded-lg border border-border bg-[#313338] p-4 text-white">
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#949ba4]">
+            When it ends
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-full bg-muted overflow-hidden shrink-0">
+              {botAvatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={botAvatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : null}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2">
+                <span className="font-semibold text-white">{botName || "Bot"}</span>
+                <span className="text-[10px] bg-[#5865F2] text-white px-1 rounded">APP</span>
+                <span className="text-[11px] text-[#949ba4]">Ended</span>
+              </div>
+              <div className="mt-1 space-y-2">
+                {items.length === 0 ? (
+                  <div className="text-xs text-[#949ba4] italic">Add components to preview the ended state.</div>
+                ) : (
+                  endedGiveawayItems(items).map((it) => <PreviewItem key={it.id} item={it} />)
+                )}
+              </div>
+              <div className="mt-2 text-[11px] text-[#949ba4]">
+                🎉 Congratulations @Winner! You won <span className="text-white">Sample Prize</span>.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
       )}
 
@@ -1485,6 +1521,59 @@ function SectionButtonEditor({
 // ============================================================
 // Preview
 // ============================================================
+
+// Sample values used to preview how a giveaway looks once it has ended.
+const GIVEAWAY_SAMPLE: Record<string, string> = {
+  "{prize}": "Sample Prize",
+  "{winners}": "1",
+  "{length}": "1d",
+  "{entries}": "12",
+  "{participants}": "@user1, @user2",
+  "{end}": "just now",
+  "{end_full}": "Today",
+  "{host}": "@you",
+  "{winner_list}": "@Winner",
+  "{button}": "Enter",
+};
+const GIVEAWAY_QUESTION_RE = /\{Question:\s*.*?\}/gi;
+
+function fillGiveawaySample(s: string): string {
+  let out = s || "";
+  for (const [k, v] of Object.entries(GIVEAWAY_SAMPLE)) out = out.split(k).join(v);
+  out = out.replace(GIVEAWAY_QUESTION_RE, "");
+  out = out.replace(/\n[ \t]*\n[ \t]*(?:\n[ \t]*)+/g, "\n\n").replace(/^\n+|\n+$/g, "");
+  return out;
+}
+
+// Transform the design into how it looks after ending: tokens filled with sample
+// winner values, questions stripped, the Counter button disabled, and a Reroll
+// button added — mirroring what the bot posts when a giveaway finishes.
+function endedGiveawayItems(items: V2Item[]): V2Item[] {
+  const t = (it: any): any => {
+    if (!it || typeof it !== "object") return it;
+    const c: any = { ...it };
+    if (typeof c.text === "string") c.text = fillGiveawaySample(c.text);
+    if (typeof c.title === "string") c.title = fillGiveawaySample(c.title);
+    if (Array.isArray(c.children)) c.children = c.children.map(t);
+    if (Array.isArray(c.buttons)) {
+      const btns: any[] = [];
+      let hadCounter = false;
+      for (const b of c.buttons) {
+        if (b && "counter" in b) {
+          hadCounter = true;
+          btns.push({ id: b.id, label: fillGiveawaySample(b.label) || "Enter", disabled: true, style: "secondary" });
+        } else {
+          btns.push({ ...b, label: typeof b.label === "string" ? fillGiveawaySample(b.label) : b.label });
+        }
+      }
+      if (hadCounter) btns.push({ id: uid(), label: "Reroll", disabled: true, style: "secondary" });
+      c.buttons = btns;
+    }
+    return c;
+  };
+  return items.map(t);
+}
+
 function PreviewItem({ item }: { item: V2Item }) {
   if (item.type === "text") {
     return <PreviewMarkdown text={item.text} />;
