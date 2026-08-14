@@ -227,6 +227,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isInviteMessage = addonId === "invite-message";
   const isCustomsCredits = addonId === "customs-credits";
   const isCustomsGiveaway = addonId === "customs-giveaway";
+  const isCustomsRobuxLocker = addonId === "customs-robux-locker";
   const isCustomsTickets = addonId === "customs-tickets";
   const isCustomsVerification = addonId === "customs-verification";
   const config = getAddonConfig(addonId);
@@ -249,6 +250,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const verifyPanelV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [verifyPanelV2Items, setVerifyPanelV2Items] = useState<V2Item[]>([]);
   const [verifyPanelV2MountKey, setVerifyPanelV2MountKey] = useState(0);
+  // Customs "Robux Locker" — the V2 builder for the Robux Locker panel message.
+  const robuxLockerV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [robuxLockerV2Items, setRobuxLockerV2Items] = useState<V2Item[]>([]);
+  const [robuxLockerV2MountKey, setRobuxLockerV2MountKey] = useState(0);
   // Customs "Giveaway" — two designs: the running layout and the ended (winner)
   // layout. A tab switches which one you edit; both are saved together.
   const [giveawayTab, setGiveawayTab] = useState<"running" | "ended">("running");
@@ -1242,6 +1247,56 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Verification saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: robux locker ----------
+  useEffect(() => {
+    if (!isCustomsRobuxLocker || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-robux-locker")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        channel_id: cfg.channel_id ? String(cfg.channel_id) : "",
+      }));
+      setRobuxLockerV2Items(Array.isArray(cfg.components) ? (cfg.components as V2Item[]) : []);
+      setRobuxLockerV2MountKey((k) => k + 1);
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsRobuxLocker, open, botId]);
+
+  const saveCustomsRobuxLocker = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    if (!values.channel_id) return toast.error("Pick a channel to post the panel in.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-robux-locker",
+      config: {
+        channel_id: String(values.channel_id),
+        components: normalizeV2Items(robuxLockerV2Ref.current?.getItems() ?? robuxLockerV2Items ?? []),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-robux-locker",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Robux Locker saved & applied");
     setOpen(false);
   };
 
@@ -3402,7 +3457,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -3736,6 +3791,30 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 </div>
               </div>
             </div>
+          ) : isCustomsRobuxLocker ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Robux Locker panel</p>
+                <p className="text-xs text-muted-foreground">
+                  Design the panel members see, using the same builder as Messages. It posts to the
+                  channel above when you Save. (Buy buttons come next — this is the panel design.)
+                </p>
+                <MessagesV2Builder
+                  key={`customs-robux-locker-v2-${robuxLockerV2MountKey}`}
+                  ref={robuxLockerV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={robuxLockerV2Items}
+                />
+              </div>
+            </div>
           ) : isInviteMessage || isCustomsMessages || isCustomsVerification ? (
             <div className="space-y-5 py-2">
               {config.fields
@@ -4043,6 +4122,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsCredits();
                   } else if (isCustomsGiveaway) {
                     void saveCustomsGiveaway();
+                  } else if (isCustomsRobuxLocker) {
+                    void saveCustomsRobuxLocker();
                   } else if (isCustomsVerification) {
                     void saveCustomsVerification();
                   } else if (isCustomsTickets) {
