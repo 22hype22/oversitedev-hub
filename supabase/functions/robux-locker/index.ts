@@ -1,11 +1,13 @@
 // Robux Locker backend for the Discord bot.
 //
-// Body: { action: "funds" | "get_stock" | "set_stock" | "add_stock" | "take_stock", amount?: number }
+// Body: { action: "funds"|"get_stock"|"set_stock"|"add_stock"|"take_stock"|"get_rate"|"set_rate", amount?: number }
 //   - funds:       read the group's available Robux balance        -> { robux }
 //   - get_stock:   current Available Stock for this bot            -> { stock }
 //   - set_stock:   set Available Stock to `amount`                 -> { stock }
 //   - add_stock:   add `amount` to Available Stock (restock)       -> { stock }
 //   - take_stock:  atomically remove `amount` if available (a buy) -> { ok, stock } | { ok:false }
+//   - get_rate:    USD price per 1,000 Robux                       -> { rate_per_1k }
+//   - set_rate:    set USD-per-1,000-Robux to `amount` (fractional)-> { rate_per_1k }
 //
 // Auth: bot worker token (x-worker-token: wkr_...), validated via _worker_token_lookup,
 // which also tells us WHICH bot this is so stock is scoped per bot.
@@ -128,25 +130,50 @@ async function groupFunds(): Promise<number> {
   return Math.max(0, Math.floor(Number(data?.robux ?? 0)));
 }
 
-// ---------------- stock (bot_config feature "robux-stock") ----------------
+// ---------------- stock + rate (bot_config feature "robux-stock") ----------------
+//
+// One row per bot holds { stock, rate_per_1k }. Reads/writes MERGE so setting
+// the stock never wipes the rate, and setting the rate never wipes the stock.
 
-async function getStock(botId: string): Promise<number> {
+async function readConfig(botId: string): Promise<Record<string, unknown>> {
   const { data } = await admin
     .from("bot_config")
     .select("config")
     .eq("bot_id", botId)
     .eq("feature", STOCK_FEATURE)
     .maybeSingle();
-  const cfg = (data?.config ?? {}) as Record<string, unknown>;
+  return (data?.config ?? {}) as Record<string, unknown>;
+}
+
+async function writeConfig(botId: string, patch: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const cur = await readConfig(botId);
+  const next = { ...cur, ...patch };
+  await admin.from("bot_config").upsert(
+    { bot_id: botId, feature: STOCK_FEATURE, config: next, updated_at: new Date().toISOString() },
+    { onConflict: "bot_id,feature" },
+  );
+  return next;
+}
+
+async function getStock(botId: string): Promise<number> {
+  const cfg = await readConfig(botId);
   return Math.max(0, Math.floor(Number(cfg.stock ?? 0)));
 }
 
 async function setStock(botId: string, stock: number): Promise<number> {
   const next = Math.max(0, Math.floor(stock));
-  await admin.from("bot_config").upsert(
-    { bot_id: botId, feature: STOCK_FEATURE, config: { stock: next }, updated_at: new Date().toISOString() },
-    { onConflict: "bot_id,feature" },
-  );
+  await writeConfig(botId, { stock: next });
+  return next;
+}
+
+async function getRate(botId: string): Promise<number> {
+  const cfg = await readConfig(botId);
+  return Math.max(0, Number(cfg.rate_per_1k ?? 0));
+}
+
+async function setRate(botId: string, rate: number): Promise<number> {
+  const next = Math.max(0, Number(rate));
+  await writeConfig(botId, { rate_per_1k: next });
   return next;
 }
 
@@ -175,6 +202,14 @@ Deno.serve(async (req) => {
     if (action === "add_stock") {
       const cur = await getStock(botId);
       return json({ ok: true, stock: await setStock(botId, cur + amount) });
+    }
+    if (action === "get_rate") {
+      return json({ ok: true, rate_per_1k: await getRate(botId) });
+    }
+    if (action === "set_rate") {
+      // `amount` here carries the USD-per-1000-Robux rate (may be fractional).
+      const rate = Math.max(0, Number(body.amount ?? 0));
+      return json({ ok: true, rate_per_1k: await setRate(botId, rate) });
     }
     if (action === "take_stock") {
       // Atomic-enough for a single-process bot: read, check, write. First come
