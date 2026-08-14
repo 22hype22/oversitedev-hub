@@ -1560,6 +1560,9 @@ const BotDashboard = () => {
   );
   const [botId, setBotId] = useState<string | null>(() => restoredPosition(LS.bot) || null);
   const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
+  // Bots the user just cancelled — hidden from the dashboard instantly while the
+  // teardown completes (rolled back if the cancel actually fails).
+  const [cancelledIds, setCancelledIds] = useState<Set<string>>(() => new Set());
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
 
   // The currently-rendered dashboard order (subset of dashOrder that has a
@@ -1704,7 +1707,7 @@ const BotDashboard = () => {
     setOrder([...saved.filter((id) => ids.includes(id)), ...ids.filter((id) => !saved.includes(id))]);
   }, [idsKey]);
   useEffect(() => { if (order.length) lsSet(LS.order, JSON.stringify(order)); }, [order]);
-  const byId = useMemo(() => { const m: Record<string, OwnedBot> = {}; dashboardBots.forEach((b) => { m[b.id] = b; }); return m; }, [dashboardBots]);
+  const byId = useMemo(() => { const m: Record<string, OwnedBot> = {}; dashboardBots.forEach((b) => { if (!cancelledIds.has(b.id)) m[b.id] = b; }); return m; }, [dashboardBots, cancelledIds]);
   // Optimistic engine switch — reflect V1/V2 across the toggle AND the message
   // builder instantly, clearing once the reloaded bot data catches up. Declared
   // here (above the conditional returns below) to keep hook order stable.
@@ -1842,15 +1845,29 @@ const BotDashboard = () => {
   const cancelOrder = (bot: OwnedBot) => {
     if (!user) return;
     setCancelTarget(null);
-    const work = (supabase as any)
-      .from("bot_orders")
-      .update({ status: "cancelled" })
-      .eq("id", bot.id)
-      .eq("user_id", user.id)
-      .then(({ error }: { error: { message: string } | null }) => {
-        if (error) throw new Error(error.message);
-        reload();
-      });
+    // Remove it from the dashboard IMMEDIATELY (optimistic) and leave its page.
+    setCancelledIds((s) => { const n = new Set(s); n.add(bot.id); return n; });
+    if (botId === bot.id) setBotId(null);
+    // Tear down the deployment AND cancel the order server-side: cancel-bot-deploy
+    // runs with the service role, so it kills the Railway service (or detaches a
+    // self-hosted bot) AND flips status to 'cancelled' even when a direct client
+    // UPDATE is blocked by RLS. The direct update is a harmless fallback.
+    const work = (async () => {
+      const { error: fnErr } = await supabase.functions.invoke("cancel-bot-deploy", { body: { orderId: bot.id } });
+      if (fnErr) {
+        const { error: upErr } = await (supabase as any)
+          .from("bot_orders")
+          .update({ status: "cancelled" })
+          .eq("id", bot.id)
+          .eq("user_id", user.id);
+        if (upErr) throw new Error(upErr.message);
+      }
+      reload();
+    })();
+    // If it truly failed, roll back the optimistic removal so the bot reappears.
+    work.catch(() => {
+      setCancelledIds((s) => { const n = new Set(s); n.delete(bot.id); return n; });
+    });
     toast.promise(work, {
       loading: `Cancelling "${bot.bot_name}"…`,
       success: `Cancelled "${bot.bot_name}"`,
