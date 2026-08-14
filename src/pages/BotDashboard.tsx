@@ -48,11 +48,11 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
 import { getAddonLabel } from "@/lib/botCatalog";
-import { SayCommandBuilder, type SayCommandBuilderHandle } from "./SayCommandBuilder";
-import { MessagesV2Builder, normalizeV2Items, type MessagesV2BuilderHandle, type V2Item } from "./MessagesV2Builder";
-import { TicketPanelBuilder, type TicketPanelBuilderHandle } from "./TicketPanelBuilder";
-import { TicketEditor, type TicketEditorHandle } from "./TicketEditor";
-import { PostTypesManager } from "./PostTypesManager";
+import { SayCommandBuilder, type SayCommandBuilderHandle } from "@/components/dashboard/SayCommandBuilder";
+import { MessagesV2Builder, normalizeV2Items, type MessagesV2BuilderHandle, type V2Item } from "@/components/dashboard/MessagesV2Builder";
+import { TicketPanelBuilder, type TicketPanelBuilderHandle } from "@/components/dashboard/TicketPanelBuilder";
+import { TicketEditor, type TicketEditorHandle } from "@/components/dashboard/TicketEditor";
+import { PostTypesManager } from "@/components/dashboard/PostTypesManager";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildChannels";
 import { useBotRoles } from "@/hooks/useBotRoles";
@@ -125,9 +125,9 @@ const hasCounterButton = (items: any[]): boolean =>
 const withGiveawayEnter = (items: V2Item[]): V2Item[] =>
   hasCounterButton(items) ? items : [...items, giveawayEnterRow()];
 import { supabase } from "@/integrations/supabase/client";
-import { RoleMultiSelect } from "./RoleMultiSelect";
+import { RoleMultiSelect } from "@/components/dashboard/RoleMultiSelect";
 import { useTeamRole } from "@/hooks/useTeamRole";
-import { useBotScope } from "./ReadOnlyBotScope";
+import { useBotScope } from "@/components/dashboard/ReadOnlyBotScope";
 
 const CHANNEL_ICON: Record<string, typeof Hash> = {
   text: Hash,
