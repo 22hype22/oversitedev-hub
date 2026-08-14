@@ -834,6 +834,15 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "customs-robux-locker": {
+    title: "Robux Locker",
+    summary: "Design the Robux Locker panel where members buy Robux.",
+    icon: Lock,
+    fields: [
+      channel("channel_id", "Panel channel", "Where the Robux Locker panel is posted. Design it below; it posts here on Save."),
+    ],
+  },
+
   "customs-tickets": {
     title: "Tickets",
     summary: "Support ticket categories, staff roles, and transcript logging.",
