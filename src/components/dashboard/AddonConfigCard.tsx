@@ -3969,9 +3969,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 <p className="text-xs text-muted-foreground">
                   Design how the pricing looks when a member runs{" "}
                   <code className="font-mono">/pricing</code> and picks a service — it posts publicly.
-                  Put <code className="font-mono text-os-accent">{"{pricing}"}</code> where the price list
-                  should go, and <code className="font-mono text-os-accent">{"{service}"}</code> for the
-                  service's name. The service picker is added automatically.
+                  Put <code className="font-mono text-os-accent">{"{pricing}"}</code> where the list goes,
+                  and <code className="font-mono text-os-accent">{"{service}"}</code> for the service name.
+                  {" "}<code className="font-mono text-os-accent">{"{pricing}"}</code> expands to each designer's
+                  @mention followed by their prices, ordered by who joined the server first (prices are set
+                  per-designer with <code className="font-mono">/setpricing</code>). The service picker is added automatically.
                 </p>
                 <MessagesV2Builder
                   key={`customs-pricing-v2-${pricingV2MountKey}`}
