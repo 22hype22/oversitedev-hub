@@ -843,6 +843,15 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "customs-portfolio": {
+    title: "Portfolio",
+    summary: "Design a post below; run /portfolio to send it to the chosen channel.",
+    icon: FileText,
+    fields: [
+      channel("channel_id", "Post channel", "Where /portfolio posts the design below."),
+    ],
+  },
+
   "customs-order-status": {
     title: "Order Status",
     summary: "Live open/limited/closed status per service, based on how many order tickets are open.",
