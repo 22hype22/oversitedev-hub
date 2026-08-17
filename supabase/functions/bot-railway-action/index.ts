@@ -187,19 +187,26 @@ Deno.serve(async (req) => {
       .single();
 
     try {
-      if (action === "restart" || action === "redeploy") {
-        await admin
-          .from("bot_runtime_status")
-          .upsert(
-            {
-              bot_id: botId,
-              user_id: bot.user_id,
-              status: "restarting",
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "bot_id" },
-          );
-      }
+      // Optimistic status so the dashboard flips the moment the button is
+      // clicked (realtime picks up this upsert). bot-status-sync then walks
+      // it to the real terminal state from Railway's deployment status.
+      const optimistic: Record<Action, string> = {
+        stop: "stopping",
+        start: "starting",
+        restart: "restarting",
+        redeploy: "updating",
+      };
+      await admin
+        .from("bot_runtime_status")
+        .upsert(
+          {
+            bot_id: botId,
+            user_id: bot.user_id,
+            status: optimistic[action],
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "bot_id" },
+        );
       await performAction(bot.railway_service_id, action);
       if (audit) {
         await admin

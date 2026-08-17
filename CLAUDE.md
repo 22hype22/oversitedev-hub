@@ -24,25 +24,6 @@ Guidance for AI agents (Claude Code, Cursor, etc.) working in this repo.
 
 See [`worker/CLAUDE.md`](./worker/CLAUDE.md).
 
-## Design (any UI work)
-
-When asked to design, restyle, or "make it look better," apply Claude's
-`frontend-design` guidance and Impeccable's rules — do not ship default AI-looking
-UI. Concretely:
-
-- **Avoid the AI tells:** Inter-for-everything, purple/blue gradients, glassmorphism,
-  cards nested in cards, gray text on colored backgrounds, sparkline/metric-hero
-  clichés, and the rounded-square icon tile stacked above every heading.
-- **Match the existing system first.** This app has a real dark design language —
-  `os-*` tokens + accent `#C9DBE6`, the `BotManagePanel` eyebrow/hairline treatment,
-  the `.botsec` section shell. Reuse it; never introduce a new look that fights it.
-- **Every element earns its place.** No decorative buttons that just repeat a title,
-  no ornament without function. Deliberate typography, hierarchy, and spacing.
-- **Show a preview first** for non-trivial redesigns (a self-contained HTML artifact
-  in the real theme), let the user pick, then build it in.
-- Respect the dashboard hard rule above: colors via semantic tokens, no raw
-  `text-white`; keep new hex confined to the established `os-*` / accent palette.
-
 ## Where things live
 
 - `src/pages/` — top-level routes

@@ -171,18 +171,17 @@ const BASES: Base[] = [
     ],
   },
   {
-    id: "customs",
-    name: "Oversite Customs",
-    tagline: "Tickets, messaging, credits, and join logs — all dashboard-driven.",
-    icon: Palette,
-    price: 99,
-    oldPrice: 149,
+    id: "dispatch",
+    name: "Oversite Dispatch",
+    tagline: "AI voice dispatcher for ER:LC — reads 911 calls and talks back.",
+    icon: Megaphone,
+    price: 19.99,
     included: [
-      "Ticket system with transcripts",
-      "Components V2 message builder",
-      "Join logs with welcome cards",
-      "Credits system (give / remove / track)",
-      "Live member-count status",
+      "Reads live 911 calls aloud in a real dispatcher voice",
+      "Two-way voice — officers talk to dispatch and get answers",
+      "Nearest-unit dispatch from live in-game positions",
+      "Automatic officer-down and pursuit alerts",
+      "Region-accurate radio codes and phonetics",
     ],
   },
 ];
@@ -235,7 +234,7 @@ const ADDONS_BY_BASE: Record<string, Addon[]> = {
     { id: "staff-notes", name: "Staff Notes on Users", desc: "Private notes staff can attach to any member.", icon: ClipboardList, price: 1.99 },
   ],
   scratch: [],
-  customs: [],
+  dispatch: [],
 };
 
 const getAddonsForBase = (baseId: string): Addon[] => {
@@ -247,6 +246,7 @@ const getAddonsForBase = (baseId: string): Addon[] => {
       ...SHARED_ADDONS,
     ];
   }
+  if (baseId === "dispatch") return [];
   return [...(ADDONS_BY_BASE[baseId] ?? []), ...SHARED_ADDONS];
 };
 
@@ -378,12 +378,7 @@ export const BotBuilder = () => {
   // Which tabs to show in the identity step
   const visibleIdentityTabs = useMemo(() => {
     if (isPack) return PACK_TABS;
-    return bases.map((id) => {
-      const known = PACK_TABS.find((t) => t.id === id);
-      if (known) return known;
-      const b = BASES.find((x) => x.id === id);
-      return { id, label: `${b?.name ?? id} bot`, icon: b?.icon ?? Bot };
-    });
+    return PACK_TABS.filter((t) => bases.includes(t.id));
   }, [isPack, bases]);
 
   // Keep the active pack tab valid as `bases` changes
@@ -444,14 +439,14 @@ export const BotBuilder = () => {
     });
   }, [currentAddons, addonIsIncluded, userSelectedAddons]);
 
-  const activeIdentity: Identity = usesPackTabs ? (packIdentities[effectiveActiveTab] ?? EMPTY_IDENTITY) : identity;
+  const activeIdentity: Identity = usesPackTabs ? packIdentities[effectiveActiveTab] : identity;
   const { name, description, bio, icon, banner } = activeIdentity;
 
   const updateActiveIdentity = (patch: Partial<Identity>) => {
     if (usesPackTabs) {
       setPackIdentities((prev) => ({
         ...prev,
-        [effectiveActiveTab]: { ...EMPTY_IDENTITY, ...prev[effectiveActiveTab], ...patch },
+        [effectiveActiveTab]: { ...prev[effectiveActiveTab], ...patch },
       }));
     } else {
       setIdentity((prev) => ({ ...prev, ...patch }));
@@ -519,9 +514,14 @@ export const BotBuilder = () => {
       setActivePackTab("protection");
       return;
     }
+    if (id === "dispatch") {
+      // Dispatch is a standalone product — never mixed with the mod bots.
+      setBases(["dispatch"]);
+      return;
+    }
     setBases((prev) => {
       // If pack is currently selected, replace with this single
-      if (prev.includes("scratch")) {
+      if (prev.includes("scratch") || prev.includes("dispatch")) {
         setActivePackTab(id);
         return [id];
       }
@@ -1006,12 +1006,12 @@ export const BotBuilder = () => {
               {(() => {
                 // First selected single bot keeps full price; any other single bot
                 // (whether already selected or available) shows the $50 add-on price.
-                const firstSingle = bases.find((id) => id !== "scratch");
-                return BASES.filter((b) => b.id !== "customs").map((b) => {
+                const firstSingle = bases.find((id) => id !== "scratch" && id !== "dispatch");
+                return BASES.map((b) => {
                 const Icon = b.icon;
                 const active = bases.includes(b.id);
                 const isDiscountedSecond =
-                  b.id !== "scratch" && !!firstSingle && b.id !== firstSingle;
+                  b.id !== "scratch" && b.id !== "dispatch" && !!firstSingle && b.id !== firstSingle;
                 const displayPrice = isDiscountedSecond ? 50 : b.price;
                 const displayOldPrice = isDiscountedSecond ? b.price : b.oldPrice;
                 return (
@@ -1106,66 +1106,6 @@ export const BotBuilder = () => {
                   </span>
                 </div>
               </div>
-              {/* Oversite Customs — buyable base */}
-              {(() => {
-                const b = BASES.find((x) => x.id === "customs");
-                if (!b) return null;
-                const Icon = b.icon;
-                const active = bases.includes("customs");
-                const firstSingle = bases.find((id) => id !== "scratch");
-                const isDiscountedSecond = !!firstSingle && firstSingle !== "customs";
-                const displayPrice = isDiscountedSecond ? 50 : b.price;
-                const displayOldPrice = isDiscountedSecond ? b.price : b.oldPrice;
-                return (
-                  <button
-                    type="button"
-                    onClick={() => toggleBase("customs")}
-                    className={`group text-left rounded-xl border p-4 transition-smooth ${
-                      active
-                        ? "border-primary bg-primary/10 shadow-glow"
-                        : "border-border/60 bg-background/40 hover:border-primary/50"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <Icon
-                          size={18}
-                          className={`transition-smooth ${active ? "text-primary" : "text-muted-foreground"}`}
-                        />
-                        <span className="font-semibold">{b.name}</span>
-                      </div>
-                      {active && <Check size={16} className="text-primary" />}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                      {b.tagline}
-                    </p>
-                    <ul className="mt-3 space-y-1">
-                      {b.included.map((feat) => (
-                        <li key={feat} className="flex items-start gap-1.5 text-[11px] text-foreground/75 leading-snug">
-                          <Check size={11} className={`mt-0.5 shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} />
-                          <span>{feat}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="mt-3 flex items-center gap-2 flex-wrap text-xs text-foreground/80">
-                      <span>one-time</span>
-                      {displayOldPrice && (
-                        <span className="text-muted-foreground line-through">${displayOldPrice}</span>
-                      )}
-                      <span className="font-semibold">${displayPrice}</span>
-                      {isDiscountedSecond ? (
-                        <span className="px-1.5 py-0.5 rounded-full bg-primary/15 border border-primary/30 text-primary text-[10px] font-semibold uppercase tracking-wide">
-                          Add for $50
-                        </span>
-                      ) : b.oldPrice && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-primary/15 border border-primary/30 text-primary text-[10px] font-semibold uppercase tracking-wide">
-                          {salesLive ? "Sale" : "Preorder sale"}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })()}
             </div>
           </div>
 

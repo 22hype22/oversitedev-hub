@@ -15,7 +15,9 @@ import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -982,32 +984,38 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
           <p className="text-xs text-muted-foreground">
             Where transcripts and event logs are posted when tickets are opened, claimed, or closed.
           </p>
-          <label className="relative block">
-            <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <select
-              value={logChannelId}
-              onChange={(e) => setLogChannelId(e.target.value)}
-              disabled={!guild?.guild_id || textChannels.length === 0}
-              className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="">
-                {!guild?.guild_id
-                  ? "Select a server first"
-                  : textChannels.length === 0
-                    ? "No channels cached — refresh from the panel picker"
-                    : "Select a log channel…"}
-              </option>
+          <Select
+            value={logChannelId}
+            onValueChange={setLogChannelId}
+            disabled={!guild?.guild_id || textChannels.length === 0}
+          >
+            <SelectTrigger>
+              <div className="flex min-w-0 items-center gap-2">
+                <Hash className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
+                <SelectValue
+                  placeholder={
+                    !guild?.guild_id
+                      ? "Select a server first"
+                      : textChannels.length === 0
+                        ? "No channels cached — refresh from the panel picker"
+                        : "Select a log channel…"
+                  }
+                />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
               {channelGroups.map((group) => (
-                <optgroup key={group.key} label={group.label}>
+                <SelectGroup key={group.key}>
+                  <SelectLabel>{group.label}</SelectLabel>
                   {group.channels.map((c) => (
-                    <option key={c.channel_id} value={c.channel_id}>
+                    <SelectItem key={c.channel_id} value={c.channel_id}>
                       {c.channel_name}
-                    </option>
+                    </SelectItem>
                   ))}
-                </optgroup>
+                </SelectGroup>
               ))}
-            </select>
-          </label>
+            </SelectContent>
+          </Select>
         </div>
       )}
 

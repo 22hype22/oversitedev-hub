@@ -184,6 +184,29 @@ Deno.serve(async (req) => {
       };
       if (body.guilds !== undefined) upsertData.guilds = body.guilds;
 
+      // During a zero-downtime redeploy the OLD container keeps heartbeating
+      // "online" while the new one builds — don't let that wipe out a fresh
+      // dashboard-driven transition (Restarting…/Redeploying…/Stopping…).
+      // bot-status-sync moves the label to its real end state from Railway.
+      const TRANSITIONAL = new Set(["stopping", "starting", "restarting", "updating"]);
+      const TRANSITION_HOLD_MS = 3 * 60_000;
+      if (status === "online") {
+        const { data: existing } = await admin
+          .from("bot_runtime_status")
+          .select("status, updated_at")
+          .eq("bot_id", botId)
+          .maybeSingle();
+        if (
+          existing &&
+          TRANSITIONAL.has(existing.status) &&
+          existing.updated_at &&
+          Date.now() - new Date(existing.updated_at).getTime() < TRANSITION_HOLD_MS
+        ) {
+          upsertData.status = existing.status;
+          delete upsertData.updated_at; // preserve the transition's start time
+        }
+      }
+
       const { error: upsertError } = await admin
         .from("bot_runtime_status")
         .upsert(upsertData, { onConflict: "bot_id" });
@@ -197,6 +220,121 @@ Deno.serve(async (req) => {
         console.warn("[utilities-bot-api] auto identity failed", botId, err);
       });
 
+      return json(200, { ok: true });
+    }
+
+    // POST /log { bot_id, level, message, context? }
+    //          or { bot_id, entries: [{ level, message, context?, created_at? }] }
+    // Feeds the dashboard's live Logs panel (bot_logs table, 7-day retention).
+    // Batching is preferred — ship every few seconds, not per-line.
+    if (req.method === "POST" && path.startsWith("/log")) {
+      const body = await req.json().catch(() => ({} as any));
+      const botId = String(body.bot_id || "");
+      if (!botId) return json(400, { error: "bot_id required" });
+
+      const { data: order, error: orderError } = await admin
+        .from("bot_orders")
+        .select("user_id")
+        .eq("id", botId)
+        .single();
+      if (orderError || !order) return json(404, { error: "Bot order not found" });
+
+      const LEVELS = new Set(["debug", "info", "warn", "error"]);
+      const raw = Array.isArray(body.entries)
+        ? body.entries
+        : [{ level: body.level, message: body.message, context: body.context }];
+      const rows = raw
+        .slice(0, 100)
+        .filter((e: any) => e && typeof e.message === "string" && e.message.trim())
+        .map((e: any) => ({
+          bot_id: botId,
+          user_id: order.user_id,
+          level: LEVELS.has(String(e.level ?? "").toLowerCase())
+            ? String(e.level).toLowerCase()
+            : "info",
+          message: String(e.message).slice(0, 2000),
+          context: e.context ?? null,
+          ...(e.created_at ? { created_at: e.created_at } : {}),
+        }));
+      if (rows.length === 0) return json(400, { error: "message (or entries[]) required" });
+
+      const { error: insErr } = await admin.from("bot_logs").insert(rows);
+      if (insErr) return json(500, { error: insErr.message });
+      return json(200, { ok: true, inserted: rows.length });
+    }
+
+    // GET /order-check?bot_id=... — bot-side self-check.
+    // Answers whether this order is still active plus the server-count
+    // policy. Intended for the bot-side guards: on boot (active=false →
+    // leave all guilds and shut down) and on_guild_join (over the limit →
+    // leave the new guild). Per-guild identity authorization would need an
+    // owner-managed allowlist, which doesn't exist yet.
+    if (req.method === "GET" && path.startsWith("/order-check")) {
+      const botId = url.searchParams.get("bot_id") || "";
+      if (!botId) return json(400, { error: "bot_id required" });
+      const { data: order, error: ocErr } = await admin
+        .from("bot_orders")
+        .select("id, status, deployment_status")
+        .eq("id", botId)
+        .maybeSingle();
+      if (ocErr) return json(500, { error: ocErr.message });
+      if (!order) return json(200, { ok: true, active: false, reason: "order_not_found" });
+      const active = !["cancelled", "cancel", "refunded", "expired"].includes(
+        String(order.status),
+      );
+      let serverLimit: unknown = null;
+      try {
+        const { data: lim } = await admin.rpc("get_bot_server_limit", { _bot_id: botId });
+        serverLimit = lim ?? null;
+      } catch (_) {
+        /* limit info is best-effort */
+      }
+      return json(200, { ok: true, active, status: order.status, server_limit: serverLimit });
+    }
+
+    // POST /guild-join { bot_id, guild_id, guild_name?, member_count? }
+    // Registers a server the bot just joined — same path the Node worker
+    // uses: records it in authorized_guilds and enforces the owner's
+    // server-slot limit. The { allowed } answer tells the bot whether it
+    // may stay in the server.
+    if (req.method === "POST" && path.startsWith("/guild-join")) {
+      const body = await req.json().catch(() => ({} as any));
+      const botId = String(body.bot_id || "");
+      const guildId = String(body.guild_id || "");
+      if (!botId) return json(400, { error: "bot_id required" });
+      if (!guildId) return json(400, { error: "guild_id required" });
+      const { token: workerToken } = getWorkerToken(req);
+      const { data, error } = await admin.rpc("runtime_upsert_bot_guild", {
+        _token: workerToken,
+        _bot_id: botId,
+        _guild_id: guildId,
+        _guild_name: body.guild_name != null ? String(body.guild_name) : null,
+        _member_count: body.member_count != null ? Number(body.member_count) : null,
+      });
+      if (error) return json(500, { error: error.message });
+      const r = data as { allowed?: boolean; limit?: number; current?: number } | null;
+      return json(200, {
+        ok: true,
+        allowed: r?.allowed ?? true,
+        limit: r?.limit ?? null,
+        current: r?.current ?? null,
+      });
+    }
+
+    // POST /guild-leave { bot_id, guild_id } — bot left/was kicked; frees the slot.
+    if (req.method === "POST" && path.startsWith("/guild-leave")) {
+      const body = await req.json().catch(() => ({} as any));
+      const botId = String(body.bot_id || "");
+      const guildId = String(body.guild_id || "");
+      if (!botId) return json(400, { error: "bot_id required" });
+      if (!guildId) return json(400, { error: "guild_id required" });
+      const { token: workerToken } = getWorkerToken(req);
+      const { error } = await admin.rpc("runtime_remove_bot_guild", {
+        _token: workerToken,
+        _bot_id: botId,
+        _guild_id: guildId,
+      });
+      if (error) return json(500, { error: error.message });
       return json(200, { ok: true });
     }
 
@@ -415,7 +553,7 @@ Deno.serve(async (req) => {
 
       const claimed =
         (await claimCommand(["list_roles", "list_channels"])) ??
-        (await claimCommand(["post_message", "send_channel_message", "apply_config", "list_guilds", "start_giveaway", "setup_stats", "set_status"]));
+        (await claimCommand(["post_message", "send_channel_message", "apply_config", "list_guilds", "start_giveaway", "setup_stats", "set_status", "roblox_apply"]));
 
       return json(200, { command: claimed });
     }

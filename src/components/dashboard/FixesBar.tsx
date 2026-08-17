@@ -1,15 +1,5 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Info,
-  Wrench,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
 
 type Fix = {
   id: string;
@@ -20,39 +10,35 @@ type Fix = {
   created_at: string;
 };
 
-const SEVERITY_META: Record<
-  string,
-  { label: string; icon: typeof Info; className: string }
-> = {
-  info: {
-    label: "Info",
-    icon: Info,
-    className: "bg-primary/10 text-primary border-primary/30",
-  },
-  fix: {
-    label: "Fix",
-    icon: Wrench,
-    className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
-  },
-  resolved: {
-    label: "Resolved",
-    icon: CheckCircle2,
-    className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
-  },
-  warning: {
-    label: "Heads up",
-    icon: AlertCircle,
-    className: "bg-amber-500/10 text-amber-400 border-amber-500/30",
-  },
+// Colors are inline (literal) because this renders inside the .osd dashboard
+// theme, not the Tailwind os- token scope.
+const META: Record<string, { color: string; tint: string }> = {
+  info: { color: "#C9DBE6", tint: "rgba(201,219,230,.12)" },
+  note: { color: "#C9DBE6", tint: "rgba(201,219,230,.12)" },
+  fix: { color: "#86d3a1", tint: "rgba(134,211,161,.12)" },
+  resolved: { color: "#86d3a1", tint: "rgba(134,211,161,.12)" },
+  warning: { color: "#e6c478", tint: "rgba(230,196,120,.14)" },
 };
+const getMeta = (s: string) => META[s] ?? META.info;
 
-const getMeta = (s: string) => SEVERITY_META[s] ?? SEVERITY_META.info;
+const HEADING = "#E8EEF3";
+const BODY = "#A8B4BF";
+const FAINT = "#788591";
+const DISMISS_KEY = "os_dismissed_fixes";
 
-/** Compact bar at the top of the bot dashboard listing recent fixes / notes
- *  posted by admins. Only shows when there's at least one active fix. */
+/** Flush full-width announcement bar pinned across the very top of the bot
+ *  dashboard. Shows the latest active note as a single line —
+ *  Title | Description on the left, date on the far right. Dismissible
+ *  (remembered per browser). Renders nothing when there are none. */
 export function FixesBar() {
   const [fixes, setFixes] = useState<Fix[] | null>(null);
-  const [expanded, setExpanded] = useState(false);
+  const [dismissed, setDismissed] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(DISMISS_KEY) || "[]");
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -62,85 +48,82 @@ export function FixesBar() {
         .select("id, title, body, severity, is_active, created_at")
         .eq("is_active", true)
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(1);
       if (cancelled) return;
-      if (error) {
-        setFixes([]);
-        return;
-      }
-      setFixes((data ?? []) as Fix[]);
+      setFixes(error ? [] : ((data ?? []) as Fix[]));
     })();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  if (!fixes || fixes.length === 0) return null;
+  if (!fixes) return null;
+  const note = fixes.find((f) => !dismissed.includes(f.id));
+  if (!note) return null;
 
-  const latest = fixes[0];
-  const rest = fixes.slice(1);
-  const LatestIcon = getMeta(latest.severity).icon;
+  const m = getMeta(note.severity);
+  const hasBody = !!note.body && note.body.trim().length > 0;
+  const date = new Date(note.created_at).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  const dismiss = () => {
+    const ids = Array.from(new Set([...dismissed, note.id]));
+    setDismissed(ids);
+    try {
+      localStorage.setItem(DISMISS_KEY, JSON.stringify(ids));
+    } catch {
+      /* ignore */
+    }
+  };
 
   return (
-    <Card className="p-3 mb-6 bg-card/40 border-border">
-      <button
-        type="button"
-        className="w-full flex items-center gap-3 text-left"
-        onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={dismiss}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          dismiss();
+        }
+      }}
+      title="Dismiss"
+      className="flex cursor-pointer items-center gap-3"
+      style={{
+        height: 46,
+        paddingLeft: 26,
+        paddingRight: 26,
+        background: "rgba(33,39,46,.96)",
+        borderBottom: "1px solid rgba(168,180,191,.14)",
+        boxShadow: `inset 3px 0 0 ${m.color}`,
+      }}
+    >
+      <span
+        className="shrink-0 text-sm font-semibold"
+        style={{ color: HEADING, lineHeight: 1 }}
       >
-        <Badge
-          variant="outline"
-          className={`text-xs gap-1 ${getMeta(latest.severity).className}`}
-        >
-          <LatestIcon className="h-3 w-3" />
-          {getMeta(latest.severity).label}
-        </Badge>
-        <span className="text-sm font-medium truncate flex-1">
-          {latest.title}
-        </span>
-        {rest.length > 0 && (
-          <span className="text-xs text-muted-foreground shrink-0">
-            +{rest.length} more
+        {note.title}
+      </span>
+      {hasBody && (
+        <>
+          <span className="shrink-0 text-sm" style={{ color: "rgba(168,180,191,.35)", lineHeight: 1 }}>
+            |
           </span>
-        )}
-        {expanded ? (
-          <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-        )}
-      </button>
-
-      {expanded && (
-        <div className="mt-3 pt-3 border-t border-border space-y-3">
-          {fixes.map((f) => {
-            const meta = getMeta(f.severity);
-            const Icon = meta.icon;
-            return (
-              <div key={f.id} className="flex items-start gap-3">
-                <Badge
-                  variant="outline"
-                  className={`text-xs gap-1 mt-0.5 shrink-0 ${meta.className}`}
-                >
-                  <Icon className="h-3 w-3" />
-                  {meta.label}
-                </Badge>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium">{f.title}</div>
-                  {f.body && (
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-0.5">
-                      {f.body}
-                    </p>
-                  )}
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {new Date(f.created_at).toLocaleString()}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+          <span className="min-w-0 flex-1 truncate text-sm" style={{ color: BODY, lineHeight: 1 }}>
+            {note.body}
+          </span>
+        </>
       )}
-    </Card>
+      {!hasBody && <span className="flex-1" />}
+      <span
+        className="shrink-0 text-xs"
+        style={{ color: FAINT, lineHeight: 1, fontFamily: '"Space Mono", monospace' }}
+      >
+        {date}
+      </span>
+    </div>
   );
 }

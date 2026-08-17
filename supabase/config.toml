@@ -1,4 +1,4 @@
-project_id = "prvqfjairnketwhmfshu"
+project_id = "kqhyjxtylvigrezlxzpl"
 
 [functions]
   [functions.auth-email-hook]
@@ -24,6 +24,12 @@ project_id = "prvqfjairnketwhmfshu"
   [functions.handle-email-unsubscribe]
     verify_jwt = false
   [functions.handle-email-suppression]
+    verify_jwt = false
+  [functions.bot-list-emojis]
+    verify_jwt = false
+  [functions.admin-link-bot]
+    verify_jwt = true
+  [functions.roblox-verify]
     verify_jwt = false
 
 # trigger function deploy

@@ -1,6 +1,25 @@
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import oversiteLogo from "@/assets/oversite-logo.png";
+import containers from "@/assets/containers.webp";
+
+// Self-contained "system page" shell (mountain backdrop + frosted slate glass
+// + icy accent). Inlined rather than shared so no extra file is required.
+const OSSYS_CSS = `
+.ossys{--os-heading:#E8EEF3;--os-body:#A8B4BF;--os-faint:#788591;--os-accent:#C9DBE6;--os-accent-ink:#1E242B;--os-hair:rgba(168,180,191,.16);position:relative;min-height:100vh;display:flex;flex-direction:column;overflow:hidden;color:var(--os-body);font-family:'Manrope',system-ui,-apple-system,sans-serif;background:radial-gradient(120% 80% at 50% 120%,rgba(201,219,230,.10),transparent 55%),linear-gradient(180deg,rgba(28,34,41,.58),rgba(20,25,31,.82)),var(--os-mtn,none) center 20%/cover no-repeat,#1e242b}
+.ossys-top{position:relative;z-index:2;padding:22px 26px}
+.ossys-top img{height:30px;width:auto;object-fit:contain}
+.ossys-mid{position:relative;z-index:2;flex:1;display:grid;place-items:center;padding:16px 16px 64px}
+.ossys-foot{position:relative;z-index:2;padding-bottom:22px;text-align:center;font-size:12px;color:var(--os-faint)}
+.ossys-card{width:100%;border:1px solid var(--os-hair);border-radius:20px;background:linear-gradient(180deg,rgba(46,54,63,.72),rgba(39,46,54,.8));-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:0 34px 90px -34px rgba(0,0,0,.8);padding:38px 34px;text-align:center}
+.ossys-card h1{color:var(--os-heading);font-weight:800;letter-spacing:-.01em;margin:0}
+.ossys-card p{color:var(--os-body)}
+.ossys-badge{margin:0 auto 22px;width:64px;height:64px;border-radius:18px;display:grid;place-items:center;border:1px solid var(--os-hair);background:rgba(201,219,230,.1);color:var(--os-accent)}
+.ossys-badge.ok{background:rgba(134,211,161,.12);border-color:rgba(134,211,161,.3);color:#86d3a1}
+.ossys-badge.bad{background:rgba(233,139,139,.12);border-color:rgba(233,139,139,.3);color:#e98b8b}
+`;
 
 declare global {
   interface Window {
@@ -109,24 +128,38 @@ const Verify = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, provider, siteKey]);
 
+  const badgeTone = status === "success" ? " ok" : status === "error" ? " bad" : "";
+
   return (
-    <main className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-card p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-foreground mb-2 text-center">
-          Server Verification
-        </h1>
-        <p className="text-sm text-muted-foreground mb-6 text-center">{message}</p>
-        {status !== "success" && status !== "error" && (
-          <div ref={containerRef} className="flex justify-center" />
-        )}
-        {status === "success" && (
-          <div className="text-center text-green-600 dark:text-green-400 font-medium">
-            ✓ Verified
+    <main className="ossys" style={{ ["--os-mtn" as any]: `url(${containers})` }}>
+      <style>{OSSYS_CSS}</style>
+      <div className="ossys-top">
+        <Link to="/" aria-label="Oversite — home">
+          <img src={oversiteLogo} alt="Oversite" />
+        </Link>
+      </div>
+      <div className="ossys-mid">
+        <div style={{ width: "100%", maxWidth: 460 }}>
+          <div className="ossys-card">
+            <div className={`ossys-badge${badgeTone}`}>
+              <ShieldCheck className="h-8 w-8" />
+            </div>
+            <h1 style={{ fontSize: 24, marginBottom: 8 }}>Server Verification</h1>
+            <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>{message}</p>
+            {status !== "success" && status !== "error" && (
+              <div ref={containerRef} className="flex justify-center" />
+            )}
+            {status === "success" && (
+              <div style={{ fontWeight: 600, color: "#86d3a1" }}>✓ Verified</div>
+            )}
+            {status === "error" && (
+              <div style={{ fontWeight: 600, color: "#e98b8b" }}>✗ {message}</div>
+            )}
           </div>
-        )}
-        {status === "error" && (
-          <div className="text-center text-destructive font-medium">✗ {message}</div>
-        )}
+        </div>
+      </div>
+      <div className="ossys-foot">
+        Protected by captcha · We never store personal data from this check
       </div>
     </main>
   );

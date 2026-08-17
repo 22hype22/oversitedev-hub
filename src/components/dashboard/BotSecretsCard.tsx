@@ -1,21 +1,114 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { KeyRound, Loader2, Check, Eye, Trash2, ShieldCheck, Lock } from "lucide-react";
+import { KeyRound, Loader2, Server, Radio, RefreshCw, Check, ChevronsUpDown } from "lucide-react";
 import type { OwnedBot } from "@/hooks/useOwnedBots";
+import { useTeamRole } from "@/hooks/useTeamRole";
+import {
+  useBotGuilds,
+  useBotChannels,
+  sortedChannelCategoryEntries,
+} from "@/hooks/useGuildChannels";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+
+// Self-contained styling in the dashboard's own design language (mirrors
+// BotManagePanel): eyebrow + trailing hairline sections, hairline borders,
+// tinted controls. Scoped under .oskeys so nothing leaks.
+const SECRETS_CSS = `
+.oskeys{
+  --line:rgba(255,255,255,.055); --line2:rgba(255,255,255,.09);
+  --heading:rgb(var(--os-heading)); --body:rgb(var(--os-body)); --faint:rgb(var(--os-faint));
+  --accent:rgb(var(--os-accent)); --surface:rgb(var(--os-surface));
+  --accentd:rgba(201,219,230,.10); --accentl:rgba(201,219,230,.28);
+  --ok:#84d6a0; --okd:rgba(132,214,160,.12); --okl:rgba(132,214,160,.30);
+  --warn:#e6c47c; --warnd:rgba(230,196,124,.12); --warnl:rgba(230,196,124,.30);
+  --bad:#e98b8b; --badd:rgba(233,139,139,.12);
+  --inp:rgba(15,18,22,.45);
+  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+.oskeys .panel{border:1px solid var(--line2);border-radius:14px;overflow:hidden;
+  background:linear-gradient(180deg,rgba(255,255,255,.02),transparent 22%),var(--surface)}
+.oskeys .phead{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 22px}
+.oskeys .pl{display:flex;align-items:flex-start;gap:12px}
+.oskeys .ic{width:34px;height:34px;border-radius:10px;flex:none;display:grid;place-items:center;
+  border:1px solid var(--accentl);background:var(--accentd);color:var(--accent)}
+.oskeys .ic svg{width:17px;height:17px}
+.oskeys .pt{font-size:14.5px;font-weight:700;color:var(--heading);letter-spacing:-.01em}
+.oskeys .ps{font-size:12px;color:var(--faint);margin-top:3px;line-height:1.5;max-width:46ch}
+.oskeys .chip{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  border-radius:999px;padding:4px 9px;white-space:nowrap;flex:none}
+.oskeys .chip.warn,.oskeys .chip.req{color:var(--warn);background:var(--warnd);border:1px solid var(--warnl)}
+.oskeys .chip.ok{color:var(--ok);background:var(--okd);border:1px solid var(--okl)}
+.oskeys .sec{padding:18px 22px;border-top:1px solid var(--line)}
+.oskeys .rgtrig{flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:var(--inp);border:1px solid var(--line2);border-radius:9px;padding:11px 13px;
+  color:var(--heading);font-size:13px;cursor:pointer;text-align:left}
+.oskeys .rgtrig:disabled{opacity:.6;cursor:default}
+.oskeys .rgtrig .rgph{color:var(--faint)}
+.oskeys .eyebrow{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.oskeys .eyebrow .lbl{font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--faint);white-space:nowrap}
+.oskeys .eyebrow .ln{flex:1;height:1px;background:var(--line2)}
+.oskeys .mono-key{font-family:var(--mono);font-size:10px;color:var(--faint);opacity:.85;margin-left:4px;
+  text-transform:none;letter-spacing:0;font-weight:600}
+.oskeys .ed{font-size:12px;color:var(--faint);line-height:1.55;margin-bottom:13px;max-width:56ch}
+.oskeys .inprow{display:flex;gap:10px;align-items:stretch}
+.oskeys .inp{flex:1;min-width:0;background:var(--inp);border:1px solid var(--line2);border-radius:9px;
+  padding:11px 13px;color:var(--heading);font-family:var(--mono);font-size:13px;outline:none;
+  transition:border-color .15s,box-shadow .15s}
+.oskeys .inp::placeholder{color:var(--faint);font-family:inherit}
+.oskeys .inp:focus{border-color:var(--accentl);box-shadow:0 0 0 3px var(--accentd)}
+.oskeys .save{flex:none;border:1px solid var(--accentl);background:var(--accentd);color:var(--accent);
+  border-radius:9px;padding:0 18px;font:inherit;font-weight:700;font-size:13px;cursor:pointer;
+  transition:background .15s,border-color .15s,transform .05s;display:inline-flex;align-items:center;gap:6px}
+.oskeys .save:hover:not(:disabled){background:rgba(201,219,230,.16);border-color:var(--accent);color:var(--heading)}
+.oskeys .save:disabled{opacity:.5;cursor:not-allowed}
+.oskeys .save:active:not(:disabled){transform:translateY(1px)}
+.oskeys .savedrow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.oskeys .dots{font-family:var(--mono);font-size:16px;letter-spacing:.28em;color:var(--faint);user-select:none}
+.oskeys .btns{display:flex;gap:8px;flex:none}
+.oskeys .mini{border:1px solid var(--line2);background:transparent;color:var(--body);border-radius:8px;
+  padding:7px 13px;font:inherit;font-weight:600;font-size:12px;cursor:pointer;
+  transition:color .15s,border-color .15s,background .15s;display:inline-flex;align-items:center;gap:6px}
+.oskeys .mini:hover:not(:disabled){color:var(--heading);border-color:var(--accentl)}
+.oskeys .mini.danger:hover:not(:disabled){color:var(--bad);border-color:rgba(233,139,139,.5);background:var(--badd)}
+.oskeys .mini:disabled{opacity:.5;cursor:not-allowed}
+.oskeys .loading{padding:28px 22px;display:flex;align-items:center;justify-content:center;gap:8px;
+  color:var(--faint);font-size:13px}
+.oskeys .spin{animation:oskeys-spin 1s linear infinite}
+@keyframes oskeys-spin{to{transform:rotate(360deg)}}
+
+/* Voice-channel picker (dispatch bots) — styled like the key sections. */
+.oskeys .vc{display:grid;gap:14px}
+.oskeys .vcrow{display:flex;flex-direction:column;gap:6px}
+.oskeys .vchead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.oskeys .vclbl{font-size:11px;font-weight:700;color:var(--body);letter-spacing:.01em}
+.oskeys .refresh{border:none;background:transparent;color:var(--faint);font:inherit;font-size:11.5px;
+  font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:0}
+.oskeys .refresh:hover:not(:disabled){color:var(--body)}
+.oskeys .refresh:disabled{opacity:.5;cursor:not-allowed}
+.oskeys .refresh svg{width:12px;height:12px}
+.oskeys .vcfoot{margin-top:12px;font-size:12px;line-height:1.5}
+.oskeys .vcfoot.ok{color:var(--ok);display:inline-flex;align-items:center;gap:6px}
+.oskeys .vcfoot.note{color:var(--faint)}
+`;
 
 type SlotMeta = {
   addon_id: string;
@@ -31,14 +124,11 @@ type SlotMeta = {
   is_managed: boolean;
 };
 
-type Props = {
-  bot: OwnedBot;
-};
+type Props = { bot: OwnedBot };
 
 // A slot belongs on this bot's dashboard when its addon_id matches the bot's
 // base, one of its purchased add-ons, or the generic "base" bucket. Managed
-// (Oversite-provided) secrets are filtered out — the customer never touches
-// those, so we only surface the keys they're expected to fill in.
+// (Oversite-provided) secrets are hidden — the customer never touches those.
 function relevantScopes(bot: OwnedBot): Set<string> {
   const scopes = new Set<string>(["base"]);
   if (bot.base) scopes.add(bot.base.toLowerCase().trim());
@@ -46,14 +136,27 @@ function relevantScopes(bot: OwnedBot): Set<string> {
   return scopes;
 }
 
+// Keys owned by a dedicated block (e.g. the voice-channel picker) don't show
+// here as a raw field.
+const PICKER_MANAGED = new Set(["DISPATCH_VOICE_CHANNEL_ID"]);
+
 export function BotSecretsCard({ bot }: Props) {
   const [slots, setSlots] = useState<SlotMeta[]>([]);
   const [loading, setLoading] = useState(true);
 
   const scopes = useMemo(() => relevantScopes(bot), [bot]);
+  const showVoice = (bot.base ?? "").toLowerCase().trim() === "dispatch";
+  // API keys are gated by `manage_secrets` for invited members. The voice
+  // channel is bot config, not a secret, so it ALWAYS shows (owners and any
+  // member who can reach this bot page). Owners: full access.
+  const { permissions: teamPerms } = useTeamRole(bot.viaTeam ? bot.id : null);
+  const canSecrets = !bot.viaTeam || teamPerms.manage_secrets;
 
-  const reload = useCallback(async () => {
-    setLoading(true);
+  const reload = useCallback(async (silent = false) => {
+    // Silent reload (e.g. after saving the voice channel) refreshes the slot
+    // metadata without flipping `loading`, so sections don't unmount and lose
+    // their local UI state (the picked channel would otherwise reset).
+    if (!silent) setLoading(true);
     const { data, error } = await (supabase as any).rpc("get_bot_secrets_metadata", {
       _bot_id: bot.id,
     });
@@ -70,60 +173,73 @@ export function BotSecretsCard({ bot }: Props) {
     reload();
   }, [reload]);
 
-  const visible = slots.filter(
-    (s) => !s.is_managed && scopes.has((s.addon_id ?? "").toLowerCase().trim()),
-  );
+  const visible = (canSecrets ? slots : [])
+    .filter(
+      (s) =>
+        !s.is_managed &&
+        !PICKER_MANAGED.has(s.key) &&
+        scopes.has((s.addon_id ?? "").toLowerCase().trim()),
+    )
+    .sort((a, b) => a.sort_order - b.sort_order);
 
-  if (!loading && visible.length === 0) return null;
+  const voiceSlot = slots.find((s) => s.key === "DISPATCH_VOICE_CHANNEL_ID");
+  const voiceSet = !!voiceSlot?.is_set;
+  // The channel id itself is never returned (secrets are write-only), but the
+  // metadata carries the last 4 chars — enough to re-select the saved channel
+  // in the dropdown after a refresh so it doesn't look like it didn't save.
+  const voiceLastFour = voiceSlot?.is_set ? (voiceSlot.last_four ?? "") : "";
 
-  const allRequiredSet = visible
-    .filter((s) => s.is_required)
-    .every((s) => s.is_set);
+  if (!loading && visible.length === 0 && !showVoice) return null;
+
+  const allRequiredSet = visible.filter((s) => s.is_required).every((s) => s.is_set);
 
   return (
-    <Card className="p-5 space-y-4 rounded-2xl bg-card/60 border-border shadow-lg shadow-black/5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/25 grid place-items-center shrink-0">
-            <KeyRound className="h-4 w-4 text-primary" />
+    <div className="oskeys">
+      <style>{SECRETS_CSS}</style>
+      <div className="panel">
+        <div className="phead">
+          <div className="pl">
+            <span className="ic">
+              <KeyRound />
+            </span>
+            <div>
+              <div className="pt">API keys &amp; credentials</div>
+              <div className="ps">
+                Your bot needs these to connect to your game. Encrypted, and only ever read
+                by your bot — never shown back to us or anyone.
+              </div>
+            </div>
           </div>
-          <div>
-            <div className="font-semibold">API keys & credentials</div>
-            <p className="text-xs text-muted-foreground">
-              Your bot needs these to connect to your game. They're encrypted and
-              only ever read by your bot — never shown back to us or anyone else.
-            </p>
-          </div>
+          {!loading && visible.length > 0 && (
+            <span className={`chip ${allRequiredSet ? "ok" : "warn"}`}>
+              {allRequiredSet ? "All set" : "Action needed"}
+            </span>
+          )}
         </div>
-        {!loading && visible.length > 0 && (
-          <Badge
-            variant="outline"
-            className={
-              allRequiredSet
-                ? "shrink-0 bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                : "shrink-0 bg-amber-500/10 text-amber-400 border-amber-500/30"
-            }
-          >
-            {allRequiredSet ? "All set" : "Action needed"}
-          </Badge>
-        )}
-      </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-6 text-muted-foreground text-sm">
-          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          Loading…
-        </div>
-      ) : (
-        <ul className="space-y-3">
-          {visible
-            .sort((a, b) => a.sort_order - b.sort_order)
-            .map((s) => (
+        {loading ? (
+          <div className="loading">
+            <Loader2 className="spin" size={15} />
+            Loading…
+          </div>
+        ) : (
+          <>
+            {visible.map((s) => (
               <SecretRow key={s.key} bot={bot} slot={s} onChanged={reload} />
             ))}
-        </ul>
-      )}
-    </Card>
+            {showVoice && (
+              <VoiceChannelSection
+                bot={bot}
+                alreadySet={voiceSet}
+                savedLastFour={voiceLastFour}
+                onSaved={() => reload(true)}
+              />
+            )}
+            {showVoice && <RegionSection bot={bot} />}
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -139,7 +255,6 @@ function SecretRow({
   const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(!slot.is_set);
-  const [revealing, setRevealing] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const save = async () => {
@@ -179,74 +294,47 @@ function SecretRow({
       return;
     }
     toast.success(`${slot.label} removed`);
+    setValue("");
     setEditing(true);
     onChanged();
   };
 
+  const chip = slot.is_set ? (
+    <span className="chip ok">Saved</span>
+  ) : slot.is_required ? (
+    <span className="chip req">Required</span>
+  ) : null;
+
   return (
-    <li className="rounded-xl border border-border bg-background/40 p-3.5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-sm">{slot.label}</span>
-            <code className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">
-              {slot.key}
-            </code>
-            {slot.is_required && !slot.is_set && (
-              <Badge
-                variant="outline"
-                className="text-[10px] py-0 h-4 bg-amber-500/10 text-amber-400 border-amber-500/30"
-              >
-                required
-              </Badge>
-            )}
-            {slot.is_set && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400">
-                <Check className="h-3 w-3" />
-                saved
-              </span>
-            )}
-          </div>
-          {slot.description && (
-            <p className="text-xs text-muted-foreground mt-1">{slot.description}</p>
-          )}
-        </div>
+    <div className="sec">
+      <div className="eyebrow">
+        <span className="lbl">{slot.label}</span>
+        <span className="ln" />
+        {chip}
       </div>
 
+      {slot.description && <div className="ed">{slot.description}</div>}
+
       {slot.is_set && !editing ? (
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground font-mono">
-            <Lock className="h-3.5 w-3.5" />
-            ••••••••{slot.last_four}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Button size="sm" variant="ghost" className="h-8" onClick={() => setRevealing(true)}>
-              <Eye className="h-3.5 w-3.5 mr-1.5" />
-              Reveal
-            </Button>
-            <Button size="sm" variant="ghost" className="h-8" onClick={() => setEditing(true)}>
+        <div className="savedrow">
+          {/* Masked — the stored value is never displayed, even to the owner. */}
+          <span className="dots">••••••••••••••••</span>
+          <span className="btns">
+            <button type="button" className="mini" onClick={() => setEditing(true)}>
               Replace
-            </Button>
+            </button>
             {!slot.is_required && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={remove}
-                disabled={deleting}
-              >
-                {deleting ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3.5 w-3.5" />
-                )}
-              </Button>
+              <button type="button" className="mini danger" onClick={remove} disabled={deleting}>
+                {deleting && <Loader2 className="spin" size={13} />}
+                Remove
+              </button>
             )}
-          </div>
+          </span>
         </div>
       ) : (
-        <div className="mt-3 flex items-center gap-2">
-          <Input
+        <div className="inprow">
+          <input
+            className="inp"
             type="password"
             autoComplete="off"
             value={value}
@@ -258,16 +346,16 @@ function SecretRow({
               }
             }}
             placeholder={slot.placeholder ?? "Paste your key…"}
-            className="font-mono"
             disabled={saving}
           />
-          <Button size="sm" onClick={save} disabled={saving || !value.trim()}>
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
-          </Button>
+          <button type="button" className="save" onClick={save} disabled={saving || !value.trim()}>
+            {saving && <Loader2 className="spin" size={14} />}
+            Save
+          </button>
           {slot.is_set && (
-            <Button
-              size="sm"
-              variant="ghost"
+            <button
+              type="button"
+              className="mini"
               onClick={() => {
                 setValue("");
                 setEditing(false);
@@ -275,126 +363,327 @@ function SecretRow({
               disabled={saving}
             >
               Cancel
-            </Button>
+            </button>
           )}
         </div>
       )}
-
-      {revealing && (
-        <RevealDialog
-          botId={bot.id}
-          slot={slot}
-          onClose={() => setRevealing(false)}
-        />
-      )}
-    </li>
+    </div>
   );
 }
 
-function RevealDialog({
-  botId,
-  slot,
-  onClose,
-}: {
-  botId: string;
-  slot: SlotMeta;
-  onClose: () => void;
-}) {
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [revealed, setRevealed] = useState<string | null>(null);
+// Region catalog — MUST match the dispatch bot's REGION_CATALOG.
+const REGION_COUNTRIES = [
+  "the United States", "United Kingdom", "Canada", "Australia", "Germany", "Mexico",
+];
+const REGION_US_STATES = [
+  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
+  "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho",
+  "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine",
+  "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi",
+  "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey",
+  "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio",
+  "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina",
+  "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia",
+  "Washington", "West Virginia", "Wisconsin", "Wyoming",
+];
 
-  const reveal = async () => {
-    if (!password) {
-      toast.error("Enter your account password.");
-      return;
-    }
-    setLoading(true);
-    const { data, error } = await (supabase as any).rpc("reveal_bot_secret", {
-      _bot_id: botId,
-      _key: slot.key,
-      _password: password,
+// Region picker for dispatch bots — the real-world area the dispatcher talks
+// like (its radio codes, signals, phonetics). Stored via the dispatch-region
+// edge function; the bot adopts it on its next config refresh (~60s), and the
+// bot's /region command writes back here, so the two stay in sync.
+function RegionSection({ bot }: { bot: OwnedBot }) {
+  const [region, setRegion] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  // Read the current region. Also re-run when the tab/window regains focus, so a
+  // change made elsewhere (e.g. the bot's /region command in Discord) shows up
+  // here without a manual refresh.
+  const fetchRegion = useCallback(async () => {
+    const { data } = await supabase.functions.invoke("dispatch-region", {
+      body: { botId: bot.id },
     });
-    setLoading(false);
-    const res = data as { ok?: boolean; error?: string; value?: string } | null;
-    if (error || !res?.ok) {
-      toast.error("Couldn't reveal", { description: res?.error ?? error?.message });
+    if ((data as any)?.region) setRegion((data as any).region);
+  }, [bot.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await fetchRegion();
+      if (!cancelled) setLoading(false);
+    })();
+    const refresh = () => { if (!document.hidden) void fetchRegion(); };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [fetchRegion]);
+
+  const pick = async (value: string) => {
+    setOpen(false);
+    if (!value || value === region) return;
+    const prev = region;
+    setRegion(value);
+    setSaving(true);
+    const { data, error } = await supabase.functions.invoke("dispatch-region", {
+      body: { botId: bot.id, region: value },
+    });
+    setSaving(false);
+    if (error || !(data as any)?.ok) {
+      setRegion(prev);
+      toast.error("Couldn't save region", {
+        description: (data as any)?.error ?? (error as any)?.message,
+      });
       return;
     }
-    setRevealed(res.value ?? "");
+    toast.success("Dispatch region set", { description: value });
   };
 
-  const copy = async () => {
-    if (revealed == null) return;
-    try {
-      await navigator.clipboard.writeText(revealed);
-      toast.success("Copied");
-    } catch {
-      toast.error("Couldn't copy");
+  const label = region ? region.replace(/^the /, "") : "";
+
+  return (
+    <div className="sec">
+      <div className="eyebrow">
+        <span className="lbl">Region</span>
+        <span className="ln" />
+        {region && <span className="chip ok">Set</span>}
+      </div>
+      <div className="ed">
+        The real-world area your dispatcher talks like — its radio codes, signals, and
+        phonetic alphabet. Applies within a minute of saving, no restart.
+      </div>
+      <div className="vc">
+        <div className="vcrow">
+          <span className="vclbl">Area</span>
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <button type="button" className="rgtrig" disabled={loading || saving}>
+                <span className="flex items-center gap-2 min-w-0">
+                  <Radio size={15} className="shrink-0" />
+                  <span className="truncate">
+                    {loading ? "Loading…" : (label || <span className="rgph">Select a state or country…</span>)}
+                  </span>
+                </span>
+                <ChevronsUpDown size={14} className="shrink-0 opacity-60" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="p-0 w-[--radix-popover-trigger-width] min-w-[220px]" align="start">
+              <Command>
+                <CommandInput placeholder="Type to search… e.g. al" />
+                <CommandList>
+                  <CommandEmpty>No match.</CommandEmpty>
+                  <CommandGroup heading="Countries">
+                    {REGION_COUNTRIES.map((r) => {
+                      const text = r.replace(/^the /, "");
+                      return (
+                        <CommandItem key={r} value={text} onSelect={() => pick(r)}>
+                          {text}
+                          {region === r && <Check size={14} className="ml-auto" />}
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                  <CommandGroup heading="US States">
+                    {REGION_US_STATES.map((r) => (
+                      <CommandItem key={r} value={r} onSelect={() => pick(r)}>
+                        {r}
+                        {region === r && <Check size={14} className="ml-auto" />}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Voice-channel picker for dispatch bots — sits under the API keys as its own
+// "Voice channel" section. The chosen channel is written to the
+// DISPATCH_VOICE_CHANNEL_ID secret; the bot picks it up on its next config
+// refresh (~60s) with no restart.
+function VoiceChannelSection({
+  bot,
+  alreadySet,
+  savedLastFour,
+  onSaved,
+}: {
+  bot: OwnedBot;
+  alreadySet: boolean;
+  savedLastFour: string;
+  onSaved: () => void;
+}) {
+  const { guilds, loading: loadingGuilds } = useBotGuilds(bot.id);
+  const [guildId, setGuildId] = useState<string | null>(null);
+  const { channels, loading: loadingChannels, refreshing, refreshFromDiscord } = useBotChannels(
+    bot.id,
+    guildId ?? undefined,
+  );
+  const [channelId, setChannelId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [savedName, setSavedName] = useState<string | null>(null);
+
+  const voiceChannels = useMemo(
+    () => channels.filter((c) => c.channel_type === "voice"),
+    [channels],
+  );
+  const groups = useMemo(() => sortedChannelCategoryEntries(voiceChannels), [voiceChannels]);
+
+  // If the bot is only in one server, select it automatically.
+  useEffect(() => {
+    if (!guildId && guilds.length === 1) setGuildId(guilds[0].guild_id);
+  }, [guilds, guildId]);
+
+  // Restore the previously-saved channel in the dropdown after a refresh. The
+  // full id isn't readable (write-only secret), so match on the last 4 chars
+  // of the id among the loaded voice channels. Only pre-fills while the user
+  // hasn't picked anything yet this session.
+  useEffect(() => {
+    if (channelId || !savedLastFour || voiceChannels.length === 0) return;
+    const match = voiceChannels.find((c) => c.channel_id.endsWith(savedLastFour));
+    if (match) {
+      setChannelId(match.channel_id);
+      setSavedName(match.channel_name);
     }
+  }, [channelId, savedLastFour, voiceChannels]);
+
+  const pick = async (id: string) => {
+    setChannelId(id);
+    if (!id) return;
+    const c = voiceChannels.find((x) => x.channel_id === id);
+    if (!c) return;
+    setSaving(true);
+    const { data, error } = await (supabase as any).rpc("set_bot_secret", {
+      _bot_id: bot.id,
+      _key: "DISPATCH_VOICE_CHANNEL_ID",
+      _value: c.channel_id,
+    });
+    setSaving(false);
+    const res = data as { ok?: boolean; error?: string } | null;
+    if (error || !res?.ok) {
+      toast.error("Couldn't save channel", { description: res?.error ?? error?.message });
+      return;
+    }
+    setSavedName(c.channel_name);
+    toast.success("Dispatch voice channel set", { description: `#${c.channel_name}` });
+    onSaved();
   };
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-primary" />
-            Reveal {slot.label}
-          </DialogTitle>
-          <DialogDescription>
-            Confirm your account password to view this value. It's decrypted only
-            for you and never leaves this screen.
-          </DialogDescription>
-        </DialogHeader>
+    <div className="sec">
+      <div className="eyebrow">
+        <span className="lbl">Voice channel</span>
+        <span className="ln" />
+        {(savedName || alreadySet) && <span className="chip ok">Set</span>}
+      </div>
+      <div className="ed">
+        The voice channel your dispatcher sits in and speaks from. It joins within a minute of
+        saving — no restart needed.
+      </div>
 
-        {revealed == null ? (
-          <div className="space-y-2 py-2">
-            <Label className="text-xs">Account password</Label>
-            <Input
-              type="password"
-              autoFocus
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  reveal();
-                }
-              }}
-              placeholder="Your Oversite password"
-            />
-          </div>
-        ) : (
-          <div className="space-y-2 py-2">
-            <Label className="text-xs">{slot.label}</Label>
-            <div className="rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-sm break-all">
-              {revealed || "(empty)"}
-            </div>
-          </div>
-        )}
+      <div className="vc">
+        <div className="vcrow">
+          <span className="vclbl">Server</span>
+          <Select
+            value={guildId ?? ""}
+            disabled={loadingGuilds || guilds.length === 0}
+            onValueChange={(v) => {
+              setGuildId(v || null);
+              setChannelId("");
+              setSavedName(null);
+            }}
+          >
+            <SelectTrigger>
+              <div className="flex items-center gap-2 min-w-0">
+                <Server size={15} className="shrink-0" />
+                <SelectValue
+                  placeholder={
+                    loadingGuilds
+                      ? "Loading servers…"
+                      : guilds.length === 0
+                        ? "Bot not in any servers yet"
+                        : "Select a server…"
+                  }
+                />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {guilds.map((g) => (
+                <SelectItem key={g.guild_id} value={g.guild_id}>
+                  {g.guild_name ?? g.guild_id}
+                  {g.member_count != null ? ` · ${g.member_count.toLocaleString()} members` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-        <DialogFooter>
-          {revealed == null ? (
-            <>
-              <Button variant="ghost" onClick={onClose} disabled={loading}>
-                Cancel
-              </Button>
-              <Button onClick={reveal} disabled={loading || !password}>
-                {loading && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                Reveal
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="ghost" onClick={copy}>
-                Copy
-              </Button>
-              <Button onClick={onClose}>Done</Button>
-            </>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div className="vcrow">
+          <div className="vchead">
+            <span className="vclbl">Voice channel</span>
+            <button
+              type="button"
+              className="refresh"
+              disabled={refreshing || !guildId}
+              onClick={() => refreshFromDiscord()}
+            >
+              <RefreshCw className={refreshing ? "spin" : ""} size={12} />
+              {refreshing ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
+          <Select
+            value={channelId}
+            disabled={!guildId || loadingChannels || voiceChannels.length === 0}
+            onValueChange={(v) => pick(v)}
+          >
+            <SelectTrigger>
+              <div className="flex items-center gap-2 min-w-0">
+                <Radio size={15} className="shrink-0" />
+                <SelectValue
+                  placeholder={
+                    !guildId
+                      ? "Select a server first"
+                      : loadingChannels
+                        ? "Loading channels…"
+                        : voiceChannels.length === 0
+                          ? "No voice channels — click Refresh"
+                          : "Select a voice channel…"
+                  }
+                />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {groups.map((grp) => (
+                <SelectGroup key={grp.key}>
+                  <SelectLabel>{grp.label}</SelectLabel>
+                  {grp.channels.map((c) => (
+                    <SelectItem key={c.channel_id} value={c.channel_id}>
+                      {c.channel_name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {saving ? (
+        <div className="vcfoot note">Saving…</div>
+      ) : savedName ? (
+        <div className="vcfoot ok">
+          <Check size={14} /> Saved — dispatcher will join #{savedName}.
+        </div>
+      ) : alreadySet ? (
+        <div className="vcfoot note">A voice channel is currently set. Pick again to change it.</div>
+      ) : null}
+    </div>
   );
 }

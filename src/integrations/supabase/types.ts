@@ -3245,7 +3245,6 @@ export type Database = {
         Returns: boolean
       }
       detect_stale_bots: { Args: never; Returns: number }
-      email_queue_dispatch: { Args: never; Returns: undefined }
       enqueue_apply_config: {
         Args: { _bot_id: string; _feature: string }
         Returns: Json

@@ -53,6 +53,9 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
     };
 
     const [toolbar, setToolbar] = React.useState<{ top: number; left: number } | null>(null);
+    // True while the mouse is actively dragging out a selection — the toolbar
+    // stays hidden until the drag finishes (mouseup).
+    const draggingRef = React.useRef(false);
     const [activeKeys, setActiveKeys] = React.useState<Set<string>>(new Set());
     const selectionRef = React.useRef<{ start: number; end: number } | null>(null);
 
@@ -216,6 +219,31 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
       setActiveKeys(computeActive(el.value, selectionStart, selectionEnd));
     }, [computeActive]);
 
+    // Show the toolbar only once a mouse selection is finished — release can
+    // happen anywhere on the page, so listen on the window.
+    React.useEffect(() => {
+      const onUp = () => {
+        if (!draggingRef.current) return;
+        draggingRef.current = false;
+        updateToolbar();
+      };
+      window.addEventListener("mouseup", onUp);
+      return () => window.removeEventListener("mouseup", onUp);
+    }, [updateToolbar]);
+
+    // Hard guarantee: the moment this field's selection collapses (a click to
+    // deselect, arrow key, etc.) the toolbar goes away — independent of which
+    // textarea event fired.
+    React.useEffect(() => {
+      const onSelChange = () => {
+        const el = innerRef.current;
+        if (!el || document.activeElement !== el) return;
+        if (el.selectionStart === el.selectionEnd) setToolbar(null);
+      };
+      document.addEventListener("selectionchange", onSelChange);
+      return () => document.removeEventListener("selectionchange", onSelChange);
+    }, []);
+
     // Recompute active state whenever the value changes while a selection
     // is open (e.g. after clicking a toolbar button).
     React.useEffect(() => {
@@ -352,14 +380,49 @@ export const DiscordMarkdownTextarea = React.forwardRef<HTMLTextAreaElement, Pro
             onValueChange(e.target.value);
             onChange?.(e);
           }}
-          onSelect={updateToolbar}
-          onMouseUp={updateToolbar}
+          onMouseDown={() => {
+            // Starting a new selection (or clicking away) — hide the current
+            // toolbar and suppress it until this drag finishes.
+            draggingRef.current = true;
+            setToolbar(null);
+          }}
+          onSelect={() => {
+            // Ignore selection changes during a mouse drag; keyboard and
+            // programmatic selections (e.g. after a format button) still update.
+            if (!draggingRef.current) updateToolbar();
+          }}
           onBlur={() => {
             // Toolbar uses onMouseDown preventDefault so clicks don't blur.
             // Hide immediately to avoid two toolbars showing across textareas.
             setToolbar(null);
             setActiveKeys(new Set());
             selectionRef.current = null;
+          }}
+          onPaste={(e) => {
+            // Pasting a copied Discord custom-emoji link auto-converts to the
+            // <:name:id> code the bot needs (<a:name:id> for animated gifs).
+            const text = e.clipboardData?.getData("text") ?? "";
+            const m = text.match(/discord(?:app)?\.(?:com|net)\/emojis\/(\d+)\.(\w+)(?:\?([^\s]*))?/i);
+            if (!m) return;
+            e.preventDefault();
+            const id = m[1];
+            const animated = (m[2] || "").toLowerCase() === "gif";
+            const nameMatch = (m[3] || "").match(/name=([A-Za-z0-9_]+)/i);
+            const name = nameMatch ? nameMatch[1] : "emoji";
+            const code = `<${animated ? "a" : ""}:${name}:${id}>`;
+            const el = innerRef.current;
+            if (!el) return;
+            const start = el.selectionStart ?? value.length;
+            const end = el.selectionEnd ?? value.length;
+            onValueChange(value.slice(0, start) + code + value.slice(end));
+            const caret = start + code.length;
+            requestAnimationFrame(() => {
+              const t = innerRef.current;
+              if (t) {
+                t.focus();
+                t.setSelectionRange(caret, caret);
+              }
+            });
           }}
           className={cn(className)}
           {...props}

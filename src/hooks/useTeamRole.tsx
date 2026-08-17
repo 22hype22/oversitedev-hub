@@ -10,6 +10,7 @@ export type TeamPermissions = {
   view_dashboard: boolean;
   edit_bot_config: boolean;
   manage_secrets: boolean;
+  manage_settings: boolean;
   view_logs: boolean;
   edit_billing: boolean;
   manage_team: boolean;
@@ -17,15 +18,15 @@ export type TeamPermissions = {
 };
 
 export const DEFAULT_PERMISSIONS: Record<TeamRole, TeamPermissions> = {
-  owner:    { view_dashboard: true,  edit_bot_config: true,  manage_secrets: true,  view_logs: true,  edit_billing: true,  manage_team: true,  transfer_ownership: true },
-  co_owner: { view_dashboard: true,  edit_bot_config: true,  manage_secrets: true,  view_logs: true,  edit_billing: true,  manage_team: true,  transfer_ownership: false },
-  admin:    { view_dashboard: true,  edit_bot_config: true,  manage_secrets: true,  view_logs: true,  edit_billing: false, manage_team: false, transfer_ownership: false },
-  moderator:{ view_dashboard: true,  edit_bot_config: true,  manage_secrets: false, view_logs: true,  edit_billing: false, manage_team: false, transfer_ownership: false },
-  viewer:   { view_dashboard: true,  edit_bot_config: false, manage_secrets: false, view_logs: false, edit_billing: false, manage_team: false, transfer_ownership: false },
+  owner:    { view_dashboard: true,  edit_bot_config: true,  manage_secrets: true,  manage_settings: true,  view_logs: true,  edit_billing: true,  manage_team: true,  transfer_ownership: true },
+  co_owner: { view_dashboard: true,  edit_bot_config: true,  manage_secrets: true,  manage_settings: true,  view_logs: true,  edit_billing: true,  manage_team: true,  transfer_ownership: false },
+  admin:    { view_dashboard: true,  edit_bot_config: true,  manage_secrets: true,  manage_settings: true,  view_logs: true,  edit_billing: false, manage_team: false, transfer_ownership: false },
+  moderator:{ view_dashboard: true,  edit_bot_config: true,  manage_secrets: false, manage_settings: false, view_logs: true,  edit_billing: false, manage_team: false, transfer_ownership: false },
+  viewer:   { view_dashboard: true,  edit_bot_config: false, manage_secrets: false, manage_settings: false, view_logs: false, edit_billing: false, manage_team: false, transfer_ownership: false },
 };
 
 const EMPTY: TeamPermissions = {
-  view_dashboard: false, edit_bot_config: false, manage_secrets: false,
+  view_dashboard: false, edit_bot_config: false, manage_secrets: false, manage_settings: false,
   view_logs: false, edit_billing: false, manage_team: false, transfer_ownership: false,
 };
 
@@ -72,12 +73,14 @@ export function useTeamRole(botId?: string | null) {
       setLoading(false);
       return;
     }
-    const { data, error } = await (supabase as any).rpc("team_get_effective_role", {
-      _bot_id: botId,
+    // Resolved by an auto-deploying edge function (service role) so it works
+    // regardless of whether the old team_get_effective_role migration deployed.
+    const { data, error } = await supabase.functions.invoke("team-effective-role", {
+      body: { botId },
     });
     if (!error && data) {
-      setRole((data.role as TeamRole) ?? null);
-      setPermissions({ ...EMPTY, ...(data.permissions ?? {}) });
+      setRole(((data as any).role as TeamRole) ?? null);
+      setPermissions({ ...EMPTY, ...((data as any).permissions ?? {}) });
     } else {
       setRole(null);
       setPermissions(EMPTY);

@@ -1,40 +1,68 @@
-import {
-  supabase,
-  WORKER_ID,
-  WORKER_TOKEN_VALUE,
-  POLL_INTERVAL_MS,
-} from "./supabase.js";
-import { BotRuntime } from "./runtime.js";
-import { startHealthServer } from "./health.js";
-import { startUtilitiesBot } from "./utilities-bot.js";
+// Auto-deploy a bot to Railway from a configured template service.
+//
+// Invocation:
+//   POST { orderId: string }
+//   - Called automatically by the bot_orders trigger when status -> 'ready'.
+//   - Can also be called by an admin (e.g. retry button) using their JWT.
+//
+// It creates the correct Railway service (Protection / Support / Utilities)
+// based on the order's `base` field, sets the bot-specific env vars, triggers
+// a deploy, and writes the new service id back to bot_orders.
+import { createClient } from "npm:@supabase/supabase-js@2";
 
-const runtimes = new Map<string, BotRuntime>();
-const health = { startedAt: Date.now(), runtimes, lastPollAt: Date.now() };
-startHealthServer(health);
-
-// Boot the Oversite Utilities bot (preorder DM confirmation).
-// No-op if OVERSITE_UTILITIES_BOT_TOKEN is unset.
-startUtilitiesBot().catch((e) =>
-  console.error("Failed to start utilities bot:", (e as Error).message),
-);
-
-// Railway config
-const RAILWAY_API_TOKEN = process.env.RAILWAY_API_TOKEN ?? "";
-const RAILWAY_PROJECT_ID = process.env.RAILWAY_PROJECT_ID ?? "64aea150-f8c9-4c5a-8dea-de4763b31b1d";
-const RAILWAY_ENVIRONMENT_ID = process.env.RAILWAY_ENVIRONMENT_ID ?? "c5e3fda2-4957-4e4c-986a-7314927ecd0a";
-
-// GitHub repos for each bot type
-const BOT_REPOS: Record<string, string> = {
-  "protection": "22hype22/oversite-protection",
-  "support":    "22hype22/oversite-support",
-  "utilities":  "22hype22/oversite-utilities",
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Addon ID -> feature flag env var name.
-// Keys are the canonical catalog ids (the ones stored in
-// `bot_orders.addons` and defined in `src/lib/botCatalog.ts`).
-// Mirrors `supabase/functions/auto-deploy-bot/index.ts` ADDON_FLAGS —
-// keep both in sync.
+const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
+
+async function railway(query: string, variables: Record<string, unknown>) {
+  const token = Deno.env.get("RAILWAY_API_TOKEN");
+  if (!token) throw new Error("RAILWAY_API_TOKEN not configured");
+  const res = await fetch(RAILWAY_API, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  const json = await res.json();
+  if (!res.ok || json.errors) {
+    throw new Error(json.errors?.[0]?.message ?? `Railway HTTP ${res.status}`);
+  }
+  return json.data;
+}
+
+function repoSourceFor(base: string): string {
+  const b = (base ?? "").toLowerCase().trim();
+  switch (b) {
+    case "support":
+      return "22hype22/oversite-support";
+    case "utilities":
+      return "22hype22/oversite-utilities";
+    case "protection":
+    case "scratch":
+    case "all-in-one-pack":
+    case "all_in_one_pack":
+    case "allinonepack":
+    default:
+      return "22hype22/oversite-protection";
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Feature flag catalog
+//
+// Maps every purchasable add-on id (the values stored in
+// `bot_orders.addons`, also defined in `src/lib/botCatalog.ts`) to the
+// feature-flag environment variable the bot script reads at boot.
+// Keep this list in sync with `worker/src/index.ts` ADDON_FLAGS and with
+// any feature flag the bot repos consume.
+// ──────────────────────────────────────────────────────────────────────
 const ADDON_FLAGS: Record<string, string> = {
   // Protection — base-included
   "verification-system":        "F_VERIFICATION",
@@ -49,20 +77,18 @@ const ADDON_FLAGS: Record<string, string> = {
   "nsfw-invite-scanner":        "F_NSFW_SCANNER",
   "avatar-nsfw-detection":      "F_AVATAR_NSFW",
   "bio-phrase-detection":       "F_BIO_PHRASES",
-  "account-age-gating":         "F_ACCOUNT_AGE_GATE",
   "auto-escalating-warnings":   "F_AUTO_ESCALATE",
   "softban-massban":            "F_SOFTBAN_MASSBAN",
-  "ban-tools":                  "F_SOFTBAN_MASSBAN",
   "channel-lockdown":           "F_CHANNEL_LOCKDOWN",
   "staff-notes":                "F_STAFF_NOTES",
   "moderation-history":         "F_MOD_HISTORY",
   "auto-slowmode":              "F_AUTO_SLOWMODE",
   "temp-ban":                   "F_TEMP_BAN",
+  "ban-tools":                  "F_SOFTBAN_MASSBAN",
 
   // Support
   "staff-performance":             "F_STAFF_PERFORMANCE",
   "ticket-logs":                   "F_TICKET_LOGS",
-  "per-category-roles":            "F_PER_CATEGORY_ROLES",
   "ticket-notes":                  "F_TICKET_NOTES",
   "ticket-add-remove":             "F_TICKET_MEMBERS",
   "close-all-tickets":             "F_CLOSE_ALL",
@@ -75,11 +101,9 @@ const ADDON_FLAGS: Record<string, string> = {
   // Utilities
   "music-addon":                "F_MUSIC_ADDON",
   "auto-radio":                 "F_AUTO_RADIO",
-  "roblox-verification":        "F_ROBLOX",
   "starboard":                  "F_STARBOARD",
   "recurring-messages":         "F_RECURRING",
   "giveaway-system":            "F_GIVEAWAY",
-  "birthday":                   "F_BIRTHDAY",
   "server-stats-channels":      "F_SERVER_STATS",
   "live-notifications":         "F_STREAM_NOTIFS",
   "leveling-system":            "F_LEVELING",
@@ -92,563 +116,979 @@ const ADDON_FLAGS: Record<string, string> = {
   "multi-server":               "F_MULTI_SERVER",
 };
 
-function getRuntime(botId: string): BotRuntime {
-  let r = runtimes.get(botId);
-  if (!r) {
-    r = new BotRuntime(botId);
-    runtimes.set(botId, r);
-  }
-  return r;
-}
-
-type Cmd = {
-  id: string;
-  bot_id: string;
-  action:
-    | "start"
-    | "stop"
-    | "restart"
-    | "update"
-    | "list_channels"
-    | "list_guilds"
-    | "list_roles"
-    | "leave_all_guilds"
-    | "set_status"
-    | "apply_config";
-  payload?: {
-    guild_id?: string;
-    reason?: string;
-    activity_type?: string;
-    activity_text?: string;
-    presence_status?: string;
-  } | null;
+/**
+ * Features that are always on for a given base (no purchase required).
+ * Mirrors `BASE_INCLUDED_ADDONS` in `src/lib/botCatalog.ts` plus a few
+ * built-in commands that ship with each base bot.
+ */
+const BASE_FEATURE_FLAGS: Record<string, string[]> = {
+  protection: [
+    "F_VERIFICATION", "F_MODERATION", "F_ANTI_SPAM", "F_ANTI_RAID",
+    "F_AUTOROLE", "F_PHISHING", "F_BASIC_LOGGING", "F_RULES", "F_SAY",
+    "F_ADMIN_ABUSE",
+  ],
+  support: [
+    "F_TICKETS", "F_APPEALS", "F_REPORTS", "F_WELCOME", "F_SAY",
+    "F_SUGGESTIONS",
+  ],
+  utilities: [
+    "F_ANNOUNCE", "F_REACTION_ROLES", "F_POLL", "F_USERINFO",
+    "F_SERVERINFO", "F_AVATAR", "F_8BALL", "F_COINFLIP",
+    "F_BASIC_MUSIC", "F_SAY",
+  ],
 };
 
-type BuildJob = {
-  id: string;
-  order_id: string;
-  status: string;
-  selections: {
-    bot_name: string;
-    base: string;
-    addons: string[];
-    icon_url?: string;
-    banner_url?: string;
-    bot_description?: string;
-  };
+/**
+ * Mirrors `BASE_INCLUDED_ADDONS` from the catalog — the addon ids whose
+ * config blocks ship with each base bot. We provision these into
+ * `bot_addon_state` alongside purchased addons so the dashboard renders
+ * them as enabled immediately after deploy.
+ */
+const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
+  protection: [
+    "verification-system", "mod-actions", "anti-spam", "anti-raid",
+    "phishing-detection", "auto-role", "messages", "rules",
+  ],
+  support: [
+    "staff-performance", "ticket-logs", "ticket-notes", "ticket-add-remove",
+    "close-all-tickets", "ticket-message-customization", "priority-flagging",
+    "auto-close-inactive", "messages",
+  ],
+  utilities: [
+    "music-addon", "auto-radio", "starboard", "recurring-messages",
+    "giveaway-system", "server-stats-channels", "live-notifications",
+    "leveling-system", "economy-system", "remindme", "staff-notes",
+    "messages",
+  ],
 };
 
-// ============================================================
-// COMMAND HANDLING
-// ============================================================
-
-async function claimNextCommand(): Promise<Cmd | null> {
-  const { data, error } = await supabase.rpc("runtime_claim_next_command", {
-    _token: WORKER_TOKEN_VALUE,
-    _worker_id: WORKER_ID,
-  });
-  if (error) {
-    console.error("claim error:", error.message);
-    return null;
+function normalizeBase(base: string): "protection" | "support" | "utilities" | "scratch" {
+  const b = (base ?? "").toLowerCase().trim();
+  if (b === "support" || b === "utilities") return b;
+  if (
+    b === "scratch" ||
+    b === "all-in-one-pack" ||
+    b === "all_in_one_pack" ||
+    b === "allinonepack"
+  ) {
+    return "scratch";
   }
-  const result = data as { ok: boolean; command: Cmd | null; error?: string };
-  if (!result?.ok) {
-    console.error("claim refused:", result?.error);
-    return null;
-  }
-  return result.command ?? null;
+  return "protection";
 }
 
-async function completeCommand(id: string, ok: boolean, errorMessage?: string) {
-  await supabase.rpc("runtime_complete_command", {
-    _token: WORKER_TOKEN_VALUE,
-    _command_id: id,
-    _status: ok ? "done" : "failed",
-    _error: errorMessage ?? null,
-  });
+/**
+ * Compute the `F_*` env vars to set on the Railway service from the
+ * order's purchased addons + the bot's base features.
+ */
+function buildFeatureFlagVars(
+  base: string,
+  purchasedAddons: string[],
+): Record<string, string> {
+  const flags: Record<string, string> = {};
+  const norm = normalizeBase(base);
+
+  // Always-on base features. "scratch" turns every base on (legacy combined bot).
+  const baseSets = norm === "scratch"
+    ? [...BASE_FEATURE_FLAGS.protection, ...BASE_FEATURE_FLAGS.support, ...BASE_FEATURE_FLAGS.utilities]
+    : BASE_FEATURE_FLAGS[norm] ?? [];
+  for (const f of baseSets) flags[f] = "true";
+
+  // Base-included addons (config-only but bot script may also gate on them).
+  const includedAddons = norm === "scratch"
+    ? [...BASE_INCLUDED_ADDONS.protection, ...BASE_INCLUDED_ADDONS.support, ...BASE_INCLUDED_ADDONS.utilities]
+    : BASE_INCLUDED_ADDONS[norm] ?? [];
+  for (const id of includedAddons) {
+    const flag = ADDON_FLAGS[id];
+    if (flag) flags[flag] = "true";
+  }
+
+  // Purchased add-ons.
+  for (const id of purchasedAddons ?? []) {
+    const flag = ADDON_FLAGS[id];
+    if (flag) flags[flag] = "true";
+  }
+
+  return flags;
 }
 
-async function releaseCommandToPending(id: string, action: string) {
-  // These actions are owned by external bots (e.g. support-bot) which poll
-  // the support-bot-api edge function. If this worker accidentally claims one,
-  // release it back to pending so the owning bot can claim it.
-  const { error } = await supabase
-    .from("bot_commands")
-    .update({
-      status: "pending",
-      claimed_at: null,
-      worker_id: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id);
+/**
+ * Ensure a `bot_addon_state` row exists with enabled=true for every
+ * base-included and purchased addon. This "provisions" the customer's
+ * entitlements so the dashboard shows the matching config blocks the
+ * moment the bot finishes deploying.
+ */
+async function provisionAddonEntitlements(
+  admin: ReturnType<typeof createClient>,
+  botId: string,
+  base: string,
+  purchasedAddons: string[],
+) {
+  const norm = normalizeBase(base);
+  const ids = new Set<string>();
+  const included = norm === "scratch"
+    ? [...BASE_INCLUDED_ADDONS.protection, ...BASE_INCLUDED_ADDONS.support, ...BASE_INCLUDED_ADDONS.utilities]
+    : BASE_INCLUDED_ADDONS[norm] ?? [];
+  for (const id of included) ids.add(id);
+  for (const id of purchasedAddons ?? []) ids.add(id);
+  if (ids.size === 0) return;
+
+  const rows = [...ids].map((addon_id) => ({
+    bot_id: botId,
+    addon_id,
+    enabled: true,
+    updated_at: new Date().toISOString(),
+  }));
+  const { error } = await admin
+    .from("bot_addon_state")
+    .upsert(rows, { onConflict: "bot_id,addon_id", ignoreDuplicates: false });
   if (error) {
-    console.error(`[release] failed to release ${action} ${id}:`, error.message);
+    console.warn("[auto-deploy-bot] provisionAddonEntitlements failed", {
+      botId,
+      message: error.message,
+    });
   } else {
-    console.log(`[release] released ${action} ${id} back to pending (owned by external bot)`);
+    console.log("[auto-deploy-bot] provisioned addon entitlements", {
+      botId,
+      count: rows.length,
+    });
   }
 }
 
-// Actions that are always owned by an external bot (never this worker).
-// NOTE: `apply_config` used to live here, but the Lovable worker now owns
-// it for any bot whose runtime is started in-process — so addon toggles in
-// the dashboard can immediately tear down disabled listeners. If we don't
-// own a runtime for that bot_id we still release it to the external bot.
-const ALWAYS_EXTERNAL_ACTIONS = new Set<string>();
-// Actions that need a live Discord client. If this worker has no runtime
-// started for cmd.bot_id (e.g. the command targets the externally-hosted
-// support bot, which polls support-bot-api directly), release the command
-// back to pending so the owning bot can claim it instead of us timing out.
-//
-// post_message is here too: when we own the target bot's runtime we post via
-// that bot's client (e.g. feedback through the Oversite Utilities bot);
-// otherwise it falls back to pending for the external support bot.
-const RUNTIME_REQUIRED_ACTIONS = new Set([
-  "list_roles",
-  "list_channels",
-  "list_guilds",
-  "set_status",
-  "post_message",
-]);
-
-
-async function processCommand(cmd: Cmd) {
-  if (ALWAYS_EXTERNAL_ACTIONS.has(cmd.action)) {
-    await releaseCommandToPending(cmd.id, cmd.action);
-    return;
+function railwayEnvironmentId(): string {
+  const environmentId =
+    Deno.env.get("RAILWAY_ENVIRONMENT_ID") ??
+    Deno.env.get("RAILWAY_PRODUCTION_ENVIRONMENT_ID") ??
+    "";
+  if (!environmentId) {
+    throw new Error("RAILWAY_ENVIRONMENT_ID not configured.");
   }
-  // apply_config: handled in-process only when we already own the runtime.
-  // Otherwise release so the external bot that owns this bot_id can claim it.
-  if (cmd.action === "apply_config" && !runtimes.has(cmd.bot_id)) {
-    await releaseCommandToPending(cmd.id, cmd.action);
-    return;
-  }
-  if (RUNTIME_REQUIRED_ACTIONS.has(cmd.action) && !runtimes.has(cmd.bot_id)) {
-    await releaseCommandToPending(cmd.id, cmd.action);
-    return;
-  }
-  console.log(`[${cmd.bot_id}] processing ${cmd.action}`);
-  const runtime = getRuntime(cmd.bot_id);
-  try {
-    switch (cmd.action) {
-      case "start":    await runtime.start(); break;
-      case "stop":     await runtime.stop(); break;
-      case "restart":  await runtime.restart(); break;
-      case "update":   await runtime.restart(); break;
-      case "list_guilds": await runtime.listGuilds(); break;
-      case "list_channels": {
-        const guildId = cmd.payload?.guild_id;
-        if (!guildId) throw new Error("Missing guild_id for list_channels");
-        await runtime.listChannels(guildId);
-        break;
-      }
-      case "list_roles": {
-        const guildId = cmd.payload?.guild_id;
-        if (!guildId) throw new Error("Missing guild_id for list_roles");
-        await runtime.listRoles(guildId);
-        break;
-      }
-      case "leave_all_guilds": {
-        const wasRunning = runtime.isRunning();
-        if (!wasRunning) await runtime.start();
-        await runtime.leaveAllGuilds(cmd.payload?.reason);
-        await runtime.stop().catch(() => {});
-        runtimes.delete(cmd.bot_id);
-        break;
-      }
-      case "set_status": {
-        const type = String(cmd.payload?.activity_type ?? "playing");
-        const text = String(cmd.payload?.activity_text ?? "");
-        const presence = String(cmd.payload?.presence_status ?? "online");
-        await runtime.setStatus(type, text, presence);
-        break;
-      }
-      case "apply_config": {
-        // Re-read bot_addon_state and restart the bot if any addon was just
-        // toggled on/off. Only reached when we own the runtime; bots owned
-        // by external workers were released back to pending above.
-        await runtime.refreshAddons();
-        break;
-      }
-      case "post_message": {
-        // Send a message/embed through this bot's client. Only reached when we
-        // own the runtime; otherwise released to pending above.
-        await runtime.postMessage(cmd.payload ?? {});
-        break;
-      }
+  return environmentId;
+}
 
+type RailwayService = { id: string; name: string };
+
+function buildServiceName(botName: string | null | undefined, orderId: string): string {
+  return `${botName ?? "bot"}-${orderId.slice(0, 8)}`
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 50);
+}
+
+async function listProjectServices(projectId: string): Promise<RailwayService[]> {
+  const services: RailwayService[] = [];
+  let after: string | null = null;
+  do {
+    const data = await railway(
+      `query($projectId: String!, $after: String) {
+      project(id: $projectId) {
+        services(first: 100, after: $after) {
+          edges { cursor node { id name } }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+    }`,
+      { projectId, after },
+    );
+    const conn = data?.project?.services;
+    const edges = conn?.edges ?? [];
+    services.push(
+      ...edges
+        .map((edge: any) => edge?.node)
+        .filter((node: any): node is RailwayService => Boolean(node?.id && node?.name)),
+    );
+    after = conn?.pageInfo?.hasNextPage ? conn?.pageInfo?.endCursor ?? null : null;
+  } while (after);
+  return services;
+}
+
+async function deleteService(serviceId: string) {
+  await railway(
+    `mutation($id: String!) { serviceDelete(id: $id) }`,
+    { id: serviceId },
+  );
+}
+
+async function renameService(serviceId: string, name: string) {
+  await railway(
+    `mutation($id: String!, $input: ServiceUpdateInput!) {
+      serviceUpdate(id: $id, input: $input) { id name }
+    }`,
+    { id: serviceId, input: { name } },
+  );
+}
+
+async function resolveReusableService(
+  projectId: string,
+  canonicalName: string,
+  preferredServiceId?: string | null,
+): Promise<string | null> {
+  const services = await listProjectServices(projectId);
+  const byId = new Map<string, RailwayService>();
+  for (const service of services) {
+    if (service.name === canonicalName || service.name.startsWith(`${canonicalName}-`)) {
+      byId.set(service.id, service);
     }
-
-    await completeCommand(cmd.id, true);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[${cmd.bot_id}] ${cmd.action} failed:`, msg);
-    await completeCommand(cmd.id, false, msg);
   }
-}
+  const candidates = [...byId.values()];
+  if (candidates.length === 0) return null;
 
-// ============================================================
-// RAILWAY API HELPERS
-// ============================================================
+  const exact = candidates.filter((service) => service.name === canonicalName);
+  const keep =
+    exact.find((service) => service.id === preferredServiceId) ??
+    exact[0] ??
+    candidates.find((service) => service.id === preferredServiceId) ??
+    candidates[0];
 
-async function railwayGraphQL(query: string, variables: Record<string, unknown> = {}) {
-  const res = await fetch("https://backboard.railway.app/graphql/v2", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${RAILWAY_API_TOKEN}`,
-    },
-    body: JSON.stringify({ query, variables }),
+  for (const duplicate of candidates) {
+    if (duplicate.id === keep.id) continue;
+    try {
+      await deleteService(duplicate.id);
+      console.log("[auto-deploy-bot] deleted duplicate Railway service", {
+        serviceId: duplicate.id,
+        serviceName: duplicate.name,
+        keptServiceId: keep.id,
+        canonicalName,
+      });
+    } catch (e) {
+      console.warn("[auto-deploy-bot] duplicate Railway service delete failed", {
+        serviceId: duplicate.id,
+        serviceName: duplicate.name,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  if (keep.name !== canonicalName && exact.length === 0) {
+    try {
+      await renameService(keep.id, canonicalName);
+    } catch (e) {
+      console.warn("[auto-deploy-bot] Railway service rename failed", {
+        serviceId: keep.id,
+        from: keep.name,
+        to: canonicalName,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  console.log("[auto-deploy-bot] reusing Railway service", {
+    serviceId: keep.id,
+    serviceName: keep.name,
+    canonicalName,
+    duplicateCount: Math.max(candidates.length - 1, 0),
   });
-  if (!res.ok) throw new Error(`Railway API error: ${res.status} ${res.statusText}`);
-  const data = await res.json() as { data?: unknown; errors?: { message: string }[] };
-  if (data.errors?.length) throw new Error(`Railway GraphQL error: ${data.errors.map(e => e.message).join(", ")}`);
-  return data.data;
+  return keep.id;
 }
 
-async function createRailwayService(serviceName: string, repoFullName: string): Promise<string> {
-  const data = await railwayGraphQL(`
-    mutation ServiceCreate($input: ServiceCreateInput!) {
-      serviceCreate(input: $input) {
-        id
-        name
-      }
-    }
-  `, {
-    input: {
-      projectId: RAILWAY_PROJECT_ID,
-      environmentId: RAILWAY_ENVIRONMENT_ID,
-      name: serviceName,
+async function createServiceFromRepo(
+  projectId: string,
+  environmentId: string,
+  name: string,
+  repo: string,
+): Promise<string> {
+  const data = await railway(
+    `mutation($input: ServiceCreateInput!) {
+      serviceCreate(input: $input) { id }
+    }`,
+    {
+      input: {
+        projectId,
+        environmentId,
+        name,
+      },
     },
-  }) as { serviceCreate: { id: string; name: string } };
-  const id = data.serviceCreate.id;
-  await connectRailwayServiceToRepo(id, repoFullName);
+  );
+  const id = data?.serviceCreate?.id;
+  if (!id) throw new Error("serviceCreate returned no id");
+  await connectServiceToRepo(id, environmentId, repo);
   return id;
 }
 
-async function connectRailwayServiceToRepo(serviceId: string, repoFullName: string): Promise<void> {
+async function connectServiceToRepo(serviceId: string, environmentId: string, repo: string) {
   let connected = false;
   try {
-    await railwayGraphQL(`
-      mutation ServiceConnect($id: String!, $input: ServiceConnectInput!) {
+    await railway(
+      `mutation($id: String!, $input: ServiceConnectInput!) {
         serviceConnect(id: $id, input: $input) { id }
-      }
-    `, {
-      id: serviceId,
-      input: { repo: repoFullName, branch: "main" },
-    });
+      }`,
+      { id: serviceId, input: { repo, branch: "main" } },
+    );
     connected = true;
-    console.log(`[railway] source connected via serviceConnect: ${repoFullName}@main`);
-  } catch (e) {
-    console.warn("serviceConnect failed, trying serviceInstanceUpdate:", (e as Error).message);
-  }
-
-  try {
-    await updateRailwayServiceSource(serviceId, repoFullName);
-  } catch (e) {
-    if (!connected) throw e;
-    console.warn("serviceInstanceUpdate source fallback failed after serviceConnect:", (e as Error).message);
-  }
-}
-
-async function updateRailwayServiceSource(serviceId: string, repoFullName: string): Promise<void> {
-  await railwayGraphQL(`
-    mutation ServiceInstanceUpdate($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
-      serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
-    }
-  `, {
-    serviceId,
-    environmentId: RAILWAY_ENVIRONMENT_ID,
-    input: { source: { repo: repoFullName, branch: "main" } },
-  });
-  console.log(`[railway] source connected via serviceInstanceUpdate: ${repoFullName}@main`);
-}
-
-async function setRailwayEnvVars(serviceId: string, variables: Record<string, string>) {
-  await railwayGraphQL(`
-    mutation VariableCollectionUpsert($input: VariableCollectionUpsertInput!) {
-      variableCollectionUpsert(input: $input)
-    }
-  `, {
-    input: {
-      projectId: RAILWAY_PROJECT_ID,
-      environmentId: RAILWAY_ENVIRONMENT_ID,
+    console.log("[auto-deploy-bot] Railway source connected via serviceConnect", {
       serviceId,
-      variables: Object.fromEntries(Object.entries(variables).map(([name, value]) => [name, String(value).trim()])),
+      repo,
+      branch: "main",
+    });
+  } catch (e) {
+    console.warn("[auto-deploy-bot] serviceConnect failed, trying serviceInstanceUpdate", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  try {
+    await updateServiceSource(serviceId, environmentId, repo);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (!connected) throw new Error(`Could not connect Railway repo source: ${message}`);
+    console.warn("[auto-deploy-bot] serviceInstanceUpdate source fallback failed after serviceConnect", {
+      serviceId,
+      message,
+    });
+  }
+}
+
+async function updateServiceSource(serviceId: string, environmentId: string, repo: string) {
+  await railway(
+    `mutation($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
+      serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
+    }`,
+    {
+      serviceId,
+      environmentId,
+      input: {
+        source: { repo, branch: "main" },
+      },
     },
+  );
+  console.log("[auto-deploy-bot] Railway source connected via serviceInstanceUpdate", {
+    serviceId,
+    repo,
+    branch: "main",
   });
 }
 
-async function deployRailwayService(serviceId: string, variables: Record<string, string>): Promise<void> {
-  // Explicitly redeploy after the atomic variableCollectionUpsert so Railway
-  // cannot leave the service at "1 Change" waiting for manual confirmation.
-  try {
-    await railwayGraphQL(`
-      mutation ServiceInstanceRedeploy($serviceId: String!, $environmentId: String!) {
-        serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
-      }
-    `, { serviceId, environmentId: RAILWAY_ENVIRONMENT_ID });
-    return;
-  } catch (e) {
-    console.warn("serviceInstanceRedeploy failed, trying serviceInstanceDeploy:", (e as Error).message);
+
+async function setVariables(
+  projectId: string,
+  environmentId: string,
+  serviceId: string,
+  vars: Record<string, string>,
+) {
+  // Railway's per-variable variableUpsert can stage pending changes that the
+  // dashboard shows as "1 Change". Send the full set atomically instead.
+  const variables = Object.fromEntries(
+    Object.entries(vars).map(([name, value]) => [name, String(value).trim()]),
+  );
+  await railway(
+    `mutation($input: VariableCollectionUpsertInput!) {
+      variableCollectionUpsert(input: $input)
+    }`,
+    {
+      input: {
+        projectId,
+        environmentId,
+        serviceId,
+        variables,
+      },
+    },
+  );
+  console.log("[auto-deploy-bot] variableCollectionUpsert ok", {
+    serviceId,
+    count: Object.keys(variables).length,
+    keys: Object.keys(variables).sort(),
+  });
+}
+
+async function fetchServiceVariables(
+  projectId: string,
+  environmentId: string,
+  serviceId: string,
+): Promise<Record<string, string>> {
+  const data = await railway(
+    `query($projectId: String!, $environmentId: String!, $serviceId: String!) {
+      variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)
+    }`,
+    { projectId, environmentId, serviceId },
+  );
+  const raw = (data?.variables ?? {}) as Record<string, unknown>;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (v == null) continue;
+    out[k] = String(v);
   }
+  console.log("[auto-deploy-bot] fetchServiceVariables", {
+    serviceId,
+    count: Object.keys(out).length,
+    keys: Object.keys(out).sort(),
+  });
+  return out;
+}
+
+async function deploymentCreate(
+  projectId: string,
+  serviceId: string,
+  environmentId: string,
+  variables: Record<string, string>,
+  required: boolean,
+) {
   try {
-    await railwayGraphQL(`
-      mutation ServiceInstanceDeploy($serviceId: String!, $environmentId: String!) {
-        serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId)
-      }
-    `, { serviceId, environmentId: RAILWAY_ENVIRONMENT_ID });
-    return;
-  } catch (e) {
-    console.warn("serviceInstanceDeploy failed, trying deploymentTrigger:", (e as Error).message);
-  }
-  try {
-    await railwayGraphQL(`
-      mutation DeploymentTrigger($serviceId: String!, $environmentId: String!) {
-        deploymentTrigger(serviceId: $serviceId, environmentId: $environmentId)
-      }
-    `, { serviceId, environmentId: RAILWAY_ENVIRONMENT_ID });
-    return;
-  } catch (e) {
-    console.warn("deploymentTrigger failed, trying serviceInstanceDeployV2:", (e as Error).message);
-  }
-  try {
-    await railwayGraphQL(`
-      mutation ServiceInstanceDeployV2($serviceId: String!, $environmentId: String!) {
-        serviceInstanceDeployV2(serviceId: $serviceId, environmentId: $environmentId)
-      }
-    `, { serviceId, environmentId: RAILWAY_ENVIRONMENT_ID });
-    return;
-  } catch (e) {
-    console.warn("serviceInstanceDeployV2 failed, trying serviceDeploy:", (e as Error).message);
-  }
-  try {
-    await railwayGraphQL(`
-      mutation ServiceDeploy($serviceId: String!, $environmentId: String!) {
-        serviceDeploy(serviceId: $serviceId, environmentId: $environmentId)
-      }
-    `, { serviceId, environmentId: RAILWAY_ENVIRONMENT_ID });
-    return;
-  } catch (e) {
-    console.warn("serviceDeploy failed, falling back to deploymentCreate:", (e as Error).message);
-  }
-  try {
-    await railwayGraphQL(`
-      mutation DeploymentCreate($input: DeploymentCreateInput!) {
+    await railway(
+      `mutation($input: DeploymentCreateInput!) {
         deploymentCreate(input: $input) { id status }
-      }
-    `, { input: { projectId: RAILWAY_PROJECT_ID, serviceId, environmentId: RAILWAY_ENVIRONMENT_ID, variables } });
+      }`,
+      { input: { projectId, serviceId, environmentId, variables } },
+    );
+    console.log("[auto-deploy-bot] deploymentCreate ok", { serviceId, withVariables: true });
     return;
   } catch (e) {
-    console.warn("deploymentCreate with variables failed, trying without variables:", (e as Error).message);
+    console.warn("[auto-deploy-bot] deploymentCreate with variables failed", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+    if (!required) return;
   }
-  await railwayGraphQL(`
-    mutation DeploymentCreate($input: DeploymentCreateInput!) {
+  await railway(
+    `mutation($input: DeploymentCreateInput!) {
       deploymentCreate(input: $input) { id status }
-    }
-  `, { input: { projectId: RAILWAY_PROJECT_ID, serviceId, environmentId: RAILWAY_ENVIRONMENT_ID } });
+    }`,
+    { input: { projectId, serviceId, environmentId } },
+  );
+  console.log("[auto-deploy-bot] deploymentCreate ok", { serviceId, withVariables: false });
 }
 
-// ============================================================
-// BUILD PIPELINE
-// ============================================================
+async function deployService(
+  projectId: string,
+  serviceId: string,
+  environmentId: string,
+  variables: Record<string, string>,
+) {
+  // After variableCollectionUpsert, explicitly create a fresh service deploy.
+  // If Railway ever stages the variables anyway, deploymentCreate is tried as
+  // the final direct-build fallback.
+  try {
+    await railway(
+      `mutation($serviceId: String!, $environmentId: String!) {
+        serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
+      }`,
+      { serviceId, environmentId },
+    );
+    console.log("[auto-deploy-bot] serviceInstanceRedeploy ok", { serviceId });
+    await deploymentCreate(projectId, serviceId, environmentId, variables, false);
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] serviceInstanceRedeploy failed, trying serviceInstanceDeploy", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+  try {
+    await railway(
+      `mutation($serviceId: String!, $environmentId: String!) {
+        serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId)
+      }`,
+      { serviceId, environmentId },
+    );
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] serviceInstanceDeploy failed, trying deploymentTrigger", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+  try {
+    await railway(
+      `mutation($serviceId: String!, $environmentId: String!) {
+        deploymentTrigger(serviceId: $serviceId, environmentId: $environmentId)
+      }`,
+      { serviceId, environmentId },
+    );
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] deploymentTrigger failed, trying serviceInstanceDeployV2", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+  try {
+    await railway(
+      `mutation($serviceId: String!, $environmentId: String!) {
+        serviceInstanceDeployV2(serviceId: $serviceId, environmentId: $environmentId)
+      }`,
+      { serviceId, environmentId },
+    );
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] serviceInstanceDeployV2 failed, falling back to serviceDeploy", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+  try {
+    await railway(
+      `mutation($serviceId: String!, $environmentId: String!) {
+        serviceDeploy(serviceId: $serviceId, environmentId: $environmentId)
+      }`,
+      { serviceId, environmentId },
+    );
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] serviceDeploy failed, trying deploymentCreate", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+  try {
+    await railway(
+      `mutation($input: DeploymentCreateInput!) {
+        deploymentCreate(input: $input) { id status }
+      }`,
+      { input: { projectId, serviceId, environmentId, variables } },
+    );
+    console.log("[auto-deploy-bot] deploymentCreate ok", { serviceId, withVariables: true });
+    return;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] deploymentCreate with variables failed, trying without variables", {
+      serviceId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+  await railway(
+    `mutation($input: DeploymentCreateInput!) {
+      deploymentCreate(input: $input) { id status }
+    }`,
+    { input: { projectId, serviceId, environmentId } },
+  );
+  console.log("[auto-deploy-bot] deploymentCreate ok", { serviceId, withVariables: false });
+}
 
-async function claimNextBuildJob(): Promise<BuildJob | null> {
-  const { data, error } = await supabase.rpc("runtime_claim_build_job", {
-    _token: WORKER_TOKEN_VALUE,
-    _worker_id: WORKER_ID,
-  });
-  if (error) {
-    console.error("build job claim error:", error.message);
+async function fetchImageAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const contentType = res.headers.get("content-type") ?? "image/png";
+    const buf = new Uint8Array(await res.arrayBuffer());
+    // Cap at ~8 MB raw to stay well under Discord's limit.
+    if (buf.byteLength > 8_000_000) return null;
+    let bin = "";
+    for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+    const b64 = btoa(bin);
+    return `data:${contentType};base64,${b64}`;
+  } catch (e) {
+    console.warn("[auto-deploy-bot] avatar fetch failed", { url, e: String(e) });
     return null;
   }
-  const result = data as { ok: boolean; job?: BuildJob; error?: string };
-  if (!result?.ok || !result.job) return null;
-  return result.job;
 }
 
-async function processBuildJob(job: BuildJob) {
-  const { id, order_id, selections } = job;
-  console.log(`[build:${id}] Starting build for order ${order_id}`);
-
+async function applyDiscordIdentity(
+  botToken: string,
+  identity: { username?: string | null; iconUrl?: string | null; bio?: string | null },
+): Promise<{ ok: boolean; status?: number; error?: string }> {
+  const payload: Record<string, unknown> = {};
+  if (identity.username) {
+    payload.username = identity.username.trim().slice(0, 32);
+  }
+  if (identity.bio) {
+    payload.bio = identity.bio.slice(0, 190);
+  }
+  if (identity.iconUrl) {
+    const dataUrl = await fetchImageAsDataUrl(identity.iconUrl);
+    if (dataUrl) payload.avatar = dataUrl;
+  }
+  if (Object.keys(payload).length === 0) return { ok: true };
   try {
-    // 1. Claim a Discord bot token from the pool
-    const { data: tokenData, error: tokenError } = await supabase.rpc(
-      "claim_bot_token_from_pool",
-      { _order_id: order_id }
-    );
-    if (tokenError) throw new Error(`Token claim failed: ${tokenError.message}`);
-    const tokenResult = tokenData as { ok: boolean; error?: string; client_id?: string; bot_username?: string };
-    if (!tokenResult?.ok) throw new Error(tokenResult?.error ?? "No tokens available in pool");
-    console.log(`[build:${id}] Token claimed — bot: ${tokenResult.bot_username}`);
-
-    // 2. Determine which repo to use
-    // All-in-one uses protection as base (has all features via flags)
-    const baseRepo = BOT_REPOS[selections.base] ?? BOT_REPOS["protection"];
-    const safeName = selections.bot_name.toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 40);
-    const serviceName = `customer-${safeName}-${order_id.slice(0, 8)}`;
-
-    console.log(`[build:${id}] Creating Railway service: ${serviceName} from ${baseRepo}`);
-
-    // 3. Create Railway service from the appropriate GitHub repo
-    let railwayServiceId: string;
-    try {
-      railwayServiceId = await createRailwayService(serviceName, baseRepo);
-      console.log(`[build:${id}] Railway service created: ${railwayServiceId}`);
-    } catch (err) {
-      throw new Error(`Failed to create Railway service: ${err instanceof Error ? err.message : String(err)}`);
-    }
-
-    // 4. Get the Discord token from bot_secrets
-    const { data: secretData } = await supabase.rpc("runtime_get_bot_secret", {
-      _token: WORKER_TOKEN_VALUE,
-      _bot_id: order_id,
-      _key: "DISCORD_TOKEN",
+    const res = await fetch("https://discord.com/api/v10/users/@me", {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bot ${botToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     });
-    const discordToken = (secretData as { ok: boolean; value?: string })?.value ?? "";
+    if (!res.ok) {
+      const text = await res.text();
+      console.warn("[auto-deploy-bot] discord identity patch failed", {
+        status: res.status,
+        body: text.slice(0, 300),
+        keys: Object.keys(payload),
+      });
+      return { ok: false, status: res.status, error: text.slice(0, 300) };
+    }
+    console.log("[auto-deploy-bot] discord identity applied", {
+      keys: Object.keys(payload),
+    });
+    return { ok: true };
+  } catch (e) {
+    console.warn("[auto-deploy-bot] discord identity patch threw", { e: String(e) });
+    return { ok: false, error: String(e) };
+  }
+}
 
-    // 5. Build environment variables
-    const envVars: Record<string, string> = {
-      DISCORD_TOKEN: discordToken,
-      BOT_NAME: selections.bot_name,
-      BOT_STATUS: `Powered by Oversite`,
-      DATABASE_URL: process.env.CUSTOMER_DATABASE_URL ?? process.env.DATABASE_URL ?? "",
+async function sendDeployedDM(
+  discordUserId: string,
+  botName: string | null | undefined,
+): Promise<{ ok: boolean; error?: string }> {
+  const notifierToken = Deno.env.get("OVERSITE_UTILITIES_BOT_TOKEN");
+  if (!notifierToken) {
+    return { ok: false, error: "OVERSITE_UTILITIES_BOT_TOKEN not configured" };
+  }
+  try {
+    const dmRes = await fetch("https://discord.com/api/v10/users/@me/channels", {
+      method: "POST",
+      headers: {
+        Authorization: `Bot ${notifierToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ recipient_id: discordUserId }),
+    });
+    if (!dmRes.ok) {
+      const text = await dmRes.text();
+      return { ok: false, error: `open DM ${dmRes.status}: ${text.slice(0, 200)}` };
+    }
+    const channel = await dmRes.json();
+    const channelId = channel?.id;
+    if (!channelId) return { ok: false, error: "no DM channel id returned" };
 
-      // Base features all on
-      F_VERIFICATION: "true",
-      F_MODERATION: "true",
-      F_ANTI_SPAM: "true",
-      F_ANTI_RAID: "true",
-      F_BASIC_LOGGING: "true",
-      F_PHISHING: "true",
-      F_TICKETS: "true",
-      F_APPEALS: "true",
-      F_REPORTS: "true",
-      F_WELCOME: "true",
-      F_SAY: "true",
-      F_ANNOUNCE: "true",
-      F_REACTION_ROLES: "true",
-      F_AUTOROLE: "true",
-      F_POLL: "true",
-      F_USERINFO: "true",
-      F_SERVERINFO: "true",
-      F_AVATAR: "true",
-      F_8BALL: "true",
-      F_COINFLIP: "true",
-      F_BASIC_MUSIC: "true",
-      F_SUGGESTIONS: "true",
-      F_ADMIN_ABUSE: "true",
-    };
+    const name = botName?.trim() || "Your bot";
+    const content =
+      `🎉 **${name} is live!**\n\n` +
+      `Your bot has finished deploying and is online. ` +
+      `Head to your Oversite dashboard to invite it to your server and start configuring features.\n\n` +
+      `https://oversite.shop/dashboard`;
 
-    // All-in-one gets all base features from all bots
-    if (selections.base === "all-in-one") {
-      Object.assign(envVars, {
-        F_VERIFICATION: "true",
-        F_MODERATION: "true",
-        F_ANTI_SPAM: "true",
-        F_ANTI_RAID: "true",
-        F_BASIC_LOGGING: "true",
-        F_PHISHING: "true",
-        F_TICKETS: "true",
-        F_APPEALS: "true",
-        F_REPORTS: "true",
-        F_WELCOME: "true",
+    const msgRes = await fetch(
+      `https://discord.com/api/v10/channels/${channelId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bot ${notifierToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content }),
+      },
+    );
+    if (!msgRes.ok) {
+      const text = await msgRes.text();
+      return { ok: false, error: `send DM ${msgRes.status}: ${text.slice(0, 200)}` };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+
+
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  // The auto-injected SUPABASE_ANON_KEY on newer projects is the publishable
+  // key (sb_publishable_...), which PostgREST rejects. The worker needs the
+  // legacy JWT anon key. Read it from LEGACY_ANON_JWT (user-managed secret)
+  // and fall back to SUPABASE_ANON_KEY only if it already looks like a JWT.
+  const envAnon = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  const legacyJwt = Deno.env.get("LEGACY_ANON_JWT") ?? "";
+  const anonKey = legacyJwt.startsWith("eyJ")
+    ? legacyJwt
+    : (envAnon.startsWith("eyJ") ? envAnon : legacyJwt || envAnon);
+  if (!anonKey.startsWith("eyJ")) {
+    console.warn("[auto-deploy-bot] anon key is not a JWT — worker will fail to auth. Set the LEGACY_ANON_JWT secret to the legacy anon JWT (eyJ...).");
+  }
+  const admin = createClient(supabaseUrl, serviceKey);
+
+  let orderId: string | undefined;
+  let invocationSource: string | undefined;
+  try {
+    const body = await req.json().catch(() => ({}));
+    orderId = body?.orderId;
+    invocationSource = body?.source;
+    if (!orderId) {
+      return new Response(JSON.stringify({ error: "orderId required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Enable addon flags based on purchased addons
-    for (const addonId of selections.addons ?? []) {
-      const flagName = ADDON_FLAGS[addonId];
-      if (flagName) {
-        envVars[flagName] = "true";
-        console.log(`[build:${id}] Enabling addon: ${addonId} → ${flagName}=true`);
+    const { data: order, error: orderErr } = await admin
+      .from("bot_orders")
+      .select("id, user_id, bot_name, bot_description, bot_bio, icon_url, base, bot_token, addons, railway_service_id, status, deployment_status, deployment_attempted_at, discord_user_id, ready_dm_sent")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (orderErr || !order) {
+      // Surface WHY the lookup failed — a DB error here (bad key, missing
+      // column, RLS) otherwise masquerades as a missing order forever.
+      console.error("[auto-deploy-bot] order lookup failed", {
+        orderId,
+        dbError: orderErr?.message ?? null,
+        dbCode: (orderErr as { code?: string } | null)?.code ?? null,
+      });
+      return new Response(
+        JSON.stringify({
+          error: "Order not found",
+          orderId: orderId ?? null,
+          dbError: orderErr?.message ?? null,
+          dbCode: (orderErr as { code?: string } | null)?.code ?? null,
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // Concurrency lock: refuse to start a new deploy if one is already in
+    // flight. A stale lock older than 10 minutes is considered abandoned.
+    // Skip this check when invoked by the bot_orders trigger — the trigger
+    // sets deployment_status='deploying' in the same transaction before
+    // calling us, so the lock would always trip on the first auto-deploy.
+    if (order.deployment_status === "deploying" && invocationSource !== "trigger") {
+      const attemptedAt = (order as { deployment_attempted_at?: string | null })
+        .deployment_attempted_at
+        ? new Date(
+            (order as { deployment_attempted_at: string }).deployment_attempted_at,
+          ).getTime()
+        : 0;
+      const ageMs = Date.now() - attemptedAt;
+      if (ageMs < 10 * 60 * 1000) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            alreadyInProgress: true,
+            message: "A deployment is already in progress for this bot.",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
     }
 
-    // 6. Set environment variables on Railway service
-    console.log(`[build:${id}] Setting ${Object.keys(envVars).length} env vars on Railway`);
-    await setRailwayEnvVars(railwayServiceId, envVars);
+    // Resolve the Discord bot token. Prefer a manually-set token on the
+    // order; otherwise claim the next available token from the pool.
+    let botToken = order.bot_token as string | null;
+    let poolClientId: string | null = null;
+    if (!botToken) {
+      const { data: claim, error: claimErr } = await admin.rpc(
+        "claim_pool_token_for_deploy",
+        { _order_id: orderId },
+      );
+      if (claimErr) throw new Error(`Token pool claim failed: ${claimErr.message}`);
+      const c = claim as { ok?: boolean; error?: string; token?: string; client_id?: string } | null;
+      if (!c?.ok) {
+        if (c?.error === "pool_empty") {
+          // Hold the order in a friendly "queued" state. A token-pool trigger
+          // will retry this order automatically when a new token is added.
+          const friendly =
+            "We're currently preparing your bot — our team is on it and you'll receive a Discord DM as soon as it's live. Thank you for your patience!";
+          await admin
+            .from("bot_orders")
+            .update({
+              deployment_status: "queued",
+              deployment_error: friendly,
+              deployment_attempted_at: new Date().toISOString(),
+            })
+            .eq("id", orderId);
+          return new Response(
+            JSON.stringify({ ok: true, queued: true, message: friendly }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        const msg = `Could not claim a bot token: ${c?.error ?? "unknown error"}`;
+        await admin
+          .from("bot_orders")
+          .update({ deployment_status: "failed", deployment_error: msg })
+          .eq("id", orderId);
+        return new Response(JSON.stringify({ error: msg }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      botToken = c.token ?? null;
+      poolClientId = c.client_id ?? null;
+      if (!botToken) throw new Error("Pool returned an empty token");
+    }
 
-    // 7. Deploy the service
-    console.log(`[build:${id}] Deploying Railway service`);
-    await deployRailwayService(railwayServiceId, envVars);
+    const projectId = Deno.env.get("RAILWAY_PROJECT_ID");
+    if (!projectId) throw new Error("RAILWAY_PROJECT_ID not configured");
 
-    // 8. Update bot_orders with Railway service ID and mark ready
-    await supabase.rpc("runtime_finalize_build", {
-      _token: WORKER_TOKEN_VALUE,
-      _job_id: id,
-      _order_id: order_id,
-      _delivery_url: `https://railway.app/project/${RAILWAY_PROJECT_ID}/service/${railwayServiceId}`,
+    const repo = repoSourceFor(order.base);
+
+    // Mark as deploying
+    await admin
+      .from("bot_orders")
+      .update({
+        deployment_status: "deploying",
+        deployment_error: null,
+        deployment_attempted_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
+
+    const environmentId = railwayEnvironmentId();
+
+    const serviceName = buildServiceName(order.bot_name, orderId);
+    const existingServiceId = await resolveReusableService(
+      projectId,
+      serviceName,
+      order.railway_service_id as string | null,
+    );
+    const targetServiceId = existingServiceId ??
+      await createServiceFromRepo(projectId, environmentId, serviceName, repo);
+
+    if (existingServiceId) {
+      await connectServiceToRepo(targetServiceId, environmentId, repo);
+    }
+
+    await admin
+      .from("bot_orders")
+      .update({ railway_service_id: targetServiceId })
+      .eq("id", orderId);
+
+
+    const workerToken = Deno.env.get("WORKER_TOKEN") ?? "";
+    const fnUrl = `${supabaseUrl}/functions/v1`;
+
+    if (!botToken || typeof botToken !== "string" || botToken.trim() === "") {
+      throw new Error("Refusing to deploy: DISCORD_TOKEN is empty after pool claim");
+    }
+    if (!workerToken || workerToken.trim() === "") {
+      throw new Error("Refusing to deploy: WORKER_TOKEN secret is not configured");
+    }
+
+    const purchasedAddons = Array.isArray((order as any).addons)
+      ? ((order as any).addons as string[])
+      : [];
+    const featureFlagVars = buildFeatureFlagVars(order.base, purchasedAddons);
+
+    const varsPayload: Record<string, string> = {
+      DISCORD_TOKEN: botToken.trim(),
+      ...(poolClientId ? { DISCORD_CLIENT_ID: poolClientId } : {}),
+      BOT_ORDER_ID: orderId,
+      SUPABASE_URL: supabaseUrl,
+      SUPABASE_ANON_KEY: anonKey,
+      WORKER_TOKEN: workerToken,
+      SUPABASE_FN_URL: fnUrl,
+      ...featureFlagVars,
+    };
+
+    // Log shape (not values) of the payload to confirm DISCORD_TOKEN is present.
+    console.log("[auto-deploy-bot] variableCollectionUpsert payload", {
+      orderId,
+      serviceId: targetServiceId,
+      serviceName,
+      reusedService: Boolean(existingServiceId),
+      keys: Object.keys(varsPayload),
+      botTokenLength: varsPayload.DISCORD_TOKEN?.length ?? 0,
+      botTokenPreview: varsPayload.DISCORD_TOKEN
+        ? `${varsPayload.DISCORD_TOKEN.slice(0, 4)}…${varsPayload.DISCORD_TOKEN.slice(-4)}`
+        : "(empty)",
+      hasClientId: Boolean(poolClientId),
+      featureFlagCount: Object.keys(featureFlagVars).length,
+      enabledFlags: Object.keys(featureFlagVars).sort(),
+      purchasedAddons,
     });
 
-    // 9. Notify customer
-    await supabase.rpc("runtime_enqueue_notification", {
-      _token: WORKER_TOKEN_VALUE,
-      _bot_id: order_id,
-      _event_type: "command_finished",
-      _title: "Your bot is ready!",
-      _body: `${selections.bot_name} has been deployed and is starting up. Add it to your server using the invite link in your dashboard!`,
-    });
+    await setVariables(
+      projectId,
+      environmentId,
+      targetServiceId,
+      varsPayload,
+    );
 
-    console.log(`[build:${id}] Build complete for order ${order_id} — Railway service: ${railwayServiceId}`);
-
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[build:${id}] Build failed:`, msg);
-
-    await supabase.rpc("runtime_fail_build", {
-      _token: WORKER_TOKEN_VALUE,
-      _job_id: id,
-      _bot_order_id: order_id,
-      _error_message: msg,
-    });
-  }
-}
-
-// ============================================================
-// POLL LOOP
-// ============================================================
-
-async function pollLoop() {
-  console.log(`Worker ${WORKER_ID} polling every ${POLL_INTERVAL_MS}ms…`);
-
-  while (true) {
+    // Verify Railway actually stored DISCORD_TOKEN with the value we sent.
+    // If it comes back empty/missing, do NOT redeploy — abort so the bot
+    // doesn't boot with an empty token.
     try {
-      health.lastPollAt = Date.now();
-
-      // 1. Check for bot commands (start/stop/restart/update)
-      const cmd = await claimNextCommand();
-      if (cmd) {
-        processCommand(cmd).catch(() => {});
+      const stored = await fetchServiceVariables(projectId, environmentId, targetServiceId);
+      const storedToken = stored?.DISCORD_TOKEN ?? "";
+      console.log("[auto-deploy-bot] post-upsert verification", {
+        serviceId: targetServiceId,
+        storedKeys: Object.keys(stored ?? {}),
+        storedBotTokenLength: storedToken.length,
+      });
+      if (!storedToken || storedToken.length !== varsPayload.DISCORD_TOKEN.length) {
+        throw new Error(
+          `Railway stored DISCORD_TOKEN with length ${storedToken.length}, expected ${varsPayload.DISCORD_TOKEN.length}. Refusing to redeploy.`,
+        );
       }
-
-      // 2. Check for pending build jobs
-      const buildJob = await claimNextBuildJob();
-      if (buildJob) {
-        processBuildJob(buildJob).catch(() => {});
-      }
-
-    } catch (err) {
-      console.error("poll loop error:", err);
+    } catch (verifyErr) {
+      const m = verifyErr instanceof Error ? verifyErr.message : String(verifyErr);
+      // If the verification query itself fails (schema change etc.) log and
+      // continue rather than blocking deploys, but if it's our explicit
+      // mismatch error, re-throw.
+      if (m.includes("Refusing to redeploy")) throw verifyErr;
+      console.warn("[auto-deploy-bot] variable verification query failed (continuing)", { message: m });
     }
 
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+    await deployService(projectId, targetServiceId, environmentId, varsPayload);
+
+    await admin
+      .from("bot_orders")
+      .update({
+        railway_service_id: targetServiceId,
+        deployment_status: "deployed",
+        deployment_error: null,
+      })
+      .eq("id", orderId);
+
+    // Apply the customer's chosen identity (username/avatar/bio) to the
+    // Discord application now that we have a confirmed token. This makes the
+    // bot come online already branded without any manual step from the owner.
+    const identityRes = await applyDiscordIdentity(botToken.trim(), {
+      username: (order as any).bot_name ?? null,
+      iconUrl: (order as any).icon_url ?? null,
+      bio: (order as any).bot_bio ?? null,
+    });
+    if (identityRes.ok) {
+      const patch: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      };
+      if ((order as any).bot_name) {
+        patch.discord_last_username_change_at = new Date().toISOString();
+      }
+      await admin.from("bot_orders").update(patch).eq("id", orderId);
+    }
+
+    // Provision base-included + purchased addon entitlements so the
+    // dashboard renders every config block the customer paid for the
+    // moment they land on the page after deploy.
+    await provisionAddonEntitlements(admin, orderId, order.base, purchasedAddons);
+
+    // Send the "your bot is live" Discord DM directly from the edge function
+    // using the Oversite Utilities notifier bot. This replaces the previous
+    // Python-bot-polled /pending?type=ready flow which never ran reliably.
+    const discordUserId = (order as any).discord_user_id as string | null;
+    const alreadyDmd = Boolean((order as any).ready_dm_sent);
+    if (discordUserId && !alreadyDmd) {
+      const dm = await sendDeployedDM(discordUserId, (order as any).bot_name);
+      if (dm.ok) {
+        await admin
+          .from("bot_orders")
+          .update({ ready_dm_sent: true, updated_at: new Date().toISOString() })
+          .eq("id", orderId);
+        console.log("[auto-deploy-bot] deployed DM sent", { orderId, discordUserId });
+      } else {
+        console.warn("[auto-deploy-bot] deployed DM failed", { orderId, discordUserId, error: dm.error });
+      }
+    } else {
+      console.log("[auto-deploy-bot] deployed DM skipped", {
+        orderId,
+        hasDiscordUserId: Boolean(discordUserId),
+        alreadyDmd,
+      });
+    }
+
+
+    return new Response(
+      JSON.stringify({ ok: true, serviceId: targetServiceId, reusedService: Boolean(existingServiceId) }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[auto-deploy-bot] failed", { orderId, message });
+    if (orderId) {
+      await admin
+        .from("bot_orders")
+        .update({ deployment_status: "failed", deployment_error: message })
+        .eq("id", orderId);
+    }
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
-}
-
-// ============================================================
-// SHUTDOWN
-// ============================================================
-
-async function shutdown() {
-  console.log("\nShutting down — stopping all running bots…");
-  await Promise.allSettled([...runtimes.values()].map((r) => r.stop()));
-  process.exit(0);
-}
-
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
-
-pollLoop().catch((err) => {
-  console.error("Fatal:", err);
-  process.exit(1);
 });

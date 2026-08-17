@@ -5,6 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Tag, Sparkles, Trash2, Copy, Power } from "lucide-react";
 
@@ -145,14 +152,15 @@ export function DiscountCodeManager() {
           </div>
           <div>
             <Label className="text-xs">Type</Label>
-            <select
-              value={kind}
-              onChange={(e) => setKind(e.target.value as "percent" | "amount")}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="percent">% off</option>
-              <option value="amount">$ off</option>
-            </select>
+            <Select value={kind} onValueChange={(v) => setKind(v as "percent" | "amount")}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="percent">% off</SelectItem>
+                <SelectItem value="amount">$ off</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label className="text-xs">Value</Label>

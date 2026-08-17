@@ -113,6 +113,16 @@ const defaultGiveawayEndedItems = (): V2Item[] => [
   } as unknown as V2Item,
 ];
 
+// Starter design for the /pricing display. {service} = the chosen service's
+// name, {pricing} = the generated list of items and their Robux/USD prices.
+const defaultPricingItems = (): V2Item[] => [
+  {
+    id: gwUid(),
+    type: "text",
+    text: "## {service} Pricing\n\n{pricing}\n\n-# Open a ticket to order.",
+  } as unknown as V2Item,
+];
+
 // A giveaway design must have a Counter (enter) button. If one is missing
 // anywhere in the tree, append a default Enter row so it's always visible.
 const hasCounterButton = (items: any[]): boolean =>
@@ -228,6 +238,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsCredits = addonId === "customs-credits";
   const isCustomsGiveaway = addonId === "customs-giveaway";
   const isCustomsRobuxLocker = addonId === "customs-robux-locker";
+  const isCustomsOrderStatus = addonId === "customs-order-status";
+  const isCustomsPricing = addonId === "customs-pricing";
+  const isCustomsPortfolio = addonId === "customs-portfolio";
   const isCustomsTickets = addonId === "customs-tickets";
   const isCustomsVerification = addonId === "customs-verification";
   const config = getAddonConfig(addonId);
@@ -254,6 +267,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const robuxLockerV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [robuxLockerV2Items, setRobuxLockerV2Items] = useState<V2Item[]>([]);
   const [robuxLockerV2MountKey, setRobuxLockerV2MountKey] = useState(0);
+  // Customs "Pricing" — the V2 builder for how /pricing looks (uses {pricing}).
+  const pricingV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [pricingV2Items, setPricingV2Items] = useState<V2Item[]>([]);
+  const [pricingV2MountKey, setPricingV2MountKey] = useState(0);
+  // Customs "Portfolio" — the V2 builder for the post /portfolio sends.
+  const portfolioV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [portfolioV2Items, setPortfolioV2Items] = useState<V2Item[]>([]);
+  const [portfolioV2MountKey, setPortfolioV2MountKey] = useState(0);
   // Customs "Giveaway" — two designs: the running layout and the ended (winner)
   // layout. A tab switches which one you edit; both are saved together.
   const [giveawayTab, setGiveawayTab] = useState<"running" | "ended">("running");
@@ -1122,6 +1143,126 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     setOpen(false);
   };
 
+  // ---------- customs: order status ----------
+  useEffect(() => {
+    if (!isCustomsOrderStatus || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-order-status")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        title: cfg.title ?? "Order Status",
+        limited_at: typeof cfg.limited_at === "number" ? cfg.limited_at : 8,
+        closed_at: typeof cfg.closed_at === "number" ? cfg.closed_at : 10,
+        emoji_open: cfg.emoji_open ?? "",
+        label_open: cfg.label_open ?? "Open",
+        emoji_limited: cfg.emoji_limited ?? "",
+        label_limited: cfg.label_limited ?? "Oversite+ Only",
+        emoji_closed: cfg.emoji_closed ?? "",
+        label_closed: cfg.label_closed ?? "Closed",
+        services: cfg.services ?? "Liveries = Liveries\nGFX = GFX\nBot Design = Bot Design",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsOrderStatus, open, botId]);
+
+  const saveCustomsOrderStatus = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-order-status",
+      config: {
+        title: String(values.title ?? "Order Status") || "Order Status",
+        limited_at: Number(values.limited_at ?? 8) || 0,
+        closed_at: Number(values.closed_at ?? 10) || 0,
+        emoji_open: String(values.emoji_open ?? ""),
+        label_open: String(values.label_open ?? "Open") || "Open",
+        emoji_limited: String(values.emoji_limited ?? ""),
+        label_limited: String(values.label_limited ?? "Oversite+ Only") || "Oversite+ Only",
+        emoji_closed: String(values.emoji_closed ?? ""),
+        label_closed: String(values.label_closed ?? "Closed") || "Closed",
+        services: String(values.services ?? ""),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-order-status",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Order Status saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: pricing ----------
+  useEffect(() => {
+    if (!isCustomsPricing || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-pricing")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        designer_role_ids: Array.isArray(cfg.designer_role_ids) ? cfg.designer_role_ids.map(String) : [],
+        currency: cfg.currency ?? "$",
+        title: cfg.title ?? "Pricing",
+        services: cfg.services ?? "",
+      }));
+      const savedDesign = Array.isArray(cfg.components) && cfg.components.length ? (cfg.components as V2Item[]) : null;
+      setPricingV2Items(savedDesign ?? defaultPricingItems());
+      setPricingV2MountKey((k) => k + 1);
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsPricing, open, botId]);
+
+  const saveCustomsPricing = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-pricing",
+      config: {
+        designer_role_ids: Array.isArray(values.designer_role_ids) ? (values.designer_role_ids as string[]).map(String) : [],
+        currency: String(values.currency ?? "$") || "$",
+        title: String(values.title ?? "Pricing") || "Pricing",
+        services: String(values.services ?? ""),
+        components: normalizeV2Items(pricingV2Ref.current?.getItems() ?? pricingV2Items ?? []),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-pricing",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Pricing saved & applied");
+    setOpen(false);
+  };
+
   // ---------- customs: giveaway (design + /giveaway defaults) ----------
   useEffect(() => {
     if (!isCustomsGiveaway || !open || !botId) return;
@@ -1297,6 +1438,56 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Robux Locker saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: portfolio ----------
+  useEffect(() => {
+    if (!isCustomsPortfolio || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-portfolio")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        channel_id: cfg.channel_id ? String(cfg.channel_id) : "",
+      }));
+      setPortfolioV2Items(Array.isArray(cfg.components) ? (cfg.components as V2Item[]) : []);
+      setPortfolioV2MountKey((k) => k + 1);
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsPortfolio, open, botId]);
+
+  const saveCustomsPortfolio = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    if (!values.channel_id) return toast.error("Pick a channel for /portfolio to post in.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-portfolio",
+      config: {
+        channel_id: String(values.channel_id),
+        components: normalizeV2Items(portfolioV2Ref.current?.getItems() ?? portfolioV2Items ?? []),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-portfolio",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Portfolio saved & applied");
     setOpen(false);
   };
 
@@ -3457,7 +3648,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -3804,6 +3995,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   Design the panel members see, using the same builder as Messages. It posts to the
                   channel above when you Save. (Buy buttons come next — this is the panel design.)
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  Type <code className="font-mono text-os-accent">{"{stock}"}</code> anywhere — it fills in
+                  with the current Available Stock and updates live as staff stock it with{" "}
+                  <code className="font-mono">/robuxlocker</code> or members buy. Use{" "}
+                  <code className="font-mono text-os-accent">{"{funds}"}</code> for the group balance last read.
+                </p>
                 <MessagesV2Builder
                   key={`customs-robux-locker-v2-${robuxLockerV2MountKey}`}
                   ref={robuxLockerV2Ref}
@@ -3812,6 +4009,59 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
                   initialItems={robuxLockerV2Items}
+                />
+              </div>
+            </div>
+          ) : isCustomsPricing ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">/pricing display</p>
+                <p className="text-xs text-muted-foreground">
+                  Design how the pricing looks when a member runs{" "}
+                  <code className="font-mono">/pricing</code> and picks a service — it posts publicly.
+                  Put <code className="font-mono text-os-accent">{"{pricing}"}</code> where the list goes,
+                  and <code className="font-mono text-os-accent">{"{service}"}</code> for the service name.
+                  {" "}<code className="font-mono text-os-accent">{"{pricing}"}</code> expands to each designer's
+                  @mention followed by their prices, ordered by who joined the server first (prices are set
+                  per-designer with <code className="font-mono">/setpricing</code>). The service picker is added automatically.
+                </p>
+                <MessagesV2Builder
+                  key={`customs-pricing-v2-${pricingV2MountKey}`}
+                  ref={pricingV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={pricingV2Items}
+                />
+              </div>
+            </div>
+          ) : isCustomsPortfolio ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Portfolio post</p>
+                <p className="text-xs text-muted-foreground">
+                  Design the post, using the same builder as Messages. When you run{" "}
+                  <code className="font-mono">/portfolio</code>, this design is posted to the channel above.
+                </p>
+                <MessagesV2Builder
+                  key={`customs-portfolio-v2-${portfolioV2MountKey}`}
+                  ref={portfolioV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={portfolioV2Items}
                 />
               </div>
             </div>
@@ -4128,6 +4378,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsVerification();
                   } else if (isCustomsTickets) {
                     void saveCustomsTickets();
+                  } else if (isCustomsOrderStatus) {
+                    void saveCustomsOrderStatus();
+                  } else if (isCustomsPricing) {
+                    void saveCustomsPricing();
+                  } else if (isCustomsPortfolio) {
+                    void saveCustomsPortfolio();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);

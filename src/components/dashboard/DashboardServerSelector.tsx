@@ -1,6 +1,13 @@
 import { useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RefreshCw, Server, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBotGuilds } from "@/hooks/useGuildChannels";
@@ -61,8 +68,8 @@ export function DashboardServerSelector({ botId }: Props) {
   return (
     <Card className="bg-card/40 border-border p-4">
       <div className="flex items-start gap-3">
-        <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center shrink-0">
-          <Globe className="h-5 w-5 text-primary" />
+        <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+          <Globe className="h-5 w-5 text-primary" size={20} />
         </div>
         <div className="flex-1 min-w-0 space-y-2">
           <div>
@@ -74,29 +81,39 @@ export function DashboardServerSelector({ botId }: Props) {
           </div>
 
           <div className="flex gap-2">
-            <label className="relative flex-1 block">
-              <Server className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <select
+            <div className="flex-1 min-w-0">
+              <Select
                 value={selectedGuild?.guild_id ?? ""}
-                onChange={(event) => {
-                  const next = guilds.find((g) => g.guild_id === event.target.value) ?? null;
+                onValueChange={(v) => {
+                  const next = guilds.find((g) => g.guild_id === v) ?? null;
                   setGuild(next);
                 }}
                 disabled={loading || guilds.length === 0}
-                className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label="Active server"
               >
-                <option value="">
-                  {loading ? "Loading servers…" : guilds.length === 0 ? "No servers cached — click refresh →" : "Select a server…"}
-                </option>
-                {guilds.map((g) => (
-                  <option key={g.guild_id} value={g.guild_id}>
-                    {g.guild_name ?? g.guild_id}
-                    {g.member_count != null ? ` · ${g.member_count.toLocaleString()} members` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <SelectTrigger aria-label="Active server">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Server className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
+                    <SelectValue
+                      placeholder={
+                        loading
+                          ? "Loading servers…"
+                          : guilds.length === 0
+                            ? "No servers cached — click refresh →"
+                            : "Select a server…"
+                      }
+                    />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {guilds.map((g) => (
+                    <SelectItem key={g.guild_id} value={g.guild_id}>
+                      {g.guild_name ?? g.guild_id}
+                      {g.member_count != null ? ` · ${g.member_count.toLocaleString()} members` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Button
               type="button"
               variant="outline"

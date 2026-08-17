@@ -28,9 +28,22 @@ const json = (status: number, data: unknown) =>
 const RAILWAY_API = "https://backboard.railway.app/graphql/v2";
 
 // A heartbeat younger than this is trusted as-is and never overridden.
-const FRESH_MS = 45_000;
+// Kept well under the dashboard's 60s staleness cutoff so bots whose
+// heartbeat loop is dead (kept online by these Railway checks) get their
+// timestamp refreshed on every 30s poll instead of dipping offline between
+// checks.
+const FRESH_MS = 25_000;
 // Don't hammer Railway: at most this many services checked per call.
 const MAX_CHECKS = 12;
+// Dashboard-driven transitions (stopping/starting/restarting/updating).
+// Right after one of these is written, Railway's latest deployment can still
+// read SUCCESS from *before* the action took effect — so for this window a
+// SUCCESS is ignored rather than clobbering the transition back to online.
+const TRANSITIONAL = new Set(["stopping", "starting", "restarting", "updating"]);
+const TRANSITION_GRACE_MS = 45_000;
+// After this long a transition label is considered stuck and Railway's view
+// wins outright (e.g. a redeploy the user abandoned mid-build).
+const TRANSITION_MAX_MS = 5 * 60_000;
 
 async function railway(query: string, variables: Record<string, unknown>) {
   const token = Deno.env.get("RAILWAY_API_TOKEN");
@@ -69,19 +82,33 @@ async function environmentIdFor(serviceId: string): Promise<string> {
   return prod.node.id as string;
 }
 
-/** Latest deployment status for a service, e.g. SUCCESS / CRASHED / REMOVED. */
-async function latestDeploymentStatus(serviceId: string): Promise<string | null> {
+/**
+ * Recent deployment statuses for a service, newest first (e.g. SUCCESS /
+ * BUILDING / CRASHED / REMOVED). More than one is needed because mid-redeploy
+ * the newest *visible* record can be the old deployment being REMOVED while
+ * the replacement is still QUEUED/BUILDING behind it.
+ */
+async function recentDeploymentStatuses(serviceId: string): Promise<string[]> {
   const environmentId = await environmentIdFor(serviceId);
   const data = await railway(
     `query($input: DeploymentListInput!) {
-      deployments(input: $input, first: 1) {
+      deployments(input: $input, first: 5) {
         edges { node { id status } }
       }
     }`,
     { input: { serviceId, environmentId } },
   );
-  return data?.deployments?.edges?.[0]?.node?.status ?? null;
+  const edges = data?.deployments?.edges ?? [];
+  return edges.map((e: any) => e?.node?.status).filter(Boolean);
 }
+
+const IN_PROGRESS = new Set([
+  "BUILDING",
+  "DEPLOYING",
+  "INITIALIZING",
+  "QUEUED",
+  "WAITING",
+]);
 
 /** Map Railway deployment status onto the dashboard's status vocabulary. */
 function mapStatus(railwayStatus: string): string {
@@ -155,7 +182,7 @@ Deno.serve(async (req) => {
     // Trust fresh heartbeats — only second-guess stale or non-online rows.
     const { data: runtime } = await admin
       .from("bot_runtime_status")
-      .select("bot_id, status, last_heartbeat_at")
+      .select("bot_id, status, last_heartbeat_at, updated_at")
       .in("bot_id", orders.map((o: any) => o.id));
     const runtimeById = new Map<string, any>(
       (runtime ?? []).map((r: any) => [r.bot_id, r]),
@@ -177,9 +204,39 @@ Deno.serve(async (req) => {
     await Promise.all(
       candidates.map(async (order: any) => {
         try {
-          const railwayStatus = await latestDeploymentStatus(order.railway_service_id);
-          if (!railwayStatus) return;
+          const deployStatuses = await recentDeploymentStatuses(order.railway_service_id);
+          if (deployStatuses.length === 0) return;
+          // A build/deploy anywhere in the recent list means work is in
+          // flight — the newest visible record may be the OLD deployment
+          // being REMOVED, which must not read as "offline".
+          const inFlight = deployStatuses.some((s) => IN_PROGRESS.has(s));
+          const railwayStatus = inFlight ? "DEPLOYING" : deployStatuses[0];
           const mapped = mapStatus(railwayStatus);
+
+          // Mid-transition rules: keep the user-facing label ("Restarting…",
+          // "Redeploying…") until Railway reaches the *expected* terminal
+          // state. Stray intermediate readings (old deployment REMOVED, old
+          // SUCCESS not yet torn down) are ignored inside the window.
+          const current = runtimeById.get(order.id);
+          if (current && TRANSITIONAL.has(current.status)) {
+            const age = current.updated_at
+              ? Date.now() - new Date(current.updated_at).getTime()
+              : Infinity;
+            if (age < TRANSITION_MAX_MS) {
+              // Don't downgrade a named transition to the generic "starting".
+              if (mapped === "starting") return;
+              // A SUCCESS this soon after the action is almost certainly the
+              // deployment from *before* it — wait for the next check.
+              if (mapped === "online" && age < TRANSITION_GRACE_MS) return;
+              // "offline" is only a valid outcome of a Stop; during a
+              // restart/redeploy it's just the old container going away.
+              if (mapped === "offline" && current.status !== "stopping") return;
+              // Symmetrically, a stop can't end "online" — that's the old
+              // deployment still winding down.
+              if (mapped === "online" && current.status === "stopping") return;
+            }
+          }
+
           statuses[order.id] = { status: mapped, railway: railwayStatus };
 
           const now = new Date().toISOString();

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -52,6 +52,17 @@ export function TeamManagementHub({ botId, ownerUserId, ownerEmail }: Props) {
 
   const defaultTab = visibleTabs[0] ?? "members";
 
+  // Remember the last team tab across refreshes.
+  const [tab, setTab] = useState<string>(() => {
+    try { return localStorage.getItem("os_team_tab") || defaultTab; } catch { return defaultTab; }
+  });
+  // If the remembered tab isn't available to this viewer, fall back.
+  const activeTab = visibleTabs.includes(tab) ? tab : defaultTab;
+  const onTabChange = (v: string) => {
+    setTab(v);
+    try { localStorage.setItem("os_team_tab", v); } catch { /* ignore */ }
+  };
+
   return (
     <Card className="bg-card/40 border-border">
       <div className="p-5 border-b border-border flex items-center gap-3">
@@ -75,7 +86,7 @@ export function TeamManagementHub({ botId, ownerUserId, ownerEmail }: Props) {
       </div>
 
       <div className="p-5">
-        <Tabs defaultValue={defaultTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
           <TabsList className="mb-4">
             {canSeeMembers && (
               <TabsTrigger value="members"><Users className="h-3.5 w-3.5 mr-1.5" />Team members</TabsTrigger>

@@ -8,7 +8,22 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMembership } from "@/hooks/useMembership";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
 import { DiscordJoinGate } from "@/components/checkout/DiscordJoinGate";
+import dashboardBg from "@/assets/dashboardBg";
 import { track } from "@/lib/analytics";
+
+// Self-contained "system page" shell (mountain backdrop + frosted slate glass).
+// Inlined rather than shared so no extra file is required.
+const OSSYS_CSS = `
+.ossys{--os-heading:#E8EEF3;--os-body:#A8B4BF;--os-faint:#788591;--os-accent:#C9DBE6;--os-accent-ink:#1E242B;--os-hair:rgba(168,180,191,.16);position:relative;min-height:100vh;display:flex;flex-direction:column;overflow:hidden;color:var(--os-body);font-family:'Manrope',system-ui,-apple-system,sans-serif;background:radial-gradient(130% 85% at 50% 118%,rgba(201,219,230,.14),transparent 55%),radial-gradient(95% 70% at 50% -15%,rgba(70,82,94,.55),transparent 60%),linear-gradient(180deg,#293038,#1e242b)}
+.ossys-bg{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center 22%;background-repeat:no-repeat}
+.ossys-scrim{position:fixed;inset:0;z-index:0;background:linear-gradient(180deg,rgba(18,22,27,.55),rgba(18,22,27,.72) 55%,rgba(18,22,27,.86))}
+.ossys-mid{position:relative;z-index:2;flex:1;display:grid;place-items:center;padding:64px 16px}
+.ossys-foot{position:relative;z-index:2;padding-bottom:22px;text-align:center;font-size:12px;color:var(--os-faint)}
+.ossys-foot a{color:var(--os-faint);text-decoration:none;transition:color .15s}
+.ossys-foot a:hover{color:var(--os-heading)}
+.ossys-foot .sep{margin:0 10px;opacity:.45}
+.ossys-card{width:100%;border:1px solid var(--os-hair);border-radius:20px;background:linear-gradient(180deg,rgba(46,54,63,.72),rgba(39,46,54,.8));-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:0 34px 90px -34px rgba(0,0,0,.8);padding:38px 34px;text-align:center}
+`;
 
 type PurchasedFile = {
   id: string;
@@ -22,6 +37,7 @@ export default function CheckoutReturn() {
   const navigate = useNavigate();
   const sessionId = searchParams.get("session_id");
   const setupOrderId = searchParams.get("order");
+  const comped = searchParams.get("comped") === "1";
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [files, setFiles] = useState<PurchasedFile[]>([]);
@@ -83,24 +99,35 @@ export default function CheckoutReturn() {
   }, [isBotOrder]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12">
-      <div className="relative max-w-lg w-full text-center bg-card border border-border rounded-2xl p-8 shadow-elegant">
+    <main className="ossys">
+      <style>{OSSYS_CSS}</style>
+      {/* Mountain backdrop (base64-inlined) + dark scrim, card centered above */}
+      <div className="ossys-bg" style={{ backgroundImage: `url(${dashboardBg})` }} aria-hidden />
+      <div className="ossys-scrim" />
+      <div className="ossys-mid">
+       <div style={{ width: "100%", maxWidth: 560 }}>
+      <div className="ossys-card relative">
         {isBotOrder && showClose && (
           <button
             type="button"
             aria-label="Close"
             onClick={() => navigate("/")}
-            className="absolute top-3 right-3 p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors animate-in fade-in"
+            className="absolute top-3 right-3 p-1.5 rounded-full transition-colors animate-in fade-in"
+            style={{ color: "var(--os-faint)" }}
           >
             <X className="h-4 w-4" />
           </button>
         )}
-        <CheckCircle2 className="mx-auto h-14 w-14 text-primary mb-4" />
-        <h1 className="text-2xl font-bold mb-2">Thanks for your order!</h1>
-        <p className="text-muted-foreground mb-6">
-          {sessionId || setupOrderId
-            ? "Your payment was received."
-            : "No session information found."}
+        <CheckCircle2 className="mx-auto h-14 w-14 mb-4" style={{ color: "#86d3a1" }} />
+        <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--os-heading)" }}>
+          Thanks for your order!
+        </h1>
+        <p className="mb-6" style={{ color: "var(--os-body)" }}>
+          {comped
+            ? "100% off — no charge. Your order is all set."
+            : sessionId || setupOrderId
+              ? "Your payment was received."
+              : "No session information found."}
         </p>
 
         {/* Bot order — Discord-join gate then status-driven next-step */}
@@ -189,6 +216,16 @@ export default function CheckoutReturn() {
           </div>
         )}
       </div>
-    </div>
+       </div>
+      </div>
+      {/* Legal footer — each opens the tabbed /terms page in a new tab */}
+      <div className="ossys-foot">
+        <a href="/terms#terms" target="_blank" rel="noopener noreferrer">Terms of Use</a>
+        <span className="sep">·</span>
+        <a href="/terms#privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+        <span className="sep">·</span>
+        <a href="/terms#refunds" target="_blank" rel="noopener noreferrer">Sales &amp; Refunds</a>
+      </div>
+    </main>
   );
 }

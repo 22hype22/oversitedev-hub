@@ -65,7 +65,3 @@ TO authenticated
 USING (public.is_platform_staff(auth.uid()))
 WITH CHECK (public.is_platform_staff(auth.uid()));
 
--- Grant operator account the admin role (idempotent)
-INSERT INTO public.user_roles (user_id, role)
-VALUES ('41239c0a-956c-48e2-bd39-ce7712bfb65f', 'admin'::public.app_role)
-ON CONFLICT (user_id, role) DO NOTHING;

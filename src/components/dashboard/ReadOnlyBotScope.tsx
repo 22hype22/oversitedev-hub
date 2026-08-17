@@ -1,6 +1,5 @@
 import { ReactNode, createContext, useContext, useMemo } from "react";
-import { Eye, Lock } from "lucide-react";
-import { useTeamRole, ROLE_LABEL } from "@/hooks/useTeamRole";
+import { useTeamRole } from "@/hooks/useTeamRole";
 
 type Props = {
   /** The bot being viewed. Used to resolve per-bot team membership. */
@@ -34,12 +33,17 @@ export function useBotScope() {
 /**
  * Wraps a bot's dashboard content and locks all editing UI when the current
  * viewer is a team member without the `edit_bot_config` permission on this
- * specific bot. The lock is enforced visually via the `.readonly-scope` CSS
- * class. All write operations are *also* enforced server-side by RLS
- * policies (`has_bot_team_perm(... 'edit_bot_config')`).
+ * specific bot.
+ *
+ * Note: My Bots is now nav-gated on `edit_bot_config`, so a member who can even
+ * reach a bot's page already has edit rights — this read-only branch is a
+ * server-parity safety net (RLS still enforces `has_bot_team_perm`), not a
+ * user-facing state. It disables inputs silently; there is intentionally no
+ * banner (removed by request — access is communicated by which sections a role
+ * can open, not an inline notice).
  */
 export function ReadOnlyBotScope({ botId, ownerUserId, viaTeam, children }: Props) {
-  const { role, permissions, loading } = useTeamRole(viaTeam ? botId : null);
+  const { permissions, loading } = useTeamRole(viaTeam ? botId : null);
 
   // Owners (viaTeam=false) and team members with edit perms get full UI.
   const readOnly = !!viaTeam && !loading && !permissions.edit_bot_config;
@@ -58,8 +62,6 @@ export function ReadOnlyBotScope({ botId, ownerUserId, viaTeam, children }: Prop
     return <Ctx.Provider value={ctxValue}>{children}</Ctx.Provider>;
   }
 
-  const roleLabel = role ? ROLE_LABEL[role] : "Team member";
-
   return (
     <Ctx.Provider value={ctxValue}>
       <fieldset
@@ -67,22 +69,6 @@ export function ReadOnlyBotScope({ botId, ownerUserId, viaTeam, children }: Prop
         className="readonly-scope border-0 p-0 m-0 min-w-0 w-full"
         aria-readonly="true"
       >
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-start gap-3 mb-3">
-          <div className="h-8 w-8 rounded-md bg-amber-500/10 border border-amber-500/30 grid place-items-center shrink-0">
-            <Eye className="h-4 w-4 text-amber-400" />
-          </div>
-          <div className="text-sm">
-            <div className="font-semibold text-amber-300 flex items-center gap-1.5">
-              <Lock className="h-3.5 w-3.5" />
-              Read-only access · {roleLabel}
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Your role on this bot can view it but not change its settings.
-              Inputs, toggles, and save actions are disabled. Ask the owner to
-              grant edit permissions in the Team tab to unlock changes.
-            </p>
-          </div>
-        </div>
         {children}
       </fieldset>
     </Ctx.Provider>

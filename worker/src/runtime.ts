@@ -1,7 +1,6 @@
 import {
   ActivityType,
   Client,
-  EmbedBuilder,
   Events,
   GatewayIntentBits,
   REST,
@@ -294,56 +293,6 @@ export class BotRuntime {
     if (this.running) {
       await this.restart();
     }
-  }
-
-  /**
-   * Send a message (optionally with embeds) to a channel using this bot's
-   * live client. Used by `post_message` commands the worker owns the runtime
-   * for — e.g. feedback submissions routed through the Oversite Utilities bot.
-   */
-  async postMessage(payload: {
-    channel_id?: string;
-    content?: string | null;
-    embeds?: Array<Record<string, any>>;
-  }) {
-    if (!this.client) throw new Error("Bot is not running");
-    const channelId = payload?.channel_id;
-    if (!channelId) throw new Error("Missing channel_id");
-
-    const channel = await this.client.channels.fetch(channelId);
-    if (!channel || !("send" in channel) || typeof (channel as any).send !== "function") {
-      throw new Error("Channel not found or not text-based");
-    }
-
-    const embeds = (payload.embeds ?? []).map((e) => {
-      const eb = new EmbedBuilder();
-      if (e.author?.name) eb.setAuthor({ name: String(e.author.name) });
-      if (e.title) eb.setTitle(String(e.title));
-      if (e.description) eb.setDescription(String(e.description));
-      if (typeof e.color === "number") eb.setColor(e.color);
-      if (Array.isArray(e.fields) && e.fields.length) {
-        eb.addFields(
-          e.fields.map((f: any) => ({
-            name: String(f.name ?? "​"),
-            value: String(f.value ?? "​"),
-            inline: Boolean(f.inline),
-          })),
-        );
-      }
-      if (e.footer?.text) eb.setFooter({ text: String(e.footer.text) });
-      if (e.image_url) eb.setImage(String(e.image_url));
-      if (e.timestamp) {
-        const t = new Date(e.timestamp);
-        if (!Number.isNaN(t.getTime())) eb.setTimestamp(t);
-      }
-      return eb;
-    });
-
-    await (channel as any).send({
-      content: payload.content ?? undefined,
-      embeds,
-    });
-    await appendLog(this.botId, "info", `Posted message to channel ${channelId}`);
   }
 
   async listChannels(guildId: string) {

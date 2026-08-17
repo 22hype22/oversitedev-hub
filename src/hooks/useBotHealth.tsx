@@ -1,5 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+
+// A single stale "offline" reading (a heartbeat landing a moment late, a Railway
+// blip, a poll in a gap) shouldn't flip the whole UI offline and back. Suppress
+// an offline reading for this long if the bot was just up; only believe it once
+// it persists. Genuine offline still shows after the grace window.
+const OFFLINE_GRACE_MS = 25_000;
 
 export type BotHealth = {
   bot_id: string;
@@ -19,10 +25,16 @@ export type BotHealth = {
 export const useBotHealth = (botId: string | null) => {
   const [health, setHealth] = useState<BotHealth | null>(null);
   const [loading, setLoading] = useState(Boolean(botId));
+  // Last non-offline reading, and when the current offline streak began — used
+  // to debounce transient offline flickers.
+  const lastGoodRef = useRef<BotHealth | null>(null);
+  const offlineSinceRef = useRef<number | null>(null);
 
   const load = useCallback(async () => {
     if (!botId) {
       setHealth(null);
+      lastGoodRef.current = null;
+      offlineSinceRef.current = null;
       setLoading(false);
       return;
     }
@@ -30,7 +42,26 @@ export const useBotHealth = (botId: string | null) => {
       _bot_id: botId,
     });
     if (!error && data) {
-      setHealth(data as BotHealth);
+      const h = data as BotHealth;
+      if (h.effective_status !== "offline") {
+        // Any live/starting state — trust it and remember it as the last good.
+        lastGoodRef.current = h;
+        offlineSinceRef.current = null;
+        setHealth(h);
+      } else if (lastGoodRef.current) {
+        // Offline, but we were up a moment ago. Hold the last good status until
+        // it's been offline continuously past the grace window; the 10s poll
+        // re-evaluates, so a real outage still flips after ~25s.
+        if (offlineSinceRef.current == null) offlineSinceRef.current = Date.now();
+        if (Date.now() - offlineSinceRef.current >= OFFLINE_GRACE_MS) {
+          setHealth(h);
+        } else {
+          setHealth(lastGoodRef.current);
+        }
+      } else {
+        // No prior good reading (e.g. it really is offline on first load).
+        setHealth(h);
+      }
     }
     setLoading(false);
   }, [botId]);
@@ -41,13 +72,29 @@ export const useBotHealth = (botId: string | null) => {
       setLoading(false);
       return;
     }
+    // New bot selected — don't carry over the previous bot's smoothing state.
+    lastGoodRef.current = null;
+    offlineSinceRef.current = null;
     setLoading(true);
     load();
-    // Poll every 10s so an offline → online transition after a Start /
-    // Restart / Redeploy is reflected on the dashboard within ~10s of the
-    // worker's first heartbeat, without requiring a manual refresh.
+    // Poll every 10s as a staleness fallback (a hard-killed worker can't
+    // report anything, so only the heartbeat age reveals it's gone).
     const t = setInterval(load, 10_000);
-    return () => clearInterval(t);
+    // Realtime: any worker/status write (online, starting, restarting,
+    // crashed, …) re-fetches immediately so transitions show up instantly
+    // instead of waiting out the poll interval.
+    const channel = supabase
+      .channel(`bot-health-${botId}-${Math.random().toString(36).slice(2)}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bot_runtime_status", filter: `bot_id=eq.${botId}` },
+        () => load(),
+      )
+      .subscribe();
+    return () => {
+      clearInterval(t);
+      supabase.removeChannel(channel);
+    };
   }, [botId, load]);
 
   return { health, loading, reload: load };

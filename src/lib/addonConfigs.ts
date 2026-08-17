@@ -843,6 +843,107 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "customs-portfolio": {
+    title: "Portfolio",
+    summary: "Design a post below; run /portfolio to send it to the chosen channel.",
+    icon: FileText,
+    fields: [
+      channel("channel_id", "Post channel", "Where /portfolio posts the design below."),
+    ],
+  },
+
+  "customs-order-status": {
+    title: "Order Status",
+    summary: "Live open/limited/closed status per service, based on how many order tickets are open.",
+    icon: BarChart3,
+    fields: [
+      {
+        key: "title",
+        label: "Embed title",
+        type: "text",
+        defaultValue: "Order Status",
+        placeholder: "Order Status",
+        help: "Heading shown at the top of the status embed.",
+      },
+      header("Thresholds (same for every service)"),
+      {
+        key: "limited_at",
+        label: "Oversite+ only at",
+        type: "number",
+        defaultValue: 8,
+        help: "When a service reaches this many OPEN order tickets, its status flips to the “Oversite+ only” state.",
+      },
+      {
+        key: "closed_at",
+        label: "Closed at",
+        type: "number",
+        defaultValue: 10,
+        help: "When a service reaches this many OPEN order tickets, its status flips to “Closed”.",
+      },
+      header("Statuses (emoji + label)"),
+      {
+        key: "emoji_open",
+        label: "Open — emoji",
+        type: "text",
+        placeholder: ":green:",
+        help: "Type your custom server emoji as :name: (e.g. :green:) or paste a normal emoji. Same for the others.",
+      },
+      { key: "label_open", label: "Open — label", type: "text", defaultValue: "Open", placeholder: "Open" },
+      { key: "emoji_limited", label: "Oversite+ only — emoji", type: "text", placeholder: ":yellow:" },
+      { key: "label_limited", label: "Oversite+ only — label", type: "text", defaultValue: "Oversite+ Only", placeholder: "Oversite+ Only" },
+      { key: "emoji_closed", label: "Closed — emoji", type: "text", placeholder: ":red:" },
+      { key: "label_closed", label: "Closed — label", type: "text", defaultValue: "Closed", placeholder: "Closed" },
+      header("Services"),
+      {
+        key: "services",
+        label: "Services (one per line)",
+        type: "textarea",
+        defaultValue: "Liveries = Liveries\nGFX = GFX\nBot Design = Bot Design",
+        placeholder: "Liveries = Liveries\nGFX = GFX\nBot Design = Bot Design",
+        help:
+          "One service per line as “Display Name = Ticket Category” (the Discord category its order tickets open under; leave “= Category” off to reuse the name). NO braces here — this is plain text. " +
+          "Each service also becomes a live variable for ANY message, panel, ticket, or button — the name (any case/spacing works): “Liveries” → {liveries}, “Bot Design” → {bot design}. " +
+          "{liveries} shows “Liveries — 🟢” (name + icon, no Open/Closed word). {liveriesstatus} shows the icon + word (🟢 Open).",
+      },
+    ],
+  },
+
+  "customs-pricing": {
+    title: "Pricing",
+    summary: "Services + their pricing items. Designers set the prices in Discord with /setpricing; members view them with /pricing.",
+    icon: Coins,
+    fields: [
+      multirole("designer_role_ids", "Designer roles (can run /setpricing)", "Members with any of these roles can set prices. Anyone with Manage Server can too."),
+      {
+        key: "currency",
+        label: "USD currency symbol",
+        type: "text",
+        defaultValue: "$",
+        placeholder: "$",
+        help: "Symbol for the USD price, e.g. $ or £. Robux prices always show as “R$”. Each item has both.",
+      },
+      {
+        key: "title",
+        label: "Pricing title",
+        type: "text",
+        defaultValue: "Pricing",
+        placeholder: "Pricing",
+        help: "Heading on the /pricing embed.",
+      },
+      header("Services & items"),
+      {
+        key: "services",
+        label: "Services and their items (one service per line)",
+        type: "textarea",
+        defaultValue: "Liveries: Law Enforcement, Staff, Business, Fire Department\nClothing: Uniform, Casual\nGFX: Logo, Banner, Thumbnail",
+        placeholder: "Liveries: Law Enforcement, Staff, Business, Fire Department",
+        help:
+          "One service per line as “Service: item1, item2, item3”. These are the choices in /pricing and /setpricing. " +
+          "Each designer sets THEIR OWN prices from Discord with /setpricing (NOT here) — pick a service, pick an item, then enter its Robux and USD price. /pricing then lists every designer for that service (their @mention + prices), oldest member first.",
+      },
+    ],
+  },
+
   "customs-tickets": {
     title: "Tickets",
     summary: "Support ticket categories, staff roles, and transcript logging.",

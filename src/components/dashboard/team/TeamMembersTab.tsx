@@ -479,11 +479,37 @@ function InviteDialog({
   const [inviteLink, setInviteLink] = useState<string | null>(null);
 
   const submit = async () => {
+    const value = email.trim();
+    if (!value) {
+      toast.error("Enter an email or username");
+      return;
+    }
     setSubmitting(true);
-    // Omit botId so the invite covers every bot the inviter owns — the team
-    // is unified across all of their bots.
+
+    // Username (no "@") → resolve to the exact account and add them
+    // immediately, no email match or invite link needed. They show up as
+    // Active right away and get access on their next dashboard load.
+    if (!value.includes("@")) {
+      const { data, error } = await (supabase as any).rpc(
+        "team_invite_member_all_owner_bots_by_username",
+        { _username: value, _role: role },
+      );
+      setSubmitting(false);
+      const res = data as { ok?: boolean; error?: string } | null;
+      if (error || !res?.ok) {
+        toast.error(error?.message ?? res?.error ?? "Couldn't add member");
+        return;
+      }
+      toast.success("Member added", { description: `${value} now has access.` });
+      onInvited();
+      onClose();
+      return;
+    }
+
+    // Email → existing invite flow. Omit botId so the invite covers every bot
+    // the inviter owns — the team is unified across all of their bots.
     const { data, error } = await supabase.functions.invoke("team-invite-send", {
-      body: { email: email.trim(), role, siteUrl: window.location.origin },
+      body: { email: value, role, siteUrl: window.location.origin },
     });
     setSubmitting(false);
 
@@ -503,8 +529,8 @@ function InviteDialog({
       <DialogHeader>
         <DialogTitle>Invite team member</DialogTitle>
         <DialogDescription>
-          Send the invite link to the person you want to add. When they sign in with this email,
-          they'll automatically join your team.
+          Add by <strong>username</strong> to give access instantly, or by <strong>email</strong> to
+          send an invite link. A username links to their exact account — no email match needed.
         </DialogDescription>
       </DialogHeader>
       {inviteLink ? (
@@ -526,15 +552,24 @@ function InviteDialog({
       ) : (
         <div className="space-y-3">
           <div>
-            <Label className="text-xs">Email</Label>
+            <Label className="text-xs">Username or email</Label>
             <Input
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="teammate@example.com"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && email.trim() && !submitting) {
+                  e.preventDefault();
+                  void submit();
+                }
+              }}
+              placeholder="their username, or teammate@example.com"
               className="mt-1.5"
               maxLength={255}
             />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Username adds them instantly. Email sends an invite link they accept on sign-in.
+            </p>
           </div>
           <div>
             <Label className="text-xs">Role</Label>

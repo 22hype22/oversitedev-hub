@@ -3,7 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import containers from "@/assets/containers.webp";
+import { rememberRedeemedGrant } from "@/hooks/useSupportGrants";
+import { getAddonIdsForBase } from "@/lib/botCatalog";
 
 /**
  * Admin panel — dashboard-styled shell. Layout is final; data hookups are wired
@@ -24,6 +27,7 @@ const ADMIN_CSS = `.osadmin{
 .osadmin, .osadmin{margin:0;padding:0;background:#1b2026}
 .osadmin .osd-bg{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center 20%;background-repeat:no-repeat}
 .osadmin .osd-scrim{position:fixed;inset:0;z-index:0;background:linear-gradient(180deg,rgba(18,22,27,.42),rgba(18,22,27,.6) 60%,rgba(18,22,27,.74))}
+.osadmin .osd-dim{position:fixed;inset:0;z-index:0;background:rgba(14,18,23,.62)}
 .osadmin .appwrap{display:flex;min-height:100vh;position:relative;z-index:1}
 .osadmin .side{width:236px;flex:none;display:flex;flex-direction:column;gap:6px;padding:18px 14px;
     background:rgba(34,40,47,.66);backdrop-filter:blur(16px);border-right:1px solid rgba(168,180,191,.12);
@@ -64,6 +68,11 @@ const ADMIN_CSS = `.osadmin{
 .osadmin .stage .big{color:var(--body);font-weight:600;margin-bottom:4px;font-family:var(--disp)}
 .osadmin .stage .small{font-size:12px}
 .osadmin{--line:rgba(168,180,191,.10);--line2:rgba(168,180,191,.16)}
+/* No I-beam on plain text — use a normal arrow everywhere, except real text
+   fields (typing) and clickable controls (pointer). */
+.osadmin,.osadmin *{cursor:default !important}
+.osadmin input,.osadmin textarea,.osadmin [contenteditable="true"]{cursor:text !important}
+.osadmin .adm,.osadmin .bell,.osadmin .btn,.osadmin .capmeta .del,.osadmin .chip,.osadmin .cta,.osadmin .drop,.osadmin .ic,.osadmin .nav,.osadmin .osa-btn,.osadmin .osa-more,.osadmin .prof .ed,.osadmin .rowx,.osadmin .seg button,.osadmin .sw,.osadmin select.in,.osadmin button,.osadmin a,.osadmin [role="button"],.osadmin select,.osadmin summary,.osadmin label{cursor:pointer !important}
 .osadmin .card{border:1px solid var(--line2);border-radius:16px;background:rgba(39,46,54,.55);backdrop-filter:blur(14px)}
 .osadmin .ch{display:flex;align-items:baseline;gap:10px;padding:17px 19px 0}
 .osadmin .ch .eye{font-family:var(--disp);font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
@@ -129,6 +138,8 @@ const ADMIN_CSS = `.osadmin{
 .osadmin .ogrid{grid-template-columns:1fr}
 }
 .osadmin .scols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.osadmin .sfcols{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.osadmin .sfcol{display:flex;flex-direction:column;gap:16px;min-width:0}
 .osadmin .frm{display:flex;flex-direction:column;gap:12px}
 .osadmin .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .osadmin .lbl{display:block;font-family:var(--disp);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
@@ -148,6 +159,21 @@ const ADMIN_CSS = `.osadmin{
 .osadmin .tag.g{background:rgba(134,211,161,.14);color:var(--ok)}
 .osadmin .tag.n{background:rgba(168,180,191,.12);color:var(--faint)}
 .osadmin .tag.a{background:rgba(203,178,119,.16);color:var(--gold)}
+.osadmin .tag.r{background:rgba(232,116,116,.16);color:#eb8a8a}
+.osadmin .rowx{position:absolute;top:50%;right:6px;transform:translate(10px,-50%);display:grid;place-items:center;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:rgba(232,116,116,.18);color:#eb8a8a;font-size:14px;line-height:1;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease}
+.osadmin .tr:hover .rowx{opacity:1;pointer-events:auto;transform:translate(0,-50%)}
+.osadmin .rowx:hover{background:rgba(232,116,116,.32)}
+/* Orders + signups rows: slide the date left so the hover button doesn't
+   overlap, and animate row removal. */
+.osadmin [data-lg="orders"] .tr,.osadmin [data-lg="signups"] .tr{transition:transform .26s ease,opacity .26s ease,max-height .24s ease,padding .24s ease}
+.osadmin [data-lg="orders"] .tr .tm,.osadmin [data-lg="signups"] .tr .tm{transition:transform .18s ease}
+.osadmin [data-lg="orders"] .tr:hover .tm,.osadmin [data-lg="signups"] .tr:hover .tm{transform:translateX(-34px)}
+.osadmin [data-lg="orders"] .tr.removing,.osadmin [data-lg="signups"] .tr.removing{transform:translateX(100%);opacity:0}
+/* Rolling-digit odometer for KPI numbers (Live now / Bots sold). */
+.osadmin .odo{display:inline-flex;line-height:1;vertical-align:-0.05em;font-variant-numeric:tabular-nums}
+.osadmin .odo-col{display:inline-block;height:1em;overflow:hidden}
+.osadmin .odo-track{display:flex;flex-direction:column;transition:transform .55s cubic-bezier(.22,1,.36,1);will-change:transform}
+.osadmin .odo-digit{height:1em;display:flex;align-items:center;justify-content:center}
 .osadmin .crow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:13px}
 .osadmin .crow:first-child{border-top:0}
 .osadmin .crow .c{font-family:var(--mono);color:var(--heading);font-weight:600}
@@ -175,7 +201,7 @@ const ADMIN_CSS = `.osadmin{
 .osadmin .chip.add{color:var(--faint);border-style:dashed}
 .osadmin .price{font-family:var(--mono);font-size:13px;color:var(--heading);font-weight:700}
 .osadmin .price.free{color:var(--ok)}
-@media(max-width:1050px){.osadmin .scols{grid-template-columns:1fr}
+@media(max-width:1050px){.osadmin .scols, .osadmin .sfcols{grid-template-columns:1fr}
 .osadmin .catform{grid-template-columns:1fr 1fr}
 }
 .osadmin .minis{display:flex;border:1px solid var(--line2);border-radius:12px;overflow:hidden;margin-bottom:15px}
@@ -234,7 +260,7 @@ const ADMIN_CSS = `.osadmin{
 .osadmin .sw i{position:absolute;top:3px;left:3px;height:16px;width:16px;border-radius:50%;background:#cfd8df;transition:.2s}
 .osadmin .sw.on i{left:19px;background:var(--accentink)}
 .osadmin .permhead{display:flex;align-items:center;gap:10px;margin-bottom:4px}
-.osadmin .permhead .pe{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:14px}
+.osadmin .permhead .pe{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:21px;letter-spacing:-.01em;word-break:break-all;line-height:1.15}
 .osadmin .drop{border:1.5px dashed var(--line2);border-radius:13px;padding:26px 18px;text-align:center;color:var(--faint);cursor:pointer;transition:.15s;background:rgba(33,39,46,.3)}
 .osadmin .drop:hover{border-color:rgba(201,219,230,.45);color:var(--body)}
 .osadmin .drop svg{width:24px;height:24px;stroke:currentColor;stroke-width:1.7;fill:none;margin-bottom:8px}
@@ -275,15 +301,16 @@ const ADMIN_CSS = `.osadmin{
 const ADMIN_HTML = `<div class="osd app">
   <div class="osd-bg" style="background-image:url()"></div>
   <div class="osd-scrim"></div>
+  <div class="osd-dim"></div>
 
   <div class="appwrap show">
     <!-- sidebar -->
     <aside class="side">
       <div class="prof">
-        <div class="av">E</div>
+        <div class="av" data-me="avatar">·</div>
         <div>
-          <div class="nm">Hype <span class="pro">OWNER</span></div>
-          <div class="h">everant00@gmail.com</div>
+          <div class="nm"><span data-me="name">Admin</span> <span class="pro" data-me="role">ADMIN</span></div>
+          <div class="h" data-me="email"></div>
         </div>
         <span class="ed"><svg width="14" height="14" viewBox="0 0 24 24" style="stroke:currentColor;stroke-width:1.8;fill:none"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
       </div>
@@ -293,12 +320,12 @@ const ADMIN_HTML = `<div class="osd app">
       <div class="nav" data-sec="Storefront" data-sub="Categories, products, pricing, discount &amp; billing codes"><svg viewBox="0 0 24 24"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/></svg>Storefront</div>
       <div class="nav" data-sec="Bots &amp; Workers" data-sub="Bot secrets, token pool, and worker auth tokens"><svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 7V4"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/></svg>Bots &amp; Workers</div>
       <div class="nav" data-sec="Support Access" data-sub="Redeem support codes and send notifications"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 2.5"/><path d="M12 17h.01"/></svg>Support Access</div>
-      <div class="nav" data-sec="Logs &amp; history" data-sub="Bot orders, purchases, accounts, and admin actions"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Logs &amp; history</div>
+      <div class="nav" data-sec="Logs &amp; History" data-sub="Bot orders, purchases, accounts, and admin actions"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Logs &amp; History</div>
 
       <div class="glab">Owner</div>
-      <div class="nav" data-sec="Super admin" data-sub="Manage who has admin access to the platform"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Super admin</div>
-      <div class="nav" data-sec="Captcha images" data-sub="Shared image pool for bots using image captcha"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5L5 20"/></svg>Captcha images</div>
-      <div class="nav danger" data-sec="Danger zone" data-sub="Destructive actions affecting the live store &amp; data"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg>Danger zone</div>
+      <div class="nav" data-sec="Super Admin" data-sub="Manage who has admin access to the platform"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Super Admin</div>
+      <div class="nav" data-sec="Captcha Images" data-sub="Shared image pool for bots using image captcha"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5L5 20"/></svg>Captcha Images</div>
+      <div class="nav danger" data-sec="Danger Zone" data-sub="Destructive actions affecting the live store &amp; data"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg>Danger Zone</div>
 
       <div style="margin-top:auto"></div>
       <div class="nav"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14.5 14.5 0 0 0 0 18 14.5 14.5 0 0 0 0-18"/></svg>Back to website</div>
@@ -312,9 +339,6 @@ const ADMIN_HTML = `<div class="osd app">
           <div class="crumb">Oversite / Admin / <b id="crumb">Overview</b></div>
           <h1 id="title">Overview</h1>
           <div class="sub" id="sub">At-a-glance health of the platform</div>
-        </div>
-        <div class="htools">
-          <label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Search</label>
         </div>
       </div>
 
@@ -426,82 +450,103 @@ const ADMIN_HTML = `<div class="osd app">
 
       <!-- ───── STOREFRONT ───── -->
       <div id="storefront-content" style="display:none">
-        <!-- Row 1: codes side by side, identical structure -->
-        <div class="scols">
-          <!-- Discount codes -->
-          <div class="card">
-            <div class="ch"><span class="eye">Promos</span><h3>Discount codes</h3></div>
-            <div class="cb">
-              <div class="row2">
-                <div><label class="lbl">Code</label><input class="in" placeholder="LAUNCH20"></div>
-                <div><label class="lbl">Amount</label><input class="in" placeholder="20%"></div>
-              </div>
-              <button class="btn" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Create code</button>
-              <div class="listcap">Active codes</div>
-              <div class="crow"><div><div class="c">LAUNCH20</div><div class="meta">20% off · 41 uses</div></div><span class="sp"><span class="tag g">active</span><span class="ic"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></span></span></div>
-              <div class="crow"><div><div class="c">FRIEND10</div><div class="meta">10% off · 12 uses</div></div><span class="sp"><span class="tag n">expired</span><span class="ic"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></span></span></div>
-            </div>
-          </div>
-
-          <!-- Free hosting codes -->
-          <div class="card">
-            <div class="ch"><span class="eye">Comp</span><h3>Free hosting codes</h3></div>
-            <div class="cb">
-              <div class="row2">
-                <div><label class="lbl">Duration</label><input class="in" placeholder="30 days"></div>
-                <div><label class="lbl">Uses</label><input class="in" placeholder="1"></div>
-              </div>
-              <button class="btn" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Generate code</button>
-              <div class="listcap">Issued codes</div>
-              <div class="crow"><div><div class="c">FREE-9X2K-AA</div><div class="meta">30 days · unused</div></div><span class="sp"><span class="tag g">active</span><span class="ic"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></span></span></div>
-              <div class="crow"><div><div class="c">FREE-3M7P-Q2</div><div class="meta">14 days · redeemed</div></div><span class="sp"><span class="tag n">used</span><span class="ic"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></span></span></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Row 2: billing override | combined announcements -->
-        <div class="scols" style="margin-top:16px;align-items:start">
-          <!-- Billing override -->
-          <div class="card">
-            <div class="ch"><span class="eye">Rotating · 15 min</span><h3>Billing override code</h3></div>
-            <div class="cb">
-              <div class="ovrcode">OVR-7F3A-9C21</div>
-              <div class="ovrrow">
-                <span class="timer">expires in <b>12:47</b></span>
-                <span class="oacts">
-                  <button class="btn ghost sm"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/></svg>Refresh</button>
-                  <button class="btn sm"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy</button>
-                </span>
-              </div>
-              <div class="subnote" style="margin-top:13px">Single-use override for billing. Auto-expires every 15 minutes — refresh to roll a new one.</div>
-            </div>
-          </div>
-
-          <!-- Announcements (combined: dashboards + server) -->
-          <div class="card">
-            <div class="ch"><span class="eye">Broadcast</span><h3>Announcements</h3></div>
-            <div class="cb">
-              <label class="lbl">Send to</label>
-              <div class="seg" id="dest">
-                <button class="on" data-dash="1">Dashboards</button>
-                <button data-dash="0">Discord server</button>
-                <button data-dash="1">Both</button>
-              </div>
-
-              <div id="dashfields" style="margin-top:12px">
-                <div class="row2" style="align-items:end">
-                  <div><label class="lbl">Type</label><div class="seg"><button class="on">Note</button><button>Fix</button></div></div>
-                  <div><label class="lbl">Title</label><input class="in" placeholder="e.g. Scheduled maintenance"></div>
+        <!-- Two independent columns so cards flow without row-locked gaps. -->
+        <div class="sfcols">
+          <div class="sfcol">
+            <!-- Discount codes -->
+            <div class="card">
+              <div class="ch"><span class="eye">Promos</span><h3>Discount codes</h3></div>
+              <div class="cb">
+                <div class="row2">
+                  <div><label class="lbl">Code</label><input class="in" data-sf="disc-code" placeholder="LAUNCH20"></div>
+                  <div><label class="lbl">Amount</label><input class="in" data-sf="disc-amount" placeholder="20% or 5"></div>
                 </div>
+                <button class="btn" style="margin-top:12px" data-sf="disc-create"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Create code</button>
+                <div class="listcap">Active codes</div>
+                <div data-sf="disc-list"><div class="subnote">Loading…</div></div>
               </div>
+            </div>
 
-              <div style="margin-top:12px"><label class="lbl">Message</label><textarea class="in" placeholder="What everyone should see."></textarea></div>
-              <button class="btn" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>Publish</button>
-              <div class="subnote" style="margin-top:10px">Server posts go out through the Oversite Utilities bot — same path as Support &amp; Ideas.</div>
+            <!-- Billing override -->
+            <div class="card">
+              <div class="ch"><span class="eye">Rotating · 15 min</span><h3>Billing override code</h3></div>
+              <div class="cb">
+                <div class="ovrcode" data-sf="ovr-code">····-····-····</div>
+                <div class="ovrrow">
+                  <span class="timer">expires in <b data-sf="ovr-timer">--:--</b></span>
+                  <span class="oacts">
+                    <button class="btn ghost sm" data-sf="ovr-refresh"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/></svg>Refresh</button>
+                    <button class="btn sm" data-sf="ovr-copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy</button>
+                  </span>
+                </div>
+                <div class="subnote" style="margin-top:13px">Share with customers who paid off-platform to bypass the billing form. Auto-expires every 15 minutes — refresh to roll a new one.</div>
+              </div>
+            </div>
 
-              <div class="listcap">Live now</div>
-              <div class="crow"><div class="nm" style="color:var(--heading);font-weight:600">Welcome to the team</div><span class="sp"><span class="tag a">note</span><span class="ic"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></span></span></div>
-              <div class="crow"><div class="nm" style="color:var(--heading);font-weight:600">Verification reset fix live</div><span class="sp"><span class="tag g">fix</span><span class="ic"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></span></span></div>
+            <!-- Comp list: emails that never pay -->
+            <div class="card">
+              <div class="ch"><span class="eye">Comp</span><h3>Comp list</h3><span class="mut">emails that never pay</span></div>
+              <div class="cb">
+                <div class="catform" style="grid-template-columns:1.6fr 1.4fr auto">
+                  <div><label class="lbl">Email</label><input class="in" data-sf="comp-email" placeholder="person@example.com"></div>
+                  <div><label class="lbl">Note <span style="text-transform:none;letter-spacing:0">(optional)</span></label><input class="in" data-sf="comp-note" placeholder="e.g. partner, giveaway winner"></div>
+                  <button class="btn" data-sf="comp-add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+                </div>
+                <div class="subnote" style="margin-top:10px">Orders from these emails go through the whole build flow but are 100% off — no charge, hosting waived. Removing an email is forward-only: they keep existing bots; their next purchase charges normally.</div>
+                <div class="listcap">On the list</div>
+                <div data-sf="comp-list"><div class="subnote">Loading…</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sfcol">
+            <!-- Free hosting codes -->
+            <div class="card">
+              <div class="ch"><span class="eye">Comp</span><h3>Free hosting codes</h3></div>
+              <div class="cb">
+                <div class="row2">
+                  <div><label class="lbl">Months</label><input class="in" data-sf="free-months" placeholder="3"></div>
+                  <div><label class="lbl">Max uses</label><input class="in" data-sf="free-uses" placeholder="1 (blank = ∞)"></div>
+                </div>
+                <button class="btn" style="margin-top:12px" data-sf="free-create"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Generate code</button>
+                <div class="listcap">Issued codes</div>
+                <div data-sf="free-list"><div class="subnote">Loading…</div></div>
+              </div>
+            </div>
+
+            <!-- Announcements (combined: dashboards + server) -->
+            <div class="card">
+              <div class="ch"><span class="eye">Broadcast</span><h3>Announcements</h3></div>
+              <div class="cb">
+                <label class="lbl">Send to</label>
+                <div class="seg" id="dest">
+                  <button class="on" data-dash="1" data-server="0">Dashboards</button>
+                  <button data-dash="0" data-server="1">Discord server</button>
+                  <button data-dash="1" data-server="1">Both</button>
+                </div>
+
+                <div id="dashfields" style="margin-top:12px">
+                  <div class="row2" style="align-items:end">
+                    <div><label class="lbl">Type</label><div class="seg" id="ann-type"><button class="on">Note</button><button>Fix</button></div></div>
+                    <div><label class="lbl">Title</label><input class="in" data-sf="ann-title" placeholder="e.g. Scheduled maintenance"></div>
+                  </div>
+                </div>
+
+                <div id="serverfields" style="display:none;margin-top:12px">
+                  <label class="lbl">Announcements channel ID</label>
+                  <div class="redeem">
+                    <input class="in mono" data-sf="ann-channel" placeholder="right-click the channel → Copy Channel ID">
+                    <button class="btn ghost" data-sf="ann-channel-save">Save</button>
+                  </div>
+                </div>
+
+                <div style="margin-top:12px"><label class="lbl">Message</label><textarea class="in" data-sf="ann-msg" placeholder="What everyone should see."></textarea></div>
+                <button class="btn" style="margin-top:12px" data-sf="ann-publish"><svg viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>Publish</button>
+                <div class="subnote" style="margin-top:10px">Dashboards post instantly to everyone's dashboard. Discord-server posts go out through the Oversite Utilities bot.</div>
+
+                <div class="listcap">Live now</div>
+                <div data-sf="ann-list"><div class="subnote">Loading…</div></div>
+              </div>
             </div>
           </div>
         </div>
@@ -509,26 +554,40 @@ const ADMIN_HTML = `<div class="osd app">
 
       <!-- ───── BOTS & WORKERS ───── -->
       <div id="bots-content" style="display:none">
-        <!-- Worker tokens (hero) -->
+        <!-- Link existing bot (hero) -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="ch"><span class="eye">Managed bots</span><h3>Link existing bot</h3><span class="mut">bring one of your live bots into the dashboard</span></div>
+          <div class="cb">
+            <div class="row2">
+              <div><label class="lbl">Bot name</label><input class="in" data-bw="link-name" placeholder="Oversite Protection"></div>
+              <div><label class="lbl">Base</label><div class="seg" data-bw="link-base"><button class="on" data-v="protection">Protection</button><button data-v="support">Support</button><button data-v="utilities">Utilities</button></div></div>
+            </div>
+            <div style="margin-top:10px"><label class="lbl">Discord bot token</label><input class="in mono" type="password" data-bw="link-token" placeholder="paste the bot's own token" autocomplete="off"></div>
+            <div style="margin-top:10px"><label class="lbl">Railway service ID <span class="mut">optional — reuses the running service</span></label><input class="in mono" data-bw="link-service" placeholder="leave empty to create a new service"></div>
+            <button class="btn" data-bw="link-submit" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>Link bot</button>
+            <div class="subnote" style="margin-top:10px">Validates the token with Discord, creates the order under your account with every add-on enabled, and deploys through the normal pipeline. The bot restarts once (~1–2 min) and then the whole dashboard controls it — status, identity, power, logs, metrics.</div>
+          </div>
+        </div>
+
+        <!-- Worker tokens -->
         <div class="card" style="margin-bottom:16px">
           <div class="ch"><span class="eye">Auth</span><h3>Worker tokens</h3><span class="mut">the handshake every bot uses — treat like passwords</span></div>
           <div class="cb">
             <div class="catform" style="grid-template-columns:1.6fr 1.6fr 1fr auto">
-              <div><label class="lbl">Name</label><input class="in" placeholder="railway-prod"></div>
-              <div><label class="lbl">Bot ID <span style="text-transform:none;letter-spacing:0">(optional — restricts to one bot)</span></label><input class="in" placeholder="leave empty for all bots"></div>
-              <div><label class="lbl">Notes</label><input class="in" placeholder="optional"></div>
-              <button class="btn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Create</button>
+              <div><label class="lbl">Name</label><input class="in" data-bw="wt-name" placeholder="railway-prod"></div>
+              <div><label class="lbl">Bot ID <span style="text-transform:none;letter-spacing:0">(optional — restricts to one bot)</span></label><input class="in" data-bw="wt-bot" placeholder="leave empty for all bots"></div>
+              <div><label class="lbl">Notes</label><input class="in" data-bw="wt-notes" placeholder="optional"></div>
+              <button class="btn" data-bw="wt-create"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Create</button>
             </div>
 
-            <div class="reveal">
-              <span class="rc">wtk_live_9f3a8c21d4b7e0a6f2c5…</span>
+            <div class="reveal" data-bw="wt-reveal" style="display:none">
+              <span class="rc" data-bw="wt-reveal-code"></span>
               <span class="rl">⚠ copy now — shown once</span>
-              <span class="ic"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></span>
+              <span class="ic" data-bw="wt-reveal-copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></span>
             </div>
 
             <div class="listcap">Tokens</div>
-            <div class="crow"><div><div class="c">railway-prod <span class="tag g">active</span></div><div class="meta mono">wtk_9f3a…</div></div><span class="sp"><span>Last used <span class="last-ok">3s ago</span></span><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></span></span></div>
-            <div class="crow"><div><div class="c">old-project <span class="tag n">unused</span></div><div class="meta mono">wtk_2b71…</div></div><span class="sp"><span>Last used <span class="last-no">Never</span></span><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></span></span></div>
+            <div data-bw="wt-list"><div class="subnote">Loading…</div></div>
 
             <div class="wlegend">
               <span><span class="pdot"></span> recently used = bot is reaching <b style="color:var(--body)">this</b> project</span>
@@ -544,16 +603,18 @@ const ADMIN_HTML = `<div class="osd app">
             <div class="ch"><span class="eye">Discord tokens</span><h3>Token pool</h3></div>
             <div class="cb">
               <div class="minis">
-                <div class="mini"><div class="l">Available</div><div class="v">14</div></div>
-                <div class="mini"><div class="l">Assigned</div><div class="v">37</div></div>
-                <div class="mini"><div class="l">Retired</div><div class="v">3</div></div>
+                <div class="mini"><div class="l">Available</div><div class="v" data-bw="pool-available">—</div></div>
+                <div class="mini"><div class="l">Assigned</div><div class="v" data-bw="pool-assigned">—</div></div>
+                <div class="mini"><div class="l">Retired</div><div class="v" data-bw="pool-retired">—</div></div>
               </div>
-              <div class="row2"><div><label class="lbl">Bot username</label><input class="in" placeholder="MyBot#0001"></div><div><label class="lbl">Client ID</label><input class="in" placeholder="1304…"></div></div>
-              <div style="margin-top:10px"><label class="lbl">Token</label><input class="in mono" placeholder="paste bot token"></div>
-              <button class="btn" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add to pool</button>
+              <div class="row2"><div><label class="lbl">Bot username</label><input class="in" data-bw="pool-user" placeholder="MyBot#0001"></div><div><label class="lbl">Client ID</label><input class="in" data-bw="pool-client" placeholder="1304…"></div></div>
+              <div style="margin-top:10px"><label class="lbl">Token</label><input class="in mono" data-bw="pool-token" placeholder="paste bot token"></div>
+              <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn" data-bw="pool-add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add to pool</button>
+                <button class="btn ghost" data-bw="pool-reclaim" title="Free tokens still marked assigned after their bot was cancelled"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/></svg>Reclaim stuck tokens</button>
+              </div>
               <div class="listcap">Pool</div>
-              <div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">ShieldBot#0007</div><div class="meta mono">1304… · ••••8f2a</div></div><span class="sp"><span class="tag n">available</span><span class="ic"><svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></span></span></div>
-              <div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">HelpBot#0042</div><div class="meta mono">1299… · ••••1c7d</div></div><span class="sp"><span class="tag g">assigned</span><span class="ic"><svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></span></span></div>
+              <div data-bw="pool-list"><div class="subnote">Loading…</div></div>
             </div>
           </div>
 
@@ -561,18 +622,32 @@ const ADMIN_HTML = `<div class="osd app">
           <div class="card">
             <div class="ch"><span class="eye">Config schema</span><h3>Bot secret slots</h3><span class="mut">fields bots ask for</span></div>
             <div class="cb">
-              <div class="row2"><div><label class="lbl">Key</label><input class="in mono" placeholder="WEBHOOK_URL"></div><div><label class="lbl">Label</label><input class="in" placeholder="Webhook URL"></div></div>
+              <div class="row2"><div><label class="lbl">Key</label><input class="in mono" data-bw="slot-key" placeholder="WEBHOOK_URL"></div><div><label class="lbl">Label</label><input class="in" data-bw="slot-label" placeholder="Webhook URL"></div></div>
               <div class="row2" style="margin-top:10px;align-items:end">
-                <div><label class="lbl">Addon</label><select class="in"><option>base</option><option>stats</option><option>giveaways</option></select></div>
-                <div><label class="lbl">Required</label><div class="seg"><button class="on">Required</button><button>Optional</button></div></div>
+                <div><label class="lbl">Addon</label><input class="in mono" data-bw="slot-addon" placeholder="base"></div>
+                <div><label class="lbl">Required</label><div class="seg" data-bw="slot-req"><button class="on" data-v="1">Required</button><button data-v="0">Optional</button></div></div>
               </div>
-              <button class="btn" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add slot</button>
+              <button class="btn" data-bw="slot-add" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add slot</button>
               <div class="listcap">Slots</div>
-              <div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">Discord token</div><div class="meta mono">DISCORD_TOKEN · base</div></div><span class="sp"><span class="tag a">required</span><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span></span></div>
-              <div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">Webhook URL</div><div class="meta mono">WEBHOOK_URL · base</div></div><span class="sp"><span class="tag n">optional</span><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span></span></div>
+              <div data-bw="slot-list"><div class="subnote">Loading…</div></div>
             </div>
           </div>
         </div>
+
+        <!-- Bot servers (Discord guild membership) -->
+        <div class="card" style="margin-top:16px">
+          <div class="ch"><span class="eye">Discord presence</span><h3>Bot servers</h3><span class="mut">every server a bot is in — kick it out of the ones it shouldn't be</span></div>
+          <div class="cb">
+            <div class="catform" style="grid-template-columns:1fr auto">
+              <div><label class="lbl">Bot</label><select class="in" data-bw="bg-bot"><option value="">Loading bots…</option></select></div>
+              <button class="btn" data-bw="bg-load"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>Load servers</button>
+            </div>
+            <div class="listcap">Servers</div>
+            <div data-bw="bg-list"><div class="subnote">Pick a bot and hit Load servers.</div></div>
+            <div class="subnote" style="margin-top:10px">Leaving is immediate — the server owner would have to re-invite the bot. Cancelled orders leave every server automatically before their token returns to the pool.</div>
+          </div>
+        </div>
+
 
       </div>
 
@@ -585,17 +660,16 @@ const ADMIN_HTML = `<div class="osd app">
             <div class="cb">
               <label class="lbl">Support code</label>
               <div class="redeem">
-                <input class="in mono" placeholder="XXXX-XXXX-XXXX">
-                <button class="btn"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Redeem</button>
+                <input class="in mono" data-su="code" placeholder="SUP-XXXX-XXXX">
+                <button class="btn" data-su="redeem"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Redeem</button>
               </div>
               <div class="subnote" style="margin-top:10px">Paste a user-issued code to open their bot dashboard. Access auto-expires.</div>
 
               <div class="listcap">Active access</div>
-              <div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">mia@example.com</div><div class="meta">expires in 1h 12m</div></div><span class="sp"><button class="btn ghost sm">Open</button><span class="ic"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></span></span></div>
-              <div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">leo@example.com</div><div class="meta">expires in 22m</div></div><span class="sp"><button class="btn ghost sm">Open</button><span class="ic"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></span></span></div>
+              <div data-su="active"><div class="subnote">Loading…</div></div>
 
               <div class="listcap">Recent</div>
-              <div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">sam@example.com</div><div class="meta">ended 2d ago</div></div><span class="sp"><span class="tag n">expired</span></span></div>
+              <div data-su="recent"><div class="subnote">Loading…</div></div>
             </div>
           </div>
 
@@ -603,21 +677,13 @@ const ADMIN_HTML = `<div class="osd app">
           <div class="card">
             <div class="ch"><span class="eye">Find</span><h3>Customer lookup</h3><span class="mut">who you're helping</span></div>
             <div class="cb">
-              <label class="lbl">Search by email or bot</label>
+              <label class="lbl">Search by email, bot, or Discord</label>
               <div class="redeem">
-                <input class="in" placeholder="mia@example.com">
-                <button class="btn ghost"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Search</button>
+                <input class="in" data-su="q" placeholder="mia@example.com">
+                <button class="btn ghost" data-su="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Search</button>
               </div>
 
-              <div class="inner">
-                <div class="who">mia@example.com</div>
-                <div class="sub2">Joined 4 months ago · 2 bots · billing active</div>
-                <div style="margin-top:10px">
-                  <div class="botline"><span class="pdot"></span><span class="nm">Protection Bot</span><span class="sp">online · 1 server</span></div>
-                  <div class="botline"><span class="pdot"></span><span class="nm">Utilities Bot</span><span class="sp">online · 2 servers</span></div>
-                </div>
-                <button class="btn ghost sm" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/></svg>Request access</button>
-              </div>
+              <div data-su="result"></div>
               <div class="subnote" style="margin-top:10px">Read-only summary. To act on their dashboard, request a support code.</div>
             </div>
           </div>
@@ -629,28 +695,17 @@ const ADMIN_HTML = `<div class="osd app">
         <!-- Bot orders & preorders -->
         <div class="card" style="margin-bottom:16px">
           <div class="ch"><span class="eye">Sales</span><h3>Bot orders &amp; preorders</h3>
-            <div class="logtools"><span class="srch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Search</span></div>
+            <div class="logtools"><span class="srch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input data-lg="orders-q" placeholder="Search order or customer" style="background:transparent;border:0;outline:none;color:var(--body);font:inherit;width:190px"></span></div>
           </div>
           <div class="cb">
-            <div class="chips" style="margin-top:0">
-              <span class="chip on">All</span><span class="chip">Orders</span><span class="chip">Preorders</span>
+            <div class="chips" data-lg="orders-chips" style="margin-top:0">
+              <span class="chip on" data-f="all">All</span><span class="chip" data-f="active">Active</span><span class="chip" data-f="pending">Pending</span><span class="chip" data-f="crashed">Crashed</span>
             </div>
             <div class="log">
               <div class="th" style="grid-template-columns:0.8fr 1.6fr 1fr 0.9fr 0.6fr">
                 <span>Order</span><span>Customer</span><span>Base</span><span>Status</span><span class="right">When</span>
               </div>
-              <div class="tr" style="grid-template-columns:0.8fr 1.6fr 1fr 0.9fr 0.6fr">
-                <span class="mn">#10482</span><span class="c1">mia@example.com</span><span>Protection</span><span><span class="tag g">paid</span></span><span class="tm right">2h</span>
-              </div>
-              <div class="tr" style="grid-template-columns:0.8fr 1.6fr 1fr 0.9fr 0.6fr">
-                <span class="mn">#10481</span><span class="c1">leo@example.com</span><span>Utilities</span><span><span class="tag a">preorder</span></span><span class="tm right">5h</span>
-              </div>
-              <div class="tr" style="grid-template-columns:0.8fr 1.6fr 1fr 0.9fr 0.6fr">
-                <span class="mn">#10480</span><span class="c1">sam@example.com</span><span>Support</span><span><span class="tag n">building</span></span><span class="tm right">6h</span>
-              </div>
-              <div class="tr" style="grid-template-columns:0.8fr 1.6fr 1fr 0.9fr 0.6fr">
-                <span class="mn">#10479</span><span class="c1">ava@example.com</span><span>Protection</span><span><span class="tag g">paid</span></span><span class="tm right">9h</span>
-              </div>
+              <div data-lg="orders"><div class="subnote" style="padding-top:11px">Loading…</div></div>
             </div>
           </div>
         </div>
@@ -662,21 +717,19 @@ const ADMIN_HTML = `<div class="osd app">
             <div class="cb">
               <div class="log">
                 <div class="th" style="grid-template-columns:0.7fr 0.9fr 1.6fr 0.6fr"><span>Amount</span><span>Method</span><span>Customer</span><span class="right">When</span></div>
-                <div class="tr" style="grid-template-columns:0.7fr 0.9fr 1.6fr 0.6fr"><span class="amt">$29</span><span>Stripe</span><span class="c1">mia@example.com</span><span class="tm right">2h</span></div>
-                <div class="tr" style="grid-template-columns:0.7fr 0.9fr 1.6fr 0.6fr"><span class="amt">$8</span><span>Stripe</span><span class="c1">leo@example.com</span><span class="tm right">3h</span></div>
-                <div class="tr" style="grid-template-columns:0.7fr 0.9fr 1.6fr 0.6fr"><span class="amt">$24</span><span>Stripe</span><span class="c1">ava@example.com</span><span class="tm right">9h</span></div>
+                <div data-lg="purchases"><div class="subnote" style="padding-top:11px">Loading…</div></div>
               </div>
             </div>
           </div>
 
           <div class="card">
-            <div class="ch"><span class="eye">Users</span><h3>Account signups</h3></div>
+            <div class="ch"><span class="eye">Users</span><h3>Account signups</h3>
+              <div class="logtools"><span class="srch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input data-lg="signups-q" placeholder="Search users" style="background:transparent;border:0;outline:none;color:var(--body);font:inherit;width:130px"></span></div>
+            </div>
             <div class="cb">
               <div class="log">
                 <div class="th" style="grid-template-columns:1.8fr 0.8fr 0.6fr"><span>Email</span><span>Via</span><span class="right">When</span></div>
-                <div class="tr" style="grid-template-columns:1.8fr 0.8fr 0.6fr"><span class="c1">new@user.com</span><span>Discord</span><span class="tm right">1h</span></div>
-                <div class="tr" style="grid-template-columns:1.8fr 0.8fr 0.6fr"><span class="c1">jess@user.com</span><span>Email</span><span class="tm right">4h</span></div>
-                <div class="tr" style="grid-template-columns:1.8fr 0.8fr 0.6fr"><span class="c1">kyle@user.com</span><span>Google</span><span class="tm right">7h</span></div>
+                <div data-lg="signups"><div class="subnote" style="padding-top:11px">Loading…</div></div>
               </div>
             </div>
           </div>
@@ -684,14 +737,11 @@ const ADMIN_HTML = `<div class="osd app">
 
         <!-- Admin audit log -->
         <div class="card" style="margin-top:16px">
-          <div class="ch"><span class="eye">Accountability</span><h3>Admin audit log</h3><span class="mut">who changed what</span></div>
+          <div class="ch"><span class="eye">Accountability</span><h3>Admin audit log</h3></div>
           <div class="cb">
             <div class="log">
               <div class="th" style="grid-template-columns:1.3fr 1.1fr 1.3fr 0.6fr"><span>Action</span><span>Admin</span><span>Target</span><span class="right">When</span></div>
-              <div class="tr" style="grid-template-columns:1.3fr 1.1fr 1.3fr 0.6fr"><span class="c1">Token created</span><span>everant00</span><span class="mn">railway-prod</span><span class="tm right">3s</span></div>
-              <div class="tr" style="grid-template-columns:1.3fr 1.1fr 1.3fr 0.6fr"><span class="c1">Price updated</span><span>everant00</span><span>Protection · $29</span><span class="tm right">1h</span></div>
-              <div class="tr" style="grid-template-columns:1.3fr 1.1fr 1.3fr 0.6fr"><span class="c1">Support code redeemed</span><span>everett</span><span class="mn">mia@example.com</span><span class="tm right">2d</span></div>
-              <div class="tr" style="grid-template-columns:1.3fr 1.1fr 1.3fr 0.6fr"><span class="c1">Marketing disabled</span><span>everant00</span><span>storefront</span><span class="tm right">3d</span></div>
+              <div data-lg="audit"><div class="subnote" style="padding-top:11px">Loading…</div></div>
             </div>
           </div>
         </div>
@@ -706,25 +756,12 @@ const ADMIN_HTML = `<div class="osd app">
             <div class="cb">
               <label class="lbl">Add admin by email</label>
               <div class="redeem">
-                <input class="in" placeholder="person@example.com">
-                <button class="btn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Grant</button>
+                <input class="in" data-sa="email" placeholder="person@example.com">
+                <button class="btn" data-sa="grant"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Grant</button>
               </div>
 
               <div class="listcap">People</div>
-              <div class="adm" data-email="everant00@gmail.com" data-role="Owner · all access">
-                <div class="av">E</div>
-                <div><div class="em">everant00@gmail.com <span class="tag g">super</span></div><div class="ro">Owner · full access</div></div>
-              </div>
-              <div class="adm sel" data-email="everetth.inquiries@gmail.com" data-role="Admin">
-                <div class="av">E</div>
-                <div><div class="em">everetth.inquiries@gmail.com <span class="tag a">admin</span></div><div class="ro">Admin · limited</div></div>
-                <span class="ic x"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
-              </div>
-              <div class="adm" data-email="jordan@example.com" data-role="Admin">
-                <div class="av">J</div>
-                <div><div class="em">jordan@example.com <span class="tag a">admin</span></div><div class="ro">Admin · limited</div></div>
-                <span class="ic x"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
-              </div>
+              <div data-sa="list"><div class="subnote">Loading…</div></div>
             </div>
           </div>
 
@@ -732,18 +769,18 @@ const ADMIN_HTML = `<div class="osd app">
           <div class="card">
             <div class="ch"><span class="eye">Permissions</span><h3>Access</h3><span class="mut">what this admin can see</span></div>
             <div class="cb">
-              <div class="permhead"><span class="pe" id="perm-name">everetth.inquiries@gmail.com</span></div>
-              <div class="subnote" style="margin-bottom:8px">Toggle which sections of the admin panel this person can open.</div>
+              <div class="permhead"><span class="pe" id="perm-name" data-sa="perm-name">Select a person on the left</span></div>
+              <div class="subnote" style="margin-bottom:8px" data-sa="perm-hint">Pick an admin to choose which sections they can open.</div>
 
-              <div class="permrow"><div><div class="pt">Overview</div><div class="pd">Stats &amp; funnel</div></div><span class="sw on"><i></i></span></div>
-              <div class="permrow"><div><div class="pt">Storefront</div><div class="pd">Codes, billing override, announcements</div></div><span class="sw on"><i></i></span></div>
-              <div class="permrow"><div><div class="pt">Bots &amp; Workers</div><div class="pd">Secrets, token pool, worker tokens</div></div><span class="sw"><i></i></span></div>
-              <div class="permrow"><div><div class="pt">Support Access</div><div class="pd">Redeem codes, customer lookup</div></div><span class="sw on"><i></i></span></div>
-              <div class="permrow"><div><div class="pt">Logs &amp; history</div><div class="pd">Orders, purchases, signups, audit</div></div><span class="sw on"><i></i></span></div>
-              <div class="permrow"><div><div class="pt">Super admin</div><div class="pd">Manage admins &amp; access — owner only</div></div><span class="sw lock"><i></i></span></div>
-              <div class="permrow"><div><div class="pt">Danger zone</div><div class="pd">Kill switches, reset — owner only</div></div><span class="sw lock"><i></i></span></div>
+              <div class="permrow"><div><div class="pt">Overview</div><div class="pd">Stats &amp; funnel</div></div><span class="sw" data-key="Overview"><i></i></span></div>
+              <div class="permrow"><div><div class="pt">Storefront</div><div class="pd">Codes, billing override, announcements</div></div><span class="sw" data-key="Storefront"><i></i></span></div>
+              <div class="permrow"><div><div class="pt">Bots &amp; Workers</div><div class="pd">Secrets, token pool, worker tokens</div></div><span class="sw" data-key="Bots &amp; Workers"><i></i></span></div>
+              <div class="permrow"><div><div class="pt">Support Access</div><div class="pd">Redeem codes, customer lookup</div></div><span class="sw" data-key="Support Access"><i></i></span></div>
+              <div class="permrow"><div><div class="pt">Logs &amp; History</div><div class="pd">Orders, purchases, signups, audit</div></div><span class="sw" data-key="Logs &amp; History"><i></i></span></div>
+              <div class="permrow"><div><div class="pt">Super Admin</div><div class="pd">Manage admins &amp; access — super only</div></div><span class="sw lock"><i></i></span></div>
+              <div class="permrow"><div><div class="pt">Danger Zone</div><div class="pd">Kill switches, reset — super only</div></div><span class="sw lock"><i></i></span></div>
 
-              <button class="btn" style="margin-top:14px"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Save access</button>
+              <button class="btn" data-sa="save-access" style="margin-top:14px"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Save access</button>
             </div>
           </div>
         </div>
@@ -752,29 +789,23 @@ const ADMIN_HTML = `<div class="osd app">
       <!-- ───── CAPTCHA IMAGES ───── -->
       <div id="captcha-content" style="display:none">
         <div class="card">
-          <div class="ch"><span class="eye">Verification</span><h3>Captcha images</h3><span class="mut">shared pool for image-captcha bots</span></div>
+          <div class="ch"><span class="eye">Verification</span><h3>Captcha Images</h3><span class="mut">shared pool for image-captcha bots</span></div>
           <div class="cb">
             <div class="minis">
-              <div class="mini"><div class="l">Images</div><div class="v">24</div></div>
-              <div class="mini"><div class="l">Used by</div><div class="v">3 <span style="font-size:12px;color:var(--faint)">bots</span></div></div>
-              <div class="mini"><div class="l">Solved · 24h</div><div class="v">418</div></div>
+              <div class="mini"><div class="l">Images</div><div class="v" data-cap="count">—</div></div>
+              <div class="mini"><div class="l">Bucket</div><div class="v" style="font-size:13px">captcha-images</div></div>
+              <div class="mini"><div class="l">Format</div><div class="v" style="font-size:13px">PNG / JPG</div></div>
             </div>
 
-            <div class="drop">
+            <label class="drop" data-cap="drop" style="cursor:pointer;display:block">
+              <input type="file" data-cap="file" accept="image/png,image/jpeg" multiple style="display:none">
               <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
-              <div class="dt">Drag images here, or browse</div>
-              <div class="ds">PNG or JPG · you'll set the answer for each after upload</div>
-            </div>
+              <div class="dt">Click to browse images</div>
+              <div class="ds">PNG or JPG · you'll be asked for the answer (solution text) for each</div>
+            </label>
 
             <div class="listcap">Pool</div>
-            <div class="capgrid">
-              <div class="capcard"><div class="capimg"><span class="txt">7F3KQ</span></div><div class="capmeta"><span class="ans">7F3KQ</span><button class="del"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div></div>
-              <div class="capcard"><div class="capimg"><span class="txt">A92XP</span></div><div class="capmeta"><span class="ans">A92XP</span><button class="del"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div></div>
-              <div class="capcard"><div class="capimg"><span class="txt">M4T8B</span></div><div class="capmeta"><span class="ans">M4T8B</span><button class="del"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div></div>
-              <div class="capcard"><div class="capimg"><span class="txt">Z6WQ1</span></div><div class="capmeta"><span class="ans">Z6WQ1</span><button class="del"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div></div>
-              <div class="capcard"><div class="capimg"><span class="txt">K3RJ9</span></div><div class="capmeta"><span class="ans">K3RJ9</span><button class="del"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div></div>
-              <div class="capcard"><div class="capimg"><span class="txt">PX72C</span></div><div class="capmeta"><span class="ans">PX72C</span><button class="del"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div></div>
-            </div>
+            <div class="capgrid" data-cap="grid"><div class="subnote">Loading…</div></div>
             <div class="subnote" style="margin-top:13px">Only appears when a bot uses image-captcha verification. Answers are stored with each image so bots can check them.</div>
           </div>
         </div>
@@ -786,28 +817,27 @@ const ADMIN_HTML = `<div class="osd app">
         <div class="card" style="margin-bottom:16px">
           <div class="ch"><span class="eye">Storefront</span><h3>Market</h3><span class="mut">controls whether people can buy</span></div>
           <div class="cb">
-            <div class="lbl2">Market is active <span class="pill-live">accepting purchases</span></div>
+            <div class="lbl2" data-dz="market-state">Checking…</div>
             <div class="subnote" style="margin-top:6px">When off, customers can't place purchases or preorders — the store shows as closed. Requires your admin code.</div>
             <div class="confirm">
-              <input class="in mono" type="password" placeholder="enter admin code to change">
-              <button class="btn danger"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>Close market</button>
+              <input class="in mono" type="password" data-dz="market-code" placeholder="enter admin code to change">
+              <button class="btn danger" data-dz="market-btn"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>Close market</button>
             </div>
           </div>
         </div>
 
-        <!-- Emergency stop all bots -->
+        <!-- Emergency: activate / deactivate the whole fleet -->
         <div class="card">
-          <div class="ch"><span class="eye">Emergency</span><h3>Stop all bots</h3><span class="mut">kill switch</span></div>
+          <div class="ch"><span class="eye">Emergency</span><h3>Fleet power</h3><span class="mut">kill switch</span></div>
           <div class="cb">
-            <div class="statusline"><span class="pdot"></span> 37 bots online</div>
-            <div class="subnote">
-              Takes <b style="color:var(--body)">every</b> bot offline immediately. They stay in their servers — nothing is removed or kicked — they just go down until you bring them back. Use only if something is seriously wrong. Requires your admin code.
+            <div class="statusline" data-dz="fleet-state"><span class="pdot"></span> Checking…</div>
+            <div class="subnote" data-dz="fleet-note">
+              Deactivating sends every live bot a stop command immediately. They stay in their servers — nothing is removed or kicked — they just go down until you reactivate them. Requires your admin code.
             </div>
             <div class="confirm">
-              <input class="in mono" type="password" placeholder="enter admin code to confirm">
-              <button class="btn danger big"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>Stop all bots</button>
+              <input class="in mono" type="password" data-dz="fleet-code" placeholder="enter admin code to confirm">
+              <button class="btn danger big" data-dz="fleet-btn">Deactivate all bots</button>
             </div>
-            <div class="subnote" style="margin-top:11px">After stopping, a <b style="color:var(--ok)">Bring all back online</b> button appears here to restore the fleet.</div>
           </div>
         </div>
       </div>
@@ -869,7 +899,7 @@ const ADMIN_JS = `// segmented toggles (generic: click sets .on within the group
       document.getElementById('crumb').innerHTML = sec;
       document.getElementById('title').innerHTML = sec;
       document.getElementById('sub').textContent = n.getAttribute('data-sub');
-      var map = { 'Overview': 'overview-content', 'Storefront': 'storefront-content', 'Bots & Workers': 'bots-content', 'Support Access': 'support-content', 'Logs & history': 'logs-content', 'Super admin': 'super-content', 'Captcha images': 'captcha-content', 'Danger zone': 'danger-content' };
+      var map = { 'Overview': 'overview-content', 'Storefront': 'storefront-content', 'Bots & Workers': 'bots-content', 'Support Access': 'support-content', 'Logs & History': 'logs-content', 'Super Admin': 'super-content', 'Captcha Images': 'captcha-content', 'Danger Zone': 'danger-content' };
       ['overview-content','storefront-content','bots-content','support-content','logs-content','super-content','captcha-content','danger-content'].forEach(function(id){
         var el = document.getElementById(id); if (el) el.style.display = 'none';
       });
@@ -882,8 +912,26 @@ const ADMIN_JS = `// segmented toggles (generic: click sets .on within the group
         document.getElementById('stage-title').innerHTML = sec;
       }
       window.scrollTo(0,0);
+      try { sessionStorage.setItem('os_admin_sec', sec); } catch(e) {}
     });
-  });`;
+  });
+
+  // Restore the last section ONLY on a page refresh: sessionStorage keeps it
+  // out of other tabs, the navigation-type check makes leave-and-come-back
+  // start fresh, and the window flag limits it to the first mount per load.
+  try {
+    localStorage.removeItem('os_admin_sec'); // legacy always-restore copy
+    var navEntry = performance.getEntriesByType('navigation')[0];
+    var isReload = navEntry && navEntry.type === 'reload';
+    if (isReload && !window.__osAdminRestored) {
+      var savedSec = sessionStorage.getItem('os_admin_sec');
+      if (savedSec) {
+        var savedEl = document.querySelector('.nav[data-sec="' + savedSec + '"]');
+        if (savedEl) savedEl.click();
+      }
+    }
+    window.__osAdminRestored = true;
+  } catch(e) {}`;
 
 const Admin = () => {
   const { user, isAdmin, loading } = useAuth();
@@ -932,7 +980,180 @@ const Admin = () => {
     } catch {
       /* noop */
     }
+
+    // Overview — fill the blocks backed by real data, and re-poll every 10s so
+    // the KPI odometers (Live now / Bots sold) roll live as the numbers change.
+    let cancelled = false;
+
+    const loadOverview = () => {
+      (supabase as any).rpc("admin_overview_stats").then(({ data }: { data: any }) => {
+        if (cancelled || !data || data.ok === false) return;
+        try {
+          populateOverview(root, data);
+        } catch {
+          /* leave placeholder values */
+        }
+      });
+    };
+    loadOverview();
+    const overviewPoll = window.setInterval(loadOverview, 10000);
+
+    // Storefront — wire the live tools (returns a disposer for its timer).
+    let disposeStorefront = () => {};
+    try {
+      disposeStorefront = wireStorefront(root) || (() => {});
+    } catch {
+      /* leave placeholders */
+    }
+
+    // Bots & Workers — wire worker tokens, token pool, and secret slots.
+    try {
+      wireBots(root);
+    } catch {
+      /* leave placeholders */
+    }
+
+    // Support Access — wire code redemption + customer lookup.
+    let disposeSupport = () => {};
+    try {
+      disposeSupport = wireSupport(root) || (() => {});
+    } catch {
+      /* leave placeholders */
+    }
+
+    // Logs & History — fill the four feeds.
+    try {
+      wireLogs(root);
+    } catch {
+      /* leave placeholders */
+    }
+
+    // Super Admin / Captcha Images / Danger Zone.
+    try {
+      wireSuper(root);
+    } catch {
+      /* leave placeholders */
+    }
+    try {
+      wireCaptcha(root);
+    } catch {
+      /* leave placeholders */
+    }
+    try {
+      wireDanger(root);
+    } catch {
+      /* leave placeholders */
+    }
+
+    // Gate this admin's own nav by their saved section access (super = all,
+    // sections null = all). UI-level convenience; DB still enforces admin RLS.
+    const gated = ["Overview", "Storefront", "Bots & Workers", "Support Access", "Logs & History"];
+    const applyNavGate = async () => {
+      const {
+        data: { user: me },
+      } = await (supabase as any).auth.getUser();
+      const email = me?.email?.toLowerCase();
+      if (cancelled || !email) return;
+      const { data: row } = await (supabase as any)
+        .from("admin_allowlist")
+        .select("is_super, sections")
+        .eq("email", email)
+        .maybeSingle();
+      if (cancelled) return;
+      const isSuper = !!row?.is_super;
+      // Super Admin + Danger Zone are owner-only; the other five gate by the
+      // saved sections list (null = all). Reset then hide so re-granted access
+      // reappears live without a reload.
+      const superOnly = ["Super Admin", "Danger Zone"];
+      const restricted =
+        !isSuper && Array.isArray(row?.sections) ? new Set(row.sections as string[]) : null;
+      root.querySelectorAll<HTMLElement>(".nav[data-sec]").forEach((n) => {
+        const sec = n.getAttribute("data-sec") || "";
+        if (superOnly.includes(sec)) {
+          n.style.display = isSuper ? "" : "none";
+          return;
+        }
+        if (!gated.includes(sec)) return;
+        n.style.display = restricted && !restricted.has(sec) ? "none" : "";
+      });
+    };
+    applyNavGate();
+
+    // Live: re-apply the gate the moment this admin's allowlist row changes.
+    let allowlistChannel: any = null;
+    (async () => {
+      const {
+        data: { user: me },
+      } = await (supabase as any).auth.getUser();
+      const email = me?.email?.toLowerCase();
+      if (cancelled || !email) return;
+      allowlistChannel = (supabase as any)
+        .channel(`admin-self-allowlist-${Date.now()}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "admin_allowlist", filter: `email=eq.${email}` },
+          () => applyNavGate(),
+        )
+        .subscribe();
+    })();
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(overviewPoll);
+      disposeStorefront();
+      disposeSupport();
+      if (allowlistChannel) (supabase as any).removeChannel(allowlistChannel);
+    };
+    // NOTE: `user` must NOT be a dependency here. Supabase mints a new user
+    // object on every token refresh / tab refocus; re-running this effect
+    // would stack duplicate click listeners on the persistent template DOM
+    // and every admin action (and its toast) would fire twice. Identity text
+    // lives in its own effect below.
   }, [isAdmin, navigate]);
+
+  // Signed-in admin identity — the template ships with neutral placeholders
+  // so whoever is logged in sees THEIR name/email, never a hardcoded account.
+  // Kept separate from the wiring effect: this only writes text, so it's safe
+  // to re-run whenever the auth session hands us a fresh `user` object.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || !isAdmin) return;
+    let cancelled = false;
+    const fillIdentity = (p?: {
+      preferred_name?: string | null;
+      display_name?: string | null;
+      discord_username?: string | null;
+    } | null) => {
+      const email = user?.email ?? "";
+      const name =
+        (p?.preferred_name && p.preferred_name.trim()) ||
+        (p?.display_name && p.display_name.trim()) ||
+        (p?.discord_username && p.discord_username.trim()) ||
+        (email ? email.split("@")[0] : "Admin");
+      const nameEl = root.querySelector('[data-me="name"]');
+      const emailEl = root.querySelector('[data-me="email"]');
+      const avEl = root.querySelector('[data-me="avatar"]');
+      const roleEl = root.querySelector('[data-me="role"]');
+      if (nameEl) nameEl.textContent = name;
+      if (emailEl) emailEl.textContent = email;
+      if (avEl) avEl.textContent = (name[0] || email[0] || "A").toUpperCase();
+      if (roleEl) roleEl.textContent = email.toLowerCase() === "everant00@gmail.com" ? "OWNER" : "ADMIN";
+    };
+    fillIdentity();
+    if (user?.id) {
+      (supabase as any)
+        .from("profiles")
+        .select("preferred_name, display_name, discord_username")
+        .eq("user_id", user.id)
+        .maybeSingle()
+        .then(({ data }: { data: any }) => {
+          if (!cancelled && data) fillIdentity(data);
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, user]);
 
   if (loading) {
     return (
@@ -1001,6 +1222,1511 @@ const CONFIRM_CSS = `
 .osadmin .osa-btn.ghost:hover{background:rgba(232,238,243,.06)}
 .osadmin .osa-btn.danger{background:#e08a8a;color:#2a1213}
 .osadmin .osa-btn.danger:hover{filter:brightness(1.06)}
+.osadmin .osa-more{display:block;width:100%;margin-top:10px;padding:8px 10px;border:1px solid var(--line2);background:rgba(33,39,46,.5);color:var(--body);border-radius:9px;font-family:var(--bodyf);font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
+.osadmin .osa-more:hover{background:rgba(232,238,243,.06);color:var(--heading)}
 `;
+
+// ── Overview data binding ──────────────────────────────────────────────
+// The Overview markup is injected HTML; after the admin_overview_stats RPC
+// returns, we patch the real-data blocks in place. Blocks that need visitor
+// tracking (Live now, Conversion, funnel, visitors chart) are marked "needs
+// tracking" rather than showing fake numbers.
+function timeAgo(iso: string | null): string {
+  if (!iso) return "never";
+  const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+function escHtml(v: unknown): string {
+  return String(v ?? "").replace(/[&<>"]/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string),
+  );
+}
+function dollars(cents: number): string {
+  return "$" + Math.round((cents || 0) / 100).toLocaleString();
+}
+
+// Rolling odometer: render a KPI number as per-digit columns so each digit
+// scrolls (old spins up, new comes from the bottom) whenever the value changes.
+function rollNumber(valEl: HTMLElement, num: number, suffixHtml = ""): void {
+  const str = String(Math.max(0, Math.floor(Number(num) || 0)));
+  const prev = valEl.getAttribute("data-odo");
+  const digits = "0123456789"
+    .split("")
+    .map((d) => `<span class="odo-digit">${d}</span>`)
+    .join("");
+  let odo = valEl.querySelector(".odo") as HTMLElement | null;
+
+  if (!odo || !prev || prev.length !== str.length) {
+    // First render, or the digit count changed → rebuild (no roll animation).
+    const cols = str
+      .split("")
+      .map(() => `<span class="odo-col"><span class="odo-track">${digits}</span></span>`)
+      .join("");
+    valEl.innerHTML = `<span class="odo">${cols}</span>${suffixHtml ? ` ${suffixHtml}` : ""}`;
+    odo = valEl.querySelector(".odo") as HTMLElement;
+    const tracks = odo.querySelectorAll(".odo-track");
+    // Start every column at 0 (no transition)...
+    tracks.forEach((t) => {
+      const el = t as HTMLElement;
+      el.style.transition = "none";
+      el.style.transform = "translateY(0em)";
+    });
+    void odo.offsetHeight; // commit the 0 position
+    tracks.forEach((t) => ((t as HTMLElement).style.transition = ""));
+    // ...then on the next frame roll each column up to its digit, so the
+    // number visibly counts up from 0 every time it renders.
+    requestAnimationFrame(() => {
+      str.split("").forEach((ch, i) => {
+        (tracks[i] as HTMLElement).style.transform = `translateY(-${Number(ch)}em)`;
+      });
+    });
+  } else {
+    // Same length → just move each column to its new digit (this rolls).
+    const tracks = odo.querySelectorAll(".odo-track");
+    str.split("").forEach((ch, i) => {
+      (tracks[i] as HTMLElement).style.transform = `translateY(-${Number(ch)}em)`;
+    });
+  }
+  valEl.setAttribute("data-odo", str);
+}
+
+// Styled replacement for window.confirm — reuses the .osa-dialog look. Resolves
+// true on confirm, false on cancel / backdrop click / Escape.
+function osConfirm(opts: { title: string; body?: string; confirmLabel?: string }): Promise<boolean> {
+  return new Promise((resolve) => {
+    const host = document.querySelector(".osadmin") || document.body;
+    const overlay = document.createElement("div");
+    overlay.className = "osa-modal";
+    overlay.innerHTML =
+      '<div class="osa-dialog" role="dialog" aria-modal="true">' +
+      '<div class="osa-dt"></div>' +
+      '<div class="osa-dp"></div>' +
+      '<div class="osa-da">' +
+      '<button class="osa-btn ghost" data-act="cancel">Cancel</button>' +
+      '<button class="osa-btn danger" data-act="ok"></button>' +
+      "</div></div>";
+    (overlay.querySelector(".osa-dt") as HTMLElement).textContent = opts.title;
+    const bodyEl = overlay.querySelector(".osa-dp") as HTMLElement;
+    if (opts.body) bodyEl.textContent = opts.body;
+    else bodyEl.remove();
+    const okBtn = overlay.querySelector('[data-act="ok"]') as HTMLElement;
+    okBtn.textContent = opts.confirmLabel || "Confirm";
+
+    const close = (result: boolean) => {
+      document.removeEventListener("keydown", onKey);
+      overlay.remove();
+      resolve(result);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close(false);
+      else if (e.key === "Enter") close(true);
+    };
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close(false);
+    });
+    (overlay.querySelector('[data-act="cancel"]') as HTMLElement).addEventListener("click", () => close(false));
+    okBtn.addEventListener("click", () => close(true));
+    document.addEventListener("keydown", onKey);
+    host.appendChild(overlay);
+    okBtn.focus();
+  });
+}
+
+// Render a list with a "Load more" tail: shows `pageSize` rows, then a button
+// that reveals the next page. `rows` is an array of row-HTML strings. Delegated
+// click handlers on the container keep working (rows stay inside it).
+function paginate(
+  container: HTMLElement | null,
+  rows: string[],
+  emptyHtml: string,
+  pageSize = 8,
+): void {
+  if (!container) return;
+  if (!rows.length) {
+    container.innerHTML = emptyHtml;
+    return;
+  }
+  let shown = pageSize;
+  const render = () => {
+    const more =
+      rows.length > shown
+        ? `<button type="button" class="osa-more" data-act="more">Load more (${rows.length - shown})</button>`
+        : "";
+    container.innerHTML = rows.slice(0, shown).join("") + more;
+    const b = container.querySelector('[data-act="more"]') as HTMLElement | null;
+    if (b)
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        shown += pageSize;
+        render();
+      });
+  };
+  render();
+}
+
+function populateOverview(root: HTMLElement, d: any) {
+  const ov = root.querySelector("#overview-content");
+  if (!ov) return;
+  const q = (el: Element | null, sel: string) => el?.querySelector(sel) as HTMLElement | null;
+
+  // ── KPI strip: [Live now, Bots sold, Revenue, Conversion] ──
+  const kpis = ov.querySelectorAll(".kpis .kpi");
+  const f = d.funnel || { visited: 0, builder: 0, checkout: 0, purchased: 0 };
+  // Live now (rolling odometer)
+  if (kpis[0]) {
+    const v = q(kpis[0], ".val") as HTMLElement | null; if (v) rollNumber(v, d.live_now ?? 0);
+    const s = q(kpis[0], ".sub"); if (s) s.textContent = "on the site right now";
+  }
+  // Bots sold (rolling odometer)
+  if (kpis[1]) {
+    const v = q(kpis[1], ".val") as HTMLElement | null; if (v) rollNumber(v, d.bots_sold_total ?? 0, "<small>total</small>");
+    const s = q(kpis[1], ".sub");
+    if (s) s.innerHTML = `<b class="up">+${d.bots_sold_today ?? 0}</b> today · <b class="up">+${d.bots_sold_week ?? 0}</b> this week`;
+  }
+  // Revenue
+  if (kpis[2]) {
+    const v = q(kpis[2], ".val"); if (v) v.textContent = dollars(d.revenue_week_cents);
+    const s = q(kpis[2], ".sub");
+    const prev = (d.revenue_prev_week_cents || 0) / 100;
+    const cur = (d.revenue_week_cents || 0) / 100;
+    if (s) {
+      if (prev > 0) {
+        const pct = Math.round(((cur - prev) / prev) * 100);
+        s.innerHTML = `this week · <b class="${pct >= 0 ? "up" : "down"}">${pct >= 0 ? "+" : ""}${pct}%</b>`;
+      } else {
+        s.textContent = "this week";
+      }
+    }
+  }
+  // Conversion
+  if (kpis[3]) {
+    const conv = f.visited > 0 ? (f.purchased / f.visited) * 100 : 0;
+    const v = q(kpis[3], ".val"); if (v) v.textContent = `${conv.toFixed(1)}%`;
+    const s = q(kpis[3], ".sub"); if (s) s.textContent = "visit → paid · 7d";
+  }
+
+  // ── cards by title ──
+  ov.querySelectorAll(".card").forEach((card) => {
+    const title = (card.querySelector("h3")?.textContent || "").trim();
+
+    if (title === "Fleet health") {
+      const rows = card.querySelectorAll(".lrow .sp");
+      // [Bots online, Orders in progress, Utilities bot, Pending commands, Worker tokens]
+      const set = (i: number, html: string) => { if (rows[i]) (rows[i] as HTMLElement).innerHTML = html; };
+      set(0, `${d.bots_online ?? 0} / ${d.bots_total ?? 0}`);
+      set(1, `${d.orders_in_progress ?? 0} · building`);
+      set(2, `<span class="up">${timeAgo(d.utilities_last_seen)}</span>`);
+      set(3, `${d.pending_commands ?? 0}`);
+      set(4, `${d.worker_tokens_active ?? 0} active`);
+    }
+
+    if (title === "Top sellers") {
+      const cb = card.querySelector(".cb");
+      const top: Array<{ base: string; count: number }> = d.top_sellers || [];
+      if (cb) {
+        if (!top.length) {
+          cb.innerHTML = `<div class="subnote">No sales yet.</div>`;
+        } else {
+          const max = top[0].count || 1;
+          cb.innerHTML = top
+            .map(
+              (t) =>
+                `<div class="lrow"><span class="nm">${escHtml(t.base)}</span><span class="meter"><span class="bar"><i style="width:${Math.round((t.count / max) * 100)}%"></i></span><span class="v">${t.count}</span></span></div>`,
+            )
+            .join("");
+        }
+      }
+    }
+
+    if (title === "Checkout funnel") {
+      const cb = card.querySelector(".cb");
+      if (cb) {
+        const base = Math.max(f.visited, 1);
+        const pct = (n: number) => Math.round((n / base) * 100);
+        const steps: Array<[string, number]> = [
+          ["Visited the site", f.visited],
+          ["Started a bot build", f.builder],
+          ["Reached checkout", f.checkout],
+          ["Paid", f.purchased],
+        ];
+        let html = '<div class="funnel">';
+        steps.forEach(([label, n], i) => {
+          const w = n > 0 ? Math.max(pct(n), 6) : 0;
+          html += `<div class="fstep"><div class="flab"><span class="t">${label}</span><span class="n">${n.toLocaleString()}</span><span class="p">${pct(n)}%</span></div><div class="track"><i class="${i === 3 ? "dim" : ""}" style="width:${w}%"></i></div></div>`;
+        });
+        html += "</div>";
+        const dropped = Math.max(f.checkout - f.purchased, 0);
+        const rate = f.checkout > 0 ? Math.round((dropped / f.checkout) * 100) : 0;
+        html += `<div class="fdrop"><span class="x"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg></span><span><b>${dropped} reached checkout and didn't pay</b> — ${rate}% of checkouts</span></div>`;
+        const recent: Array<{ who: string; at: string }> = d.abandoned_recent || [];
+        html += `<div class="subhead">Recent abandons · last 24h</div>`;
+        html += recent.length
+          ? recent
+              .map(
+                (r) =>
+                  `<div class="lrow"><span class="nm">${escHtml(r.who)}</span><span class="sp" style="margin-left:9px">${timeAgo(r.at)}</span></div>`,
+              )
+              .join("")
+          : `<div class="subnote">None in the last 24h.</div>`;
+        cb.innerHTML = html;
+      }
+    }
+
+    if (title === "Visitors") {
+      const cb = card.querySelector(".cb");
+      const vis: Array<{ d: string; n: number }> = d.visitors_by_day || [];
+      if (cb) {
+        const maxv = Math.max(1, ...vis.map((v) => v.n));
+        const dow = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        let bars = '<div class="bars">';
+        vis.forEach((v, i) => {
+          const h = v.n > 0 ? Math.max(Math.round((v.n / maxv) * 100), 6) : 2;
+          const label = dow[new Date(v.d).getDay()] ?? "";
+          bars += `<div class="b${i === vis.length - 1 ? " hi" : ""}"><i style="height:${h}%"></i>${label}</div>`;
+        });
+        bars += "</div>";
+        cb.innerHTML = bars;
+      }
+      const total = vis.reduce((a, v) => a + (v.n || 0), 0);
+      const mut = card.querySelector(".ch .mut") as HTMLElement | null;
+      if (mut) mut.textContent = `this week · ${total.toLocaleString()} total`;
+    }
+  });
+}
+
+// ── Storefront data binding ────────────────────────────────────────────
+// Wires the injected Storefront forms/lists to the same tables/RPCs the old
+// admin components used: discount_codes, bot_free_period_codes, the billing
+// override RPCs, and dashboard_fixes. Returns a disposer for the override timer.
+const COPY_SVG = `<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>`;
+const X_SVG = `<svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
+const EYE_SVG = `<svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const TRASH_SVG = `<svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>`;
+
+function wireStorefront(root: HTMLElement): () => void {
+  const sb = supabase as any;
+  const $ = <T extends Element = HTMLElement>(sel: string) => root.querySelector(sel) as T | null;
+  const val = (sel: string) => ($(sel) as HTMLInputElement | HTMLTextAreaElement | null)?.value ?? "";
+  const setVal = (sel: string, v: string) => {
+    const el = $(sel) as HTMLInputElement | HTMLTextAreaElement | null;
+    if (el) el.value = v;
+  };
+
+  // ── Discount codes ──
+  const discList = $('[data-sf="disc-list"]');
+  async function loadDiscounts() {
+    const { data } = await sb.from("discount_codes").select("*").order("created_at", { ascending: false });
+    if (!discList) return;
+    const rows = (data || []) as any[];
+    const html = rows.map((c) => {
+      const amt = c.kind === "percent" ? `${c.value}% off` : `$${c.value} off`;
+      const uses = c.max_uses != null ? `${c.times_used || 0}/${c.max_uses} uses` : `${c.times_used || 0} uses`;
+      const tag = c.is_active ? '<span class="tag g">active</span>' : '<span class="tag n">off</span>';
+      return `<div class="crow" data-id="${c.id}"><div><div class="c">${escHtml(c.code)}</div><div class="meta">${amt} · ${uses}</div></div><span class="sp">${tag}<span class="ic" data-act="copy" data-v="${escHtml(c.code)}">${COPY_SVG}</span><span class="ic" data-act="del-disc">${X_SVG}</span></span></div>`;
+    });
+    paginate(discList, html, '<div class="subnote">No codes yet.</div>');
+  }
+  $('[data-sf="disc-create"]')?.addEventListener("click", async () => {
+    const code = val('[data-sf="disc-code"]').trim().toUpperCase();
+    const raw = val('[data-sf="disc-amount"]').trim();
+    if (!code) return toast.error("Code is required");
+    const isPct = raw.includes("%");
+    const num = parseFloat(raw.replace("%", ""));
+    if (!Number.isFinite(num) || num <= 0) return toast.error("Enter an amount");
+    if (isPct && num > 100) return toast.error("Percent can't exceed 100");
+    const { error } = await sb.from("discount_codes").insert({ code, kind: isPct ? "percent" : "fixed", value: num });
+    if (error) return toast.error(error.message);
+    toast.success(`Code ${code} created`);
+    setVal('[data-sf="disc-code"]', "");
+    setVal('[data-sf="disc-amount"]', "");
+    loadDiscounts();
+  });
+  discList?.addEventListener("click", async (e) => {
+    const ic = (e.target as Element).closest(".ic");
+    if (!ic) return;
+    const act = ic.getAttribute("data-act");
+    if (act === "copy") {
+      navigator.clipboard.writeText(ic.getAttribute("data-v") || "");
+      toast.success("Copied");
+    } else if (act === "del-disc") {
+      const id = ic.closest(".crow")?.getAttribute("data-id");
+      if (!id || !confirm("Delete this code?")) return;
+      const { error } = await sb.from("discount_codes").delete().eq("id", id);
+      if (error) return toast.error(error.message);
+      loadDiscounts();
+    }
+  });
+  loadDiscounts();
+
+  // ── Free hosting codes ──
+  const freeList = $('[data-sf="free-list"]');
+  const randomCode = (p: string) =>
+    p + "-" + Array.from({ length: 6 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
+  async function loadFree() {
+    const { data } = await sb.from("bot_free_period_codes").select("*").order("created_at", { ascending: false });
+    if (!freeList) return;
+    const rows = (data || []) as any[];
+    const html = rows.map((c) => {
+      const uses = c.max_uses != null ? `${c.times_used || 0}/${c.max_uses} used` : `${c.times_used || 0} used`;
+      const tag = c.is_active ? '<span class="tag g">active</span>' : '<span class="tag n">off</span>';
+      return `<div class="crow" data-id="${c.id}"><div><div class="c">${escHtml(c.code)}</div><div class="meta">${c.months} mo · ${uses}</div></div><span class="sp">${tag}<span class="ic" data-act="copy" data-v="${escHtml(c.code)}">${COPY_SVG}</span><span class="ic" data-act="del-free">${X_SVG}</span></span></div>`;
+    });
+    paginate(freeList, html, '<div class="subnote">No codes yet.</div>');
+  }
+  $('[data-sf="free-create"]')?.addEventListener("click", async () => {
+    const months = parseInt(val('[data-sf="free-months"]').trim(), 10);
+    if (!Number.isFinite(months) || months < 1 || months > 24) return toast.error("Months must be 1–24");
+    const usesRaw = val('[data-sf="free-uses"]').trim();
+    const max_uses = usesRaw === "" ? null : parseInt(usesRaw, 10);
+    if (max_uses !== null && (!Number.isFinite(max_uses) || max_uses < 1)) return toast.error("Max uses must be a positive number or blank");
+    const code = randomCode("FREE");
+    const { error } = await sb.from("bot_free_period_codes").insert({ code, months, max_uses });
+    if (error) return toast.error(error.message);
+    toast.success(`Code ${code} created`);
+    setVal('[data-sf="free-months"]', "");
+    setVal('[data-sf="free-uses"]', "");
+    loadFree();
+  });
+  freeList?.addEventListener("click", async (e) => {
+    const ic = (e.target as Element).closest(".ic");
+    if (!ic) return;
+    const act = ic.getAttribute("data-act");
+    if (act === "copy") {
+      navigator.clipboard.writeText(ic.getAttribute("data-v") || "");
+      toast.success("Copied");
+    } else if (act === "del-free") {
+      const id = ic.closest(".crow")?.getAttribute("data-id");
+      if (!id || !confirm("Delete this code?")) return;
+      const { error } = await sb.from("bot_free_period_codes").delete().eq("id", id);
+      if (error) return toast.error(error.message);
+      loadFree();
+    }
+  });
+  loadFree();
+
+  // ── Comp list (emails that never pay) ──
+  const compList = $('[data-sf="comp-list"]');
+  async function loadComp() {
+    const { data } = await sb
+      .from("comped_emails")
+      .select("id, email, note, created_at")
+      .order("created_at", { ascending: false });
+    if (!compList) return;
+    const html = ((data || []) as any[]).map((c) => {
+      const note = c.note ? ` · ${escHtml(c.note)}` : "";
+      return `<div class="crow" data-id="${c.id}"><div><div class="c">${escHtml(c.email)}</div><div class="meta">never pays${note}</div></div><span class="sp"><span class="tag g">comped</span><span class="ic" data-act="del-comp">${X_SVG}</span></span></div>`;
+    });
+    paginate(compList, html, '<div class="subnote">No comped emails.</div>');
+  }
+  $('[data-sf="comp-add"]')?.addEventListener("click", async () => {
+    const email = val('[data-sf="comp-email"]').trim().toLowerCase();
+    const note = val('[data-sf="comp-note"]').trim();
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast.error("Enter a valid email");
+    const { error } = await sb.from("comped_emails").insert({ email, note: note || null });
+    if (error)
+      return toast.error(/duplicate|unique/i.test(error.message) ? "That email is already on the list" : error.message);
+    toast.success(`${email} will never pay`);
+    setVal('[data-sf="comp-email"]', "");
+    setVal('[data-sf="comp-note"]', "");
+    loadComp();
+  });
+  compList?.addEventListener("click", async (e) => {
+    const ic = (e.target as Element).closest(".ic");
+    if (!ic || ic.getAttribute("data-act") !== "del-comp") return;
+    const id = ic.closest(".crow")?.getAttribute("data-id");
+    const email = ic.closest(".crow")?.querySelector(".c")?.textContent || "this email";
+    if (!id || !confirm(`Remove ${email} from the comp list? They keep existing bots; their next purchase will charge normally.`)) return;
+    const { error } = await sb.from("comped_emails").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    loadComp();
+  });
+  loadComp();
+
+  // ── Billing override (rotating) ──
+  let ovrExpires = 0;
+  const codeEl = $('[data-sf="ovr-code"]');
+  const timerEl = $('[data-sf="ovr-timer"]');
+  let ovrCode = "";
+  const setOvr = (r: any) => {
+    if (!r) return;
+    ovrCode = r.code;
+    ovrExpires = new Date(r.expires_at).getTime();
+    if (codeEl) codeEl.textContent = r.code;
+  };
+  async function loadOvr() {
+    const { data } = await sb.rpc("get_current_billing_override_code");
+    setOvr(data?.[0]);
+  }
+  $('[data-sf="ovr-refresh"]')?.addEventListener("click", async () => {
+    const { data, error } = await sb.rpc("rotate_billing_override_code");
+    if (error) return toast.error(error.message);
+    setOvr(data?.[0]);
+    toast.success("New code generated");
+  });
+  $('[data-sf="ovr-copy"]')?.addEventListener("click", () => {
+    if (!ovrCode) return;
+    navigator.clipboard.writeText(ovrCode);
+    toast.success("Copied");
+  });
+  const ovrTimer = window.setInterval(() => {
+    if (!ovrExpires || !timerEl || !document.body.contains(timerEl)) return;
+    const rem = Math.max(0, ovrExpires - Date.now());
+    const mm = Math.floor(rem / 60000);
+    const ss = Math.floor((rem % 60000) / 1000);
+    timerEl.textContent = `${mm}:${String(ss).padStart(2, "0")}`;
+    if (rem === 0) loadOvr();
+  }, 1000);
+  loadOvr();
+
+  // ── Announcements → dashboards (dashboard_fixes) ──
+  const annList = $('[data-sf="ann-list"]');
+  async function loadFixes() {
+    const { data } = await sb
+      .from("dashboard_fixes")
+      .select("id, title, severity, is_active, created_at")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (!annList) return;
+    const rows = (data || []) as any[];
+    const html = rows.map(
+      (fx) =>
+        `<div class="crow" data-id="${fx.id}"><div class="nm" style="color:var(--heading);font-weight:600">${escHtml(fx.title)}</div><span class="sp"><span class="tag ${fx.severity === "fix" ? "g" : "a"}">${escHtml(fx.severity)}</span><span class="ic" data-act="del-fix">${X_SVG}</span></span></div>`,
+    );
+    paginate(annList, html, '<div class="subnote">Nothing live.</div>');
+  }
+  // Announcements channel (for Discord-server posts) — show field for server/both, load + save.
+  const serverFields = $("#serverfields") as HTMLElement | null;
+  root.querySelectorAll("#dest button").forEach((b) => {
+    b.addEventListener("click", () => {
+      if (serverFields) serverFields.style.display = b.getAttribute("data-server") === "1" ? "block" : "none";
+    });
+  });
+  sb.rpc("admin_get_announce_channel").then(({ data }: { data: string | null }) => {
+    if (data) setVal('[data-sf="ann-channel"]', data);
+  });
+  $('[data-sf="ann-channel-save"]')?.addEventListener("click", async () => {
+    const ch = val('[data-sf="ann-channel"]').trim();
+    const { data, error } = await sb.rpc("admin_set_announce_channel", { _channel_id: ch });
+    if (error || data?.ok === false) return toast.error(error?.message || data?.error || "Couldn't save");
+    toast.success("Channel saved");
+  });
+
+  $('[data-sf="ann-publish"]')?.addEventListener("click", async () => {
+    const destBtn = root.querySelector("#dest button.on");
+    const toDash = destBtn?.getAttribute("data-dash") === "1";
+    const toServer = destBtn?.getAttribute("data-server") === "1";
+    const title = val('[data-sf="ann-title"]').trim();
+    const body = val('[data-sf="ann-msg"]').trim();
+
+    if (toDash) {
+      if (!title) return toast.error("Title is required for dashboards");
+      const typeBtn = root.querySelector("#ann-type button.on");
+      const severity = typeBtn && /fix/i.test(typeBtn.textContent || "") ? "fix" : "note";
+      const { data: u } = await sb.auth.getUser();
+      const { error } = await sb
+        .from("dashboard_fixes")
+        .insert({ title, body: body || null, severity, is_active: true, created_by: u?.user?.id ?? null });
+      if (error) return toast.error("Dashboards: " + error.message);
+    }
+
+    if (toServer) {
+      const msg = body || title;
+      if (!msg) return toast.error("Message is required for the server post");
+      const { data, error } = await sb.rpc("admin_post_server_announcement", { _message: msg });
+      if (error || data?.ok === false) return toast.error("Server: " + (error?.message || data?.error || "failed"));
+    }
+
+    toast.success(toDash && toServer ? "Published to dashboards + server" : toServer ? "Posted to the server" : "Published to dashboards");
+    setVal('[data-sf="ann-title"]', "");
+    setVal('[data-sf="ann-msg"]', "");
+    loadFixes();
+  });
+  annList?.addEventListener("click", async (e) => {
+    const ic = (e.target as Element).closest(".ic");
+    if (!ic || ic.getAttribute("data-act") !== "del-fix") return;
+    const id = ic.closest(".crow")?.getAttribute("data-id");
+    if (!id || !confirm("Remove this announcement?")) return;
+    const { error } = await sb.from("dashboard_fixes").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    loadFixes();
+  });
+  loadFixes();
+
+  return () => window.clearInterval(ovrTimer);
+}
+
+// ── Bots & Workers data binding ────────────────────────────────────────
+// Wires the injected Bots & Workers cards to the real admin-gated tables/RPCs:
+// worker_tokens (create/revoke), bot_token_pool (add/reveal/delete), and
+// bot_secret_slots (add/delete slot definitions). All reads go through the
+// admin RLS policies on those tables.
+function wireBots(root: HTMLElement): void {
+  const sb = supabase as any;
+  const $ = <T extends Element = HTMLElement>(sel: string) => root.querySelector(sel) as T | null;
+  const val = (sel: string) => ($(sel) as HTMLInputElement | null)?.value ?? "";
+  const setVal = (sel: string, v: string) => {
+    const el = $(sel) as HTMLInputElement | null;
+    if (el) el.value = v;
+  };
+
+  // ── Worker tokens ──
+  const wtList = $('[data-bw="wt-list"]');
+  async function loadWorkerTokens() {
+    const { data } = await sb
+      .from("worker_tokens")
+      .select("id, name, token_prefix, bot_id, last_used_at, revoked_at, created_at")
+      .order("created_at", { ascending: false });
+    if (!wtList) return;
+    const rows = (data || []) as any[];
+    const html = rows.map((t) => {
+      const revoked = !!t.revoked_at;
+      const tag = revoked ? '<span class="tag n">revoked</span>' : '<span class="tag g">active</span>';
+      const last = revoked
+        ? ""
+        : `<span>Last used <span class="${t.last_used_at ? "last-ok" : "last-no"}">${t.last_used_at ? timeAgo(t.last_used_at) : "Never"}</span></span>`;
+      const del = revoked ? "" : `<span class="ic" data-act="revoke-wt">${TRASH_SVG}</span>`;
+      const scope = t.bot_id ? " · scoped" : "";
+      return `<div class="crow" data-id="${t.id}"><div><div class="c">${escHtml(t.name)} ${tag}</div><div class="meta mono">${escHtml(t.token_prefix)}…${scope}</div></div><span class="sp">${last}${del}</span></div>`;
+    });
+    paginate(wtList, html, '<div class="subnote">No tokens yet.</div>');
+  }
+  $('[data-bw="wt-create"]')?.addEventListener("click", async () => {
+    const name = val('[data-bw="wt-name"]').trim();
+    if (!name) return toast.error("Name is required");
+    const botRaw = val('[data-bw="wt-bot"]').trim();
+    const notes = val('[data-bw="wt-notes"]').trim();
+    const { data, error } = await sb.rpc("create_worker_token", {
+      _name: name,
+      _bot_id: botRaw || null,
+      _notes: notes || null,
+    });
+    if (error) return toast.error(error.message);
+    if (!data?.ok) return toast.error(data?.error || "Couldn't create token");
+    const rev = $('[data-bw="wt-reveal"]');
+    const code = $('[data-bw="wt-reveal-code"]');
+    if (code) code.textContent = data.token;
+    if (rev) (rev as HTMLElement).style.display = "flex";
+    toast.success("Token created — copy it now");
+    setVal('[data-bw="wt-name"]', "");
+    setVal('[data-bw="wt-bot"]', "");
+    setVal('[data-bw="wt-notes"]', "");
+    loadWorkerTokens();
+  });
+  $('[data-bw="wt-reveal-copy"]')?.addEventListener("click", () => {
+    const code = $('[data-bw="wt-reveal-code"]')?.textContent || "";
+    if (code) {
+      navigator.clipboard.writeText(code);
+      toast.success("Copied");
+    }
+  });
+  wtList?.addEventListener("click", async (e) => {
+    const ic = (e.target as Element).closest(".ic");
+    if (!ic || ic.getAttribute("data-act") !== "revoke-wt") return;
+    const id = ic.closest(".crow")?.getAttribute("data-id");
+    if (!id || !confirm("Revoke this token? Bots using it will stop authenticating.")) return;
+    const { data, error } = await sb.rpc("revoke_worker_token", { _id: id });
+    if (error) return toast.error(error.message);
+    if (!data?.ok) return toast.error(data?.error || "Couldn't revoke");
+    toast.success("Token revoked");
+    loadWorkerTokens();
+  });
+  loadWorkerTokens();
+
+  // ── Link existing bot (main Oversite bots → managed dashboard bots) ──
+  $('[data-bw="link-submit"]')?.addEventListener("click", async () => {
+    const name = val('[data-bw="link-name"]').trim();
+    const base =
+      $('[data-bw="link-base"] button.on')?.getAttribute("data-v") || "protection";
+    const token = val('[data-bw="link-token"]').trim();
+    const serviceId = val('[data-bw="link-service"]').trim();
+    if (!name) return toast.error("Bot name is required");
+    if (!token) return toast.error("Paste the bot's Discord token");
+    const btn = $('[data-bw="link-submit"]') as HTMLButtonElement | null;
+    if (btn) btn.disabled = true;
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-link-bot", {
+        body: {
+          botName: name,
+          base,
+          token,
+          railwayServiceId: serviceId || null,
+          // Linked (main) bots get every add-on for their base.
+          addons: getAddonIdsForBase(base),
+        },
+      });
+      if (error) {
+        let msg = error.message as string;
+        const ctx = (error as { context?: Response }).context;
+        if (ctx && typeof ctx.text === "function") {
+          try {
+            msg = (JSON.parse(await ctx.text()) as { error?: string })?.error ?? msg;
+          } catch {
+            /* ignore */
+          }
+        }
+        return toast.error(msg || "Couldn't link the bot");
+      }
+      const res = data as {
+        ok?: boolean;
+        error?: string;
+        botUsername?: string;
+        message?: string;
+      } | null;
+      if (!res?.ok) return toast.error(res?.error || "Couldn't link the bot");
+      toast.success(`Linked ${res.botUsername ?? name}`, {
+        description: res.message ?? "Deploying now — it appears in your dashboard in ~1–2 minutes.",
+      });
+      setVal('[data-bw="link-name"]', "");
+      setVal('[data-bw="link-token"]', "");
+      setVal('[data-bw="link-service"]', "");
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
+
+  // ── Token pool ──
+  const poolList = $('[data-bw="pool-list"]');
+  async function loadPool() {
+    const { data } = await sb
+      .from("bot_token_pool")
+      .select("id, bot_username, client_id, token_last_four, status, created_at")
+      .order("created_at", { ascending: false });
+    const rows = (data || []) as any[];
+    const count = (s: string) => rows.filter((r) => r.status === s).length;
+    const setMini = (sel: string, n: number) => {
+      const el = $(sel);
+      if (el) el.textContent = String(n);
+    };
+    setMini('[data-bw="pool-available"]', count("available"));
+    setMini('[data-bw="pool-assigned"]', count("assigned"));
+    setMini('[data-bw="pool-retired"]', count("retired"));
+    if (!poolList) return;
+    const html = rows.map((p) => {
+      const tag =
+        p.status === "assigned"
+          ? '<span class="tag g">assigned</span>'
+          : p.status === "retired"
+            ? '<span class="tag n">retired</span>'
+            : '<span class="tag n">available</span>';
+      return `<div class="crow" data-id="${p.id}"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">${escHtml(p.bot_username)}</div><div class="meta mono">${escHtml(p.client_id)} · ••••${escHtml(p.token_last_four)}</div></div><span class="sp">${tag}<span class="ic" data-act="reveal-pool" title="Copy token">${EYE_SVG}</span><span class="ic" data-act="del-pool">${X_SVG}</span></span></div>`;
+    });
+    paginate(poolList, html, '<div class="subnote">Pool is empty.</div>');
+  }
+  $('[data-bw="pool-add"]')?.addEventListener("click", async () => {
+    const u = val('[data-bw="pool-user"]').trim();
+    const c = val('[data-bw="pool-client"]').trim();
+    const t = val('[data-bw="pool-token"]').trim();
+    if (!u || !c || !t) return toast.error("Username, client ID, and token are all required");
+    const { data, error } = await sb.rpc("add_bot_token_to_pool", {
+      _bot_username: u,
+      _client_id: c,
+      _token: t,
+    });
+    if (error) return toast.error(error.message);
+    if (!data?.ok) return toast.error(data?.error || "Couldn't add token");
+    toast.success("Added to pool");
+    setVal('[data-bw="pool-user"]', "");
+    setVal('[data-bw="pool-client"]', "");
+    setVal('[data-bw="pool-token"]', "");
+    loadPool();
+  });
+  $('[data-bw="pool-reclaim"]')?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const orig = btn.innerHTML;
+    btn.textContent = "Reclaiming…";
+    try {
+      const { data, error } = await sb.functions.invoke("admin-token-pool", {
+        body: { action: "reclaim" },
+      });
+      if (error) return void toast.error(error.message);
+      if (!data?.ok) return void toast.error(data?.error || "Reclaim failed");
+      const freed = (data.reclaimed ?? []) as Array<{ username: string }>;
+      const kept = (data.kept ?? []) as Array<{ username: string; reason: string }>;
+      if (freed.length === 0 && kept.length === 0) {
+        toast.success("Nothing stuck — every assigned token belongs to a live bot");
+      } else if (freed.length > 0) {
+        toast.success(`Freed ${freed.map((t) => t.username).join(", ")} back to available`);
+      }
+      for (const t of kept) {
+        toast.error(`${t.username} kept assigned — ${t.reason}`);
+      }
+      loadPool();
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  });
+  poolList?.addEventListener("click", async (e) => {
+    const ic = (e.target as Element).closest(".ic");
+    if (!ic) return;
+    const act = ic.getAttribute("data-act");
+    const id = ic.closest(".crow")?.getAttribute("data-id");
+    if (!id) return;
+    if (act === "reveal-pool") {
+      const { data, error } = await sb.rpc("reveal_bot_token_pool_entry", { _id: id });
+      if (error) return toast.error(error.message);
+      if (!data?.ok) return toast.error(data?.error || "Couldn't reveal");
+      navigator.clipboard.writeText(data.token);
+      toast.success("Token copied to clipboard");
+    } else if (act === "del-pool") {
+      if (!confirm("Delete this token from the pool?")) return;
+      const { data, error } = await sb.rpc("delete_bot_token_pool_entry", { _id: id });
+      if (error) return toast.error(error.message);
+      if (!data?.ok) return toast.error(data?.error || "Couldn't delete");
+      toast.success("Removed");
+      loadPool();
+    }
+  });
+  loadPool();
+
+  // ── Bot secret slots (config schema) ──
+  const slotList = $('[data-bw="slot-list"]');
+  async function loadSlots() {
+    const { data } = await sb
+      .from("bot_secret_slots")
+      .select("id, addon_id, key, label, is_required, sort_order")
+      .order("addon_id", { ascending: true })
+      .order("sort_order", { ascending: true })
+      .order("key", { ascending: true });
+    if (!slotList) return;
+    const rows = (data || []) as any[];
+    const html = rows.map((s) => {
+      const tag = s.is_required
+        ? '<span class="tag a">required</span>'
+        : '<span class="tag n">optional</span>';
+      return `<div class="crow" data-id="${s.id}"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">${escHtml(s.label)}</div><div class="meta mono">${escHtml(s.key)} · ${escHtml(s.addon_id)}</div></div><span class="sp">${tag}<span class="ic" data-act="del-slot">${X_SVG}</span></span></div>`;
+    });
+    paginate(slotList, html, '<div class="subnote">No slots defined.</div>');
+  }
+  $('[data-bw="slot-add"]')?.addEventListener("click", async () => {
+    const key = val('[data-bw="slot-key"]').trim().toUpperCase();
+    const label = val('[data-bw="slot-label"]').trim();
+    const addon = (val('[data-bw="slot-addon"]').trim() || "base").toLowerCase();
+    const reqOn = $('[data-bw="slot-req"] button.on')?.getAttribute("data-v") === "1";
+    if (!key || !label) return toast.error("Key and label are required");
+    const { error } = await sb
+      .from("bot_secret_slots")
+      .insert({ addon_id: addon, key, label, is_required: reqOn, sort_order: 100 });
+    if (error) return toast.error(error.message);
+    toast.success(`Slot ${key} added`);
+    setVal('[data-bw="slot-key"]', "");
+    setVal('[data-bw="slot-label"]', "");
+    loadSlots();
+  });
+  slotList?.addEventListener("click", async (e) => {
+    const ic = (e.target as Element).closest(".ic");
+    if (!ic || ic.getAttribute("data-act") !== "del-slot") return;
+    const id = ic.closest(".crow")?.getAttribute("data-id");
+    if (!id || !confirm("Delete this slot definition? Bots will stop asking for this field.")) return;
+    const { error } = await sb.from("bot_secret_slots").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    loadSlots();
+  });
+  loadSlots();
+
+  // ── Bot servers (Discord guild membership via admin-bot-guilds) ──
+  const bgList = $('[data-bw="bg-list"]');
+  const bgSelect = $('[data-bw="bg-bot"]') as HTMLSelectElement | null;
+  async function loadBgBots() {
+    if (!bgSelect) return;
+    const { data } = await sb
+      .from("bot_orders")
+      .select("id, bot_name, status")
+      .in("status", ["ready", "in_build"])
+      .order("bot_name", { ascending: true });
+    const rows = (data || []) as any[];
+    bgSelect.innerHTML =
+      '<option value="">Choose a bot…</option>' +
+      rows.map((r) => `<option value="${r.id}">${escHtml(r.bot_name)}</option>`).join("");
+  }
+  async function bgInvoke(body: Record<string, unknown>) {
+    const { data, error } = await supabase.functions.invoke("admin-bot-guilds", { body });
+    if (error) {
+      let msg = error.message as string;
+      const ctx = (error as { context?: Response }).context;
+      if (ctx && typeof ctx.text === "function") {
+        try {
+          msg = (JSON.parse(await ctx.text()) as { error?: string })?.error ?? msg;
+        } catch {
+          /* ignore */
+        }
+      }
+      throw new Error(msg || "Request failed");
+    }
+    if (!data?.ok) throw new Error(data?.error || "Request failed");
+    return data;
+  }
+  async function loadBgGuilds() {
+    const orderId = bgSelect?.value;
+    if (!orderId) return toast.error("Pick a bot first");
+    if (bgList) bgList.innerHTML = '<div class="subnote">Asking Discord…</div>';
+    try {
+      const data = await bgInvoke({ action: "list", orderId });
+      const guilds = (data.guilds || []) as any[];
+      if (!bgList) return;
+      const html = guilds.map(
+        (g) =>
+          `<div class="crow" data-gid="${g.id}"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">${escHtml(g.name || g.id)}</div><div class="meta mono">${escHtml(g.id)}${g.memberCount != null ? ` · ~${g.memberCount} members` : ""}</div></div><span class="sp"><span class="ic" data-act="bg-leave" title="Leave this server">${X_SVG}</span></span></div>`,
+      );
+      paginate(bgList, html, '<div class="subnote">This bot isn\'t in any servers.</div>');
+    } catch (e) {
+      if (bgList) bgList.innerHTML = `<div class="subnote">${escHtml((e as Error).message)}</div>`;
+    }
+  }
+  $('[data-bw="bg-load"]')?.addEventListener("click", loadBgGuilds);
+  bgList?.addEventListener("click", async (e) => {
+    const ic = (e.target as Element).closest(".ic");
+    if (!ic || ic.getAttribute("data-act") !== "bg-leave") return;
+    const row = ic.closest(".crow");
+    const gid = row?.getAttribute("data-gid");
+    const orderId = bgSelect?.value;
+    if (!gid || !orderId) return;
+    const name = row?.querySelector(".c")?.textContent || gid;
+    if (!confirm(`Make the bot leave "${name}"? The server owner would have to re-invite it.`)) return;
+    try {
+      await bgInvoke({ action: "leave", orderId, guildId: gid });
+      toast.success("Left the server");
+      row?.remove();
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  });
+  loadBgBots();
+}
+
+// ── Support Access data binding ────────────────────────────────────────
+// Redeem support codes (creates a grant → the bot dashboard then shows the
+// owner's bots via support_access_grants) and look up customers. Returns a
+// disposer for the active-sessions refresh interval.
+function wireSupport(root: HTMLElement): () => void {
+  const sb = supabase as any;
+  const $ = <T extends Element = HTMLElement>(sel: string) => root.querySelector(sel) as T | null;
+  const val = (sel: string) => ($(sel) as HTMLInputElement | null)?.value ?? "";
+  const setVal = (sel: string, v: string) => {
+    const el = $(sel) as HTMLInputElement | null;
+    if (el) el.value = v;
+  };
+
+  // ── Redeem code + active/recent sessions ──
+  const activeEl = $('[data-su="active"]');
+  const recentEl = $('[data-su="recent"]');
+  async function loadGrants() {
+    // Team-wide: shows every admin's grants (admin RPC), not just the caller's.
+    const { data } = await sb.rpc("admin_all_support_grants");
+    if (!data?.ok) {
+      if (activeEl) activeEl.innerHTML = `<div class="subnote">${escHtml(data?.error || "Couldn't load sessions")}</div>`;
+      if (recentEl) recentEl.innerHTML = "";
+      return;
+    }
+    const me = data.me;
+    const nowIso = new Date().toISOString();
+    const rows = (data.grants || []) as any[];
+    const active = rows.filter((g) => !g.revoked_at && g.expires_at > nowIso);
+    const recent = rows.filter((g) => g.revoked_at || g.expires_at <= nowIso);
+    const who = (g: any) => escHtml(g.owner_email || `Owner ${String(g.owner_user_id).slice(0, 8)}…`);
+    const byAdmin = (g: any) =>
+      g.admin_user_id === me ? "" : ` · held by ${escHtml(g.admin_email || String(g.admin_user_id).slice(0, 8) + "…")}`;
+
+    const activeHtml = active.map((g) => {
+      const mine = g.admin_user_id === me;
+      const action = mine
+        ? `<button class="btn ghost sm" data-act="open-grant">Open</button><span class="ic" data-act="release-grant" title="Only the owner can revoke">${X_SVG}</span>`
+        : "";
+      return `<div class="crow" data-id="${g.id}" data-owner="${escHtml(g.owner_user_id)}"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">${who(g)}</div><div class="meta">expires ${escHtml(new Date(g.expires_at).toLocaleString())}${byAdmin(g)}</div></div><span class="sp">${action}</span></div>`;
+    });
+    paginate(activeEl, activeHtml, '<div class="subnote">No active sessions.</div>');
+
+    const recentHtml = recent.map((g) => {
+      const ended = g.revoked_at ? "revoked" : "expired";
+      return `<div class="crow"><div><div class="c" style="font-family:var(--bodyf);font-weight:600">${who(g)}</div><div class="meta">ended ${escHtml(timeAgo(g.revoked_at || g.expires_at))}${byAdmin(g)}</div></div><span class="sp"><span class="tag n">${ended}</span></span></div>`;
+    });
+    paginate(recentEl, recentHtml, '<div class="subnote">Nothing recent.</div>');
+  }
+  $('[data-su="redeem"]')?.addEventListener("click", async () => {
+    const code = val('[data-su="code"]').trim().toUpperCase();
+    if (!code) return toast.error("Enter a support code");
+    const { data, error } = await sb.rpc("redeem_support_access_code", { _code: code });
+    if (error || !data?.ok) return toast.error(data?.error || error?.message || "Couldn't redeem");
+    rememberRedeemedGrant(data.grant_id, data.owner_user_id);
+    toast.success("Access granted", {
+      description: `Active until ${new Date(data.expires_at).toLocaleString()}`,
+    });
+    setVal('[data-su="code"]', "");
+    loadGrants();
+  });
+  activeEl?.addEventListener("click", (e) => {
+    const t = e.target as Element;
+    if (t.closest('[data-act="open-grant"]')) {
+      window.location.assign("/bot-dashboard");
+    } else if (t.closest('[data-act="release-grant"]')) {
+      toast.info(
+        "Only the bot owner can revoke a code. Ask them to revoke from their dashboard, or wait for it to expire.",
+      );
+    }
+  });
+
+  // ── Customer lookup ──
+  const resultEl = $('[data-su="result"]');
+  async function runSearch() {
+    const q = val('[data-su="q"]').trim();
+    if (q.length < 2) return toast.error("Enter at least 2 characters");
+    if (resultEl) resultEl.innerHTML = '<div class="subnote">Searching…</div>';
+    const { data, error } = await sb.rpc("admin_lookup_customer", { _query: q });
+    if (error || !data?.ok) {
+      if (resultEl)
+        resultEl.innerHTML = `<div class="subnote">${escHtml(data?.error || error?.message || "Search failed")}</div>`;
+      return;
+    }
+    if (!data.found) {
+      if (resultEl) resultEl.innerHTML = '<div class="subnote">No customer found.</div>';
+      return;
+    }
+    const bots = (data.bots || []) as any[];
+    const joined = data.joined_at ? timeAgo(data.joined_at) : "unknown";
+    const botLines = bots.length
+      ? bots
+          .map((b) => {
+            const online =
+              (b.presence && b.presence !== "offline") || b.status === "ready" || b.status === "active";
+            const dot = online
+              ? '<span class="pdot"></span>'
+              : '<span class="d" style="height:7px;width:7px;border-radius:50%;background:var(--faint);display:inline-block"></span>';
+            const n = b.servers || 0;
+            return `<div class="botline">${dot}<span class="nm">${escHtml(b.name)}</span><span class="sp">${online ? "online" : "offline"} · ${n} server${n === 1 ? "" : "s"}</span></div>`;
+          })
+          .join("")
+      : '<div class="subnote">No bots.</div>';
+    if (resultEl)
+      resultEl.innerHTML = `<div class="inner" data-owner="${escHtml(data.user_id)}"><div class="who">${escHtml(data.email || "(unknown email)")}</div><div class="sub2">Joined ${escHtml(joined)} · ${data.bot_count} bot${data.bot_count === 1 ? "" : "s"} · billing ${escHtml(data.billing)}</div><div style="margin-top:10px">${botLines}</div><button class="btn ghost sm" data-act="request" style="margin-top:12px"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/></svg>Request access</button></div>`;
+  }
+  $('[data-su="search"]')?.addEventListener("click", runSearch);
+  $('[data-su="q"]')?.addEventListener("keydown", (e: Event) => {
+    if ((e as KeyboardEvent).key === "Enter") runSearch();
+  });
+  resultEl?.addEventListener("click", async (e) => {
+    const btn = (e.target as Element).closest('[data-act="request"]');
+    if (!btn) return;
+    const owner = btn.closest("[data-owner]")?.getAttribute("data-owner");
+    if (!owner) return;
+    const { data, error } = await sb.rpc("admin_send_notification", {
+      _target_user_id: owner,
+      _title: "Support access requested",
+      _body:
+        "An admin would like temporary access to your dashboard to help with an issue. Generate a support code in Settings → Support access and share it with them.",
+      _event_type: "support_request",
+    });
+    if (error || data?.ok === false) return toast.error(error?.message || data?.error || "Couldn't send");
+    toast.success("Asked the customer to share a support code");
+  });
+
+  loadGrants();
+  const timer = window.setInterval(loadGrants, 60000);
+  return () => window.clearInterval(timer);
+}
+
+// ── Logs & History data binding ────────────────────────────────────────
+// One admin_logs_overview() call fills the four feeds (orders, purchases,
+// signups, audit). Orders support client-side chip filter + search.
+function wireLogs(root: HTMLElement): void {
+  const sb = supabase as any;
+  const $ = <T extends Element = HTMLElement>(sel: string) => root.querySelector(sel) as T | null;
+  const val = (sel: string) => ($(sel) as HTMLInputElement | null)?.value ?? "";
+
+  const ordersEl = $('[data-lg="orders"]');
+  const purchasesEl = $('[data-lg="purchases"]');
+  const signupsEl = $('[data-lg="signups"]');
+  const auditEl = $('[data-lg="audit"]');
+  let allOrders: any[] = [];
+  let allSignups: any[] = [];
+
+  const ORDER_COLS = "grid-template-columns:0.8fr 1.6fr 1fr 0.9fr 0.6fr";
+  const STATUS_TAG: Record<string, [string, string]> = {
+    submitted: ["a", "preorder"],
+    paid: ["g", "paid"],
+    building: ["n", "building"],
+    ready: ["g", "active"],
+    active: ["g", "active"],
+    live: ["g", "live"],
+    crashed: ["r", "crashed"],
+    cancelled: ["n", "cancelled"],
+    draft: ["n", "draft"],
+  };
+  // Prettify any raw status we don't have an explicit label for: drop the
+  // underscores and Title-Case it (e.g. preorder_pending_card → "Preorder Pending Card").
+  const pretty = (s: string) =>
+    String(s || "—").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  // A crashed runtime overrides the order status; a "ready" order reads as "active".
+  const effStatus = (o: any): string => {
+    if (o.runtime_status === "crashed") return "crashed";
+    if (o.status === "ready") return "active";
+    return o.status;
+  };
+  const bucket = (o: any): string => {
+    if (o.runtime_status === "crashed") return "crashed";
+    if (o.status === "ready" || o.status === "active" || o.status === "live") return "active";
+    if (o.status === "cancelled") return "cancelled";
+    return "pending";
+  };
+  const statusTag = (o: any) => {
+    const s = effStatus(o);
+    const meta = STATUS_TAG[s];
+    const cls = meta ? meta[0] : "n";
+    const label = meta ? meta[1] : pretty(s);
+    return `<span class="tag ${cls}">${escHtml(label)}</span>`;
+  };
+  const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
+  function renderOrders() {
+    if (!ordersEl) return;
+    const q = val('[data-lg="orders-q"]').trim().toLowerCase();
+    const f = root.querySelector('[data-lg="orders-chips"] .chip.on')?.getAttribute("data-f") || "all";
+    let list = allOrders;
+    if (f === "active") list = list.filter((o) => bucket(o) === "active");
+    else if (f === "pending") list = list.filter((o) => bucket(o) === "pending");
+    else if (f === "crashed") list = list.filter((o) => bucket(o) === "crashed");
+    if (q)
+      list = list.filter(
+        (o) =>
+          (o.id || "").toLowerCase().includes(q) ||
+          (o.email || "").toLowerCase().includes(q) ||
+          (o.bot_name || "").toLowerCase().includes(q) ||
+          (o.base || "").toLowerCase().includes(q),
+      );
+    const html = list.map(
+      (o) =>
+        `<div class="tr" style="${ORDER_COLS};position:relative"><span class="mn" title="${escHtml(o.id)}">${escHtml(String(o.id).slice(0, 8))}</span><span class="c1">${escHtml(o.email || "—")}</span><span>${escHtml(o.base || "")}</span><span>${statusTag(o)}</span><span class="tm right">${escHtml(timeAgo(o.ts))}</span><button class="rowx" data-del="${escHtml(o.id)}" title="Cancel & delete this order">×</button></div>`,
+    );
+    paginate(ordersEl, html, '<div class="subnote" style="padding-top:11px">No orders match.</div>');
+  }
+
+  function renderSignups() {
+    if (!signupsEl) return;
+    const q = val('[data-lg="signups-q"]').trim().toLowerCase();
+    let list = allSignups;
+    if (q)
+      list = list.filter(
+        (u) =>
+          (u.email || "").toLowerCase().includes(q) ||
+          (u.provider || "").toLowerCase().includes(q),
+      );
+    const html = list.map(
+      (u) =>
+        `<div class="tr" style="grid-template-columns:1.8fr 0.8fr 0.6fr;position:relative"><span class="c1">${escHtml(u.email || "—")}</span><span>${escHtml(cap(u.provider || "email"))}</span><span class="tm right">${escHtml(timeAgo(u.ts))}</span>${u.user_id ? `<button class="rowx" data-deact="${escHtml(u.user_id)}" title="Deactivate this account">×</button>` : ""}</div>`,
+    );
+    paginate(signupsEl, html, '<div class="subnote" style="padding-top:11px">No signups.</div>');
+  }
+
+  async function load() {
+    const { data, error } = await sb.rpc("admin_logs_overview");
+    if (error || !data?.ok) {
+      const msg = `<div class="subnote" style="padding-top:11px">${escHtml(data?.error || error?.message || "Failed to load")}</div>`;
+      [ordersEl, purchasesEl, signupsEl, auditEl].forEach((el) => {
+        if (el) el.innerHTML = msg;
+      });
+      return;
+    }
+    allOrders = (data.orders || []) as any[];
+    renderOrders();
+
+    if (purchasesEl) {
+      const html = ((data.purchases || []) as any[]).map(
+        (p) =>
+          `<div class="tr" style="grid-template-columns:0.7fr 0.9fr 1.6fr 0.6fr"><span class="amt">$${escHtml(p.amount)}</span><span>Stripe</span><span class="c1">${escHtml(p.email || "—")}</span><span class="tm right">${escHtml(timeAgo(p.ts))}</span></div>`,
+      );
+      paginate(purchasesEl, html, '<div class="subnote" style="padding-top:11px">No payments yet.</div>');
+    }
+
+    allSignups = (data.signups || []) as any[];
+    renderSignups();
+
+    if (auditEl) {
+      const html = ((data.audit || []) as any[]).map(
+        (a) =>
+          `<div class="tr" style="grid-template-columns:1.3fr 1.1fr 1.3fr 0.6fr"><span class="c1">${escHtml(a.action)}</span><span>${escHtml(a.admin || "—")}</span><span class="mn">${escHtml(a.target || "—")}</span><span class="tm right">${escHtml(timeAgo(a.ts))}</span></div>`,
+      );
+      paginate(auditEl, html, '<div class="subnote" style="padding-top:11px">No actions yet.</div>');
+    }
+  }
+
+  // Chips (ADMIN_JS already toggles .on) + search re-render the orders list.
+  root.querySelectorAll('[data-lg="orders-chips"] .chip').forEach((c) => c.addEventListener("click", renderOrders));
+  $('[data-lg="orders-q"]')?.addEventListener("input", renderOrders);
+
+  // Hover-X on an order row: fully cancel + tear down + delete the record.
+  ordersEl?.addEventListener("click", async (e) => {
+    const btn = (e.target as HTMLElement)?.closest?.(".rowx") as HTMLButtonElement | null;
+    if (!btn) return;
+    const id = btn.getAttribute("data-del");
+    if (!id) return;
+    const rowEl = btn.closest(".tr") as HTMLElement | null;
+    const ord = allOrders.find((o) => o.id === id);
+    const nm = ord?.bot_name ? ` (“${ord.bot_name}”)` : "";
+    const ok = await osConfirm({
+      title: "Delete this order?",
+      body: `This cancels & permanently deletes this order${nm}, tears down its bot, and removes the log — it can't be undone.`,
+      confirmLabel: "Delete",
+    });
+    if (!ok) return;
+    btn.textContent = "…";
+    btn.style.pointerEvents = "none";
+    // 1. Mark this order + any pack siblings cancelled first.
+    await sb
+      .from("bot_orders")
+      .update({ status: "cancelled", cancelled_at: new Date().toISOString(), cancellation_reason: "admin_delete" })
+      .or(`id.eq.${id},parent_order_id.eq.${id}`);
+    // 2. Best-effort Railway teardown (safe/no-op if it never deployed).
+    try {
+      await sb.functions.invoke("cancel-bot-deploy", { body: { orderId: id } });
+    } catch {
+      /* teardown not available — record is still removed below */
+    }
+    // 3. Hard-delete children, then the row.
+    await sb.from("bot_orders").delete().eq("parent_order_id", id);
+    const { error } = await sb.from("bot_orders").delete().eq("id", id);
+    if (error) {
+      toast.error("Couldn't delete order", { description: error.message });
+      btn.textContent = "×";
+      btn.style.pointerEvents = "";
+      return;
+    }
+    toast.success("Order deleted");
+    allOrders = allOrders.filter((o) => o.id !== id && (o as any).parent_order_id !== id);
+    // Animate the row out: slide it right, then collapse its height so the
+    // rows below slide up into place. Fall back to a re-render if the node is gone.
+    if (rowEl) {
+      rowEl.classList.add("removing");
+      window.setTimeout(() => {
+        rowEl.style.maxHeight = `${rowEl.offsetHeight}px`;
+        rowEl.style.overflow = "hidden";
+        void rowEl.offsetHeight; // force reflow so the collapse animates
+        rowEl.style.maxHeight = "0px";
+        rowEl.style.paddingTop = "0px";
+        rowEl.style.paddingBottom = "0px";
+        window.setTimeout(() => rowEl.remove(), 260);
+      }, 260);
+    } else {
+      renderOrders();
+    }
+  });
+
+  // Signups search.
+  $('[data-lg="signups-q"]')?.addEventListener("input", renderSignups);
+
+  // Hover-X on a signup row: deactivate the account (cancels all its bots →
+  // releases their tokens → bans the login).
+  signupsEl?.addEventListener("click", async (e) => {
+    const btn = (e.target as HTMLElement)?.closest?.(".rowx") as HTMLButtonElement | null;
+    if (!btn) return;
+    const uid = btn.getAttribute("data-deact");
+    if (!uid) return;
+    const rowEl = btn.closest(".tr") as HTMLElement | null;
+    const su = allSignups.find((u) => u.user_id === uid);
+    const em = su?.email ? ` (${su.email})` : "";
+    const ok = await osConfirm({
+      title: "Deactivate this account?",
+      body: `This bans the account${em} from signing in and cancels every bot it owns — their tokens go back to the pool. Reversible later.`,
+      confirmLabel: "Deactivate",
+    });
+    if (!ok) return;
+    btn.textContent = "…";
+    btn.style.pointerEvents = "none";
+    const { data, error } = await sb.functions.invoke("admin-deactivate-account", {
+      body: { targetUserId: uid },
+    });
+    if (error || !data?.success) {
+      toast.error("Couldn't deactivate account", { description: data?.error || error?.message });
+      btn.textContent = "×";
+      btn.style.pointerEvents = "";
+      return;
+    }
+    toast.success(`Account deactivated — ${data.bots_released ?? 0} bot slot(s) freed`);
+    allSignups = allSignups.filter((u) => u.user_id !== uid);
+    if (rowEl) {
+      rowEl.classList.add("removing");
+      window.setTimeout(() => {
+        rowEl.style.maxHeight = `${rowEl.offsetHeight}px`;
+        rowEl.style.overflow = "hidden";
+        void rowEl.offsetHeight;
+        rowEl.style.maxHeight = "0px";
+        rowEl.style.paddingTop = "0px";
+        rowEl.style.paddingBottom = "0px";
+        window.setTimeout(() => rowEl.remove(), 260);
+      }, 260);
+    } else {
+      renderSignups();
+    }
+  });
+
+  load();
+}
+
+// ── Super Admin data binding ───────────────────────────────────────────
+// Manage the admin allowlist. Adding/removing an email here grants/revokes the
+// 'admin' role via DB triggers. INSERT/DELETE require super-admin (RLS); the
+// last super admin is protected by a trigger. Super rows aren't deletable here.
+function wireSuper(root: HTMLElement): void {
+  const sb = supabase as any;
+  const $ = <T extends Element = HTMLElement>(sel: string) => root.querySelector(sel) as T | null;
+  const val = (sel: string) => ($(sel) as HTMLInputElement | null)?.value ?? "";
+  const setVal = (sel: string, v: string) => {
+    const el = $(sel) as HTMLInputElement | null;
+    if (el) el.value = v;
+  };
+  const listEl = $('[data-sa="list"]');
+  // The five non-owner sections that can be toggled per admin.
+  const KEYS = ["Overview", "Storefront", "Bots & Workers", "Support Access", "Logs & History"];
+  let selected: { id: string; email: string; isSuper: boolean } | null = null;
+
+  const setToggles = (sections: string[] | null, isSuper: boolean) => {
+    root.querySelectorAll<HTMLElement>(".permrow .sw[data-key]").forEach((sw) => {
+      const key = sw.getAttribute("data-key") || "";
+      const on = isSuper || sections == null || sections.includes(key);
+      sw.classList.toggle("on", on);
+    });
+  };
+
+  async function load() {
+    const { data, error } = await sb
+      .from("admin_allowlist")
+      .select("id, email, is_super, created_at, sections")
+      .order("is_super", { ascending: false })
+      .order("created_at", { ascending: true });
+    if (!listEl) return;
+    if (error) {
+      listEl.innerHTML = `<div class="subnote">${escHtml(error.message)}</div>`;
+      return;
+    }
+    const html = ((data || []) as any[]).map((a) => {
+      const initial = String(a.email || "?").charAt(0).toUpperCase();
+      const badge = a.is_super ? '<span class="tag g">super</span>' : '<span class="tag a">admin</span>';
+      const ro = a.is_super ? "Owner · full access" : "Admin";
+      const del = a.is_super ? "" : `<span class="ic x" data-act="del-admin">${X_SVG}</span>`;
+      const sectionsAttr = escHtml(JSON.stringify(a.sections ?? null));
+      const sel = selected && selected.id === a.id ? " sel" : "";
+      return `<div class="adm${sel}" data-id="${a.id}" data-email="${escHtml(a.email)}" data-super="${a.is_super ? 1 : 0}" data-sections="${sectionsAttr}"><div class="av">${escHtml(initial)}</div><div><div class="em">${escHtml(a.email)} ${badge}</div><div class="ro">${ro}</div></div>${del}</div>`;
+    });
+    paginate(listEl, html, '<div class="subnote">No admins yet.</div>');
+  }
+
+  const selectRow = (rowEl: Element) => {
+    const id = rowEl.getAttribute("data-id") || "";
+    const email = rowEl.getAttribute("data-email") || "";
+    const isSuper = rowEl.getAttribute("data-super") === "1";
+    let sections: string[] | null = null;
+    try {
+      sections = JSON.parse(rowEl.getAttribute("data-sections") || "null");
+    } catch {
+      sections = null;
+    }
+    selected = { id, email, isSuper };
+    root.querySelectorAll(".adm").forEach((a) => a.classList.toggle("sel", a === rowEl));
+    const nameEl = $('[data-sa="perm-name"]');
+    if (nameEl) nameEl.textContent = email;
+    const hintEl = $('[data-sa="perm-hint"]');
+    if (hintEl)
+      hintEl.textContent = isSuper
+        ? "Super admin — full access to everything. Not editable."
+        : "Toggle which sections this admin can open, then Save access.";
+    setToggles(sections, isSuper);
+  };
+
+  $('[data-sa="grant"]')?.addEventListener("click", async () => {
+    const email = val('[data-sa="email"]').trim().toLowerCase();
+    if (!email || !email.includes("@")) return toast.error("Enter a valid email");
+    const { error } = await sb.from("admin_allowlist").insert({ email });
+    if (error) return toast.error(error.message);
+    toast.success(`${email} granted admin`);
+    setVal('[data-sa="email"]', "");
+    load();
+  });
+
+  listEl?.addEventListener("click", async (e) => {
+    const x = (e.target as Element).closest('[data-act="del-admin"]');
+    if (x) {
+      const rowEl = x.closest(".adm");
+      const id = rowEl?.getAttribute("data-id");
+      const email = (rowEl?.getAttribute("data-email") || "").trim();
+      if (!id || !confirm(`Remove admin access${email ? " for " + email : ""}?`)) return;
+      const { error } = await sb.from("admin_allowlist").delete().eq("id", id);
+      if (error) return toast.error(error.message);
+      if (selected?.id === id) selected = null;
+      toast.success("Admin removed");
+      load();
+      return;
+    }
+    // Otherwise: clicking the row selects that admin for editing.
+    const rowEl = (e.target as Element).closest(".adm");
+    if (rowEl) selectRow(rowEl);
+  });
+
+  $('[data-sa="save-access"]')?.addEventListener("click", async () => {
+    if (!selected) return toast.error("Pick an admin on the left first");
+    if (selected.isSuper) return toast.error("Super admins always have full access");
+    const sections = KEYS.filter(
+      (k) => root.querySelector(`.permrow .sw[data-key="${k}"]`)?.classList.contains("on"),
+    );
+    const { data, error } = await sb.rpc("admin_set_admin_sections", {
+      _id: selected.id,
+      _sections: sections,
+    });
+    if (error || !data?.ok) return toast.error(error?.message || data?.error || "Couldn't save");
+    toast.success(`Access saved for ${selected.email}`);
+    load();
+  });
+
+  load();
+}
+
+// ── Captcha Images data binding ────────────────────────────────────────
+// Shared pool for image-captcha bots. Files go to the public "captcha-images"
+// storage bucket; the row stores the public URL + the answer (solution text).
+function wireCaptcha(root: HTMLElement): void {
+  const sb = supabase as any;
+  const $ = <T extends Element = HTMLElement>(sel: string) => root.querySelector(sel) as T | null;
+  const gridEl = $('[data-cap="grid"]');
+  const countEl = $('[data-cap="count"]');
+  const fileInput = $('[data-cap="file"]') as HTMLInputElement | null;
+  async function load() {
+    const { data, error } = await sb
+      .from("captcha_images")
+      .select("id, image_url, answer, created_at")
+      .order("created_at", { ascending: false });
+    if (countEl) countEl.textContent = String((data || []).length);
+    if (!gridEl) return;
+    if (error) {
+      gridEl.innerHTML = `<div class="subnote">${escHtml(error.message)}</div>`;
+      return;
+    }
+    const rows = (data || []) as any[];
+    gridEl.innerHTML = rows.length
+      ? rows
+          .map(
+            (c) =>
+              `<div class="capcard" data-id="${c.id}"><div class="capimg"><img src="${escHtml(c.image_url)}" alt="" style="width:100%;height:100%;object-fit:cover" /></div><div class="capmeta"><span class="ans">${escHtml(c.answer)}</span><button class="del" data-act="del-cap"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div></div>`,
+          )
+          .join("")
+      : '<div class="subnote">No images yet.</div>';
+  }
+  fileInput?.addEventListener("change", async () => {
+    const files = Array.from(fileInput.files || []);
+    if (!files.length) return;
+    let added = 0;
+    for (const file of files) {
+      const answer = (window.prompt(`Answer (solution text) for "${file.name}"`) || "").trim();
+      if (!answer) continue;
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "");
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safe}`;
+      const up = await sb.storage.from("captcha-images").upload(path, file, { upsert: false });
+      if (up.error) {
+        toast.error(up.error.message);
+        continue;
+      }
+      const { data: pub } = sb.storage.from("captcha-images").getPublicUrl(path);
+      const { error } = await sb.from("captcha_images").insert({ image_url: pub.publicUrl, answer });
+      if (error) {
+        toast.error(error.message);
+        continue;
+      }
+      added++;
+    }
+    fileInput.value = "";
+    if (added) toast.success(`Added ${added} image${added === 1 ? "" : "s"}`);
+    load();
+  });
+  gridEl?.addEventListener("click", async (e) => {
+    const btn = (e.target as Element).closest('[data-act="del-cap"]');
+    if (!btn) return;
+    const id = btn.closest(".capcard")?.getAttribute("data-id");
+    if (!id || !confirm("Delete this captcha image?")) return;
+    const { error } = await sb.from("captcha_images").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    load();
+  });
+  load();
+}
+
+// ── Danger Zone data binding ───────────────────────────────────────────
+// Market open/closed (app_settings.marketing_suspended) and the stop/start-all
+// kill switch (admin RPCs). The typed code is a client-side speed bump matching
+// the existing MarketingKillSwitch; the real gate is admin RLS on every write.
+function wireDanger(root: HTMLElement): void {
+  const sb = supabase as any;
+  const $ = <T extends Element = HTMLElement>(sel: string) => root.querySelector(sel) as T | null;
+  const val = (sel: string) => ($(sel) as HTMLInputElement | null)?.value ?? "";
+  const setVal = (sel: string, v: string) => {
+    const el = $(sel) as HTMLInputElement | null;
+    if (el) el.value = v;
+  };
+  const CODE = "Oversite19!";
+
+  const stateEl = $('[data-dz="market-state"]');
+  const marketBtn = $('[data-dz="market-btn"]') as HTMLButtonElement | null;
+  let suspended = false;
+  async function loadMarket() {
+    const { data } = await sb.from("app_settings").select("marketing_suspended").eq("id", 1).maybeSingle();
+    suspended = !!data?.marketing_suspended;
+    if (stateEl)
+      stateEl.innerHTML = suspended
+        ? 'Market is <b style="color:#e08a8a">closed</b> <span class="pill-live" style="background:rgba(230,138,138,.15);color:#e08a8a">not accepting purchases</span>'
+        : 'Market is active <span class="pill-live">accepting purchases</span>';
+    if (marketBtn) {
+      marketBtn.className = suspended ? "btn" : "btn danger";
+      marketBtn.innerHTML = suspended
+        ? '<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Open market'
+        : '<svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>Close market';
+    }
+  }
+  marketBtn?.addEventListener("click", async () => {
+    if (val('[data-dz="market-code"]') !== CODE) return toast.error("Wrong admin code");
+    const next = !suspended;
+    const { data, error } = await sb.rpc("admin_set_market_suspended", { _suspended: next });
+    if (error || !data?.ok) return toast.error(error?.message || data?.error || "Couldn't update");
+    setVal('[data-dz="market-code"]', "");
+    toast.success(next ? "Market closed" : "Market opened");
+    loadMarket();
+  });
+
+  // Fleet power — one toggle backed by app_settings.bots_suspended.
+  const fleetStateEl = $('[data-dz="fleet-state"]');
+  const fleetBtn = $('[data-dz="fleet-btn"]') as HTMLButtonElement | null;
+  let botsSuspended = false;
+  async function loadFleet() {
+    const [{ data: settings }, { count }] = await Promise.all([
+      sb.from("app_settings").select("bots_suspended").eq("id", 1).maybeSingle(),
+      sb.from("bot_orders").select("id", { count: "exact", head: true }).in("status", ["ready", "live"]),
+    ]);
+    botsSuspended = !!settings?.bots_suspended;
+    const n = count ?? 0;
+    if (fleetStateEl)
+      fleetStateEl.innerHTML = botsSuspended
+        ? '<span class="d" style="height:8px;width:8px;border-radius:50%;background:#e08a8a;display:inline-block;margin-right:6px"></span> Fleet deactivated — bots stopped'
+        : `<span class="pdot"></span> ${n} bots live`;
+    if (fleetBtn) {
+      fleetBtn.className = botsSuspended ? "btn big" : "btn danger big";
+      fleetBtn.textContent = botsSuspended ? "Activate all bots" : "Deactivate all bots";
+    }
+  }
+  fleetBtn?.addEventListener("click", async () => {
+    if (val('[data-dz="fleet-code"]') !== CODE) return toast.error("Wrong admin code");
+    if (!botsSuspended && !confirm("Send a STOP command to every live bot?")) return;
+    const rpc = botsSuspended ? "admin_start_all_bots" : "admin_stop_all_bots";
+    const { data, error } = await sb.rpc(rpc);
+    if (error || !data?.ok) return toast.error(error?.message || data?.error || "Failed");
+    setVal('[data-dz="fleet-code"]', "");
+    toast.success(
+      `${botsSuspended ? "Start" : "Stop"} sent to ${data.count} bot${data.count === 1 ? "" : "s"}`,
+    );
+    loadFleet();
+  });
+
+  loadMarket();
+  loadFleet();
+}
 
 export default Admin;

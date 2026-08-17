@@ -1,200 +1,198 @@
-import { Navbar } from "@/components/site/Navbar";
-import { Footer } from "@/components/site/Footer";
-import { Button } from "@/components/ui/button";
-import { Shield, LifeBuoy, Wrench, Sparkles, ArrowRight, Puzzle, Palette, BarChart3, Globe, Database, Bell, Wand2 } from "lucide-react";
-import { BotBuilder } from "@/components/site/BotBuilder";
+import { Shield, LifeBuoy, Wrench, Check, Sparkles, type LucideIcon } from "lucide-react";
+import { SiteNav } from "@/components/marketing/SiteNav";
+import { SiteFooter } from "@/components/marketing/SiteFooter";
+import { Container, Mono, Reveal, AccentButton, ArrowLink } from "@/components/marketing/primitives";
+import { BotForge } from "@/components/marketing/BotForge";
+import { PageNav } from "@/components/marketing/PageNav";
+import { cn } from "@/lib/utils";
 
-import protectionLogo from "@/assets/banner-protection.png";
-import supportLogo from "@/assets/banner-support.png";
-import utilitiesLogo from "@/assets/banner-utilities.png";
+import containers from "@/assets/containers.webp";
+import protectionArt from "@/assets/banner-protection.png";
+import supportArt from "@/assets/banner-support.png";
+import utilitiesArt from "@/assets/banner-utilities.png";
 
-const bots = [
+type Bot = {
+  id: string;
+  icon: LucideIcon;
+  kicker: string;
+  name: string;
+  line: string;
+  included: string[];
+  price: number;
+  oldPrice: number;
+  art: string;
+};
+
+const BOTS: Bot[] = [
   {
-    name: "Oversite Protection",
-    tagline: "Keeping your server safe with automod, anti-raid, logging, and a full moderation arsenal.",
-    image: protectionLogo,
+    id: "protection",
     icon: Shield,
-    features: ["Automod & filters", "Anti-raid defense", "Full audit logging", "Moderation toolkit"],
-    accentHsl: "70 30% 70%",
+    kicker: "Protection",
+    name: "Oversite Protection",
+    line: "Automod, anti-raid, verification, and a full moderation arsenal — the wall your server stands behind.",
+    included: ["Verification system", "Warn · mute · ban · kick", "Anti-spam & anti-raid", "Phishing link detection"],
+    price: 99,
+    oldPrice: 149,
+    art: protectionArt,
   },
   {
-    name: "Oversite Support",
-    tagline: "Your server's support system — tickets, appeals, reports, and welcoming every new member.",
-    image: supportLogo,
+    id: "support",
     icon: LifeBuoy,
-    features: ["Ticket system", "Ban appeals", "User reports", "Member welcomes"],
-    accentHsl: "280 30% 70%",
+    kicker: "Support",
+    name: "Oversite Support",
+    line: "Tickets, appeals, reports, and welcomes — a real support desk running quietly inside your server.",
+    included: ["Ticket system, unlimited categories", "Claim system", "Ban appeals & member reports", "Welcome / goodbye messages"],
+    price: 99,
+    oldPrice: 149,
+    art: supportArt,
   },
   {
-    name: "Oversite Utilities",
-    tagline: "Powering your server with announcements, roles, Roblox integration, music, and everything in between.",
-    image: utilitiesLogo,
+    id: "utilities",
     icon: Wrench,
-    features: ["Announcements", "Role management", "Roblox integration", "Music & more"],
-    accentHsl: "var(--primary)",
+    kicker: "Utilities",
+    name: "Oversite Utilities",
+    line: "Announcements, roles, Roblox, music and the long tail of everyday tools — everything in between.",
+    included: ["/say and /announce", "Reaction roles & autorole", "Roblox integration", "Music, polls, 8ball & more"],
+    price: 99,
+    oldPrice: 149,
+    art: utilitiesArt,
   },
 ];
 
-const BotsPage = () => {
+/** Dimmed container-yard backdrop + accent glow, kept dark for legibility. */
+function BotsBackdrop() {
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <main className="container mx-auto px-4 pt-32 pb-20">
-        <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-medium mb-6">
-            The Oversite Bot Suite
-          </div>
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-            Three bots. <span className="text-gradient">One ecosystem.</span>
-          </h1>
-          <p className="mt-6 text-lg text-muted-foreground leading-relaxed">
-            Purpose-built Discord bots designed to work together — protect, support, and power
-            your community without the bloat of a dozen separate tools.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-4">
-            <Button variant="hero" size="lg" asChild>
-              <a href="#pick-base">
-                <Wand2 /> Build your own bot
-              </a>
-            </Button>
-            <Button variant="outlineGlow" size="lg" asChild>
-              <a href="#bot-suite">Explore the suite</a>
-            </Button>
-          </div>
-        </div>
-
-        <div id="bot-suite" className="mt-16 grid grid-cols-1 lg:grid-cols-3 gap-6 scroll-mt-24">
-          {bots.map((bot) => {
-            const Icon = bot.icon;
-            const accent = bot.accentHsl.startsWith("var(")
-              ? `hsl(${bot.accentHsl})`
-              : `hsl(${bot.accentHsl})`;
-            return (
-              <article
-                key={bot.name}
-                style={{
-                  ["--accent" as any]: accent,
-                  borderColor: "color-mix(in hsl, var(--accent) 30%, transparent)",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor =
-                    "color-mix(in hsl, var(--accent) 60%, transparent)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor =
-                    "color-mix(in hsl, var(--accent) 30%, transparent)";
-                }}
-                className="group relative overflow-hidden rounded-2xl border bg-card/60 backdrop-blur p-8 transition-smooth"
-              >
-                <div
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-smooth pointer-events-none"
-                  style={{
-                    background:
-                      "linear-gradient(to bottom right, color-mix(in hsl, var(--accent) 20%, transparent), transparent)",
-                  }}
-                />
-                <div className="relative">
-                  <div className="aspect-[4/3] grid place-items-center mb-6 overflow-hidden -mx-2">
-                    <img
-                      src={bot.image}
-                      alt={`${bot.name} logo`}
-                      className="w-full h-full object-contain scale-110"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2 mb-3">
-                    <Icon size={18} style={{ color: "var(--accent)" }} />
-                    <h2 className="text-xl font-semibold tracking-tight">{bot.name}</h2>
-                  </div>
-
-                  <p className="text-muted-foreground leading-relaxed mb-6">{bot.tagline}</p>
-
-                  <ul className="space-y-2">
-                    {bot.features.map((f) => (
-                      <li key={f} className="flex items-center gap-2 text-sm">
-                        <span
-                          className="h-1.5 w-1.5 rounded-full"
-                          style={{ background: "var(--accent)" }}
-                        />
-                        <span className="text-foreground/90">{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-        <BotBuilder />
-
-        <section className="mt-24">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-medium mb-6">
-              <Puzzle size={14} />
-              Add-ons & Extras
-            </div>
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight">
-              Extend the suite with <span className="text-gradient">optional add-ons.</span>
-            </h2>
-            <p className="mt-6 text-lg text-muted-foreground leading-relaxed">
-              Bolt-on features that plug straight into the Oversite bot suite — no extra setup,
-              no third-party tools. Pick what your community needs.
-            </p>
-          </div>
-
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                icon: Palette,
-                name: "Custom Branding",
-                desc: "Recolor embeds, swap the bot avatar, and match your server's identity end-to-end.",
-              },
-              {
-                icon: BarChart3,
-                name: "Advanced Analytics",
-                desc: "Deep insights into moderation actions, ticket volume, and member activity over time.",
-              },
-              {
-                icon: Globe,
-                name: "Web Dashboard",
-                desc: "Manage configuration, view logs, and review tickets from a hosted control panel.",
-              },
-              {
-                icon: Database,
-                name: "Data Exports",
-                desc: "Scheduled exports of logs, tickets, and reports — CSV, JSON, or piped to your stack.",
-              },
-              {
-                icon: Bell,
-                name: "Priority Alerts",
-                desc: "Real-time push to webhooks, email, or SMS for raids, escalations, and incidents.",
-              },
-              {
-                icon: Sparkles,
-                name: "Custom Commands",
-                desc: "Bespoke slash commands and workflows wired into your existing bot deployment.",
-              },
-            ].map((addon) => {
-              const Icon = addon.icon;
-              return (
-                <div
-                  key={addon.name}
-                  className="group relative rounded-2xl border border-border/60 bg-card/60 backdrop-blur p-6 hover:border-primary/50 transition-smooth"
-                >
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center mb-4">
-                    <Icon size={18} className="text-primary" />
-                  </div>
-                  <h3 className="text-lg font-semibold tracking-tight mb-2">{addon.name}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{addon.desc}</p>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      </main>
-      <Footer />
+    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      <img src={containers} alt="" className="absolute inset-0 h-full w-full select-none object-cover opacity-[0.16]" />
+      <div className="absolute inset-0 bg-[radial-gradient(75%_55%_at_50%_-8%,rgb(var(--os-accent)/0.10),transparent_60%)]" />
+      <div className="absolute inset-0 bg-os-bg/82" />
     </div>
   );
-};
+}
+
+const SHADOW = "[text-shadow:0_2px_24px_rgb(var(--os-ink)/0.85)]";
+
+function BotSpotlight({ bot, flip }: { bot: Bot; flip: boolean }) {
+  const Icon = bot.icon;
+  return (
+    <Reveal className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+      {/* art */}
+      <div className={cn("relative", flip && "lg:order-2")}>
+        <div className="relative overflow-hidden rounded-[26px] border border-os-hairline/40 bg-os-surface/30 backdrop-blur-sm">
+          <div aria-hidden className="pointer-events-none absolute -inset-10 bg-[radial-gradient(60%_60%_at_50%_30%,rgb(var(--os-accent)/0.14),transparent_70%)]" />
+          <div className="relative grid aspect-[5/4] place-items-center p-8">
+            <img src={bot.art} alt={`${bot.name} emblem`} className="max-h-full w-auto max-w-[78%] object-contain drop-shadow-[0_18px_40px_rgb(0_0_0/0.55)]" />
+          </div>
+          <span className="absolute left-5 top-5 inline-flex items-center gap-2 rounded-full border border-os-hairline/50 bg-os-bg/60 px-3 py-1 font-label text-[10px] uppercase tracking-[0.16em] text-os-body backdrop-blur-sm">
+            <Icon size={12} className="text-os-accent" aria-hidden />
+            {bot.kicker}
+          </span>
+        </div>
+      </div>
+
+      {/* copy */}
+      <div className={cn(flip && "lg:order-1")}>
+        <Mono className="text-os-accent">Bot {String(BOTS.indexOf(bot) + 1).padStart(2, "0")}</Mono>
+        <h3 className="mt-3 font-display text-[clamp(2rem,4.5vw,3.2rem)] font-bold leading-[0.95] tracking-[-0.02em] text-os-heading">
+          {bot.name}
+        </h3>
+        <p className="mt-4 max-w-[46ch] font-body text-[15.5px] leading-relaxed text-os-body">{bot.line}</p>
+
+        <ul className="mt-6 grid max-w-[460px] grid-cols-1 gap-2.5 sm:grid-cols-2">
+          {bot.included.map((f) => (
+            <li key={f} className="flex items-start gap-2.5 font-body text-[13px] leading-snug text-os-body">
+              <Check size={15} className="mt-0.5 flex-none text-os-accent" aria-hidden />
+              {f}
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-7 flex flex-wrap items-center gap-4">
+          <div className="flex items-baseline gap-2.5">
+            <span className="font-body text-[15px] text-os-faint line-through">${bot.oldPrice}</span>
+            <span className="font-display text-[26px] font-bold tracking-[-0.01em] text-os-heading">${bot.price}</span>
+            <span className="font-label text-[11px] uppercase tracking-[0.14em] text-os-faint">one-time</span>
+          </div>
+          <span className="rounded-full border border-os-accent/40 bg-os-accent/10 px-2.5 py-1 font-label text-[10px] font-bold uppercase tracking-[0.12em] text-os-accent">
+            Preorder sale
+          </span>
+        </div>
+      </div>
+    </Reveal>
+  );
+}
+
+const BotsPage = () => (
+  <div className="oversite-theme relative min-h-screen bg-os-bg font-body text-os-body antialiased">
+    <BotsBackdrop />
+    <SiteNav />
+
+    <main className="relative z-10">
+      {/* hero */}
+      <section className="flex min-h-[88svh] items-center px-5 pt-28 md:px-8">
+        <Container>
+          <Reveal className="flex max-w-[64ch] flex-col items-start gap-5">
+            <Mono className={`text-os-accent ${SHADOW}`}>The Oversite fleet</Mono>
+            <h1 className={`font-display text-[clamp(2.8rem,8vw,6rem)] font-extrabold uppercase leading-[0.9] tracking-[-0.02em] text-os-heading ${SHADOW}`}>
+              Three bots,<br />one server.
+            </h1>
+            <p className={`max-w-[54ch] font-body text-[16px] leading-relaxed text-os-body ${SHADOW}`}>
+              Protection, Support, and Utilities — purpose-built to work as one. Pick a base,
+              shape its identity, stack the add-ons you want, and we deploy it managed and online.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-5">
+              <AccentButton href="#build">Build your bot</AccentButton>
+              <ArrowLink href="#fleet" className={SHADOW}>Meet the fleet</ArrowLink>
+            </div>
+          </Reveal>
+        </Container>
+      </section>
+
+      {/* fleet — alternating spotlights */}
+      <section id="fleet" data-page="0" className="px-5 py-10 md:px-8">
+        <Container className="space-y-24 md:space-y-32">
+          {BOTS.map((bot, i) => (
+            <BotSpotlight key={bot.id} bot={bot} flip={i % 2 === 1} />
+          ))}
+        </Container>
+      </section>
+
+      {/* all-in-one callout */}
+      <section className="px-5 py-16 md:px-8">
+        <Container>
+          <Reveal className="relative overflow-hidden rounded-[26px] border border-os-accent/30 bg-os-ink/70 p-8 backdrop-blur-sm sm:p-12">
+            <div aria-hidden className="pointer-events-none absolute -top-20 right-0 h-56 w-[26rem] max-w-[70%] rounded-full bg-os-accent/12 blur-3xl" />
+            <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              <div className="max-w-[52ch]">
+                <div className="flex items-center gap-2.5">
+                  <Sparkles size={16} className="text-os-accent" aria-hidden />
+                  <Mono className="text-os-accent">Bundle &amp; save</Mono>
+                </div>
+                <h2 className="mt-3 font-display text-[clamp(1.7rem,3.6vw,2.6rem)] font-bold leading-[0.98] tracking-[-0.02em] text-os-heading">
+                  Any two bots for $149. All three in one for $199.
+                </h2>
+                <p className="mt-3 font-body text-[15px] leading-relaxed text-os-body">
+                  Mix and match — protection, support, or utilities, same price whichever two you pick.
+                  Or grab the All in One Pack and ship the whole fleet as three focused bots.
+                </p>
+              </div>
+              <AccentButton href="#build" className="flex-none">Start building</AccentButton>
+            </div>
+          </Reveal>
+        </Container>
+      </section>
+
+      {/* the builder — real purchase flow, re-themed */}
+      <section data-page="1" className="px-5 pb-24 md:px-8">
+        <Container>
+          <BotForge />
+        </Container>
+      </section>
+    </main>
+
+    <PageNav />
+    <SiteFooter />
+  </div>
+);
 
 export default BotsPage;
