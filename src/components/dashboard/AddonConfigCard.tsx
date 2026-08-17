@@ -240,6 +240,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsRobuxLocker = addonId === "customs-robux-locker";
   const isCustomsOrderStatus = addonId === "customs-order-status";
   const isCustomsPricing = addonId === "customs-pricing";
+  const isCustomsPortfolio = addonId === "customs-portfolio";
   const isCustomsTickets = addonId === "customs-tickets";
   const isCustomsVerification = addonId === "customs-verification";
   const config = getAddonConfig(addonId);
@@ -270,6 +271,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const pricingV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [pricingV2Items, setPricingV2Items] = useState<V2Item[]>([]);
   const [pricingV2MountKey, setPricingV2MountKey] = useState(0);
+  // Customs "Portfolio" — the V2 builder for the post /portfolio sends.
+  const portfolioV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [portfolioV2Items, setPortfolioV2Items] = useState<V2Item[]>([]);
+  const [portfolioV2MountKey, setPortfolioV2MountKey] = useState(0);
   // Customs "Giveaway" — two designs: the running layout and the ended (winner)
   // layout. A tab switches which one you edit; both are saved together.
   const [giveawayTab, setGiveawayTab] = useState<"running" | "ended">("running");
@@ -1433,6 +1438,56 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Robux Locker saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: portfolio ----------
+  useEffect(() => {
+    if (!isCustomsPortfolio || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-portfolio")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        channel_id: cfg.channel_id ? String(cfg.channel_id) : "",
+      }));
+      setPortfolioV2Items(Array.isArray(cfg.components) ? (cfg.components as V2Item[]) : []);
+      setPortfolioV2MountKey((k) => k + 1);
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsPortfolio, open, botId]);
+
+  const saveCustomsPortfolio = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    if (!values.channel_id) return toast.error("Pick a channel for /portfolio to post in.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-portfolio",
+      config: {
+        channel_id: String(values.channel_id),
+        components: normalizeV2Items(portfolioV2Ref.current?.getItems() ?? portfolioV2Items ?? []),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-portfolio",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Portfolio saved & applied");
     setOpen(false);
   };
 
@@ -3593,7 +3648,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -3986,6 +4041,30 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 />
               </div>
             </div>
+          ) : isCustomsPortfolio ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Portfolio post</p>
+                <p className="text-xs text-muted-foreground">
+                  Design the post, using the same builder as Messages. When you run{" "}
+                  <code className="font-mono">/portfolio</code>, this design is posted to the channel above.
+                </p>
+                <MessagesV2Builder
+                  key={`customs-portfolio-v2-${portfolioV2MountKey}`}
+                  ref={portfolioV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={portfolioV2Items}
+                />
+              </div>
+            </div>
           ) : isInviteMessage || isCustomsMessages || isCustomsVerification ? (
             <div className="space-y-5 py-2">
               {config.fields
@@ -4303,6 +4382,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsOrderStatus();
                   } else if (isCustomsPricing) {
                     void saveCustomsPricing();
+                  } else if (isCustomsPortfolio) {
+                    void saveCustomsPortfolio();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
