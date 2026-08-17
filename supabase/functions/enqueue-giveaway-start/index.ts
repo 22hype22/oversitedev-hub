@@ -1,18 +1,21 @@
-// Giveaway entrant store — so entries survive a bot redeploy.
+// Giveaway persistence — so giveaways AND their entrants survive a bot redeploy.
 //
-// The bot keeps entrants in memory; a restart wipes them. This persists the
-// entrant list per giveaway (per bot) so it can be reloaded and never lost.
+// The bot keeps giveaways in memory; a restart wipes them. This persists each
+// giveaway's metadata + entrant list per bot, so on boot the bot can restore
+// every giveaway (with entrants + timers) and nobody's entry is ever lost.
 //
 // Body:
-//   { action: "get",   gid }        -> { ok, entrants: [uid...] }
-//   { action: "add",   gid, uid }   -> { ok, count }
-//   { action: "remove",gid, uid }   -> { ok, count }
-//   { action: "clear", gid }        -> { ok }
+//   { action: "get_all" }                 -> { ok, giveaways: { gid: {meta, entrants} } }
+//   { action: "get",       gid }          -> { ok, meta, entrants: [uid...] }
+//   { action: "set_state", gid, meta, entrants } -> { ok }   (full snapshot)
+//   { action: "add",       gid, uid }     -> { ok, count }   (fast per-click)
+//   { action: "remove",    gid, uid }     -> { ok, count }
+//   { action: "clear",     gid }          -> { ok }
 //
-// Stored in bot_config feature "giveaway-entries": { entries: { [gid]: [uid...] } }
+// Stored in bot_config feature "giveaway-entries":
+//   { entries: { [gid]: { meta: {...}, entrants: [uid...] } } }
 //
-// Auth: bot worker token (x-worker-token: wkr_...), validated via
-// _worker_token_lookup, which also tells us WHICH bot this is.
+// Auth: bot worker token (x-worker-token: wkr_...) via _worker_token_lookup.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -58,7 +61,14 @@ async function resolveBotId(req: Request): Promise<string | null> {
   return (row?.bot_id ?? row) || null;
 }
 
-type Entries = Record<string, string[]>;
+type State = { meta: Record<string, unknown>; entrants: string[] };
+type Entries = Record<string, State | string[]>;
+
+// Legacy rows stored a bare [uid...] array; normalize to { meta, entrants }.
+function normalize(v: State | string[] | undefined): State {
+  if (Array.isArray(v)) return { meta: {}, entrants: v };
+  return { meta: v?.meta ?? {}, entrants: Array.isArray(v?.entrants) ? v!.entrants : [] };
+}
 
 async function readEntries(botId: string): Promise<Entries> {
   const { data } = await admin
@@ -86,27 +96,50 @@ Deno.serve(async (req) => {
   const botId = await resolveBotId(req);
   if (!botId) return json({ error: "Unauthorized" }, 401);
 
-  let body: { action?: string; gid?: string; uid?: string };
+  let body: {
+    action?: string;
+    gid?: string;
+    uid?: string;
+    meta?: Record<string, unknown>;
+    entrants?: string[];
+  };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
   const action = String(body.action ?? "");
-  const gid = String(body.gid ?? "").trim();
-  const uid = String(body.uid ?? "").trim();
-  if (!gid) return json({ error: "gid required" }, 400);
 
   try {
+    if (action === "get_all") {
+      const entries = await readEntries(botId);
+      const out: Record<string, State> = {};
+      for (const gid of Object.keys(entries)) out[gid] = normalize(entries[gid]);
+      return json({ ok: true, giveaways: out });
+    }
+
+    const gid = String(body.gid ?? "").trim();
+    if (!gid) return json({ error: "gid required" }, 400);
+
     if (action === "get") {
       const entries = await readEntries(botId);
-      return json({ ok: true, entrants: entries[gid] ?? [] });
+      const s = normalize(entries[gid]);
+      return json({ ok: true, meta: s.meta, entrants: s.entrants });
+    }
+    if (action === "set_state") {
+      const entries = await readEntries(botId);
+      const entrants = Array.isArray(body.entrants) ? body.entrants.map(String) : normalize(entries[gid]).entrants;
+      entries[gid] = { meta: body.meta ?? normalize(entries[gid]).meta, entrants: Array.from(new Set(entrants)) };
+      await writeEntries(botId, entries);
+      return json({ ok: true, count: (entries[gid] as State).entrants.length });
     }
     if (action === "add" || action === "remove") {
+      const uid = String(body.uid ?? "").trim();
       if (!uid) return json({ error: "uid required" }, 400);
       const entries = await readEntries(botId);
-      const set = new Set(entries[gid] ?? []);
+      const s = normalize(entries[gid]);
+      const set = new Set(s.entrants);
       if (action === "add") set.add(uid);
       else set.delete(uid);
-      entries[gid] = Array.from(set);
+      entries[gid] = { meta: s.meta, entrants: Array.from(set) };
       await writeEntries(botId, entries);
-      return json({ ok: true, count: entries[gid].length });
+      return json({ ok: true, count: (entries[gid] as State).entrants.length });
     }
     if (action === "clear") {
       const entries = await readEntries(botId);
