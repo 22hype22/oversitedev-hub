@@ -4,11 +4,11 @@
 // sub-items). Designers fill in the actual prices from Discord via /setpricing,
 // which is what this function persists (per bot, so each bot keeps its own).
 //
-// Body: { action: "get" } | { action: "set", entries: [{ service, item, price }] }
+// Body: { action: "get" } | { action: "set", entries: [{ service, user, item, robux, usd }] }
 //   - get: current prices for this bot                 -> { ok, prices }
 //   - set: merge the given entries into the prices      -> { ok, prices }
 //
-// prices shape: { [service]: { [item]: priceString } }
+// prices shape (PER DESIGNER): { [service]: { [userId]: { [item]: { robux, usd } } } }
 //
 // Auth: bot worker token (x-worker-token: wkr_...), validated via
 // _worker_token_lookup, which also tells us WHICH bot this is.
@@ -57,7 +57,9 @@ async function resolveBotId(req: Request): Promise<string | null> {
   return (row?.bot_id ?? row) || null;
 }
 
-type Prices = Record<string, Record<string, string>>;
+type PriceEntry = { robux?: string; usd?: string };
+// Per designer: { [service]: { [userId]: { [item]: { robux, usd } } } }.
+type Prices = Record<string, Record<string, Record<string, PriceEntry>>>;
 
 async function readPrices(botId: string): Promise<Prices> {
   const { data } = await admin
@@ -86,7 +88,10 @@ Deno.serve(async (req) => {
   const botId = await resolveBotId(req);
   if (!botId) return json({ error: "Unauthorized" }, 401);
 
-  let body: { action?: string; entries?: Array<{ service?: string; item?: string; price?: string }> };
+  let body: {
+    action?: string;
+    entries?: Array<{ service?: string; user?: string; item?: string; robux?: string; usd?: string }>;
+  };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
   const action = String(body.action ?? "");
 
@@ -95,15 +100,21 @@ Deno.serve(async (req) => {
       return json({ ok: true, prices: await readPrices(botId) });
     }
     if (action === "set") {
+      // Prices are PER DESIGNER: prices[service][userId][item] = { robux, usd }.
+      // An entry with both blank clears that item; a user with no items is dropped.
       const prices = await readPrices(botId);
       for (const e of body.entries ?? []) {
         const service = String(e?.service ?? "").trim();
+        const user = String(e?.user ?? "").trim();
         const item = String(e?.item ?? "").trim();
-        if (!service || !item) continue;
-        const price = String(e?.price ?? "").trim();
+        if (!service || !user || !item) continue;
+        const robux = String(e?.robux ?? "").trim();
+        const usd = String(e?.usd ?? "").trim();
         if (!prices[service]) prices[service] = {};
-        if (price) prices[service][item] = price;
-        else delete prices[service][item]; // blank clears it
+        if (!prices[service][user]) prices[service][user] = {};
+        if (robux || usd) prices[service][user][item] = { robux, usd };
+        else delete prices[service][user][item];
+        if (Object.keys(prices[service][user]).length === 0) delete prices[service][user];
       }
       return json({ ok: true, prices: await writePrices(botId, prices) });
     }
