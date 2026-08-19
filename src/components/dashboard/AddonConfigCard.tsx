@@ -241,6 +241,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsOrderStatus = addonId === "customs-order-status";
   const isCustomsPricing = addonId === "customs-pricing";
   const isCustomsPortfolio = addonId === "customs-portfolio";
+  const isCustomsOrderLog = addonId === "customs-orderlog";
   const isCustomsTickets = addonId === "customs-tickets";
   const isCustomsVerification = addonId === "customs-verification";
   const config = getAddonConfig(addonId);
@@ -275,6 +276,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const portfolioV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [portfolioV2Items, setPortfolioV2Items] = useState<V2Item[]>([]);
   const [portfolioV2MountKey, setPortfolioV2MountKey] = useState(0);
+  // Customs "Order Log" — the V2 builder for the post /orderlog sends.
+  const orderlogV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [orderlogV2Items, setOrderlogV2Items] = useState<V2Item[]>([]);
+  const [orderlogV2MountKey, setOrderlogV2MountKey] = useState(0);
   // Customs "Giveaway" — two designs: the running layout and the ended (winner)
   // layout. A tab switches which one you edit; both are saved together.
   const [giveawayTab, setGiveawayTab] = useState<"running" | "ended">("running");
@@ -1490,6 +1495,58 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Portfolio saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: order log ----------
+  useEffect(() => {
+    if (!isCustomsOrderLog || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-orderlog")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        channel_id: cfg.channel_id ? String(cfg.channel_id) : "",
+        allowed_role_ids: Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [],
+      }));
+      setOrderlogV2Items(Array.isArray(cfg.components) ? (cfg.components as V2Item[]) : []);
+      setOrderlogV2MountKey((k) => k + 1);
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsOrderLog, open, botId]);
+
+  const saveCustomsOrderLog = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    if (!values.channel_id) return toast.error("Pick a channel for /orderlog to post in.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-orderlog",
+      config: {
+        channel_id: String(values.channel_id),
+        allowed_role_ids: Array.isArray(values.allowed_role_ids) ? (values.allowed_role_ids as string[]).map(String) : [],
+        components: normalizeV2Items(orderlogV2Ref.current?.getItems() ?? orderlogV2Items ?? []),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-orderlog",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Order Log saved & applied");
     setOpen(false);
   };
 
@@ -3650,7 +3707,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsOrderLog
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -4067,6 +4124,30 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 />
               </div>
             </div>
+          ) : isCustomsOrderLog ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Order Log post</p>
+                <p className="text-xs text-muted-foreground">
+                  Design the post, using the same builder as Messages. When you run{" "}
+                  <code className="font-mono">/orderlog</code>, this design is posted to the channel above.
+                </p>
+                <MessagesV2Builder
+                  key={`customs-orderlog-v2-${orderlogV2MountKey}`}
+                  ref={orderlogV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={orderlogV2Items}
+                />
+              </div>
+            </div>
           ) : isInviteMessage || isCustomsMessages || isCustomsVerification ? (
             <div className="space-y-5 py-2">
               {config.fields
@@ -4386,6 +4467,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsPricing();
                   } else if (isCustomsPortfolio) {
                     void saveCustomsPortfolio();
+                  } else if (isCustomsOrderLog) {
+                    void saveCustomsOrderLog();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
