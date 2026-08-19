@@ -239,6 +239,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsGiveaway = addonId === "customs-giveaway";
   const isCustomsRobuxLocker = addonId === "customs-robux-locker";
   const isCustomsOrderStatus = addonId === "customs-order-status";
+  const isCustomsPackages = addonId === "customs-packages";
   const isCustomsPricing = addonId === "customs-pricing";
   const isCustomsPortfolio = addonId === "customs-portfolio";
   const isCustomsOrderLog = addonId === "customs-orderlog";
@@ -1214,6 +1215,72 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Order Status saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: packages ----------
+  useEffect(() => {
+    if (!isCustomsPackages || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-packages")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        panel_channel_id: cfg.panel_channel_id ? String(cfg.panel_channel_id) : "",
+        listings_channel_id: cfg.listings_channel_id ? String(cfg.listings_channel_id) : "",
+        storage_channel_id: cfg.storage_channel_id ? String(cfg.storage_channel_id) : "",
+        review_channel_id: cfg.review_channel_id ? String(cfg.review_channel_id) : "",
+        qc_role_ids: Array.isArray(cfg.qc_role_ids) ? cfg.qc_role_ids.map(String) : [],
+        staff_role_ids: Array.isArray(cfg.staff_role_ids) ? cfg.staff_role_ids.map(String) : [],
+        types: cfg.types ?? "",
+        one_time_sell: cfg.one_time_sell ?? true,
+        panel_title: cfg.panel_title ?? "Submit a Package",
+        panel_description: cfg.panel_description ?? "",
+        terms: cfg.terms ?? "",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsPackages, open, botId]);
+
+  const saveCustomsPackages = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-packages",
+      config: {
+        panel_channel_id: values.panel_channel_id ? String(values.panel_channel_id) : "",
+        listings_channel_id: values.listings_channel_id ? String(values.listings_channel_id) : "",
+        storage_channel_id: values.storage_channel_id ? String(values.storage_channel_id) : "",
+        review_channel_id: values.review_channel_id ? String(values.review_channel_id) : "",
+        qc_role_ids: Array.isArray(values.qc_role_ids) ? (values.qc_role_ids as string[]).map(String) : [],
+        staff_role_ids: Array.isArray(values.staff_role_ids) ? (values.staff_role_ids as string[]).map(String) : [],
+        types: String(values.types ?? ""),
+        one_time_sell: values.one_time_sell ?? true,
+        panel_title: String(values.panel_title ?? "Submit a Package") || "Submit a Package",
+        panel_description: String(values.panel_description ?? ""),
+        terms: String(values.terms ?? ""),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-packages",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Packages saved & applied");
     setOpen(false);
   };
 
@@ -4481,6 +4548,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsTickets();
                   } else if (isCustomsOrderStatus) {
                     void saveCustomsOrderStatus();
+                  } else if (isCustomsPackages) {
+                    void saveCustomsPackages();
                   } else if (isCustomsPricing) {
                     void saveCustomsPricing();
                   } else if (isCustomsPortfolio) {
