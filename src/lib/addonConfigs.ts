@@ -853,6 +853,16 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "customs-orderlog": {
+    title: "Order Log",
+    summary: "Design a post below; run /orderlog to send it to the chosen channel.",
+    icon: FileText,
+    fields: [
+      channel("channel_id", "Post channel", "Where /orderlog posts the design below."),
+      multirole("allowed_role_ids", "Who can run /orderlog", "Members with any of these roles can run /orderlog. Anyone with Manage Server can too. Leave empty for Manage Server only."),
+    ],
+  },
+
   "customs-order-status": {
     title: "Order Status",
     summary: "Live open/limited/closed status per service, based on how many order tickets are open.",
