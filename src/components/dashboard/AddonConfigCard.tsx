@@ -1520,6 +1520,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       setValues((prev) => ({
         ...prev,
         channel_id: chId ? String(chId) : "",
+        allowed_role_ids: Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [],
       }));
       setOrderlogV2Items(comps as V2Item[]);
       setOrderlogV2MountKey((k) => k + 1);
@@ -1542,6 +1543,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         panels: [{ channel_id: channelId, components }],
         panel_channel_id: channelId,
         panel_components: components,
+        allowed_role_ids: Array.isArray(values.allowed_role_ids) ? (values.allowed_role_ids as string[]).map(String) : [],
       },
       updated_at: new Date().toISOString(),
     };
