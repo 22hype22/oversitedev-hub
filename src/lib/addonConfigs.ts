@@ -855,11 +855,18 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-orderlog": {
     title: "Order Log",
-    summary: "A ticket panel for order logs — buttons/forms open an order-log ticket in its own category.",
+    summary: "A /orderlog command — pops a form of your questions, then opens an order-log ticket with the answers.",
     icon: ClipboardList,
     fields: [
-      channel("channel_id", "Panel channel", "Where the order-log panel is posted. Design it below; it posts here on Save."),
-      multirole("allowed_role_ids", "Who can open order logs", "Only members with any of these roles (or Manage Server) can open an order-log ticket from the panel. Leave empty to allow anyone who can see the panel."),
+      {
+        key: "category_id",
+        label: "Order-log category",
+        type: "channel",
+        channelTypes: ["category"],
+        help: "The order-log ticket opens under this category.",
+      },
+      multirole("access_role_ids", "Who can see order-log tickets", "Roles added to each order-log ticket channel so they can view/handle it. Optional."),
+      multirole("allowed_role_ids", "Who can run /orderlog", "Only members with any of these roles (or Manage Server) can run /orderlog. Leave empty to allow anyone."),
     ],
   },
 
