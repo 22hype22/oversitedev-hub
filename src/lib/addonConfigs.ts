@@ -859,6 +859,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     icon: ClipboardList,
     fields: [
       channel("channel_id", "Panel channel", "Where the order-log panel is posted. Design it below; it posts here on Save."),
+      multirole("allowed_role_ids", "Who can open order logs", "Only members with any of these roles (or Manage Server) can open an order-log ticket from the panel. Leave empty to allow anyone who can see the panel."),
     ],
   },
 
