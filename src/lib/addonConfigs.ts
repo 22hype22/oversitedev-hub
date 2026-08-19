@@ -849,6 +849,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     icon: FileText,
     fields: [
       channel("channel_id", "Post channel", "Where /portfolio posts the design below."),
+      multirole("allowed_role_ids", "Who can run /portfolio", "Members with any of these roles can run /portfolio. Anyone with Manage Server can too. Leave empty for Manage Server only."),
     ],
   },
 
