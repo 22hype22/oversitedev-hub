@@ -855,11 +855,10 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-orderlog": {
     title: "Order Log",
-    summary: "Design a post below; run /orderlog to send it to the chosen channel.",
-    icon: FileText,
+    summary: "A ticket panel for order logs — buttons/forms open an order-log ticket in its own category.",
+    icon: ClipboardList,
     fields: [
-      channel("channel_id", "Post channel", "Where /orderlog posts the design below."),
-      multirole("allowed_role_ids", "Who can run /orderlog", "Members with any of these roles can run /orderlog. Anyone with Manage Server can too. Leave empty for Manage Server only."),
+      channel("channel_id", "Panel channel", "Where the order-log panel is posted. Design it below; it posts here on Save."),
     ],
   },
 
