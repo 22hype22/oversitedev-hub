@@ -1457,6 +1457,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       setValues((prev) => ({
         ...prev,
         channel_id: cfg.channel_id ? String(cfg.channel_id) : "",
+        allowed_role_ids: Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [],
       }));
       setPortfolioV2Items(Array.isArray(cfg.components) ? (cfg.components as V2Item[]) : []);
       setPortfolioV2MountKey((k) => k + 1);
@@ -1474,6 +1475,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       feature: "customs-portfolio",
       config: {
         channel_id: String(values.channel_id),
+        allowed_role_ids: Array.isArray(values.allowed_role_ids) ? (values.allowed_role_ids as string[]).map(String) : [],
         components: normalizeV2Items(portfolioV2Ref.current?.getItems() ?? portfolioV2Items ?? []),
       },
       updated_at: new Date().toISOString(),
