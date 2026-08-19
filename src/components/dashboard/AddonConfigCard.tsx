@@ -1520,8 +1520,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           : (Array.isArray(cfg.panel_components) ? cfg.panel_components : []);
       setValues((prev) => ({
         ...prev,
-        category_id: cfg.category_id ? String(cfg.category_id) : "",
-        access_role_ids: Array.isArray(cfg.access_role_ids) ? cfg.access_role_ids.map(String) : [],
+        channel_id: cfg.channel_id ? String(cfg.channel_id) : "",
         allowed_role_ids: Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [],
       }));
       setOrderlogV2Items(comps as V2Item[]);
@@ -1533,17 +1532,17 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
 
   const saveCustomsOrderLog = async () => {
     if (!botId) return toast.error("Missing bot id.");
+    if (!values.channel_id) return toast.error("Pick a channel for /orderlog to post in.");
     setSaving(true);
     const components = normalizeV2Items(orderlogV2Ref.current?.getItems() ?? orderlogV2Items ?? []);
     const payload = {
       bot_id: botId,
       feature: "customs-orderlog",
       config: {
-        // /orderlog form: the design is the ticket's opening message; its
-        // {Question:} tokens drive the modal fields.
+        // /orderlog form: the design is the posted message; its {Question:}
+        // tokens drive the modal fields, and answers fill in on submit.
         components,
-        category_id: values.category_id ? String(values.category_id) : "",
-        access_role_ids: Array.isArray(values.access_role_ids) ? (values.access_role_ids as string[]).map(String) : [],
+        channel_id: values.channel_id ? String(values.channel_id) : "",
         allowed_role_ids: Array.isArray(values.allowed_role_ids) ? (values.allowed_role_ids as string[]).map(String) : [],
       },
       updated_at: new Date().toISOString(),
@@ -4143,12 +4142,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Order-log form &amp; ticket message</p>
+                <p className="text-sm font-semibold text-foreground">Order-log message</p>
                 <p className="text-xs text-muted-foreground">
-                  Design what the order-log ticket shows. Put{" "}
+                  Design the message that gets posted. Put{" "}
                   <code className="font-mono text-os-accent">{"{Question: Label}"}</code> for each field you want in the form —
-                  running <code className="font-mono">/orderlog</code> pops a modal asking those questions, then opens a
-                  ticket in the category above with the answers filled in. Use{" "}
+                  running <code className="font-mono">/orderlog</code> pops a modal asking those questions, then posts this
+                  message to the channel above with the answers filled in. Use{" "}
                   <code className="font-mono text-os-accent">{"{user}"}</code> for who ran it. (Up to 10 questions.)
                 </p>
                 <MessagesV2Builder
