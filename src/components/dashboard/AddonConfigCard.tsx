@@ -1511,15 +1511,17 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         .maybeSingle();
       if (cancelled || !data) return;
       const cfg = (data.config ?? {}) as Record<string, any>;
-      // Ticket-panel shape: prefer panels[0], fall back to panel_channel_id/panel_components.
+      // Form shape: components hold the design; fall back to older panel shapes.
       const panel0 = Array.isArray(cfg.panels) && cfg.panels.length ? cfg.panels[0] : null;
-      const chId = panel0?.channel_id ?? cfg.panel_channel_id ?? "";
-      const comps = Array.isArray(panel0?.components)
-        ? panel0.components
-        : (Array.isArray(cfg.panel_components) ? cfg.panel_components : []);
+      const comps = Array.isArray(cfg.components)
+        ? cfg.components
+        : Array.isArray(panel0?.components)
+          ? panel0.components
+          : (Array.isArray(cfg.panel_components) ? cfg.panel_components : []);
       setValues((prev) => ({
         ...prev,
-        channel_id: chId ? String(chId) : "",
+        category_id: cfg.category_id ? String(cfg.category_id) : "",
+        access_role_ids: Array.isArray(cfg.access_role_ids) ? cfg.access_role_ids.map(String) : [],
         allowed_role_ids: Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [],
       }));
       setOrderlogV2Items(comps as V2Item[]);
@@ -1531,18 +1533,17 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
 
   const saveCustomsOrderLog = async () => {
     if (!botId) return toast.error("Missing bot id.");
-    if (!values.channel_id) return toast.error("Pick a channel to post the order-log panel in.");
     setSaving(true);
     const components = normalizeV2Items(orderlogV2Ref.current?.getItems() ?? orderlogV2Items ?? []);
-    const channelId = String(values.channel_id);
     const payload = {
       bot_id: botId,
       feature: "customs-orderlog",
       config: {
-        // Saved as a ticket panel so the bot registers its Ticket/Form buttons.
-        panels: [{ channel_id: channelId, components }],
-        panel_channel_id: channelId,
-        panel_components: components,
+        // /orderlog form: the design is the ticket's opening message; its
+        // {Question:} tokens drive the modal fields.
+        components,
+        category_id: values.category_id ? String(values.category_id) : "",
+        access_role_ids: Array.isArray(values.access_role_ids) ? (values.access_role_ids as string[]).map(String) : [],
         allowed_role_ids: Array.isArray(values.allowed_role_ids) ? (values.allowed_role_ids as string[]).map(String) : [],
       },
       updated_at: new Date().toISOString(),
@@ -1556,7 +1557,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
-    else toast.success("Order Log saved — panel posted");
+    else toast.success("Order Log saved & applied");
     setOpen(false);
   };
 
@@ -4142,15 +4143,13 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Order Log panel</p>
+                <p className="text-sm font-semibold text-foreground">Order-log form &amp; ticket message</p>
                 <p className="text-xs text-muted-foreground">
-                  Design the panel, then add a <span className="font-medium">Button Row</span> or{" "}
-                  <span className="font-medium">Select Menu</span> and set buttons/options to{" "}
-                  <span className="font-medium">Ticket</span> or <span className="font-medium">Form</span>. Each one gets its
-                  own <span className="font-medium">Category</span> (where the order-log ticket opens) and{" "}
-                  <span className="font-medium">Access roles</span> (who can see it) — that's how order logs stay separate
-                  from your regular tickets. For a form, put <code className="font-mono text-os-accent">{"{Question: Label}"}</code>{" "}
-                  in the opening message. The panel posts to the channel above on Save.
+                  Design what the order-log ticket shows. Put{" "}
+                  <code className="font-mono text-os-accent">{"{Question: Label}"}</code> for each field you want in the form —
+                  running <code className="font-mono">/orderlog</code> pops a modal asking those questions, then opens a
+                  ticket in the category above with the answers filled in. Use{" "}
+                  <code className="font-mono text-os-accent">{"{user}"}</code> for who ran it. (Up to 10 questions.)
                 </p>
                 <MessagesV2Builder
                   key={`customs-orderlog-v2-${orderlogV2MountKey}`}
