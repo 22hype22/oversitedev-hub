@@ -863,6 +863,26 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "customs-infraction": {
+    title: "Infraction Logs",
+    summary: "A /infraction command — pops a form of your questions, then posts the completed log to a channel.",
+    icon: ClipboardList,
+    fields: [
+      channel("channel_id", "Infraction-log channel", "Where the completed infraction log is posted when someone runs /infraction."),
+      multirole("allowed_role_ids", "Who can run /infraction", "Only members with any of these roles (or Manage Server) can run /infraction. Leave empty to allow anyone."),
+    ],
+  },
+
+  "customs-promotion": {
+    title: "Promotion",
+    summary: "A /promote command — pops a form of your questions, then posts the completed log to a channel.",
+    icon: ClipboardList,
+    fields: [
+      channel("channel_id", "Promotion-log channel", "Where the completed promotion log is posted when someone runs /promote."),
+      multirole("allowed_role_ids", "Who can run /promote", "Only members with any of these roles (or Manage Server) can run /promote. Leave empty to allow anyone."),
+    ],
+  },
+
   "customs-order-status": {
     title: "Order Status",
     summary: "Live open/limited/closed status per service, based on how many order tickets are open.",

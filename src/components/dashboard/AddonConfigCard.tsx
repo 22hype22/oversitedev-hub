@@ -242,6 +242,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsPricing = addonId === "customs-pricing";
   const isCustomsPortfolio = addonId === "customs-portfolio";
   const isCustomsOrderLog = addonId === "customs-orderlog";
+  const isCustomsInfraction = addonId === "customs-infraction";
+  const isCustomsPromotion = addonId === "customs-promotion";
+  // /orderlog, /infraction, /promote share the same "form → post to channel" UI.
+  const isCustomsFormLog = isCustomsOrderLog || isCustomsInfraction || isCustomsPromotion;
+  const formLogCommand = isCustomsInfraction ? "/infraction" : isCustomsPromotion ? "/promote" : "/orderlog";
   const isCustomsTickets = addonId === "customs-tickets";
   const isCustomsVerification = addonId === "customs-verification";
   const config = getAddonConfig(addonId);
@@ -1498,16 +1503,16 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     setOpen(false);
   };
 
-  // ---------- customs: order log ----------
+  // ---------- customs: form logs (/orderlog, /infraction, /promote) ----------
   useEffect(() => {
-    if (!isCustomsOrderLog || !open || !botId) return;
+    if (!isCustomsFormLog || !open || !botId) return;
     let cancelled = false;
     (async () => {
       const { data } = await supabase
         .from("bot_config")
         .select("config, applied_at")
         .eq("bot_id", botId)
-        .eq("feature", "customs-orderlog")
+        .eq("feature", addonId)
         .maybeSingle();
       if (cancelled || !data) return;
       const cfg = (data.config ?? {}) as Record<string, any>;
@@ -1528,19 +1533,19 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       setAppliedAt((data as any).applied_at ?? null);
     })();
     return () => { cancelled = true; };
-  }, [isCustomsOrderLog, open, botId]);
+  }, [isCustomsFormLog, addonId, open, botId]);
 
   const saveCustomsOrderLog = async () => {
     if (!botId) return toast.error("Missing bot id.");
-    if (!values.channel_id) return toast.error("Pick a channel for /orderlog to post in.");
+    if (!values.channel_id) return toast.error(`Pick a channel for ${formLogCommand} to post in.`);
     setSaving(true);
     const components = normalizeV2Items(orderlogV2Ref.current?.getItems() ?? orderlogV2Items ?? []);
     const payload = {
       bot_id: botId,
-      feature: "customs-orderlog",
+      feature: addonId,
       config: {
-        // /orderlog form: the design is the posted message; its {Question:}
-        // tokens drive the modal fields, and answers fill in on submit.
+        // Form-log: the design is the posted message; its {Question:} tokens
+        // drive the modal fields, and answers fill in on submit.
         components,
         channel_id: values.channel_id ? String(values.channel_id) : "",
         allowed_role_ids: Array.isArray(values.allowed_role_ids) ? (values.allowed_role_ids as string[]).map(String) : [],
@@ -1551,12 +1556,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     setSaving(false);
     if (error) return toast.error(`Save failed: ${error.message}`);
     const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
-      _bot_id: botId, _feature: "customs-orderlog",
+      _bot_id: botId, _feature: addonId,
     });
     const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
-    else toast.success("Order Log saved & applied");
+    else toast.success(`${config.title} saved & applied`);
     setOpen(false);
   };
 
@@ -3717,7 +3722,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsOrderLog
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsFormLog
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -4134,7 +4139,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 />
               </div>
             </div>
-          ) : isCustomsOrderLog ? (
+          ) : isCustomsFormLog ? (
             <div className="space-y-5 py-2">
               {config.fields
                 .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
@@ -4142,11 +4147,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Order-log message</p>
+                <p className="text-sm font-semibold text-foreground">{config.title} message</p>
                 <p className="text-xs text-muted-foreground">
                   Design the message that gets posted. Put{" "}
                   <code className="font-mono text-os-accent">{"{Question: Label}"}</code> for each field you want in the form —
-                  running <code className="font-mono">/orderlog</code> pops a modal asking those questions, then posts this
+                  running <code className="font-mono">{formLogCommand}</code> pops a modal asking those questions, then posts this
                   message to the channel above with the answers filled in. Use{" "}
                   <code className="font-mono text-os-accent">{"{user}"}</code> for who ran it. (Up to 10 questions.)
                 </p>
@@ -4480,7 +4485,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsPricing();
                   } else if (isCustomsPortfolio) {
                     void saveCustomsPortfolio();
-                  } else if (isCustomsOrderLog) {
+                  } else if (isCustomsFormLog) {
                     void saveCustomsOrderLog();
                   } else {
                     toast.success(`${config.title} settings saved`);
