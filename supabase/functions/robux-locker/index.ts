@@ -265,7 +265,13 @@ Deno.serve(async (req) => {
       const data = await res.json();
       const rows: any[] = Array.isArray(data?.data) ? data.data : [];
       const sales = rows.map((r) => ({
-        id: String(r?.id ?? r?.idHash ?? ""),
+        // The numeric `id` comes back as 0 for every sale, so build a stable
+        // unique key from idHash (preferred) or a composite of the fields that
+        // differ per transaction. Without this, dedup collides on "0".
+        id: String(
+          r?.idHash ||
+          [r?.created ?? "", r?.agent?.id ?? "", r?.details?.id ?? "", r?.currency?.amount ?? ""].join("|"),
+        ),
         created: r?.created ?? null,
         buyerId: String(r?.agent?.id ?? ""),
         buyerName: String(r?.agent?.name ?? ""),
@@ -285,8 +291,10 @@ Deno.serve(async (req) => {
     }
     if (action === "log_state_get") {
       // Dedup cursor for the purchase-logs sales poller (seen sale ids).
+      // Key is versioned (v2) so switching to the new unique-id scheme starts
+      // from a clean, empty cursor (re-seeds instead of dumping old sales).
       const { data } = await admin.from("bot_config").select("config")
-        .eq("bot_id", botId).eq("feature", "customs-logging-state").maybeSingle();
+        .eq("bot_id", botId).eq("feature", "customs-logging-state-v2").maybeSingle();
       const cfg = (data?.config ?? {}) as Record<string, unknown>;
       const seen = Array.isArray(cfg.seen_ids) ? (cfg.seen_ids as unknown[]).map(String) : [];
       return json({ ok: true, seen_ids: seen });
@@ -294,7 +302,7 @@ Deno.serve(async (req) => {
     if (action === "log_state_set") {
       const seen = Array.isArray(body.seen_ids) ? (body.seen_ids as unknown[]).map(String).slice(-500) : [];
       await admin.from("bot_config").upsert(
-        { bot_id: botId, feature: "customs-logging-state", config: { seen_ids: seen }, updated_at: new Date().toISOString() },
+        { bot_id: botId, feature: "customs-logging-state-v2", config: { seen_ids: seen }, updated_at: new Date().toISOString() },
         { onConflict: "bot_id,feature" },
       );
       return json({ ok: true });
