@@ -248,6 +248,34 @@ Deno.serve(async (req) => {
       if (amount <= 0 || amount > cur) return json({ ok: false, stock: cur, error: "insufficient_stock" });
       return json({ ok: true, stock: await setStock(botId, cur - amount) });
     }
+    if (action === "sales") {
+      // Recent group SALE transactions (game passes, shirts, etc.), newest first.
+      // Used by the purchase-logs poller. Each item: { id, created, buyerId,
+      // buyerName, itemName, itemType, itemId, amount }.
+      const groupId = await resolveGroupId();
+      const limit = Math.min(100, Math.max(1, Number(body.limit ?? 25)));
+      const res = await fetch(
+        `https://economy.roblox.com/v2/groups/${groupId}/transactions?transactionType=Sale&limit=${limit}&sortOrder=Desc`,
+        { headers: cookieHeaders() },
+      );
+      if (!res.ok) {
+        const bodyText = (await res.text()).slice(0, 200);
+        return json({ error: `Sales read failed (HTTP ${res.status}): ${bodyText}` }, 502);
+      }
+      const data = await res.json();
+      const rows: any[] = Array.isArray(data?.data) ? data.data : [];
+      const sales = rows.map((r) => ({
+        id: String(r?.id ?? r?.idHash ?? ""),
+        created: r?.created ?? null,
+        buyerId: String(r?.agent?.id ?? ""),
+        buyerName: String(r?.agent?.name ?? ""),
+        itemName: String(r?.details?.name ?? ""),
+        itemType: String(r?.details?.type ?? ""),
+        itemId: String(r?.details?.id ?? ""),
+        amount: Number(r?.currency?.amount ?? 0),
+      })).filter((s) => s.id);
+      return json({ ok: true, sales });
+    }
     return json({ error: "Unknown action" }, 400);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

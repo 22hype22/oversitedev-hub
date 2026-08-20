@@ -158,6 +158,31 @@ Deno.serve(async (req) => {
       return json({ ok: true, roblox_id: data?.roblox_id ?? null, roblox_username: data?.roblox_username ?? null });
     }
 
+    if (action === "roblox_reverse") {
+      // Reverse: a Roblox id → the Discord user linked to it (purchase logs).
+      const { data } = await admin.from("roblox_verifications")
+        .select("discord_user_id, roblox_username")
+        .eq("bot_id", botId).eq("roblox_id", String(body.roblox_id ?? "")).maybeSingle();
+      return json({ ok: true, discord_user_id: data?.discord_user_id ?? null, roblox_username: data?.roblox_username ?? null });
+    }
+
+    if (action === "log_state_get") {
+      // Dedup cursor for the purchase-logs sales poller (seen sale ids).
+      const { data } = await admin.from("bot_config").select("config")
+        .eq("bot_id", botId).eq("feature", "customs-logging-state").maybeSingle();
+      const cfg = (data?.config ?? {}) as Record<string, unknown>;
+      const seen = Array.isArray(cfg.seen_ids) ? cfg.seen_ids.map(String) : [];
+      return json({ ok: true, seen_ids: seen });
+    }
+    if (action === "log_state_set") {
+      const seen = Array.isArray(body.seen_ids) ? body.seen_ids.map(String).slice(-500) : [];
+      await admin.from("bot_config").upsert(
+        { bot_id: botId, feature: "customs-logging-state", config: { seen_ids: seen }, updated_at: new Date().toISOString() },
+        { onConflict: "bot_id,feature" },
+      );
+      return json({ ok: true });
+    }
+
     if (action === "terms_get") {
       const { data } = await admin.from("package_terms").select("id")
         .eq("bot_id", botId).eq("user_id", String(body.user_id ?? "")).maybeSingle();
