@@ -4264,10 +4264,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 <p className="text-sm font-semibold text-foreground">{config.title} message</p>
                 <p className="text-xs text-muted-foreground">
                   Design the message that gets posted. Put{" "}
-                  <code className="font-mono text-os-accent">{"{Question: Label}"}</code> for each field you want in the form —
-                  running <code className="font-mono">{formLogCommand}</code> pops a modal asking those questions, then posts this
-                  message to the channel above with the answers filled in. Use{" "}
-                  <code className="font-mono text-os-accent">{"{user}"}</code> for who ran it. (Up to 10 questions.)
+                  <code className="font-mono text-os-accent">{"{Question: Label}"}</code> for each text field, or{" "}
+                  <code className="font-mono text-os-accent">{"{File: Label}"}</code> for a file upload —
+                  running <code className="font-mono">{formLogCommand}</code> pops a modal with those fields, then posts this
+                  message to the channel above with the answers filled in (uploaded files posted below it). Use{" "}
+                  <code className="font-mono text-os-accent">{"{user}"}</code> for who ran it. (Up to 10 fields.)
                 </p>
                 <MessagesV2Builder
                   key={`customs-orderlog-v2-${orderlogV2MountKey}`}
