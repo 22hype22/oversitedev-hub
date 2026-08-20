@@ -239,9 +239,16 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsGiveaway = addonId === "customs-giveaway";
   const isCustomsRobuxLocker = addonId === "customs-robux-locker";
   const isCustomsOrderStatus = addonId === "customs-order-status";
+  const isCustomsPackages = addonId === "customs-packages";
+  const isCustomsPayment = addonId === "customs-payment";
   const isCustomsPricing = addonId === "customs-pricing";
   const isCustomsPortfolio = addonId === "customs-portfolio";
   const isCustomsOrderLog = addonId === "customs-orderlog";
+  const isCustomsInfraction = addonId === "customs-infraction";
+  const isCustomsPromotion = addonId === "customs-promotion";
+  // /orderlog, /infraction, /promote share the same "form → post to channel" UI.
+  const isCustomsFormLog = isCustomsOrderLog || isCustomsInfraction || isCustomsPromotion;
+  const formLogCommand = isCustomsInfraction ? "/infraction" : isCustomsPromotion ? "/promote" : "/orderlog";
   const isCustomsTickets = addonId === "customs-tickets";
   const isCustomsVerification = addonId === "customs-verification";
   const config = getAddonConfig(addonId);
@@ -1212,6 +1219,118 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     setOpen(false);
   };
 
+  // ---------- customs: payment ----------
+  useEffect(() => {
+    if (!isCustomsPayment || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-payment")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        allowed_role_ids: Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [],
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsPayment, open, botId]);
+
+  const saveCustomsPayment = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-payment",
+      config: {
+        allowed_role_ids: Array.isArray(values.allowed_role_ids) ? (values.allowed_role_ids as string[]).map(String) : [],
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-payment",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Payment saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: packages ----------
+  useEffect(() => {
+    if (!isCustomsPackages || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-packages")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        panel_channel_id: cfg.panel_channel_id ? String(cfg.panel_channel_id) : "",
+        listings_channel_id: cfg.listings_channel_id ? String(cfg.listings_channel_id) : "",
+        storage_channel_id: cfg.storage_channel_id ? String(cfg.storage_channel_id) : "",
+        review_channel_id: cfg.review_channel_id ? String(cfg.review_channel_id) : "",
+        qc_role_ids: Array.isArray(cfg.qc_role_ids) ? cfg.qc_role_ids.map(String) : [],
+        staff_role_ids: Array.isArray(cfg.staff_role_ids) ? cfg.staff_role_ids.map(String) : [],
+        types: cfg.types ?? "",
+        one_time_sell: cfg.one_time_sell ?? true,
+        panel_title: cfg.panel_title ?? "Submit a Package",
+        panel_description: cfg.panel_description ?? "",
+        terms: cfg.terms ?? "",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsPackages, open, botId]);
+
+  const saveCustomsPackages = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-packages",
+      config: {
+        panel_channel_id: values.panel_channel_id ? String(values.panel_channel_id) : "",
+        listings_channel_id: values.listings_channel_id ? String(values.listings_channel_id) : "",
+        storage_channel_id: values.storage_channel_id ? String(values.storage_channel_id) : "",
+        review_channel_id: values.review_channel_id ? String(values.review_channel_id) : "",
+        qc_role_ids: Array.isArray(values.qc_role_ids) ? (values.qc_role_ids as string[]).map(String) : [],
+        staff_role_ids: Array.isArray(values.staff_role_ids) ? (values.staff_role_ids as string[]).map(String) : [],
+        types: String(values.types ?? ""),
+        one_time_sell: values.one_time_sell ?? true,
+        panel_title: String(values.panel_title ?? "Submit a Package") || "Submit a Package",
+        panel_description: String(values.panel_description ?? ""),
+        terms: String(values.terms ?? ""),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-packages",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Packages saved & applied");
+    setOpen(false);
+  };
+
   // ---------- customs: pricing ----------
   useEffect(() => {
     if (!isCustomsPricing || !open || !botId) return;
@@ -1498,16 +1617,16 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     setOpen(false);
   };
 
-  // ---------- customs: order log ----------
+  // ---------- customs: form logs (/orderlog, /infraction, /promote) ----------
   useEffect(() => {
-    if (!isCustomsOrderLog || !open || !botId) return;
+    if (!isCustomsFormLog || !open || !botId) return;
     let cancelled = false;
     (async () => {
       const { data } = await supabase
         .from("bot_config")
         .select("config, applied_at")
         .eq("bot_id", botId)
-        .eq("feature", "customs-orderlog")
+        .eq("feature", addonId)
         .maybeSingle();
       if (cancelled || !data) return;
       const cfg = (data.config ?? {}) as Record<string, any>;
@@ -1528,19 +1647,19 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       setAppliedAt((data as any).applied_at ?? null);
     })();
     return () => { cancelled = true; };
-  }, [isCustomsOrderLog, open, botId]);
+  }, [isCustomsFormLog, addonId, open, botId]);
 
   const saveCustomsOrderLog = async () => {
     if (!botId) return toast.error("Missing bot id.");
-    if (!values.channel_id) return toast.error("Pick a channel for /orderlog to post in.");
+    if (!values.channel_id) return toast.error(`Pick a channel for ${formLogCommand} to post in.`);
     setSaving(true);
     const components = normalizeV2Items(orderlogV2Ref.current?.getItems() ?? orderlogV2Items ?? []);
     const payload = {
       bot_id: botId,
-      feature: "customs-orderlog",
+      feature: addonId,
       config: {
-        // /orderlog form: the design is the posted message; its {Question:}
-        // tokens drive the modal fields, and answers fill in on submit.
+        // Form-log: the design is the posted message; its {Question:} tokens
+        // drive the modal fields, and answers fill in on submit.
         components,
         channel_id: values.channel_id ? String(values.channel_id) : "",
         allowed_role_ids: Array.isArray(values.allowed_role_ids) ? (values.allowed_role_ids as string[]).map(String) : [],
@@ -1551,12 +1670,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     setSaving(false);
     if (error) return toast.error(`Save failed: ${error.message}`);
     const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
-      _bot_id: botId, _feature: "customs-orderlog",
+      _bot_id: botId, _feature: addonId,
     });
     const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
-    else toast.success("Order Log saved & applied");
+    else toast.success(`${config.title} saved & applied`);
     setOpen(false);
   };
 
@@ -3717,7 +3836,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsOrderLog
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsFormLog
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -4134,7 +4253,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 />
               </div>
             </div>
-          ) : isCustomsOrderLog ? (
+          ) : isCustomsFormLog ? (
             <div className="space-y-5 py-2">
               {config.fields
                 .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
@@ -4142,11 +4261,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Order-log message</p>
+                <p className="text-sm font-semibold text-foreground">{config.title} message</p>
                 <p className="text-xs text-muted-foreground">
                   Design the message that gets posted. Put{" "}
                   <code className="font-mono text-os-accent">{"{Question: Label}"}</code> for each field you want in the form —
-                  running <code className="font-mono">/orderlog</code> pops a modal asking those questions, then posts this
+                  running <code className="font-mono">{formLogCommand}</code> pops a modal asking those questions, then posts this
                   message to the channel above with the answers filled in. Use{" "}
                   <code className="font-mono text-os-accent">{"{user}"}</code> for who ran it. (Up to 10 questions.)
                 </p>
@@ -4476,11 +4595,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsTickets();
                   } else if (isCustomsOrderStatus) {
                     void saveCustomsOrderStatus();
+                  } else if (isCustomsPayment) {
+                    void saveCustomsPayment();
+                  } else if (isCustomsPackages) {
+                    void saveCustomsPackages();
                   } else if (isCustomsPricing) {
                     void saveCustomsPricing();
                   } else if (isCustomsPortfolio) {
                     void saveCustomsPortfolio();
-                  } else if (isCustomsOrderLog) {
+                  } else if (isCustomsFormLog) {
                     void saveCustomsOrderLog();
                   } else {
                     toast.success(`${config.title} settings saved`);
