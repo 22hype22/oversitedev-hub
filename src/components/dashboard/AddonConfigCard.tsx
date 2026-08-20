@@ -241,6 +241,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsOrderStatus = addonId === "customs-order-status";
   const isCustomsPackages = addonId === "customs-packages";
   const isCustomsPayment = addonId === "customs-payment";
+  const isCustomsLogging = addonId === "customs-logging";
   const isCustomsPricing = addonId === "customs-pricing";
   const isCustomsPortfolio = addonId === "customs-portfolio";
   const isCustomsOrderLog = addonId === "customs-orderlog";
@@ -1262,6 +1263,52 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Payment saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: logging ----------
+  useEffect(() => {
+    if (!isCustomsLogging || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-logging")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        purchase_log_channel_id: cfg.purchase_log_channel_id ? String(cfg.purchase_log_channel_id) : "",
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsLogging, open, botId]);
+
+  const saveCustomsLogging = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-logging",
+      config: {
+        purchase_log_channel_id: values.purchase_log_channel_id ? String(values.purchase_log_channel_id) : "",
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-logging",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Logging saved & applied");
     setOpen(false);
   };
 
@@ -4598,6 +4645,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsOrderStatus();
                   } else if (isCustomsPayment) {
                     void saveCustomsPayment();
+                  } else if (isCustomsLogging) {
+                    void saveCustomsLogging();
                   } else if (isCustomsPackages) {
                     void saveCustomsPackages();
                   } else if (isCustomsPricing) {

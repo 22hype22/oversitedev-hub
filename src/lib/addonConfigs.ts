@@ -32,6 +32,7 @@ import {
   Swords,
   ClipboardList,
   CreditCard,
+  ScrollText,
   Package,
   Link2Off,
   Sparkles,
@@ -882,6 +883,16 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     fields: [
       channel("channel_id", "Promotion-log channel", "Where the completed promotion log is posted when someone runs /promote."),
       multirole("allowed_role_ids", "Who can run /promote", "Only members with any of these roles (or Manage Server) can run /promote. Leave empty to allow anyone."),
+    ],
+  },
+
+  "customs-logging": {
+    title: "Logging",
+    summary: "Log channels for the server. Purchase logs post every completed Stripe and Roblox purchase.",
+    icon: ScrollText,
+    fields: [
+      header("Purchase logs"),
+      channel("purchase_log_channel_id", "Purchase logs channel", "Every completed /payment (Stripe) and Roblox group game-pass purchase is logged here, with the customer, Roblox account, amount, and a Payment ID."),
     ],
   },
 
