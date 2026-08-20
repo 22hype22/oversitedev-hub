@@ -276,6 +276,29 @@ Deno.serve(async (req) => {
       })).filter((s) => s.id);
       return json({ ok: true, sales });
     }
+    if (action === "roblox_reverse") {
+      // A Roblox id → the Discord user linked to it (for purchase logs).
+      const { data } = await admin.from("roblox_verifications")
+        .select("discord_user_id, roblox_username")
+        .eq("bot_id", botId).eq("roblox_id", String(body.roblox_id ?? "")).maybeSingle();
+      return json({ ok: true, discord_user_id: data?.discord_user_id ?? null, roblox_username: data?.roblox_username ?? null });
+    }
+    if (action === "log_state_get") {
+      // Dedup cursor for the purchase-logs sales poller (seen sale ids).
+      const { data } = await admin.from("bot_config").select("config")
+        .eq("bot_id", botId).eq("feature", "customs-logging-state").maybeSingle();
+      const cfg = (data?.config ?? {}) as Record<string, unknown>;
+      const seen = Array.isArray(cfg.seen_ids) ? (cfg.seen_ids as unknown[]).map(String) : [];
+      return json({ ok: true, seen_ids: seen });
+    }
+    if (action === "log_state_set") {
+      const seen = Array.isArray(body.seen_ids) ? (body.seen_ids as unknown[]).map(String).slice(-500) : [];
+      await admin.from("bot_config").upsert(
+        { bot_id: botId, feature: "customs-logging-state", config: { seen_ids: seen }, updated_at: new Date().toISOString() },
+        { onConflict: "bot_id,feature" },
+      );
+      return json({ ok: true });
+    }
     return json({ error: "Unknown action" }, 400);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
