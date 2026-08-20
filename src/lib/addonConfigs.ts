@@ -31,6 +31,8 @@ import {
   MessageSquareX,
   Swords,
   ClipboardList,
+  CreditCard,
+  Package,
   Link2Off,
   Sparkles,
   BarChart3,
@@ -860,6 +862,65 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     fields: [
       channel("channel_id", "Order-log channel", "Where the completed order log is posted when someone runs /orderlog."),
       multirole("allowed_role_ids", "Who can run /orderlog", "Only members with any of these roles (or Manage Server) can run /orderlog. Leave empty to allow anyone."),
+    ],
+  },
+
+  "customs-infraction": {
+    title: "Infraction Logs",
+    summary: "A /infraction command — pops a form of your questions, then posts the completed log to a channel.",
+    icon: ClipboardList,
+    fields: [
+      channel("channel_id", "Infraction-log channel", "Where the completed infraction log is posted when someone runs /infraction."),
+      multirole("allowed_role_ids", "Who can run /infraction", "Only members with any of these roles (or Manage Server) can run /infraction. Leave empty to allow anyone."),
+    ],
+  },
+
+  "customs-promotion": {
+    title: "Promotion",
+    summary: "A /promote command — pops a form of your questions, then posts the completed log to a channel.",
+    icon: ClipboardList,
+    fields: [
+      channel("channel_id", "Promotion-log channel", "Where the completed promotion log is posted when someone runs /promote."),
+      multirole("allowed_role_ids", "Who can run /promote", "Only members with any of these roles (or Manage Server) can run /promote. Leave empty to allow anyone."),
+    ],
+  },
+
+  "customs-payment": {
+    title: "Payment",
+    summary: "Pick which roles can run /payment (create Stripe / game-pass / shirt payments).",
+    icon: CreditCard,
+    fields: [
+      multirole("allowed_role_ids", "Who can run /payment", "Only members with any of these roles (or Manage Server) can run /payment. Leave empty to fall back to your ticket support roles."),
+    ],
+  },
+
+  "customs-packages": {
+    title: "Packages",
+    summary: "Roblox package marketplace: packers submit, staff review & post a game-pass listing, buyers claim.",
+    icon: Package,
+    fields: [
+      header("Channels"),
+      channel("panel_channel_id", "Submission panel channel", "Where the “Submit a Package” panel is posted. It posts here on Save."),
+      { key: "listings_channel_id", label: "Listings forum channel", type: "channel", channelTypes: ["forum"], help: "Accepted packages are posted here as forum posts, tagged by type/tag." },
+      channel("storage_channel_id", "File storage channel", "Where uploaded ZIPs and preview images are archived (a private staff channel)."),
+      channel("review_channel_id", "Review channel", "Where new submissions go for staff to Accept/Deny."),
+      header("Roles"),
+      multirole("qc_role_ids", "QC roles (pinged on new submissions)", "Pinged when a package is submitted for review. Optional."),
+      multirole("staff_role_ids", "Staff roles (can Accept/Deny)", "Members with any of these roles can approve or deny submissions."),
+      header("Packages"),
+      {
+        key: "types",
+        label: "Types & their tags (one per line)",
+        type: "textarea",
+        defaultValue: "Liveries: Law Enforcement, Fire, EMS, Civilian\nClothing: Uniform, Casual\nGFX: Logo, Banner, Thumbnail",
+        placeholder: "Liveries: Law Enforcement, Fire, EMS",
+        help: "One package type per line as “Type: tag1, tag2, …”. Packers pick a Type, then one of its Tags.",
+      },
+      { key: "one_time_sell", label: "Offer a one-time-sell option", type: "toggle", defaultValue: true, help: "Lets packers mark a package as one-time-sell — it disables + marks sold-out after the first buyer claims it." },
+      header("Submission panel"),
+      { key: "panel_title", label: "Panel title", type: "text", defaultValue: "Submit a Package", placeholder: "Submit a Package" },
+      { key: "panel_description", label: "Panel description", type: "textarea", defaultValue: "Click below to submit a package for review.", placeholder: "Click below to submit a package for review." },
+      { key: "terms", label: "Buyer terms text", type: "textarea", defaultValue: "By claiming, you agree these files are for your use only and may not be redistributed or resold.", help: "Shown to buyers before they claim; they must agree once." },
     ],
   },
 
