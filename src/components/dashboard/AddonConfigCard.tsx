@@ -284,6 +284,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const portfolioV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [portfolioV2Items, setPortfolioV2Items] = useState<V2Item[]>([]);
   const [portfolioV2MountKey, setPortfolioV2MountKey] = useState(0);
+  // Customs "Logging" — the V2 builder for the purchase-log message template.
+  const loggingV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [loggingV2Items, setLoggingV2Items] = useState<V2Item[]>([]);
+  const [loggingV2MountKey, setLoggingV2MountKey] = useState(0);
   // Customs "Order Log" — the V2 builder for the post /orderlog sends.
   const orderlogV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [orderlogV2Items, setOrderlogV2Items] = useState<V2Item[]>([]);
@@ -1283,6 +1287,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         ...prev,
         purchase_log_channel_id: cfg.purchase_log_channel_id ? String(cfg.purchase_log_channel_id) : "",
       }));
+      setLoggingV2Items(Array.isArray(cfg.purchase_components) ? (cfg.purchase_components as V2Item[]) : []);
+      setLoggingV2MountKey((k) => k + 1);
       setAppliedAt((data as any).applied_at ?? null);
     })();
     return () => { cancelled = true; };
@@ -1296,6 +1302,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       feature: "customs-logging",
       config: {
         purchase_log_channel_id: values.purchase_log_channel_id ? String(values.purchase_log_channel_id) : "",
+        purchase_components: normalizeV2Items(loggingV2Ref.current?.getItems() ?? loggingV2Items ?? []),
       },
       updated_at: new Date().toISOString(),
     };
@@ -3883,7 +3890,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsFormLog
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsFormLog || isCustomsLogging
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -4297,6 +4304,36 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
                   initialItems={portfolioV2Items}
+                />
+              </div>
+            </div>
+          ) : isCustomsLogging ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Purchase log message</p>
+                <p className="text-xs text-muted-foreground">
+                  Design how each purchase is logged, using the same builder as Messages. Tokens:{" "}
+                  <code className="font-mono text-os-accent">{"{customer}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{roblox}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{roblox_id}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{payment_type}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{amount}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{payment_id}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{purchased}"}</code>. Leave empty to use the default layout.
+                </p>
+                <MessagesV2Builder
+                  key={`customs-logging-v2-${loggingV2MountKey}`}
+                  ref={loggingV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={loggingV2Items}
                 />
               </div>
             </div>
