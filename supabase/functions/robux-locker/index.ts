@@ -284,10 +284,51 @@ Deno.serve(async (req) => {
     }
     if (action === "roblox_reverse") {
       // A Roblox id → the Discord user linked to it (for purchase logs).
-      const { data } = await admin.from("roblox_verifications")
-        .select("discord_user_id, roblox_username")
-        .eq("bot_id", botId).eq("roblox_id", String(body.roblox_id ?? "")).maybeSingle();
-      return json({ ok: true, discord_user_id: data?.discord_user_id ?? null, roblox_username: data?.roblox_username ?? null });
+      // Match on roblox_id first. Older verifications may have stored a
+      // username but no roblox_id (null), so fall back to a case-insensitive
+      // username match when an id lookup finds nothing. The sales poller has
+      // both the buyer's id and name, so it can pass both.
+      const rid = String(body.roblox_id ?? "").trim();
+      const rname = String(body.roblox_username ?? "").trim();
+      let row: { discord_user_id?: string; roblox_username?: string } | null = null;
+      if (rid) {
+        const { data } = await admin.from("roblox_verifications")
+          .select("discord_user_id, roblox_username")
+          .eq("bot_id", botId).eq("roblox_id", rid).maybeSingle();
+        row = data ?? null;
+      }
+      if (!row && rname) {
+        const { data } = await admin.from("roblox_verifications")
+          .select("discord_user_id, roblox_username")
+          .eq("bot_id", botId).ilike("roblox_username", rname).maybeSingle();
+        row = data ?? null;
+      }
+      return json({ ok: true, discord_user_id: row?.discord_user_id ?? null, roblox_username: row?.roblox_username ?? null });
+    }
+    if (action === "verify_debug") {
+      // Diagnostic: given a roblox id and/or username, report exactly what the
+      // verifications table holds so a blank "Customer" can be traced to its
+      // cause (row missing vs. null roblox_id vs. bot_id mismatch).
+      const rid = String(body.roblox_id ?? "").trim();
+      const rname = String(body.roblox_username ?? "").trim();
+      const byId = rid
+        ? (await admin.from("roblox_verifications")
+            .select("discord_user_id, roblox_id, roblox_username, bot_id")
+            .eq("bot_id", botId).eq("roblox_id", rid).maybeSingle()).data
+        : null;
+      const byName = rname
+        ? (await admin.from("roblox_verifications")
+            .select("discord_user_id, roblox_id, roblox_username, bot_id")
+            .eq("bot_id", botId).ilike("roblox_username", rname).maybeSingle()).data
+        : null;
+      const anyBot = rid
+        ? (await admin.from("roblox_verifications")
+            .select("discord_user_id, roblox_id, roblox_username, bot_id")
+            .eq("roblox_id", rid).maybeSingle()).data
+        : null;
+      const { count } = await admin.from("roblox_verifications")
+        .select("discord_user_id", { count: "exact", head: true }).eq("bot_id", botId);
+      return json({ ok: true, bot_id: botId, total_for_bot: count ?? null, by_id: byId, by_name: byName, any_bot: anyBot });
     }
     if (action === "log_state_get") {
       // Dedup cursor for the purchase-logs sales poller (seen sale ids).
