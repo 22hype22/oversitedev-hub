@@ -31,6 +31,7 @@ import {
   MessageSquareX,
   Swords,
   ClipboardList,
+  CreditCard,
   Package,
   Link2Off,
   Sparkles,
@@ -881,6 +882,15 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     fields: [
       channel("channel_id", "Promotion-log channel", "Where the completed promotion log is posted when someone runs /promote."),
       multirole("allowed_role_ids", "Who can run /promote", "Only members with any of these roles (or Manage Server) can run /promote. Leave empty to allow anyone."),
+    ],
+  },
+
+  "customs-payment": {
+    title: "Payment",
+    summary: "Pick which roles can run /payment (create Stripe / game-pass / shirt payments).",
+    icon: CreditCard,
+    fields: [
+      multirole("allowed_role_ids", "Who can run /payment", "Only members with any of these roles (or Manage Server) can run /payment. Leave empty to fall back to your ticket support roles."),
     ],
   },
 

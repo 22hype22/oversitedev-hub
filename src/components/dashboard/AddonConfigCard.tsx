@@ -240,6 +240,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsRobuxLocker = addonId === "customs-robux-locker";
   const isCustomsOrderStatus = addonId === "customs-order-status";
   const isCustomsPackages = addonId === "customs-packages";
+  const isCustomsPayment = addonId === "customs-payment";
   const isCustomsPricing = addonId === "customs-pricing";
   const isCustomsPortfolio = addonId === "customs-portfolio";
   const isCustomsOrderLog = addonId === "customs-orderlog";
@@ -1215,6 +1216,52 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Order Status saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: payment ----------
+  useEffect(() => {
+    if (!isCustomsPayment || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-payment")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        allowed_role_ids: Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [],
+      }));
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsPayment, open, botId]);
+
+  const saveCustomsPayment = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-payment",
+      config: {
+        allowed_role_ids: Array.isArray(values.allowed_role_ids) ? (values.allowed_role_ids as string[]).map(String) : [],
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-payment",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Payment saved & applied");
     setOpen(false);
   };
 
@@ -4548,6 +4595,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsTickets();
                   } else if (isCustomsOrderStatus) {
                     void saveCustomsOrderStatus();
+                  } else if (isCustomsPayment) {
+                    void saveCustomsPayment();
                   } else if (isCustomsPackages) {
                     void saveCustomsPackages();
                   } else if (isCustomsPricing) {
