@@ -118,6 +118,20 @@ Deno.serve(async (req) => {
       }
       return json({ ok: true, prices: await writePrices(botId, prices) });
     }
+    if (action === "remove_user") {
+      // Drop ALL of a designer's prices across every service (they left the server).
+      const user = String(body.user ?? "").trim();
+      if (!user) return json({ error: "user required" }, 400);
+      const prices = await readPrices(botId);
+      let changed = false;
+      for (const service of Object.keys(prices)) {
+        if (prices[service] && prices[service][user]) {
+          delete prices[service][user];
+          changed = true;
+        }
+      }
+      return json({ ok: true, prices: changed ? await writePrices(botId, prices) : prices });
+    }
     return json({ error: "Unknown action" }, 400);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
