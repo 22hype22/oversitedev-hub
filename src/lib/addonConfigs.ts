@@ -858,9 +858,24 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-packages": {
     title: "Packages",
-    summary: "Design a package panel below; run /package to post it to any channel you pick.",
+    summary: "Build a package card (embed) with side-by-side fields; run /package to post it to a channel.",
     icon: Package,
     fields: [
+      header("Card"),
+      { key: "title", label: "Title", type: "text", placeholder: "Wyoming Highway Patrol", help: "Bold heading at the top. Supports a masked link like [Text](<https://…>)." },
+      { key: "description", label: "Description", type: "textarea", markdown: true, placeholder: "Purchase: Gamepass (16+) | Open a ticket if select", help: "Text under the title. Markdown + masked links work here." },
+      { key: "color", label: "Color (hex)", type: "text", placeholder: "#7B2D8E", help: "The left color bar. Hex like #7B2D8E. Leave blank for default." },
+      { key: "image_url", label: "Image URL", type: "text", placeholder: "https://…/banner.png", help: "Large image shown in the card. Optional." },
+      header("Fields (the side-by-side text)"),
+      {
+        key: "fields",
+        label: "Fields — one per line",
+        type: "textarea",
+        placeholder: "Packer | @22HYPE22 | inline\nPrice | 250 | inline\nAsset ID | 1928082323 | inline\nIncluded Items | Class A, Class B, Class C | full",
+        help: "One field per line as “Name | Value | inline”. Use “inline” to sit fields side by side (3 per row); use “full” for a field on its own row.",
+      },
+      header("Button & access"),
+      { key: "button_label", label: "Button label", type: "text", placeholder: "Claim Package", help: "Adds a button under the card with this label. Leave blank for no button." },
       multirole("allowed_role_ids", "Who can run /package", "Members with any of these roles can run /package. Anyone with Manage Server can too. Leave empty for Manage Server only."),
     ],
   },
