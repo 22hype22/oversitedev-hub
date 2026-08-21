@@ -5,7 +5,49 @@
 // text sit above and galleries after sit below, and a Button Row becomes a button.
 // Keeping this in lockstep with the bot means the preview matches the post.
 
+import type { ReactNode } from "react";
 import type { V2Item } from "./MessagesV2Builder";
+
+// Render a single line of Discord markdown: **bold**, `code`, [text](url), and
+// <@id> mentions — so the preview looks like the posted embed.
+function renderInline(text: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  const re = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\[[^\]]+\]\([^)]+\))|(<@!?\d+>)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let key = 0;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) nodes.push(text.slice(last, m.index));
+    const tok = m[0];
+    if (tok.startsWith("`")) {
+      nodes.push(<code key={key++} className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em] text-foreground">{tok.slice(1, -1)}</code>);
+    } else if (tok.startsWith("**")) {
+      nodes.push(<strong key={key++} className="font-semibold text-foreground">{tok.slice(2, -2)}</strong>);
+    } else if (tok.startsWith("[")) {
+      const lm = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(tok);
+      nodes.push(<span key={key++} className="text-[#00a8fc]">{lm ? lm[1] : tok}</span>);
+    } else {
+      nodes.push(<span key={key++} className="rounded bg-[#3c4270] px-0.5 text-[#c9cdfb]">@user</span>);
+    }
+    last = re.lastIndex;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
+}
+
+function Md({ text, className }: { text: string; className?: string }) {
+  const lines = String(text ?? "").split("\n");
+  return (
+    <span className={className}>
+      {lines.map((l, i) => (
+        <span key={i}>
+          {renderInline(l)}
+          {i < lines.length - 1 ? <br /> : null}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 type Field = { name: string; value: string; inline: boolean };
 type Built = {
@@ -131,16 +173,16 @@ export function PackageEmbedPreview({ items, botName, botAvatarUrl }: { items: V
                   <p className={`mb-1 break-words font-semibold ${b.titleUrl ? "text-[#00a8fc]" : "text-foreground"}`}>{b.title}</p>
                 )}
                 {b.desc.filter((l) => l.trim() !== "").length > 0 && (
-                  <p className="mb-2 whitespace-pre-wrap break-words text-sm text-muted-foreground">
-                    {b.desc.join("\n").trim()}
+                  <p className="mb-2 break-words text-sm text-muted-foreground">
+                    <Md text={b.desc.join("\n").trim()} />
                   </p>
                 )}
                 {rows.map((row, i) => (
                   <div key={i} className="mb-2 flex gap-4">
                     {row.map((f, j) => (
                       <div key={j} className={f.inline ? "min-w-0 flex-1" : "w-full"}>
-                        <div className="break-words text-xs font-semibold text-foreground">{f.name}</div>
-                        <div className="whitespace-pre-wrap break-words text-xs text-muted-foreground">{f.value || "​"}</div>
+                        <div className="break-words text-xs font-semibold text-foreground"><Md text={f.name} /></div>
+                        <div className="break-words text-xs text-muted-foreground"><Md text={f.value || "​"} /></div>
                       </div>
                     ))}
                   </div>
