@@ -4314,6 +4314,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   ref={packagesV2Ref}
                   embedded
                   allowFields
+                  editorNotice={
+                    <>
+                      Tokens: <code className="font-mono text-os-accent">{"{payment}"}</code> and{" "}
+                      <code className="font-mono text-os-accent">{"{payment_link}"}</code> fill in from the
+                      {" "}<code className="font-mono">/package</code> options (e.g.{" "}
+                      <code className="font-mono">[{"{payment}"}]({"{payment_link}"})</code>). Use{" "}
+                      <code className="font-mono text-os-accent">{"{|}"}</code> in a Text Display for side-by-side columns.
+                    </>
+                  }
                   botId={botId}
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
