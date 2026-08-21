@@ -40,6 +40,7 @@ import {
   MousePointerClick,
   Info,
   ChevronsUpDown,
+  Columns3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { GuildChannelPicker } from "./GuildChannelPicker";
@@ -182,13 +183,20 @@ const BUTTON_STYLE_PREVIEW: Record<V2ButtonStyle, string> = {
   link: "bg-[#4e5058] hover:bg-[#6d6f78] text-white",
 };
 
+// Custom "Fields" component — side-by-side labeled text like a Discord embed's
+// inline fields. Note: Discord's Components V2 has no real inline fields, so this
+// renders side by side in the builder PREVIEW; when posted the bot flattens it to
+// stacked lines. (It exists so the card can be designed with columns.)
+type V2Field = { name: string; value: string; inline: boolean };
+type V2Fields = { id: string; type: "fields"; fields: V2Field[] };
+
 type V2Container = {
   id: string;
   type: "container";
   accentColor: string;
   children: V2Leaf[];
 };
-type V2Leaf = V2Text | V2Section | V2Gallery | V2Separator | V2ButtonRow | V2SelectMenu;
+type V2Leaf = V2Text | V2Section | V2Gallery | V2Separator | V2ButtonRow | V2SelectMenu | V2Fields;
 export type V2Item = V2Leaf | V2Container;
 
 const uid = () => crypto.randomUUID();
@@ -295,9 +303,15 @@ const newItem = (type: V2Item["type"]): V2Item => {
         placeholder: "Choose an option…",
         options: [{ label: "Option 1", url: "" }],
       };
+    case "fields":
+      return { id: uid(), type, fields: [{ name: "Packer", value: "@user", inline: true }] };
     case "container":
       return { id: uid(), type, accentColor: "#5865F2", children: [] };
   }
+};
+
+const FIELDS_OPTION: { type: V2Item["type"]; label: string; Icon: React.ComponentType<{ className?: string }> } = {
+  type: "fields", label: "Add Fields (side by side)", Icon: Columns3,
 };
 
 const ADD_OPTIONS: { type: V2Item["type"]; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
@@ -339,13 +353,16 @@ export type MessagesV2BuilderProps = {
   /** Giveaway mode — button rows offer a "Counter" (enter) button instead of
    *  Channel/Ticket/Form/Ephemeral. Clicking a Counter enters the giveaway (+1). */
   giveaway?: boolean;
+  /** When true, the Add Component menu offers a "Fields (side by side)" component
+   *  (used by the Packages card). Off everywhere else. */
+  allowFields?: boolean;
 };
 
 export const MessagesV2Builder = forwardRef<
   MessagesV2BuilderHandle,
   MessagesV2BuilderProps
 >(function MessagesV2Builder(
-  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [], hidePreview = false, onItemsChange, giveaway = false },
+  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [], hidePreview = false, onItemsChange, giveaway = false, allowFields = false },
 
   ref,
 ) {
@@ -527,7 +544,7 @@ export const MessagesV2Builder = forwardRef<
           ))}
         </div>
 
-        <AddComponentMenu onAdd={addItem} />
+        <AddComponentMenu onAdd={addItem} allowFields={allowFields} />
       </div>
 
       {/* Preview */}
@@ -574,11 +591,14 @@ export const MessagesV2Builder = forwardRef<
 function AddComponentMenu({
   onAdd,
   leafOnly = false,
+  allowFields = false,
 }: {
   onAdd: (type: V2Item["type"]) => void;
   leafOnly?: boolean;
+  allowFields?: boolean;
 }) {
-  const opts = leafOnly ? LEAF_OPTIONS : ADD_OPTIONS;
+  const base = leafOnly ? LEAF_OPTIONS : ADD_OPTIONS;
+  const opts = allowFields ? [...base, FIELDS_OPTION] : base;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -715,6 +735,7 @@ function labelFor(t: V2Item["type"]): string {
     case "container": return "Container";
     case "buttonRow": return "Button Row";
     case "select_menu": return "Select Menu";
+    case "fields": return "Fields";
   }
 }
 
@@ -732,6 +753,44 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
           rows={3}
           placeholder="Supports **markdown**."
         />
+      </div>
+    );
+  }
+  if (item.type === "fields") {
+    const fields = item.fields;
+    const setFields = (f: V2Field[]) => onUpdate({ fields: f } as Partial<V2Item>);
+    const patch = (i: number, p: Partial<V2Field>) => setFields(fields.map((f, idx) => (idx === i ? { ...f, ...p } : f)));
+    const move = (i: number, d: number) => {
+      const j = i + d;
+      if (j < 0 || j >= fields.length) return;
+      const next = [...fields];
+      [next[i], next[j]] = [next[j], next[i]];
+      setFields(next);
+    };
+    return (
+      <div className="space-y-2">
+        {fields.map((f, i) => (
+          <div key={i} className="rounded-md border border-border bg-background/50 p-2">
+            <div className="flex gap-2">
+              <Input className="h-8" placeholder="Name (e.g. Packer)" value={f.name} onChange={(e) => patch(i, { name: e.target.value })} />
+              <Input className="h-8" placeholder="Value (e.g. @user)" value={f.value} onChange={(e) => patch(i, { value: e.target.value })} />
+            </div>
+            <div className="mt-2 flex items-center justify-between">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Switch checked={f.inline} onCheckedChange={(c) => patch(i, { inline: c })} />
+                Inline (side by side)
+              </label>
+              <div className="flex items-center gap-1">
+                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled={i === 0} onClick={() => move(i, -1)}><ChevronUp className="h-3.5 w-3.5" /></Button>
+                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled={i === fields.length - 1} onClick={() => move(i, 1)}><ChevronDown className="h-3.5 w-3.5" /></Button>
+                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setFields(fields.filter((_, idx) => idx !== i))}><Trash2 className="h-3.5 w-3.5" /></Button>
+              </div>
+            </div>
+          </div>
+        ))}
+        <Button type="button" variant="outline" size="sm" className="w-full gap-1.5" onClick={() => setFields([...fields, { name: "", value: "", inline: true }])}>
+          <Plus className="h-3.5 w-3.5" /> Add field
+        </Button>
       </div>
     );
   }
@@ -1609,6 +1668,32 @@ function SectionButtonEditor({
 function PreviewItem({ item }: { item: V2Item }) {
   if (item.type === "text") {
     return <PreviewMarkdown text={item.text} />;
+  }
+  if (item.type === "fields") {
+    const fs = item.fields.filter((f) => f.name || f.value);
+    if (fs.length === 0) return <div className="text-xs text-[#949ba4] italic">[empty fields]</div>;
+    // Group consecutive inline fields (max 3 across); full fields on their own row.
+    const rows: V2Field[][] = [];
+    let run: V2Field[] = [];
+    for (const f of fs) {
+      if (f.inline) { run.push(f); if (run.length === 3) { rows.push(run); run = []; } }
+      else { if (run.length) { rows.push(run); run = []; } rows.push([f]); }
+    }
+    if (run.length) rows.push(run);
+    return (
+      <div className="space-y-2">
+        {rows.map((row, i) => (
+          <div key={i} className="flex gap-4">
+            {row.map((f, j) => (
+              <div key={j} className={f.inline ? "flex-1 min-w-0" : "w-full"}>
+                <div className="text-xs font-semibold text-[#f2f3f5] break-words">{f.name}</div>
+                <div className="text-xs text-[#dbdee1] whitespace-pre-wrap break-words">{f.value || "​"}</div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
   }
   if (item.type === "section") {
     return (
