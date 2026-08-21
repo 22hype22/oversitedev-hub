@@ -43,6 +43,8 @@ import {
   Plus,
   Trash2,
   ShieldCheck,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -187,6 +189,65 @@ function persistTicketTemplates(list: TicketTemplate[]) {
  *
  * Mock UI only — values live in local state and "save" shows a toast.
  */
+/** Structured editor for the card's side-by-side fields. Reads/writes the same
+ *  "Name | Value | inline" per-line string the bot parses, but as add/remove
+ *  rows with an Inline toggle — a builder "component" for the side text. */
+type PkgFieldRow = { name: string; value: string; inline: boolean };
+function parsePkgFields(v: string): PkgFieldRow[] {
+  return String(v ?? "")
+    .split("\n").map((l) => l.trim()).filter(Boolean)
+    .map((l) => {
+      const p = l.split("|").map((s) => s.trim());
+      return { name: p[0] ?? "", value: p[1] ?? "", inline: (p[2]?.toLowerCase() ?? "inline") !== "full" };
+    });
+}
+function serializePkgFields(rows: PkgFieldRow[]): string {
+  return rows.map((r) => `${r.name} | ${r.value} | ${r.inline ? "inline" : "full"}`).join("\n");
+}
+function PackageFieldsEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [rows, setRows] = useState<PkgFieldRow[]>(() => parsePkgFields(value));
+  // Re-sync if the value changes from outside (e.g. config loads after mount).
+  useEffect(() => {
+    if (serializePkgFields(rows) !== value) setRows(parsePkgFields(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  const push = (next: PkgFieldRow[]) => { setRows(next); onChange(serializePkgFields(next)); };
+  const patch = (i: number, p: Partial<PkgFieldRow>) => push(rows.map((r, idx) => (idx === i ? { ...r, ...p } : r)));
+  const move = (i: number, d: number) => {
+    const j = i + d;
+    if (j < 0 || j >= rows.length) return;
+    const next = [...rows];
+    [next[i], next[j]] = [next[j], next[i]];
+    push(next);
+  };
+  return (
+    <div className="space-y-2">
+      {rows.map((r, i) => (
+        <div key={i} className="rounded-md border border-border bg-muted/30 p-2 space-y-2">
+          <div className="flex gap-2">
+            <Input className="h-8" placeholder="Name (e.g. Packer)" value={r.name} onChange={(e) => patch(i, { name: e.target.value })} />
+            <Input className="h-8" placeholder="Value (e.g. @user)" value={r.value} onChange={(e) => patch(i, { value: e.target.value })} />
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Switch checked={r.inline} onCheckedChange={(c) => patch(i, { inline: c })} />
+              Inline (side by side)
+            </label>
+            <div className="flex items-center gap-1">
+              <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled={i === 0} onClick={() => move(i, -1)}><ChevronUp className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled={i === rows.length - 1} onClick={() => move(i, 1)}><ChevronDown className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => push(rows.filter((_, idx) => idx !== i))}><Trash2 className="h-4 w-4" /></Button>
+            </div>
+          </div>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" className="w-full gap-2" onClick={() => push([...rows, { name: "", value: "", inline: true }])}>
+        <Plus className="h-4 w-4" /> Add field
+      </Button>
+    </div>
+  );
+}
+
 /** Live preview of the Packages embed card, mirroring Discord's layout:
  *  a color bar, title, description, inline fields (up to 3 across), image,
  *  and the Claim button. */
@@ -4372,9 +4433,20 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               <div className="space-y-5">
                 {config.fields
                   .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
-                  .map((f) => (
-                    <div key={f.key}>{renderField(f)}</div>
-                  ))}
+                  .map((f) =>
+                    f.key === "fields" ? (
+                      <div key={f.key} className="space-y-1.5">
+                        <Label>{f.label}</Label>
+                        <PackageFieldsEditor
+                          value={String(values.fields ?? "")}
+                          onChange={(v) => setValues((prev) => ({ ...prev, fields: v }))}
+                        />
+                        {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
+                      </div>
+                    ) : (
+                      <div key={f.key}>{renderField(f)}</div>
+                    ),
+                  )}
               </div>
               <div className="space-y-2 self-start lg:sticky lg:top-2">
                 <p className="text-sm font-semibold text-foreground">Live preview</p>
