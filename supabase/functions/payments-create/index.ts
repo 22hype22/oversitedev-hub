@@ -302,12 +302,11 @@ async function findOrCreatePrice(amount: number, lookupKey: string): Promise<str
 
 // Create (or reuse) a Stripe Payment Link for `dollars`.
 //
-// When `attribution` is given (staff picked a customer on /payment), the buyer's
-// Discord id is stamped onto each PaymentIntent this link creates
-// (payment_intent_data.metadata) so the purchase-log poller can @ them. Those
-// links are NEVER reused — every attributed payment gets its own link so two
-// customers can't collide on one shared link. Plain (unattributed) links keep
-// the old reuse-by-amount behavior.
+// When `metadata` is given, it's stamped onto each PaymentIntent this link
+// creates (payment_intent_data.metadata) — customs links carry { app, bot_id }
+// so the purchase-log poller can find this bot's payments. Those links are made
+// fresh (not reused) so the tag is always present. Plain (no-metadata) links
+// keep the old reuse-by-amount behavior.
 async function createStripePaymentLink(
   dollars: number,
   attribution?: Record<string, string>,
@@ -356,7 +355,11 @@ const STRIPE_APP_TAG = "oversite_payment_customs";
 
 async function stripeRecent(botId: string, limit: number): Promise<Array<Record<string, unknown>>> {
   if (!STRIPE_SECRET_KEY) throw new Error("STRIPE_SECRET_KEY is not configured");
-  const data = await stripeGet(`payment_intents?limit=${Math.min(100, Math.max(1, limit))}`);
+  // Expand the charge so we can read the payer's billing name/email (Stripe has
+  // no Discord identity — this is the best "customer" we can show).
+  const data = await stripeGet(
+    `payment_intents?limit=${Math.min(100, Math.max(1, limit))}&expand[]=data.latest_charge`,
+  );
   const rows: any[] = Array.isArray(data?.data) ? data.data : [];
   return rows
     .filter((pi) =>
@@ -364,15 +367,17 @@ async function stripeRecent(botId: string, limit: number): Promise<Array<Record<
       pi?.metadata?.app === STRIPE_APP_TAG &&
       String(pi?.metadata?.bot_id ?? "") === botId
     )
-    .map((pi) => ({
-      id: String(pi.id),
-      created: Number(pi.created ?? 0),
-      amount: Number(pi.amount_received ?? pi.amount ?? 0),
-      currency: String(pi.currency ?? STRIPE_CURRENCY),
-      discord_id: String(pi.metadata?.discord_id ?? ""),
-      customer_name: String(pi.metadata?.customer_name ?? ""),
-      guild_id: String(pi.metadata?.guild_id ?? ""),
-    }));
+    .map((pi) => {
+      const bd = pi?.latest_charge?.billing_details ?? {};
+      return {
+        id: String(pi.id),
+        created: Number(pi.created ?? 0),
+        amount: Number(pi.amount_received ?? pi.amount ?? 0),
+        currency: String(pi.currency ?? STRIPE_CURRENCY),
+        customer_name: String(bd?.name ?? ""),
+        customer_email: String(bd?.email ?? pi?.receipt_email ?? ""),
+      };
+    });
 }
 
 async function stripeStateGet(botId: string): Promise<string[]> {
@@ -426,20 +431,11 @@ Deno.serve(async (req) => {
     if (!Number.isFinite(price) || price <= 0) return json({ error: "Enter a valid price above 0." }, 400);
 
     if (method === "stripe") {
-      // Attribute to the customer staff picked, so the paid PaymentIntent can be
-      // matched back to a Discord user by the purchase-log poller.
-      const discordId = String(body.discord_id ?? "").trim();
-      const attribution = discordId
-        ? {
-            app: STRIPE_APP_TAG,
-            bot_id: botId,
-            discord_id: discordId,
-            guild_id: String(body.guild_id ?? "").trim(),
-            customer_name: String(body.customer_name ?? "").trim().slice(0, 200),
-            amount_usd: price.toFixed(2),
-          }
-        : undefined;
-      const url = await createStripePaymentLink(price, attribution);
+      // Tag every customs Stripe link with app + bot_id (invisible to the buyer)
+      // so the purchase-log poller can find THIS bot's payments and skip unrelated
+      // charges on the same Stripe account. Stripe never sees Discord identity, so
+      // the log's Customer is the payer's own name/email from the charge.
+      const url = await createStripePaymentLink(price, { app: STRIPE_APP_TAG, bot_id: botId });
       return json({ ok: true, method, url, label: `$${price.toFixed(2)} (Stripe)` });
     }
 
