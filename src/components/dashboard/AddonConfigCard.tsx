@@ -4316,13 +4316,16 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   allowFields
                   editorNotice={
                     <>
-                      Add a <code className="font-mono text-os-accent">{"{Question: Label}"}</code> anywhere and{" "}
-                      <code className="font-mono">/package</code> pops a form to fill it in.{" "}
-                      <code className="font-mono text-os-accent">{"{user}"}</code> = whoever runs it.{" "}
+                      <code className="font-mono text-os-accent">{"{Question: Label}"}</code> (short) and{" "}
+                      <code className="font-mono text-os-accent">{"{LQuestion: Label}"}</code> (long/multi-line) pop a form on{" "}
+                      <code className="font-mono">/package</code>.{" "}
+                      <code className="font-mono text-os-accent">{"{File: Label}"}</code> attaches a file after;{" "}
+                      <code className="font-mono text-os-accent">{"{SFile: Label}"}</code> shows an image above the card.{" "}
+                      <code className="font-mono text-os-accent">{"{user}"}</code> = whoever runs it;{" "}
                       <code className="font-mono text-os-accent">{"{payment}"}</code> /{" "}
-                      <code className="font-mono text-os-accent">{"{payment_link}"}</code> come from the{" "}
-                      <code className="font-mono">/package</code> options. Use{" "}
-                      <code className="font-mono text-os-accent">{"{|}"}</code> in a Text Display for side-by-side columns.
+                      <code className="font-mono text-os-accent">{"{payment_link}"}</code> from the{" "}
+                      <code className="font-mono">/package</code> options;{" "}
+                      <code className="font-mono text-os-accent">{"{|}"}</code> = side-by-side columns.
                     </>
                   }
                   botId={botId}
