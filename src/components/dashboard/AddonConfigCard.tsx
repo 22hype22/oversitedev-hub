@@ -187,6 +187,73 @@ function persistTicketTemplates(list: TicketTemplate[]) {
  *
  * Mock UI only — values live in local state and "save" shows a toast.
  */
+/** Live preview of the Packages embed card, mirroring Discord's layout:
+ *  a color bar, title, description, inline fields (up to 3 across), image,
+ *  and the Claim button. */
+function PackageCardPreview({ values }: { values: Record<string, string | number | boolean | string[]> }) {
+  const title = String(values.title ?? "");
+  const description = String(values.description ?? "");
+  const colorRaw = String(values.color ?? "").trim().replace(/^#/, "");
+  const bar = /^[0-9a-fA-F]{6}$/.test(colorRaw) ? `#${colorRaw}` : "hsl(var(--muted-foreground))";
+  const image = String(values.image_url ?? "").trim();
+  const buttonLabel = String(values.button_label ?? "").trim();
+
+  type F = { name: string; value: string; inline: boolean };
+  const fields: F[] = String(values.fields ?? "")
+    .split("\n").map((l) => l.trim()).filter(Boolean)
+    .map((l) => {
+      const p = l.split("|").map((s) => s.trim());
+      return { name: p[0] ?? "", value: p[1] ?? "", inline: (p[2]?.toLowerCase() ?? "inline") !== "full" };
+    })
+    .filter((f) => f.name);
+
+  // Group into rows: consecutive inline fields (max 3 across); full = own row.
+  const rows: F[][] = [];
+  let run: F[] = [];
+  for (const f of fields) {
+    if (f.inline) {
+      run.push(f);
+      if (run.length === 3) { rows.push(run); run = []; }
+    } else {
+      if (run.length) { rows.push(run); run = []; }
+      rows.push([f]);
+    }
+  }
+  if (run.length) rows.push(run);
+
+  const empty = !title && !description && fields.length === 0 && !image;
+
+  return (
+    <div className="rounded-md border border-border bg-card p-3 pl-4 text-sm relative overflow-hidden">
+      <span className="absolute left-0 top-0 h-full w-1" style={{ background: bar }} />
+      {empty ? (
+        <p className="text-xs text-muted-foreground">Fill in the card above to see a preview.</p>
+      ) : (
+        <>
+          {title && <p className="font-semibold text-foreground mb-1 break-words">{title}</p>}
+          {description && <p className="text-muted-foreground whitespace-pre-wrap break-words mb-2">{description}</p>}
+          {rows.map((row, i) => (
+            <div key={i} className="flex gap-4 mb-2">
+              {row.map((f, j) => (
+                <div key={j} className={f.inline ? "flex-1 min-w-0" : "w-full"}>
+                  <p className="text-xs font-semibold text-foreground break-words">{f.name}</p>
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{f.value || "​"}</p>
+                </div>
+              ))}
+            </div>
+          ))}
+          {image && <img src={image} alt="" className="mt-1 max-h-48 max-w-full rounded" />}
+          {buttonLabel && (
+            <div className="mt-2">
+              <span className="inline-block rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">{buttonLabel}</span>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineVersion: engineVersionProp, open: openProp, onOpenChange, enabled = true, onToggleEnabled }: Props) {
 
   const { botId: scopeBotId, viaTeam, readOnly: scopeReadOnly } = useBotScope();
@@ -3883,7 +3950,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsFormLog || isCustomsLogging
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsPackages || isCustomsFormLog || isCustomsLogging
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -4298,6 +4365,21 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   botAvatarUrl={botAvatarUrl}
                   initialItems={portfolioV2Items}
                 />
+              </div>
+            </div>
+          ) : isCustomsPackages ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Preview</p>
+                <p className="text-xs text-muted-foreground">
+                  How the card looks when you run <code className="font-mono">/package</code>. Inline fields sit side by side.
+                </p>
+                <PackageCardPreview values={values} />
               </div>
             </div>
           ) : isCustomsLogging ? (
