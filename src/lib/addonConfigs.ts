@@ -869,10 +869,9 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       header("Fields (the side-by-side text)"),
       {
         key: "fields",
-        label: "Fields — one per line",
+        label: "Fields",
         type: "textarea",
-        placeholder: "Packer | @22HYPE22 | inline\nPrice | 250 | inline\nAsset ID | 1928082323 | inline\nIncluded Items | Class A, Class B, Class C | full",
-        help: "One field per line as “Name | Value | inline”. Use “inline” to sit fields side by side (3 per row); use “full” for a field on its own row.",
+        help: "Add a field for each labeled value. Turn on “Inline” to sit fields side by side (3 per row); off puts a field on its own row.",
       },
       header("Button & access"),
       { key: "button_label", label: "Button label", type: "text", placeholder: "Claim Package", help: "Adds a button under the card with this label. Leave blank for no button." },
