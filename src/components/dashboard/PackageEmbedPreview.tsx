@@ -1,8 +1,8 @@
 // Renders the Packages design the way the bot actually posts it — a Discord
 // embed. Mirrors the bot's _pkg_build_embed: a heading becomes the linked title,
 // {|} rows (a labels line + a values line) and Fields components become aligned
-// inline fields, the container accent becomes the color bar, galleries before the
-// text sit above and galleries after sit below, and a Button Row becomes a button.
+// inline fields, the container accent becomes the color bar, a Media Gallery photo
+// sits INSIDE the embed at the bottom, and a Button Row becomes a button.
 // Keeping this in lockstep with the bot means the preview matches the post.
 
 import type { ReactNode } from "react";
@@ -57,14 +57,13 @@ type Built = {
   desc: string[];
   fields: Field[];
   button: string;
-  top: string[];
-  bottom: string[];
+  image: string;
 };
 
 const HEADING_LINK = /^\[(.*?)\]\((.*?)\)$/;
 
 function build(items: V2Item[]): Built {
-  const b: Built = { color: "", title: "", titleUrl: "", desc: [], fields: [], button: "", top: [], bottom: [] };
+  const b: Built = { color: "", title: "", titleUrl: "", desc: [], fields: [], button: "", image: "" };
   let started = false;
 
   const walk = (list: V2Item[]) => {
@@ -75,7 +74,7 @@ function build(items: V2Item[]): Built {
         walk((c as any).children || []);
       } else if (t === "gallery") {
         const imgs = ((c as any).images || []).filter((u: string) => u && u.trim());
-        (started ? b.bottom : b.top).push(...imgs);
+        if (!b.image && imgs.length) b.image = imgs[0];
       } else if (t === "text") {
         const lines = String((c as any).text || "").split("\n");
         let i = 0;
@@ -133,7 +132,7 @@ function Bar({ color }: { color: string }) {
 
 export function PackageEmbedPreview({ items, botName, botAvatarUrl }: { items: V2Item[]; botName?: string; botAvatarUrl?: string }) {
   const b = build(items || []);
-  const empty = !b.title && b.desc.length === 0 && b.fields.length === 0 && b.top.length === 0 && b.bottom.length === 0;
+  const empty = !b.title && b.desc.length === 0 && b.fields.length === 0 && !b.image;
 
   // Group inline fields (max 3 across); full fields on their own row.
   const rows: Field[][] = [];
@@ -160,9 +159,6 @@ export function PackageEmbedPreview({ items, botName, botAvatarUrl }: { items: V
             <p className="text-xs" style={{ color: "#949ba4" }}>Add components to build the card.</p>
           ) : (
             <>
-              {b.top.map((u, i) => (
-                <img key={`t${i}`} src={u} alt="" className="max-h-56 w-full rounded object-cover" />
-              ))}
               <div className="relative overflow-hidden rounded p-3 pl-4" style={{ background: "#2b2d31", maxWidth: 432 }}>
                 <Bar color={b.color} />
                 {b.title && (
@@ -183,11 +179,11 @@ export function PackageEmbedPreview({ items, botName, botAvatarUrl }: { items: V
                     ))}
                   </div>
                 ))}
+                {b.image && (
+                  <img src={b.image} alt="" className="mt-2 max-h-64 w-full rounded object-cover" />
+                )}
                 <div className="mt-1 text-[10px]" style={{ color: "#949ba4" }}>Today at 12:00 PM</div>
               </div>
-              {b.bottom.map((u, i) => (
-                <img key={`bt${i}`} src={u} alt="" className="max-h-56 w-full rounded object-cover" />
-              ))}
               {b.button && (
                 <span className="inline-block rounded px-3 py-1.5 text-sm font-medium text-white" style={{ background: "#4e5058" }}>{b.button}</span>
               )}
