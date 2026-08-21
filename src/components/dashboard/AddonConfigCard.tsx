@@ -4429,29 +4429,27 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               </div>
             </div>
           ) : isCustomsPackages ? (
-            <div className="grid gap-6 py-2 lg:grid-cols-2">
-              <div className="space-y-5">
-                {config.fields
-                  .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
-                  .map((f) =>
-                    f.key === "fields" ? (
-                      <div key={f.key} className="space-y-1.5">
-                        <Label>{f.label}</Label>
-                        <PackageFieldsEditor
-                          value={String(values.fields ?? "")}
-                          onChange={(v) => setValues((prev) => ({ ...prev, fields: v }))}
-                        />
-                        {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
-                      </div>
-                    ) : (
-                      <div key={f.key}>{renderField(f)}</div>
-                    ),
-                  )}
-              </div>
-              <div className="space-y-2 self-start lg:sticky lg:top-2">
-                <p className="text-sm font-semibold text-foreground">Live preview</p>
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) =>
+                  f.key === "fields" ? (
+                    <div key={f.key} className="space-y-1.5">
+                      <Label>{f.label}</Label>
+                      <PackageFieldsEditor
+                        value={String(values.fields ?? "")}
+                        onChange={(v) => setValues((prev) => ({ ...prev, fields: v }))}
+                      />
+                      {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
+                    </div>
+                  ) : (
+                    <div key={f.key}>{renderField(f)}</div>
+                  ),
+                )}
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Preview</p>
                 <p className="text-xs text-muted-foreground">
-                  Updates as you type. Inline fields sit side by side (3 per row).
+                  How the card looks when you run <code className="font-mono">/package</code>. Inline fields sit side by side (3 per row).
                 </p>
                 <PackageCardPreview values={values} />
               </div>
