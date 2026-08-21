@@ -1667,6 +1667,24 @@ function SectionButtonEditor({
 
 function PreviewItem({ item }: { item: V2Item }) {
   if (item.type === "text") {
+    // {|} splits a line into side-by-side columns (aligned across lines).
+    if (item.text.includes("{|}")) {
+      return (
+        <div className="space-y-0.5">
+          {item.text.split("\n").map((line, i) =>
+            line.includes("{|}") ? (
+              <div key={i} className="flex gap-4">
+                {line.split("{|}").map((cell, j) => (
+                  <div key={j} className="min-w-0 flex-1"><PreviewMarkdown text={cell.trim()} /></div>
+                ))}
+              </div>
+            ) : (
+              <PreviewMarkdown key={i} text={line} />
+            ),
+          )}
+        </div>
+      );
+    }
     return <PreviewMarkdown text={item.text} />;
   }
   if (item.type === "fields") {
