@@ -353,31 +353,30 @@ async function createStripePaymentLink(
 
 const STRIPE_APP_TAG = "oversite_payment_customs";
 
-async function stripeRecent(botId: string, limit: number): Promise<Array<Record<string, unknown>>> {
+async function stripeRecent(_botId: string, limit: number): Promise<Array<Record<string, unknown>>> {
   if (!STRIPE_SECRET_KEY) throw new Error("STRIPE_SECRET_KEY is not configured");
-  // Expand the charge so we can read the payer's billing name/email (Stripe has
-  // no Discord identity — this is the best "customer" we can show).
+  // List recent Checkout Sessions and keep the PAID ones that belong to our
+  // customs payment prices (lookup_key starts with "ovs_pay_"). Matching by the
+  // price/product — not a per-payment tag — means even reused links log. Sessions
+  // also carry the payer's name/email directly, so no extra fetch is needed.
   const data = await stripeGet(
-    `payment_intents?limit=${Math.min(100, Math.max(1, limit))}&expand[]=data.latest_charge`,
+    `checkout/sessions?limit=${Math.min(100, Math.max(1, limit))}&expand[]=data.line_items`,
   );
   const rows: any[] = Array.isArray(data?.data) ? data.data : [];
   return rows
-    .filter((pi) =>
-      pi?.status === "succeeded" &&
-      pi?.metadata?.app === STRIPE_APP_TAG &&
-      String(pi?.metadata?.bot_id ?? "") === botId
-    )
-    .map((pi) => {
-      const bd = pi?.latest_charge?.billing_details ?? {};
-      return {
-        id: String(pi.id),
-        created: Number(pi.created ?? 0),
-        amount: Number(pi.amount_received ?? pi.amount ?? 0),
-        currency: String(pi.currency ?? STRIPE_CURRENCY),
-        customer_name: String(bd?.name ?? ""),
-        customer_email: String(bd?.email ?? pi?.receipt_email ?? ""),
-      };
-    });
+    .filter((s) => {
+      if (s?.payment_status !== "paid") return false;
+      const items: any[] = Array.isArray(s?.line_items?.data) ? s.line_items.data : [];
+      return items.some((li) => String(li?.price?.lookup_key ?? "").startsWith("ovs_pay_"));
+    })
+    .map((s) => ({
+      id: String(s.payment_intent ?? s.id),
+      created: Number(s.created ?? 0),
+      amount: Number(s.amount_total ?? 0),
+      currency: String(s.currency ?? STRIPE_CURRENCY),
+      customer_name: String(s?.customer_details?.name ?? ""),
+      customer_email: String(s?.customer_details?.email ?? ""),
+    }));
 }
 
 async function stripeStateGet(botId: string): Promise<string[]> {
