@@ -243,6 +243,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsLogging = addonId === "customs-logging";
   const isCustomsPricing = addonId === "customs-pricing";
   const isCustomsPortfolio = addonId === "customs-portfolio";
+  const isCustomsPackages = addonId === "customs-packages";
   const isCustomsOrderLog = addonId === "customs-orderlog";
   const isCustomsInfraction = addonId === "customs-infraction";
   const isCustomsPromotion = addonId === "customs-promotion";
@@ -283,6 +284,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const portfolioV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [portfolioV2Items, setPortfolioV2Items] = useState<V2Item[]>([]);
   const [portfolioV2MountKey, setPortfolioV2MountKey] = useState(0);
+
+  // Customs "Packages" — the V2 builder for the panel /package posts.
+  const packagesV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [packagesV2Items, setPackagesV2Items] = useState<V2Item[]>([]);
+  const [packagesV2MountKey, setPackagesV2MountKey] = useState(0);
   // Customs "Logging" — the V2 builder for the purchase-log message template.
   const loggingV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [loggingV2Items, setLoggingV2Items] = useState<V2Item[]>([]);
@@ -1601,6 +1607,55 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Portfolio saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: packages ----------
+  useEffect(() => {
+    if (!isCustomsPackages || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-packages")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        allowed_role_ids: Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [],
+      }));
+      setPackagesV2Items(Array.isArray(cfg.panel_components) ? (cfg.panel_components as V2Item[]) : []);
+      setPackagesV2MountKey((k) => k + 1);
+      setAppliedAt((data as any).applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsPackages, open, botId]);
+
+  const saveCustomsPackages = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-packages",
+      config: {
+        allowed_role_ids: Array.isArray(values.allowed_role_ids) ? (values.allowed_role_ids as string[]).map(String) : [],
+        panel_components: normalizeV2Items(packagesV2Ref.current?.getItems() ?? packagesV2Items ?? []),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-packages",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Packages saved & applied");
     setOpen(false);
   };
 
@@ -3823,7 +3878,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsFormLog || isCustomsLogging
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsPackages || isCustomsFormLog || isCustomsLogging
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -4240,6 +4295,30 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 />
               </div>
             </div>
+          ) : isCustomsPackages ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Package panel</p>
+                <p className="text-xs text-muted-foreground">
+                  Design the panel, using the same builder as Messages. When you run{" "}
+                  <code className="font-mono">/package</code>, you pick a channel and this design is posted there.
+                </p>
+                <MessagesV2Builder
+                  key={`customs-packages-v2-${packagesV2MountKey}`}
+                  ref={packagesV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={packagesV2Items}
+                />
+              </div>
+            </div>
           ) : isCustomsLogging ? (
             <div className="space-y-5 py-2">
               {config.fields
@@ -4621,6 +4700,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsPricing();
                   } else if (isCustomsPortfolio) {
                     void saveCustomsPortfolio();
+                  } else if (isCustomsPackages) {
+                    void saveCustomsPackages();
                   } else if (isCustomsFormLog) {
                     void saveCustomsOrderLog();
                   } else {

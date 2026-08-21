@@ -33,6 +33,7 @@ import {
   ClipboardList,
   CreditCard,
   ScrollText,
+  Package,
   Link2Off,
   Sparkles,
   BarChart3,
@@ -852,6 +853,15 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     fields: [
       channel("channel_id", "Post channel", "Where /portfolio posts the design below."),
       multirole("allowed_role_ids", "Who can run /portfolio", "Members with any of these roles can run /portfolio. Anyone with Manage Server can too. Leave empty for Manage Server only."),
+    ],
+  },
+
+  "customs-packages": {
+    title: "Packages",
+    summary: "Design a package panel below; run /package to post it to any channel you pick.",
+    icon: Package,
+    fields: [
+      multirole("allowed_role_ids", "Who can run /package", "Members with any of these roles can run /package. Anyone with Manage Server can too. Leave empty for Manage Server only."),
     ],
   },
 
