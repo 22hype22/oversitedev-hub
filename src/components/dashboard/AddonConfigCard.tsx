@@ -52,6 +52,7 @@ import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
 import { getAddonLabel } from "@/lib/botCatalog";
 import { SayCommandBuilder, type SayCommandBuilderHandle } from "./SayCommandBuilder";
 import { MessagesV2Builder, normalizeV2Items, type MessagesV2BuilderHandle, type V2Item } from "./MessagesV2Builder";
+import { PackageEmbedPreview } from "./PackageEmbedPreview";
 import { TicketPanelBuilder, type TicketPanelBuilderHandle } from "./TicketPanelBuilder";
 import { TicketEditor, type TicketEditorHandle } from "./TicketEditor";
 import { PostTypesManager } from "./PostTypesManager";
@@ -249,6 +250,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const packagesV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [packagesV2Items, setPackagesV2Items] = useState<V2Item[]>([]);
   const [packagesV2MountKey, setPackagesV2MountKey] = useState(0);
+  const [packagesLiveItems, setPackagesLiveItems] = useState<V2Item[]>([]);
   const isCustomsOrderLog = addonId === "customs-orderlog";
   const isCustomsInfraction = addonId === "customs-infraction";
   const isCustomsPromotion = addonId === "customs-promotion";
@@ -4306,33 +4308,41 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               <div className="space-y-2 pt-1">
                 <p className="text-sm font-semibold text-foreground">Package card</p>
                 <p className="text-xs text-muted-foreground">
-                  Build the card, using the same builder as Messages. When you run{" "}
-                  <code className="font-mono">/package</code>, you pick a channel and this design is posted there.
+                  Build the card on the left; the right shows exactly how{" "}
+                  <code className="font-mono">/package</code> posts it (as an embed).
                 </p>
-                <MessagesV2Builder
-                  key={`customs-packages-v2-${packagesV2MountKey}`}
-                  ref={packagesV2Ref}
-                  embedded
-                  allowFields
-                  editorNotice={
-                    <>
-                      <code className="font-mono text-os-accent">{"{Question: Label}"}</code> (short) and{" "}
-                      <code className="font-mono text-os-accent">{"{LQuestion: Label}"}</code> (long) pop a form on{" "}
-                      <code className="font-mono">/package</code>.{" "}
-                      <code className="font-mono text-os-accent">{"{File: Label}"}</code> attaches a file after;{" "}
-                      <code className="font-mono text-os-accent">{"{SFile: Label}"}</code> = image above.{" "}
-                      <code className="font-mono text-os-accent">{"{user}"}</code>,{" "}
-                      <code className="font-mono text-os-accent">{"{payment}"}</code>,{" "}
-                      <code className="font-mono text-os-accent">{"{payment_link}"}</code> fill from{" "}
-                      <code className="font-mono">/package</code>;{" "}
-                      <code className="font-mono text-os-accent">{"{|}"}</code> = side-by-side columns.
-                    </>
-                  }
-                  botId={botId}
-                  botName={botName}
-                  botAvatarUrl={botAvatarUrl}
-                  initialItems={packagesV2Items}
-                />
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <MessagesV2Builder
+                    key={`customs-packages-v2-${packagesV2MountKey}`}
+                    ref={packagesV2Ref}
+                    embedded
+                    allowFields
+                    hidePreview
+                    onItemsChange={setPackagesLiveItems}
+                    editorNotice={
+                      <>
+                        <code className="font-mono text-os-accent">{"{Question: Label}"}</code> (short) and{" "}
+                        <code className="font-mono text-os-accent">{"{LQuestion: Label}"}</code> (long) pop a form on{" "}
+                        <code className="font-mono">/package</code>.{" "}
+                        <code className="font-mono text-os-accent">{"{File: Label}"}</code> attaches a file after;{" "}
+                        <code className="font-mono text-os-accent">{"{SFile: Label}"}</code> = image above.{" "}
+                        <code className="font-mono text-os-accent">{"{user}"}</code>,{" "}
+                        <code className="font-mono text-os-accent">{"{payment}"}</code>,{" "}
+                        <code className="font-mono text-os-accent">{"{payment_link}"}</code> fill from{" "}
+                        <code className="font-mono">/package</code>;{" "}
+                        <code className="font-mono text-os-accent">{"{|}"}</code> = side-by-side columns.
+                      </>
+                    }
+                    botId={botId}
+                    botName={botName}
+                    botAvatarUrl={botAvatarUrl}
+                    initialItems={packagesV2Items}
+                  />
+                  <div className="space-y-2 self-start lg:sticky lg:top-2">
+                    <p className="text-xs font-semibold text-foreground">Preview (how it posts)</p>
+                    <PackageEmbedPreview items={packagesLiveItems} botName={botName} botAvatarUrl={botAvatarUrl ?? undefined} />
+                  </div>
+                </div>
               </div>
             </div>
           ) : isCustomsLogging ? (
