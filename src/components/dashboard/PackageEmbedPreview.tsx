@@ -73,7 +73,13 @@ function build(items: V2Item[]): Built {
   const flushTrailing = () => {
     const txt = trailing.join("\n").trim();
     trailing = [];
-    if (txt) b.fields.push({ name: "​", value: txt, inline: false });
+    if (!txt) return;
+    // First line becomes the field name (a blank name renders an extra empty
+    // line above the text); the rest is the value.
+    const parts = txt.split("\n");
+    const name = parts[0].replace(/^#+/, "").replace(/\*\*/g, "").trim() || "​";
+    const value = parts.slice(1).join("\n").trim() || "​";
+    b.fields.push({ name, value, inline: false });
   };
   const addLine = (text: string) => { (fstarted ? trailing : b.desc).push(text); };
 
