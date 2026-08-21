@@ -4313,6 +4313,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   key={`customs-packages-v2-${packagesV2MountKey}`}
                   ref={packagesV2Ref}
                   embedded
+                  allowFields
                   botId={botId}
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
