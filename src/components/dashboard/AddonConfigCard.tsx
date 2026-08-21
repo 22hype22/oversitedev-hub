@@ -52,7 +52,6 @@ import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
 import { getAddonLabel } from "@/lib/botCatalog";
 import { SayCommandBuilder, type SayCommandBuilderHandle } from "./SayCommandBuilder";
 import { MessagesV2Builder, normalizeV2Items, type MessagesV2BuilderHandle, type V2Item } from "./MessagesV2Builder";
-import { PackageCardBuilder, type PkgComponent } from "./PackageCardBuilder";
 import { TicketPanelBuilder, type TicketPanelBuilderHandle } from "./TicketPanelBuilder";
 import { TicketEditor, type TicketEditorHandle } from "./TicketEditor";
 import { PostTypesManager } from "./PostTypesManager";
@@ -247,7 +246,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsPricing = addonId === "customs-pricing";
   const isCustomsPortfolio = addonId === "customs-portfolio";
   const isCustomsPackages = addonId === "customs-packages";
-  const [packagesComponents, setPackagesComponents] = useState<PkgComponent[]>([]);
+  const packagesV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [packagesV2Items, setPackagesV2Items] = useState<V2Item[]>([]);
+  const [packagesV2MountKey, setPackagesV2MountKey] = useState(0);
   const isCustomsOrderLog = addonId === "customs-orderlog";
   const isCustomsInfraction = addonId === "customs-infraction";
   const isCustomsPromotion = addonId === "customs-promotion";
@@ -1627,7 +1628,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         ...prev,
         allowed_role_ids: Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [],
       }));
-      setPackagesComponents(Array.isArray(cfg.components) ? (cfg.components as PkgComponent[]) : []);
+      setPackagesV2Items(Array.isArray(cfg.panel_components) ? (cfg.panel_components as V2Item[]) : []);
+      setPackagesV2MountKey((k) => k + 1);
       setAppliedAt((data as any).applied_at ?? null);
     })();
     return () => { cancelled = true; };
@@ -1640,7 +1642,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       bot_id: botId,
       feature: "customs-packages",
       config: {
-        components: packagesComponents,
+        panel_components: normalizeV2Items(packagesV2Ref.current?.getItems() ?? packagesV2Items ?? []),
         allowed_role_ids: Array.isArray(values.allowed_role_ids) ? (values.allowed_role_ids as string[]).map(String) : [],
       },
       updated_at: new Date().toISOString(),
@@ -4304,15 +4306,17 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               <div className="space-y-2 pt-1">
                 <p className="text-sm font-semibold text-foreground">Package card</p>
                 <p className="text-xs text-muted-foreground">
-                  Add components to build the card. Use a <span className="font-medium">Fields</span> component and turn on
-                  {" "}<span className="font-medium">Inline</span> for side-by-side text. Run{" "}
-                  <code className="font-mono">/package</code> to post it.
+                  Build the card, using the same builder as Messages. When you run{" "}
+                  <code className="font-mono">/package</code>, you pick a channel and this design is posted there.
                 </p>
-                <PackageCardBuilder
-                  value={packagesComponents}
-                  onChange={setPackagesComponents}
+                <MessagesV2Builder
+                  key={`customs-packages-v2-${packagesV2MountKey}`}
+                  ref={packagesV2Ref}
+                  embedded
+                  botId={botId}
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
+                  initialItems={packagesV2Items}
                 />
               </div>
             </div>
