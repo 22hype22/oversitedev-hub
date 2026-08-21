@@ -65,6 +65,17 @@ const HEADING_LINK = /^\[(.*?)\]\((.*?)\)$/;
 function build(items: V2Item[]): Built {
   const b: Built = { color: "", title: "", titleUrl: "", desc: [], fields: [], button: "", image: "" };
   let started = false;
+  // Discord renders the description above every field, so once a columns/fields
+  // block appears, later text must also become a (headerless) field or it would
+  // jump above the columns. `fstarted` tracks that; `trailing` buffers the text.
+  let fstarted = false;
+  let trailing: string[] = [];
+  const flushTrailing = () => {
+    const txt = trailing.join("\n").trim();
+    trailing = [];
+    if (txt) b.fields.push({ name: "​", value: txt, inline: false });
+  };
+  const addLine = (text: string) => { (fstarted ? trailing : b.desc).push(text); };
 
   const walk = (list: V2Item[]) => {
     for (const c of list) {
@@ -85,8 +96,10 @@ function build(items: V2Item[]): Built {
             const names = line.split("{|}").map((x) => x.trim());
             const vals = lines[i + 1].split("{|}").map((x) => x.trim());
             if (names.length === vals.length) {
+              flushTrailing();
               names.forEach((n, k) => b.fields.push({ name: n || "​", value: vals[k] || "​", inline: true }));
               started = true;
+              fstarted = true;
               i += 2;
               continue;
             }
@@ -97,23 +110,25 @@ function build(items: V2Item[]): Built {
             if (m) { b.title = m[1].trim(); b.titleUrl = m[2].trim().replace(/^<|>$/g, ""); }
             else b.title = h;
           } else if (line.includes("{|}")) {
-            b.desc.push(line.replace(/\{\|\}/g, " | "));
+            addLine(line.replace(/\{\|\}/g, " | "));
             started = true;
           } else {
-            b.desc.push(line);
+            addLine(line);
             if (s) started = true;
           }
           i += 1;
         }
       } else if (t === "section") {
-        if ((c as any).title) b.desc.push(`**${(c as any).title}**`);
-        if ((c as any).text) b.desc.push(String((c as any).text));
+        if ((c as any).title) addLine(`**${(c as any).title}**`);
+        if ((c as any).text) addLine(String((c as any).text));
         started = true;
       } else if (t === "fields") {
+        flushTrailing();
         for (const f of (c as any).fields || []) {
           if (f && f.name) b.fields.push({ name: String(f.name), value: String(f.value || "​"), inline: !!f.inline });
         }
         started = true;
+        fstarted = true;
       } else if (t === "buttonRow") {
         for (const btn of (c as any).buttons || []) {
           if (btn && btn.label && !b.button) b.button = String(btn.label);
@@ -122,6 +137,7 @@ function build(items: V2Item[]): Built {
     }
   };
   walk(items || []);
+  flushTrailing();
   return b;
 }
 
