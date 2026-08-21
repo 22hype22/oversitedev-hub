@@ -52,6 +52,7 @@ import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
 import { getAddonLabel } from "@/lib/botCatalog";
 import { SayCommandBuilder, type SayCommandBuilderHandle } from "./SayCommandBuilder";
 import { MessagesV2Builder, normalizeV2Items, type MessagesV2BuilderHandle, type V2Item } from "./MessagesV2Builder";
+import { PackageCardBuilder, type PkgComponent } from "./PackageCardBuilder";
 import { TicketPanelBuilder, type TicketPanelBuilderHandle } from "./TicketPanelBuilder";
 import { TicketEditor, type TicketEditorHandle } from "./TicketEditor";
 import { PostTypesManager } from "./PostTypesManager";
@@ -189,132 +190,6 @@ function persistTicketTemplates(list: TicketTemplate[]) {
  *
  * Mock UI only — values live in local state and "save" shows a toast.
  */
-/** Structured editor for the card's side-by-side fields. Reads/writes the same
- *  "Name | Value | inline" per-line string the bot parses, but as add/remove
- *  rows with an Inline toggle — a builder "component" for the side text. */
-type PkgFieldRow = { name: string; value: string; inline: boolean };
-function parsePkgFields(v: string): PkgFieldRow[] {
-  return String(v ?? "")
-    .split("\n").map((l) => l.trim()).filter(Boolean)
-    .map((l) => {
-      const p = l.split("|").map((s) => s.trim());
-      return { name: p[0] ?? "", value: p[1] ?? "", inline: (p[2]?.toLowerCase() ?? "inline") !== "full" };
-    });
-}
-function serializePkgFields(rows: PkgFieldRow[]): string {
-  return rows.map((r) => `${r.name} | ${r.value} | ${r.inline ? "inline" : "full"}`).join("\n");
-}
-function PackageFieldsEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [rows, setRows] = useState<PkgFieldRow[]>(() => parsePkgFields(value));
-  // Re-sync if the value changes from outside (e.g. config loads after mount).
-  useEffect(() => {
-    if (serializePkgFields(rows) !== value) setRows(parsePkgFields(value));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
-  const push = (next: PkgFieldRow[]) => { setRows(next); onChange(serializePkgFields(next)); };
-  const patch = (i: number, p: Partial<PkgFieldRow>) => push(rows.map((r, idx) => (idx === i ? { ...r, ...p } : r)));
-  const move = (i: number, d: number) => {
-    const j = i + d;
-    if (j < 0 || j >= rows.length) return;
-    const next = [...rows];
-    [next[i], next[j]] = [next[j], next[i]];
-    push(next);
-  };
-  return (
-    <div className="space-y-2">
-      {rows.map((r, i) => (
-        <div key={i} className="rounded-md border border-border bg-muted/30 p-2 space-y-2">
-          <div className="flex gap-2">
-            <Input className="h-8" placeholder="Name (e.g. Packer)" value={r.name} onChange={(e) => patch(i, { name: e.target.value })} />
-            <Input className="h-8" placeholder="Value (e.g. @user)" value={r.value} onChange={(e) => patch(i, { value: e.target.value })} />
-          </div>
-          <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Switch checked={r.inline} onCheckedChange={(c) => patch(i, { inline: c })} />
-              Inline (side by side)
-            </label>
-            <div className="flex items-center gap-1">
-              <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled={i === 0} onClick={() => move(i, -1)}><ChevronUp className="h-4 w-4" /></Button>
-              <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled={i === rows.length - 1} onClick={() => move(i, 1)}><ChevronDown className="h-4 w-4" /></Button>
-              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => push(rows.filter((_, idx) => idx !== i))}><Trash2 className="h-4 w-4" /></Button>
-            </div>
-          </div>
-        </div>
-      ))}
-      <Button type="button" variant="outline" size="sm" className="w-full gap-2" onClick={() => push([...rows, { name: "", value: "", inline: true }])}>
-        <Plus className="h-4 w-4" /> Add field
-      </Button>
-    </div>
-  );
-}
-
-/** Live preview of the Packages embed card, mirroring Discord's layout:
- *  a color bar, title, description, inline fields (up to 3 across), image,
- *  and the Claim button. */
-function PackageCardPreview({ values }: { values: Record<string, string | number | boolean | string[]> }) {
-  const title = String(values.title ?? "");
-  const description = String(values.description ?? "");
-  const colorRaw = String(values.color ?? "").trim().replace(/^#/, "");
-  const bar = /^[0-9a-fA-F]{6}$/.test(colorRaw) ? `#${colorRaw}` : "hsl(var(--muted-foreground))";
-  const image = String(values.image_url ?? "").trim();
-  const buttonLabel = String(values.button_label ?? "").trim();
-
-  type F = { name: string; value: string; inline: boolean };
-  const fields: F[] = String(values.fields ?? "")
-    .split("\n").map((l) => l.trim()).filter(Boolean)
-    .map((l) => {
-      const p = l.split("|").map((s) => s.trim());
-      return { name: p[0] ?? "", value: p[1] ?? "", inline: (p[2]?.toLowerCase() ?? "inline") !== "full" };
-    })
-    .filter((f) => f.name);
-
-  // Group into rows: consecutive inline fields (max 3 across); full = own row.
-  const rows: F[][] = [];
-  let run: F[] = [];
-  for (const f of fields) {
-    if (f.inline) {
-      run.push(f);
-      if (run.length === 3) { rows.push(run); run = []; }
-    } else {
-      if (run.length) { rows.push(run); run = []; }
-      rows.push([f]);
-    }
-  }
-  if (run.length) rows.push(run);
-
-  const empty = !title && !description && fields.length === 0 && !image;
-
-  return (
-    <div className="rounded-md border border-border bg-card p-3 pl-4 text-sm relative overflow-hidden">
-      <span className="absolute left-0 top-0 h-full w-1" style={{ background: bar }} />
-      {empty ? (
-        <p className="text-xs text-muted-foreground">Fill in the card above to see a preview.</p>
-      ) : (
-        <>
-          {title && <p className="font-semibold text-foreground mb-1 break-words">{title}</p>}
-          {description && <p className="text-muted-foreground whitespace-pre-wrap break-words mb-2">{description}</p>}
-          {rows.map((row, i) => (
-            <div key={i} className="flex gap-4 mb-2">
-              {row.map((f, j) => (
-                <div key={j} className={f.inline ? "flex-1 min-w-0" : "w-full"}>
-                  <p className="text-xs font-semibold text-foreground break-words">{f.name}</p>
-                  <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{f.value || "​"}</p>
-                </div>
-              ))}
-            </div>
-          ))}
-          {image && <img src={image} alt="" className="mt-1 max-h-48 max-w-full rounded" />}
-          {buttonLabel && (
-            <div className="mt-2">
-              <span className="inline-block rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">{buttonLabel}</span>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
 export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineVersion: engineVersionProp, open: openProp, onOpenChange, enabled = true, onToggleEnabled }: Props) {
 
   const { botId: scopeBotId, viaTeam, readOnly: scopeReadOnly } = useBotScope();
@@ -372,6 +247,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsPricing = addonId === "customs-pricing";
   const isCustomsPortfolio = addonId === "customs-portfolio";
   const isCustomsPackages = addonId === "customs-packages";
+  const [packagesComponents, setPackagesComponents] = useState<PkgComponent[]>([]);
   const isCustomsOrderLog = addonId === "customs-orderlog";
   const isCustomsInfraction = addonId === "customs-infraction";
   const isCustomsPromotion = addonId === "customs-promotion";
@@ -1749,14 +1625,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       const cfg = (data.config ?? {}) as Record<string, any>;
       setValues((prev) => ({
         ...prev,
-        title: cfg.title ?? "",
-        description: cfg.description ?? "",
-        color: cfg.color ?? "",
-        image_url: cfg.image_url ?? "",
-        fields: cfg.fields ?? "",
-        button_label: cfg.button_label ?? "",
         allowed_role_ids: Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [],
       }));
+      setPackagesComponents(Array.isArray(cfg.components) ? (cfg.components as PkgComponent[]) : []);
       setAppliedAt((data as any).applied_at ?? null);
     })();
     return () => { cancelled = true; };
@@ -1769,12 +1640,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       bot_id: botId,
       feature: "customs-packages",
       config: {
-        title: String(values.title ?? ""),
-        description: String(values.description ?? ""),
-        color: String(values.color ?? ""),
-        image_url: String(values.image_url ?? ""),
-        fields: String(values.fields ?? ""),
-        button_label: String(values.button_label ?? ""),
+        components: packagesComponents,
         allowed_role_ids: Array.isArray(values.allowed_role_ids) ? (values.allowed_role_ids as string[]).map(String) : [],
       },
       updated_at: new Date().toISOString(),
@@ -4432,26 +4298,22 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
             <div className="space-y-5 py-2">
               {config.fields
                 .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
-                .map((f) =>
-                  f.key === "fields" ? (
-                    <div key={f.key} className="space-y-1.5">
-                      <Label>{f.label}</Label>
-                      <PackageFieldsEditor
-                        value={String(values.fields ?? "")}
-                        onChange={(v) => setValues((prev) => ({ ...prev, fields: v }))}
-                      />
-                      {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
-                    </div>
-                  ) : (
-                    <div key={f.key}>{renderField(f)}</div>
-                  ),
-                )}
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Preview</p>
+                <p className="text-sm font-semibold text-foreground">Package card</p>
                 <p className="text-xs text-muted-foreground">
-                  How the card looks when you run <code className="font-mono">/package</code>. Inline fields sit side by side (3 per row).
+                  Add components to build the card. Use a <span className="font-medium">Fields</span> component and turn on
+                  {" "}<span className="font-medium">Inline</span> for side-by-side text. Run{" "}
+                  <code className="font-mono">/package</code> to post it.
                 </p>
-                <PackageCardPreview values={values} />
+                <PackageCardBuilder
+                  value={packagesComponents}
+                  onChange={setPackagesComponents}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                />
               </div>
             </div>
           ) : isCustomsLogging ? (
