@@ -20,7 +20,7 @@ function renderInline(text: string): ReactNode[] {
     if (m.index > last) nodes.push(text.slice(last, m.index));
     const tok = m[0];
     if (tok.startsWith("`")) {
-      nodes.push(<code key={key++} className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em] text-foreground">{tok.slice(1, -1)}</code>);
+      nodes.push(<code key={key++} className="rounded px-1 py-0.5 font-mono text-[0.85em]" style={{ background: "#1e1f22", color: "#dbdee1" }}>{tok.slice(1, -1)}</code>);
     } else if (tok.startsWith("**")) {
       nodes.push(<strong key={key++} className="font-semibold text-foreground">{tok.slice(2, -2)}</strong>);
     } else if (tok.startsWith("[")) {
@@ -126,14 +126,9 @@ function build(items: V2Item[]): Built {
   return b;
 }
 
-// Minimal markdown: **bold** and [text](url). Tokens like {Question:…} show as-is.
-function mini(text: string): string {
-  return text;
-}
-
 function Bar({ color }: { color: string }) {
-  const hex = /^#?[0-9a-fA-F]{6}$/.test(color) ? (color.startsWith("#") ? color : `#${color}`) : "hsl(var(--muted-foreground))";
-  return <span className="absolute left-0 top-0 h-full w-1 rounded-l" style={{ background: hex }} />;
+  const hex = /^#?[0-9a-fA-F]{6}$/.test(color) ? (color.startsWith("#") ? color : `#${color}`) : "#4f545c";
+  return <span className="absolute left-0 top-0 h-full w-1" style={{ background: hex }} />;
 }
 
 export function PackageEmbedPreview({ items, botName, botAvatarUrl }: { items: V2Item[]; botName?: string; botAvatarUrl?: string }) {
@@ -149,51 +144,52 @@ export function PackageEmbedPreview({ items, botName, botAvatarUrl }: { items: V
   }
   if (run.length) rows.push(run);
 
+  // Discord message/embed colors so the preview matches a real post.
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
+    <div className="rounded-lg p-3" style={{ background: "#313338" }}>
       <div className="flex items-start gap-3">
-        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-muted">
+        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full" style={{ background: "#1e1f22" }}>
           {botAvatarUrl ? <img src={botAvatarUrl} alt="" className="h-full w-full object-cover" /> : null}
         </div>
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-foreground">{botName || "Bot"}</span>
-            <span className="rounded bg-primary px-1 text-[10px] font-semibold uppercase text-primary-foreground">App</span>
+            <span className="text-sm font-semibold" style={{ color: "#f2f3f5" }}>{botName || "Bot"}</span>
+            <span className="rounded px-1 text-[10px] font-semibold uppercase text-white" style={{ background: "#5865f2" }}>App</span>
           </div>
           {empty ? (
-            <p className="text-xs text-muted-foreground">Add components to build the card.</p>
+            <p className="text-xs" style={{ color: "#949ba4" }}>Add components to build the card.</p>
           ) : (
             <>
               {b.top.map((u, i) => (
                 <img key={`t${i}`} src={u} alt="" className="max-h-56 w-full rounded object-cover" />
               ))}
-              <div className="relative overflow-hidden rounded-md border border-border bg-background/40 p-3 pl-4">
+              <div className="relative overflow-hidden rounded p-3 pl-4" style={{ background: "#2b2d31", maxWidth: 432 }}>
                 <Bar color={b.color} />
                 {b.title && (
-                  <p className={`mb-1 break-words font-semibold ${b.titleUrl ? "text-[#00a8fc]" : "text-foreground"}`}>{b.title}</p>
+                  <p className="mb-1 break-words font-semibold" style={{ color: b.titleUrl ? "#00a8fc" : "#f2f3f5" }}>{b.title}</p>
                 )}
                 {b.desc.filter((l) => l.trim() !== "").length > 0 && (
-                  <p className="mb-2 break-words text-sm text-muted-foreground">
+                  <p className="mb-2 break-words text-sm" style={{ color: "#dbdee1" }}>
                     <Md text={b.desc.join("\n").trim()} />
                   </p>
                 )}
                 {rows.map((row, i) => (
-                  <div key={i} className="mb-2 flex gap-4">
+                  <div key={i} className="mb-2 flex gap-6">
                     {row.map((f, j) => (
                       <div key={j} className={f.inline ? "min-w-0 flex-1" : "w-full"}>
-                        <div className="break-words text-xs font-semibold text-foreground"><Md text={f.name} /></div>
-                        <div className="break-words text-xs text-muted-foreground"><Md text={f.value || "​"} /></div>
+                        <div className="mb-0.5 break-words text-xs font-semibold" style={{ color: "#f2f3f5" }}><Md text={f.name} /></div>
+                        <div className="break-words text-sm" style={{ color: "#dbdee1" }}><Md text={f.value || "​"} /></div>
                       </div>
                     ))}
                   </div>
                 ))}
-                <div className="mt-1 text-[10px] text-muted-foreground">Today at 12:00 PM</div>
+                <div className="mt-1 text-[10px]" style={{ color: "#949ba4" }}>Today at 12:00 PM</div>
               </div>
               {b.bottom.map((u, i) => (
                 <img key={`bt${i}`} src={u} alt="" className="max-h-56 w-full rounded object-cover" />
               ))}
               {b.button && (
-                <span className="inline-block rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">{b.button}</span>
+                <span className="inline-block rounded px-3 py-1.5 text-sm font-medium text-white" style={{ background: "#4e5058" }}>{b.button}</span>
               )}
             </>
           )}
