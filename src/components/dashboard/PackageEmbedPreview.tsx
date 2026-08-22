@@ -147,9 +147,10 @@ function build(items: V2Item[]): Built {
   return b;
 }
 
-function Bar({ color }: { color: string }) {
-  const hex = /^#?[0-9a-fA-F]{6}$/.test(color) ? (color.startsWith("#") ? color : `#${color}`) : "#4f545c";
-  return <span className="absolute left-0 top-0 h-full w-1" style={{ background: hex }} />;
+// The accent bar is blended into the embed background so it reads as invisible,
+// matching the reference embed (no visible side stripe).
+function Bar() {
+  return <span className="absolute left-0 top-0 h-full w-1" style={{ background: "#2b2d31" }} />;
 }
 
 export function PackageEmbedPreview({ items, botName, botAvatarUrl }: { items: V2Item[]; botName?: string; botAvatarUrl?: string }) {
@@ -182,7 +183,7 @@ export function PackageEmbedPreview({ items, botName, botAvatarUrl }: { items: V
           ) : (
             <>
               <div className="relative overflow-hidden rounded p-3 pl-4" style={{ background: "#2b2d31", maxWidth: 432 }}>
-                <Bar color={b.color} />
+                <Bar />
                 {b.title && (
                   <p className="mb-1 break-words font-semibold" style={{ color: b.titleUrl ? "#00a8fc" : "#f2f3f5" }}>{b.title}</p>
                 )}
