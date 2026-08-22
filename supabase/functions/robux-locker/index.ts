@@ -348,6 +348,49 @@ Deno.serve(async (req) => {
       );
       return json({ ok: true });
     }
+    if (action === "gamepass_find") {
+      // Given a list of place ids and a Robux price, find the first game pass in
+      // those games priced exactly at that amount. Returns its id/name/price.
+      const b = body as Record<string, unknown>;
+      const placeIds = Array.isArray(b.place_ids) ? b.place_ids.map((x) => String(x)) : [];
+      const wantRobux = Math.floor(Number(b.robux ?? 0));
+      if (!placeIds.length || !wantRobux) return json({ ok: true, found: false });
+      for (const pid of placeIds) {
+        let universeId = "";
+        try {
+          const ur = await fetch(`https://apis.roblox.com/universes/v1/places/${pid}/universe`);
+          if (ur.ok) universeId = String(((await ur.json()) as any)?.universeId ?? "");
+        } catch { /* try next place */ }
+        if (!universeId) continue;
+        let cursor = "";
+        for (let page = 0; page < 6; page++) {
+          const url = `https://games.roblox.com/v1/games/${universeId}/game-passes?limit=100&sortOrder=Asc${cursor ? `&cursor=${cursor}` : ""}`;
+          const gr = await fetch(url);
+          if (!gr.ok) break;
+          const gd = (await gr.json()) as any;
+          for (const p of (Array.isArray(gd?.data) ? gd.data : [])) {
+            if (Number(p?.price) === wantRobux) {
+              return json({ ok: true, found: true, gamepass: { id: String(p.id), name: String(p.name ?? ""), price: Number(p.price) } });
+            }
+          }
+          cursor = String(gd?.nextPageCursor ?? "");
+          if (!cursor) break;
+        }
+      }
+      return json({ ok: true, found: false });
+    }
+    if (action === "owns_gamepass") {
+      // Does this Roblox user own the given game pass? 403 = inventory hidden.
+      const b = body as Record<string, unknown>;
+      const userId = String(b.user_id ?? "").trim();
+      const gpId = String(b.gamepass_id ?? "").trim();
+      if (!userId || !gpId) return json({ ok: false, error: "missing user_id/gamepass_id" }, 400);
+      const r = await fetch(`https://inventory.roblox.com/v1/users/${userId}/items/GamePass/${gpId}/is-owned`);
+      if (r.status === 403) return json({ ok: true, owned: false, hidden: true });
+      if (!r.ok) return json({ ok: true, owned: false, hidden: false, error: `HTTP ${r.status}` });
+      const txt = (await r.text()).trim().toLowerCase();
+      return json({ ok: true, owned: txt === "true", hidden: false });
+    }
     return json({ error: "Unknown action" }, 400);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
