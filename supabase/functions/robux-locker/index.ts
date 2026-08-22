@@ -354,22 +354,31 @@ Deno.serve(async (req) => {
       const b = body as Record<string, unknown>;
       const placeIds = Array.isArray(b.place_ids) ? b.place_ids.map((x) => String(x)) : [];
       const title = String(b.title ?? "").trim().toLowerCase();
-      if (!placeIds.length || !title) return json({ ok: true, found: false });
+      if (!placeIds.length || !title) return json({ ok: true, found: false, debug: "no place ids or title" });
       let partial: { id: string; name: string; price: number } | null = null;
+      const debug: any[] = [];
       for (const pid of placeIds) {
         let universeId = "";
+        let uStatus = 0;
         try {
-          const ur = await fetch(`https://apis.roblox.com/universes/v1/places/${pid}/universe`);
+          const ur = await fetch(`https://apis.roblox.com/universes/v1/places/${pid}/universe`, { headers: cookieHeaders() });
+          uStatus = ur.status;
           if (ur.ok) universeId = String(((await ur.json()) as any)?.universeId ?? "");
-        } catch { /* try next place */ }
+        } catch (e) { uStatus = -1; }
+        const dbg: any = { place: pid, universe: universeId, universeStatus: uStatus, count: 0, sample: [] as string[], passStatus: 0 };
+        debug.push(dbg);
         if (!universeId) continue;
         let cursor = "";
         for (let page = 0; page < 6; page++) {
           const url = `https://games.roblox.com/v1/games/${universeId}/game-passes?limit=100&sortOrder=Asc${cursor ? `&cursor=${cursor}` : ""}`;
-          const gr = await fetch(url);
+          const gr = await fetch(url, { headers: cookieHeaders() });
+          dbg.passStatus = gr.status;
           if (!gr.ok) break;
           const gd = (await gr.json()) as any;
-          for (const p of (Array.isArray(gd?.data) ? gd.data : [])) {
+          const passes = Array.isArray(gd?.data) ? gd.data : [];
+          dbg.count += passes.length;
+          for (const p of passes) {
+            if (dbg.sample.length < 10) dbg.sample.push(String(p?.name ?? ""));
             const name = String(p?.name ?? "").trim().toLowerCase();
             const hit = { id: String(p.id), name: String(p.name ?? ""), price: Number(p.price ?? 0) };
             if (name === title) return json({ ok: true, found: true, gamepass: hit });
@@ -380,7 +389,30 @@ Deno.serve(async (req) => {
         }
       }
       if (partial) return json({ ok: true, found: true, gamepass: partial });
-      return json({ ok: true, found: false });
+      return json({ ok: true, found: false, debug });
+    }
+    if (action === "pkg_files_set") {
+      // Stash a package post's receipt record (finished-product files, product
+      // name, image, thread link, price) keyed by the post's message id, so it
+      // can be delivered to a buyer on claim.
+      const b = body as Record<string, unknown>;
+      const msgId = String(b.msg_id ?? "");
+      const record = (b.record && typeof b.record === "object") ? b.record : {};
+      if (!msgId) return json({ error: "missing msg_id" }, 400);
+      await admin.from("bot_config").upsert(
+        { bot_id: botId, feature: `pkgfile:${msgId}`, config: { record }, updated_at: new Date().toISOString() },
+        { onConflict: "bot_id,feature" },
+      );
+      return json({ ok: true });
+    }
+    if (action === "pkg_files_get") {
+      const b = body as Record<string, unknown>;
+      const msgId = String(b.msg_id ?? "");
+      if (!msgId) return json({ ok: true, record: null });
+      const { data } = await admin.from("bot_config").select("config")
+        .eq("bot_id", botId).eq("feature", `pkgfile:${msgId}`).maybeSingle();
+      const record = (data?.config as any)?.record ?? null;
+      return json({ ok: true, record });
     }
     if (action === "owns_asset") {
       // Does this Roblox user own the given catalog asset (a shirt)? 403 = hidden.
