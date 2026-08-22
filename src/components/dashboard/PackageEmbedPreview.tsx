@@ -12,7 +12,7 @@ import type { V2Item } from "./MessagesV2Builder";
 // <@id> mentions — so the preview looks like the posted embed.
 function renderInline(text: string): ReactNode[] {
   const nodes: ReactNode[] = [];
-  const re = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\[[^\]]+\]\([^)]+\))|(<@!?\d+>)/g;
+  const re = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\[[^\]]+\]\([^)]+\))|(<@!?\d+>)|(<#\d+>)|(#[A-Za-z0-9_\-]{2,})/g;
   let last = 0;
   let m: RegExpExecArray | null;
   let key = 0;
@@ -26,6 +26,10 @@ function renderInline(text: string): ReactNode[] {
     } else if (tok.startsWith("[")) {
       const lm = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(tok);
       nodes.push(<span key={key++} className="text-[#00a8fc]">{lm ? lm[1] : tok}</span>);
+    } else if (tok.startsWith("<#")) {
+      nodes.push(<span key={key++} className="rounded bg-[#3c4270] px-0.5 text-[#c9cdfb]">#channel</span>);
+    } else if (tok.startsWith("#")) {
+      nodes.push(<span key={key++} className="rounded bg-[#3c4270] px-0.5 text-[#c9cdfb]">{tok}</span>);
     } else {
       nodes.push(<span key={key++} className="rounded bg-[#3c4270] px-0.5 text-[#c9cdfb]">@user</span>);
     }
