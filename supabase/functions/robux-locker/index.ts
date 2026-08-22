@@ -369,13 +369,16 @@ Deno.serve(async (req) => {
         })).filter((p: any) => p.id && p.name);
       };
 
+      const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+      const hdr = (cookie: boolean) => cookie ? { ...cookieHeaders(), "User-Agent": UA, "Accept": "application/json" } : { "User-Agent": UA, "Accept": "application/json" };
+
       let partial: { id: string; name: string; price: number } | null = null;
       const debug: any[] = [];
       for (const pid of placeIds) {
         let universeId = "";
         let uStatus = 0;
         try {
-          const ur = await fetch(`https://apis.roblox.com/universes/v1/places/${pid}/universe`);
+          const ur = await fetch(`https://apis.roblox.com/universes/v1/places/${pid}/universe`, { headers: hdr(false) });
           uStatus = ur.status;
           if (ur.ok) universeId = String(((await ur.json()) as any)?.universeId ?? "");
         } catch (_e) { uStatus = -1; }
@@ -383,16 +386,23 @@ Deno.serve(async (req) => {
         debug.push(dbg);
         if (!universeId) continue;
 
-        // Roblox moved game-pass listing around; try the creator API (auth) first,
-        // then the public games API. Whichever returns rows, we match on it.
+        // Probe the universe is valid + reachable (game name confirms it).
+        try {
+          const gi = await fetch(`https://games.roblox.com/v1/games?universeIds=${universeId}`, { headers: hdr(false) });
+          const git = await gi.text();
+          let gname = "";
+          try { gname = String((JSON.parse(git)?.data?.[0]?.name) ?? ""); } catch { /* ignore */ }
+          dbg.game = { status: gi.status, name: gname, snippet: gi.ok ? undefined : git.slice(0, 120) };
+        } catch (e) { dbg.game = { status: -1, error: String(e).slice(0, 80) }; }
+
         const endpoints = [
-          { url: `https://apis.roblox.com/game-passes/v1/universes/${universeId}/creator-game-passes?count=100`, cookie: true },
           { url: `https://games.roblox.com/v1/games/${universeId}/game-passes?limit=100&sortOrder=Asc`, cookie: false },
+          { url: `https://apis.roblox.com/game-passes/v1/universes/${universeId}/creator-game-passes?count=100`, cookie: true },
         ];
         let matched: { id: string; name: string; price: number } | null = null;
         for (const ep of endpoints) {
           try {
-            const r = await fetch(ep.url, ep.cookie ? { headers: cookieHeaders() } : {});
+            const r = await fetch(ep.url, { headers: hdr(ep.cookie) });
             const text = await r.text();
             let rows: Array<{ id: string; name: string; price: number }> = [];
             try { rows = extract(JSON.parse(text)); } catch { rows = []; }
