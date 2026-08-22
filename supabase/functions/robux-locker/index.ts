@@ -349,12 +349,13 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
     if (action === "gamepass_find") {
-      // Given a list of place ids and a Robux price, find the first game pass in
-      // those games priced exactly at that amount. Returns its id/name/price.
+      // Given a list of place ids and a package TITLE, find the game pass in
+      // those games whose name matches that title (exact first, then contains).
       const b = body as Record<string, unknown>;
       const placeIds = Array.isArray(b.place_ids) ? b.place_ids.map((x) => String(x)) : [];
-      const wantRobux = Math.floor(Number(b.robux ?? 0));
-      if (!placeIds.length || !wantRobux) return json({ ok: true, found: false });
+      const title = String(b.title ?? "").trim().toLowerCase();
+      if (!placeIds.length || !title) return json({ ok: true, found: false });
+      let partial: { id: string; name: string; price: number } | null = null;
       for (const pid of placeIds) {
         let universeId = "";
         try {
@@ -369,15 +370,29 @@ Deno.serve(async (req) => {
           if (!gr.ok) break;
           const gd = (await gr.json()) as any;
           for (const p of (Array.isArray(gd?.data) ? gd.data : [])) {
-            if (Number(p?.price) === wantRobux) {
-              return json({ ok: true, found: true, gamepass: { id: String(p.id), name: String(p.name ?? ""), price: Number(p.price) } });
-            }
+            const name = String(p?.name ?? "").trim().toLowerCase();
+            const hit = { id: String(p.id), name: String(p.name ?? ""), price: Number(p.price ?? 0) };
+            if (name === title) return json({ ok: true, found: true, gamepass: hit });
+            if (!partial && title && name.includes(title)) partial = hit;
           }
           cursor = String(gd?.nextPageCursor ?? "");
           if (!cursor) break;
         }
       }
+      if (partial) return json({ ok: true, found: true, gamepass: partial });
       return json({ ok: true, found: false });
+    }
+    if (action === "owns_asset") {
+      // Does this Roblox user own the given catalog asset (a shirt)? 403 = hidden.
+      const b = body as Record<string, unknown>;
+      const userId = String(b.user_id ?? "").trim();
+      const assetId = String(b.asset_id ?? "").trim();
+      if (!userId || !assetId) return json({ ok: false, error: "missing user_id/asset_id" }, 400);
+      const r = await fetch(`https://inventory.roblox.com/v1/users/${userId}/items/Asset/${assetId}/is-owned`);
+      if (r.status === 403) return json({ ok: true, owned: false, hidden: true });
+      if (!r.ok) return json({ ok: true, owned: false, hidden: false, error: `HTTP ${r.status}` });
+      const txt = (await r.text()).trim().toLowerCase();
+      return json({ ok: true, owned: txt === "true", hidden: false });
     }
     if (action === "owns_gamepass") {
       // Does this Roblox user own the given game pass? 403 = inventory hidden.
