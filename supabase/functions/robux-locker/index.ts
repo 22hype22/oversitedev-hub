@@ -355,38 +355,59 @@ Deno.serve(async (req) => {
       const placeIds = Array.isArray(b.place_ids) ? b.place_ids.map((x) => String(x)) : [];
       const title = String(b.title ?? "").trim().toLowerCase();
       if (!placeIds.length || !title) return json({ ok: true, found: false, debug: "no place ids or title" });
+
+      // Pull a {id,name,price}[] out of whatever shape the endpoint returns.
+      const extract = (obj: any): Array<{ id: string; name: string; price: number }> => {
+        const arr = Array.isArray(obj?.data) ? obj.data
+          : Array.isArray(obj?.gamePasses) ? obj.gamePasses
+          : Array.isArray(obj?.gamepasses) ? obj.gamepasses
+          : [];
+        return arr.map((p: any) => ({
+          id: String(p?.id ?? p?.gamePassId ?? p?.targetId ?? ""),
+          name: String(p?.name ?? p?.displayName ?? ""),
+          price: Number(p?.price ?? p?.priceInRobux ?? 0),
+        })).filter((p: any) => p.id && p.name);
+      };
+
       let partial: { id: string; name: string; price: number } | null = null;
       const debug: any[] = [];
       for (const pid of placeIds) {
         let universeId = "";
         let uStatus = 0;
         try {
-          const ur = await fetch(`https://apis.roblox.com/universes/v1/places/${pid}/universe`, { headers: cookieHeaders() });
+          const ur = await fetch(`https://apis.roblox.com/universes/v1/places/${pid}/universe`);
           uStatus = ur.status;
           if (ur.ok) universeId = String(((await ur.json()) as any)?.universeId ?? "");
-        } catch (e) { uStatus = -1; }
-        const dbg: any = { place: pid, universe: universeId, universeStatus: uStatus, count: 0, sample: [] as string[], passStatus: 0 };
+        } catch (_e) { uStatus = -1; }
+        const dbg: any = { place: pid, universe: universeId, universeStatus: uStatus, attempts: [] as any[] };
         debug.push(dbg);
         if (!universeId) continue;
-        let cursor = "";
-        for (let page = 0; page < 6; page++) {
-          const url = `https://games.roblox.com/v1/games/${universeId}/game-passes?limit=100&sortOrder=Asc${cursor ? `&cursor=${cursor}` : ""}`;
-          const gr = await fetch(url, { headers: cookieHeaders() });
-          dbg.passStatus = gr.status;
-          if (!gr.ok) break;
-          const gd = (await gr.json()) as any;
-          const passes = Array.isArray(gd?.data) ? gd.data : [];
-          dbg.count += passes.length;
-          for (const p of passes) {
-            if (dbg.sample.length < 10) dbg.sample.push(String(p?.name ?? ""));
-            const name = String(p?.name ?? "").trim().toLowerCase();
-            const hit = { id: String(p.id), name: String(p.name ?? ""), price: Number(p.price ?? 0) };
-            if (name === title) return json({ ok: true, found: true, gamepass: hit });
-            if (!partial && title && name.includes(title)) partial = hit;
+
+        // Roblox moved game-pass listing around; try the creator API (auth) first,
+        // then the public games API. Whichever returns rows, we match on it.
+        const endpoints = [
+          { url: `https://apis.roblox.com/game-passes/v1/universes/${universeId}/creator-game-passes?count=100`, cookie: true },
+          { url: `https://games.roblox.com/v1/games/${universeId}/game-passes?limit=100&sortOrder=Asc`, cookie: false },
+        ];
+        let matched: { id: string; name: string; price: number } | null = null;
+        for (const ep of endpoints) {
+          try {
+            const r = await fetch(ep.url, ep.cookie ? { headers: cookieHeaders() } : {});
+            const text = await r.text();
+            let rows: Array<{ id: string; name: string; price: number }> = [];
+            try { rows = extract(JSON.parse(text)); } catch { rows = []; }
+            dbg.attempts.push({ url: ep.url.split("?")[0], status: r.status, count: rows.length, sample: rows.slice(0, 8).map((p) => p.name), snippet: r.ok ? undefined : text.slice(0, 140) });
+            for (const p of rows) {
+              const name = p.name.trim().toLowerCase();
+              if (name === title) { matched = p; break; }
+              if (!partial && name.includes(title)) partial = p;
+            }
+            if (matched) break;
+          } catch (e) {
+            dbg.attempts.push({ url: ep.url.split("?")[0], status: -1, error: String(e).slice(0, 100) });
           }
-          cursor = String(gd?.nextPageCursor ?? "");
-          if (!cursor) break;
         }
+        if (matched) return json({ ok: true, found: true, gamepass: matched });
       }
       if (partial) return json({ ok: true, found: true, gamepass: partial });
       return json({ ok: true, found: false, debug });
