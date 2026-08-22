@@ -877,20 +877,22 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-infraction": {
     title: "Infraction Logs",
-    summary: "A /infraction command — pops a form of your questions, then posts the completed log to a channel.",
+    summary: "Log infractions with /infraction, or auto-log them: when a watched role is removed from someone, the bot asks whoever removed it for a reason and posts it here.",
     icon: ClipboardList,
     fields: [
-      channel("channel_id", "Infraction-log channel", "Where the completed infraction log is posted when someone runs /infraction."),
+      channel("channel_id", "Infraction-log channel", "Where infraction logs are posted (both /infraction and auto-logged ones)."),
+      multirole("watched_role_ids", "Auto-infraction roles", "When any of these roles is REMOVED from a member, the bot auto-starts an infraction log — it finds who removed the role (via the audit log) and asks them for a reason + a responsibility confirmation. Leave empty to disable auto-logging."),
       multirole("allowed_role_ids", "Who can run /infraction", "Only members with any of these roles (or Manage Server) can run /infraction. Leave empty to allow anyone."),
     ],
   },
 
   "customs-promotion": {
     title: "Promotion",
-    summary: "A /promote command — pops a form of your questions, then posts the completed log to a channel.",
+    summary: "Log promotions with /promote, or auto-log them: when a watched role is added to someone, the bot asks whoever added it for a reason and posts it here.",
     icon: ClipboardList,
     fields: [
-      channel("channel_id", "Promotion-log channel", "Where the completed promotion log is posted when someone runs /promote."),
+      channel("channel_id", "Promotion-log channel", "Where promotion logs are posted (both /promote and auto-logged ones)."),
+      multirole("watched_role_ids", "Auto-promotion roles", "When any of these roles is ADDED to a member, the bot auto-starts a promotion log — it finds who added the role (via the audit log) and asks them for a reason. Leave empty to disable auto-logging."),
       multirole("allowed_role_ids", "Who can run /promote", "Only members with any of these roles (or Manage Server) can run /promote. Leave empty to allow anyone."),
     ],
   },
