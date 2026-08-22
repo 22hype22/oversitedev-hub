@@ -140,6 +140,43 @@ const toggle = (
 
 const header = (label: string): AddonField => ({ key: `__header_${label}`, label, type: "header" });
 
+// Watched role SETS for auto infraction/promotion. Each set = a role list + how
+// many of those roles must change at once to trigger. Sets reveal progressively
+// (the next one appears once the previous has roles) so the card stays clean.
+const roleGroupFields = (verb: "removed" | "added"): AddonField[] => {
+  const out: AddonField[] = [];
+  const total = 4;
+  for (let i = 1; i <= total; i++) {
+    out.push({
+      key: `group${i}_roles`,
+      label: `Set ${i} — roles`,
+      type: "multirole",
+      placeholder: "@role",
+      defaultValue: [],
+      help:
+        i === 1
+          ? `A group of roles watched together. When enough of them are ${verb} from a member (within a few seconds of each other), it auto-logs. Put a whole team's roles here so one stray change doesn't trigger it.`
+          : `Another independent set (optional) — watched separately from the others.`,
+      visibleIf:
+        i === 1
+          ? undefined
+          : (v) =>
+              Array.isArray(v[`group${i - 1}_roles`]) &&
+              (v[`group${i - 1}_roles`] as string[]).length > 0,
+    });
+    out.push({
+      key: `group${i}_min`,
+      label: `Set ${i} — how many trigger it`,
+      type: "number",
+      placeholder: "blank = all of them",
+      help: `How many of Set ${i}'s roles must be ${verb} to fire a log. Leave blank to require ALL of them.`,
+      visibleIf: (v) =>
+        Array.isArray(v[`group${i}_roles`]) && (v[`group${i}_roles`] as string[]).length > 0,
+    });
+  }
+  return out;
+};
+
 
 /**
  * Standard embed-styling fields. Author + Title are meant to render ABOVE
@@ -877,22 +914,24 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-infraction": {
     title: "Infraction Logs",
-    summary: "Log infractions with /infraction, or auto-log them: when a watched role is removed from someone, the bot asks whoever removed it for a reason and posts it here.",
+    summary: "Log infractions with /infraction, or auto-log them: when a watched role SET is removed from someone, the bot asks whoever removed it for a reason and posts it here.",
     icon: ClipboardList,
     fields: [
       channel("channel_id", "Infraction-log channel", "Where infraction logs are posted (both /infraction and auto-logged ones)."),
-      multirole("watched_role_ids", "Auto-infraction roles", "When any of these roles is REMOVED from a member, the bot auto-starts an infraction log — it finds who removed the role (via the audit log) and asks them for a reason + a responsibility confirmation. Leave empty to disable auto-logging."),
+      header("Auto-infraction — watched role sets"),
+      ...roleGroupFields("removed"),
       multirole("allowed_role_ids", "Who can run /infraction", "Only members with any of these roles (or Manage Server) can run /infraction. Leave empty to allow anyone."),
     ],
   },
 
   "customs-promotion": {
     title: "Promotion",
-    summary: "Log promotions with /promote, or auto-log them: when a watched role is added to someone, the bot asks whoever added it for a reason and posts it here.",
+    summary: "Log promotions with /promote, or auto-log them: when a watched role SET is added to someone, the bot asks whoever added it for a reason and posts it here.",
     icon: ClipboardList,
     fields: [
       channel("channel_id", "Promotion-log channel", "Where promotion logs are posted (both /promote and auto-logged ones)."),
-      multirole("watched_role_ids", "Auto-promotion roles", "When any of these roles is ADDED to a member, the bot auto-starts a promotion log — it finds who added the role (via the audit log) and asks them for a reason. Leave empty to disable auto-logging."),
+      header("Auto-promotion — watched role sets"),
+      ...roleGroupFields("added"),
       multirole("allowed_role_ids", "Who can run /promote", "Only members with any of these roles (or Manage Server) can run /promote. Leave empty to allow anyone."),
     ],
   },
