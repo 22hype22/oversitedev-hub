@@ -213,9 +213,8 @@ const SUPPORT_ADDON_IDS = [
   "messages",
 ];
 const UTILITIES_ADDON_IDS = [
-  "music-addon",
-  "auto-radio",
-  
+  // music-addon / auto-radio moved to the shared group so they surface on the
+  // customs dashboard too (customs shows only its base group + "shared").
   "starboard",
   "recurring-messages",
   "giveaway-system",
@@ -229,7 +228,7 @@ const UTILITIES_ADDON_IDS = [
 ];
 // Shared/extras add-ons (none currently — Multi-Server License & Custom
 // Branding combined card was removed per product decision).
-const SHARED_ADDON_IDS: string[] = ["invite-message", "customs-messages", "customs-tickets", "customs-verification", "customs-giveaway", "customs-robux-locker", "customs-order-status", "customs-pricing", "customs-portfolio", "customs-packages", "customs-orderlog", "customs-infraction", "customs-promotion", "customs-payment", "customs-logging"];
+const SHARED_ADDON_IDS: string[] = ["invite-message", "customs-messages", "customs-tickets", "customs-verification", "customs-giveaway", "customs-robux-locker", "customs-order-status", "customs-pricing", "customs-portfolio", "customs-packages", "customs-orderlog", "customs-infraction", "customs-promotion", "customs-payment", "customs-logging", "music-addon", "auto-radio"];
 
 // Owners can cancel/remove a bot from any pre-live state OR once it's live
 // ("paid"/"ready"). Cancelling flips the order to "cancelled", which hides it
