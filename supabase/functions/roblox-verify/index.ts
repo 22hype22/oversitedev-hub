@@ -221,6 +221,45 @@ async function handleCallback(url: URL): Promise<Response> {
   return page("You're verified!", `Linked to Roblox as <b>${robloxUsername}</b>. Head back to Discord — your nickname and role update in a few seconds.`, true);
 }
 
+// ── POST lookup: bot asks "is this Discord user verified, and as whom?" ──────
+async function handleLookup(req: Request): Promise<Response> {
+  const token =
+    normToken(req.headers.get("x-worker-token")) ||
+    normToken(req.headers.get("x_worker_token")) ||
+    normToken(req.headers.get("authorization"));
+  if (!token) return json({ error: "Missing worker token." }, 401);
+
+  const body = await req.json().catch(() => ({}));
+  const botId = String(body.bot_id ?? "");
+  const discordUserId = String(body.discord_user_id ?? "");
+  if (!botId || !discordUserId) {
+    return json({ error: "Missing bot_id / discord_user_id." }, 400);
+  }
+
+  const { data: lookup, error: lookupErr } = await admin.rpc("_worker_token_lookup", {
+    _token: token,
+  });
+  const row = Array.isArray(lookup) ? lookup[0] : lookup;
+  if (lookupErr || !row || String(row.bot_id) !== botId) {
+    return json({ error: "Worker token does not match this bot." }, 403);
+  }
+
+  const { data: v } = await admin
+    .from("roblox_verifications")
+    .select("roblox_id, roblox_username")
+    .eq("bot_id", botId)
+    .eq("discord_user_id", discordUserId)
+    .maybeSingle();
+
+  if (!v) return json({ ok: true, verified: false });
+  return json({
+    ok: true,
+    verified: true,
+    roblox_id: String(v.roblox_id ?? ""),
+    roblox_username: String(v.roblox_username ?? ""),
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
@@ -228,6 +267,7 @@ Deno.serve(async (req) => {
     if (req.method === "POST") {
       const body = await req.clone().json().catch(() => ({}));
       if (body?.action === "start") return await handleStart(req);
+      if (body?.action === "lookup") return await handleLookup(req);
       return json({ error: "Unknown action." }, 400);
     }
     if (req.method === "GET") {
