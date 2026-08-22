@@ -414,6 +414,19 @@ Deno.serve(async (req) => {
       const record = (data?.config as any)?.record ?? null;
       return json({ ok: true, record });
     }
+    if (action === "pkg_shirt_next") {
+      // Durable round-robin over the six shirt slots so the rotation survives bot
+      // redeploys (an in-memory counter would reset to slot 1 on every restart).
+      const { data } = await admin.from("bot_config").select("config")
+        .eq("bot_id", botId).eq("feature", "customs-packages-state").maybeSingle();
+      const cur = Number((data?.config as any)?.shirt_cursor ?? 0) + 1;
+      const slot = ((cur - 1) % 6) + 1;
+      await admin.from("bot_config").upsert(
+        { bot_id: botId, feature: "customs-packages-state", config: { shirt_cursor: cur }, updated_at: new Date().toISOString() },
+        { onConflict: "bot_id,feature" },
+      );
+      return json({ ok: true, slot });
+    }
     if (action === "owns_asset") {
       // Does this Roblox user own the given catalog asset (a shirt)? 403 = hidden.
       const b = body as Record<string, unknown>;
