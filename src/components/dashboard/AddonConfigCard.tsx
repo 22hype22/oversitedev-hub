@@ -1686,6 +1686,13 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         ...prev,
         channel_id: cfg.channel_id ? String(cfg.channel_id) : "",
         allowed_role_ids: Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [],
+        // Watched role sets (auto infraction/promotion).
+        ...Object.fromEntries(
+          [1, 2, 3, 4].flatMap((i) => [
+            [`group${i}_roles`, Array.isArray(cfg[`group${i}_roles`]) ? cfg[`group${i}_roles`].map(String) : []],
+            [`group${i}_min`, cfg[`group${i}_min`] != null ? String(cfg[`group${i}_min`]) : ""],
+          ]),
+        ),
       }));
       setOrderlogV2Items(comps as V2Item[]);
       setOrderlogV2MountKey((k) => k + 1);
@@ -1708,6 +1715,18 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         components,
         channel_id: values.channel_id ? String(values.channel_id) : "",
         allowed_role_ids: Array.isArray(values.allowed_role_ids) ? (values.allowed_role_ids as string[]).map(String) : [],
+        // Watched role sets for auto infraction/promotion (dropped for orderlog, harmless).
+        ...Object.fromEntries(
+          [1, 2, 3, 4].flatMap((i) => {
+            const roles = Array.isArray(values[`group${i}_roles`]) ? (values[`group${i}_roles`] as string[]).map(String) : [];
+            const minRaw = values[`group${i}_min`];
+            const min = minRaw === "" || minRaw == null ? 0 : Number(minRaw) || 0;
+            return [
+              [`group${i}_roles`, roles],
+              [`group${i}_min`, min],
+            ];
+          }),
+        ),
       },
       updated_at: new Date().toISOString(),
     };
