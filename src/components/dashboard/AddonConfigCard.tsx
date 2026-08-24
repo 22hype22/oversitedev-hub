@@ -1699,6 +1699,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         ...prev,
         channel_id: cfg.channel_id ? String(cfg.channel_id) : "",
         allowed_role_ids: Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids.map(String) : [],
+        run_role_ids: Array.isArray(cfg.run_role_ids) ? cfg.run_role_ids.map(String) : [],
         // Watched role sets (auto infraction/promotion).
         ...Object.fromEntries(
           [1, 2, 3, 4].flatMap((i) => [
@@ -1728,6 +1729,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         components,
         channel_id: values.channel_id ? String(values.channel_id) : "",
         allowed_role_ids: Array.isArray(values.allowed_role_ids) ? (values.allowed_role_ids as string[]).map(String) : [],
+        run_role_ids: Array.isArray(values.run_role_ids) ? (values.run_role_ids as string[]).map(String) : [],
         // Watched role sets for auto infraction/promotion (dropped for orderlog, harmless).
         ...Object.fromEntries(
           [1, 2, 3, 4].flatMap((i) => {

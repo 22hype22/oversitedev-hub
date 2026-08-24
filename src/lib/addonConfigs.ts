@@ -942,6 +942,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     icon: ClipboardList,
     fields: [
       channel("channel_id", "Quality-check channel", "Where submitted quality checks are posted for review (with Accept / Deny buttons)."),
+      multirole("run_role_ids", "Who can run /qualitycheck", "Only members with any of these roles (or Manage Server) can submit a quality check. Leave empty to allow anyone."),
       multirole("allowed_role_ids", "Who can Accept / Deny", "Only members with any of these roles (or Manage Server) can review quality checks. Leave empty to allow anyone with Manage Server."),
     ],
   },
