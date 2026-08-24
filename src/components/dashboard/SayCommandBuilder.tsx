@@ -30,6 +30,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { resolveContentType } from "@/lib/uploadValidation";
 import { GuildChannelPicker } from "./GuildChannelPicker";
 import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
@@ -347,7 +348,7 @@ export const SayCommandBuilder = forwardRef<
         const path = `${userId}/${botId}/say-${Date.now()}-${crypto.randomUUID()}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("bot-assets")
-          .upload(path, f, { upsert: false, contentType: f.type });
+          .upload(path, f, { upsert: false, contentType: resolveContentType(f) });
         if (upErr) throw upErr;
         const { data: pub } = supabase.storage
           .from("bot-assets")

@@ -67,6 +67,42 @@ export const UPLOAD_LIMITS = {
  *  bomb (a tiny file that expands to gigabytes of pixels when decoded). */
 export const MAX_MEGAPIXELS = 40;
 
+// Hard denylist, enforced on EVERY upload before any per-preset allowlist.
+// These are executable / server-script / script-carrying types. Even though our
+// storage never runs them, blocking them stops a public bucket from hosting a
+// live PHP/JSP/HTML/SVG payload someone could point a victim at.
+const BLOCKED_EXTS = new Set([
+  // PHP
+  "php", "php2", "php3", "php4", "php5", "php7", "phtml", "phps", "pht",
+  // JSP / Java server
+  "jsp", "jspx", "jspf", "jsw", "jsv", "war", "jar",
+  // Other server scripts
+  "asp", "aspx", "asax", "ascx", "ashx", "asmx", "cfm", "cgi", "pl", "pm", "py", "rb",
+  // Shell / batch
+  "sh", "bash", "zsh", "ksh", "bat", "cmd", "com", "ps1", "psm1", "vbs", "vbe", "wsf", "wsh",
+  // Native executables / installers
+  "exe", "dll", "msi", "scr", "pif", "app", "deb", "rpm", "dmg", "bin", "elf",
+  // Script-carrying markup / code served from a public bucket
+  "js", "mjs", "cjs", "jse", "html", "htm", "xhtml", "shtml", "svg", "svgz",
+  // Server config
+  "htaccess", "htpasswd",
+]);
+
+const BLOCKED_MIMES = new Set([
+  "application/x-httpd-php", "text/x-php", "application/x-php", "application/php",
+  "application/x-httpd-jsp", "application/jsp",
+  "application/x-msdownload", "application/x-msdos-program", "application/x-executable",
+  "application/vnd.microsoft.portable-executable", "application/x-sh", "application/x-shellscript",
+  "text/html", "application/xhtml+xml", "image/svg+xml",
+  "text/javascript", "application/javascript", "application/x-javascript",
+]);
+
+/** True if the file is a category we never allow, whatever the surface. */
+export function isBlockedFileType(file: File): boolean {
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  return BLOCKED_EXTS.has(ext) || BLOCKED_MIMES.has((file.type || "").toLowerCase());
+}
+
 export interface ValidationResult {
   ok: boolean;
   error?: string;
@@ -81,6 +117,9 @@ export function formatBytes(bytes: number): string {
 
 /** Synchronous size + type gate. Run this first, on every file. */
 export function validateUpload(file: File, limit: UploadLimit): ValidationResult {
+  if (isBlockedFileType(file)) {
+    return { ok: false, error: `"${file.name}" is a blocked file type and can't be uploaded.` };
+  }
   if (file.size === 0) {
     return { ok: false, error: `"${file.name}" is empty.` };
   }
@@ -125,6 +164,24 @@ export function validateImageDecodes(file: File): Promise<ValidationResult> {
     };
     img.src = url;
   });
+}
+
+// Extension -> MIME for the doc types we accept, so uploads still satisfy the
+// bucket's MIME allowlist even when the browser reports an empty/odd file.type
+// (common for .log / .csv / .zip).
+const EXT_CONTENT_TYPE: Record<string, string> = {
+  png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp",
+  mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime",
+  pdf: "application/pdf", txt: "text/plain", log: "text/plain",
+  json: "application/json", csv: "text/csv", zip: "application/zip",
+};
+
+/** A content-type safe to pass to storage.upload(): the browser's own type when
+ *  it's a real value, else inferred from the extension. */
+export function resolveContentType(file: File): string {
+  if (file.type && file.type !== "application/octet-stream") return file.type;
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  return EXT_CONTENT_TYPE[ext] || "application/octet-stream";
 }
 
 /** Convenience: size/type gate, then the image-decode gate when it's an image. */
