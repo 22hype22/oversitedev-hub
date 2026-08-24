@@ -151,6 +151,10 @@
     --os-accent-onink: 201 219 230; /* same icy light */
     --os-accent-soft: rgb(201 219 230 / 0.12);
 
+    /* status: requirement met / not met, inline validation */
+    --os-good: 52 211 153; /* #34D399 emerald */
+    --os-bad: 248 113 113; /* #F87171 soft red */
+
     /* darker cold panel (statement / footer) */
     --os-ink: 32 38 45; /* #20262D */
     --os-ink-2: 44 52 60; /* #2C343C */

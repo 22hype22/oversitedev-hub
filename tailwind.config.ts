@@ -75,6 +75,8 @@ export default {
           "accent-deep": "rgb(var(--os-accent-deep) / <alpha-value>)",
           "accent-onink": "rgb(var(--os-accent-onink) / <alpha-value>)",
           "accent-soft": "var(--os-accent-soft)",
+          good: "rgb(var(--os-good) / <alpha-value>)",
+          bad: "rgb(var(--os-bad) / <alpha-value>)",
           // dark-section palette (one Apple-style dark feature beat)
           ink: "rgb(var(--os-ink) / <alpha-value>)",
           "ink-2": "rgb(var(--os-ink-2) / <alpha-value>)",
