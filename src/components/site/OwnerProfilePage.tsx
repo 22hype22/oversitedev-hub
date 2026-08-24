@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { validateImageUpload, UPLOAD_LIMITS } from "@/lib/uploadValidation";
+import { safeUrl, safeImageSrc } from "@/lib/sanitize";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -373,20 +374,20 @@ function PortfolioCard({
                 m.kind === "video" ? (
                   <video
                     key={i}
-                    src={m.url}
+                    src={safeImageSrc(m.url)}
                     controls
                     className="w-full rounded-lg border border-border bg-black"
                   />
                 ) : (
                   <a
                     key={i}
-                    href={m.url}
+                    href={safeUrl(m.url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block rounded-lg overflow-hidden border border-border bg-muted"
                   >
                     <img
-                      src={m.url}
+                      src={safeImageSrc(m.url)}
                       alt={`${item.title} media ${i + 1}`}
                       className="w-full h-48 object-cover hover:opacity-90 transition-opacity"
                     />
@@ -596,9 +597,9 @@ function PortfolioForm({
                 className="relative rounded-md overflow-hidden border border-border bg-muted aspect-video"
               >
                 {m.kind === "video" ? (
-                  <video src={m.url} className="w-full h-full object-cover" />
+                  <video src={safeImageSrc(m.url)} className="w-full h-full object-cover" />
                 ) : (
-                  <img src={m.url} alt="" className="w-full h-full object-cover" />
+                  <img src={safeImageSrc(m.url)} alt="" className="w-full h-full object-cover" />
                 )}
                 <button
                   type="button"

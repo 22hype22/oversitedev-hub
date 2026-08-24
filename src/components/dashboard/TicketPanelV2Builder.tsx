@@ -46,6 +46,7 @@ import { GuildChannelPicker } from "./GuildChannelPicker";
 import { useBotChannels, type BotGuild, type BotChannel } from "@/hooks/useGuildChannels";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { cn } from "@/lib/utils";
+import { safeUrl, safeImageSrc } from "@/lib/sanitize";
 
 /**
  * Component V2 message builder.
@@ -1269,7 +1270,7 @@ function PreviewItem({ item }: { item: V2Item }) {
               </span>
             ) : (
               <a
-                href={item.button.url || "#"}
+                href={safeUrl(item.button.url)}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center px-3 py-1.5 mt-1 text-xs font-medium rounded bg-[#4e5058] hover:bg-[#6d6f78] text-white"
@@ -1282,7 +1283,7 @@ function PreviewItem({ item }: { item: V2Item }) {
         </div>
         {item.thumbnailUrl && (
           <img
-            src={item.thumbnailUrl}
+            src={safeImageSrc(item.thumbnailUrl)}
             alt=""
             className="h-16 w-16 rounded object-cover shrink-0"
           />
@@ -1297,7 +1298,7 @@ function PreviewItem({ item }: { item: V2Item }) {
     return (
       <div className={cn("grid gap-1 rounded overflow-hidden", imgs.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
         {imgs.slice(0, 4).map((u, i) => (
-          <img key={i} src={u} alt="" className="w-full h-auto object-cover" />
+          <img key={i} src={safeImageSrc(u)} alt="" className="w-full h-auto object-cover" />
         ))}
       </div>
     );
@@ -1329,7 +1330,7 @@ function PreviewItem({ item }: { item: V2Item }) {
           ) : (
             <a
               key={b.id}
-              href={b.url || "#"}
+              href={safeUrl(b.url)}
               target="_blank"
               rel="noreferrer"
               className={cn("inline-flex items-center px-3 py-1.5 text-xs font-medium rounded", styleClass)}
