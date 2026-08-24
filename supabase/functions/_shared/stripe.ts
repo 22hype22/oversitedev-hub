@@ -1,4 +1,3 @@
-import { encode } from "https://deno.land/std@0.168.0/encoding/hex.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 
 export type StripeEnv = "sandbox" | "live";
@@ -29,6 +28,24 @@ export function createStripeClient(env: StripeEnv): Stripe {
   });
 }
 
+// Reusable WebCrypto provider for Stripe's async signature verifier (edge
+// runtimes have no Node crypto).
+let _cryptoProvider: any = null;
+function getCryptoProvider(): any {
+  if (!_cryptoProvider) _cryptoProvider = Stripe.createSubtleCryptoProvider();
+  return _cryptoProvider;
+}
+
+// Verify that an incoming request was really signed by Stripe with OUR webhook
+// secret, and return the parsed event. This is the gate that stops a forged
+// call from flipping an order to "paid" and handing out a product for free.
+//
+// We delegate to Stripe's official `constructEventAsync`, which:
+//   * recomputes the HMAC-SHA256 over `${timestamp}.${body}` and compares it in
+//     CONSTANT TIME (no timing side-channel like a plain string compare),
+//   * enforces the 5-minute timestamp tolerance (replay protection),
+//   * rejects anything whose signature doesn't match the secret.
+// Anyone without the webhook secret cannot produce a request that passes.
 export async function verifyWebhook(
   req: Request,
   env: StripeEnv,
@@ -42,33 +59,18 @@ export async function verifyWebhook(
 
   if (!signature || !body) throw new Error("Missing signature or body");
 
-  let timestamp: string | undefined;
-  const v1Signatures: string[] = [];
-  for (const part of signature.split(",")) {
-    const [key, value] = part.split("=", 2);
-    if (key === "t") timestamp = value;
-    if (key === "v1") v1Signatures.push(value);
+  const stripe = createStripeClient(env);
+  try {
+    const event = await stripe.webhooks.constructEventAsync(
+      body,
+      signature,
+      secret,
+      undefined, // default tolerance: 300s
+      getCryptoProvider(),
+    );
+    return event as unknown as { type: string; data: { object: any } };
+  } catch (err) {
+    // Includes bad signature, unknown secret, or a stale/replayed timestamp.
+    throw new Error(`Webhook signature verification failed: ${(err as Error).message}`);
   }
-  if (!timestamp || v1Signatures.length === 0) throw new Error("Invalid signature format");
-
-  const age = Math.abs(Date.now() / 1000 - Number(timestamp));
-  if (age > 300) throw new Error("Webhook timestamp too old");
-
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const signed = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    new TextEncoder().encode(`${timestamp}.${body}`),
-  );
-  const expected = new TextDecoder().decode(encode(new Uint8Array(signed)));
-
-  if (!v1Signatures.includes(expected)) throw new Error("Invalid webhook signature");
-
-  return JSON.parse(body);
 }
