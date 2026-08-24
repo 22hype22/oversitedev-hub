@@ -936,6 +936,16 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "customs-qualitycheck": {
+    title: "Quality Check",
+    summary: "A /qualitycheck command — members upload their work in a form; it posts to a channel with Accept / Deny buttons. Accept DMs them a pass; Deny asks the reviewer for a reason, then DMs it to them.",
+    icon: ClipboardList,
+    fields: [
+      channel("channel_id", "Quality-check channel", "Where submitted quality checks are posted for review (with Accept / Deny buttons)."),
+      multirole("allowed_role_ids", "Who can Accept / Deny", "Only members with any of these roles (or Manage Server) can review quality checks. Leave empty to allow anyone with Manage Server."),
+    ],
+  },
+
   "customs-logging": {
     title: "Logging",
     summary: "Log channels for the server. Purchase logs post every completed Stripe and Roblox purchase.",
