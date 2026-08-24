@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Loader2, Paperclip, X, Bug } from "lucide-react";
+import { isBlockedFileType, resolveContentType } from "@/lib/uploadValidation";
 
 const SUPPORT_BOT_ID = "a6be529f-a7f3-4a58-84c5-bcac5dbc97df";
 const TARGET_CHANNEL_ID = "1504955457448444066";
@@ -101,6 +102,11 @@ export const ReportBugDialog = ({ open, onOpenChange }: Props) => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] || null;
+    if (f && isBlockedFileType(f)) {
+      toast.error(`"${f.name}" is a blocked file type.`);
+      e.target.value = "";
+      return;
+    }
     if (f && f.size > MAX_FILE_BYTES) {
       toast.error("File is too large (max 10 MB).");
       e.target.value = "";
@@ -128,7 +134,7 @@ export const ReportBugDialog = ({ open, onOpenChange }: Props) => {
         const path = `${userId}/bug-reports/${Date.now()}-${crypto.randomUUID()}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("bot-assets")
-          .upload(path, proofFile, { upsert: false, contentType: proofFile.type });
+          .upload(path, proofFile, { upsert: false, contentType: resolveContentType(proofFile) });
         if (upErr) throw upErr;
         const { data: pub } = supabase.storage.from("bot-assets").getPublicUrl(path);
         proofUrl = pub.publicUrl;

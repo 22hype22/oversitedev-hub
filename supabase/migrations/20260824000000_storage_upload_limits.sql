@@ -19,9 +19,16 @@ SET file_size_limit = 52428800,
     ]
 WHERE id = 'portfolio';
 
--- bot-assets: /say attachments + bug/feature proof files. Size-capped at 25 MB.
--- MIME left unrestricted here because browsers report inconsistent types for
--- some allowed docs (e.g. .log, .zip); the 25 MB cap is what guards the server.
+-- bot-assets: /say attachments + bug/feature proof files. 25 MB, images + docs
+-- only. The allowlist inherently blocks executables and server scripts
+-- (.php/.jsp/.exe) and script-carrying markup (.html/.svg/.js) from being stored
+-- via the API. The dashboard normalizes each file's content-type on upload so
+-- legit docs (.log/.csv/.zip) still satisfy this list.
 UPDATE storage.buckets
-SET file_size_limit = 26214400
+SET file_size_limit = 26214400,
+    allowed_mime_types = ARRAY[
+      'image/png', 'image/jpeg', 'image/gif', 'image/webp',
+      'application/pdf', 'text/plain', 'application/json', 'text/csv',
+      'application/zip', 'application/x-zip-compressed'
+    ]
 WHERE id = 'bot-assets';
