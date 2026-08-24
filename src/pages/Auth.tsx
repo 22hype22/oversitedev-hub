@@ -5,6 +5,11 @@ import { Mono, Reveal } from "@/components/marketing/primitives";
 import { useToast } from "@/hooks/use-toast";
 import { ShieldCheck, Loader2, ArrowLeft } from "lucide-react";
 import containers from "@/assets/containers.webp";
+import { PasswordChecklist } from "@/components/auth/PasswordChecklist";
+import { passwordMeetsPolicy, firstUnmetRule } from "@/lib/passwordPolicy";
+
+const FIELD_ERROR = "mt-1.5 font-body text-[12px] text-os-bad";
+const isEmailish = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
 const FIELD =
   "w-full rounded-lg border border-os-hairline/50 bg-os-bg/60 px-3.5 py-2.5 font-body text-[14px] text-os-heading placeholder:text-os-faint outline-none transition focus:border-os-accent/70";
@@ -54,6 +59,9 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [oauthBusy, setOauthBusy] = useState<"discord" | "google" | null>(null);
+  // Flips true on the first submit attempt so inline "where + why" errors only
+  // appear once the user has tried, not while they're still typing.
+  const [attempted, setAttempted] = useState(false);
   // The post-auth effect can fire more than once; guard so we only claim
   // invites / confirm a transfer a single time per mount.
   const postAuthRan = useRef(false);
@@ -228,6 +236,10 @@ const Auth = () => {
   // Step 2 — verify the code and set the new password.
   const completeReset = async (e: FormEvent) => {
     e.preventDefault();
+    if (!passwordMeetsPolicy(newPassword)) {
+      toast({ title: "Password doesn't meet the requirements", description: `Still needed: ${firstUnmetRule(newPassword)}.`, variant: "destructive" });
+      return;
+    }
     if (newPassword !== newConfirm) {
       toast({ title: "Passwords don't match", description: "Please re-enter your new password.", variant: "destructive" });
       return;
@@ -250,13 +262,28 @@ const Auth = () => {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (mode === "signup" && password !== confirmPassword) {
-      toast({
-        title: "Passwords don't match",
-        description: "Please re-enter your password.",
-        variant: "destructive",
-      });
-      return;
+    if (mode === "signup") {
+      setAttempted(true);
+      if (!isEmailish(email)) {
+        toast({ title: "Check your email", description: "Enter a valid email address.", variant: "destructive" });
+        return;
+      }
+      if (!passwordMeetsPolicy(password)) {
+        toast({
+          title: "Password doesn't meet the requirements",
+          description: `Still needed: ${firstUnmetRule(password)}.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (password !== confirmPassword) {
+        toast({
+          title: "Passwords don't match",
+          description: "Please re-enter your password.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
     setBusy(true);
     try {
@@ -415,11 +442,15 @@ const Auth = () => {
                     </div>
                     <div>
                       <label htmlFor="new-password" className={FIELD_LABEL}>New password</label>
-                      <input id="new-password" type="password" required minLength={6} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={FIELD} placeholder="••••••••" autoComplete="new-password" />
+                      <input id="new-password" type="password" required minLength={8} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={`${FIELD}${newPassword.length > 0 && !passwordMeetsPolicy(newPassword) ? " border-os-bad/70 focus:border-os-bad" : ""}`} placeholder="••••••••" autoComplete="new-password" />
+                      <PasswordChecklist password={newPassword} className="mt-2" />
                     </div>
                     <div>
                       <label htmlFor="new-confirm" className={FIELD_LABEL}>Confirm new password</label>
-                      <input id="new-confirm" type="password" required minLength={6} value={newConfirm} onChange={(e) => setNewConfirm(e.target.value)} className={FIELD} placeholder="••••••••" autoComplete="new-password" />
+                      <input id="new-confirm" type="password" required minLength={8} value={newConfirm} onChange={(e) => setNewConfirm(e.target.value)} className={`${FIELD}${newConfirm.length > 0 && newConfirm !== newPassword ? " border-os-bad/70 focus:border-os-bad" : ""}`} placeholder="••••••••" autoComplete="new-password" />
+                      {newConfirm.length > 0 && newConfirm !== newPassword && (
+                        <p className={FIELD_ERROR}>Passwords don't match.</p>
+                      )}
                     </div>
                     <button
                       type="submit"
@@ -494,19 +525,26 @@ const Auth = () => {
               ) : (
                 <div>
                   <label htmlFor="email" className={FIELD_LABEL}>Email</label>
-                  <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={FIELD} placeholder="you@email.com" autoComplete="email" />
+                  <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={`${FIELD}${attempted && !isEmailish(email) ? " border-os-bad/70 focus:border-os-bad" : ""}`} placeholder="you@email.com" autoComplete="email" aria-invalid={attempted && !isEmailish(email)} />
+                  {attempted && !isEmailish(email) && (
+                    <p className={FIELD_ERROR}>Enter a valid email address, like you@email.com.</p>
+                  )}
                 </div>
               )}
 
               <div>
                 <label htmlFor="password" className={FIELD_LABEL}>Password</label>
-                <input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className={FIELD} placeholder="••••••••" autoComplete={mode === "signup" ? "new-password" : "current-password"} />
+                <input id="password" type="password" required minLength={mode === "signup" ? 8 : 6} value={password} onChange={(e) => setPassword(e.target.value)} className={`${FIELD}${mode === "signup" && password.length > 0 && !passwordMeetsPolicy(password) ? " border-os-bad/70 focus:border-os-bad" : ""}`} placeholder="••••••••" autoComplete={mode === "signup" ? "new-password" : "current-password"} />
+                {mode === "signup" && <PasswordChecklist password={password} className="mt-2" />}
               </div>
 
               {mode === "signup" && (
                 <div>
                   <label htmlFor="confirm-password" className={FIELD_LABEL}>Confirm password</label>
-                  <input id="confirm-password" type="password" required minLength={6} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={FIELD} placeholder="••••••••" autoComplete="new-password" />
+                  <input id="confirm-password" type="password" required minLength={8} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={`${FIELD}${confirmPassword.length > 0 && confirmPassword !== password ? " border-os-bad/70 focus:border-os-bad" : ""}`} placeholder="••••••••" autoComplete="new-password" aria-invalid={confirmPassword.length > 0 && confirmPassword !== password} />
+                  {confirmPassword.length > 0 && confirmPassword !== password && (
+                    <p className={FIELD_ERROR}>Passwords don't match.</p>
+                  )}
                 </div>
               )}
 
@@ -531,7 +569,7 @@ const Auth = () => {
             <div className="mt-6 flex items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={() => setMode((m) => (m === "signin" ? "signup" : "signin"))}
+                onClick={() => { setAttempted(false); setMode((m) => (m === "signin" ? "signup" : "signin")); }}
                 className="font-label text-[11px] uppercase tracking-[0.12em] text-os-faint transition-colors hover:text-os-accent"
               >
                 {mode === "signin" ? "Need an account? Sign up" : "Already have an account? Sign in"}
