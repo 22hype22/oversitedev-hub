@@ -65,15 +65,13 @@ export const Contact = () => {
             onSubmit={handleSubmit}
             className="p-7 rounded-2xl bg-gradient-card border border-border space-y-4"
           >
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input id="name" required placeholder="Your name" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" required placeholder="you@example.com" />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" required placeholder="Your name" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" required placeholder="you@example.com" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="project">Project type</Label>
