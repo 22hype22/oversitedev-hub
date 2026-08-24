@@ -724,7 +724,7 @@ const ADMIN_HTML = `<div class="osd app">
 
           <div class="card">
             <div class="ch"><span class="eye">Users</span><h3>Account signups</h3>
-              <div class="logtools"><span class="srch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input data-lg="signups-q" placeholder="Search users" style="background:transparent;border:0;outline:none;color:var(--body);font:inherit;width:130px"></span></div>
+              <div class="logtools"><span class="srch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input data-lg="signups-q" placeholder="Email or provider…" style="background:transparent;border:0;outline:none;color:var(--body);font:inherit;width:150px"></span></div>
             </div>
             <div class="cb">
               <div class="log">

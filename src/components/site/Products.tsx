@@ -592,9 +592,14 @@ export const Products = () => {
   const filtered = allProducts
     .filter((p) => p.isAvailable !== false)
     .filter(
-      (p) =>
-        (category === "All" || p.category === category) &&
-        p.name.toLowerCase().includes(query.toLowerCase()),
+      (p) => {
+        const q = query.trim().toLowerCase();
+        const matches =
+          !q ||
+          p.name.toLowerCase().includes(q) ||
+          (p.blurb ?? "").toLowerCase().includes(q);
+        return (category === "All" || p.category === category) && matches;
+      },
     );
 
   const addProductToCart = (product: Product) => {
@@ -891,7 +896,7 @@ export const Products = () => {
           <div className="relative w-full md:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
-              placeholder="Search products..."
+              placeholder="Search by name or description…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="pl-9 h-11"
