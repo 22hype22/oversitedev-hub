@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { resolveContentType } from "@/lib/uploadValidation";
+import { safeUrl, safeImageSrc } from "@/lib/sanitize";
 import { GuildChannelPicker } from "./GuildChannelPicker";
 import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
@@ -1162,7 +1163,7 @@ function EmbedPreview({ embed }: { embed: Embed }) {
             <div className="flex items-center gap-1.5 text-xs font-medium text-white">
               {embed.authorIconUrl && (
                 <img
-                  src={embed.authorIconUrl}
+                  src={safeImageSrc(embed.authorIconUrl)}
                   alt=""
                   className="h-5 w-5 rounded-full object-cover"
                 />
@@ -1173,7 +1174,7 @@ function EmbedPreview({ embed }: { embed: Embed }) {
           {embed.title &&
             (embed.url ? (
               <a
-                href={embed.url}
+                href={safeUrl(embed.url)}
                 target="_blank"
                 rel="noreferrer"
                 className="block text-[#00a8fc] hover:underline font-semibold whitespace-pre-wrap break-words"
@@ -1211,7 +1212,7 @@ function EmbedPreview({ embed }: { embed: Embed }) {
           )}
           {embed.imageUrl && (
             <img
-              src={embed.imageUrl}
+              src={safeImageSrc(embed.imageUrl)}
               alt=""
               className="mt-2 rounded max-w-full max-h-72 object-cover"
             />
@@ -1220,7 +1221,7 @@ function EmbedPreview({ embed }: { embed: Embed }) {
             <div className="flex items-center gap-1.5 pt-2 text-[11px] text-[#949ba4]">
               {embed.footerIconUrl && (
                 <img
-                  src={embed.footerIconUrl}
+                  src={safeImageSrc(embed.footerIconUrl)}
                   alt=""
                   className="h-4 w-4 rounded-full object-cover"
                 />
@@ -1235,7 +1236,7 @@ function EmbedPreview({ embed }: { embed: Embed }) {
         </div>
         {embed.thumbnailUrl && (
           <img
-            src={embed.thumbnailUrl}
+            src={safeImageSrc(embed.thumbnailUrl)}
             alt=""
             className="h-20 w-20 rounded object-cover"
           />

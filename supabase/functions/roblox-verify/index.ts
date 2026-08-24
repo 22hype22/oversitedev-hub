@@ -42,15 +42,25 @@ const json = (body: unknown, status = 200) =>
 const redirect = (to: string) =>
   new Response(null, { status: 302, headers: { ...cors, Location: to } });
 
+// Escape any dynamic value before it lands in the HTML page below, so a Roblox
+// display name / error string can never inject markup or script.
+const esc = (v: unknown): string =>
+  String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
 const page = (title: string, message: string, ok: boolean) =>
   new Response(
     `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-     <title>${title}</title></head>
+     <title>${esc(title)}</title></head>
      <body style="margin:0;font-family:system-ui,sans-serif;background:#1b2026;color:#E8EEF3;display:grid;place-items:center;min-height:100vh">
        <div style="max-width:420px;text-align:center;padding:32px;border:1px solid #3a434d;border-radius:16px;background:#272e36">
          <div style="font-size:44px;margin-bottom:8px">${ok ? "✅" : "⚠️"}</div>
-         <h1 style="font-size:20px;margin:0 0 8px">${title}</h1>
-         <p style="color:#A8B4BF;font-size:14px;line-height:1.5;margin:0">${message}</p>
+         <h1 style="font-size:20px;margin:0 0 8px">${esc(title)}</h1>
+         <p style="color:#A8B4BF;font-size:14px;line-height:1.5;margin:0">${esc(message)}</p>
          <p style="color:#788591;font-size:12px;margin-top:18px">You can close this tab and return to Discord.</p>
        </div>
      </body></html>`,
