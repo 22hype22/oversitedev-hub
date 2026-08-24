@@ -299,7 +299,7 @@ export function useOwnedBots() {
     setTeamBots(teamMapped);
     setOwnsDashboardAddon(ownsDashboardAddon);
 
-    if (looksEmpty && emptyRetriesRef.current < 4) {
+    if (looksEmpty && emptyRetriesRef.current < 6) {
       emptyRetriesRef.current += 1;
       setTimeout(() => {
         void reload();
@@ -347,6 +347,22 @@ export function useOwnedBots() {
 
   useEffect(() => {
     reload();
+  }, [reload]);
+
+  // Reload the moment the auth session actually settles or its token refreshes.
+  // On a cold load the persisted userId is restored before the access token is
+  // attached to requests, so the first fetch can come back empty via RLS. The
+  // retry loop above covers the first few seconds; this catches the token
+  // settling later, which otherwise left the page stuck on "0 bots" until the
+  // next background refresh (~2 minutes).
+  useEffect(() => {
+    const { data: sub } = (supabase as any).auth.onAuthStateChange((event: string) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
+        emptyRetriesRef.current = 0;
+        void reload();
+      }
+    });
+    return () => sub?.subscription?.unsubscribe?.();
   }, [reload]);
 
 
