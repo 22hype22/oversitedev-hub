@@ -74,6 +74,17 @@ const INVITE_VARIABLES: { token: string; desc: string }[] = [
   { token: "{role_count}", desc: "Number of roles" },
 ];
 
+// Form-log designs (/orderlog, /infraction, /promote). The auto infraction/
+// promotion logger also fills {target}, {date}, and {roles removed}.
+const FORMLOG_VARIABLES: { token: string; desc: string }[] = [
+  { token: "{Question: Label}", desc: "A text field — pops as an input, then fills in the answer" },
+  { token: "{File: Label}", desc: "A file-upload field" },
+  { token: "{user}", desc: "Who logged it (ran the command / added the reason)" },
+  { token: "{target}", desc: "Auto-log: the member whose roles changed" },
+  { token: "{roles removed}", desc: "Auto-log: the role(s) that changed" },
+  { token: "{date}", desc: "Auto-log: when it was logged" },
+];
+
 const GIVEAWAY_VARIABLES: { token: string; desc: string }[] = [
   { token: "{prize}", desc: "What's being given away" },
   { token: "{winners}", desc: "Number of winners" },
@@ -4402,14 +4413,50 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">{config.title} message</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">{config.title} message</p>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" size="sm" className="gap-1.5 shrink-0">
+                        <Braces className="h-3.5 w-3.5" /> Variables
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-80 p-0">
+                      <div className="px-3 py-2 border-b border-border/60">
+                        <p className="text-xs font-semibold">Variables</p>
+                        <p className="text-[11px] text-muted-foreground">Click to copy, then paste into your design.</p>
+                      </div>
+                      <div className="py-1">
+                        {FORMLOG_VARIABLES.map((v) => (
+                          <button
+                            key={v.token}
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard?.writeText(v.token);
+                              toast.success(`Copied ${v.token}`);
+                            }}
+                            className="w-full flex items-start gap-2 px-3 py-1.5 text-left hover:bg-muted/60 transition-colors"
+                          >
+                            <code className="text-[11px] font-mono text-os-accent bg-os-accent/10 border border-os-accent/25 rounded px-1.5 py-0.5 shrink-0">
+                              {v.token}
+                            </code>
+                            <span className="text-[11px] text-muted-foreground leading-snug">{v.desc}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Design the message that gets posted. Put{" "}
                   <code className="font-mono text-os-accent">{"{Question: Label}"}</code> for each text field, or{" "}
                   <code className="font-mono text-os-accent">{"{File: Label}"}</code> for a file upload —
                   running <code className="font-mono">{formLogCommand}</code> pops a modal with those fields, then posts this
                   message to the channel above with the answers filled in (uploaded files posted below it). Use{" "}
-                  <code className="font-mono text-os-accent">{"{user}"}</code> for who ran it. (Up to 10 fields.)
+                  <code className="font-mono text-os-accent">{"{user}"}</code> for who ran it. Auto-logs also fill{" "}
+                  <code className="font-mono text-os-accent">{"{target}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{roles removed}"}</code>, and{" "}
+                  <code className="font-mono text-os-accent">{"{date}"}</code>. (Up to 10 fields.)
                 </p>
                 <MessagesV2Builder
                   key={`customs-orderlog-v2-${orderlogV2MountKey}`}
