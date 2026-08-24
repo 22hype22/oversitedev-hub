@@ -265,9 +265,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsOrderLog = addonId === "customs-orderlog";
   const isCustomsInfraction = addonId === "customs-infraction";
   const isCustomsPromotion = addonId === "customs-promotion";
-  // /orderlog, /infraction, /promote share the same "form → post to channel" UI.
-  const isCustomsFormLog = isCustomsOrderLog || isCustomsInfraction || isCustomsPromotion;
-  const formLogCommand = isCustomsInfraction ? "/infraction" : isCustomsPromotion ? "/promote" : "/orderlog";
+  const isCustomsQualityCheck = addonId === "customs-qualitycheck";
+  // /orderlog, /infraction, /promote, /qualitycheck share the same
+  // "form (with file uploads) → post to a channel" design UI.
+  const isCustomsFormLog = isCustomsOrderLog || isCustomsInfraction || isCustomsPromotion || isCustomsQualityCheck;
+  const formLogCommand = isCustomsInfraction ? "/infraction" : isCustomsPromotion ? "/promote" : isCustomsQualityCheck ? "/qualitycheck" : "/orderlog";
   const isCustomsTickets = addonId === "customs-tickets";
   const isCustomsVerification = addonId === "customs-verification";
   const config = getAddonConfig(addonId);
