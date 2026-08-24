@@ -2618,6 +2618,16 @@ function wireCaptcha(root: HTMLElement): void {
     if (!files.length) return;
     let added = 0;
     for (const file of files) {
+      const ext0 = (file.name.split(".").pop() || "").toLowerCase();
+      const okType = /^image\//.test(file.type) || ["png", "jpg", "jpeg", "gif", "webp"].includes(ext0);
+      if (!okType) {
+        toast.error(`"${file.name}" isn't an image (PNG, JPG, GIF or WebP).`);
+        continue;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`"${file.name}" is over the 5 MB limit.`);
+        continue;
+      }
       const answer = (window.prompt(`Answer (solution text) for "${file.name}"`) || "").trim();
       if (!answer) continue;
       const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "");
