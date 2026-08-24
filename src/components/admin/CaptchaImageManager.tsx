@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Trash2, Upload, ImageIcon, Eye, EyeOff } from "lucide-react";
+import { validateImageUpload, UPLOAD_LIMITS } from "@/lib/uploadValidation";
 
 type CaptchaImage = {
   id: string;
@@ -46,6 +47,11 @@ export const CaptchaImageManager = () => {
   const handleUpload = async () => {
     if (!file || !answer.trim()) {
       toast({ title: "Missing fields", description: "Pick an image and enter the answer.", variant: "destructive" });
+      return;
+    }
+    const check = await validateImageUpload(file, UPLOAD_LIMITS.captcha);
+    if (!check.ok) {
+      toast({ title: "Can't upload that image", description: check.error, variant: "destructive" });
       return;
     }
     setUploading(true);

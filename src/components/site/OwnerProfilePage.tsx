@@ -4,6 +4,7 @@ import { Footer } from "@/components/site/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { validateImageUpload, UPLOAD_LIMITS } from "@/lib/uploadValidation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -468,6 +469,11 @@ function PortfolioForm({
     const next: MediaItem[] = [...media];
     try {
       for (const file of Array.from(files)) {
+        const check = await validateImageUpload(file, UPLOAD_LIMITS.portfolio);
+        if (!check.ok) {
+          toast({ title: "Can't upload that file", description: check.error, variant: "destructive" });
+          continue;
+        }
         const ext = file.name.split(".").pop() ?? "bin";
         const path = `${crypto.randomUUID()}.${ext}`;
         const { error } = await supabase.storage.from("portfolio").upload(path, file, {
