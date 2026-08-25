@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollText, RefreshCw, AlertCircle, Info, AlertTriangle, Bug } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { SkeletonRows } from "@/components/ui/skeletons";
 
 const LEVEL_META: Record<BotLogLevel, { label: string; className: string; Icon: typeof Info }> = {
   debug: {
@@ -68,7 +69,9 @@ export function BotLogsPanel({ botId }: BotLogsPanelProps) {
         <div className="text-xs text-destructive mb-3">Failed to load logs: {error}</div>
       )}
 
-      {logs.length === 0 && !loading ? (
+      {loading && logs.length === 0 ? (
+        <SkeletonRows rows={6} />
+      ) : logs.length === 0 ? (
         <div className="text-center py-8 text-sm text-muted-foreground">
           No logs yet. Logs from your bot will appear here.
         </div>

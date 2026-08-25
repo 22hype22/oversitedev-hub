@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart3, RefreshCw, Terminal, MessageSquare, Server, Users, AlertCircle } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -108,7 +109,13 @@ export function BotUsageMetricsPanel({ botId }: BotUsageMetricsPanelProps) {
         <Stat Icon={AlertCircle} label="Errors" value={t.errors} tone="destructive" />
       </div>
 
-      {!hasAny && !loading ? (
+      {loading && !hasAny ? (
+        <div className="h-56 w-full flex items-end gap-2 px-2 pb-2">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <Skeleton key={i} className="flex-1 rounded-t" style={{ height: `${30 + ((i * 37) % 65)}%` }} />
+          ))}
+        </div>
+      ) : !hasAny ? (
         <div className="text-sm text-muted-foreground text-center py-8 border border-dashed border-border rounded-md">
           No usage recorded yet. Metrics will appear once your bot is active.
         </div>
