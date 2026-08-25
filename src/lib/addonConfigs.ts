@@ -177,6 +177,43 @@ const roleGroupFields = (verb: "removed" | "added"): AddonField[] => {
   return out;
 };
 
+// Discord role -> Roblox group rank pairs. Each tier maps a set of Discord roles
+// to one rank number in the group. Tiers reveal progressively so the card stays
+// clean, and if a member matches more than one tier the HIGHEST rank wins.
+const rankTierFields = (): AddonField[] => {
+  const out: AddonField[] = [];
+  const total = 8;
+  for (let i = 1; i <= total; i++) {
+    out.push({
+      key: `tier${i}_roles`,
+      label: `Rank ${i} — Discord role(s)`,
+      type: "multirole",
+      placeholder: "@role",
+      defaultValue: [],
+      help:
+        i === 1
+          ? "Members with any of these Discord roles get the Roblox rank you set below. Add more than one role if several should map to the same rank."
+          : "Another Discord role → rank mapping (optional).",
+      visibleIf:
+        i === 1
+          ? undefined
+          : (v) =>
+              Array.isArray(v[`tier${i - 1}_roles`]) &&
+              (v[`tier${i - 1}_roles`] as string[]).length > 0,
+    });
+    out.push({
+      key: `tier${i}_rank`,
+      label: `Rank ${i} — Roblox rank number`,
+      type: "number",
+      placeholder: "e.g. 5",
+      help: "The group rank NUMBER (the 1–255 value you set in Roblox → Group → Configure → Roles), not the rank's name.",
+      visibleIf: (v) =>
+        Array.isArray(v[`tier${i}_roles`]) && (v[`tier${i}_roles`] as string[]).length > 0,
+    });
+  }
+  return out;
+};
+
 
 /**
  * Standard embed-styling fields. Author + Title are meant to render ABOVE
@@ -1142,6 +1179,23 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         placeholder: "RBX-…",
         help: "Keep this private — it's the secret from your Roblox OAuth app.",
       },
+    ],
+  },
+
+  "roblox-group-sync": {
+    title: "Roblox Group Sync",
+    summary: "Give members a Roblox group rank based on their Discord role — map a role to a rank number and the bot sets it automatically.",
+    icon: Gamepad2,
+    fields: [
+      {
+        key: "group_id",
+        label: "Roblox group ID",
+        type: "text",
+        placeholder: "e.g. 1234567",
+        help: "The number in your group's URL: roblox.com/groups/<THIS>/… The bot account (behind ROBLOX_COOKIE) must be ranked ABOVE the ranks it assigns and have “Manage lower-ranked members.”",
+      },
+      header("Role → rank mappings"),
+      ...rankTierFields(),
     ],
   },
 
