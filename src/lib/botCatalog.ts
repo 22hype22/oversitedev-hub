@@ -77,6 +77,8 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   "economy-system": "Economy System",
   remindme: "/remindme",
 
+  "roblox-group-sync": "Roblox Group Sync",
+
   // Shared
   branding: "Custom Branding",
   dashboard: "Web Dashboard",
@@ -204,7 +206,7 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
     ...ADDON_IDS_BY_BASE.support.filter((id) => id !== "ticket-message-customization"),
   ],
   utilities: [...ADDON_IDS_BY_BASE.utilities, "messages"],
-  customs: ["invite-message", "customs-messages", "customs-tickets", "customs-verification", "customs-giveaway", "customs-robux-locker", "customs-order-status", "customs-pricing", "customs-portfolio", "customs-packages", "customs-orderlog", "customs-infraction", "customs-promotion", "customs-qualitycheck", "customs-payment", "customs-logging", "music-addon", "auto-radio"],
+  customs: ["invite-message", "customs-messages", "customs-tickets", "customs-verification", "customs-giveaway", "customs-robux-locker", "customs-order-status", "customs-pricing", "customs-portfolio", "customs-packages", "customs-orderlog", "customs-infraction", "customs-promotion", "customs-qualitycheck", "customs-payment", "customs-logging", "music-addon", "auto-radio", "roblox-group-sync"],
 };
 
 export function getIncludedAddonsForBase(baseId: string): string[] {

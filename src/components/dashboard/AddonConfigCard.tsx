@@ -272,6 +272,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const formLogCommand = isCustomsInfraction ? "/infraction" : isCustomsPromotion ? "/promote" : isCustomsQualityCheck ? "/qualitycheck" : "/orderlog";
   const isCustomsTickets = addonId === "customs-tickets";
   const isCustomsVerification = addonId === "customs-verification";
+  const isRobloxGroupSync = addonId === "roblox-group-sync";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
@@ -502,6 +503,38 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     }
     setValues(initial);
   }, [config, addonId]);
+
+  // Load existing Roblox Group Sync config (group id + role→rank tiers).
+  useEffect(() => {
+    if (!isRobloxGroupSync || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", "roblox-group-sync")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => {
+        const next: Record<string, string | number | boolean | string[]> = {
+          ...prev,
+          group_id: cfg.group_id != null ? String(cfg.group_id) : "",
+        };
+        for (let i = 1; i <= 8; i++) {
+          next[`tier${i}_roles`] = Array.isArray(cfg[`tier${i}_roles`])
+            ? cfg[`tier${i}_roles`].map(String)
+            : [];
+          next[`tier${i}_rank`] = cfg[`tier${i}_rank`] != null ? String(cfg[`tier${i}_rank`]) : "";
+        }
+        return next;
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isRobloxGroupSync, open, botId]);
 
   // Load existing verification config from bot_config when dialog opens.
   useEffect(() => {
@@ -1750,6 +1783,50 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (error) return toast.error(`Save failed: ${error.message}`);
     const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
       _bot_id: botId, _feature: addonId,
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success(`${config.title} saved & applied`);
+    setOpen(false);
+  };
+
+  const saveRobloxGroupSync = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    const groupId = String(values.group_id ?? "").trim();
+    if (!/^\d+$/.test(groupId)) {
+      return toast.error("Enter your Roblox group ID (the number in the group's URL).");
+    }
+    // Collect the role→rank tiers; keep only rows that have BOTH roles and a rank.
+    const tiers = Object.fromEntries(
+      [1, 2, 3, 4, 5, 6, 7, 8].flatMap((i) => {
+        const roles = Array.isArray(values[`tier${i}_roles`])
+          ? (values[`tier${i}_roles`] as string[]).map(String)
+          : [];
+        const rankRaw = values[`tier${i}_rank`];
+        const rank = rankRaw === "" || rankRaw == null ? NaN : Number(rankRaw);
+        if (roles.length === 0 || !Number.isFinite(rank)) return [];
+        return [
+          [`tier${i}_roles`, roles],
+          [`tier${i}_rank`, rank],
+        ];
+      }),
+    );
+    if (Object.keys(tiers).length === 0) {
+      return toast.error("Map at least one Discord role to a Roblox rank number.");
+    }
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "roblox-group-sync",
+      config: { enabled: true, group_id: groupId, ...tiers },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "roblox-group-sync",
     });
     const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
@@ -4800,6 +4877,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsPackages();
                   } else if (isCustomsFormLog) {
                     void saveCustomsOrderLog();
+                  } else if (isRobloxGroupSync) {
+                    void saveRobloxGroupSync();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);

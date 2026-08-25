@@ -31,5 +31,7 @@ project_id = "kqhyjxtylvigrezlxzpl"
     verify_jwt = true
   [functions.roblox-verify]
     verify_jwt = false
+  [functions.roblox-group-rank]
+    verify_jwt = false
 
 # trigger function deploy
