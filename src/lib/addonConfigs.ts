@@ -1336,7 +1336,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
   // ─── Utilities add-ons ───────────────────────────────────────
   "music-addon": {
     title: "Music Add-On",
-    summary: "Play music in voice channels from YouTube, Spotify, and more.",
+    summary: "Play music in voice channels — SoundCloud search plus Spotify links. Reliable, no YouTube bot-check breakage.",
     icon: Music,
     fields: [
       multirole("dj_role_ids", "DJ roles (can skip / control playback)"),
