@@ -228,7 +228,7 @@ const UTILITIES_ADDON_IDS = [
 ];
 // Shared/extras add-ons (none currently — Multi-Server License & Custom
 // Branding combined card was removed per product decision).
-const SHARED_ADDON_IDS: string[] = ["invite-message", "customs-messages", "customs-tickets", "customs-verification", "customs-giveaway", "customs-robux-locker", "customs-order-status", "customs-pricing", "customs-portfolio", "customs-packages", "customs-orderlog", "customs-infraction", "customs-promotion", "customs-qualitycheck", "customs-payment", "customs-logging", "music-addon", "auto-radio", "roblox-group-sync"];
+const SHARED_ADDON_IDS: string[] = ["customs-messages", "invite-message", "customs-tickets", "customs-verification", "roblox-group-sync", "customs-packages", "customs-payment", "customs-pricing", "customs-robux-locker", "customs-order-status", "customs-portfolio", "customs-orderlog", "customs-qualitycheck", "customs-infraction", "customs-promotion", "customs-logging", "customs-giveaway", "music-addon", "auto-radio"];
 
 // Owners can cancel/remove a bot from any pre-live state OR once it's live
 // ("paid"/"ready"). Cancelling flips the order to "cancelled", which hides it
