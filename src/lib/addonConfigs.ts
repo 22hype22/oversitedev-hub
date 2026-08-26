@@ -1209,18 +1209,20 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "invite-tracker": {
     title: "Invite Tracker",
-    summary: "Track who invited whom, with a /leaderboard invites board.",
+    summary: "Log who invited each new member, with a /leaderboard invites board.",
     icon: UserPlus,
     fields: [
       toggle("enabled", "Enable invite tracking", true,
-        "Counts each member's invites (regular + bonus − left − fake). Members run /leaderboard invites to see the board, and you can drop a {invite list} token into any message block."),
+        "Counts each member's invites (regular + bonus − left − fake). Members run /leaderboard invites to see the board, and you can drop a {invite list} token into any message block. Alt/fake accounts are flagged automatically from risk signals at the moment someone joins (a brand-new account, a still-default avatar) — there's no day count to set."),
+      channel("log_channel_id", "Invite log channel",
+        "Where the bot posts a message each time someone joins, showing who invited them and that inviter's new total. Leave blank to skip the per-join log."),
       {
-        key: "fake_age_days",
-        label: "Fake-account age (days)",
-        type: "number",
-        defaultValue: 7,
-        placeholder: "7",
-        help: "When someone joins on an invite, if their Discord account is younger than this many days the invite is counted as “fake” and doesn't add to the inviter's score. Set to 0 to count everyone.",
+        key: "join_message",
+        label: "Join message",
+        type: "textarea",
+        markdown: true,
+        placeholder: "📥 {user} joined — invited by {inviter}, who now has **{invites}** invites. We're now **{member_count}** members!",
+        help: "Posted in the log channel on each join. Tokens: {user}, {user_name}, {inviter}, {inviter_name}, {invites} (inviter's total), {server}, {member_count}. Leave blank to use the default. Joins flagged as a possible alt get a small note appended automatically.",
       },
       channel("leaderboard_channel_id", "Auto-post leaderboard channel (optional)",
         "If set, the bot posts a live invites leaderboard here and keeps it refreshed. Leave blank to only use /leaderboard invites and the {invite list} token."),

@@ -1992,7 +1992,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       setValues((prev) => ({
         ...prev,
         enabled: cfg.enabled ?? true,
-        fake_age_days: cfg.fake_age_days != null ? Number(cfg.fake_age_days) : 7,
+        log_channel_id: cfg.log_channel_id ? String(cfg.log_channel_id) : "",
+        join_message: cfg.join_message ?? "",
         leaderboard_channel_id: cfg.leaderboard_channel_id ? String(cfg.leaderboard_channel_id) : "",
       }));
     })();
@@ -2003,15 +2004,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
 
   const saveInviteTracker = async () => {
     if (!botId) return toast.error("Missing bot id.");
-    const ageRaw = values.fake_age_days;
-    const fakeAge = ageRaw === "" || ageRaw == null ? 7 : Math.max(0, Number(ageRaw) || 0);
     setSaving(true);
     const payload = {
       bot_id: botId,
       feature: "invite-tracker",
       config: {
         enabled: values.enabled ?? true,
-        fake_age_days: fakeAge,
+        log_channel_id: String(values.log_channel_id ?? "").trim(),
+        join_message: String(values.join_message ?? ""),
         leaderboard_channel_id: String(values.leaderboard_channel_id ?? "").trim(),
       },
       updated_at: new Date().toISOString(),
