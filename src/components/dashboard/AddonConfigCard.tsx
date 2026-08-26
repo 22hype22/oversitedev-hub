@@ -521,6 +521,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         const next: Record<string, string | number | boolean | string[]> = {
           ...prev,
           group_id: cfg.group_id != null ? String(cfg.group_id) : "",
+          demote_rank: cfg.demote_rank != null ? String(cfg.demote_rank) : "",
         };
         for (let i = 1; i <= 8; i++) {
           next[`tier${i}_roles`] = Array.isArray(cfg[`tier${i}_roles`])
@@ -1815,11 +1816,16 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (Object.keys(tiers).length === 0) {
       return toast.error("Map at least one Discord role to a Roblox rank number.");
     }
+    const demoteRaw = values.demote_rank;
+    const demoteRank = demoteRaw === "" || demoteRaw == null ? null : Number(demoteRaw);
+    if (demoteRank !== null && !Number.isFinite(demoteRank)) {
+      return toast.error("The demote rank must be a number (or leave it blank).");
+    }
     setSaving(true);
     const payload = {
       bot_id: botId,
       feature: "roblox-group-sync",
-      config: { enabled: true, group_id: groupId, ...tiers },
+      config: { enabled: true, group_id: groupId, ...tiers, demote_rank: demoteRank },
       updated_at: new Date().toISOString(),
     };
     const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
