@@ -402,16 +402,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     activeBuilder.bump((k) => k + 1);
     toast.success("Cleared — design a new one.");
   };
-  useEffect(() => {
-    if (!open || !activeBuilder) return;
-    try {
-      const raw = localStorage.getItem(genTplStorageKey);
-      setGenTemplates(raw ? (JSON.parse(raw) as GenTemplate[]) : []);
-    } catch {
-      setGenTemplates([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, addonId]);
 
   const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
   useEffect(() => {
@@ -501,6 +491,18 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (onOpenChange) onOpenChange(v);
     else setInternalOpen(v);
   };
+  // Load this box's saved templates when its dialog opens. (Defined here, after
+  // `open` exists — referencing `open` earlier hits a temporal-dead-zone crash.)
+  useEffect(() => {
+    if (!open || !activeBuilder) return;
+    try {
+      const raw = localStorage.getItem(genTplStorageKey);
+      setGenTemplates(raw ? (JSON.parse(raw) as GenTemplate[]) : []);
+    } catch {
+      setGenTemplates([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, addonId]);
   const [appliedAt, setAppliedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
