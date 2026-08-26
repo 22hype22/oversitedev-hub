@@ -307,6 +307,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const portfolioV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [portfolioV2Items, setPortfolioV2Items] = useState<V2Item[]>([]);
   const [portfolioV2MountKey, setPortfolioV2MountKey] = useState(0);
+  // "Invite Tracker" — the V2 builder for the per-join log message.
+  const inviteTrackerV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [inviteTrackerV2Items, setInviteTrackerV2Items] = useState<V2Item[]>([]);
+  const [inviteTrackerV2MountKey, setInviteTrackerV2MountKey] = useState(0);
 
   // Customs "Logging" — the V2 builder for the purchase-log message template.
   const loggingV2Ref = useRef<MessagesV2BuilderHandle>(null);
@@ -365,6 +369,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     { on: isCustomsRobuxLocker, ref: robuxLockerV2Ref, items: robuxLockerV2Items, setItems: setRobuxLockerV2Items, bump: setRobuxLockerV2MountKey },
     { on: isCustomsPricing, ref: pricingV2Ref, items: pricingV2Items, setItems: setPricingV2Items, bump: setPricingV2MountKey },
     { on: isCustomsPortfolio, ref: portfolioV2Ref, items: portfolioV2Items, setItems: setPortfolioV2Items, bump: setPortfolioV2MountKey },
+    { on: isInviteTracker, ref: inviteTrackerV2Ref, items: inviteTrackerV2Items, setItems: setInviteTrackerV2Items, bump: setInviteTrackerV2MountKey },
     { on: isCustomsLogging, ref: loggingV2Ref, items: loggingV2Items, setItems: setLoggingV2Items, bump: setLoggingV2MountKey },
     { on: isCustomsFormLog, ref: orderlogV2Ref, items: orderlogV2Items, setItems: setOrderlogV2Items, bump: setOrderlogV2MountKey },
     { on: isCustomsGiveaway, ref: giveawayV2Ref, items: giveawayV2Items, setItems: setGiveawayV2Items, bump: setGiveawayV2MountKey },
@@ -1993,9 +1998,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         ...prev,
         enabled: cfg.enabled ?? true,
         log_channel_id: cfg.log_channel_id ? String(cfg.log_channel_id) : "",
-        join_message: cfg.join_message ?? "",
         leaderboard_channel_id: cfg.leaderboard_channel_id ? String(cfg.leaderboard_channel_id) : "",
       }));
+      setInviteTrackerV2Items(Array.isArray(cfg.join_components) ? (cfg.join_components as V2Item[]) : []);
+      setInviteTrackerV2MountKey((k) => k + 1);
     })();
     return () => {
       cancelled = true;
@@ -2011,7 +2017,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       config: {
         enabled: values.enabled ?? true,
         log_channel_id: String(values.log_channel_id ?? "").trim(),
-        join_message: String(values.join_message ?? ""),
+        join_components: normalizeV2Items(inviteTrackerV2Ref.current?.getItems() ?? inviteTrackerV2Items ?? []),
         leaderboard_channel_id: String(values.leaderboard_channel_id ?? "").trim(),
       },
       updated_at: new Date().toISOString(),
@@ -4186,7 +4192,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsPackages || isCustomsFormLog || isCustomsLogging
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsPackages || isCustomsFormLog || isCustomsLogging || isInviteTracker
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -4682,6 +4688,36 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
                   initialItems={portfolioV2Items}
+                />
+              </div>
+            </div>
+          ) : isInviteTracker ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Join message</p>
+                <p className="text-xs text-muted-foreground">
+                  Design the message posted in the log channel each time someone joins, using the same builder as Messages. Tokens:{" "}
+                  <code className="font-mono text-os-accent">{"{user}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{inviter}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{inviter_name}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{invites}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{member_count}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{server}"}</code>. Add{" "}
+                  <code className="font-mono text-os-accent">{"{invite list}"}</code> anywhere to drop in the full leaderboard. Leave empty to use the default one-liner.
+                </p>
+                <MessagesV2Builder
+                  key={`invite-tracker-v2-${inviteTrackerV2MountKey}`}
+                  ref={inviteTrackerV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={inviteTrackerV2Items}
                 />
               </div>
             </div>
