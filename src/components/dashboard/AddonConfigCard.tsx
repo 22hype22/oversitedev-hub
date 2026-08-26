@@ -4164,7 +4164,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 title="Close"
                 aria-label="Close"
               >
-                <X className="h-[18px] w-[18px]" />
+                <X className="h-5 w-5" />
               </Button>
             </div>
           )}
