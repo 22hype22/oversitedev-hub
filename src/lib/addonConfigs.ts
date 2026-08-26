@@ -1207,6 +1207,26 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "invite-tracker": {
+    title: "Invite Tracker",
+    summary: "Track who invited whom, with a /leaderboard invites board.",
+    icon: UserPlus,
+    fields: [
+      toggle("enabled", "Enable invite tracking", true,
+        "Counts each member's invites (regular + bonus − left − fake). Members run /leaderboard invites to see the board, and you can drop a {invite list} token into any message block."),
+      {
+        key: "fake_age_days",
+        label: "Fake-account age (days)",
+        type: "number",
+        defaultValue: 7,
+        placeholder: "7",
+        help: "When someone joins on an invite, if their Discord account is younger than this many days the invite is counted as “fake” and doesn't add to the inviter's score. Set to 0 to count everyone.",
+      },
+      channel("leaderboard_channel_id", "Auto-post leaderboard channel (optional)",
+        "If set, the bot posts a live invites leaderboard here and keeps it refreshed. Leave blank to only use /leaderboard invites and the {invite list} token."),
+    ],
+  },
+
   "staff-performance": {
     title: "Staff Performance Tracking",
     summary: "Track tickets handled, response times, and activity per staff member.",
