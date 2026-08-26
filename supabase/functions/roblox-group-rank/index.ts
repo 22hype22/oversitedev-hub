@@ -64,14 +64,35 @@ async function authBot(req: Request, botId: string): Promise<string | null> {
   return null;
 }
 
+function workerToken(req: Request): string {
+  return (
+    normToken(req.headers.get("x-worker-token")) ||
+    normToken(req.headers.get("x_worker_token")) ||
+    normToken(req.headers.get("authorization"))
+  );
+}
+
+// The Roblox cookie for this bot: prefer the per-bot value the owner set in the
+// dashboard (encrypted in bot_secrets), else the shared project ROBLOX_COOKIE.
+// So an unset dashboard field changes nothing.
+async function resolveCookie(botId: string, token: string): Promise<string> {
+  try {
+    const { data, error } = await admin.rpc("runtime_get_bot_secret", {
+      _token: token, _bot_id: botId, _key: "ROBLOX_COOKIE",
+    });
+    if (!error && typeof data === "string" && data.trim()) return data.trim();
+  } catch (_e) { /* fall back to the project secret */ }
+  return ROBLOX_COOKIE;
+}
+
 // ── Roblox helpers ──────────────────────────────────────────────────────────
 
 // Authenticated writes with the .ROBLOSECURITY cookie need an x-csrf-token,
 // returned as a header from a "primer" call.
-async function getCsrf(): Promise<string> {
+async function getCsrf(cookie: string): Promise<string> {
   const res = await fetch("https://auth.roblox.com/v2/logout", {
     method: "POST",
-    headers: { Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}` },
+    headers: { Cookie: `.ROBLOSECURITY=${cookie}` },
   });
   const token = res.headers.get("x-csrf-token");
   if (!token) {
@@ -124,14 +145,15 @@ async function setRank(
   groupId: string,
   robloxId: string,
   roleId: number,
+  cookie: string,
   csrfIn?: string,
 ): Promise<string> {
-  let csrf = csrfIn ?? (await getCsrf());
+  let csrf = csrfIn ?? (await getCsrf(cookie));
   const doPatch = (token: string) =>
     fetch(`https://groups.roblox.com/v1/groups/${groupId}/users/${robloxId}`, {
       method: "PATCH",
       headers: {
-        Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}`,
+        Cookie: `.ROBLOSECURITY=${cookie}`,
         "x-csrf-token": token,
         "Content-Type": "application/json",
       },
@@ -181,6 +203,8 @@ async function handleSet(req: Request, body: Record<string, unknown>) {
   }
   const authErr = await authBot(req, botId);
   if (authErr) return json({ error: authErr }, 403);
+  const cookie = await resolveCookie(botId, workerToken(req));
+  if (!cookie) return json({ error: "No Roblox cookie set. Add one in this bot's API keys & credentials." }, 500);
 
   if (!robloxId && discordId) {
     robloxId = (await verifiedMap(botId)).get(discordId) ?? "";
@@ -199,7 +223,7 @@ async function handleSet(req: Request, body: Record<string, unknown>) {
   if (current === rankNumber) {
     return json({ ok: true, changed: false, reason: "already", to: rankNumber });
   }
-  await setRank(groupId, robloxId, target.roleId);
+  await setRank(groupId, robloxId, target.roleId, cookie);
   return json({ ok: true, changed: true, from: current, to: rankNumber });
 }
 
@@ -212,6 +236,8 @@ async function handleSync(req: Request, body: Record<string, unknown>) {
   }
   const authErr = await authBot(req, botId);
   if (authErr) return json({ error: authErr }, 403);
+  const cookie = await resolveCookie(botId, workerToken(req));
+  if (!cookie) return json({ error: "No Roblox cookie set. Add one in this bot's API keys & credentials." }, 500);
 
   const roles = await getGroupRoles(groupId);
   const verified = await verifiedMap(botId);
@@ -231,7 +257,7 @@ async function handleSync(req: Request, body: Record<string, unknown>) {
       const current = await getCurrentRank(groupId, robloxId);
       if (current === null) { skipped++; details.push({ discordId, robloxId, reason: "not_in_group" }); continue; }
       if (current === rankNumber) { unchanged++; continue; }
-      csrf = await setRank(groupId, robloxId, target.roleId, csrf || undefined);
+      csrf = await setRank(groupId, robloxId, target.roleId, cookie, csrf || undefined);
       changed++;
       details.push({ discordId, robloxId, from: current, to: rankNumber });
       await sleep(200); // stay under Roblox's write rate limit
@@ -246,7 +272,6 @@ async function handleSync(req: Request, body: Record<string, unknown>) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   if (req.method !== "POST") return json({ error: "Method not allowed." }, 405);
-  if (!ROBLOX_COOKIE) return json({ error: "ROBLOX_COOKIE secret is not configured." }, 500);
 
   let body: Record<string, unknown>;
   try {
