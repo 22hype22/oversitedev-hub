@@ -66,24 +66,40 @@ async function resolveBotId(req: Request): Promise<string | null> {
   return (row?.bot_id ?? row) || null;
 }
 
+// The Roblox cookie for this bot: the per-bot value the owner set in the
+// dashboard ("API keys & credentials"), else the shared project ROBLOX_COOKIE.
+// An unset dashboard field changes nothing.
+async function resolveCookie(botId: string, req: Request): Promise<string> {
+  const token = getWorkerToken(req);
+  if (token) {
+    try {
+      const { data, error } = await admin.rpc("runtime_get_bot_secret", {
+        _token: token, _bot_id: botId, _key: "ROBLOX_COOKIE",
+      });
+      if (!error && typeof data === "string" && data.trim()) return data.trim();
+    } catch (_e) { /* fall back to the project secret */ }
+  }
+  return ROBLOX_COOKIE;
+}
+
 // ---------------- Roblox group funds ----------------
 
-function cookieHeaders(): Record<string, string> {
-  return { Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}` };
+function cookieHeaders(ck: string): Record<string, string> {
+  return { Cookie: `.ROBLOSECURITY=${ck}` };
 }
 
 // The group id, resolved once and cached. If ROBLOX_GROUP_ID is set it wins;
 // otherwise we ask Roblox who this cookie belongs to and find the group it owns.
 let cachedGroupId = "";
 
-async function resolveGroupId(): Promise<string> {
-  if (!ROBLOX_COOKIE) throw new Error("ROBLOX_COOKIE is not configured");
+async function resolveGroupId(ck: string): Promise<string> {
+  if (!ck) throw new Error("ROBLOX_COOKIE is not configured");
   if (GROUP_ID) return GROUP_ID;
   if (cachedGroupId) return cachedGroupId;
 
   // Who is this cookie?
   const meRes = await fetch("https://users.roblox.com/v1/users/authenticated", {
-    headers: cookieHeaders(),
+    headers: cookieHeaders(ck),
   });
   if (!meRes.ok) {
     const body = (await meRes.text()).slice(0, 200);
@@ -95,7 +111,7 @@ async function resolveGroupId(): Promise<string> {
 
   // What groups is it in, and with what rank?
   const grpRes = await fetch(`https://groups.roblox.com/v1/users/${userId}/groups/roles`, {
-    headers: cookieHeaders(),
+    headers: cookieHeaders(ck),
   });
   if (!grpRes.ok) {
     const body = (await grpRes.text()).slice(0, 200);
@@ -117,11 +133,11 @@ async function resolveGroupId(): Promise<string> {
   return id;
 }
 
-async function groupFunds(): Promise<number> {
-  if (!ROBLOX_COOKIE) throw new Error("ROBLOX_COOKIE is not configured");
-  const groupId = await resolveGroupId();
+async function groupFunds(ck: string): Promise<number> {
+  if (!ck) throw new Error("ROBLOX_COOKIE is not configured");
+  const groupId = await resolveGroupId(ck);
   const res = await fetch(`https://economy.roblox.com/v1/groups/${groupId}/currency`, {
-    headers: cookieHeaders(),
+    headers: cookieHeaders(ck),
   });
   if (!res.ok) {
     const body = (await res.text()).slice(0, 200);
@@ -134,12 +150,12 @@ async function groupFunds(): Promise<number> {
 // Group revenue breakdown for a window (Day | Week | Month | Year). Includes
 // pendingRobux and the per-source figures (sales, payouts, etc.). Requires the
 // account to have "View group revenue" (owners have it).
-async function revenueSummary(timeFrame: string): Promise<Record<string, unknown>> {
-  const groupId = await resolveGroupId();
+async function revenueSummary(ck: string, timeFrame: string): Promise<Record<string, unknown>> {
+  const groupId = await resolveGroupId(ck);
   const tf = ["Day", "Week", "Month", "Year"].includes(timeFrame) ? timeFrame : "Day";
   const res = await fetch(
     `https://economy.roblox.com/v1/groups/${groupId}/revenue/summary/${tf}`,
-    { headers: cookieHeaders() },
+    { headers: cookieHeaders(ck) },
   );
   if (!res.ok) {
     const body = (await res.text()).slice(0, 200);
@@ -201,6 +217,7 @@ Deno.serve(async (req) => {
 
   const botId = await resolveBotId(req);
   if (!botId) return json({ error: "Unauthorized" }, 401);
+  const ck = await resolveCookie(botId, req);
 
   let body: { action?: string; amount?: number; timeFrame?: string };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
@@ -209,14 +226,14 @@ Deno.serve(async (req) => {
 
   try {
     if (action === "funds") {
-      return json({ ok: true, robux: await groupFunds() });
+      return json({ ok: true, robux: await groupFunds(ck) });
     }
     if (action === "funds_detail") {
-      const available = await groupFunds();
+      const available = await groupFunds(ck);
       let summary: Record<string, unknown> | null = null;
       let summaryError: string | null = null;
       try {
-        summary = await revenueSummary(String(body.timeFrame ?? "Day"));
+        summary = await revenueSummary(ck, String(body.timeFrame ?? "Day"));
       } catch (e) {
         summaryError = e instanceof Error ? e.message : String(e);
       }
@@ -252,11 +269,11 @@ Deno.serve(async (req) => {
       // Recent group SALE transactions (game passes, shirts, etc.), newest first.
       // Used by the purchase-logs poller. Each item: { id, created, buyerId,
       // buyerName, itemName, itemType, itemId, amount }.
-      const groupId = await resolveGroupId();
+      const groupId = await resolveGroupId(ck);
       const limit = Math.min(100, Math.max(1, Number(body.limit ?? 25)));
       const res = await fetch(
         `https://economy.roblox.com/v2/groups/${groupId}/transactions?transactionType=Sale&limit=${limit}&sortOrder=Desc`,
-        { headers: cookieHeaders() },
+        { headers: cookieHeaders(ck) },
       );
       if (!res.ok) {
         const bodyText = (await res.text()).slice(0, 200);
@@ -370,7 +387,7 @@ Deno.serve(async (req) => {
       };
 
       const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
-      const hdr = (cookie: boolean) => cookie ? { ...cookieHeaders(), "User-Agent": UA, "Accept": "application/json" } : { "User-Agent": UA, "Accept": "application/json" };
+      const hdr = (cookie: boolean) => cookie ? { ...cookieHeaders(ck), "User-Agent": UA, "Accept": "application/json" } : { "User-Agent": UA, "Accept": "application/json" };
 
       let partial: { id: string; name: string; price: number } | null = null;
       const debug: any[] = [];

@@ -74,6 +74,22 @@ async function resolveBotId(req: Request): Promise<string | null> {
   return (row?.bot_id ?? row) || null;
 }
 
+// The Roblox cookie for this bot: the per-bot value the owner set in the
+// dashboard ("API keys & credentials"), else the shared project ROBLOX_COOKIE.
+// An unset dashboard field changes nothing.
+async function resolveCookie(botId: string, req: Request): Promise<string> {
+  const token = getWorkerToken(req);
+  if (token) {
+    try {
+      const { data, error } = await admin.rpc("runtime_get_bot_secret", {
+        _token: token, _bot_id: botId, _key: "ROBLOX_COOKIE",
+      });
+      if (!error && typeof data === "string" && data.trim()) return data.trim();
+    } catch (_e) { /* fall back to the project secret */ }
+  }
+  return ROBLOX_COOKIE;
+}
+
 // ---------------- Roblox helpers ----------------
 
 let cachedUniverseId: string | null = null;
@@ -88,26 +104,26 @@ async function resolveUniverseId(): Promise<string> {
   return cachedUniverseId;
 }
 
-async function getCsrfToken(): Promise<string> {
+async function getCsrfToken(ck: string): Promise<string> {
   const res = await fetch("https://auth.roblox.com/v2/logout", {
     method: "POST",
-    headers: { Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}` },
+    headers: { Cookie: `.ROBLOSECURITY=${ck}` },
   });
   const token = res.headers.get("x-csrf-token");
   if (!token) throw new Error(`Failed to get x-csrf-token (HTTP ${res.status}). Is ROBLOX_COOKIE valid?`);
   return token;
 }
 
-async function updateGamepassPrice(gamepassId: string, priceRobux: number): Promise<void> {
+async function updateGamepassPrice(ck: string, gamepassId: string, priceRobux: number): Promise<void> {
   const universeId = await resolveUniverseId();
-  let csrf = await getCsrfToken();
+  let csrf = await getCsrfToken(ck);
   const doUpdate = (token: string) => {
     const form = new FormData();
     form.append("isForSale", priceRobux > 0 ? "true" : "false");
     form.append("price", String(priceRobux));
     return fetch(
       `https://apis.roblox.com/game-passes/v1/universes/${universeId}/game-passes/${gamepassId}`,
-      { method: "PATCH", headers: { Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}`, "x-csrf-token": token }, body: form },
+      { method: "PATCH", headers: { Cookie: `.ROBLOSECURITY=${ck}`, "x-csrf-token": token }, body: form },
     );
   };
   let res = await doUpdate(csrf);
@@ -118,13 +134,13 @@ async function updateGamepassPrice(gamepassId: string, priceRobux: number): Prom
   if (!res.ok) throw new Error(`Gamepass price update failed (HTTP ${res.status}): ${await res.text()}`);
 }
 
-async function itemConfigPost(assetId: string, path: string, payload: unknown): Promise<Response> {
-  let csrf = await getCsrfToken();
+async function itemConfigPost(ck: string, assetId: string, path: string, payload: unknown): Promise<Response> {
+  let csrf = await getCsrfToken(ck);
   const doReq = (token: string) =>
     fetch(`https://itemconfiguration.roblox.com/v1/assets/${assetId}/${path}`, {
       method: "POST",
       headers: {
-        Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}`,
+        Cookie: `.ROBLOSECURITY=${ck}`,
         "x-csrf-token": token,
         "Content-Type": "application/json",
       },
@@ -153,13 +169,13 @@ async function assetDetails(assetId: string): Promise<string> {
 
 // New-system avatar items (big 15+ digit ids) are "collectibles" — their price
 // lives under a collectibleItemId, not the plain asset id. Resolve it first.
-async function resolveCollectibleId(assetId: string): Promise<string | null> {
+async function resolveCollectibleId(ck: string, assetId: string): Promise<string | null> {
   try {
-    const csrf = await getCsrfToken();
+    const csrf = await getCsrfToken(ck);
     const res = await fetch("https://catalog.roblox.com/v1/catalog/items/details", {
       method: "POST",
       headers: {
-        Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}`,
+        Cookie: `.ROBLOSECURITY=${ck}`,
         "x-csrf-token": csrf,
         "Content-Type": "application/json",
       },
@@ -176,13 +192,13 @@ async function resolveCollectibleId(assetId: string): Promise<string | null> {
 // New-system clothing ("collectibles") is priced through this endpoint. Body
 // matches Roblox's own creator-page PATCH exactly — a partial body 400s, so we
 // send the full sale configuration with the new price.
-async function collectiblePatch(collectibleItemId: string, priceRobux: number): Promise<Response> {
-  let csrf = await getCsrfToken();
+async function collectiblePatch(ck: string, collectibleItemId: string, priceRobux: number): Promise<Response> {
+  let csrf = await getCsrfToken(ck);
   const doReq = (token: string) =>
     fetch(`https://itemconfiguration.roblox.com/v1/collectibles/${collectibleItemId}`, {
       method: "PATCH",
       headers: {
-        Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}`,
+        Cookie: `.ROBLOSECURITY=${ck}`,
         "x-csrf-token": token,
         "Content-Type": "application/json",
       },
@@ -205,6 +221,7 @@ async function collectiblePatch(collectibleItemId: string, priceRobux: number): 
 }
 
 async function updateShirtPrice(
+  ck: string,
   assetId: string,
   priceRobux: number,
   collectibleId?: string,
@@ -212,9 +229,9 @@ async function updateShirtPrice(
   // New-system shirts are collectibles: price lives under a collectibleItemId
   // (a UUID). Use the configured one if present, else resolve it from the asset
   // id at runtime, then PATCH the collectibles endpoint.
-  const cid = collectibleId || (await resolveCollectibleId(assetId));
+  const cid = collectibleId || (await resolveCollectibleId(ck, assetId));
   if (cid) {
-    const res = await collectiblePatch(cid, priceRobux);
+    const res = await collectiblePatch(ck, cid, priceRobux);
     if (res.ok) return;
     const bodyText = (await res.text()).slice(0, 160);
     const info = await assetDetails(assetId);
@@ -227,10 +244,10 @@ async function updateShirtPrice(
   // Fallback for older classic assets that still use the asset-scoped endpoints.
   const priceConfiguration = { priceInRobux: priceRobux };
   const attempts: string[] = [];
-  let res = await itemConfigPost(assetId, "update-price", { priceConfiguration });
+  let res = await itemConfigPost(ck, assetId, "update-price", { priceConfiguration });
   if (res.ok) return;
   attempts.push(`update-price -> ${res.status}: ${(await res.text()).slice(0, 120)}`);
-  res = await itemConfigPost(assetId, "release", { saleStatus: "OnSale", priceConfiguration });
+  res = await itemConfigPost(ck, assetId, "release", { saleStatus: "OnSale", priceConfiguration });
   if (res.ok) return;
   attempts.push(`release -> ${res.status}: ${(await res.text()).slice(0, 120)}`);
 
@@ -439,21 +456,22 @@ Deno.serve(async (req) => {
     }
 
     if (method === "gamepass" || method === "shirt") {
-      if (!ROBLOX_COOKIE) return json({ error: "ROBLOX_COOKIE is not configured" }, 500);
+      const ck = await resolveCookie(botId, req);
+      if (!ck) return json({ error: "ROBLOX_COOKIE is not configured" }, 500);
       if (!Number.isInteger(item) || item < 1 || item > 6) return json({ error: "Pick an item number 1–6." }, 400);
       const robux = Math.round(price);
 
       if (method === "gamepass") {
         const id = GAMEPASS_IDS[item - 1];
         if (!id) return json({ error: `No gamepass configured for item ${item} (set ROBLOX_GAMEPASS_IDS).` }, 400);
-        await updateGamepassPrice(id, robux);
+        await updateGamepassPrice(ck, id, robux);
         return json({ ok: true, method, item, url: `https://www.roblox.com/game-pass/${id}/`, label: `R$${robux} (Gamepass)` });
       }
 
       const id = SHIRT_IDS[item - 1];
       if (!id) return json({ error: `No shirt configured for item ${item} (set ROBLOX_SHIRT_IDS).` }, 400);
       const cid = SHIRT_COLLECTIBLE_IDS[item - 1];
-      await updateShirtPrice(id, robux, cid);
+      await updateShirtPrice(ck, id, robux, cid);
       return json({ ok: true, method, item, url: `https://www.roblox.com/catalog/${id}/`, label: `R$${robux} (Shirt)` });
     }
 
