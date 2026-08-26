@@ -886,7 +886,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "invite-message": {
     title: "Join Message",
-    summary: "Design the message posted when a new member joins, using the same builder as Messages.",
+    summary: "Design the message posted when a new member joins.",
     icon: UserPlus,
     fields: [
       channel("channel_id", "Join channel", "Where new-member join messages are posted."),
@@ -895,7 +895,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-messages": {
     title: "Messages",
-    summary: "Send custom messages and rich embeds to any channel with the Discohook-style builder.",
+    summary: "Send custom messages and rich embeds to any channel.",
     icon: Megaphone,
     fields: [
       channel("channel_id", "Post channel", "Where this message will be sent."),
@@ -904,7 +904,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-giveaway": {
     title: "Giveaway",
-    summary: "Design how /giveaway looks with the Messages builder. Staff run /giveaway to launch one.",
+    summary: "Design how /giveaway looks; staff run it to launch one.",
     icon: Gift,
     fields: [
       multirole("manager_role_ids", "Who can run /giveaway", "Roles allowed to start giveaways, in addition to anyone with Manage Server. Optional."),
@@ -913,7 +913,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-robux-locker": {
     title: "Robux Locker",
-    summary: "Design the Robux Locker panel where members buy Robux.",
+    summary: "Design the panel where members buy Robux.",
     icon: Lock,
     fields: [
       channel("channel_id", "Panel channel", "Where the Robux Locker panel is posted. Design it below; it posts here on Save."),
@@ -922,7 +922,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-portfolio": {
     title: "Portfolio",
-    summary: "Design a post below; run /portfolio to send it to the chosen channel.",
+    summary: "Design a post; run /portfolio to send it to a channel.",
     icon: FileText,
     fields: [
       channel("channel_id", "Post channel", "Where /portfolio posts the design below."),
@@ -932,7 +932,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-packages": {
     title: "Packages",
-    summary: "Build a package card (embed) with side-by-side fields; run /package to post it to a channel.",
+    summary: "Build a package card and post it with /package.",
     icon: Package,
     fields: [
       multirole("allowed_role_ids", "Who can run /package", "Members with any of these roles can run /package. Anyone with Manage Server can too. Leave empty for Manage Server only."),
@@ -940,8 +940,8 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
   },
 
   "customs-orderlog": {
-    title: "Order Log",
-    summary: "A /orderlog command — pops a form of your questions, then posts the completed log to a channel.",
+    title: "Order Logs",
+    summary: "Log completed or active orders with /orderlog.",
     icon: ClipboardList,
     fields: [
       channel("channel_id", "Order-log channel", "Where the completed order log is posted when someone runs /orderlog."),
@@ -951,7 +951,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-infraction": {
     title: "Infraction Logs",
-    summary: "Log infractions with /infraction, or auto-log them: when a watched role SET is removed from someone, the bot asks whoever removed it for a reason and posts it here.",
+    summary: "Log infractions with /infraction, or auto-log a removed role.",
     icon: ClipboardList,
     fields: [
       channel("channel_id", "Infraction-log channel", "Where infraction logs are posted (both /infraction and auto-logged ones)."),
@@ -962,8 +962,8 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
   },
 
   "customs-promotion": {
-    title: "Promotion",
-    summary: "Log promotions with /promote, or auto-log them: when a watched role SET is added to someone, the bot asks whoever added it for a reason and posts it here.",
+    title: "Promotion Logs",
+    summary: "Log promotions with /promote, or auto-log an added role.",
     icon: ClipboardList,
     fields: [
       channel("channel_id", "Promotion-log channel", "Where promotion logs are posted (both /promote and auto-logged ones)."),
@@ -975,7 +975,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-qualitycheck": {
     title: "Quality Check",
-    summary: "A /qualitycheck command — members fill a form and upload their work; it posts to a channel with Accept / Deny buttons. Each {File: …} field (e.g. Reference, Final Product) drops into its own linked thread off the post. Accept DMs them a pass; Deny asks the reviewer for a reason, then DMs it to them.",
+    summary: "Members submit work with /qualitycheck for Accept/Deny review.",
     icon: ClipboardList,
     fields: [
       channel("channel_id", "Quality-check channel", "Where submitted quality checks are posted for review (with Accept / Deny buttons)."),
@@ -986,7 +986,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-logging": {
     title: "Logging",
-    summary: "Log channels for the server. Purchase logs post every completed Stripe and Roblox purchase.",
+    summary: "Set the channels where purchase and event logs post.",
     icon: ScrollText,
     fields: [
       header("Purchase logs"),
@@ -996,7 +996,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-payment": {
     title: "Payment",
-    summary: "Pick which roles can run /payment (create Stripe / game-pass / shirt payments).",
+    summary: "Pick which roles can run /payment (Stripe, game-pass, shirt).",
     icon: CreditCard,
     fields: [
       multirole("allowed_role_ids", "Who can run /payment", "Only members with any of these roles (or Manage Server) can run /payment. Leave empty to fall back to your ticket support roles."),
@@ -1005,7 +1005,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-order-status": {
     title: "Order Status",
-    summary: "Live open/limited/closed status per service, based on how many order tickets are open.",
+    summary: "Live open/limited/closed status per service, from open tickets.",
     icon: BarChart3,
     fields: [
       {
@@ -1061,7 +1061,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-pricing": {
     title: "Pricing",
-    summary: "Services + their pricing items. Designers set the prices in Discord with /setpricing; members view them with /pricing.",
+    summary: "Set service prices with /setpricing; members view them with /pricing.",
     icon: Coins,
     fields: [
       multirole("designer_role_ids", "Designer roles (can run /setpricing)", "Members with any of these roles can set prices. Anyone with Manage Server can too."),
@@ -1097,7 +1097,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-tickets": {
     title: "Tickets",
-    summary: "Support ticket categories, staff roles, and transcript logging.",
+    summary: "Support tickets with categories, staff roles, and transcripts.",
     icon: ClipboardList,
     fields: [
       {
@@ -1135,7 +1135,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "customs-verification": {
     title: "Verification",
-    summary: "Roblox verification — members link their Roblox account, get a role, and their nickname is set to their Roblox name.",
+    summary: "Members link their Roblox account for a role and matching nickname.",
     icon: ShieldCheck,
     fields: [
       channel("channel_id", "Verify channel", "Where the Verify button is posted."),
@@ -1184,7 +1184,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
 
   "roblox-group-sync": {
     title: "Roblox Group Sync",
-    summary: "Give members a Roblox group rank based on their Discord role — map a role to a rank number and the bot sets it automatically.",
+    summary: "Map a Discord role to a Roblox group rank, set automatically.",
     icon: Gamepad2,
     fields: [
       {
@@ -1398,7 +1398,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
   // ─── Utilities add-ons ───────────────────────────────────────
   "music-addon": {
     title: "Music Add-On",
-    summary: "Full music in voice channels — search, Spotify links, genre radio, favorites, an AI DJ, and a live Now Playing card with album art and controls.",
+    summary: "Music in voice — search, radio, favorites, AI DJ, and a Now Playing card.",
     icon: Music,
     fields: [
       multirole("dj_role_ids", "DJ roles (can skip / control playback)"),
@@ -1426,8 +1426,8 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
   },
 
   "auto-radio": {
-    title: "Auto Radio by Genre",
-    summary: "24/7 music streaming by genre in a voice channel.",
+    title: "Auto Radio",
+    summary: "24/7 genre-based music streaming in a voice channel.",
     icon: Radio,
     fields: [
       voiceChannel("voice_channel_id", "Voice channel for radio"),

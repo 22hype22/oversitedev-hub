@@ -66,7 +66,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
 
   // Utilities
   "music-addon": "Music Add-On",
-  "auto-radio": "Auto Radio by Genre",
+  "auto-radio": "Auto Radio",
 
   starboard: "Starboard",
   "recurring-messages": "Recurring Messages",
