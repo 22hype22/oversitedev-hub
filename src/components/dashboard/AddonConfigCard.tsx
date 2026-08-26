@@ -4159,12 +4159,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground [&_svg]:size-6"
                 onClick={() => setOpen(false)}
                 title="Close"
                 aria-label="Close"
               >
-                <X className="h-5 w-5" />
+                <X />
               </Button>
             </div>
           )}
