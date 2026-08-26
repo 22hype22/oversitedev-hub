@@ -273,8 +273,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsTickets = addonId === "customs-tickets";
   const isCustomsVerification = addonId === "customs-verification";
   const isRobloxGroupSync = addonId === "roblox-group-sync";
-  // Which boxes show the Templates (save) + Start over icons in the header.
-  const showBuilderActions = isCustomsTickets;
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
@@ -352,6 +350,68 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const [ticketTemplates, setTicketTemplates] = useState<TicketTemplate[]>([]);
   const [tplName, setTplName] = useState("");
   const [tplOpen, setTplOpen] = useState(false);
+
+  // Generic "Templates + Start over" for every OTHER message-builder box. One
+  // dispatch drives them all through the shared MessagesV2Builder ref/state, so
+  // the header icons behave identically everywhere. (Tickets keeps its own.)
+  const _builderDispatch = [
+    { on: isCustomsMessages, ref: messagesV2Ref, items: messagesV2Items, setItems: setMessagesV2Items, bump: setMessagesV2MountKey },
+    { on: isInviteMessage, ref: inviteV2Ref, items: inviteV2Items, setItems: setInviteV2Items, bump: setInviteV2MountKey },
+    { on: isCustomsVerification, ref: verifyPanelV2Ref, items: verifyPanelV2Items, setItems: setVerifyPanelV2Items, bump: setVerifyPanelV2MountKey },
+    { on: isVerification, ref: verifyV2Ref, items: verifyV2Items, setItems: setVerifyV2Items, bump: setVerifyV2MountKey },
+    { on: isCustomsPackages, ref: packagesV2Ref, items: packagesV2Items, setItems: setPackagesV2Items, bump: setPackagesV2MountKey },
+    { on: isCustomsRobuxLocker, ref: robuxLockerV2Ref, items: robuxLockerV2Items, setItems: setRobuxLockerV2Items, bump: setRobuxLockerV2MountKey },
+    { on: isCustomsPricing, ref: pricingV2Ref, items: pricingV2Items, setItems: setPricingV2Items, bump: setPricingV2MountKey },
+    { on: isCustomsPortfolio, ref: portfolioV2Ref, items: portfolioV2Items, setItems: setPortfolioV2Items, bump: setPortfolioV2MountKey },
+    { on: isCustomsLogging, ref: loggingV2Ref, items: loggingV2Items, setItems: setLoggingV2Items, bump: setLoggingV2MountKey },
+    { on: isCustomsFormLog, ref: orderlogV2Ref, items: orderlogV2Items, setItems: setOrderlogV2Items, bump: setOrderlogV2MountKey },
+    { on: isCustomsGiveaway, ref: giveawayV2Ref, items: giveawayV2Items, setItems: setGiveawayV2Items, bump: setGiveawayV2MountKey },
+  ];
+  const activeBuilder = _builderDispatch.find((b) => b.on) || null;
+  type GenTemplate = { id: string; name: string; components: V2Item[] };
+  const [genTemplates, setGenTemplates] = useState<GenTemplate[]>([]);
+  const [genTplName, setGenTplName] = useState("");
+  const [genTplOpen, setGenTplOpen] = useState(false);
+  const genTplStorageKey = `oversite_tpl_${addonId}`;
+  const persistGenTemplates = (list: GenTemplate[]) => {
+    setGenTemplates(list);
+    try { localStorage.setItem(genTplStorageKey, JSON.stringify(list)); } catch { /* ignore */ }
+  };
+  const saveGenTemplate = () => {
+    if (!activeBuilder) return;
+    const name = genTplName.trim();
+    if (!name) return toast.error("Name your template first.");
+    const components = normalizeV2Items(activeBuilder.ref.current?.getItems() ?? activeBuilder.items ?? []);
+    if (!components.length) return toast.error("Design something first.");
+    persistGenTemplates([{ id: newMessageId(), name, components }, ...genTemplates.filter((t) => t.name.toLowerCase() !== name.toLowerCase())]);
+    setGenTplName("");
+    toast.success(`Saved template "${name}"`);
+  };
+  const loadGenTemplate = (id: string) => {
+    const t = genTemplates.find((x) => x.id === id);
+    if (!t || !activeBuilder) return;
+    activeBuilder.setItems(t.components);
+    activeBuilder.bump((k) => k + 1);
+    setGenTplOpen(false);
+    toast.success(`Loaded "${t.name}"`);
+  };
+  const deleteGenTemplate = (id: string) => persistGenTemplates(genTemplates.filter((t) => t.id !== id));
+  const startOverGeneric = () => {
+    if (!activeBuilder) return;
+    activeBuilder.setItems([]);
+    activeBuilder.bump((k) => k + 1);
+    toast.success("Cleared — design a new one.");
+  };
+  useEffect(() => {
+    if (!open || !activeBuilder) return;
+    try {
+      const raw = localStorage.getItem(genTplStorageKey);
+      setGenTemplates(raw ? (JSON.parse(raw) as GenTemplate[]) : []);
+    } catch {
+      setGenTemplates([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, addonId]);
 
   const [engineVersionFetched, setEngineVersionFetched] = useState<"v1" | "v2" | null>(null);
   useEffect(() => {
@@ -4092,7 +4152,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           </DialogHeader>
 
           <div className="absolute right-3 top-3 z-10 flex items-center gap-0.5">
-            {showBuilderActions && (
+            {isCustomsTickets && (
               <>
               <Popover open={tplOpen} onOpenChange={setTplOpen}>
                 <PopoverTrigger asChild>
@@ -4158,6 +4218,74 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               >
                 <RotateCcw className="h-4 w-4" />
               </Button>
+              </>
+            )}
+            {!isCustomsTickets && activeBuilder && (
+              <>
+                <Popover open={genTplOpen} onOpenChange={setGenTplOpen}>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" title="Templates" aria-label="Templates">
+                      <Save className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-80 p-3 space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Save this design as a template</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={genTplName}
+                          onChange={(e) => setGenTplName(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveGenTemplate(); } }}
+                          placeholder="Template name"
+                          className="h-8 text-xs"
+                        />
+                        <Button type="button" size="sm" className="h-8 shrink-0" onClick={saveGenTemplate}>
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="border-t border-border pt-2 space-y-1">
+                      <Label className="text-xs text-muted-foreground">Saved templates</Label>
+                      {genTemplates.length === 0 ? (
+                        <p className="py-1 text-xs italic text-muted-foreground">No templates yet — save one above.</p>
+                      ) : (
+                        <div className="max-h-56 space-y-1 overflow-y-auto">
+                          {genTemplates.map((t) => (
+                            <div key={t.id} className="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-muted/50">
+                              <button
+                                type="button"
+                                className="flex-1 truncate text-left text-xs"
+                                onClick={() => loadGenTemplate(t.id)}
+                                title="Load this template into the editor"
+                              >
+                                {t.name}
+                              </button>
+                              <button
+                                type="button"
+                                className="shrink-0 text-destructive hover:text-destructive/80"
+                                onClick={() => deleteGenTemplate(t.id)}
+                                title="Delete template"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                  onClick={startOverGeneric}
+                  title="Start over"
+                  aria-label="Start over"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
               </>
             )}
             <Button
