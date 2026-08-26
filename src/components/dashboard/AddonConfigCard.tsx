@@ -307,9 +307,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const portfolioV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [portfolioV2Items, setPortfolioV2Items] = useState<V2Item[]>([]);
   const [portfolioV2MountKey, setPortfolioV2MountKey] = useState(0);
-  // "Invite Tracker" — a compose box (its own channel picker + Send), used to
-  // post a message with {invite list} wherever you choose.
+  // "Invite Tracker" — the design that /leaderboard invites posts. Embedded
+  // (no channel/Send); {invite list} inside it becomes the leaderboard.
   const inviteTrackerV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [inviteTrackerV2Items, setInviteTrackerV2Items] = useState<V2Item[]>([]);
+  const [inviteTrackerV2MountKey, setInviteTrackerV2MountKey] = useState(0);
 
   // Customs "Logging" — the V2 builder for the purchase-log message template.
   const loggingV2Ref = useRef<MessagesV2BuilderHandle>(null);
@@ -368,6 +370,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     { on: isCustomsRobuxLocker, ref: robuxLockerV2Ref, items: robuxLockerV2Items, setItems: setRobuxLockerV2Items, bump: setRobuxLockerV2MountKey },
     { on: isCustomsPricing, ref: pricingV2Ref, items: pricingV2Items, setItems: setPricingV2Items, bump: setPricingV2MountKey },
     { on: isCustomsPortfolio, ref: portfolioV2Ref, items: portfolioV2Items, setItems: setPortfolioV2Items, bump: setPortfolioV2MountKey },
+    { on: isInviteTracker, ref: inviteTrackerV2Ref, items: inviteTrackerV2Items, setItems: setInviteTrackerV2Items, bump: setInviteTrackerV2MountKey },
     { on: isCustomsLogging, ref: loggingV2Ref, items: loggingV2Items, setItems: setLoggingV2Items, bump: setLoggingV2MountKey },
     { on: isCustomsFormLog, ref: orderlogV2Ref, items: orderlogV2Items, setItems: setOrderlogV2Items, bump: setOrderlogV2MountKey },
     { on: isCustomsGiveaway, ref: giveawayV2Ref, items: giveawayV2Items, setItems: setGiveawayV2Items, bump: setGiveawayV2MountKey },
@@ -1996,6 +1999,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         ...prev,
         enabled: cfg.enabled ?? true,
       }));
+      setInviteTrackerV2Items(Array.isArray(cfg.board_components) ? (cfg.board_components as V2Item[]) : []);
+      setInviteTrackerV2MountKey((k) => k + 1);
     })();
     return () => {
       cancelled = true;
@@ -2010,6 +2015,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       feature: "invite-tracker",
       config: {
         enabled: values.enabled ?? true,
+        board_components: normalizeV2Items(inviteTrackerV2Ref.current?.getItems() ?? inviteTrackerV2Items ?? []),
       },
       updated_at: new Date().toISOString(),
     };
@@ -4690,12 +4696,21 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Post a message</p>
+                <p className="text-sm font-semibold text-foreground">Leaderboard message</p>
                 <p className="text-xs text-muted-foreground">
-                  Build a message and post it — add{" "}
-                  <code className="font-mono text-os-accent">{"{invite list}"}</code> anywhere to drop in the full invites leaderboard right there. It posts to the channel you pick below.
+                  Design what{" "}
+                  <code className="font-mono">/leaderboard invites</code> posts. Put{" "}
+                  <code className="font-mono text-os-accent">{"{invite list}"}</code> where you want the ranked list to appear. Leave empty to use the default board.
                 </p>
-                <MessagesV2Builder ref={inviteTrackerV2Ref} botId={botId} botName={botName} botAvatarUrl={botAvatarUrl} />
+                <MessagesV2Builder
+                  key={`invite-tracker-v2-${inviteTrackerV2MountKey}`}
+                  ref={inviteTrackerV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={inviteTrackerV2Items}
+                />
               </div>
             </div>
           ) : isCustomsPackages ? (
