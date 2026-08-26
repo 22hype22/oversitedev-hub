@@ -273,6 +273,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsTickets = addonId === "customs-tickets";
   const isCustomsVerification = addonId === "customs-verification";
   const isRobloxGroupSync = addonId === "roblox-group-sync";
+  // Which boxes show the Templates (save) + Start over icons in the header.
+  const showBuilderActions = isCustomsTickets;
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
@@ -4076,7 +4078,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     : "max-w-lg max-h-[85vh] overflow-y-auto",
             readOnly && "readonly-scope",
           )}
-          hideClose={isCustomsTickets}
+          hideClose
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -4089,8 +4091,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
             </DialogDescription>
           </DialogHeader>
 
-          {isCustomsTickets && (
-            <div className="absolute right-3 top-3 z-10 flex items-center gap-0.5">
+          <div className="absolute right-3 top-3 z-10 flex items-center gap-0.5">
+            {showBuilderActions && (
+              <>
               <Popover open={tplOpen} onOpenChange={setTplOpen}>
                 <PopoverTrigger asChild>
                   <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" title="Templates" aria-label="Templates">
@@ -4155,19 +4158,20 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               >
                 <RotateCcw className="h-4 w-4" />
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground [&_svg]:size-[22px]"
-                onClick={() => setOpen(false)}
-                title="Close"
-                aria-label="Close"
-              >
-                <X strokeWidth={1.8} />
-              </Button>
-            </div>
-          )}
+              </>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground [&_svg]:size-[22px]"
+              onClick={() => setOpen(false)}
+              title="Close"
+              aria-label="Close"
+            >
+              <X strokeWidth={1.8} />
+            </Button>
+          </div>
 
           {isSayCommand ? (
             <div className="py-2">
