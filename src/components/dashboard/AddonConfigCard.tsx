@@ -4778,40 +4778,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 .map((f) => (
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
-              {isCustomsMessages && (
-                <div className="space-y-2 pt-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-foreground">Saved messages</p>
-                    <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addNewMessage}>
-                      <Plus className="h-3.5 w-3.5" /> New message
-                    </Button>
-                  </div>
-                  {(() => {
-                    const currentCh = values.channel_id ? String(values.channel_id) : "";
-                    const others = savedMessages.filter((m) => m.channel_id && m.channel_id !== currentCh);
-                    if (others.length === 0) return null;
-                    return (
-                      <div className="space-y-1 rounded border border-border bg-background/40 p-2">
-                        <p className="text-[11px] text-muted-foreground">Your saved messages — each posts to its own channel and stays live:</p>
-                        {others.map((m) => (
-                          <div key={m.id} className="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-muted/50">
-                            <span className="truncate text-xs">#{panelChannelName(m.channel_id)}</span>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => editMessage(m)}>Edit</Button>
-                              <button type="button" className="text-destructive hover:text-destructive/80" onClick={() => deleteMessage(m.id)} title="Remove message">
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                  <p className="text-xs text-muted-foreground">
-                    Editing the message for the channel selected above. Click <span className="font-medium">New message</span> to make another for a different channel — saving keeps them all.
-                  </p>
-                </div>
-              )}
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs text-muted-foreground">
                   {isCustomsVerification
