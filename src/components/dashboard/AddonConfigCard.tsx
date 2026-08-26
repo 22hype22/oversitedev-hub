@@ -72,6 +72,7 @@ const INVITE_VARIABLES: { token: string; desc: string }[] = [
   { token: "{boost_level}", desc: "Boost tier (0–3)" },
   { token: "{channel_count}", desc: "Number of channels" },
   { token: "{role_count}", desc: "Number of roles" },
+  { token: "{invite list}", desc: "The invites leaderboard (top inviters)" },
 ];
 
 // Form-log designs (/orderlog, /infraction, /promote). The auto infraction/
