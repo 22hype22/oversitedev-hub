@@ -274,6 +274,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsTickets = addonId === "customs-tickets";
   const isCustomsVerification = addonId === "customs-verification";
   const isRobloxGroupSync = addonId === "roblox-group-sync";
+  const isInviteTracker = addonId === "invite-tracker";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
@@ -1967,6 +1968,59 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (error) return toast.error(`Save failed: ${error.message}`);
     const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
       _bot_id: botId, _feature: "roblox-group-sync",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success(`${config.title} saved & applied`);
+    setOpen(false);
+  };
+
+  // ---------- invite tracker ----------
+  useEffect(() => {
+    if (!isInviteTracker || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", "invite-tracker")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        enabled: cfg.enabled ?? true,
+        fake_age_days: cfg.fake_age_days != null ? Number(cfg.fake_age_days) : 7,
+        leaderboard_channel_id: cfg.leaderboard_channel_id ? String(cfg.leaderboard_channel_id) : "",
+      }));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isInviteTracker, open, botId]);
+
+  const saveInviteTracker = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    const ageRaw = values.fake_age_days;
+    const fakeAge = ageRaw === "" || ageRaw == null ? 7 : Math.max(0, Number(ageRaw) || 0);
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "invite-tracker",
+      config: {
+        enabled: values.enabled ?? true,
+        fake_age_days: fakeAge,
+        leaderboard_channel_id: String(values.leaderboard_channel_id ?? "").trim(),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "invite-tracker",
     });
     const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
@@ -5101,6 +5155,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsOrderLog();
                   } else if (isRobloxGroupSync) {
                     void saveRobloxGroupSync();
+                  } else if (isInviteTracker) {
+                    void saveInviteTracker();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
