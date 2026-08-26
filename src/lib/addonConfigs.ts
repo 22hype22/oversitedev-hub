@@ -1213,11 +1213,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     icon: UserPlus,
     fields: [
       toggle("enabled", "Enable invite tracking", true,
-        "Counts each member's invites (regular + bonus − left − fake). Members run /leaderboard invites to see the board, and you can drop a {invite list} token into any message block. Alt/fake accounts are flagged automatically from risk signals at the moment someone joins (a brand-new account, a still-default avatar) — there's no day count to set."),
-      channel("log_channel_id", "Invite log channel",
-        "Where the bot posts the join message below each time someone joins, showing who invited them and that inviter's new total. Leave blank to skip the per-join log."),
-      channel("leaderboard_channel_id", "Auto-post leaderboard channel (optional)",
-        "If set, the bot posts a live invites leaderboard here and keeps it refreshed. Leave blank to only use /leaderboard invites and the {invite list} token."),
+        "Counts each member's invites (regular + bonus − left − fake). Members run /leaderboard invites to see the board, and you can drop a {invite list} token into any message. Alt/fake accounts are flagged automatically from risk signals at the moment someone joins (a brand-new account, a still-default avatar) — there's no day count to set."),
     ],
   },
 
