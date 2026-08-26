@@ -59,7 +59,7 @@ import { PostTypesManager } from "./PostTypesManager";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildChannels";
 import { useBotRoles } from "@/hooks/useBotRoles";
-import { AtSign, Braces } from "lucide-react";
+import { AtSign, Braces, X } from "lucide-react";
 
 const INVITE_VARIABLES: { token: string; desc: string }[] = [
   { token: "{user}", desc: "Mentions the new member" },
@@ -4076,6 +4076,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     : "max-w-lg max-h-[85vh] overflow-y-auto",
             readOnly && "readonly-scope",
           )}
+          hideClose={isCustomsTickets}
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -4089,7 +4090,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           </DialogHeader>
 
           {isCustomsTickets && (
-            <div className="absolute right-11 top-3.5 z-10 flex items-center gap-0.5">
+            <div className="absolute right-3 top-3 z-10 flex items-center gap-0.5">
               <Popover open={tplOpen} onOpenChange={setTplOpen}>
                 <PopoverTrigger asChild>
                   <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" title="Templates" aria-label="Templates">
@@ -4153,6 +4154,17 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 aria-label="Start over"
               >
                 <RotateCcw className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={() => setOpen(false)}
+                title="Close"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
               </Button>
             </div>
           )}
