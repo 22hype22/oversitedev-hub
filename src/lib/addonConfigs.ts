@@ -1196,6 +1196,14 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       },
       header("Role → rank mappings"),
       ...rankTierFields(),
+      header("Everyone else"),
+      {
+        key: "demote_rank",
+        label: "Rank for members with no mapped role (optional)",
+        type: "number",
+        placeholder: "blank = leave them alone",
+        help: "If set, any verified member in the group who holds NONE of the mapped roles is moved to this rank number (a derank). Leave blank to never auto-demote — safest. The bot still can't touch the group owner or anyone ranked at/above the bot account.",
+      },
     ],
   },
 
