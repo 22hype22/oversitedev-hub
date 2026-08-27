@@ -2062,10 +2062,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       setValues((prev) => ({
         ...prev,
         enabled: cfg.enabled ?? true,
-        post_channel_id: cfg.post_channel_id ? String(cfg.post_channel_id) : "",
         approval_channel_id: cfg.approval_channel_id ? String(cfg.approval_channel_id) : "",
         staff_role_ids: Array.isArray(cfg.staff_role_ids) ? cfg.staff_role_ids.map(String) : [],
-        interval_minutes: cfg.interval_minutes != null ? String(cfg.interval_minutes) : "1440",
         perk_ping_everyone: perks.ping_everyone ?? "",
         perk_ping_here: perks.ping_here ?? "",
         perk_ping_none: perks.ping_none ?? "",
@@ -2089,10 +2087,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       feature: "ads",
       config: {
         enabled: values.enabled ?? true,
-        post_channel_id: values.post_channel_id ? String(values.post_channel_id) : "",
         approval_channel_id: values.approval_channel_id ? String(values.approval_channel_id) : "",
         staff_role_ids: Array.isArray(values.staff_role_ids) ? (values.staff_role_ids as string[]).map(String) : [],
-        interval_minutes: Math.max(1, Number(values.interval_minutes) || 60),
         perks: {
           ping_everyone: String(values.perk_ping_everyone ?? "").trim() || "Everyone Ping",
           ping_here: String(values.perk_ping_here ?? "").trim() || "Here Ping",
@@ -2142,6 +2138,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         one_per_user: cfg.one_per_user ?? true,
         delete_category_when_empty: cfg.delete_category_when_empty ?? false,
         panel_channel_id: cfg.panel_channel_id ? String(cfg.panel_channel_id) : "",
+        ad_post_channel_id: cfg.ad_post_channel_id ? String(cfg.ad_post_channel_id) : "",
+        ad_interval_minutes: cfg.ad_interval_minutes != null ? String(cfg.ad_interval_minutes) : "1440",
       }));
       // Load every saved panel (new multi-panel shape), falling back to the
       // single panel_channel_id + panel_components for older configs.
@@ -2283,6 +2281,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         panel_components: currentComponents,
         panels: panelsPayload,
         ticket_types,
+        // Marketplace also carries the ad post channel + interval (fed to the ad system).
+        ...(isMarketplace ? {
+          ad_post_channel_id: values.ad_post_channel_id ? String(values.ad_post_channel_id) : "",
+          ad_interval_minutes: Math.max(1, Number(values.ad_interval_minutes) || 1440),
+        } : {}),
       },
       updated_at: new Date().toISOString(),
     };
