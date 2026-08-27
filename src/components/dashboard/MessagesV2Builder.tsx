@@ -309,7 +309,7 @@ const newItem = (type: V2Item["type"]): V2Item => {
       return {
         id: uid(),
         type,
-        title: "ILE+ Membership",
+        title: "Oversite+",
         price: "R$650 | $4.55 USD",
         button_label: "Purchase",
         methods: ["gamepass", "select", "stripe"],
@@ -875,7 +875,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             <Input
               value={item.title}
               onChange={(e) => onUpdate({ title: e.target.value } as Partial<V2Item>)}
-              placeholder="ILE+ Membership"
+              placeholder="Oversite+"
             />
           </div>
           <div className="space-y-1.5">
