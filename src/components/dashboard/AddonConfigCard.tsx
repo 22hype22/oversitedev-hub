@@ -4944,7 +4944,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 ))}
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-foreground">Ticket panels</p>
+                  <p className="text-sm font-semibold text-foreground">{isMarketplace ? "Marketplace panels" : "Ticket panels"}</p>
                   <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addNewPanel}>
                     <Plus className="h-3.5 w-3.5" /> New panel
                   </Button>
