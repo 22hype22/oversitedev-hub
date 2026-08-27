@@ -41,6 +41,7 @@ import {
   Info,
   ChevronsUpDown,
   Columns3,
+  ShoppingCart,
 } from "lucide-react";
 import { toast } from "sonner";
 import { GuildChannelPicker } from "./GuildChannelPicker";
@@ -82,6 +83,19 @@ const GiveawayContext = createContext<boolean>(false);
 const isChannelSectionButton = (
   b: V2SectionButton | null | undefined,
 ): b is { label: string; channel_id: string } => !!b && "channel_id" in b;
+
+// A "Purchase" card: title + price on the left, a Purchase button on the right.
+// Clicking it opens the package purchase flow (payment picker, gift/recipient,
+// MSA agreement). Delivery reuses the bot's Gamepass / Roblox Select / Stripe.
+type V2Purchase = {
+  id: string;
+  type: "purchase";
+  title: string;
+  price: string;
+  button_label: string;
+  methods: string[]; // any of "gamepass" | "select" | "stripe"
+  msa_url: string;
+};
 
 type V2Gallery = { id: string; type: "gallery"; images: string[] };
 type V2Separator = {
@@ -197,7 +211,13 @@ type V2Container = {
   accentColor: string;
   children: V2Leaf[];
 };
-type V2Leaf = V2Text | V2Section | V2Gallery | V2Separator | V2ButtonRow | V2SelectMenu | V2Fields;
+type V2Leaf = V2Text | V2Section | V2Purchase | V2Gallery | V2Separator | V2ButtonRow | V2SelectMenu | V2Fields;
+
+const PURCHASE_METHODS: { value: string; label: string }[] = [
+  { value: "gamepass", label: "Gamepass" },
+  { value: "select", label: "Roblox Select" },
+  { value: "stripe", label: "Stripe" },
+];
 export type V2Item = V2Leaf | V2Container;
 
 const uid = () => crypto.randomUUID();
@@ -285,6 +305,16 @@ const newItem = (type: V2Item["type"]): V2Item => {
         thumbnailUrl: "",
         button: null,
       };
+    case "purchase":
+      return {
+        id: uid(),
+        type,
+        title: "ILE+ Membership",
+        price: "R$650 | $4.55 USD",
+        button_label: "Purchase",
+        methods: ["gamepass", "select", "stripe"],
+        msa_url: "",
+      };
     case "gallery":
       return { id: uid(), type, images: [""] };
     case "separator":
@@ -318,6 +348,7 @@ const FIELDS_OPTION: { type: V2Item["type"]; label: string; Icon: React.Componen
 const ADD_OPTIONS: { type: V2Item["type"]; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
   { type: "text", label: "Add Text Display", Icon: Type },
   { type: "section", label: "Add Section", Icon: LayoutPanelTop },
+  { type: "purchase", label: "Add Purchase", Icon: ShoppingCart },
   { type: "gallery", label: "Add Media Gallery", Icon: Images },
   { type: "separator", label: "Add Separator", Icon: Minus },
   { type: "container", label: "Add Container", Icon: Box },
@@ -731,6 +762,7 @@ function labelFor(t: V2Item["type"]): string {
   switch (t) {
     case "text": return "Text Display";
     case "section": return "Section";
+    case "purchase": return "Purchase";
     case "gallery": return "Media Gallery";
     case "separator": return "Separator";
     case "container": return "Container";
@@ -826,6 +858,68 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
           button={item.button}
           onChange={(b) => onUpdate({ button: b } as Partial<V2Item>)}
         />
+      </div>
+    );
+  }
+  if (item.type === "purchase") {
+    const methods = Array.isArray(item.methods) ? item.methods : [];
+    const toggleMethod = (v: string) => {
+      const next = methods.includes(v) ? methods.filter((m) => m !== v) : [...methods, v];
+      onUpdate({ methods: next } as Partial<V2Item>);
+    };
+    return (
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Product title</Label>
+            <Input
+              value={item.title}
+              onChange={(e) => onUpdate({ title: e.target.value } as Partial<V2Item>)}
+              placeholder="ILE+ Membership"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Price line</Label>
+            <Input
+              value={item.price}
+              onChange={(e) => onUpdate({ price: e.target.value } as Partial<V2Item>)}
+              placeholder="R$650 | $4.55 USD"
+            />
+          </div>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          The title is matched to a Gamepass; the <span className="font-medium">$</span> amount in the price line is charged for Stripe, and the <span className="font-medium">R$</span> amount for Roblox Select.
+        </p>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Button label</Label>
+          <Input
+            value={item.button_label}
+            onChange={(e) => onUpdate({ button_label: e.target.value } as Partial<V2Item>)}
+            placeholder="Purchase"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Payment methods offered</Label>
+          <div className="flex flex-wrap gap-3">
+            {PURCHASE_METHODS.map((m) => (
+              <label key={m.value} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                <input type="checkbox" checked={methods.includes(m.value)} onChange={() => toggleMethod(m.value)} />
+                {m.label}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Master Service Agreement link (optional)</Label>
+          <Input
+            value={item.msa_url}
+            onChange={(e) => onUpdate({ msa_url: e.target.value } as Partial<V2Item>)}
+            placeholder="https://…"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Buyers must tick an “I agree to the Master Service Agreement” box in the purchase form before checkout.
+          </p>
+        </div>
       </div>
     );
   }
@@ -1711,6 +1805,19 @@ function PreviewItem({ item }: { item: V2Item }) {
             ))}
           </div>
         ))}
+      </div>
+    );
+  }
+  if (item.type === "purchase") {
+    return (
+      <div className="flex gap-3 items-center">
+        <div className="flex-1 min-w-0 space-y-0.5">
+          <PreviewMarkdown text={item.title ? `**${item.title}**` : "**Product**"} />
+          {item.price && <PreviewMarkdown text={item.price} />}
+        </div>
+        <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded bg-[#4e5058] text-white shrink-0">
+          {item.button_label || "Purchase"}
+        </span>
       </div>
     );
   }
