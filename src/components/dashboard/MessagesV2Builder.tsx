@@ -93,8 +93,9 @@ type V2Purchase = {
   title: string;
   price: string;
   button_label: string;
-  methods: string[]; // any of "gamepass" | "select" | "stripe"
+  methods: string[]; // any of "devproduct" | "select" | "stripe"
   msa_url: string;
+  donation: boolean; // buyer picks USD or Robux and types the amount
 };
 
 type V2Gallery = { id: string; type: "gallery"; images: string[] };
@@ -214,7 +215,7 @@ type V2Container = {
 type V2Leaf = V2Text | V2Section | V2Purchase | V2Gallery | V2Separator | V2ButtonRow | V2SelectMenu | V2Fields;
 
 const PURCHASE_METHODS: { value: string; label: string }[] = [
-  { value: "gamepass", label: "Gamepass" },
+  { value: "devproduct", label: "Dev Product" },
   { value: "select", label: "Roblox Select" },
   { value: "stripe", label: "Stripe" },
 ];
@@ -312,8 +313,9 @@ const newItem = (type: V2Item["type"]): V2Item => {
         title: "Oversite+",
         price: "R$650 | $4.55 USD",
         button_label: "Purchase",
-        methods: ["gamepass", "select", "stripe"],
+        methods: ["devproduct", "select", "stripe"],
         msa_url: "",
+        donation: false,
       };
     case "gallery":
       return { id: uid(), type, images: [""] };
@@ -863,6 +865,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
   }
   if (item.type === "purchase") {
     const methods = Array.isArray(item.methods) ? item.methods : [];
+    const donation = !!item.donation;
     const toggleMethod = (v: string) => {
       const next = methods.includes(v) ? methods.filter((m) => m !== v) : [...methods, v];
       onUpdate({ methods: next } as Partial<V2Item>);
@@ -883,32 +886,40 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             <Input
               value={item.price}
               onChange={(e) => onUpdate({ price: e.target.value } as Partial<V2Item>)}
-              placeholder="R$650 | $4.55 USD"
+              placeholder={donation ? "e.g. Donate any amount" : "R$650 | $4.55 USD"}
             />
           </div>
         </div>
+        <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+          <input type="checkbox" checked={donation} onChange={(e) => onUpdate({ donation: e.target.checked } as Partial<V2Item>)} />
+          <span className="font-medium">Donation</span> — buyer picks USD or Robux and types the amount
+        </label>
         <p className="text-[11px] text-muted-foreground">
-          The title is matched to a Gamepass; the <span className="font-medium">$</span> amount in the price line is charged for Stripe, and the <span className="font-medium">R$</span> amount for Roblox Select.
+          {donation
+            ? "Buyers choose USD (Stripe) or Robux (a dev product created at their amount) and enter how much to give. The price line above is just display text."
+            : <>The title is matched to a Roblox developer product (created if it doesn’t exist yet); the <span className="font-medium">$</span> amount in the price line is charged for Stripe, and the <span className="font-medium">R$</span> amount for the dev product / Roblox Select.</>}
         </p>
         <div className="space-y-1.5">
           <Label className="text-xs">Button label</Label>
           <Input
             value={item.button_label}
             onChange={(e) => onUpdate({ button_label: e.target.value } as Partial<V2Item>)}
-            placeholder="Purchase"
+            placeholder={donation ? "Donate" : "Purchase"}
           />
         </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs">Payment methods offered</Label>
-          <div className="flex flex-wrap gap-3">
-            {PURCHASE_METHODS.map((m) => (
-              <label key={m.value} className="flex items-center gap-1.5 text-xs cursor-pointer">
-                <input type="checkbox" checked={methods.includes(m.value)} onChange={() => toggleMethod(m.value)} />
-                {m.label}
-              </label>
-            ))}
+        {!donation && (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Payment methods offered</Label>
+            <div className="flex flex-wrap gap-3">
+              {PURCHASE_METHODS.map((m) => (
+                <label key={m.value} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                  <input type="checkbox" checked={methods.includes(m.value)} onChange={() => toggleMethod(m.value)} />
+                  {m.label}
+                </label>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
         <div className="space-y-1.5">
           <Label className="text-xs">Master Service Agreement link (optional)</Label>
           <Input
