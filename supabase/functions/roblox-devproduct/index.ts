@@ -99,28 +99,25 @@ async function getCsrf(cookie: string): Promise<string> {
 
 const norm = (s: string) => String(s || "").trim().toLowerCase();
 
-// List a place's developer products (name + id + price), paging until the end.
-async function findDevProductByName(placeId: string, name: string):
-  Promise<{ productId: string; priceRobux: number } | null> {
-  const want = norm(name);
-  for (let page = 1; page <= 50; page++) {
-    const res = await fetch(
-      `https://api.roblox.com/developerproducts/list?placeid=${placeId}&page=${page}`,
-    );
-    if (!res.ok) break;
-    const data = await res.json();
-    const rows: any[] = data?.DeveloperProducts ?? data?.developerProducts ?? [];
-    for (const p of rows) {
-      const pname = p?.Name ?? p?.name ?? "";
-      if (norm(pname) === want) {
-        const id = String(p?.ProductId ?? p?.productId ?? p?.id ?? "");
-        const price = Number(p?.PriceInRobux ?? p?.priceInRobux ?? 0) || 0;
-        if (id) return { productId: id, priceRobux: price };
-      }
-    }
-    if (data?.FinalPage === true || rows.length === 0) break;
-  }
-  return null;
+// Roblox retired the public "list developer products" endpoint (api.roblox.com
+// no longer resolves), so instead of asking Roblox what exists we remember what
+// WE created, per bot, in a bot_config cache. That avoids duplicates without any
+// listing call. Key: "<placeId>:<name lowercased>" -> productId.
+const DEVPRODUCT_FEATURE = "roblox-devproducts";
+const cacheKey = (placeId: string, name: string) => `${placeId}:${norm(name)}`;
+
+async function readDevCache(botId: string): Promise<Record<string, string>> {
+  const { data } = await admin.from("bot_config").select("config")
+    .eq("bot_id", botId).eq("feature", DEVPRODUCT_FEATURE).maybeSingle();
+  const cfg = (data?.config ?? {}) as any;
+  return (cfg && typeof cfg.products === "object" && cfg.products) ? cfg.products : {};
+}
+
+async function writeDevCache(botId: string, products: Record<string, string>) {
+  await admin.from("bot_config").upsert(
+    { bot_id: botId, feature: DEVPRODUCT_FEATURE, config: { products }, updated_at: new Date().toISOString() },
+    { onConflict: "bot_id,feature" },
+  );
 }
 
 async function createDevProduct(
@@ -169,19 +166,23 @@ Deno.serve(async (req) => {
 
   try {
     if (action === "find") {
-      const hit = await findDevProductByName(placeId, name);
-      return json({ ok: true, productId: hit?.productId ?? null, priceRobux: hit?.priceRobux ?? null, buyUrl: buyUrlFor(placeId), placeId });
+      const products = await readDevCache(botId);
+      const id = products[cacheKey(placeId, name)] || null;
+      return json({ ok: true, productId: id, buyUrl: buyUrlFor(placeId), placeId });
     }
     if (action === "find_or_create") {
       const priceRobux = Math.max(0, Math.round(Number(body?.priceRobux ?? 0)) || 0);
-      const existing = await findDevProductByName(placeId, name);
-      if (existing) {
-        return json({ ok: true, productId: existing.productId, existed: true, priceRobux: existing.priceRobux, buyUrl: buyUrlFor(placeId), placeId });
+      const products = await readDevCache(botId);
+      const key = cacheKey(placeId, name);
+      if (products[key]) {
+        return json({ ok: true, productId: products[key], existed: true, priceRobux, buyUrl: buyUrlFor(placeId), placeId });
       }
       const cookie = await resolveCookie(botId, req);
       if (!cookie) return json({ error: "No Roblox cookie configured" }, 500);
       const universeId = await resolveUniverseId(placeId);
       const productId = await createDevProduct(universeId, name, priceRobux, cookie);
+      products[key] = productId;
+      await writeDevCache(botId, products);
       return json({ ok: true, productId, existed: false, priceRobux, buyUrl: buyUrlFor(placeId), placeId });
     }
     return json({ error: "Unknown action" }, 400);
