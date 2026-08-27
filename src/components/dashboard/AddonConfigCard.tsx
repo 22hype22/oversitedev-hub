@@ -272,6 +272,11 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsFormLog = isCustomsOrderLog || isCustomsInfraction || isCustomsPromotion || isCustomsQualityCheck;
   const formLogCommand = isCustomsInfraction ? "/infraction" : isCustomsPromotion ? "/promote" : isCustomsQualityCheck ? "/qualitycheck" : "/orderlog";
   const isCustomsTickets = addonId === "customs-tickets";
+  // Marketplace reuses the entire Tickets UI/flow, just against its own
+  // bot_config feature ("marketplace") so it's a fully independent system.
+  const isMarketplace = addonId === "marketplace";
+  const isTicketLike = isCustomsTickets || isMarketplace;
+  const ticketFeature = isMarketplace ? "marketplace" : "tickets";
   const isCustomsVerification = addonId === "customs-verification";
   const isRobloxGroupSync = addonId === "roblox-group-sync";
   const isInviteTracker = addonId === "invite-tracker";
@@ -2034,14 +2039,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
 
   // ---------- customs: tickets ----------
   useEffect(() => {
-    if (!isCustomsTickets || !open || !botId) return;
+    if (!isTicketLike || !open || !botId) return;
     let cancelled = false;
     (async () => {
       const { data } = await supabase
         .from("bot_config")
         .select("config, applied_at")
         .eq("bot_id", botId)
-        .eq("feature", "tickets")
+        .eq("feature", ticketFeature)
         .maybeSingle();
       if (cancelled || !data) return;
       const cfg = (data.config ?? {}) as Record<string, any>;
@@ -2106,7 +2111,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       setAppliedAt((data as any).applied_at ?? null);
     })();
     return () => { cancelled = true; };
-  }, [isCustomsTickets, open, botId]);
+  }, [isTicketLike, ticketFeature, open, botId]);
 
   // Snapshot the opening-message builder into the per-type map for the active
   // type. Returns the merged map so callers can use it immediately.
@@ -2180,7 +2185,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       .map((p) => ({ channel_id: p.channel_id, components: normalizeV2Items(p.components ?? []) }));
     const payload = {
       bot_id: botId,
-      feature: "tickets",
+      feature: ticketFeature,
       config: {
         ticket_menu_placeholder: ticketMenuPlaceholder.trim() || "Select a ticket type…",
         category_id: values.category_id ? String(values.category_id) : null,
@@ -2201,7 +2206,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     setSaving(false);
     if (error) return toast.error(`Save failed: ${error.message}`);
     const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
-      _bot_id: botId, _feature: "tickets",
+      _bot_id: botId, _feature: ticketFeature,
     });
     const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
@@ -2241,8 +2246,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
 
   // ---- Ticket setup templates (save / load / start over) ----
   useEffect(() => {
-    if (isCustomsTickets && open) setTicketTemplates(loadTicketTemplates());
-  }, [isCustomsTickets, open]);
+    if (isTicketLike && open) setTicketTemplates(loadTicketTemplates());
+  }, [isTicketLike, open]);
 
   // Snapshot the whole Tickets editor into a plain object for a template.
   const captureCurrentTicketConfig = () => ({
@@ -4189,7 +4194,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsPackages || isCustomsFormLog || isCustomsLogging || isInviteTracker
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isMarketplace || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsPackages || isCustomsFormLog || isCustomsLogging || isInviteTracker
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -4212,7 +4217,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           </DialogHeader>
 
           <div className="absolute right-3 top-3 z-10 flex items-center gap-0.5">
-            {isCustomsTickets && (
+            {isTicketLike && (
               <>
               <Popover open={tplOpen} onOpenChange={setTplOpen}>
                 <PopoverTrigger asChild>
@@ -4280,7 +4285,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               </Button>
               </>
             )}
-            {!isCustomsTickets && activeBuilder && (
+            {!isTicketLike && activeBuilder && (
               <>
                 <Popover open={genTplOpen} onOpenChange={setGenTplOpen}>
                   <PopoverTrigger asChild>
@@ -4930,7 +4935,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 />
               )}
             </div>
-          ) : isCustomsTickets ? (
+          ) : isTicketLike ? (
             <div className="space-y-5 py-2">
               {config.fields
                 .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
@@ -5165,7 +5170,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsRobuxLocker();
                   } else if (isCustomsVerification) {
                     void saveCustomsVerification();
-                  } else if (isCustomsTickets) {
+                  } else if (isTicketLike) {
                     void saveCustomsTickets();
                   } else if (isCustomsOrderStatus) {
                     void saveCustomsOrderStatus();

@@ -56,6 +56,7 @@ import {
   Coins,
   AlarmClock,
   Megaphone,
+  Store,
 } from "lucide-react";
 
 export type AddonFieldType =
@@ -1112,6 +1113,26 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       toggle("one_per_user", "Limit each member to 2 open tickets per section", true),
       header("Ticket panel"),
       channel("panel_channel_id", "Panel channel", "Where the ticket panel is posted. Design it below; it posts here on Save."),
+    ],
+  },
+
+  "marketplace": {
+    title: "Marketplace",
+    summary: "A second ticket-style system for marketplace listings — its own category, staff roles, and transcripts.",
+    icon: Store,
+    fields: [
+      {
+        key: "category_id",
+        label: "Marketplace category",
+        type: "channel",
+        channelTypes: ["category"],
+        help: "New marketplace channels open under this category.",
+      },
+      multirole("support_role_ids", "Global staff roles (see ALL listings)", "Optional — roles that can see & manage EVERY marketplace channel. Leave empty to keep each one restricted to its own Access roles, set per Ticket/Form in the panel below."),
+      channel("log_channel_id", "Transcript log channel", "Where closed marketplace transcripts are posted."),
+      toggle("one_per_user", "Limit each member to 2 open channels per section", true),
+      header("Marketplace panel"),
+      channel("panel_channel_id", "Panel channel", "Where the marketplace panel is posted. Design it below; it posts here on Save."),
     ],
   },
 
