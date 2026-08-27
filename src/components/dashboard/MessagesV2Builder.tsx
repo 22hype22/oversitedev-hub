@@ -118,6 +118,7 @@ type V2ButtonRowButton =
   | { id: string; label: string; buyrobux: true; style?: V2ButtonStyle }
   | { id: string; label: string; notify_roles: string; style?: V2ButtonStyle }
   | { id: string; label: string; orderstatus: true; style?: V2ButtonStyle }
+  | { id: string; label: string; adclaim: true; style?: V2ButtonStyle }
   | { id: string; label: string; disabled: true; style?: V2ButtonStyle };
 
 type V2ButtonRow = {
@@ -163,6 +164,9 @@ const isNotifyButton = (
 const isOrderStatusButton = (
   b: V2ButtonRowButton,
 ): b is { id: string; label: string; orderstatus: true; style?: V2ButtonStyle } => "orderstatus" in b;
+const isAdClaimButton = (
+  b: V2ButtonRowButton,
+): b is { id: string; label: string; adclaim: true; style?: V2ButtonStyle } => "adclaim" in b;
 const isTicketButton = (
   b: V2ButtonRowButton,
 ): b is { id: string; label: string; ticket: string; style?: V2ButtonStyle } => "ticket" in b;
@@ -265,7 +269,7 @@ export function normalizeV2Items(items: V2Item[]): V2Item[] {
 // buttons are interaction buttons (not links), so force them off the link style
 // and strip any stray url — otherwise the send 400s with "A url is required".
 function sanitizeButtonRowButton(b: V2ButtonRowButton): V2ButtonRowButton {
-  const isInteraction = "ticket" in b || "form" in b || "ephemeral" in b || "disabled" in b || "counter" in b || "buyrobux" in b || "notify_roles" in b || "orderstatus" in b;
+  const isInteraction = "ticket" in b || "form" in b || "ephemeral" in b || "disabled" in b || "counter" in b || "buyrobux" in b || "notify_roles" in b || "orderstatus" in b || "adclaim" in b;
   if (!isInteraction) return b;
   const anyB = b as any;
   const { url: _dropUrl, ...rest } = anyB;
@@ -1048,7 +1052,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
       <div className="space-y-3">
         <Label className="text-xs">Buttons (up to 5)</Label>
         {buttons.map((b, i) => {
-          const mode: "link" | "channel" | "display" | "ticket" | "form" | "ephemeral" | "counter" | "buyrobux" | "notify" | "orderstatus" = isTicketButton(b)
+          const mode: "link" | "channel" | "display" | "ticket" | "form" | "ephemeral" | "counter" | "buyrobux" | "notify" | "orderstatus" | "adclaim" = isTicketButton(b)
             ? "ticket"
             : isFormButton(b)
             ? "form"
@@ -1062,6 +1066,8 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             ? "notify"
             : isOrderStatusButton(b)
             ? "orderstatus"
+            : isAdClaimButton(b)
+            ? "adclaim"
             : isDisplayButton(b)
             ? "display"
             : isChannelButton2(b)
@@ -1172,6 +1178,15 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                         />
                         Order Status
                       </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name={`btn-mode-${b.id}`}
+                          checked={mode === "adclaim"}
+                          onChange={() => update({ id: b.id, label: b.label || "Post an Ad", adclaim: true, style: style === "link" ? "primary" : style })}
+                        />
+                        Post an Ad
+                      </label>
                     </>
                   )}
                 </div>
@@ -1208,6 +1223,8 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                         ? { id: b.id, label: lbl, notify_roles: b.notify_roles, style }
                         : isOrderStatusButton(b)
                         ? { id: b.id, label: lbl, orderstatus: true, style }
+                        : isAdClaimButton(b)
+                        ? { id: b.id, label: lbl, adclaim: true, style }
                         : isChannelButton2(b)
                         ? { id: b.id, label: lbl, channel_id: b.channel_id, style }
                         : { id: b.id, label: lbl, url: (b as { url: string }).url, style },
@@ -1293,6 +1310,21 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                   <Select
                     value={style === "link" ? "secondary" : style}
                     onValueChange={(v) => update({ id: b.id, label: b.label, orderstatus: true, style: v as V2ButtonStyle })}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Button color" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="primary">Blurple</SelectItem>
+                      <SelectItem value="success">Green</SelectItem>
+                      <SelectItem value="secondary">Grey</SelectItem>
+                      <SelectItem value="danger">Red</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : mode === "adclaim" ? (
+                  <Select
+                    value={style === "link" ? "primary" : style}
+                    onValueChange={(v) => update({ id: b.id, label: b.label, adclaim: true, style: v as V2ButtonStyle })}
                   >
                     <SelectTrigger className="h-9 text-xs">
                       <SelectValue placeholder="Button color" />
@@ -1914,7 +1946,7 @@ function PreviewItem({ item }: { item: V2Item }) {
               </span>
             );
           }
-          return isCategoryButton2(b) || isChannelButton2(b) || isCounterButton(b) || isNotifyButton(b) || isOrderStatusButton(b) ? (
+          return isCategoryButton2(b) || isChannelButton2(b) || isCounterButton(b) || isNotifyButton(b) || isOrderStatusButton(b) || isAdClaimButton(b) ? (
             <span
               key={b.id}
               className={cn("inline-flex items-center px-3 py-1.5 text-xs font-medium rounded", styleClass)}

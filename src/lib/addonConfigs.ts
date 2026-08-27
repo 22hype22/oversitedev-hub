@@ -1217,6 +1217,40 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "ads": {
+    title: "Advertisements",
+    summary: "Sell ad perks; members spend them to post ads through a staff-approved queue.",
+    icon: Megaphone,
+    fields: [
+      toggle("enabled", "Enable the ad system", true,
+        "Members buy ad perks (Purchase cards named to match below), then run /ads or a Post an Ad button to spend a ping credit and submit an ad for staff approval."),
+      channel("post_channel_id", "Ad channel", "Where approved ads are posted."),
+      channel("approval_channel_id", "Staff approval channel", "Where submitted ads go for staff to Approve / Deny."),
+      multirole("staff_role_ids", "Ad staff roles", "Roles that can approve or deny ads (Manage Server always can)."),
+      {
+        key: "interval_minutes",
+        label: "Minutes between queued posts",
+        type: "number",
+        defaultValue: 60,
+        placeholder: "60",
+        help: "How often the bot posts the next queued ad. Bypass Queue ads post first; Instant Post skips the queue entirely.",
+      },
+      header("Perk item names (match your Purchase cards)"),
+      { key: "perk_ping_everyone", label: "Everyone Ping item", type: "text", placeholder: "Everyone Ping", help: "Buying this grants one @everyone post credit." },
+      { key: "perk_ping_here", label: "Here Ping item", type: "text", placeholder: "Here Ping", help: "Buying this grants one @here post credit." },
+      { key: "perk_ping_none", label: "No Ping item", type: "text", placeholder: "No Ping", help: "Buying this grants one no-ping post credit." },
+      { key: "perk_instant", label: "Instant Post item", type: "text", placeholder: "Instant Post", help: "Add-on: skips the queue and posts immediately once approved." },
+      { key: "perk_bypass", label: "Bypass Queue item", type: "text", placeholder: "Bypass Queue", help: "Add-on: jumps into the priority lane, posting before regular queued ads." },
+      {
+        key: "claim_button_label",
+        label: "Post an Ad button label",
+        type: "text",
+        placeholder: "📢 Post an Ad",
+        help: "Label for the Post an Ad button you can add to any message (button action “Post an Ad”).",
+      },
+    ],
+  },
+
   "invite-tracker": {
     title: "Invite Tracker",
     summary: "Log who invited each new member, with a /leaderboard invites board.",
