@@ -2065,7 +2065,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         post_channel_id: cfg.post_channel_id ? String(cfg.post_channel_id) : "",
         approval_channel_id: cfg.approval_channel_id ? String(cfg.approval_channel_id) : "",
         staff_role_ids: Array.isArray(cfg.staff_role_ids) ? cfg.staff_role_ids.map(String) : [],
-        interval_minutes: cfg.interval_minutes != null ? Number(cfg.interval_minutes) : 60,
+        interval_minutes: cfg.interval_minutes != null ? String(cfg.interval_minutes) : "1440",
         perk_ping_everyone: perks.ping_everyone ?? "",
         perk_ping_here: perks.ping_here ?? "",
         perk_ping_none: perks.ping_none ?? "",
