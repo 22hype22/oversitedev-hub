@@ -2160,7 +2160,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
 
   const saveCustomsTickets = async () => {
     if (!botId) return toast.error("Missing bot id.");
-    if (ticketTypes.length === 0) return toast.error("Add at least one ticket type.");
+    // Marketplace can be just a Purchase panel (no ticket types), so only
+    // Tickets requires at least one type.
+    if (!isMarketplace && ticketTypes.length === 0) return toast.error("Add at least one ticket type.");
     setSaving(true);
     const openMap = captureActiveTicketOpen();
     const ticket_types = ticketTypes.map((t) => ({
