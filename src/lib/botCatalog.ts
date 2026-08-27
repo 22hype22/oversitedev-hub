@@ -79,6 +79,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
 
   "roblox-group-sync": "Roblox Group Sync",
   "invite-tracker": "Invite Tracker",
+  "marketplace": "Marketplace",
 
   // Shared
   branding: "Custom Branding",
@@ -207,7 +208,7 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
     ...ADDON_IDS_BY_BASE.support.filter((id) => id !== "ticket-message-customization"),
   ],
   utilities: [...ADDON_IDS_BY_BASE.utilities, "messages"],
-  customs: ["invite-message", "customs-messages", "customs-tickets", "customs-verification", "customs-giveaway", "customs-robux-locker", "customs-order-status", "customs-pricing", "customs-portfolio", "customs-packages", "customs-orderlog", "customs-infraction", "customs-promotion", "customs-qualitycheck", "customs-payment", "customs-logging", "music-addon", "auto-radio", "roblox-group-sync", "invite-tracker"],
+  customs: ["invite-message", "customs-messages", "customs-tickets", "customs-verification", "customs-giveaway", "customs-robux-locker", "customs-order-status", "customs-pricing", "customs-portfolio", "customs-packages", "customs-orderlog", "customs-infraction", "customs-promotion", "customs-qualitycheck", "customs-payment", "customs-logging", "music-addon", "auto-radio", "roblox-group-sync", "invite-tracker", "marketplace"],
 };
 
 export function getIncludedAddonsForBase(baseId: string): string[] {
