@@ -280,6 +280,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsVerification = addonId === "customs-verification";
   const isRobloxGroupSync = addonId === "roblox-group-sync";
   const isInviteTracker = addonId === "invite-tracker";
+  const isAds = addonId === "ads";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
@@ -317,6 +318,13 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const inviteTrackerV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [inviteTrackerV2Items, setInviteTrackerV2Items] = useState<V2Item[]>([]);
   const [inviteTrackerV2MountKey, setInviteTrackerV2MountKey] = useState(0);
+  // "Advertisements" — two designs: the Regular Post and the Sponsored Giveaway.
+  const adsRegularV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [adsRegularV2Items, setAdsRegularV2Items] = useState<V2Item[]>([]);
+  const [adsRegularV2MountKey, setAdsRegularV2MountKey] = useState(0);
+  const adsGiveawayV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [adsGiveawayV2Items, setAdsGiveawayV2Items] = useState<V2Item[]>([]);
+  const [adsGiveawayV2MountKey, setAdsGiveawayV2MountKey] = useState(0);
 
   // Customs "Logging" — the V2 builder for the purchase-log message template.
   const loggingV2Ref = useRef<MessagesV2BuilderHandle>(null);
@@ -2029,6 +2037,80 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (error) return toast.error(`Save failed: ${error.message}`);
     const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
       _bot_id: botId, _feature: "invite-tracker",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success(`${config.title} saved & applied`);
+    setOpen(false);
+  };
+
+  // ---------- advertisements ----------
+  useEffect(() => {
+    if (!isAds || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", "ads")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      const perks = (cfg.perks ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        enabled: cfg.enabled ?? true,
+        post_channel_id: cfg.post_channel_id ? String(cfg.post_channel_id) : "",
+        approval_channel_id: cfg.approval_channel_id ? String(cfg.approval_channel_id) : "",
+        staff_role_ids: Array.isArray(cfg.staff_role_ids) ? cfg.staff_role_ids.map(String) : [],
+        interval_minutes: cfg.interval_minutes != null ? Number(cfg.interval_minutes) : 60,
+        perk_ping_everyone: perks.ping_everyone ?? "",
+        perk_ping_here: perks.ping_here ?? "",
+        perk_ping_none: perks.ping_none ?? "",
+        perk_instant: perks.instant ?? "",
+        perk_bypass: perks.bypass ?? "",
+        claim_button_label: cfg.claim_button_label ?? "",
+      }));
+      setAdsRegularV2Items(Array.isArray(cfg.regular_design) ? (cfg.regular_design as V2Item[]) : []);
+      setAdsRegularV2MountKey((k) => k + 1);
+      setAdsGiveawayV2Items(Array.isArray(cfg.giveaway_design) ? (cfg.giveaway_design as V2Item[]) : []);
+      setAdsGiveawayV2MountKey((k) => k + 1);
+    })();
+    return () => { cancelled = true; };
+  }, [isAds, open, botId]);
+
+  const saveAds = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "ads",
+      config: {
+        enabled: values.enabled ?? true,
+        post_channel_id: values.post_channel_id ? String(values.post_channel_id) : "",
+        approval_channel_id: values.approval_channel_id ? String(values.approval_channel_id) : "",
+        staff_role_ids: Array.isArray(values.staff_role_ids) ? (values.staff_role_ids as string[]).map(String) : [],
+        interval_minutes: Math.max(1, Number(values.interval_minutes) || 60),
+        perks: {
+          ping_everyone: String(values.perk_ping_everyone ?? "").trim() || "Everyone Ping",
+          ping_here: String(values.perk_ping_here ?? "").trim() || "Here Ping",
+          ping_none: String(values.perk_ping_none ?? "").trim() || "No Ping",
+          instant: String(values.perk_instant ?? "").trim() || "Instant Post",
+          bypass: String(values.perk_bypass ?? "").trim() || "Bypass Queue",
+        },
+        regular_design: normalizeV2Items(adsRegularV2Ref.current?.getItems() ?? adsRegularV2Items ?? []),
+        giveaway_design: normalizeV2Items(adsGiveawayV2Ref.current?.getItems() ?? adsGiveawayV2Items ?? []),
+        claim_button_label: String(values.claim_button_label ?? "").trim(),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "ads",
     });
     const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
@@ -4196,7 +4278,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isMarketplace || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsPackages || isCustomsFormLog || isCustomsLogging || isInviteTracker
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isMarketplace || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsPackages || isCustomsFormLog || isCustomsLogging || isInviteTracker || isAds
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -4720,6 +4802,52 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 />
               </div>
             </div>
+          ) : isAds ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Regular Post design</p>
+                <p className="text-xs text-muted-foreground">
+                  How a normal ad posts. Tokens:{" "}
+                  <code className="font-mono text-os-accent">{"{advertiser}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{server_link}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{ping}"}</code>. Leave empty for a default embed.
+                </p>
+                <MessagesV2Builder
+                  key={`ads-regular-v2-${adsRegularV2MountKey}`}
+                  ref={adsRegularV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={adsRegularV2Items}
+                />
+              </div>
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Sponsored Giveaway design</p>
+                <p className="text-xs text-muted-foreground">
+                  How a sponsored giveaway posts. Tokens:{" "}
+                  <code className="font-mono text-os-accent">{"{advertiser}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{prize}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{winners}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{duration}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{ping}"}</code>. Leave empty for the default giveaway layout.
+                </p>
+                <MessagesV2Builder
+                  key={`ads-giveaway-v2-${adsGiveawayV2MountKey}`}
+                  ref={adsGiveawayV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={adsGiveawayV2Items}
+                />
+              </div>
+            </div>
           ) : isCustomsPackages ? (
             <div className="space-y-5 py-2">
               {config.fields
@@ -5192,6 +5320,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveRobloxGroupSync();
                   } else if (isInviteTracker) {
                     void saveInviteTracker();
+                  } else if (isAds) {
+                    void saveAds();
                   } else {
                     toast.success(`${config.title} settings saved`);
                     setOpen(false);
