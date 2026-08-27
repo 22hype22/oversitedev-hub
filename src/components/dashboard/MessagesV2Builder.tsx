@@ -1081,8 +1081,8 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
           };
           return (
             <div key={b.id} className="space-y-2 rounded border border-border bg-background/40 p-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-3 text-xs">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
                   <label className="flex items-center gap-1.5 cursor-pointer">
                     <input
                       type="radio"
