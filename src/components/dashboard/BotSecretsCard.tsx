@@ -157,14 +157,23 @@ export function BotSecretsCard({ bot }: Props) {
     // metadata without flipping `loading`, so sections don't unmount and lose
     // their local UI state (the picked channel would otherwise reset).
     if (!silent) setLoading(true);
-    const { data, error } = await (supabase as any).rpc("get_bot_secrets_metadata", {
-      _bot_id: bot.id,
-    });
-    if (error) {
-      toast.error("Couldn't load credentials", { description: error.message });
-      setSlots([]);
-    } else {
+    // The backend occasionally drops a request ("Failed to fetch") — retry a few
+    // times, and on a hard failure KEEP whatever slots we already have rather
+    // than blanking the card (which would hide a saved key behind an empty box).
+    let data: any = null, lastErr: any = null, ok = false;
+    for (let i = 0; i < 4; i++) {
+      try {
+        const r = await (supabase as any).rpc("get_bot_secrets_metadata", { _bot_id: bot.id });
+        if (!r.error) { data = r.data; ok = true; break; }
+        lastErr = r.error;
+      } catch (e) { lastErr = e; }
+      await new Promise((res) => setTimeout(res, 500 * (i + 1)));
+    }
+    if (ok) {
       setSlots((data ?? []) as SlotMeta[]);
+    } else {
+      toast.error("Couldn't load credentials", { description: lastErr?.message ?? "Network error" });
+      // leave existing slots untouched
     }
     setLoading(false);
   }, [bot.id]);
@@ -256,6 +265,10 @@ function SecretRow({
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(!slot.is_set);
   const [deleting, setDeleting] = useState(false);
+  // Set the moment a save succeeds, so the masked dots stay put even if the
+  // follow-up metadata reload hiccups (slot.is_set would otherwise still be
+  // false locally until a clean reload lands).
+  const [savedLocal, setSavedLocal] = useState(false);
 
   const save = async () => {
     const v = value.trim();
@@ -264,19 +277,37 @@ function SecretRow({
       return;
     }
     setSaving(true);
-    const { data, error } = await (supabase as any).rpc("set_bot_secret", {
-      _bot_id: bot.id,
-      _key: slot.key,
-      _value: v,
-    });
+    // The backend sometimes drops the request ("Failed to fetch") — retry a few
+    // times with backoff before giving up, so a transient blip doesn't look like
+    // the save failed (and leave the field blank on the next load).
+    let res: { ok?: boolean; error?: string } | null = null;
+    let lastErr: string | null = null;
+    for (let i = 0; i < 4; i++) {
+      try {
+        const { data, error } = await (supabase as any).rpc("set_bot_secret", {
+          _bot_id: bot.id,
+          _key: slot.key,
+          _value: v,
+        });
+        const d = data as { ok?: boolean; error?: string } | null;
+        if (!error && d?.ok) { res = d; lastErr = null; break; }
+        lastErr = d?.error ?? error?.message ?? "unknown error";
+        // A real server-side rejection (ok:false with a reason) won't fix itself
+        // on retry — stop and show it. Only retry blank/network errors.
+        if (d && d.ok === false && d.error) break;
+      } catch (e) {
+        lastErr = (e as Error)?.message ?? String(e);
+      }
+      await new Promise((r) => setTimeout(r, 600 * (i + 1)));
+    }
     setSaving(false);
-    const res = data as { ok?: boolean; error?: string } | null;
-    if (error || !res?.ok) {
-      toast.error("Couldn't save", { description: res?.error ?? error?.message });
+    if (!res?.ok) {
+      toast.error("Couldn't save", { description: lastErr ?? "Network error — please try again." });
       return;
     }
     toast.success(`${slot.label} saved`);
     setValue("");
+    setSavedLocal(true);
     setEditing(false);
     onChanged();
   };
@@ -295,11 +326,15 @@ function SecretRow({
     }
     toast.success(`${slot.label} removed`);
     setValue("");
+    setSavedLocal(false);
     setEditing(true);
     onChanged();
   };
 
-  const chip = slot.is_set ? (
+  // Treat a slot as set if the server says so OR we just saved it this session.
+  const isSet = slot.is_set || savedLocal;
+
+  const chip = isSet ? (
     <span className="chip ok">Saved</span>
   ) : slot.is_required ? (
     <span className="chip req">Required</span>
@@ -315,7 +350,7 @@ function SecretRow({
 
       {slot.description && <div className="ed">{slot.description}</div>}
 
-      {slot.is_set && !editing ? (
+      {isSet && !editing ? (
         <div className="savedrow">
           {/* Masked — the stored value is never displayed, even to the owner. */}
           <span className="dots">••••••••••••••••</span>
@@ -352,7 +387,7 @@ function SecretRow({
             {saving && <Loader2 className="spin" size={14} />}
             Save
           </button>
-          {slot.is_set && (
+          {isSet && (
             <button
               type="button"
               className="mini"
