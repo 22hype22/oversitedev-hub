@@ -228,7 +228,7 @@ const UTILITIES_ADDON_IDS = [
 ];
 // Shared/extras add-ons (none currently — Multi-Server License & Custom
 // Branding combined card was removed per product decision).
-const SHARED_ADDON_IDS: string[] = ["customs-messages", "invite-message", "customs-tickets", "customs-verification", "roblox-group-sync", "customs-packages", "customs-payment", "customs-pricing", "customs-robux-locker", "customs-order-status", "customs-portfolio", "customs-orderlog", "customs-qualitycheck", "customs-infraction", "customs-promotion", "customs-logging", "customs-giveaway", "music-addon", "auto-radio", "invite-tracker", "marketplace", "ads", "customs-tts", "customs-gambling", "customs-suggestions", "customs-feedback", "customs-freerelease", "customs-blacklist", "customs-announce", "customs-smallui"];
+const SHARED_ADDON_IDS: string[] = ["customs-messages", "invite-message", "customs-tickets", "customs-verification", "roblox-group-sync", "customs-packages", "customs-payment", "customs-pricing", "customs-robux-locker", "customs-order-status", "customs-portfolio", "customs-orderlog", "customs-qualitycheck", "customs-infraction", "customs-promotion", "customs-logging", "customs-giveaway", "music-addon", "auto-radio", "invite-tracker", "marketplace", "ads", "customs-tts", "customs-gambling", "customs-suggestions", "customs-feedback", "customs-freerelease", "customs-blacklist", "customs-announce", "customs-smallui", "customs-reportbug"];
 
 // Owners can cancel/remove a bot from any pre-live state OR once it's live
 // ("paid"/"ready"). Cancelling flips the order to "cancelled", which hides it
@@ -280,7 +280,7 @@ const RequestCustomFeatureCard = () => {
   );
 };
 
-const ReportBugCard = () => {
+const ReportBugCard = ({ botId }: { botId?: string }) => {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -292,7 +292,7 @@ const ReportBugCard = () => {
         </span>
         <span className="xar"><ArrowUpRight size={18} /></span>
       </button>
-      <ReportBugDialog open={open} onOpenChange={setOpen} />
+      <ReportBugDialog open={open} onOpenChange={setOpen} botId={botId} />
     </>
   );
 };
@@ -1019,7 +1019,7 @@ const BotSection = ({
                     </div>
                     <div className="xtras">
                       <RequestCustomFeatureCard />
-                      <ReportBugCard />
+                      <ReportBugCard botId={bot.isDemo ? undefined : bot.id} />
                     </div>
                   </div>
                 ) : (

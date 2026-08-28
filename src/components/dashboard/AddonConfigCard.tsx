@@ -223,6 +223,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     "customs-freerelease",
     "customs-blacklist",
     "customs-announce",
+    "customs-reportbug",
   ];
   const isDesignerMsg = DESIGNER_MSG_FEATURES.includes(addonId);
   const isCustomsSmallUi = addonId === "customs-smallui";
