@@ -907,7 +907,18 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             <span className="font-medium">Donation</span> — buyer types the amount
           </label>
           <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-            <input type="checkbox" checked={quantity} onChange={(e) => onUpdate({ quantity: e.target.checked } as Partial<V2Item>)} />
+            <input
+              type="checkbox"
+              checked={quantity}
+              onChange={(e) => {
+                const on = e.target.checked;
+                const lbl = item.button_label || "";
+                const upd: Record<string, unknown> = { quantity: on };
+                if (on && (lbl === "" || lbl === "Purchase")) upd.button_label = "Quantity | {quantity}";
+                if (!on && lbl === "Quantity | {quantity}") upd.button_label = "Purchase";
+                onUpdate(upd as Partial<V2Item>);
+              }}
+            />
             <span className="font-medium">Quantity</span> — unclickable badge showing how many they own
           </label>
         </div>
