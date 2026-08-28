@@ -4834,12 +4834,16 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 <p className="text-sm font-semibold text-foreground">Sponsored Giveaway design</p>
                 <p className="text-xs text-muted-foreground">
                   How a sponsored giveaway posts — the bot hosts it in your server and members click Enter to join. Add a{" "}
-                  <span className="font-medium">Button Row → Counter</span> for the Enter button (or one is added automatically). Tokens:{" "}
+                  <span className="font-medium">Button Row → Counter</span> for the Enter button (or one is added automatically), and a{" "}
+                  <span className="font-medium">Link button</span> labeled “Discord Group” with URL{" "}
+                  <code className="font-mono text-os-accent">{"{server_link}"}</code> to link the advertiser's server. Tokens:{" "}
                   <code className="font-mono text-os-accent">{"{advertiser}"}</code>,{" "}
                   <code className="font-mono text-os-accent">{"{prize}"}</code>,{" "}
                   <code className="font-mono text-os-accent">{"{winners}"}</code>,{" "}
                   <code className="font-mono text-os-accent">{"{duration}"}</code>,{" "}
                   <code className="font-mono text-os-accent">{"{reactions}"}</code> (live entry count),{" "}
+                  <code className="font-mono text-os-accent">{"{server_link}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{server_name}"}</code>,{" "}
                   <code className="font-mono text-os-accent">{"{ping}"}</code>. Leave empty for the default giveaway layout.
                 </p>
                 <MessagesV2Builder
