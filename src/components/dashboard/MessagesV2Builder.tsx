@@ -97,6 +97,7 @@ type V2Purchase = {
   msa_url: string;
   donation: boolean; // buyer picks USD or Robux and types the amount
   quantity: boolean; // display card: button is an unclickable "Quantity | N" badge
+  buy_url?: string; // pre-made dev product's page link — used verbatim, nothing created
 };
 
 type V2Gallery = { id: string; type: "gallery"; images: string[] };
@@ -327,6 +328,7 @@ const newItem = (type: V2Item["type"]): V2Item => {
         msa_url: "",
         donation: false,
         quantity: false,
+        buy_url: "",
       };
     case "gallery":
       return { id: uid(), type, images: [""] };
@@ -949,6 +951,19 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                 </label>
               ))}
             </div>
+          </div>
+        )}
+        {!donation && !quantity && (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Direct buy link (optional)</Label>
+            <Input
+              value={item.buy_url ?? ""}
+              onChange={(e) => onUpdate({ buy_url: e.target.value } as Partial<V2Item>)}
+              placeholder="https://www.roblox.com/developer-product/…/product/…"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Paste a pre-made Roblox product’s page URL and the Buy button links straight to it — nothing is created, and no Open Cloud API key is needed. Open the product on Roblox and copy the address bar URL. Leave blank to auto-create by title.
+            </p>
           </div>
         )}
         {!quantity && (
