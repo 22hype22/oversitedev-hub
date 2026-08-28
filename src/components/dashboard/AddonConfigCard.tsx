@@ -325,6 +325,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const adsGiveawayV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [adsGiveawayV2Items, setAdsGiveawayV2Items] = useState<V2Item[]>([]);
   const [adsGiveawayV2MountKey, setAdsGiveawayV2MountKey] = useState(0);
+  const adsClaimV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [adsClaimV2Items, setAdsClaimV2Items] = useState<V2Item[]>([]);
+  const [adsClaimV2MountKey, setAdsClaimV2MountKey] = useState(0);
 
   // Customs "Logging" — the V2 builder for the purchase-log message template.
   const loggingV2Ref = useRef<MessagesV2BuilderHandle>(null);
@@ -2083,6 +2086,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       setAdsRegularV2MountKey((k) => k + 1);
       setAdsGiveawayV2Items(Array.isArray(cfg.giveaway_design) ? (cfg.giveaway_design as V2Item[]) : []);
       setAdsGiveawayV2MountKey((k) => k + 1);
+      setAdsClaimV2Items(Array.isArray(cfg.claim_design) ? (cfg.claim_design as V2Item[]) : []);
+      setAdsClaimV2MountKey((k) => k + 1);
     })();
     return () => { cancelled = true; };
   }, [isAds, open, botId]);
@@ -2106,6 +2111,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         },
         regular_design: normalizeV2Items(adsRegularV2Ref.current?.getItems() ?? adsRegularV2Items ?? []),
         giveaway_design: normalizeV2Items(adsGiveawayV2Ref.current?.getItems() ?? adsGiveawayV2Items ?? []),
+        claim_design: normalizeV2Items(adsClaimV2Ref.current?.getItems() ?? adsClaimV2Items ?? []),
         claim_button_label: String(values.claim_button_label ?? "").trim(),
         claim_title: String(values.claim_title ?? "").trim(),
         claim_note: String(values.claim_note ?? ""),
@@ -4871,6 +4877,23 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
                   initialItems={adsGiveawayV2Items}
+                />
+              </div>
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Claim panel design</p>
+                <p className="text-xs text-muted-foreground">
+                  How the “post an ad” pop-up looks when a member clicks Claim. The ping / post-type / add-on dropdowns and the Continue button are added automatically below your design. Token:{" "}
+                  <code className="font-mono text-os-accent">{"{inventory}"}</code> (the list of what they own),{" "}
+                  <code className="font-mono text-os-accent">{"{user}"}</code>. Leave empty for the default panel.
+                </p>
+                <MessagesV2Builder
+                  key={`ads-claim-v2-${adsClaimV2MountKey}`}
+                  ref={adsClaimV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={adsClaimV2Items}
                 />
               </div>
             </div>
