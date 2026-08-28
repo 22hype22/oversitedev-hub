@@ -270,6 +270,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsOrderStatus = addonId === "customs-order-status";
   const isCustomsTTS = addonId === "customs-tts";
   const isCustomsGambling = addonId === "customs-gambling";
+  const isCustomsAccess = addonId === "customs-access";
   const isCustomsPayment = addonId === "customs-payment";
   const isCustomsLogging = addonId === "customs-logging";
   const isCustomsPricing = addonId === "customs-pricing";
@@ -1707,6 +1708,51 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Economy & Gambling saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: dashboard access links ----------
+  useEffect(() => {
+    if (!isCustomsAccess || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-access")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        discord_role_id: cfg.discord_role_id ?? "",
+        roblox_group_id: cfg.roblox_group_id != null ? String(cfg.roblox_group_id) : "",
+        seat_role: cfg.seat_role ?? "viewer",
+      }));
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsAccess, open, botId]);
+
+  const saveCustomsAccess = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-access",
+      config: {
+        discord_role_id: String(values.discord_role_id ?? ""),
+        roblox_group_id: String(values.roblox_group_id ?? "").replace(/[^0-9]/g, ""),
+        seat_role: ["viewer", "moderator", "admin"].includes(String(values.seat_role))
+          ? String(values.seat_role)
+          : "viewer",
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    toast.success("Dashboard access links saved");
     setOpen(false);
   };
 
@@ -5666,6 +5712,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsTTS();
                   } else if (isCustomsGambling) {
                     void saveCustomsGambling();
+                  } else if (isCustomsAccess) {
+                    void saveCustomsAccess();
                   } else if (isCustomsLogging) {
                     void saveCustomsLogging();
                   } else if (isCustomsPricing) {
