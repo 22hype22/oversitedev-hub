@@ -61,6 +61,7 @@ import {
 
 export type AddonFieldType =
   | "channel"
+  | "multichannel"
   | "role"
   | "multirole"
   | "text"
@@ -1040,6 +1041,13 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         defaultValue: 0,
         placeholder: "0",
         help: "How much cash a member starts with the first time they use an economy command.",
+      },
+      {
+        key: "allowed_channel_ids",
+        label: "Lock commands to channels",
+        type: "multichannel",
+        defaultValue: [],
+        help: "Pick the channels where economy & gambling commands are allowed. Leave empty to allow them everywhere.",
       },
     ],
   },
