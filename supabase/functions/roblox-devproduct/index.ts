@@ -26,6 +26,11 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ROBLOX_COOKIE = Deno.env.get("ROBLOX_COOKIE") ?? "";
+// Roblox retired cookie-based developer-product CREATION; the Open Cloud v2 API
+// is the only way now and it authenticates with an API key (x-api-key), not the
+// cookie. Owners set this per-bot in the dashboard ("API keys & credentials"),
+// else the shared project key.
+const ROBLOX_API_KEY = Deno.env.get("ROBLOX_API_KEY") ?? "";
 // The experience dev products live in. Same store game the gamepass tools use.
 const DEFAULT_PLACE_ID = Deno.env.get("ROBLOX_DEVPRODUCT_PLACE_ID") ?? "108687688483255";
 
@@ -71,6 +76,19 @@ async function resolveCookie(botId: string, req: Request): Promise<string> {
     } catch (_e) { /* fall back to the project secret */ }
   }
   return ROBLOX_COOKIE;
+}
+
+async function resolveApiKey(botId: string, req: Request): Promise<string> {
+  const token = getWorkerToken(req);
+  if (token) {
+    try {
+      const { data, error } = await admin.rpc("runtime_get_bot_secret", {
+        _token: token, _bot_id: botId, _key: "ROBLOX_API_KEY",
+      });
+      if (!error && typeof data === "string" && data.trim()) return data.trim();
+    } catch (_e) { /* fall back to the project secret */ }
+  }
+  return ROBLOX_API_KEY;
 }
 
 // ---------------- Roblox helpers ----------------
@@ -121,50 +139,34 @@ async function writeDevCache(botId: string, products: Record<string, string>) {
 }
 
 async function createDevProduct(
-  universeId: string, name: string, priceRobux: number, cookie: string,
+  universeId: string, name: string, priceRobux: number, apiKey: string,
 ): Promise<string> {
-  let csrf = await getCsrf(cookie);
   const nm = name.slice(0, 100);
   const price = Math.max(0, Math.round(priceRobux));
-  const qs = `?name=${encodeURIComponent(nm)}&description=${encodeURIComponent("")}&priceInRobux=${price}`;
-  const jsonBody = JSON.stringify({ name: nm, description: "", priceInRobux: price });
-
-  // Roblox keeps moving/deprecating the dev-product create route, so try the
-  // known variants in order and use whichever answers. Each is cookie + CSRF.
-  // (query-string variants send an empty body; the JSON variant sends the body.)
-  const candidates: Array<{ label: string; url: string; body: string }> = [
-    { label: "develop.v1(qs)", url: `https://develop.roblox.com/v1/universes/${universeId}/developerproducts${qs}`, body: "{}" },
-    { label: "apis.dp.v1(qs)", url: `https://apis.roblox.com/developer-products/v1/universes/${universeId}/developerproducts${qs}`, body: "{}" },
-    { label: "apis.dp.v1(json)", url: `https://apis.roblox.com/developer-products/v1/universes/${universeId}/developerproducts`, body: jsonBody },
-    { label: "develop.v1(json)", url: `https://develop.roblox.com/v1/universes/${universeId}/developerproducts`, body: jsonBody },
-  ];
-
-  const attempt = (url: string, body: string, token: string) =>
-    fetch(url, {
-      method: "POST",
-      headers: { Cookie: `.ROBLOSECURITY=${cookie}`, "x-csrf-token": token, "Content-Type": "application/json" },
-      body,
-    });
-
-  const tried: string[] = [];
-  let data: any = null;
-  for (const c of candidates) {
-    let res = await attempt(c.url, c.body, csrf);
-    if (res.status === 403) {
-      const refreshed = res.headers.get("x-csrf-token");
-      if (refreshed) { csrf = refreshed; res = await attempt(c.url, c.body, csrf); }
-    }
-    if (res.ok) { data = await res.json(); break; }
-    // A 404/410 means this route is gone — move on. Anything else (401/403/400)
-    // is a real answer from a live route, so stop and surface it.
-    const text = (await res.text()).slice(0, 200);
-    tried.push(`${c.label}=HTTP ${res.status}`);
-    if (res.status !== 404 && res.status !== 410) {
-      throw new Error(`Dev product create failed (${c.label} HTTP ${res.status}): ${text}`);
-    }
+  // Open Cloud v2 — the only supported way to create a dev product now. Auth is
+  // an API key (x-api-key). Body is multipart/form-data (it also allows an icon
+  // file, which we don't send). Docs: create.roblox.com/docs/cloud/features/
+  // developer-products.
+  const url = `https://apis.roblox.com/developer-products/v2/universes/${universeId}/developer-products`;
+  const form = new FormData();
+  form.append("name", nm);
+  form.append("description", "");
+  form.append("isForSale", "true");
+  form.append("price", String(price));
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "x-api-key": apiKey },  // don't set Content-Type — fetch adds the multipart boundary
+    body: form,
+  });
+  if (!res.ok) {
+    const text = (await res.text()).slice(0, 300);
+    throw new Error(`Dev product create failed (HTTP ${res.status}): ${text}`);
   }
-  if (!data) throw new Error(`Dev product create failed — no live endpoint. Tried: ${tried.join(", ")}`);
-  const id = String(data?.id ?? data?.ProductId ?? data?.productId ?? data?.developerProductId ?? "");
+  const data = await res.json();
+  // Open Cloud returns the product resource; the id can be `id`, `productId`,
+  // or the last segment of a `path` like "universes/X/developer-products/Y".
+  let id = String(data?.id ?? data?.productId ?? data?.developerProductId ?? "");
+  if (!id && typeof data?.path === "string") id = data.path.split("/").pop() ?? "";
   if (!id) throw new Error("Roblox response missing developer product id");
   return id;
 }
@@ -201,10 +203,12 @@ Deno.serve(async (req) => {
       if (products[key]) {
         return json({ ok: true, productId: products[key], existed: true, priceRobux, buyUrl: buyUrlFor(placeId), placeId });
       }
-      const cookie = await resolveCookie(botId, req);
-      if (!cookie) return json({ error: "No Roblox cookie configured" }, 500);
+      const apiKey = await resolveApiKey(botId, req);
+      if (!apiKey) {
+        return json({ error: "No Roblox API key configured. Roblox no longer lets the .ROBLOSECURITY cookie create developer products — add a Roblox Open Cloud API key (with developer-product write access to the experience) in the dashboard under API keys & credentials." }, 500);
+      }
       const universeId = await resolveUniverseId(placeId);
-      const productId = await createDevProduct(universeId, name, priceRobux, cookie);
+      const productId = await createDevProduct(universeId, name, priceRobux, apiKey);
       products[key] = productId;
       await writeDevCache(botId, products);
       return json({ ok: true, productId, existed: false, priceRobux, buyUrl: buyUrlFor(placeId), placeId });
