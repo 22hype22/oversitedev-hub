@@ -109,17 +109,31 @@ async function resolvePlaceId(botId: string, req: Request, fromBody: string): Pr
 }
 
 // ---------------- Roblox helpers ----------------
-const _universeCache: Record<string, string> = {};
+const _idsCache: Record<string, { universeId: string; placeId: string }> = {};
 
-async function resolveUniverseId(placeId: string): Promise<string> {
-  if (_universeCache[placeId]) return _universeCache[placeId];
-  const res = await fetch(`https://apis.roblox.com/universes/v1/places/${placeId}/universe`);
-  if (!res.ok) throw new Error(`Couldn't resolve universe for place ${placeId} (HTTP ${res.status})`);
-  const data = await res.json();
-  const uni = String(data?.universeId ?? "");
-  if (!uni) throw new Error("Roblox returned no universeId");
-  _universeCache[placeId] = uni;
-  return uni;
+// Accept EITHER a place ID or an experience/universe ID (the number in the
+// Creator Dashboard URL, .../experiences/<ID>/overview) and return both — the
+// create call needs the universe id, the buy link needs the root place id.
+async function resolveIds(id: string): Promise<{ universeId: string; placeId: string }> {
+  if (_idsCache[id]) return _idsCache[id];
+  // 1) Try it as a PLACE id -> universe.
+  try {
+    const res = await fetch(`https://apis.roblox.com/universes/v1/places/${id}/universe`);
+    if (res.ok) {
+      const uni = String((await res.json())?.universeId ?? "");
+      if (uni) return (_idsCache[id] = { universeId: uni, placeId: id });
+    }
+  } catch (_e) { /* try as a universe id next */ }
+  // 2) Treat it as a UNIVERSE id -> find its root place (for the buy link).
+  try {
+    const res = await fetch(`https://games.roblox.com/v1/games?universeIds=${id}`);
+    if (res.ok) {
+      const row = (await res.json())?.data?.[0];
+      const root = String(row?.rootPlaceId ?? "");
+      if (root) return (_idsCache[id] = { universeId: id, placeId: root });
+    }
+  } catch (_e) { /* fall through to the error */ }
+  throw new Error(`Couldn't resolve a Roblox experience from ID ${id}. Use the experience's place ID, or the experience ID from its Creator Dashboard URL.`);
 }
 
 async function getCsrf(cookie: string): Promise<string> {
@@ -204,10 +218,13 @@ Deno.serve(async (req) => {
 
   const action = String(body?.action ?? "");
   const name = String(body?.name ?? "").trim();
-  const placeId = await resolvePlaceId(botId, req, String(body?.placeId ?? "").trim());
+  const configuredId = await resolvePlaceId(botId, req, String(body?.placeId ?? "").trim());
   if (!name) return json({ error: "name is required" }, 400);
 
   try {
+    // Accept a place OR experience/universe id; get the real universe (to create)
+    // and root place (for the buy link + cache key).
+    const { universeId, placeId } = await resolveIds(configuredId);
     if (action === "find") {
       const products = await readDevCache(botId);
       const id = products[cacheKey(placeId, name)] || null;
@@ -224,7 +241,6 @@ Deno.serve(async (req) => {
       if (!apiKey) {
         return json({ error: "No Roblox API key configured. Roblox no longer lets the .ROBLOSECURITY cookie create developer products — add a Roblox Open Cloud API key (with developer-product write access to the experience) in the dashboard under API keys & credentials." }, 500);
       }
-      const universeId = await resolveUniverseId(placeId);
       const productId = await createDevProduct(universeId, name, priceRobux, apiKey);
       products[key] = productId;
       await writeDevCache(botId, products);
