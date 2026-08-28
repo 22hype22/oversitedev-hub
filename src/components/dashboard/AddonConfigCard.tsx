@@ -2070,6 +2070,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         perk_instant: perks.instant ?? "",
         perk_bypass: perks.bypass ?? "",
         claim_button_label: cfg.claim_button_label ?? "",
+        claim_title: cfg.claim_title ?? "",
+        claim_note: cfg.claim_note ?? "",
+        ping_placeholder: cfg.ping_placeholder ?? "",
+        type_placeholder: cfg.type_placeholder ?? "",
+        regular_label: cfg.regular_label ?? "",
+        giveaway_label: cfg.giveaway_label ?? "",
+        addon_placeholder: cfg.addon_placeholder ?? "",
+        continue_label: cfg.continue_label ?? "",
       }));
       setAdsRegularV2Items(Array.isArray(cfg.regular_design) ? (cfg.regular_design as V2Item[]) : []);
       setAdsRegularV2MountKey((k) => k + 1);
@@ -2099,6 +2107,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         regular_design: normalizeV2Items(adsRegularV2Ref.current?.getItems() ?? adsRegularV2Items ?? []),
         giveaway_design: normalizeV2Items(adsGiveawayV2Ref.current?.getItems() ?? adsGiveawayV2Items ?? []),
         claim_button_label: String(values.claim_button_label ?? "").trim(),
+        claim_title: String(values.claim_title ?? "").trim(),
+        claim_note: String(values.claim_note ?? ""),
+        ping_placeholder: String(values.ping_placeholder ?? "").trim(),
+        type_placeholder: String(values.type_placeholder ?? "").trim(),
+        regular_label: String(values.regular_label ?? "").trim(),
+        giveaway_label: String(values.giveaway_label ?? "").trim(),
+        addon_placeholder: String(values.addon_placeholder ?? "").trim(),
+        continue_label: String(values.continue_label ?? "").trim(),
       },
       updated_at: new Date().toISOString(),
     };
