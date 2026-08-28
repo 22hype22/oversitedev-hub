@@ -91,6 +91,23 @@ async function resolveApiKey(botId: string, req: Request): Promise<string> {
   return ROBLOX_API_KEY;
 }
 
+// Which experience the dev products live in. Owners can override the hardcoded
+// default per-bot (ROBLOX_DEVPRODUCT_PLACE_ID secret) so products are created in
+// THEIR store experience — the one their API key is authorized for.
+async function resolvePlaceId(botId: string, req: Request, fromBody: string): Promise<string> {
+  if (fromBody) return fromBody;
+  const token = getWorkerToken(req);
+  if (token) {
+    try {
+      const { data, error } = await admin.rpc("runtime_get_bot_secret", {
+        _token: token, _bot_id: botId, _key: "ROBLOX_DEVPRODUCT_PLACE_ID",
+      });
+      if (!error && typeof data === "string" && data.trim()) return data.trim().replace(/\D/g, "") || DEFAULT_PLACE_ID;
+    } catch (_e) { /* fall back to the default place */ }
+  }
+  return DEFAULT_PLACE_ID;
+}
+
 // ---------------- Roblox helpers ----------------
 const _universeCache: Record<string, string> = {};
 
@@ -187,7 +204,7 @@ Deno.serve(async (req) => {
 
   const action = String(body?.action ?? "");
   const name = String(body?.name ?? "").trim();
-  const placeId = String(body?.placeId ?? DEFAULT_PLACE_ID);
+  const placeId = await resolvePlaceId(botId, req, String(body?.placeId ?? "").trim());
   if (!name) return json({ error: "name is required" }, 400);
 
   try {
