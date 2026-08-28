@@ -127,6 +127,31 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
 
     setSubmitting(true);
     try {
+      // Resolve the destination FIRST, before any file upload, so we never
+      // waste an upload when the owner hasn't configured a channel yet. Route
+      // to the owner's own bot + configured channel when available; otherwise
+      // fall back to the shared Oversite support channel.
+      let targetBotId = SUPPORT_BOT_ID;
+      let targetChannel = TARGET_CHANNEL_ID;
+      if (botId) {
+        const { data: cfgRow } = await supabase
+          .from("bot_config")
+          .select("config")
+          .eq("bot_id", botId)
+          .eq("feature", "customs-reportbug")
+          .maybeSingle();
+        const cfg = (cfgRow?.config ?? {}) as Record<string, any>;
+        const msgs = Array.isArray(cfg.messages) ? cfg.messages : [];
+        const ch = String(cfg.channel_id || msgs[0]?.channel_id || "");
+        if (ch) {
+          targetBotId = botId;
+          targetChannel = ch;
+        } else {
+          toast.error("No bug-reports channel is set up yet. Ask an admin to configure the Report a Bug block.");
+          return;
+        }
+      }
+
       let proofUrl: string | null = null;
       let proofIsImage = false;
 
@@ -152,29 +177,6 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
       ];
       if (proofUrl && !proofIsImage) {
         fields.push({ name: "Proof", value: `[${proofFile!.name}](${proofUrl})` });
-      }
-
-      // Route to the owner's own bot + configured channel when available;
-      // otherwise fall back to the shared Oversite support channel.
-      let targetBotId = SUPPORT_BOT_ID;
-      let targetChannel = TARGET_CHANNEL_ID;
-      if (botId) {
-        const { data: cfgRow } = await supabase
-          .from("bot_config")
-          .select("config")
-          .eq("bot_id", botId)
-          .eq("feature", "customs-reportbug")
-          .maybeSingle();
-        const cfg = (cfgRow?.config ?? {}) as Record<string, any>;
-        const msgs = Array.isArray(cfg.messages) ? cfg.messages : [];
-        const ch = String(cfg.channel_id || msgs[0]?.channel_id || "");
-        if (ch) {
-          targetBotId = botId;
-          targetChannel = ch;
-        } else {
-          toast.error("No bug-reports channel is set up yet. Ask an admin to configure the Report a Bug block.");
-          return;
-        }
       }
 
       const payload = {
