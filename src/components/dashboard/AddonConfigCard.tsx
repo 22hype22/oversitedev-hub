@@ -254,6 +254,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsGiveaway = addonId === "customs-giveaway";
   const isCustomsRobuxLocker = addonId === "customs-robux-locker";
   const isCustomsOrderStatus = addonId === "customs-order-status";
+  const isCustomsTTS = addonId === "customs-tts";
   const isCustomsPayment = addonId === "customs-payment";
   const isCustomsLogging = addonId === "customs-logging";
   const isCustomsPricing = addonId === "customs-pricing";
@@ -1485,6 +1486,61 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Payment saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: text-to-speech ----------
+  useEffect(() => {
+    if (!isCustomsTTS || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-tts")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        accent: cfg.accent ?? "co.uk",
+        speed: cfg.speed != null ? String(cfg.speed) : "1.1",
+        engine: cfg.engine ?? "gtts",
+        voice_id: cfg.voice_id ?? "",
+        join_message: cfg.join_message ?? "",
+        leave_message: cfg.leave_message ?? "",
+      }));
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsTTS, open, botId]);
+
+  const saveCustomsTTS = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-tts",
+      config: {
+        accent: String(values.accent ?? "co.uk"),
+        speed: Number(values.speed ?? 1.1) || 1.1,
+        engine: String(values.engine ?? "gtts"),
+        voice_id: String(values.voice_id ?? "").trim(),
+        join_message: String(values.join_message ?? ""),
+        leave_message: String(values.leave_message ?? ""),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-tts",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Text-to-Speech saved & applied");
     setOpen(false);
   };
 
@@ -5401,6 +5457,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsOrderStatus();
                   } else if (isCustomsPayment) {
                     void saveCustomsPayment();
+                  } else if (isCustomsTTS) {
+                    void saveCustomsTTS();
                   } else if (isCustomsLogging) {
                     void saveCustomsLogging();
                   } else if (isCustomsPricing) {
