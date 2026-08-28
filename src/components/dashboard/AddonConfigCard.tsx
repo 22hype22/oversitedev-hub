@@ -4888,8 +4888,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               <div className="space-y-2 pt-1">
                 <p className="text-sm font-semibold text-foreground">Claim panel design</p>
                 <p className="text-xs text-muted-foreground">
-                  How the “post an ad” pop-up looks when a member clicks Claim. The ping / post-type / add-on dropdowns and the Continue button are added automatically below your design. Token:{" "}
-                  <code className="font-mono text-os-accent">{"{inventory}"}</code> (the list of what they own),{" "}
+                  How the “post an ad” pop-up looks when a member clicks Claim. The ping / post-type / add-on dropdowns and the Continue button are added automatically below your design. Tokens:{" "}
+                  <code className="font-mono text-os-accent">{"{inventory list}"}</code> (a card per item, with a Quantity badge),{" "}
+                  <code className="font-mono text-os-accent">{"{inventory}"}</code> (a plain text list),{" "}
                   <code className="font-mono text-os-accent">{"{user}"}</code>. Leave empty for the default panel.
                 </p>
                 <MessagesV2Builder
@@ -4905,7 +4906,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               <div className="space-y-2 pt-1">
                 <p className="text-sm font-semibold text-foreground">Empty inventory design</p>
                 <p className="text-xs text-muted-foreground">
-                  Shown when a member clicks Claim but has no ping credits yet. Token:{" "}
+                  Shown when a member clicks Claim but has no ping credits yet. Tokens:{" "}
+                  <code className="font-mono text-os-accent">{"{inventory list}"}</code>,{" "}
                   <code className="font-mono text-os-accent">{"{inventory}"}</code>,{" "}
                   <code className="font-mono text-os-accent">{"{user}"}</code>. Leave empty for the default message.
                 </p>
