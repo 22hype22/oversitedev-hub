@@ -1004,6 +1004,78 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "customs-tts": {
+    title: "Text-to-Speech",
+    summary: "Voice, accent, speed, and the /join & /leave messages.",
+    icon: Radio,
+    fields: [
+      {
+        key: "accent",
+        label: "Accent",
+        type: "select",
+        defaultValue: "co.uk",
+        help: "Which English accent the gTTS voice uses.",
+        options: [
+          { value: "co.uk", label: "British (UK)" },
+          { value: "com", label: "American (US)" },
+          { value: "com.au", label: "Australian" },
+          { value: "ca", label: "Canadian" },
+          { value: "ie", label: "Irish" },
+          { value: "co.in", label: "Indian" },
+        ],
+      },
+      {
+        key: "speed",
+        label: "Speaking speed",
+        type: "select",
+        defaultValue: "1.1",
+        help: "How fast messages are read.",
+        options: [
+          { value: "0.9", label: "Slower" },
+          { value: "1.0", label: "Normal" },
+          { value: "1.1", label: "Slightly quick" },
+          { value: "1.25", label: "Fast" },
+          { value: "1.4", label: "Very fast" },
+        ],
+      },
+      {
+        key: "engine",
+        label: "Voice engine",
+        type: "select",
+        defaultValue: "gtts",
+        help: "gTTS is the free Google voice (with the accent above). ElevenLabs uses your API key + voice ID for a premium voice.",
+        options: [
+          { value: "gtts", label: "Google (gTTS)" },
+          { value: "eleven", label: "ElevenLabs" },
+        ],
+      },
+      {
+        key: "voice_id",
+        label: "ElevenLabs voice ID",
+        type: "text",
+        placeholder: "e.g. s3TPKV1kjDlVtZbl4Ksh",
+        help: "Only used when the engine is ElevenLabs. Leave blank to keep the current one.",
+        visibleIf: (v) => v.engine === "eleven",
+      },
+      {
+        key: "join_message",
+        label: "/join message",
+        type: "textarea",
+        markdown: true,
+        placeholder: "Blank = default. Tokens: {channel}, {user}",
+        help: "The confirmation shown when the bot joins a voice channel. Use {channel} and {user}.",
+      },
+      {
+        key: "leave_message",
+        label: "/leave message",
+        type: "textarea",
+        markdown: true,
+        placeholder: "Blank = 'Disconnected from voice.'",
+        help: "The confirmation shown when the bot leaves the voice channel.",
+      },
+    ],
+  },
+
   "customs-order-status": {
     title: "Order Status",
     summary: "Live open/limited/closed status per service, from open tickets.",
