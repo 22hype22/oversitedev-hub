@@ -124,14 +124,22 @@ async function createDevProduct(
   universeId: string, name: string, priceRobux: number, cookie: string,
 ): Promise<string> {
   let csrf = await getCsrf(cookie);
-  const url = `https://apis.roblox.com/developer-products/v1/universes/${universeId}/developerproducts`
+  // Cookie-based create endpoint. apis.roblox.com/developer-products/v1/... 404s
+  // (not a real path); the working one is the classic develop.roblox.com route,
+  // with name/priceInRobux/description as query params and an empty body.
+  const url = `https://develop.roblox.com/v1/universes/${universeId}/developerproducts`
     + `?name=${encodeURIComponent(name.slice(0, 100))}`
     + `&description=${encodeURIComponent("")}`
     + `&priceInRobux=${Math.max(0, Math.round(priceRobux))}`;
   const doCreate = (token: string) =>
     fetch(url, {
       method: "POST",
-      headers: { Cookie: `.ROBLOSECURITY=${cookie}`, "x-csrf-token": token },
+      headers: {
+        Cookie: `.ROBLOSECURITY=${cookie}`,
+        "x-csrf-token": token,
+        "Content-Type": "application/json",
+      },
+      body: "{}",
     });
   let res = await doCreate(csrf);
   if (res.status === 403) {
