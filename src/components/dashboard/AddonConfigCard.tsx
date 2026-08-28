@@ -213,6 +213,17 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   // external channel field + Variables + embedded MessagesV2Builder, then posts
   // the composed message to the chosen channel via enqueue_post_message.
   const isCustomsMessages = addonId === "customs-messages";
+  // Features that reuse the "Messages" V2 designer (design a message, pick a
+  // channel, save -> the bot stores it and posts/uses it). Each persists to its
+  // own bot_config feature row keyed by addonId.
+  const DESIGNER_MSG_FEATURES = [
+    "customs-messages",
+    "customs-suggestions",
+    "customs-feedback",
+    "customs-freerelease",
+    "customs-blacklist",
+  ];
+  const isDesignerMsg = DESIGNER_MSG_FEATURES.includes(addonId);
   const isRules = addonId === "rules";
   const isTicketPanel = addonId === "ticket-message-customization";
   const isTicketLifecycleMessages = addonId === "ticket-lifecycle-messages";
@@ -386,7 +397,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   // dispatch drives them all through the shared MessagesV2Builder ref/state, so
   // the header icons behave identically everywhere. (Tickets keeps its own.)
   const _builderDispatch = [
-    { on: isCustomsMessages, ref: messagesV2Ref, items: messagesV2Items, setItems: setMessagesV2Items, bump: setMessagesV2MountKey },
+    { on: isDesignerMsg, ref: messagesV2Ref, items: messagesV2Items, setItems: setMessagesV2Items, bump: setMessagesV2MountKey },
     { on: isInviteMessage, ref: inviteV2Ref, items: inviteV2Items, setItems: setInviteV2Items, bump: setInviteV2MountKey },
     { on: isCustomsVerification, ref: verifyPanelV2Ref, items: verifyPanelV2Items, setItems: setVerifyPanelV2Items, bump: setVerifyPanelV2MountKey },
     { on: isVerification, ref: verifyV2Ref, items: verifyV2Items, setItems: setVerifyV2Items, bump: setVerifyV2MountKey },
@@ -1239,14 +1250,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   // Load the saved-messages library from bot_config and open the first one for
   // editing — same load pattern as ticket panels.
   useEffect(() => {
-    if (!isCustomsMessages || !open || !botId) return;
+    if (!isDesignerMsg || !open || !botId) return;
     let cancelled = false;
     (async () => {
       const { data } = await supabase
         .from("bot_config")
         .select("config")
         .eq("bot_id", botId)
-        .eq("feature", "customs-messages")
+        .eq("feature", addonId)
         .maybeSingle();
       if (cancelled) return;
       const cfg = (data?.config ?? {}) as Record<string, any>;
@@ -1267,7 +1278,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     return () => {
       cancelled = true;
     };
-  }, [isCustomsMessages, open, botId]);
+  }, [isDesignerMsg, addonId, open, botId]);
 
   // Snapshot the message currently in the builder into the library array (keyed
   // by channel, one message per channel — exactly like ticket panels).
@@ -1297,12 +1308,17 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
 
   const saveCustomsMessages = async () => {
     if (!botId) return toast.error("Missing bot id.");
-    if (!values.channel_id) return toast.error("Pick a channel to post in.");
+    // Free Release designs an announcement but posts in whatever channel the
+    // /freerelease command is run in, so a channel isn't required here (the
+    // picker doubles as an optional file-vault channel).
+    const channelRequired = addonId !== "customs-freerelease";
+    if (channelRequired && !values.channel_id) return toast.error("Pick a channel first.");
     const currentComponents = normalizeV2Items(messagesV2Ref.current?.getItems() ?? messagesV2Items ?? []);
     if (!currentComponents || currentComponents.length === 0) {
       return toast.error("Add at least one component first.");
     }
-    const currentChannel = String(values.channel_id);
+    // For design-only features we still need a stable key to persist under.
+    const currentChannel = values.channel_id ? String(values.channel_id) : "design";
     // Merge the in-builder message into the library, keyed by channel.
     const merged: SavedMessage[] = savedMessages.filter((m) => m.channel_id !== currentChannel);
     merged.push({ id: newMessageId(), channel_id: currentChannel, components: currentComponents });
@@ -1310,23 +1326,27 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     const messagesPayload = merged
       .filter((m) => m.channel_id)
       .map((m) => ({ channel_id: m.channel_id, components: normalizeV2Items(m.components ?? []) }));
+    const config: Record<string, any> = { messages: messagesPayload, edited_channel_id: currentChannel };
+    if (addonId === "customs-freerelease") {
+      config.vault_channel_id = values.channel_id ? String(values.channel_id) : "";
+    }
     setSaving(true);
     const payload = {
       bot_id: botId,
-      feature: "customs-messages",
-      config: { messages: messagesPayload, edited_channel_id: currentChannel },
+      feature: addonId,
+      config,
       updated_at: new Date().toISOString(),
     };
     const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
     setSaving(false);
     if (error) return toast.error(`Save failed: ${error.message}`);
     const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
-      _bot_id: botId, _feature: "customs-messages",
+      _bot_id: botId, _feature: addonId,
     });
     const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
-    else toast.success("Message saved & posted");
+    else toast.success(isCustomsMessages ? "Message saved & posted" : "Saved & applied");
     setOpen(false);
   };
 
@@ -4442,7 +4462,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isCustomsMessages || isCustomsVerification || isCustomsTickets || isMarketplace || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsPackages || isCustomsFormLog || isCustomsLogging || isInviteTracker || isAds
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isDesignerMsg || isCustomsVerification || isCustomsTickets || isMarketplace || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsPackages || isCustomsFormLog || isCustomsLogging || isInviteTracker || isAds
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -5211,7 +5231,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 />
               </div>
             </div>
-          ) : isInviteMessage || isCustomsMessages || isCustomsVerification ? (
+          ) : isInviteMessage || isDesignerMsg || isCustomsVerification ? (
             <div className="space-y-5 py-2">
               {config.fields
                 .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
@@ -5222,7 +5242,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 <p className="text-xs text-muted-foreground">
                   {isCustomsVerification
                     ? "Design the panel members see below. A Verify button is added automatically underneath it."
-                    : (<>Type variables like <code className="font-mono text-os-accent">{"{count}"}</code> anywhere — they fill in {isCustomsMessages ? "when the message is posted." : "when someone joins."}</>)}
+                    : addonId === "customs-suggestions" || addonId === "customs-feedback" || addonId === "customs-reportbug"
+                      ? (<>Add form fields with <code className="font-mono text-os-accent">{"{question: Label}"}</code>, <code className="font-mono text-os-accent">{"{drop down: Name A B C}"}</code>, <code className="font-mono text-os-accent">{"{file: Name}"}</code>, and <code className="font-mono text-os-accent">{"{user}"}</code> anywhere in the text — they become the form people fill in.</>)
+                      : (<>Type variables like <code className="font-mono text-os-accent">{"{count}"}</code> anywhere — they fill in {isDesignerMsg ? "when the message is posted." : "when someone joins."}</>)}
                 </p>
                 <Popover>
                   <PopoverTrigger asChild>
@@ -5265,15 +5287,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   </PopoverContent>
                 </Popover>
               </div>
-              {engineVersion === "v2" || isCustomsMessages || isCustomsVerification ? (
+              {engineVersion === "v2" || isDesignerMsg || isCustomsVerification ? (
                 <MessagesV2Builder
-                  key={isCustomsVerification ? `verify-panel-v2-${verifyPanelV2MountKey}` : isCustomsMessages ? `customs-msg-v2-${messagesV2MountKey}` : `invite-v2-${inviteV2MountKey}`}
-                  ref={isCustomsVerification ? verifyPanelV2Ref : isCustomsMessages ? messagesV2Ref : inviteV2Ref}
+                  key={isCustomsVerification ? `verify-panel-v2-${verifyPanelV2MountKey}` : isDesignerMsg ? `customs-msg-v2-${messagesV2MountKey}` : `invite-v2-${inviteV2MountKey}`}
+                  ref={isCustomsVerification ? verifyPanelV2Ref : isDesignerMsg ? messagesV2Ref : inviteV2Ref}
                   embedded
                   botId={botId}
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
-                  initialItems={isCustomsVerification ? verifyPanelV2Items : isCustomsMessages ? messagesV2Items : inviteV2Items}
+                  initialItems={isCustomsVerification ? verifyPanelV2Items : isDesignerMsg ? messagesV2Items : inviteV2Items}
                 />
               ) : (
                 <SayCommandBuilder
@@ -5413,7 +5435,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     }
                     return;
                   }
-                  if (isCustomsMessages) {
+                  if (isDesignerMsg) {
                     void saveCustomsMessages();
                     return;
                   }

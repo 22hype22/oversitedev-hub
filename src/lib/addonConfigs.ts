@@ -57,6 +57,9 @@ import {
   AlarmClock,
   Megaphone,
   Store,
+  Lightbulb,
+  PartyPopper,
+  Ban,
 } from "lucide-react";
 
 export type AddonFieldType =
@@ -901,6 +904,42 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     icon: Megaphone,
     fields: [
       channel("channel_id", "Post channel", "Where this message will be sent."),
+    ],
+  },
+
+  "customs-suggestions": {
+    title: "Suggestions",
+    summary: "A /suggestion command that opens a form you design.",
+    icon: Lightbulb,
+    fields: [
+      channel("channel_id", "Suggestions channel", "Where submitted suggestions are posted."),
+    ],
+  },
+
+  "customs-feedback": {
+    title: "Feedback",
+    summary: "A /feedback command that opens a form you design.",
+    icon: MessageSquare,
+    fields: [
+      channel("channel_id", "Feedback channel", "Where submitted feedback is posted."),
+    ],
+  },
+
+  "customs-freerelease": {
+    title: "Free Release",
+    summary: "/freerelease posts a drop that unlocks a file at a reaction goal.",
+    icon: PartyPopper,
+    fields: [
+      channel("channel_id", "File vault channel", "Optional staff-only channel where the release file is privately stored until the goal is reached. Falls back to your ticket log channel."),
+    ],
+  },
+
+  "customs-blacklist": {
+    title: "Blacklist Logs",
+    summary: "A /blacklist command that posts the log message you design.",
+    icon: Ban,
+    fields: [
+      channel("channel_id", "Blacklist log channel", "Where blacklist entries are posted."),
     ],
   },
 
