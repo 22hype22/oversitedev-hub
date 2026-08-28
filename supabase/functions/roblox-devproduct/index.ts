@@ -124,30 +124,46 @@ async function createDevProduct(
   universeId: string, name: string, priceRobux: number, cookie: string,
 ): Promise<string> {
   let csrf = await getCsrf(cookie);
-  // Cookie-based create endpoint. apis.roblox.com/developer-products/v1/... 404s
-  // (not a real path); the working one is the classic develop.roblox.com route,
-  // with name/priceInRobux/description as query params and an empty body.
-  const url = `https://develop.roblox.com/v1/universes/${universeId}/developerproducts`
-    + `?name=${encodeURIComponent(name.slice(0, 100))}`
-    + `&description=${encodeURIComponent("")}`
-    + `&priceInRobux=${Math.max(0, Math.round(priceRobux))}`;
-  const doCreate = (token: string) =>
+  const nm = name.slice(0, 100);
+  const price = Math.max(0, Math.round(priceRobux));
+  const qs = `?name=${encodeURIComponent(nm)}&description=${encodeURIComponent("")}&priceInRobux=${price}`;
+  const jsonBody = JSON.stringify({ name: nm, description: "", priceInRobux: price });
+
+  // Roblox keeps moving/deprecating the dev-product create route, so try the
+  // known variants in order and use whichever answers. Each is cookie + CSRF.
+  // (query-string variants send an empty body; the JSON variant sends the body.)
+  const candidates: Array<{ label: string; url: string; body: string }> = [
+    { label: "develop.v1(qs)", url: `https://develop.roblox.com/v1/universes/${universeId}/developerproducts${qs}`, body: "{}" },
+    { label: "apis.dp.v1(qs)", url: `https://apis.roblox.com/developer-products/v1/universes/${universeId}/developerproducts${qs}`, body: "{}" },
+    { label: "apis.dp.v1(json)", url: `https://apis.roblox.com/developer-products/v1/universes/${universeId}/developerproducts`, body: jsonBody },
+    { label: "develop.v1(json)", url: `https://develop.roblox.com/v1/universes/${universeId}/developerproducts`, body: jsonBody },
+  ];
+
+  const attempt = (url: string, body: string, token: string) =>
     fetch(url, {
       method: "POST",
-      headers: {
-        Cookie: `.ROBLOSECURITY=${cookie}`,
-        "x-csrf-token": token,
-        "Content-Type": "application/json",
-      },
-      body: "{}",
+      headers: { Cookie: `.ROBLOSECURITY=${cookie}`, "x-csrf-token": token, "Content-Type": "application/json" },
+      body,
     });
-  let res = await doCreate(csrf);
-  if (res.status === 403) {
-    const refreshed = res.headers.get("x-csrf-token");
-    if (refreshed) { csrf = refreshed; res = await doCreate(csrf); }
+
+  const tried: string[] = [];
+  let data: any = null;
+  for (const c of candidates) {
+    let res = await attempt(c.url, c.body, csrf);
+    if (res.status === 403) {
+      const refreshed = res.headers.get("x-csrf-token");
+      if (refreshed) { csrf = refreshed; res = await attempt(c.url, c.body, csrf); }
+    }
+    if (res.ok) { data = await res.json(); break; }
+    // A 404/410 means this route is gone — move on. Anything else (401/403/400)
+    // is a real answer from a live route, so stop and surface it.
+    const text = (await res.text()).slice(0, 200);
+    tried.push(`${c.label}=HTTP ${res.status}`);
+    if (res.status !== 404 && res.status !== 410) {
+      throw new Error(`Dev product create failed (${c.label} HTTP ${res.status}): ${text}`);
+    }
   }
-  if (!res.ok) throw new Error(`Dev product create failed (HTTP ${res.status}): ${(await res.text()).slice(0, 300)}`);
-  const data = await res.json();
+  if (!data) throw new Error(`Dev product create failed — no live endpoint. Tried: ${tried.join(", ")}`);
   const id = String(data?.id ?? data?.ProductId ?? data?.productId ?? data?.developerProductId ?? "");
   if (!id) throw new Error("Roblox response missing developer product id");
   return id;
