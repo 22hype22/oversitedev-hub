@@ -96,6 +96,7 @@ type V2Purchase = {
   methods: string[]; // any of "devproduct" | "select" | "stripe"
   msa_url: string;
   donation: boolean; // buyer picks USD or Robux and types the amount
+  quantity: boolean; // display card: button is an unclickable "Quantity | N" badge
 };
 
 type V2Gallery = { id: string; type: "gallery"; images: string[] };
@@ -324,6 +325,7 @@ const newItem = (type: V2Item["type"]): V2Item => {
         methods: ["devproduct", "select", "stripe"],
         msa_url: "",
         donation: false,
+        quantity: false,
       };
     case "gallery":
       return { id: uid(), type, images: [""] };
@@ -874,6 +876,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
   if (item.type === "purchase") {
     const methods = Array.isArray(item.methods) ? item.methods : [];
     const donation = !!item.donation;
+    const quantity = !!item.quantity;
     const toggleMethod = (v: string) => {
       const next = methods.includes(v) ? methods.filter((m) => m !== v) : [...methods, v];
       onUpdate({ methods: next } as Partial<V2Item>);
@@ -898,12 +901,20 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             />
           </div>
         </div>
-        <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-          <input type="checkbox" checked={donation} onChange={(e) => onUpdate({ donation: e.target.checked } as Partial<V2Item>)} />
-          <span className="font-medium">Donation</span> — buyer picks USD or Robux and types the amount
-        </label>
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+          <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+            <input type="checkbox" checked={donation} disabled={quantity} onChange={(e) => onUpdate({ donation: e.target.checked } as Partial<V2Item>)} />
+            <span className="font-medium">Donation</span> — buyer types the amount
+          </label>
+          <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+            <input type="checkbox" checked={quantity} onChange={(e) => onUpdate({ quantity: e.target.checked } as Partial<V2Item>)} />
+            <span className="font-medium">Quantity</span> — unclickable badge showing how many they own
+          </label>
+        </div>
         <p className="text-[11px] text-muted-foreground">
-          {donation
+          {quantity
+            ? <>Display card only — the button is an unclickable badge. Put <code className="font-mono text-os-accent">{"{quantity}"}</code> in the button label (e.g. “Quantity | {"{quantity}"}”); it fills from the viewer's inventory of the item named in the title.</>
+            : donation
             ? "Buyers choose USD (Stripe) or Robux (a dev product created at their amount) and enter how much to give. The price line above is just display text."
             : <>The title is matched to a Roblox developer product (created if it doesn’t exist yet); the <span className="font-medium">$</span> amount in the price line is charged for Stripe, and the <span className="font-medium">R$</span> amount for the dev product / Roblox Select.</>}
         </p>
@@ -912,10 +923,10 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
           <Input
             value={item.button_label}
             onChange={(e) => onUpdate({ button_label: e.target.value } as Partial<V2Item>)}
-            placeholder={donation ? "Donate" : "Purchase"}
+            placeholder={quantity ? "Quantity | {quantity}" : donation ? "Donate" : "Purchase"}
           />
         </div>
-        {!donation && (
+        {!donation && !quantity && (
           <div className="space-y-1.5">
             <Label className="text-xs">Payment methods offered</Label>
             <div className="flex flex-wrap gap-3">
@@ -928,17 +939,19 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             </div>
           </div>
         )}
-        <div className="space-y-1.5">
-          <Label className="text-xs">Master Service Agreement link (optional)</Label>
-          <Input
-            value={item.msa_url}
-            onChange={(e) => onUpdate({ msa_url: e.target.value } as Partial<V2Item>)}
-            placeholder="https://…"
-          />
-          <p className="text-[11px] text-muted-foreground">
-            Buyers must tick an “I agree to the Master Service Agreement” box in the purchase form before checkout.
-          </p>
-        </div>
+        {!quantity && (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Master Service Agreement link (optional)</Label>
+            <Input
+              value={item.msa_url}
+              onChange={(e) => onUpdate({ msa_url: e.target.value } as Partial<V2Item>)}
+              placeholder="https://…"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Buyers must tick an “I agree to the Master Service Agreement” box in the purchase form before checkout.
+            </p>
+          </div>
+        )}
       </div>
     );
   }
@@ -1884,14 +1897,15 @@ function PreviewItem({ item }: { item: V2Item }) {
     );
   }
   if (item.type === "purchase") {
+    const qMode = !!item.quantity;
     return (
       <div className="flex gap-3 items-center">
         <div className="flex-1 min-w-0 space-y-0.5">
           <PreviewMarkdown text={item.title ? `**${item.title}**` : "**Product**"} />
           {item.price && <PreviewMarkdown text={item.price} />}
         </div>
-        <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded bg-[#4e5058] text-white shrink-0">
-          {item.button_label || "Purchase"}
+        <span className={cn("inline-flex items-center px-3 py-1.5 text-xs font-medium rounded bg-[#4e5058] text-white shrink-0", qMode && "opacity-60")}>
+          {item.button_label || (qMode ? "Quantity | {quantity}" : "Purchase")}
         </span>
       </div>
     );
