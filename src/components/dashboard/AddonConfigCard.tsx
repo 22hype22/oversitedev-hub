@@ -328,6 +328,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const adsClaimV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [adsClaimV2Items, setAdsClaimV2Items] = useState<V2Item[]>([]);
   const [adsClaimV2MountKey, setAdsClaimV2MountKey] = useState(0);
+  const adsEmptyV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [adsEmptyV2Items, setAdsEmptyV2Items] = useState<V2Item[]>([]);
+  const [adsEmptyV2MountKey, setAdsEmptyV2MountKey] = useState(0);
 
   // Customs "Logging" — the V2 builder for the purchase-log message template.
   const loggingV2Ref = useRef<MessagesV2BuilderHandle>(null);
@@ -2088,6 +2091,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       setAdsGiveawayV2MountKey((k) => k + 1);
       setAdsClaimV2Items(Array.isArray(cfg.claim_design) ? (cfg.claim_design as V2Item[]) : []);
       setAdsClaimV2MountKey((k) => k + 1);
+      setAdsEmptyV2Items(Array.isArray(cfg.empty_design) ? (cfg.empty_design as V2Item[]) : []);
+      setAdsEmptyV2MountKey((k) => k + 1);
     })();
     return () => { cancelled = true; };
   }, [isAds, open, botId]);
@@ -2112,6 +2117,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         regular_design: normalizeV2Items(adsRegularV2Ref.current?.getItems() ?? adsRegularV2Items ?? []),
         giveaway_design: normalizeV2Items(adsGiveawayV2Ref.current?.getItems() ?? adsGiveawayV2Items ?? []),
         claim_design: normalizeV2Items(adsClaimV2Ref.current?.getItems() ?? adsClaimV2Items ?? []),
+        empty_design: normalizeV2Items(adsEmptyV2Ref.current?.getItems() ?? adsEmptyV2Items ?? []),
         claim_button_label: String(values.claim_button_label ?? "").trim(),
         claim_title: String(values.claim_title ?? "").trim(),
         claim_note: String(values.claim_note ?? ""),
@@ -4894,6 +4900,23 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
                   initialItems={adsClaimV2Items}
+                />
+              </div>
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Empty inventory design</p>
+                <p className="text-xs text-muted-foreground">
+                  Shown when a member clicks Claim but has no ping credits yet. Token:{" "}
+                  <code className="font-mono text-os-accent">{"{inventory}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{user}"}</code>. Leave empty for the default message.
+                </p>
+                <MessagesV2Builder
+                  key={`ads-empty-v2-${adsEmptyV2MountKey}`}
+                  ref={adsEmptyV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={adsEmptyV2Items}
                 />
               </div>
             </div>
