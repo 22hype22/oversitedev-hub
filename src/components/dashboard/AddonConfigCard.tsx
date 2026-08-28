@@ -1368,6 +1368,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const SMALL_UI_OPTIONS: { value: string; label: string; hint: string }[] = [
     { value: "ticket_inactivity_warn", label: "Ticket — inactivity warning", hint: "Sent in a ticket after 24h of silence, before auto-close. Use {user} for the opener." },
     { value: "ticket_close_request", label: "Ticket — close requested", hint: "Shown when someone requests to close a ticket. Use {user} and {reason}. A Confirm Close button is added automatically." },
+    { value: "ticket_closing", label: "Ticket — closing", hint: "Shown when a ticket is being closed. Use {user} (who closed it) and {reason}." },
     { value: "ticket_claimed", label: "Ticket — claimed", hint: "Shown when staff claims a ticket. Use {user}." },
     { value: "ticket_unclaimed", label: "Ticket — unclaimed", hint: "Shown when staff unclaims a ticket. Use {user}." },
   ];
