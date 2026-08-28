@@ -78,9 +78,13 @@ const OSDLG_CSS = `
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** When provided, the report is sent through this bot to the channel the
+   *  owner configured in the "Report a Bug" dashboard block, instead of the
+   *  shared Oversite support channel. */
+  botId?: string;
 }
 
-export const ReportBugDialog = ({ open, onOpenChange }: Props) => {
+export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [steps, setSteps] = useState("");
@@ -150,8 +154,31 @@ export const ReportBugDialog = ({ open, onOpenChange }: Props) => {
         fields.push({ name: "Proof", value: `[${proofFile!.name}](${proofUrl})` });
       }
 
+      // Route to the owner's own bot + configured channel when available;
+      // otherwise fall back to the shared Oversite support channel.
+      let targetBotId = SUPPORT_BOT_ID;
+      let targetChannel = TARGET_CHANNEL_ID;
+      if (botId) {
+        const { data: cfgRow } = await supabase
+          .from("bot_config")
+          .select("config")
+          .eq("bot_id", botId)
+          .eq("feature", "customs-reportbug")
+          .maybeSingle();
+        const cfg = (cfgRow?.config ?? {}) as Record<string, any>;
+        const msgs = Array.isArray(cfg.messages) ? cfg.messages : [];
+        const ch = String(cfg.channel_id || msgs[0]?.channel_id || "");
+        if (ch) {
+          targetBotId = botId;
+          targetChannel = ch;
+        } else {
+          toast.error("No bug-reports channel is set up yet. Ask an admin to configure the Report a Bug block.");
+          return;
+        }
+      }
+
       const payload = {
-        channel_id: TARGET_CHANNEL_ID,
+        channel_id: targetChannel,
         content: null,
         embeds: [
           {
@@ -170,7 +197,7 @@ export const ReportBugDialog = ({ open, onOpenChange }: Props) => {
       };
 
       const { data, error } = await supabase.rpc("enqueue_post_message", {
-        _bot_id: SUPPORT_BOT_ID,
+        _bot_id: targetBotId,
         _payload: payload as any,
       });
       if (error) throw error;

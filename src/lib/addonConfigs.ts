@@ -960,6 +960,15 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "customs-reportbug": {
+    title: "Report a Bug",
+    summary: "The form behind the Report a bug button + /reportbug.",
+    icon: MessageSquareX,
+    fields: [
+      channel("channel_id", "Bug reports channel", "Where submitted bug reports are posted."),
+    ],
+  },
+
   "customs-smallui": {
     title: "System Messages",
     summary: "Design the small ticket & system messages the bot sends.",
