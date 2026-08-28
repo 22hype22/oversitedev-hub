@@ -331,6 +331,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const adsEmptyV2Ref = useRef<MessagesV2BuilderHandle>(null);
   const [adsEmptyV2Items, setAdsEmptyV2Items] = useState<V2Item[]>([]);
   const [adsEmptyV2MountKey, setAdsEmptyV2MountKey] = useState(0);
+  const adsNopostsV2Ref = useRef<MessagesV2BuilderHandle>(null);
+  const [adsNopostsV2Items, setAdsNopostsV2Items] = useState<V2Item[]>([]);
+  const [adsNopostsV2MountKey, setAdsNopostsV2MountKey] = useState(0);
 
   // Customs "Logging" — the V2 builder for the purchase-log message template.
   const loggingV2Ref = useRef<MessagesV2BuilderHandle>(null);
@@ -2093,6 +2096,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       setAdsClaimV2MountKey((k) => k + 1);
       setAdsEmptyV2Items(Array.isArray(cfg.empty_design) ? (cfg.empty_design as V2Item[]) : []);
       setAdsEmptyV2MountKey((k) => k + 1);
+      setAdsNopostsV2Items(Array.isArray(cfg.noposts_design) ? (cfg.noposts_design as V2Item[]) : []);
+      setAdsNopostsV2MountKey((k) => k + 1);
     })();
     return () => { cancelled = true; };
   }, [isAds, open, botId]);
@@ -2118,6 +2123,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         giveaway_design: normalizeV2Items(adsGiveawayV2Ref.current?.getItems() ?? adsGiveawayV2Items ?? []),
         claim_design: normalizeV2Items(adsClaimV2Ref.current?.getItems() ?? adsClaimV2Items ?? []),
         empty_design: normalizeV2Items(adsEmptyV2Ref.current?.getItems() ?? adsEmptyV2Items ?? []),
+        noposts_design: normalizeV2Items(adsNopostsV2Ref.current?.getItems() ?? adsNopostsV2Items ?? []),
         claim_button_label: String(values.claim_button_label ?? "").trim(),
         claim_title: String(values.claim_title ?? "").trim(),
         claim_note: String(values.claim_note ?? ""),
@@ -4919,6 +4925,21 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
                   initialItems={adsEmptyV2Items}
+                />
+              </div>
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">“No posts available” design</p>
+                <p className="text-xs text-muted-foreground">
+                  Shown when a member picks an add-on (Instant Post / Bypass Queue) but has no active post to apply it to. Leave empty for the default “No current posts available.” message.
+                </p>
+                <MessagesV2Builder
+                  key={`ads-noposts-v2-${adsNopostsV2MountKey}`}
+                  ref={adsNopostsV2Ref}
+                  embedded
+                  botId={botId}
+                  botName={botName}
+                  botAvatarUrl={botAvatarUrl}
+                  initialItems={adsNopostsV2Items}
                 />
               </div>
             </div>
