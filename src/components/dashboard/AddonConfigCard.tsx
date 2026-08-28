@@ -255,6 +255,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isCustomsRobuxLocker = addonId === "customs-robux-locker";
   const isCustomsOrderStatus = addonId === "customs-order-status";
   const isCustomsTTS = addonId === "customs-tts";
+  const isCustomsGambling = addonId === "customs-gambling";
   const isCustomsPayment = addonId === "customs-payment";
   const isCustomsLogging = addonId === "customs-logging";
   const isCustomsPricing = addonId === "customs-pricing";
@@ -1541,6 +1542,58 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Text-to-Speech saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: economy & gambling ----------
+  useEffect(() => {
+    if (!isCustomsGambling || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-gambling")
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        prefix: cfg.prefix ?? "!",
+        currency_symbol: cfg.currency_symbol ?? "🪙",
+        currency_name: cfg.currency_name ?? "coins",
+        start_balance: cfg.start_balance != null ? String(cfg.start_balance) : "0",
+      }));
+    })();
+    return () => { cancelled = true; };
+  }, [isCustomsGambling, open, botId]);
+
+  const saveCustomsGambling = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-gambling",
+      config: {
+        enabled: true,
+        prefix: String(values.prefix ?? "!").trim() || "!",
+        currency_symbol: String(values.currency_symbol ?? "🪙").trim() || "🪙",
+        currency_name: String(values.currency_name ?? "coins").trim() || "coins",
+        start_balance: Math.max(0, Number(values.start_balance ?? 0) || 0),
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-gambling",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Economy & Gambling saved & applied");
     setOpen(false);
   };
 
@@ -5459,6 +5512,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveCustomsPayment();
                   } else if (isCustomsTTS) {
                     void saveCustomsTTS();
+                  } else if (isCustomsGambling) {
+                    void saveCustomsGambling();
                   } else if (isCustomsLogging) {
                     void saveCustomsLogging();
                   } else if (isCustomsPricing) {

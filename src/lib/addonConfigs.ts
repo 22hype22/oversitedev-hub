@@ -1004,6 +1004,46 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "customs-gambling": {
+    title: "Economy & Gambling",
+    summary: "UnbelievaBoat-style currency + gambling. Set the command prefix.",
+    icon: Coins,
+    fields: [
+      {
+        key: "prefix",
+        label: "Command prefix",
+        type: "text",
+        defaultValue: "!",
+        placeholder: "! or - or ?",
+        help: "The character members type before economy/gambling commands (e.g. ! → !balance, !bet). Slash commands work regardless.",
+      },
+      {
+        key: "currency_symbol",
+        label: "Currency symbol",
+        type: "text",
+        defaultValue: "🪙",
+        placeholder: "🪙, $, 💵",
+        help: "Shown next to balances and bets.",
+      },
+      {
+        key: "currency_name",
+        label: "Currency name",
+        type: "text",
+        defaultValue: "coins",
+        placeholder: "coins, credits, bucks",
+        help: "What one unit of currency is called.",
+      },
+      {
+        key: "start_balance",
+        label: "Starting balance",
+        type: "number",
+        defaultValue: 0,
+        placeholder: "0",
+        help: "How much cash a member starts with the first time they use an economy command.",
+      },
+    ],
+  },
+
   "customs-tts": {
     title: "Text-to-Speech",
     summary: "Voice, accent, speed, and the /join & /leave messages.",
