@@ -1564,6 +1564,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         currency_symbol: cfg.currency_symbol ?? "🪙",
         currency_name: cfg.currency_name ?? "coins",
         start_balance: cfg.start_balance != null ? String(cfg.start_balance) : "0",
+        allowed_channel_ids: Array.isArray(cfg.allowed_channel_ids)
+          ? cfg.allowed_channel_ids.map(String)
+          : [],
       }));
     })();
     return () => { cancelled = true; };
@@ -1581,6 +1584,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         currency_symbol: String(values.currency_symbol ?? "🪙").trim() || "🪙",
         currency_name: String(values.currency_name ?? "coins").trim() || "coins",
         start_balance: Math.max(0, Number(values.start_balance ?? 0) || 0),
+        allowed_channel_ids: Array.isArray(values.allowed_channel_ids)
+          ? (values.allowed_channel_ids as string[]).map(String)
+          : [],
       },
       updated_at: new Date().toISOString(),
     };
@@ -4302,6 +4308,18 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       );
     }
 
+    if (f.type === "multichannel") {
+      const selected = Array.isArray(value) ? (value as string[]) : [];
+      return (
+        <MultiChannelField
+          field={f}
+          value={selected}
+          onChange={(v) => setValue(f.key, v)}
+          botId={botId}
+        />
+      );
+    }
+
     if (f.type === "role") {
       return (
         <RoleComboField
@@ -6105,6 +6123,143 @@ function MultiRoleField({
       {value.length > 0 && (
         <p className="text-xs text-muted-foreground">
           {value.length} role{value.length === 1 ? "" : "s"} selected
+        </p>
+      )}
+      {field.help && (
+        <p className="text-xs text-muted-foreground">{field.help}</p>
+      )}
+    </div>
+  );
+}
+
+function MultiChannelField({
+  field,
+  value,
+  onChange,
+  botId,
+}: {
+  field: AddonField;
+  value: string[];
+  onChange: (v: string[]) => void;
+  botId?: string;
+}) {
+  const { guild } = useActiveGuild();
+  const guildId = guild?.guild_id;
+  const { channels, loading, refreshing, refreshFromDiscord } = useBotChannels(
+    botId,
+    guildId,
+  );
+  const allowedTypes = field.channelTypes ?? ["text", "announcement", "forum"];
+  const filtered = useMemo(
+    () => channels.filter((c) => allowedTypes.includes(c.channel_type)),
+    [channels, allowedTypes],
+  );
+  const groups = useMemo(
+    () => sortedChannelCategoryEntries(filtered),
+    [filtered],
+  );
+
+  const toggle = (channelId: string) => {
+    if (value.includes(channelId)) onChange(value.filter((v) => v !== channelId));
+    else onChange([...value, channelId]);
+  };
+
+  const handleRefresh = async () => {
+    if (!guildId) {
+      toast.info("Select a server at the top first.");
+      return;
+    }
+    const result = await refreshFromDiscord();
+    if (result.ok) toast.success("Channel list refreshed.");
+    else if (result.error === "timeout")
+      toast.warning("Refresh queued — bot may be offline.");
+    else toast.error(`Refresh failed: ${result.error}`);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>{field.label}</Label>
+        <div className="flex items-center gap-1">
+          {filtered.length > 0 && (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onChange(filtered.map((c) => c.channel_id))}
+                className="h-7 px-2 text-xs"
+              >
+                All
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onChange([])}
+                className="h-7 px-2 text-xs"
+              >
+                None
+              </Button>
+            </>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing || !guildId}
+            className="h-7 px-2 text-xs gap-1.5"
+          >
+            <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </Button>
+        </div>
+      </div>
+      <div className="max-h-56 overflow-y-auto rounded-md border border-input bg-background p-2 space-y-1">
+        {!guildId ? (
+          <p className="text-sm text-muted-foreground p-2">Select a server first</p>
+        ) : loading ? (
+          <p className="text-sm text-muted-foreground p-2">Loading channels…</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground p-2">
+            No channels cached — click Refresh
+          </p>
+        ) : (
+          groups.map((group) => (
+            <div key={group.key} className="space-y-1">
+              <p className="px-2 pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {group.label}
+              </p>
+              {group.channels.map((c) => {
+                const checked = value.includes(c.channel_id);
+                return (
+                  <label
+                    key={c.channel_id}
+                    className="flex items-center gap-2 cursor-pointer text-sm rounded px-2 py-1 hover:bg-muted/40"
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-primary"
+                      checked={checked}
+                      onChange={() => toggle(c.channel_id)}
+                    />
+                    <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span>{c.channel_name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          ))
+        )}
+      </div>
+      {value.length > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          {value.length} channel{value.length === 1 ? "" : "s"} selected
+        </p>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          None selected — commands work in every channel.
         </p>
       )}
       {field.help && (
