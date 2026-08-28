@@ -143,6 +143,7 @@ type V2SelectMenu = {
   type: "select_menu";
   placeholder: string;
   options: V2SelectMenuOption[];
+  inventory?: boolean; // ad claim panel: auto-fill with the viewer's inventory
 };
 
 const isCategoryButton2 = (
@@ -1517,6 +1518,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
     const channels = useContext(ChannelsContext);
     const botInfo = useContext(BotInfoContext);
     const [designingIdx, setDesigningIdx] = useState<number | null>(null);
+    const inventory = !!item.inventory;
     return (
       <div className="space-y-3">
         <div className="space-y-1.5">
@@ -1527,7 +1529,19 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             placeholder="Choose an option…"
           />
         </div>
-        <Label className="text-xs">Options (up to 25)</Label>
+        <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+          <input type="checkbox" checked={inventory} onChange={(e) => onUpdate({ inventory: e.target.checked } as Partial<V2Item>)} />
+          <span className="font-medium">Ad inventory dropdown</span> — auto-fills with what the viewer owns (for the Advertisements claim panel)
+        </label>
+        {inventory && (
+          <p className="text-[11px] text-muted-foreground">
+            Options below are ignored — the bot fills this with the member's owned perks (Everyone Ping, Instant Post, …) and wires it to the claim flow.
+          </p>
+        )}
+        {!inventory && <Label className="text-xs">Options (up to 25)</Label>}
+        {!inventory && (
+        <>
+        {/* options list */}
         {options.map((o, i) => {
           const mode: "link" | "channel" | "display" | "ticket" | "form" | "ephemeral" = isTicketOption(o)
             ? "ticket"
@@ -1752,6 +1766,8 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             </Dialog>
           );
         })()}
+        </>
+        )}
       </div>
     );
   }
