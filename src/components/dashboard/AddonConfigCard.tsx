@@ -222,8 +222,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     "customs-feedback",
     "customs-freerelease",
     "customs-blacklist",
+    "customs-announce",
   ];
   const isDesignerMsg = DESIGNER_MSG_FEATURES.includes(addonId);
+  const isCustomsSmallUi = addonId === "customs-smallui";
   const isRules = addonId === "rules";
   const isTicketPanel = addonId === "ticket-message-customization";
   const isTicketLifecycleMessages = addonId === "ticket-lifecycle-messages";
@@ -409,6 +411,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     { on: isCustomsLogging, ref: loggingV2Ref, items: loggingV2Items, setItems: setLoggingV2Items, bump: setLoggingV2MountKey },
     { on: isCustomsFormLog, ref: orderlogV2Ref, items: orderlogV2Items, setItems: setOrderlogV2Items, bump: setOrderlogV2MountKey },
     { on: isCustomsGiveaway, ref: giveawayV2Ref, items: giveawayV2Items, setItems: setGiveawayV2Items, bump: setGiveawayV2MountKey },
+    { on: isCustomsSmallUi, ref: messagesV2Ref, items: messagesV2Items, setItems: setMessagesV2Items, bump: setMessagesV2MountKey },
   ];
   const activeBuilder = _builderDispatch.find((b) => b.on) || null;
   type GenTemplate = { id: string; name: string; components: V2Item[] };
@@ -1271,7 +1274,13 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         .filter((m) => m.channel_id || m.components.length);
       setSavedMessages(msgs);
       const active = msgs[0];
-      setValues((prev) => ({ ...prev, channel_id: active?.channel_id ?? "" }));
+      setValues((prev) => ({
+        ...prev,
+        channel_id: active?.channel_id ?? "",
+        ...(addonId === "customs-announce"
+          ? { interval_days: cfg.interval_days != null ? String(cfg.interval_days) : "9" }
+          : {}),
+      }));
       setMessagesV2Items(active?.components ?? []);
       setMessagesV2MountKey((k) => k + 1);
     })();
@@ -1330,6 +1339,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (addonId === "customs-freerelease") {
       config.vault_channel_id = values.channel_id ? String(values.channel_id) : "";
     }
+    if (addonId === "customs-announce") {
+      config.interval_days = Math.max(1, Number(values.interval_days ?? 9) || 9);
+    }
     setSaving(true);
     const payload = {
       bot_id: botId,
@@ -1347,6 +1359,80 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success(isCustomsMessages ? "Message saved & posted" : "Saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- customs: system messages (small UI designs) ----------
+  const SMALL_UI_OPTIONS: { value: string; label: string; hint: string }[] = [
+    { value: "ticket_inactivity_warn", label: "Ticket — inactivity warning", hint: "Sent in a ticket after 24h of silence, before auto-close. Use {user} for the opener." },
+    { value: "ticket_close_request", label: "Ticket — close requested", hint: "Shown when someone requests to close a ticket. Use {user} and {reason}. A Confirm Close button is added automatically." },
+    { value: "ticket_claimed", label: "Ticket — claimed", hint: "Shown when staff claims a ticket. Use {user}." },
+    { value: "ticket_unclaimed", label: "Ticket — unclaimed", hint: "Shown when staff unclaims a ticket. Use {user}." },
+  ];
+  const [smallUiKey, setSmallUiKey] = useState<string>(SMALL_UI_OPTIONS[0].value);
+  const [smallUiMap, setSmallUiMap] = useState<Record<string, V2Item[]>>({});
+
+  useEffect(() => {
+    if (!isCustomsSmallUi || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-smallui")
+        .maybeSingle();
+      if (cancelled) return;
+      const cfg = (data?.config ?? {}) as Record<string, any>;
+      const uis = (cfg.uis && typeof cfg.uis === "object" ? cfg.uis : {}) as Record<string, V2Item[]>;
+      setSmallUiMap(uis);
+      const first = SMALL_UI_OPTIONS[0].value;
+      setSmallUiKey(first);
+      setMessagesV2Items(Array.isArray(uis[first]) ? uis[first] : []);
+      setMessagesV2MountKey((k) => k + 1);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isCustomsSmallUi, open, botId]);
+
+  // Capture the current design into the map, then load another UI key's design.
+  const switchSmallUiKey = (nextKey: string) => {
+    const current = normalizeV2Items(messagesV2Ref.current?.getItems() ?? messagesV2Items ?? []);
+    const map = { ...smallUiMap, [smallUiKey]: current };
+    setSmallUiMap(map);
+    setSmallUiKey(nextKey);
+    setMessagesV2Items(Array.isArray(map[nextKey]) ? map[nextKey] : []);
+    setMessagesV2MountKey((k) => k + 1);
+  };
+
+  const saveSmallUi = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    const current = normalizeV2Items(messagesV2Ref.current?.getItems() ?? messagesV2Items ?? []);
+    const map: Record<string, V2Item[]> = { ...smallUiMap, [smallUiKey]: current };
+    // Drop empties so unset messages fall back to the bot's built-in text.
+    const uis: Record<string, V2Item[]> = {};
+    for (const [k, v] of Object.entries(map)) {
+      if (Array.isArray(v) && v.length) uis[k] = normalizeV2Items(v);
+    }
+    setSmallUiMap(map);
+    setSaving(true);
+    const payload = {
+      bot_id: botId,
+      feature: "customs-smallui",
+      config: { uis },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "customs-smallui",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("System messages saved & applied");
     setOpen(false);
   };
 
@@ -4462,7 +4548,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isDesignerMsg || isCustomsVerification || isCustomsTickets || isMarketplace || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsPackages || isCustomsFormLog || isCustomsLogging || isInviteTracker || isAds
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isDesignerMsg || isCustomsSmallUi || isCustomsVerification || isCustomsTickets || isMarketplace || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsPackages || isCustomsFormLog || isCustomsLogging || isInviteTracker || isAds
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -5231,8 +5317,27 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 />
               </div>
             </div>
-          ) : isInviteMessage || isDesignerMsg || isCustomsVerification ? (
+          ) : isInviteMessage || isDesignerMsg || isCustomsSmallUi || isCustomsVerification ? (
             <div className="space-y-5 py-2">
+              {isCustomsSmallUi && (
+                <div className="space-y-2">
+                  <Label>Which message</Label>
+                  <Select value={smallUiKey} onValueChange={switchSmallUiKey}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SMALL_UI_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {SMALL_UI_OPTIONS.find((o) => o.value === smallUiKey)?.hint}
+                    {" "}Leave a message empty to keep the bot's built-in default.
+                  </p>
+                </div>
+              )}
               {config.fields
                 .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
                 .map((f) => (
@@ -5240,7 +5345,9 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 ))}
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs text-muted-foreground">
-                  {isCustomsVerification
+                  {isCustomsSmallUi
+                    ? "Design the message below. Tokens like {user} and {reason} fill in automatically."
+                    : isCustomsVerification
                     ? "Design the panel members see below. A Verify button is added automatically underneath it."
                     : addonId === "customs-suggestions" || addonId === "customs-feedback" || addonId === "customs-reportbug"
                       ? (<>Add form fields with <code className="font-mono text-os-accent">{"{question: Label}"}</code>, <code className="font-mono text-os-accent">{"{drop down: Name A B C}"}</code>, <code className="font-mono text-os-accent">{"{file: Name}"}</code>, and <code className="font-mono text-os-accent">{"{user}"}</code> anywhere in the text — they become the form people fill in.</>)
@@ -5287,15 +5394,15 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   </PopoverContent>
                 </Popover>
               </div>
-              {engineVersion === "v2" || isDesignerMsg || isCustomsVerification ? (
+              {engineVersion === "v2" || isDesignerMsg || isCustomsSmallUi || isCustomsVerification ? (
                 <MessagesV2Builder
-                  key={isCustomsVerification ? `verify-panel-v2-${verifyPanelV2MountKey}` : isDesignerMsg ? `customs-msg-v2-${messagesV2MountKey}` : `invite-v2-${inviteV2MountKey}`}
-                  ref={isCustomsVerification ? verifyPanelV2Ref : isDesignerMsg ? messagesV2Ref : inviteV2Ref}
+                  key={isCustomsVerification ? `verify-panel-v2-${verifyPanelV2MountKey}` : isDesignerMsg || isCustomsSmallUi ? `customs-msg-v2-${messagesV2MountKey}` : `invite-v2-${inviteV2MountKey}`}
+                  ref={isCustomsVerification ? verifyPanelV2Ref : isDesignerMsg || isCustomsSmallUi ? messagesV2Ref : inviteV2Ref}
                   embedded
                   botId={botId}
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
-                  initialItems={isCustomsVerification ? verifyPanelV2Items : isDesignerMsg ? messagesV2Items : inviteV2Items}
+                  initialItems={isCustomsVerification ? verifyPanelV2Items : isDesignerMsg || isCustomsSmallUi ? messagesV2Items : inviteV2Items}
                 />
               ) : (
                 <SayCommandBuilder
@@ -5437,6 +5544,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   }
                   if (isDesignerMsg) {
                     void saveCustomsMessages();
+                    return;
+                  }
+                  if (isCustomsSmallUi) {
+                    void saveSmallUi();
                     return;
                   }
                   if (isInviteMessage) {

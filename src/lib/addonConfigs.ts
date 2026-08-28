@@ -943,6 +943,30 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "customs-announce": {
+    title: "Package Announcements",
+    summary: "Auto-post promos on a schedule — every N days.",
+    icon: Megaphone,
+    fields: [
+      channel("channel_id", "Announcement channel", "Where this promo is auto-posted."),
+      {
+        key: "interval_days",
+        label: "Post every (days)",
+        type: "number",
+        defaultValue: 9,
+        placeholder: "9",
+        help: "How often each saved announcement is re-posted, in days.",
+      },
+    ],
+  },
+
+  "customs-smallui": {
+    title: "System Messages",
+    summary: "Design the small ticket & system messages the bot sends.",
+    icon: MessageSquareX,
+    fields: [],
+  },
+
   "customs-giveaway": {
     title: "Giveaway",
     summary: "Design how /giveaway looks; staff run it to launch one.",
