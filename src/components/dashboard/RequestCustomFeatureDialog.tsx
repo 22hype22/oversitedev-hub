@@ -7,6 +7,9 @@ import { isBlockedFileType, resolveContentType } from "@/lib/uploadValidation";
 import { OS_DIALOG_CSS, OsDialogBackdrop, osMtnStyle } from "./osDialogTheme";
 
 const SUPPORT_BOT_ID = "a6be529f-a7f3-4a58-84c5-bcac5dbc97df";
+// Always deliver submissions through the Oversite Network bot (Discord id
+// 1507024469192081598 → this dashboard/order id). Hardcoded on purpose.
+const POSTER_BOT_ID = "50927258-eb0f-4756-88d0-e7396aaab220";
 const TARGET_CHANNEL_ID = "1503905197695569950";
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp"];
@@ -20,7 +23,7 @@ interface Props {
   botId?: string;
 }
 
-export const RequestCustomFeatureDialog = ({ open, onOpenChange, botId }: Props) => {
+export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [proofFile, setProofFile] = useState<File | null>(null);
@@ -57,10 +60,8 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange, botId }: Props)
     try {
       // Owner's global config (from the hidden Extras cog) sets the channel +
       // designed message; fall back to the shared support channel.
-      // Post through a bot the signer actually owns (this bot). SUPPORT_BOT_ID
-      // isn't a real bot_order, so enqueue_post_message rejects it as "Bot not
-      // found" / "Not allowed".
-      let targetBotId = botId || SUPPORT_BOT_ID;
+      // Always post through the Oversite Network bot.
+      const targetBotId = POSTER_BOT_ID;
       let targetChannel = TARGET_CHANNEL_ID;
       let design: any[] | null = null;
       const { data: globalRow } = await (supabase as any)
