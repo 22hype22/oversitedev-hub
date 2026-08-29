@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { toast } from "sonner";
 import { Loader2, Paperclip, X, ArrowRight } from "lucide-react";
 import { isBlockedFileType, resolveContentType } from "@/lib/uploadValidation";
-import { OS_DIALOG_CSS, OsDialogBackdrop, osMtnStyle } from "./osDialogTheme";
+import { OS_DIALOG_CSS } from "./osDialogTheme";
 
 const SUPPORT_BOT_ID = "a6be529f-a7f3-4a58-84c5-bcac5dbc97df";
 // Always deliver submissions through the Oversite Network bot (Discord id
@@ -203,11 +203,9 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
     <Dialog open={open} onOpenChange={(o) => !submitting && onOpenChange(o)}>
       <DialogContent
         overlayClassName="bg-black/35 backdrop-blur-[2px]"
-        className="osdlg gap-0 overflow-hidden rounded-[18px] border-[rgba(201,219,230,0.14)] bg-[#1b2127] p-0 sm:max-w-[500px]"
-        style={osMtnStyle}
+        className="osdlg gap-0 overflow-hidden rounded-[18px] border-[rgba(201,219,230,0.14)] bg-[#2b333b] p-0 sm:max-w-[500px]"
       >
         <style>{OS_DIALOG_CSS}</style>
-        <OsDialogBackdrop />
 
         <div className="oscontent">
         <div className="mhead">

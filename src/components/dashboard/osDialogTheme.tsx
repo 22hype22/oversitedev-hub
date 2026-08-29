@@ -1,28 +1,11 @@
-// Shared "Oversite" dialog skin — the brand's cold-alpine identity applied to
-// the Extras dialogs (Custom feature, Report a bug). The panel sits on the same
-// mountain backdrop the dashboard uses, with a glass content layer on top,
+// Shared "Oversite" dialog skin for the Extras dialogs (Custom feature, Report a
+// bug): a normal solid slate panel in the brand's cold-techwear language —
 // Bricolage Grotesque / Space Grotesk (loaded globally via marketing-fonts.css),
 // icy accent, wide uppercase labels, and rounded-full pill CTAs.
 //
 // Both dialogs keep the existing `.osdlg` element classes (mhead, mico, mtt,
 // mbody, mrow, lbl, inp, ta, seg, attach, filerow, mfoot, btn …) so only the
 // CSS changes, not the field logic.
-import dashboardBg from "@/assets/dashboardBg";
-import type { CSSProperties } from "react";
-
-/** Set the mountain image once as a CSS var on the panel. */
-export const osMtnStyle = { ["--os-mtn" as any]: `url(${dashboardBg})` } as CSSProperties;
-
-/** The fixed mountain + veil layers that sit behind the content. */
-export function OsDialogBackdrop() {
-  return (
-    <>
-      <div className="osmtn" aria-hidden="true" />
-      <div className="osveil" aria-hidden="true" />
-    </>
-  );
-}
-
 export const OS_DIALOG_CSS = `
 .osdlg{
   --line:rgba(201,219,230,.14);--line2:rgba(201,219,230,.08);
@@ -37,12 +20,6 @@ export const OS_DIALOG_CSS = `
   --ease:cubic-bezier(.32,.72,0,1);
   font-family:var(--bodyf);
 }
-/* fixed brand backdrop: the alpine summit + a slate veil for legibility */
-.osdlg .osmtn{position:absolute;inset:0;z-index:0;pointer-events:none;
-  background:var(--os-mtn) center 15%/cover no-repeat;
-  filter:saturate(.6) brightness(.82) contrast(1.04)}
-.osdlg .osveil{position:absolute;inset:0;z-index:0;pointer-events:none;
-  background:linear-gradient(180deg,rgba(24,29,34,.28),rgba(24,29,34,.66) 40%,rgba(26,31,37,.93) 70%,rgba(28,33,39,.98))}
 .osdlg .oscontent{position:relative;z-index:1;max-height:86vh;overflow-y:auto;padding:24px}
 
 .osdlg .mhead{display:flex;align-items:flex-start;gap:14px;margin-bottom:22px}
