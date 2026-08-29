@@ -317,7 +317,7 @@ const RequestCustomFeatureCard = ({ botId, admin }: { botId?: string; admin?: bo
         <span className="xar"><ArrowUpRight size={18} /></span>
       </button>
       {admin && <ExtrasAdminIcon onClick={() => setAdminOpen(true)} />}
-      <RequestCustomFeatureDialog open={open} onOpenChange={setOpen} />
+      <RequestCustomFeatureDialog open={open} onOpenChange={setOpen} botId={botId} />
       {admin && (
         <ExtrasAdminDialog
           open={adminOpen}

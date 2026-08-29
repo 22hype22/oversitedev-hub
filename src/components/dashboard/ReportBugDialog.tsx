@@ -84,6 +84,8 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
       if (gcfg.channel_id) {
         targetChannel = String(gcfg.channel_id);
         design = Array.isArray(gcfg.components) && gcfg.components.length ? gcfg.components : null;
+        // Post through this owned bot; SUPPORT_BOT_ID isn't a real bot_order.
+        if (botId) targetBotId = botId;
       } else if (botId) {
         const { data: cfgRow } = await supabase
           .from("bot_config")
