@@ -25,5 +25,9 @@ drop policy if exists "platform_settings admin write" on public.platform_setting
 create policy "platform_settings admin write"
 on public.platform_settings for all
 to authenticated
-using (public.has_role(auth.uid(), 'admin'))
-with check (public.has_role(auth.uid(), 'admin'));
+using (public.has_role(auth.uid(), 'admin'::public.app_role))
+with check (public.has_role(auth.uid(), 'admin'::public.app_role));
+
+-- Ask PostgREST to reload its schema cache so the new table is visible to the
+-- API immediately after this runs.
+notify pgrst, 'reload schema';
