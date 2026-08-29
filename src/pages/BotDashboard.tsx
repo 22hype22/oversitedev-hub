@@ -325,7 +325,7 @@ const RequestCustomFeatureCard = ({ admin }: { admin?: boolean }) => {
           feature="extras-customfeature"
           supportBotId={SUPPORT_BOT_ID}
           title="Custom Feature — settings"
-          tokens={["title", "description", "priority", "user"]}
+          tokens={["user", "title", "description", "example"]}
         />
       )}
     </div>

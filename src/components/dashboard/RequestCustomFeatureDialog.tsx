@@ -10,15 +10,6 @@ const TARGET_CHANNEL_ID = "1503905197695569950";
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp"];
 
-type Priority = "Low" | "Normal" | "Urgent";
-const PRIORITIES: Priority[] = ["Low", "Normal", "Urgent"];
-
-const PRIORITY_COLORS: Record<Priority, number> = {
-  Low: 0x10b981,
-  Normal: 0x3b82f6,
-  Urgent: 0xef4444,
-};
-
 // Scoped to .osdlg so nothing leaks; styled in the dashboard's os-* language
 // (hairline surfaces, accent focus, segmented controls) instead of the default
 // shadcn look.
@@ -88,8 +79,6 @@ interface Props {
 export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState<Priority>("Normal");
-  const [discordUsername, setDiscordUsername] = useState("");
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -97,8 +86,6 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
   const reset = () => {
     setTitle("");
     setDescription("");
-    setPriority("Normal");
-    setDiscordUsername("");
     setProofFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -121,7 +108,6 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
   const handleSubmit = async () => {
     if (!title.trim()) return toast.error("Please enter a feature title.");
     if (!description.trim()) return toast.error("Please enter a description.");
-    if (!discordUsername.trim()) return toast.error("Please enter your Discord username.");
 
     setSubmitting(true);
     try {
@@ -140,15 +126,23 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
         design = Array.isArray(gcfg.components) && gcfg.components.length ? gcfg.components : null;
       }
 
+      // Identify the submitter automatically (no username field to fill).
+      const { data: userData } = await supabase.auth.getUser();
+      const authUser = userData?.user;
+      const userName =
+        (authUser?.user_metadata?.user_name as string) ||
+        (authUser?.user_metadata?.full_name as string) ||
+        (authUser?.user_metadata?.name as string) ||
+        authUser?.email ||
+        "Unknown";
+
       let proofUrl: string | null = null;
       let proofIsImage = false;
 
       if (proofFile) {
-        const { data: userData, error: userErr } = await supabase.auth.getUser();
-        if (userErr || !userData?.user) throw new Error("You must be signed in to upload a file.");
-        const userId = userData.user.id;
+        if (!authUser) throw new Error("You must be signed in to upload a file.");
         const ext = proofFile.name.split(".").pop()?.toLowerCase() || "bin";
-        const path = `${userId}/feature-requests/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+        const path = `${authUser.id}/feature-requests/${Date.now()}-${crypto.randomUUID()}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("bot-assets")
           .upload(path, proofFile, { upsert: false, contentType: resolveContentType(proofFile) });
@@ -158,56 +152,44 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
         proofIsImage = IMAGE_EXTS.includes(ext);
       }
 
-      const proofValue = proofUrl
+      const exampleValue = proofUrl
         ? proofIsImage
           ? proofUrl
           : `[${proofFile!.name}](${proofUrl})`
         : "—";
 
-      let payload: Record<string, any>;
+      // Tokens the owner can use in a designed message via the Extras cog.
+      const map: Record<string, string> = {
+        user: userName,
+        title: title.trim(),
+        description: description.trim(),
+        example: exampleValue,
+        proof: exampleValue,
+      };
+
+      let components_v2: any[];
       if (design) {
-        const map: Record<string, string> = {
-          title: title.trim(),
-          description: description.trim(),
-          priority,
-          user: discordUsername.trim(),
-          proof: proofValue,
-        };
         let raw = JSON.stringify(design);
         for (const [k, v] of Object.entries(map)) {
           raw = raw.split(`{${k}}`).join(JSON.stringify(String(v)).slice(1, -1));
         }
-        payload = {
-          channel_id: targetChannel,
-          components_v2: JSON.parse(raw),
-          images: proofUrl && proofIsImage ? [proofUrl] : [],
-        };
+        components_v2 = JSON.parse(raw);
       } else {
-        const fields: Array<{ name: string; value: string; inline?: boolean }> = [
-          { name: "Priority", value: priority, inline: true },
-          { name: "Requested by", value: discordUsername.trim(), inline: true },
-        ];
-        if (proofUrl && !proofIsImage) {
-          fields.push({ name: "Proof", value: `[${proofFile!.name}](${proofUrl})` });
-        }
-        payload = {
-          channel_id: targetChannel,
-          content: null,
-          embeds: [
-            {
-              title: `New Custom Feature Request: ${title.trim()}`,
-              description: description.trim(),
-              color: PRIORITY_COLORS[priority],
-              fields,
-              image_url: proofUrl && proofIsImage ? proofUrl : null,
-              footer: { text: "Submitted via Oversite dashboard" },
-              timestamp: new Date().toISOString(),
-            },
-          ],
-          images: [],
-          trailing_messages: [],
-        };
+        // Default layout — clean Components V2 card matching the requested format.
+        const text =
+          `## Oversite Customs | Custom Feature\n` +
+          `**User:** ${userName}\n` +
+          `**Feature Title:** ${title.trim()}\n` +
+          `**Description:** ${description.trim()}\n` +
+          `**Example:** ${exampleValue}`;
+        components_v2 = [{ type: "container", children: [{ type: "text", text }] }];
       }
+
+      const payload: Record<string, any> = {
+        channel_id: targetChannel,
+        components_v2,
+        images: proofUrl && proofIsImage ? [proofUrl] : [],
+      };
 
       const { data, error } = await supabase.rpc("enqueue_post_message", {
         _bot_id: SUPPORT_BOT_ID,
@@ -240,9 +222,9 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
             <Sparkles />
           </span>
           <div className="mtt">
-            <DialogTitle>Request a custom feature</DialogTitle>
+            <DialogTitle>Custom feature</DialogTitle>
             <DialogDescription>
-              Tell us what you'd like built and how it should work. Our team scopes it and follows up.
+              Tell us what you'd like built and attach an example if you have one.
             </DialogDescription>
           </div>
         </div>
@@ -274,42 +256,9 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
             />
           </div>
 
-          <div className="two">
-            <div className="mrow">
-              <label className="lbl">Priority</label>
-              <div className="seg" role="group" aria-label="Priority">
-                {PRIORITIES.map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    className={`${priority === p ? "on" : ""} ${p === "Urgent" ? "urgent" : ""}`}
-                    aria-pressed={priority === p}
-                    onClick={() => setPriority(p)}
-                    disabled={submitting}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mrow">
-              <label className="lbl" htmlFor="cf-username">Discord username</label>
-              <input
-                id="cf-username"
-                className="inp"
-                value={discordUsername}
-                onChange={(e) => setDiscordUsername(e.target.value)}
-                placeholder="yourname"
-                maxLength={64}
-                disabled={submitting}
-              />
-            </div>
-          </div>
-
           <div className="mrow">
             <label className="lbl">
-              Proof <span className="opt">optional</span>
+              Example <span className="opt">optional</span>
             </label>
             <button
               type="button"
@@ -321,8 +270,8 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
                 <Paperclip />
               </span>
               <span className="at">
-                <b>{proofFile ? "Replace file" : "Attach a file"}</b>
-                <span>Screenshots, PDFs, or logs · max 10 MB</span>
+                <b>{proofFile ? "Replace file" : "Attach an example"}</b>
+                <span>An image, mockup, or reference · max 10 MB</span>
               </span>
             </button>
             {proofFile && (
