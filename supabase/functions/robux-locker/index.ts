@@ -322,6 +322,16 @@ Deno.serve(async (req) => {
       }
       return json({ ok: true, discord_user_id: row?.discord_user_id ?? null, roblox_username: row?.roblox_username ?? null });
     }
+    if (action === "roblox_by_discord") {
+      // A Discord user id → their linked Roblox id/username (e.g. to build a
+      // profile link for a blacklist entry). Scoped to this bot's verifications.
+      const did = String(body.discord_user_id ?? "").trim();
+      if (!did) return json({ ok: false, error: "discord_user_id required" });
+      const { data } = await admin.from("roblox_verifications")
+        .select("roblox_id, roblox_username")
+        .eq("bot_id", botId).eq("discord_user_id", did).maybeSingle();
+      return json({ ok: true, roblox_id: data?.roblox_id ?? null, roblox_username: data?.roblox_username ?? null });
+    }
     if (action === "verify_debug") {
       // Diagnostic: given a roblox id and/or username, report exactly what the
       // verifications table holds so a blank "Customer" can be traced to its
