@@ -14,9 +14,13 @@ const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp"];
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The bot that posts the request. Must be a bot the signer owns — the shared
+   *  SUPPORT_BOT_ID is not a real bot_order, so posting through it fails with
+   *  "Bot not found." Falls back to it only when no real bot is available. */
+  botId?: string;
 }
 
-export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
+export const RequestCustomFeatureDialog = ({ open, onOpenChange, botId }: Props) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [proofFile, setProofFile] = useState<File | null>(null);
@@ -53,6 +57,10 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
     try {
       // Owner's global config (from the hidden Extras cog) sets the channel +
       // designed message; fall back to the shared support channel.
+      // Post through a bot the signer actually owns (this bot). SUPPORT_BOT_ID
+      // isn't a real bot_order, so enqueue_post_message rejects it as "Bot not
+      // found" / "Not allowed".
+      let targetBotId = botId || SUPPORT_BOT_ID;
       let targetChannel = TARGET_CHANNEL_ID;
       let design: any[] | null = null;
       const { data: globalRow } = await (supabase as any)
@@ -132,7 +140,7 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
       };
 
       const { data, error } = await supabase.rpc("enqueue_post_message", {
-        _bot_id: SUPPORT_BOT_ID,
+        _bot_id: targetBotId,
         _payload: payload as any,
       });
       if (error) throw error;

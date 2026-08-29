@@ -303,7 +303,7 @@ const ExtrasAdminIcon = ({ onClick }: { onClick: () => void }) => (
   </button>
 );
 
-const RequestCustomFeatureCard = ({ admin }: { admin?: boolean }) => {
+const RequestCustomFeatureCard = ({ botId, admin }: { botId?: string; admin?: boolean }) => {
   const [open, setOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   return (
@@ -317,7 +317,7 @@ const RequestCustomFeatureCard = ({ admin }: { admin?: boolean }) => {
         <span className="xar"><ArrowUpRight size={18} /></span>
       </button>
       {admin && <ExtrasAdminIcon onClick={() => setAdminOpen(true)} />}
-      <RequestCustomFeatureDialog open={open} onOpenChange={setOpen} />
+      <RequestCustomFeatureDialog open={open} onOpenChange={setOpen} botId={botId} />
       {admin && (
         <ExtrasAdminDialog
           open={adminOpen}
@@ -1082,7 +1082,7 @@ const BotSection = ({
                       <span className="flex-1 h-px bg-white/[0.055]" />
                     </div>
                     <div className="xtras">
-                      <RequestCustomFeatureCard admin={ownerEmail === SUPER_ADMIN_EMAIL} />
+                      <RequestCustomFeatureCard botId={bot.isDemo ? undefined : bot.id} admin={ownerEmail === SUPER_ADMIN_EMAIL} />
                       <ReportBugCard botId={bot.isDemo ? undefined : bot.id} admin={ownerEmail === SUPER_ADMIN_EMAIL} />
                     </div>
                   </div>
