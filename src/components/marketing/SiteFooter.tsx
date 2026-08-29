@@ -16,6 +16,7 @@ const COLUMNS: { heading: string; links: LinkItem[] }[] = [
     heading: "Explore",
     links: [
       { label: "Home", to: "/" },
+      { label: "ER:LC Design", to: "/erlc-design" },
       { label: "Our Process", to: "/process" },
       { label: "Bots", to: "/bots" },
       { label: "Meet the Team", to: "/explore/team" },

@@ -19,6 +19,7 @@ import Index from "./pages/Index.tsx";
 // own chunk. This keeps the initial bundle small for the homepage which is
 // what most first-time visitors land on.
 const ProcessPage = lazy(() => import("./pages/ProcessPage.tsx"));
+const ErlcDesign = lazy(() => import("./pages/ErlcDesign.tsx"));
 const ProductsPage = lazy(() => import("./pages/ProductsPage.tsx"));
 const BotsPage = lazy(() => import("./pages/BotsPage.tsx"));
 const BotDashboard = lazy(() => import("./pages/BotDashboard.tsx"));
@@ -243,6 +244,7 @@ const App = () => {
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/process" element={<ProcessPage />} />
+                <Route path="/erlc-design" element={<ErlcDesign />} />
                 <Route path="/products" element={<ProductsPage />} />
                 <Route path="/bots" element={<BotsPage />} />
                 <Route path="/auth" element={<Auth />} />
