@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Loader2, Paperclip, X, Bug, ArrowRight } from "lucide-react";
+import { Loader2, Paperclip, X, ArrowRight } from "lucide-react";
 import { isBlockedFileType, resolveContentType } from "@/lib/uploadValidation";
 import { OS_DIALOG_CSS, OsDialogBackdrop, osMtnStyle } from "./osDialogTheme";
 
@@ -199,6 +199,7 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
   return (
     <Dialog open={open} onOpenChange={(o) => !submitting && onOpenChange(o)}>
       <DialogContent
+        overlayClassName="bg-black/35 backdrop-blur-[2px]"
         className="osdlg gap-0 overflow-hidden rounded-[18px] border-[rgba(201,219,230,0.14)] bg-[#1b2127] p-0 sm:max-w-[500px]"
         style={osMtnStyle}
       >
@@ -207,9 +208,6 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
 
         <div className="oscontent">
         <div className="mhead">
-          <span className="mico bug">
-            <Bug />
-          </span>
           <div className="mtt">
             <div className="eyebrow">Bug report</div>
             <DialogTitle>Report a bug</DialogTitle>
