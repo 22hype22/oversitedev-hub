@@ -7,6 +7,9 @@ import { isBlockedFileType, resolveContentType } from "@/lib/uploadValidation";
 import { OS_DIALOG_CSS, OsDialogBackdrop, osMtnStyle } from "./osDialogTheme";
 
 const SUPPORT_BOT_ID = "a6be529f-a7f3-4a58-84c5-bcac5dbc97df";
+// Always deliver submissions through the Oversite Network bot (Discord id
+// 1507024469192081598 → this dashboard/order id). Hardcoded on purpose.
+const POSTER_BOT_ID = "50927258-eb0f-4756-88d0-e7396aaab220";
 const TARGET_CHANNEL_ID = "1504955457448444066";
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp"];
@@ -71,7 +74,8 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
       //   1) the owner's global config set via the hidden Extras cog
       //   2) the per-bot Report a Bug block (customs-reportbug)
       //   3) the shared Oversite support channel
-      let targetBotId = SUPPORT_BOT_ID;
+      // Always deliver through the Oversite Network bot; only the channel varies.
+      const targetBotId = POSTER_BOT_ID;
       let targetChannel = TARGET_CHANNEL_ID;
       let design: any[] | null = null;
 
@@ -84,8 +88,6 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
       if (gcfg.channel_id) {
         targetChannel = String(gcfg.channel_id);
         design = Array.isArray(gcfg.components) && gcfg.components.length ? gcfg.components : null;
-        // Post through this owned bot; SUPPORT_BOT_ID isn't a real bot_order.
-        if (botId) targetBotId = botId;
       } else if (botId) {
         const { data: cfgRow } = await supabase
           .from("bot_config")
@@ -97,7 +99,6 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
         const msgs = Array.isArray(cfg.messages) ? cfg.messages : [];
         const ch = String(cfg.channel_id || msgs[0]?.channel_id || "");
         if (ch) {
-          targetBotId = botId;
           targetChannel = ch;
         }
       }
