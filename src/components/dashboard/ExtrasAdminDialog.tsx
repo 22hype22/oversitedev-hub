@@ -51,14 +51,16 @@ export function ExtrasAdminDialog({
     if (!open) return;
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from("bot_config")
-        .select("config")
-        .eq("bot_id", supportBotId)
-        .eq("feature", feature)
+      // Global, admin-owned setting — stored in platform_settings (not bot_config,
+      // which foreign-keys a real bot). `as any` because this table isn't in the
+      // generated Supabase types yet.
+      const { data } = await (supabase as any)
+        .from("platform_settings")
+        .select("value")
+        .eq("key", feature)
         .maybeSingle();
       if (cancelled) return;
-      const cfg = (data?.config ?? {}) as Record<string, any>;
+      const cfg = (data?.value ?? {}) as Record<string, any>;
       setChannelId(String(cfg.channel_id ?? ""));
       setItems(Array.isArray(cfg.components) ? (cfg.components as V2Item[]) : []);
       setMountKey((k) => k + 1);
@@ -66,21 +68,20 @@ export function ExtrasAdminDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, feature, supportBotId]);
+  }, [open, feature]);
 
   const save = async () => {
     const ch = channelId.replace(/[^0-9]/g, "");
     if (!ch) return toast.error("Enter the destination channel ID.");
     const components = normalizeV2Items(builderRef.current?.getItems() ?? items ?? []);
     setSaving(true);
-    const { error } = await supabase.from("bot_config").upsert(
+    const { error } = await (supabase as any).from("platform_settings").upsert(
       {
-        bot_id: supportBotId,
-        feature,
-        config: { channel_id: ch, components },
+        key: feature,
+        value: { channel_id: ch, components },
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "bot_id,feature" },
+      { onConflict: "key" },
     );
     setSaving(false);
     if (error) return toast.error(`Save failed: ${error.message}`);

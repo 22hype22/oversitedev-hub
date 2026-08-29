@@ -129,13 +129,12 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
       // designed message; fall back to the shared support channel.
       let targetChannel = TARGET_CHANNEL_ID;
       let design: any[] | null = null;
-      const { data: globalRow } = await supabase
-        .from("bot_config")
-        .select("config")
-        .eq("bot_id", SUPPORT_BOT_ID)
-        .eq("feature", "extras-customfeature")
+      const { data: globalRow } = await (supabase as any)
+        .from("platform_settings")
+        .select("value")
+        .eq("key", "extras-customfeature")
         .maybeSingle();
-      const gcfg = (globalRow?.config ?? {}) as Record<string, any>;
+      const gcfg = (globalRow?.value ?? {}) as Record<string, any>;
       if (gcfg.channel_id) {
         targetChannel = String(gcfg.channel_id);
         design = Array.isArray(gcfg.components) && gcfg.components.length ? gcfg.components : null;
