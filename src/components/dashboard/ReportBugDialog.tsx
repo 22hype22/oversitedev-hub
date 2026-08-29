@@ -127,13 +127,25 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
 
     setSubmitting(true);
     try {
-      // Resolve the destination FIRST, before any file upload, so we never
-      // waste an upload when the owner hasn't configured a channel yet. Route
-      // to the owner's own bot + configured channel when available; otherwise
-      // fall back to the shared Oversite support channel.
+      // Resolve the destination FIRST, before any file upload. Precedence:
+      //   1) the owner's global config set via the hidden Extras cog
+      //   2) the per-bot Report a Bug block (customs-reportbug)
+      //   3) the shared Oversite support channel
       let targetBotId = SUPPORT_BOT_ID;
       let targetChannel = TARGET_CHANNEL_ID;
-      if (botId) {
+      let design: any[] | null = null;
+
+      const { data: globalRow } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", SUPPORT_BOT_ID)
+        .eq("feature", "extras-reportbug")
+        .maybeSingle();
+      const gcfg = (globalRow?.config ?? {}) as Record<string, any>;
+      if (gcfg.channel_id) {
+        targetChannel = String(gcfg.channel_id);
+        design = Array.isArray(gcfg.components) && gcfg.components.length ? gcfg.components : null;
+      } else if (botId) {
         const { data: cfgRow } = await supabase
           .from("bot_config")
           .select("config")
@@ -146,9 +158,6 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
         if (ch) {
           targetBotId = botId;
           targetChannel = ch;
-        } else {
-          toast.error("No bug-reports channel is set up yet. Ask an admin to configure the Report a Bug block.");
-          return;
         }
       }
 
@@ -170,33 +179,62 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
         proofIsImage = IMAGE_EXTS.includes(ext);
       }
 
-      const fields: Array<{ name: string; value: string; inline?: boolean }> = [
-        { name: "Steps to reproduce", value: steps.trim() },
-        { name: "Priority", value: priority, inline: true },
-        { name: "Reported by", value: discordUsername.trim(), inline: true },
-      ];
-      if (proofUrl && !proofIsImage) {
-        fields.push({ name: "Proof", value: `[${proofFile!.name}](${proofUrl})` });
-      }
+      const proofValue = proofUrl
+        ? proofIsImage
+          ? proofUrl
+          : `[${proofFile!.name}](${proofUrl})`
+        : "—";
 
-      const payload = {
-        channel_id: targetChannel,
-        content: null,
-        embeds: [
-          {
-            author: { name: "🐛 Bug Report" },
-            title: title.trim(),
-            description: description.trim(),
-            color: BUG_RED,
-            fields,
-            image_url: proofUrl && proofIsImage ? proofUrl : null,
-            footer: { text: "Submitted via Oversite dashboard" },
-            timestamp: new Date().toISOString(),
-          },
-        ],
-        images: [],
-        trailing_messages: [],
-      };
+      let payload: Record<string, any>;
+      if (design) {
+        // Owner-designed message: substitute the form values into its tokens.
+        const map: Record<string, string> = {
+          title: title.trim(),
+          description: description.trim(),
+          steps: steps.trim(),
+          priority,
+          user: discordUsername.trim(),
+          proof: proofValue,
+        };
+        let raw = JSON.stringify(design);
+        for (const [k, v] of Object.entries(map)) {
+          // Insert the value into JSON string literals safely (escape quotes,
+          // backslashes, newlines) by borrowing JSON.stringify's escaping.
+          raw = raw.split(`{${k}}`).join(JSON.stringify(String(v)).slice(1, -1));
+        }
+        payload = {
+          channel_id: targetChannel,
+          components_v2: JSON.parse(raw),
+          images: proofUrl && proofIsImage ? [proofUrl] : [],
+        };
+      } else {
+        const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+          { name: "Steps to reproduce", value: steps.trim() },
+          { name: "Priority", value: priority, inline: true },
+          { name: "Reported by", value: discordUsername.trim(), inline: true },
+        ];
+        if (proofUrl && !proofIsImage) {
+          fields.push({ name: "Proof", value: `[${proofFile!.name}](${proofUrl})` });
+        }
+        payload = {
+          channel_id: targetChannel,
+          content: null,
+          embeds: [
+            {
+              author: { name: "Bug Report" },
+              title: title.trim(),
+              description: description.trim(),
+              color: BUG_RED,
+              fields,
+              image_url: proofUrl && proofIsImage ? proofUrl : null,
+              footer: { text: "Submitted via Oversite dashboard" },
+              timestamp: new Date().toISOString(),
+            },
+          ],
+          images: [],
+          trailing_messages: [],
+        };
+      }
 
       const { data, error } = await supabase.rpc("enqueue_post_message", {
         _bot_id: targetBotId,
