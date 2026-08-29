@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,7 +47,7 @@ type Member = {
   invite_token: string | null;
 };
 
-type TabKey = "members" | "roles" | "support";
+type TabKey = "members" | "roles" | "access" | "support";
 type RoleKey = "admin" | "moderator" | "viewer";
 
 const ROLE_OPTIONS: { key: RoleKey; label: string }[] = [
@@ -468,6 +469,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
                   [
                     ["members", "Members"],
                     ["roles", "Roles"],
+                    ["access", "Access"],
                     ["support", "Support access"],
                   ] as [TabKey, string][]
                 ).map(([key, label]) => (
@@ -530,6 +532,11 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
               {/* Roles */}
               <div className={"pane" + (tab === "roles" ? " on" : "")}>
                 <RolesMatrix ownerUserId={ownerUserId} groupId={selectedGroupId} />
+              </div>
+
+              {/* Access — grant dashboard access by Discord/Roblox identity */}
+              <div className={"pane" + (tab === "access" ? " on" : "")}>
+                <AccessGrants ownerUserId={ownerUserId} groupId={selectedGroupId} botId={ownedBots.find((b) => b.group_id === selectedGroupId)?.id} />
               </div>
 
               {/* Support */}
@@ -851,6 +858,166 @@ const MATRIX_ROLES: TeamRole[] = ["admin", "moderator", "viewer"];
 // Sentinel group id for "no specific group" (global / ungrouped) — matches the
 // SQL default in the per-group permissions migration.
 const GLOBAL_GROUP_ID = "00000000-0000-0000-0000-000000000000";
+
+type AccessGrant = {
+  id: string;
+  kind: "discord_member" | "discord_role" | "roblox_group_rank";
+  discord_id: string | null;
+  guild_id: string | null;
+  roblox_group_id: string | null;
+  roblox_min_rank: number | null;
+  role: string;
+  label: string | null;
+};
+
+const GRANT_KIND_LABEL: Record<AccessGrant["kind"], string> = {
+  discord_member: "Discord member",
+  discord_role: "Discord role",
+  roblox_group_rank: "Roblox group rank",
+};
+
+function AccessGrants({ ownerUserId, groupId, botId }: { ownerUserId: string; groupId: string | null; botId?: string }) {
+  const [grants, setGrants] = useState<AccessGrant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [kind, setKind] = useState<AccessGrant["kind"]>("discord_member");
+  const [discordId, setDiscordId] = useState("");
+  const [guildId, setGuildId] = useState("");
+  const [robloxGroup, setRobloxGroup] = useState("");
+  const [robloxRank, setRobloxRank] = useState("1");
+  const [role, setRole] = useState<RoleKey>("viewer");
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    let q = (supabase as any)
+      .from("dashboard_access_grants")
+      .select("*")
+      .eq("owner_user_id", ownerUserId)
+      .order("created_at", { ascending: false });
+    q = groupId ? q.eq("group_id", groupId) : q.is("group_id", null);
+    const { data } = await q;
+    setGrants((data ?? []) as AccessGrant[]);
+    setLoading(false);
+  }, [ownerUserId, groupId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const add = async () => {
+    const row: Record<string, any> = {
+      owner_user_id: ownerUserId,
+      group_id: groupId,
+      kind,
+      role,
+      created_by: ownerUserId,
+    };
+    if (kind === "discord_member") {
+      const id = discordId.replace(/[^0-9]/g, "");
+      if (!id) return toast.error("Enter the member's Discord user ID.");
+      row.discord_id = id;
+    } else if (kind === "discord_role") {
+      const id = discordId.replace(/[^0-9]/g, "");
+      if (!id) return toast.error("Enter the Discord role ID.");
+      row.discord_id = id;
+      row.guild_id = guildId.replace(/[^0-9]/g, "") || null;
+    } else {
+      const g = robloxGroup.replace(/[^0-9]/g, "");
+      if (!g) return toast.error("Enter the Roblox group ID.");
+      row.roblox_group_id = g;
+      row.roblox_min_rank = Math.max(1, Number(robloxRank) || 1);
+    }
+    setSaving(true);
+    const { error } = await (supabase as any).from("dashboard_access_grants").insert(row);
+    setSaving(false);
+    if (error) return toast.error(`Couldn't add: ${error.message}`);
+    toast.success("Access rule added");
+    setDiscordId(""); setGuildId(""); setRobloxGroup(""); setRobloxRank("1");
+    void load();
+  };
+
+  const remove = async (id: string) => {
+    const { error } = await (supabase as any).from("dashboard_access_grants").delete().eq("id", id);
+    if (error) return toast.error(`Couldn't remove: ${error.message}`);
+    setGrants((prev) => prev.filter((g) => g.id !== id));
+  };
+
+  const input: CSSProperties = {
+    background: "rgba(15,18,22,.5)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8,
+    padding: "8px 10px", color: "#E8EEF3", fontSize: 13, outline: "none", width: "100%",
+  };
+  const summary = (g: AccessGrant) =>
+    g.kind === "discord_member" ? `Discord member ${g.discord_id}`
+    : g.kind === "discord_role" ? `Discord role ${g.discord_id}${g.guild_id ? ` · guild ${g.guild_id}` : ""}`
+    : `Roblox group ${g.roblox_group_id} · rank ≥ ${g.roblox_min_rank}`;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div className="note">
+        Grant dashboard access by identity, not just email. People must sign in with
+        <b> Discord</b> for member/role rules, and be <b>verified</b> for Roblox rules —
+        access is applied the next time they load the dashboard, and revoked automatically
+        if they lose the role or rank. Applies to the bots in this group.
+      </div>
+
+      <div style={{ display: "grid", gap: 10, padding: 14, border: "1px solid rgba(255,255,255,.08)", borderRadius: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <label style={{ display: "grid", gap: 5 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#A8B4BF" }}>Access by</span>
+            <select style={input} value={kind} onChange={(e) => setKind(e.target.value as AccessGrant["kind"])}>
+              <option value="discord_member">Discord member</option>
+              <option value="discord_role">Discord role</option>
+              <option value="roblox_group_rank">Roblox group rank</option>
+            </select>
+          </label>
+          <label style={{ display: "grid", gap: 5 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#A8B4BF" }}>Grants role</span>
+            <select style={input} value={role} onChange={(e) => setRole(e.target.value as RoleKey)}>
+              {ROLE_OPTIONS.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
+            </select>
+          </label>
+        </div>
+
+        {kind === "roblox_group_rank" ? (
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
+            <input style={input} placeholder="Roblox group ID (e.g. 691798472)" value={robloxGroup} onChange={(e) => setRobloxGroup(e.target.value)} />
+            <input style={input} type="number" min={1} placeholder="Min rank" value={robloxRank} onChange={(e) => setRobloxRank(e.target.value)} />
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: kind === "discord_role" ? "1fr 1fr" : "1fr", gap: 10 }}>
+            <input style={input} placeholder={kind === "discord_role" ? "Discord role ID" : "Discord user ID"} value={discordId} onChange={(e) => setDiscordId(e.target.value)} />
+            {kind === "discord_role" && (
+              <input style={input} placeholder="Server (guild) ID — optional" value={guildId} onChange={(e) => setGuildId(e.target.value)} />
+            )}
+          </div>
+        )}
+
+        <div>
+          <button className="btnp" type="button" onClick={add} disabled={saving}>
+            {saving ? "Adding…" : "Add access rule"}
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="loading sm">Loading…</div>
+      ) : grants.length === 0 ? (
+        <div className="loading sm">No identity access rules yet.</div>
+      ) : (
+        <div className="list">
+          {grants.map((g) => (
+            <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, color: "#E8EEF3", fontWeight: 600 }}>{GRANT_KIND_LABEL[g.kind]}</div>
+                <div style={{ fontSize: 12, color: "#788591", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{summary(g)}</div>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#C9DBE6", textTransform: "uppercase", letterSpacing: ".05em" }}>{ROLE_OPTIONS.find((r) => r.key === g.role)?.label ?? g.role}</span>
+              <button type="button" onClick={() => remove(g.id)} style={{ background: "transparent", border: "1px solid rgba(255,255,255,.12)", color: "#A8B4BF", borderRadius: 8, padding: "5px 10px", fontSize: 12, cursor: "pointer" }}>Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function RolesMatrix({ ownerUserId, groupId }: { ownerUserId: string; groupId: string | null }) {
   const [matrix, setMatrix] = useState<Record<string, TeamPermissions>>(() => ({
