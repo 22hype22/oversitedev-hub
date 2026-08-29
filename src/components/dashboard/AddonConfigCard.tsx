@@ -1275,6 +1275,22 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         .filter((m) => m.channel_id || m.components.length);
       setSavedMessages(msgs);
       const active = msgs[0];
+      // For the prompt-form blocks, pre-fill a ready-to-use template the first
+      // time they're opened, so the owner only has to pick a channel and Save
+      // (an empty message is the main reason a save silently no-ops).
+      const PROMPT_FORM_DEFAULTS: Record<string, string> = {
+        "customs-suggestions":
+          "## Oversite Customs | Suggestion\n**User:** {user}\n{Question: **Feature Title:**}\n{Question: **Description:**}\n{File: **Example:**}",
+        "customs-feedback":
+          "## Oversite Customs | Feedback\n**User:** {user}\n{Question: **Subject:**}\n{Question: **Details:**}",
+        "customs-reportbug":
+          "## Oversite Customs | Bug Report\n**User:** {user}\n{Question: **What happened:**}\n{Question: **Steps to reproduce:**}\n{File: **Screenshot:**}",
+      };
+      const defaultText = PROMPT_FORM_DEFAULTS[addonId];
+      const seeded: V2Item[] =
+        !active && defaultText
+          ? [{ id: `seed-${Date.now()}`, type: "text", text: defaultText } as unknown as V2Item]
+          : active?.components ?? [];
       setValues((prev) => ({
         ...prev,
         channel_id: active?.channel_id ?? "",
@@ -1282,7 +1298,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           ? { interval_days: cfg.interval_days != null ? String(cfg.interval_days) : "9" }
           : {}),
       }));
-      setMessagesV2Items(active?.components ?? []);
+      setMessagesV2Items(seeded);
       setMessagesV2MountKey((k) => k + 1);
     })();
     return () => {
