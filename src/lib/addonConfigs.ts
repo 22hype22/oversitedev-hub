@@ -976,34 +976,6 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     fields: [],
   },
 
-  "customs-access": {
-    title: "Dashboard Access",
-    summary: "Link a Discord role or Roblox group to grant dashboard access.",
-    icon: Link2Off,
-    fields: [
-      role("discord_role_id", "Discord role", "Members with this role in your server should have dashboard access."),
-      {
-        key: "roblox_group_id",
-        label: "Roblox group ID",
-        type: "text",
-        placeholder: "e.g. 10357040",
-        help: "Members of this Roblox group should have dashboard access.",
-      },
-      {
-        key: "seat_role",
-        label: "Access level",
-        type: "select",
-        defaultValue: "viewer",
-        options: [
-          { value: "viewer", label: "Viewer (read-only)" },
-          { value: "moderator", label: "Moderator" },
-          { value: "admin", label: "Admin" },
-        ],
-        help: "The team role granted to people who qualify.",
-      },
-    ],
-  },
-
   "customs-giveaway": {
     title: "Giveaway",
     summary: "Design how /giveaway looks; staff run it to launch one.",
