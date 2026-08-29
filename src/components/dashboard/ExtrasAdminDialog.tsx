@@ -31,6 +31,7 @@ export function ExtrasAdminDialog({
   supportBotId,
   title,
   tokens,
+  mirror,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -40,6 +41,13 @@ export function ExtrasAdminDialog({
   title: string;
   /** Variable tokens the form fills in (shown as a hint). */
   tokens: string[];
+  /**
+   * Optional: also mirror this global setting into a real bot's prompt-form
+   * config so the matching Discord slash command works with the same channel.
+   * `template` is the prompt-form message (with {Question:}/{File:} tokens) the
+   * bot posts when someone runs the command.
+   */
+  mirror?: { botId?: string; feature: string; template: string };
 }) {
   const builderRef = useRef<MessagesV2BuilderHandle>(null);
   const [items, setItems] = useState<V2Item[]>([]);
@@ -83,8 +91,49 @@ export function ExtrasAdminDialog({
       },
       { onConflict: "key" },
     );
+    if (error) {
+      setSaving(false);
+      return toast.error(`Save failed: ${error.message}`);
+    }
+
+    // Link the matching Discord slash command (/suggestion, /reportbug) to this
+    // same setup: write the bot's prompt-form config to the SAME channel and
+    // enqueue an apply so it takes effect without a redeploy. Best-effort — the
+    // global setting is already saved, so we never fail the whole save on this.
+    if (mirror?.botId && mirror.feature) {
+      try {
+        const { error: cfgErr } = await supabase.from("bot_config").upsert(
+          {
+            bot_id: mirror.botId,
+            feature: mirror.feature,
+            config: {
+              messages: [
+                {
+                  channel_id: ch,
+                  components: [
+                    { id: `mirror-${Date.now()}`, type: "text", text: mirror.template },
+                  ],
+                },
+              ],
+            },
+            updated_at: new Date().toISOString(),
+          } as any,
+          { onConflict: "bot_id,feature" },
+        );
+        if (cfgErr) {
+          toast.warning(`Saved, but couldn't link the slash command: ${cfgErr.message}`);
+        } else {
+          await supabase.rpc("enqueue_apply_config" as any, {
+            _bot_id: mirror.botId,
+            _feature: mirror.feature,
+          });
+        }
+      } catch (e: any) {
+        toast.warning(`Saved, but couldn't link the slash command: ${e?.message ?? e}`);
+      }
+    }
+
     setSaving(false);
-    if (error) return toast.error(`Save failed: ${error.message}`);
     toast.success("Saved");
     onOpenChange(false);
   };

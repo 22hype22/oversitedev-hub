@@ -303,7 +303,7 @@ const ExtrasAdminIcon = ({ onClick }: { onClick: () => void }) => (
   </button>
 );
 
-const RequestCustomFeatureCard = ({ admin }: { admin?: boolean }) => {
+const RequestCustomFeatureCard = ({ botId, admin }: { botId?: string; admin?: boolean }) => {
   const [open, setOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   return (
@@ -326,6 +326,12 @@ const RequestCustomFeatureCard = ({ admin }: { admin?: boolean }) => {
           supportBotId={SUPPORT_BOT_ID}
           title="Custom Feature — settings"
           tokens={["user", "title", "description", "example"]}
+          mirror={{
+            botId,
+            feature: "customs-suggestions",
+            template:
+              "## Oversite Customs | Custom Feature\n**User:** {user}\n{Question: **Feature Title:**}\n{Question: **Description:**}\n{File: **Example:**}",
+          }}
         />
       )}
     </div>
@@ -355,6 +361,12 @@ const ReportBugCard = ({ botId, admin }: { botId?: string; admin?: boolean }) =>
           supportBotId={SUPPORT_BOT_ID}
           title="Report a Bug — settings"
           tokens={["title", "description", "steps", "priority", "user", "proof"]}
+          mirror={{
+            botId,
+            feature: "customs-reportbug",
+            template:
+              "## Oversite Customs | Bug Report\n**User:** {user}\n{Question: **What happened:**}\n{Question: **Steps to reproduce:**}\n{File: **Screenshot:**}",
+          }}
         />
       )}
     </div>
@@ -1082,7 +1094,7 @@ const BotSection = ({
                       <span className="flex-1 h-px bg-white/[0.055]" />
                     </div>
                     <div className="xtras">
-                      <RequestCustomFeatureCard admin={ownerEmail === SUPER_ADMIN_EMAIL} />
+                      <RequestCustomFeatureCard botId={bot.isDemo ? undefined : bot.id} admin={ownerEmail === SUPER_ADMIN_EMAIL} />
                       <ReportBugCard botId={bot.isDemo ? undefined : bot.id} admin={ownerEmail === SUPER_ADMIN_EMAIL} />
                     </div>
                   </div>
