@@ -412,6 +412,43 @@ Deno.serve(async (req) => {
       return json(200, { config: normalizeBotConfig(feature, data) ?? null });
     }
 
+    // POST /save-config { bot_id, feature, config }
+    // Bot-side config persistence via the service role, so features the bot
+    // writes itself (economy-data, ads-data, freerelease-data, announce-state)
+    // are saved regardless of RLS grants on the anon key. Upserts on
+    // (bot_id, feature) so the first write creates the row and later writes
+    // update it — the bot no longer needs INSERT permission on bot_config.
+    if (req.method === "POST" && path.startsWith("/save-config")) {
+      const body = await req.json().catch(() => ({} as any));
+      const botId = String(body.bot_id || "");
+      const feature = String(body.feature || "");
+      if (!botId) return json(400, { error: "bot_id required" });
+      if (!feature) return json(400, { error: "feature required" });
+      if (body.config === undefined || body.config === null) {
+        return json(400, { error: "config required" });
+      }
+
+      // The worker token is already validated by authenticate(); still confirm
+      // the bot_id is a real order so we can't be used to write junk rows.
+      const { data: order, error: orderError } = await admin
+        .from("bot_orders")
+        .select("id")
+        .eq("id", botId)
+        .maybeSingle();
+      if (orderError) return json(500, { error: orderError.message });
+      if (!order) return json(404, { error: "Bot order not found" });
+
+      const now = new Date().toISOString();
+      const { error: upsertError } = await admin
+        .from("bot_config")
+        .upsert(
+          { bot_id: botId, feature, config: body.config, updated_at: now },
+          { onConflict: "bot_id,feature" },
+        );
+      if (upsertError) return json(500, { error: upsertError.message });
+      return json(200, { ok: true });
+    }
+
     // POST /mark-config-applied { bot_id, feature }
     if (req.method === "POST" && path.startsWith("/mark-config-applied")) {
       const body = await req.json().catch(() => ({} as any));
