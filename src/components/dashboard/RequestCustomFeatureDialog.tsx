@@ -125,6 +125,22 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
 
     setSubmitting(true);
     try {
+      // Owner's global config (from the hidden Extras cog) sets the channel +
+      // designed message; fall back to the shared support channel.
+      let targetChannel = TARGET_CHANNEL_ID;
+      let design: any[] | null = null;
+      const { data: globalRow } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", SUPPORT_BOT_ID)
+        .eq("feature", "extras-customfeature")
+        .maybeSingle();
+      const gcfg = (globalRow?.config ?? {}) as Record<string, any>;
+      if (gcfg.channel_id) {
+        targetChannel = String(gcfg.channel_id);
+        design = Array.isArray(gcfg.components) && gcfg.components.length ? gcfg.components : null;
+      }
+
       let proofUrl: string | null = null;
       let proofIsImage = false;
 
@@ -143,31 +159,56 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
         proofIsImage = IMAGE_EXTS.includes(ext);
       }
 
-      const fields: Array<{ name: string; value: string; inline?: boolean }> = [
-        { name: "Priority", value: priority, inline: true },
-        { name: "Requested by", value: discordUsername.trim(), inline: true },
-      ];
-      if (proofUrl && !proofIsImage) {
-        fields.push({ name: "Proof", value: `[${proofFile!.name}](${proofUrl})` });
-      }
+      const proofValue = proofUrl
+        ? proofIsImage
+          ? proofUrl
+          : `[${proofFile!.name}](${proofUrl})`
+        : "—";
 
-      const payload = {
-        channel_id: TARGET_CHANNEL_ID,
-        content: null,
-        embeds: [
-          {
-            title: `New Custom Feature Request: ${title.trim()}`,
-            description: description.trim(),
-            color: PRIORITY_COLORS[priority],
-            fields,
-            image_url: proofUrl && proofIsImage ? proofUrl : null,
-            footer: { text: "Submitted via Oversite dashboard" },
-            timestamp: new Date().toISOString(),
-          },
-        ],
-        images: [],
-        trailing_messages: [],
-      };
+      let payload: Record<string, any>;
+      if (design) {
+        const map: Record<string, string> = {
+          title: title.trim(),
+          description: description.trim(),
+          priority,
+          user: discordUsername.trim(),
+          proof: proofValue,
+        };
+        let raw = JSON.stringify(design);
+        for (const [k, v] of Object.entries(map)) {
+          raw = raw.split(`{${k}}`).join(JSON.stringify(String(v)).slice(1, -1));
+        }
+        payload = {
+          channel_id: targetChannel,
+          components_v2: JSON.parse(raw),
+          images: proofUrl && proofIsImage ? [proofUrl] : [],
+        };
+      } else {
+        const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+          { name: "Priority", value: priority, inline: true },
+          { name: "Requested by", value: discordUsername.trim(), inline: true },
+        ];
+        if (proofUrl && !proofIsImage) {
+          fields.push({ name: "Proof", value: `[${proofFile!.name}](${proofUrl})` });
+        }
+        payload = {
+          channel_id: targetChannel,
+          content: null,
+          embeds: [
+            {
+              title: `New Custom Feature Request: ${title.trim()}`,
+              description: description.trim(),
+              color: PRIORITY_COLORS[priority],
+              fields,
+              image_url: proofUrl && proofIsImage ? proofUrl : null,
+              footer: { text: "Submitted via Oversite dashboard" },
+              timestamp: new Date().toISOString(),
+            },
+          ],
+          images: [],
+          trailing_messages: [],
+        };
+      }
 
       const { data, error } = await supabase.rpc("enqueue_post_message", {
         _bot_id: SUPPORT_BOT_ID,

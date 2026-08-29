@@ -64,6 +64,7 @@ import { GroupTeamHub } from "@/components/dashboard/team/GroupTeamHub";
 import { NewOwnerBillingDialog } from "@/components/dashboard/team/NewOwnerBillingDialog";
 import { RequestCustomFeatureDialog } from "@/components/dashboard/RequestCustomFeatureDialog";
 import { ReportBugDialog } from "@/components/dashboard/ReportBugDialog";
+import { ExtrasAdminDialog } from "@/components/dashboard/ExtrasAdminDialog";
 import { BotHealthBadge } from "@/components/dashboard/BotHealthBadge";
 import { DashboardServerSelector } from "@/components/dashboard/DashboardServerSelector";
 import { ActiveGuildProvider } from "@/hooks/useActiveGuild";
@@ -90,6 +91,7 @@ import {
   Wrench,
   Star,
   ArrowUpRight,
+  Share2,
   MessageSquare,
   Code2,
   RefreshCw,
@@ -263,10 +265,49 @@ const STATUS_META: Record<string, StatusMeta> = {
 const getStatusMeta = (s: string): StatusMeta =>
   STATUS_META[s] ?? { label: s, className: "bg-muted text-muted-foreground border-border" };
 
-const RequestCustomFeatureCard = () => {
+// Owner-only controls: a hidden config icon on the Extras cards, visible only to
+// this account. It opens an editor to design the posted message + set the
+// destination channel for that flow. Stored globally on the support bot.
+const SUPER_ADMIN_EMAIL = "everant00@gmail.com";
+const SUPPORT_BOT_ID = "a6be529f-a7f3-4a58-84c5-bcac5dbc97df";
+
+/** The small owner-only cog next to a card's arrow. */
+const ExtrasAdminIcon = ({ onClick }: { onClick: () => void }) => (
+  <button
+    type="button"
+    title="Configure (owner only)"
+    aria-label="Configure"
+    onClick={(e) => {
+      e.stopPropagation();
+      onClick();
+    }}
+    style={{
+      position: "absolute",
+      top: "50%",
+      right: 40,
+      transform: "translateY(-50%)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      height: 26,
+      width: 26,
+      borderRadius: 7,
+      border: "1px solid rgba(201,219,230,0.28)",
+      background: "rgba(201,219,230,0.10)",
+      color: "#C9DBE6",
+      cursor: "pointer",
+      zIndex: 2,
+    }}
+  >
+    <Share2 size={14} />
+  </button>
+);
+
+const RequestCustomFeatureCard = ({ admin }: { admin?: boolean }) => {
   const [open, setOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   return (
-    <>
+    <div style={{ position: "relative" }}>
       <button type="button" className="xrow acc" onClick={() => setOpen(true)}>
         <span className="xic"><MessageSquare size={18} /></span>
         <span className="xtx">
@@ -275,15 +316,27 @@ const RequestCustomFeatureCard = () => {
         </span>
         <span className="xar"><ArrowUpRight size={18} /></span>
       </button>
+      {admin && <ExtrasAdminIcon onClick={() => setAdminOpen(true)} />}
       <RequestCustomFeatureDialog open={open} onOpenChange={setOpen} />
-    </>
+      {admin && (
+        <ExtrasAdminDialog
+          open={adminOpen}
+          onOpenChange={setAdminOpen}
+          feature="extras-customfeature"
+          supportBotId={SUPPORT_BOT_ID}
+          title="Custom Feature — settings"
+          tokens={["title", "description", "priority", "user"]}
+        />
+      )}
+    </div>
   );
 };
 
-const ReportBugCard = ({ botId }: { botId?: string }) => {
+const ReportBugCard = ({ botId, admin }: { botId?: string; admin?: boolean }) => {
   const [open, setOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   return (
-    <>
+    <div style={{ position: "relative" }}>
       <button type="button" className="xrow bug" onClick={() => setOpen(true)}>
         <span className="xic"><Bug size={18} /></span>
         <span className="xtx">
@@ -292,8 +345,19 @@ const ReportBugCard = ({ botId }: { botId?: string }) => {
         </span>
         <span className="xar"><ArrowUpRight size={18} /></span>
       </button>
+      {admin && <ExtrasAdminIcon onClick={() => setAdminOpen(true)} />}
       <ReportBugDialog open={open} onOpenChange={setOpen} botId={botId} />
-    </>
+      {admin && (
+        <ExtrasAdminDialog
+          open={adminOpen}
+          onOpenChange={setAdminOpen}
+          feature="extras-reportbug"
+          supportBotId={SUPPORT_BOT_ID}
+          title="Report a Bug — settings"
+          tokens={["title", "description", "steps", "priority", "user", "proof"]}
+        />
+      )}
+    </div>
   );
 };
 
@@ -1018,8 +1082,8 @@ const BotSection = ({
                       <span className="flex-1 h-px bg-white/[0.055]" />
                     </div>
                     <div className="xtras">
-                      <RequestCustomFeatureCard />
-                      <ReportBugCard botId={bot.isDemo ? undefined : bot.id} />
+                      <RequestCustomFeatureCard admin={ownerEmail === SUPER_ADMIN_EMAIL} />
+                      <ReportBugCard botId={bot.isDemo ? undefined : bot.id} admin={ownerEmail === SUPER_ADMIN_EMAIL} />
                     </div>
                   </div>
                 ) : (
