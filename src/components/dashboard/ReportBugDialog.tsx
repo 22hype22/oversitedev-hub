@@ -135,13 +135,12 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
       let targetChannel = TARGET_CHANNEL_ID;
       let design: any[] | null = null;
 
-      const { data: globalRow } = await supabase
-        .from("bot_config")
-        .select("config")
-        .eq("bot_id", SUPPORT_BOT_ID)
-        .eq("feature", "extras-reportbug")
+      const { data: globalRow } = await (supabase as any)
+        .from("platform_settings")
+        .select("value")
+        .eq("key", "extras-reportbug")
         .maybeSingle();
-      const gcfg = (globalRow?.config ?? {}) as Record<string, any>;
+      const gcfg = (globalRow?.value ?? {}) as Record<string, any>;
       if (gcfg.channel_id) {
         targetChannel = String(gcfg.channel_id);
         design = Array.isArray(gcfg.components) && gcfg.components.length ? gcfg.components : null;
