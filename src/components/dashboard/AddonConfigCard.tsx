@@ -1297,6 +1297,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
         ...(addonId === "customs-announce"
           ? { interval_days: cfg.interval_days != null ? String(cfg.interval_days) : "9" }
           : {}),
+        ...(addonId === "customs-blacklist"
+          ? {
+              blacklist_apply_role: !!cfg.apply_role,
+              blacklist_role_id: String(cfg.role_id ?? cfg.blacklist_role_id ?? ""),
+            }
+          : {}),
       }));
       setMessagesV2Items(seeded);
       setMessagesV2MountKey((k) => k + 1);
@@ -1358,6 +1364,12 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     }
     if (addonId === "customs-announce") {
       config.interval_days = Math.max(1, Number(values.interval_days ?? 9) || 9);
+    }
+    if (addonId === "customs-blacklist") {
+      // Optional: on /blacklist, strip the member's roles and assign a role.
+      config.apply_role = !!values.blacklist_apply_role;
+      config.role_id = values.blacklist_role_id ? String(values.blacklist_role_id) : "";
+      config.strip_roles = true;
     }
     setSaving(true);
     const payload = {
@@ -5361,6 +5373,34 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 .map((f) => (
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
+              {addonId === "customs-blacklist" && (
+                <div className="space-y-3 rounded-lg border border-border/60 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <Label className="text-sm">Apply a blacklist role</Label>
+                      <p className="text-xs text-muted-foreground">
+                        On <code className="font-mono text-os-accent">/blacklist</code>, remove the member&rsquo;s
+                        roles and give them a role instead of banning &mdash; so you don&rsquo;t lose the member.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={!!values.blacklist_apply_role}
+                      onCheckedChange={(v) => setValues((p) => ({ ...p, blacklist_apply_role: v }))}
+                    />
+                  </div>
+                  {values.blacklist_apply_role && (
+                    <RoleMultiSelect
+                      label="Blacklist role"
+                      help="Given to blacklisted members after their other roles are removed. Place it BELOW the bot's highest role so the bot can assign it."
+                      botId={botId}
+                      value={values.blacklist_role_id ? [String(values.blacklist_role_id)] : []}
+                      onChange={(v) =>
+                        setValues((p) => ({ ...p, blacklist_role_id: v[v.length - 1] ?? "" }))
+                      }
+                    />
+                  )}
+                </div>
+              )}
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs text-muted-foreground">
                   {isCustomsSmallUi
