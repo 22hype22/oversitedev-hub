@@ -63,7 +63,6 @@ import { BotSecretsCard } from "@/components/dashboard/BotSecretsCard";
 import { GroupTeamHub } from "@/components/dashboard/team/GroupTeamHub";
 import { NewOwnerBillingDialog } from "@/components/dashboard/team/NewOwnerBillingDialog";
 import { RequestCustomFeatureDialog } from "@/components/dashboard/RequestCustomFeatureDialog";
-import { ReportBugDialog } from "@/components/dashboard/ReportBugDialog";
 import { ExtrasAdminDialog } from "@/components/dashboard/ExtrasAdminDialog";
 import { BotHealthBadge } from "@/components/dashboard/BotHealthBadge";
 import { DashboardServerSelector } from "@/components/dashboard/DashboardServerSelector";
@@ -96,7 +95,6 @@ import {
   Code2,
   RefreshCw,
   AlertTriangle,
-  Bug,
   Gift,
   ChevronDown,
   ChevronUp,
@@ -230,7 +228,7 @@ const UTILITIES_ADDON_IDS = [
 ];
 // Shared/extras add-ons (none currently — Multi-Server License & Custom
 // Branding combined card was removed per product decision).
-const SHARED_ADDON_IDS: string[] = ["customs-messages", "invite-message", "customs-tickets", "customs-verification", "roblox-group-sync", "customs-packages", "customs-payment", "customs-pricing", "customs-robux-locker", "customs-order-status", "customs-portfolio", "customs-orderlog", "customs-qualitycheck", "customs-infraction", "customs-promotion", "customs-logging", "customs-giveaway", "music-addon", "auto-radio", "invite-tracker", "marketplace", "ads", "customs-tts", "customs-gambling", "customs-suggestions", "customs-feedback", "customs-freerelease", "customs-blacklist", "customs-announce", "customs-smallui", "customs-reportbug", "customs-access"];
+const SHARED_ADDON_IDS: string[] = ["customs-messages", "invite-message", "customs-tickets", "customs-verification", "roblox-group-sync", "customs-packages", "customs-payment", "customs-pricing", "customs-robux-locker", "customs-order-status", "customs-portfolio", "customs-orderlog", "customs-qualitycheck", "customs-infraction", "customs-promotion", "customs-logging", "customs-giveaway", "music-addon", "auto-radio", "invite-tracker", "marketplace", "ads", "customs-tts", "customs-gambling", "customs-suggestions", "customs-feedback", "customs-freerelease", "customs-blacklist", "customs-announce", "customs-smallui", "customs-access"];
 
 // Owners can cancel/remove a bot from any pre-live state OR once it's live
 // ("paid"/"ready"). Cancelling flips the order to "cancelled", which hides it
@@ -326,35 +324,6 @@ const RequestCustomFeatureCard = ({ botId, admin }: { botId?: string; admin?: bo
           supportBotId={SUPPORT_BOT_ID}
           title="Custom Feature — settings"
           tokens={["user", "title", "description", "example"]}
-        />
-      )}
-    </div>
-  );
-};
-
-const ReportBugCard = ({ botId, admin }: { botId?: string; admin?: boolean }) => {
-  const [open, setOpen] = useState(false);
-  const [adminOpen, setAdminOpen] = useState(false);
-  return (
-    <div style={{ position: "relative" }}>
-      <button type="button" className="xrow bug" onClick={() => setOpen(true)}>
-        <span className="xic"><Bug size={18} /></span>
-        <span className="xtx">
-          <b>Report a bug</b>
-          <em>Hit a snag? Send the details and we&rsquo;ll get it fixed.</em>
-        </span>
-        <span className="xar"><ArrowUpRight size={18} /></span>
-      </button>
-      {admin && <ExtrasAdminIcon onClick={() => setAdminOpen(true)} />}
-      <ReportBugDialog open={open} onOpenChange={setOpen} botId={botId} />
-      {admin && (
-        <ExtrasAdminDialog
-          open={adminOpen}
-          onOpenChange={setAdminOpen}
-          feature="extras-reportbug"
-          supportBotId={SUPPORT_BOT_ID}
-          title="Report a Bug — settings"
-          tokens={["title", "description", "steps", "priority", "user", "proof"]}
         />
       )}
     </div>
@@ -1083,7 +1052,6 @@ const BotSection = ({
                     </div>
                     <div className="xtras">
                       <RequestCustomFeatureCard botId={bot.isDemo ? undefined : bot.id} admin={ownerEmail === SUPER_ADMIN_EMAIL} />
-                      <ReportBugCard botId={bot.isDemo ? undefined : bot.id} admin={ownerEmail === SUPER_ADMIN_EMAIL} />
                     </div>
                   </div>
                 ) : (
