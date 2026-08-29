@@ -340,7 +340,16 @@ export function useOwnedBots() {
         } catch (e) {
           console.error("heal-bot-data failed", e);
         }
-        if (acceptedCount > 0) void reload();
+        // Grant dashboard access to anyone matching a Discord-member / Discord-role
+        // / Roblox-group-rank grant; it materializes team rows we then pick up.
+        let grantedCount = 0;
+        try {
+          const { data: resolved } = await supabase.functions.invoke("team-access-resolve", { body: {} });
+          grantedCount = Number((resolved as any)?.granted ?? 0);
+        } catch (e) {
+          console.error("team-access-resolve failed", e);
+        }
+        if (acceptedCount > 0 || grantedCount > 0) void reload();
       })();
     }
   }, [userId, authLoading]);
