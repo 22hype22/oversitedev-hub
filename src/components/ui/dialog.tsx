@@ -34,10 +34,14 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { hideClose?: boolean }
->(({ className, children, onPointerDownOutside, onInteractOutside, hideClose, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    hideClose?: boolean;
+    /** Override the backdrop overlay's classes (e.g. a lighter, more transparent scrim). */
+    overlayClassName?: string;
+  }
+>(({ className, children, onPointerDownOutside, onInteractOutside, hideClose, overlayClassName, ...props }, ref) => (
   <DialogPortal>
-    <DialogOverlay />
+    <DialogOverlay className={overlayClassName} />
     <DialogPrimitive.Content
       ref={ref}
       onPointerDownOutside={(event) => {
