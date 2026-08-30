@@ -101,19 +101,13 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
       }
 
       // The uploaded example goes into a THREAD off the posted message (the bot
-      // creates it and uploads the file there), so the message itself just notes
-      // where to find it instead of inlining a big image/link.
-      const exampleValue = proofFile
-        ? `${proofFile.name} — attached in the thread below`
-        : "—";
-
       // Tokens the owner can use in a designed message via the Extras cog.
+      // No example/proof value: the upload goes into a thread off the message,
+      // so the message itself carries no "Example" text at all.
       const map: Record<string, string> = {
         user: userName,
         title: title.trim(),
         description: description.trim(),
-        example: exampleValue,
-        proof: exampleValue,
       };
 
       let components_v2: any[];
@@ -122,39 +116,46 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
         const jesc = (v: string) => JSON.stringify(String(v)).slice(1, -1);
         let raw = JSON.stringify(design);
 
-        // 1) Simple tokens: {user} {title} {description} {example} {proof}.
+        // 1) Simple tokens: {user} {title} {description}.
         for (const [k, v] of Object.entries(map)) {
           raw = raw.split(`{${k}}`).join(jesc(v));
         }
 
-        // 2) Prompt-engine tokens the server builder uses, e.g.
-        //    {Question: Feature Title:}  {long question: Description:}  {File: Example:}
-        //    {drop down: …}  {user}. Match by label so title/description land in
-        //    the right slot; text questions fall back to document order.
+        // 2) Drop the whole "**Example:** {File: …}" line — the upload lives in
+        //    the thread, so no example text belongs on the message. Removes the
+        //    label + token (and its leading newline) for file/example/proof
+        //    tokens. Runs before the question pass so other tokens' braces bound
+        //    the label text.
+        raw = raw.replace(/(?:\\n)?[^"\\{}]*\{\s*file\b[^{}]*\}/gi, "");
+        raw = raw.replace(/(?:\\n)?[^"\\{}]*\{\s*(?:example|proof)\s*\}/gi, "");
+
+        // 3) Prompt-engine tokens the server builder uses, e.g.
+        //    {Question: Feature Title:}  {long question: Description:}  {user}.
+        //    Match by label so title/description land in the right slot; text
+        //    questions fall back to document order.
         const textQueue = [title.trim(), description.trim()];
         const PF_RE = /\{\s*(user|long\s*question|question|drop\s*down|dropdown|select|file)\s*\d*\s*(?::\s*([^{}]*?))?\s*\}/gi;
         raw = raw.replace(PF_RE, (_m, kindRaw: string, labelRaw?: string) => {
           const kind = kindRaw.toLowerCase().replace(/\s+/g, " ");
           if (kind === "user") return jesc(userName);
-          if (kind === "file") return jesc(exampleValue);
+          if (kind === "file") return ""; // handled by the line-strip above
           if (kind === "drop down" || kind === "dropdown" || kind === "select") return "";
           // question / long question → answer by label, else next in order
           const label = String(labelRaw || "").replace(/[*_`]/g, "").replace(/:/g, "").trim().toLowerCase();
           if (label.includes("title") || label.includes("feature")) return jesc(title.trim());
           if (label.includes("desc")) return jesc(description.trim());
-          if (label.includes("example") || label.includes("proof")) return jesc(exampleValue);
           return jesc(textQueue.shift() ?? "");
         });
 
         components_v2 = JSON.parse(raw);
       } else {
-        // Default layout — clean Components V2 card matching the requested format.
+        // Default layout — clean Components V2 card. No Example line; the upload
+        // is posted in the thread off this message.
         const text =
           `## Oversite Customs | Custom Feature\n` +
           `**User:** ${userName}\n` +
           `**Feature Title:** ${title.trim()}\n` +
-          `**Description:** ${description.trim()}\n` +
-          `**Example:** ${exampleValue}`;
+          `**Description:** ${description.trim()}`;
         components_v2 = [{ type: "container", children: [{ type: "text", text }] }];
       }
 
