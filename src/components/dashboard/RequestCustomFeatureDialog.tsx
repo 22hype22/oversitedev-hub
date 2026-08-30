@@ -120,10 +120,34 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
 
       let components_v2: any[];
       if (design) {
+        // Escape a value so it drops safely inside a JSON string literal.
+        const jesc = (v: string) => JSON.stringify(String(v)).slice(1, -1);
         let raw = JSON.stringify(design);
+
+        // 1) Simple tokens: {user} {title} {description} {example} {proof}.
         for (const [k, v] of Object.entries(map)) {
-          raw = raw.split(`{${k}}`).join(JSON.stringify(String(v)).slice(1, -1));
+          raw = raw.split(`{${k}}`).join(jesc(v));
         }
+
+        // 2) Prompt-engine tokens the server builder uses, e.g.
+        //    {Question: Feature Title:}  {long question: Description:}  {File: Example:}
+        //    {drop down: …}  {user}. Match by label so title/description land in
+        //    the right slot; text questions fall back to document order.
+        const textQueue = [title.trim(), description.trim()];
+        const PF_RE = /\{\s*(user|long\s*question|question|drop\s*down|dropdown|select|file)\s*\d*\s*(?::\s*([^{}]*?))?\s*\}/gi;
+        raw = raw.replace(PF_RE, (_m, kindRaw: string, labelRaw?: string) => {
+          const kind = kindRaw.toLowerCase().replace(/\s+/g, " ");
+          if (kind === "user") return jesc(userName);
+          if (kind === "file") return jesc(exampleValue);
+          if (kind === "drop down" || kind === "dropdown" || kind === "select") return "";
+          // question / long question → answer by label, else next in order
+          const label = String(labelRaw || "").replace(/[*_`]/g, "").replace(/:/g, "").trim().toLowerCase();
+          if (label.includes("title") || label.includes("feature")) return jesc(title.trim());
+          if (label.includes("desc")) return jesc(description.trim());
+          if (label.includes("example") || label.includes("proof")) return jesc(exampleValue);
+          return jesc(textQueue.shift() ?? "");
+        });
+
         components_v2 = JSON.parse(raw);
       } else {
         // Default layout — clean Components V2 card matching the requested format.
