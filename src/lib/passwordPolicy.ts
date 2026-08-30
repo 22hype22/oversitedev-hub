@@ -33,3 +33,35 @@ export function passwordMeetsPolicy(pw: string): boolean {
 export function firstUnmetRule(pw: string): string | null {
   return PASSWORD_RULES.find((r) => !r.test(pw))?.label ?? null;
 }
+
+/**
+ * True when the password appears in known data breaches, via the
+ * HaveIBeenPwned range API. k-anonymity: only the first 5 chars of the
+ * password's SHA-1 leave the browser — never the password itself.
+ * Fails OPEN (returns false) on any network/API problem so a HIBP outage
+ * can never block sign-ups.
+ */
+export async function isPasswordBreached(pw: string): Promise<boolean> {
+  try {
+    const data = new TextEncoder().encode(pw);
+    const digest = await crypto.subtle.digest("SHA-1", data);
+    const hex = Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")
+      .toUpperCase();
+    const prefix = hex.slice(0, 5);
+    const suffix = hex.slice(5);
+    const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+      headers: { "Add-Padding": "true" },
+    });
+    if (!res.ok) return false;
+    const body = await res.text();
+    for (const line of body.split("\n")) {
+      const [sfx, count] = line.trim().split(":");
+      if (sfx === suffix && parseInt(count || "0", 10) > 0) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}

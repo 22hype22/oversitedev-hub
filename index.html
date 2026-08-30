@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Content-Security-Policy: blocks injected <script> (XSS) from running and
+         limits where the app may connect. Keep in sync with what the app loads:
+         Supabase (API/realtime/storage), Stripe (checkout), Google Fonts, and
+         the HaveIBeenPwned range API for the breached-password check. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://js.stripe.com https://m.stripe.network; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://m.stripe.com https://m.stripe.network https://js.stripe.com https://api.pwnedpasswords.com https://fonts.googleapis.com https://fonts.gstatic.com; frame-src https://js.stripe.com https://hooks.stripe.com https://m.stripe.com https://m.stripe.network; worker-src 'self' blob:; object-src 'none'; base-uri 'self'" />
     <title>Oversite Customs — The ERLC Design Server Platform</title>
     <meta name="description" content="Oversite Customs is the all-in-one platform for running an ERLC (ER:LC) design server — order tickets, portfolios, package storefronts, payments, credits, Roblox integration, and staff tools, all managed live from one dashboard with nothing to self-host." />
     <meta name="keywords" content="ERLC design server, ER:LC design, best ERLC design server, Emergency Response Liberty County design, Roblox ERLC design bot, ERLC livery design, ERLC design commissions, Oversite Customs, Oversite" />
