@@ -15,9 +15,6 @@ const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp"];
 const BUG_RED = 0xef4444;
 
-type Priority = "Low" | "Normal" | "Urgent";
-const PRIORITIES: Priority[] = ["Low", "Normal", "Urgent"];
-
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -31,8 +28,6 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [steps, setSteps] = useState("");
-  const [priority, setPriority] = useState<Priority>("Normal");
-  const [discordUsername, setDiscordUsername] = useState("");
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -41,8 +36,6 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
     setTitle("");
     setDescription("");
     setSteps("");
-    setPriority("Normal");
-    setDiscordUsername("");
     setProofFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -66,10 +59,20 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
     if (!title.trim()) return toast.error("Please enter a bug title.");
     if (!description.trim()) return toast.error("Please describe the bug.");
     if (!steps.trim()) return toast.error("Please add steps to reproduce.");
-    if (!discordUsername.trim()) return toast.error("Please enter your Discord username.");
 
     setSubmitting(true);
     try {
+      // Identify the reporter automatically (no username field to fill) — their
+      // nickname (Discord username) or the email they signed up with, never
+      // their real name.
+      const { data: reporterData } = await supabase.auth.getUser();
+      const reporter = reporterData?.user;
+      const submitterName =
+        (reporter?.user_metadata?.user_name as string) ||
+        (reporter?.user_metadata?.preferred_username as string) ||
+        (reporter?.user_metadata?.nickname as string) ||
+        reporter?.email ||
+        "Unknown";
       // Resolve the destination FIRST, before any file upload. Precedence:
       //   1) the owner's global config set via the hidden Extras cog
       //   2) the per-bot Report a Bug block (customs-reportbug)
@@ -134,8 +137,8 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
           title: title.trim(),
           description: description.trim(),
           steps: steps.trim(),
-          priority,
-          user: discordUsername.trim(),
+          priority: "",
+          user: submitterName,
           proof: proofValue,
         };
         let raw = JSON.stringify(design);
@@ -152,8 +155,7 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
       } else {
         const fields: Array<{ name: string; value: string; inline?: boolean }> = [
           { name: "Steps to reproduce", value: steps.trim() },
-          { name: "Priority", value: priority, inline: true },
-          { name: "Reported by", value: discordUsername.trim(), inline: true },
+          { name: "Reported by", value: submitterName, inline: true },
         ];
         if (proofUrl && !proofIsImage) {
           fields.push({ name: "Proof", value: `[${proofFile!.name}](${proofUrl})` });
@@ -256,39 +258,6 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
               maxLength={2000}
               disabled={submitting}
             />
-          </div>
-
-          <div className="two">
-            <div className="mrow">
-              <label className="lbl">Priority</label>
-              <div className="seg" role="group" aria-label="Priority">
-                {PRIORITIES.map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    className={`${priority === p ? "on" : ""} ${p === "Urgent" ? "urgent" : ""}`}
-                    aria-pressed={priority === p}
-                    onClick={() => setPriority(p)}
-                    disabled={submitting}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mrow">
-              <label className="lbl" htmlFor="bug-username">Discord username</label>
-              <input
-                id="bug-username"
-                className="inp"
-                value={discordUsername}
-                onChange={(e) => setDiscordUsername(e.target.value)}
-                placeholder="yourname"
-                maxLength={64}
-                disabled={submitting}
-              />
-            </div>
           </div>
 
           <div className="mrow">
