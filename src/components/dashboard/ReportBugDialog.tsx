@@ -12,7 +12,6 @@ const SUPPORT_BOT_ID = "a6be529f-a7f3-4a58-84c5-bcac5dbc97df";
 const POSTER_BOT_ID = "50927258-eb0f-4756-88d0-e7396aaab220";
 const TARGET_CHANNEL_ID = "1504955457448444066";
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp"];
 const BUG_RED = 0xef4444;
 
 interface Props {
@@ -107,7 +106,6 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
       }
 
       let proofUrl: string | null = null;
-      let proofIsImage = false;
 
       if (proofFile) {
         const { data: userData, error: userErr } = await supabase.auth.getUser();
@@ -121,14 +119,15 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
         if (upErr) throw upErr;
         const { data: pub } = supabase.storage.from("bot-assets").getPublicUrl(path);
         proofUrl = pub.publicUrl;
-        proofIsImage = IMAGE_EXTS.includes(ext);
       }
 
-      const proofValue = proofUrl
-        ? proofIsImage
-          ? proofUrl
-          : `[${proofFile!.name}](${proofUrl})`
-        : "—";
+      // The upload goes into a THREAD off the posted message (the bot creates it
+      // and uploads the file there), so the message itself carries no example
+      // text. Each entry: {url, filename, label}.
+      const threadFiles =
+        proofUrl && proofFile
+          ? [{ url: proofUrl, filename: proofFile.name, label: "Example" }]
+          : [];
 
       let payload: Record<string, any>;
       if (design) {
@@ -139,48 +138,49 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
           steps: steps.trim(),
           priority: "",
           user: submitterName,
-          proof: proofValue,
         };
         const jesc = (v: string) => JSON.stringify(String(v)).slice(1, -1);
         let raw = JSON.stringify(design);
 
-        // 1) Simple tokens: {title} {description} {steps} {priority} {user} {proof}.
+        // 1) Simple tokens: {title} {description} {steps} {priority} {user}.
         for (const [k, v] of Object.entries(map)) {
           raw = raw.split(`{${k}}`).join(jesc(v));
         }
 
-        // 2) Prompt-engine tokens the server builder uses, e.g.
-        //    {Question: Bug Title:}  {long question: Steps to reproduce:}  {File: Proof:}
-        //    {user}. Match by label so each answer lands in the right slot; text
-        //    questions fall back to document order.
+        // 2) Drop the whole "**Example:** {File: …}" line — the upload lives in
+        //    the thread, so no example/proof text belongs on the message.
+        raw = raw.replace(/(?:\\n)?[^"\\{}]*\{\s*file\b[^{}]*\}/gi, "");
+        raw = raw.replace(/(?:\\n)?[^"\\{}]*\{\s*(?:example|proof)\s*\}/gi, "");
+
+        // 3) Prompt-engine tokens the server builder uses, e.g.
+        //    {Question: Feature Title:}  {long question: Steps to Replicate:}  {user}.
+        //    Match by label so each answer lands in the right slot; text questions
+        //    fall back to document order.
         const textQueue = [title.trim(), description.trim(), steps.trim()];
         const PF_RE = /\{\s*(user|long\s*question|question|drop\s*down|dropdown|select|file)\s*\d*\s*(?::\s*([^{}]*?))?\s*\}/gi;
         raw = raw.replace(PF_RE, (_m, kindRaw: string, labelRaw?: string) => {
           const kind = kindRaw.toLowerCase().replace(/\s+/g, " ");
           if (kind === "user") return jesc(submitterName);
-          if (kind === "file") return jesc(proofValue);
+          if (kind === "file") return ""; // handled by the line-strip above
           if (kind === "drop down" || kind === "dropdown" || kind === "select") return "";
           const label = String(labelRaw || "").replace(/[*_`]/g, "").replace(/:/g, "").trim().toLowerCase();
-          if (label.includes("step")) return jesc(steps.trim());
-          if (label.includes("title") || label.includes("bug")) return jesc(title.trim());
+          if (label.includes("step") || label.includes("replicate") || label.includes("reproduce")) return jesc(steps.trim());
+          if (label.includes("title") || label.includes("bug") || label.includes("feature")) return jesc(title.trim());
           if (label.includes("desc")) return jesc(description.trim());
-          if (label.includes("proof") || label.includes("example")) return jesc(proofValue);
           return jesc(textQueue.shift() ?? "");
         });
 
         payload = {
           channel_id: targetChannel,
           components_v2: JSON.parse(raw),
-          images: proofUrl && proofIsImage ? [proofUrl] : [],
+          images: [],
+          thread_files: threadFiles,
         };
       } else {
         const fields: Array<{ name: string; value: string; inline?: boolean }> = [
           { name: "Steps to reproduce", value: steps.trim() },
           { name: "Reported by", value: submitterName, inline: true },
         ];
-        if (proofUrl && !proofIsImage) {
-          fields.push({ name: "Proof", value: `[${proofFile!.name}](${proofUrl})` });
-        }
         payload = {
           channel_id: targetChannel,
           content: null,
@@ -191,13 +191,13 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
               description: description.trim(),
               color: BUG_RED,
               fields,
-              image_url: proofUrl && proofIsImage ? proofUrl : null,
               footer: { text: "Submitted via Oversite dashboard" },
               timestamp: new Date().toISOString(),
             },
           ],
           images: [],
           trailing_messages: [],
+          thread_files: threadFiles,
         };
       }
 
