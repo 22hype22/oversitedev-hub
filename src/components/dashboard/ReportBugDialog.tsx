@@ -141,12 +141,33 @@ export const ReportBugDialog = ({ open, onOpenChange, botId }: Props) => {
           user: submitterName,
           proof: proofValue,
         };
+        const jesc = (v: string) => JSON.stringify(String(v)).slice(1, -1);
         let raw = JSON.stringify(design);
+
+        // 1) Simple tokens: {title} {description} {steps} {priority} {user} {proof}.
         for (const [k, v] of Object.entries(map)) {
-          // Insert the value into JSON string literals safely (escape quotes,
-          // backslashes, newlines) by borrowing JSON.stringify's escaping.
-          raw = raw.split(`{${k}}`).join(JSON.stringify(String(v)).slice(1, -1));
+          raw = raw.split(`{${k}}`).join(jesc(v));
         }
+
+        // 2) Prompt-engine tokens the server builder uses, e.g.
+        //    {Question: Bug Title:}  {long question: Steps to reproduce:}  {File: Proof:}
+        //    {user}. Match by label so each answer lands in the right slot; text
+        //    questions fall back to document order.
+        const textQueue = [title.trim(), description.trim(), steps.trim()];
+        const PF_RE = /\{\s*(user|long\s*question|question|drop\s*down|dropdown|select|file)\s*\d*\s*(?::\s*([^{}]*?))?\s*\}/gi;
+        raw = raw.replace(PF_RE, (_m, kindRaw: string, labelRaw?: string) => {
+          const kind = kindRaw.toLowerCase().replace(/\s+/g, " ");
+          if (kind === "user") return jesc(submitterName);
+          if (kind === "file") return jesc(proofValue);
+          if (kind === "drop down" || kind === "dropdown" || kind === "select") return "";
+          const label = String(labelRaw || "").replace(/[*_`]/g, "").replace(/:/g, "").trim().toLowerCase();
+          if (label.includes("step")) return jesc(steps.trim());
+          if (label.includes("title") || label.includes("bug")) return jesc(title.trim());
+          if (label.includes("desc")) return jesc(description.trim());
+          if (label.includes("proof") || label.includes("example")) return jesc(proofValue);
+          return jesc(textQueue.shift() ?? "");
+        });
+
         payload = {
           channel_id: targetChannel,
           components_v2: JSON.parse(raw),
