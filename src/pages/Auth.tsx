@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ShieldCheck, Loader2, ArrowLeft } from "lucide-react";
 import containers from "@/assets/containers.webp";
 import { PasswordChecklist } from "@/components/auth/PasswordChecklist";
-import { passwordMeetsPolicy, firstUnmetRule } from "@/lib/passwordPolicy";
+import { passwordMeetsPolicy, firstUnmetRule, isPasswordBreached } from "@/lib/passwordPolicy";
 
 const FIELD_ERROR = "mt-1.5 font-body text-[12px] text-os-bad";
 const isEmailish = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -59,6 +59,10 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [oauthBusy, setOauthBusy] = useState<"discord" | "google" | null>(null);
+  // Two-factor challenge shown after a correct password when the account has a
+  // verified TOTP factor. The session stays at aal1 until the code verifies.
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
   // Flips true on the first submit attempt so inline "where + why" errors only
   // appear once the user has tried, not while they're still typing.
   const [attempted, setAttempted] = useState(false);
@@ -246,6 +250,15 @@ const Auth = () => {
     }
     setBusy(true);
     try {
+      if (await isPasswordBreached(newPassword)) {
+        toast({
+          title: "That password isn't safe to use",
+          description: "It appears in known data breaches. Pick a different one.",
+          variant: "destructive",
+        });
+        setBusy(false);
+        return;
+      }
       const { error: vErr } = await supabase.auth.verifyOtp({ email: resetEmail.trim(), token: resetCode.trim(), type: "recovery" });
       if (vErr) throw vErr;
       const { error: uErr } = await supabase.auth.updateUser({ password: newPassword });
@@ -285,9 +298,35 @@ const Auth = () => {
         return;
       }
     }
+    // Brute-force friction: after 5 straight failed sign-ins, lock the form
+    // briefly (doubling each extra failure, capped at 5 minutes).
+    if (mode === "signin") {
+      try {
+        const b = JSON.parse(localStorage.getItem("os_auth_backoff") || "{}");
+        if (b.until && Date.now() < b.until) {
+          toast({
+            title: "Too many attempts",
+            description: `Wait ${Math.ceil((b.until - Date.now()) / 1000)}s and try again.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      } catch { /* ignore */ }
+    }
     setBusy(true);
     try {
       if (mode === "signup") {
+        // Block passwords that appear in known breaches (HIBP k-anonymity —
+        // the password itself never leaves the browser). Fails open.
+        if (await isPasswordBreached(password)) {
+          toast({
+            title: "That password isn't safe to use",
+            description: "It appears in known data breaches. Pick a different one.",
+            variant: "destructive",
+          });
+          setBusy(false);
+          return;
+        }
         const emailRedirectTo = `${window.location.origin}/auth${redirectSuffix}`;
         const { error } = await supabase.auth.signUp({
           email,
@@ -322,7 +361,34 @@ const Auth = () => {
           loginEmail = data as string;
         }
         const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
-        if (error) throw error;
+        if (error) {
+          // Count the failure toward the sign-in backoff window.
+          try {
+            const b = JSON.parse(localStorage.getItem("os_auth_backoff") || "{}");
+            const n = (b.n || 0) + 1;
+            const until = n >= 5 ? Date.now() + Math.min(30_000 * 2 ** (n - 5), 300_000) : 0;
+            localStorage.setItem("os_auth_backoff", JSON.stringify({ n, until }));
+          } catch { /* ignore */ }
+          throw error;
+        }
+        try { localStorage.removeItem("os_auth_backoff"); } catch { /* ignore */ }
+
+        // Two-factor: if this account has a verified authenticator, stop here
+        // and ask for the 6-digit code before letting the session through.
+        try {
+          const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+          if (aal?.nextLevel === "aal2" && aal.nextLevel !== aal.currentLevel) {
+            const { data: fs } = await supabase.auth.mfa.listFactors();
+            const totp = fs?.totp?.[0];
+            if (totp) {
+              setMfaFactorId(totp.id);
+              setMfaCode("");
+              setBusy(false);
+              return;
+            }
+          }
+        } catch { /* MFA unavailable — continue as a normal sign-in */ }
+
         await runPostAuthActions();
         navigate(postAuthPath, { replace: true });
       }
@@ -335,6 +401,39 @@ const Auth = () => {
     } finally {
       setBusy(false);
     }
+  };
+
+  // Verify the TOTP code and finish signing in.
+  const submitMfa = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!mfaFactorId || mfaCode.trim().length < 6) return;
+    setBusy(true);
+    try {
+      const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
+      if (chErr) throw chErr;
+      const { error: vErr } = await supabase.auth.mfa.verify({
+        factorId: mfaFactorId,
+        challengeId: ch.id,
+        code: mfaCode.trim(),
+      });
+      if (vErr) throw vErr;
+      await runPostAuthActions();
+      navigate(postAuthPath, { replace: true });
+    } catch (err: any) {
+      toast({
+        title: "Code didn't match",
+        description: err.message ?? "Check your authenticator app and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancelMfa = async () => {
+    setMfaFactorId(null);
+    setMfaCode("");
+    try { await supabase.auth.signOut(); } catch { /* ignore */ }
   };
 
   const busyAny = busy || !!oauthBusy;
@@ -403,12 +502,14 @@ const Auth = () => {
               </div>
             )}
 
-            <Mono className="text-os-accent">{mode === "signin" ? "Welcome back" : mode === "reset" ? "Account recovery" : "Join Oversite"}</Mono>
+            <Mono className="text-os-accent">{mfaFactorId ? "Two-factor" : mode === "signin" ? "Welcome back" : mode === "reset" ? "Account recovery" : "Join Oversite"}</Mono>
             <h1 className="mt-3 font-display text-[clamp(2rem,5vw,2.8rem)] font-extrabold leading-[0.95] tracking-[-0.02em] text-os-heading">
-              {mode === "signin" ? "Sign in" : mode === "reset" ? "Reset password" : "Create your account"}
+              {mfaFactorId ? "Enter your code" : mode === "signin" ? "Sign in" : mode === "reset" ? "Reset password" : "Create your account"}
             </h1>
             <p className="mt-3 font-body text-[15px] leading-relaxed text-os-body">
-              {mode === "signin"
+              {mfaFactorId
+                ? "Open your authenticator app and enter the 6-digit code for Oversite."
+                : mode === "signin"
                 ? "Pick up right where you left off."
                 : mode === "reset"
                   ? resetStep === "request"
@@ -417,7 +518,43 @@ const Auth = () => {
                   : "We'll never spam, sell, or share your info."}
             </p>
 
-            {mode === "reset" ? (
+            {mfaFactorId ? (
+              <form onSubmit={submitMfa} className="mt-7 space-y-4">
+                <div>
+                  <label htmlFor="mfa-code" className={FIELD_LABEL}>Authentication code</label>
+                  <input
+                    id="mfa-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    required
+                    autoFocus
+                    value={mfaCode}
+                    onChange={(e) => setMfaCode(e.target.value.replace(/[^0-9]/g, ""))}
+                    className={`${FIELD} text-center text-[22px] tracking-[0.4em]`}
+                    placeholder="••••••"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={busyAny || mfaCode.length < 6}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-os-accent px-6 py-3.5 font-label text-[12px] font-bold uppercase tracking-[0.14em] text-os-accent-ink transition hover:brightness-105 active:translate-y-px disabled:pointer-events-none disabled:opacity-50"
+                >
+                  {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                  {busy ? "Verifying…" : "Verify"}
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelMfa}
+                  disabled={busyAny}
+                  className="w-full text-center font-body text-[13px] text-os-faint transition hover:text-os-body"
+                >
+                  Back to sign in
+                </button>
+              </form>
+            ) : mode === "reset" ? (
               <>
                 {resetStep === "request" ? (
                   <form onSubmit={sendResetCode} className="mt-7 space-y-4">

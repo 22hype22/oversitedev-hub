@@ -9,9 +9,11 @@ import {
   Link2,
   Bell,
   ShieldAlert,
+  ShieldCheck,
   Loader2,
   Check,
 } from "lucide-react";
+import { passwordMeetsPolicy, firstUnmetRule, isPasswordBreached } from "@/lib/passwordPolicy";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { SiteNav } from "@/components/marketing/SiteNav";
@@ -47,6 +49,175 @@ const BTN_PRIMARY =
   "inline-flex items-center justify-center gap-2 rounded-[9px] bg-os-accent px-4 py-2.5 text-[13px] font-bold text-os-accent-ink transition hover:brightness-95 disabled:opacity-50";
 const BTN_GHOST =
   "inline-flex items-center justify-center gap-2 rounded-[9px] border border-os-hairline/40 px-4 py-2.5 text-[13px] font-bold text-os-heading transition hover:bg-os-heading/[0.06] disabled:opacity-50";
+
+/**
+ * Two-factor authentication (TOTP) — enroll an authenticator app, verify with a
+ * 6-digit code, or turn it off. Uses Supabase MFA; once a factor is verified,
+ * sign-in asks for the code after the password.
+ */
+function TwoFactorCard() {
+  const [factors, setFactors] = useState<Array<{ id: string; friendly_name?: string | null; created_at?: string }>>([]);
+  const [loadingFactors, setLoadingFactors] = useState(true);
+  const [enrolling, setEnrolling] = useState<null | { id: string; qr: string; secret: string }>(null);
+  const [code, setCode] = useState("");
+  const [busy2fa, setBusy2fa] = useState(false);
+
+  const loadFactors = async () => {
+    setLoadingFactors(true);
+    try {
+      const { data } = await supabase.auth.mfa.listFactors();
+      setFactors((data?.totp ?? []) as any);
+    } catch {
+      setFactors([]);
+    }
+    setLoadingFactors(false);
+  };
+
+  useEffect(() => { void loadFactors(); }, []);
+
+  const startEnroll = async () => {
+    setBusy2fa(true);
+    try {
+      const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp", friendlyName: "Authenticator" });
+      if (error) throw error;
+      setEnrolling({ id: data.id, qr: (data as any).totp?.qr_code ?? "", secret: (data as any).totp?.secret ?? "" });
+      setCode("");
+    } catch (e: any) {
+      toast.error(e?.message || "Couldn't start 2FA setup");
+    }
+    setBusy2fa(false);
+  };
+
+  const confirmEnroll = async () => {
+    if (!enrolling || code.trim().length < 6) return;
+    setBusy2fa(true);
+    try {
+      const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId: enrolling.id });
+      if (chErr) throw chErr;
+      const { error: vErr } = await supabase.auth.mfa.verify({ factorId: enrolling.id, challengeId: ch.id, code: code.trim() });
+      if (vErr) throw vErr;
+      toast.success("Two-factor authentication is on");
+      setEnrolling(null);
+      setCode("");
+      await loadFactors();
+    } catch (e: any) {
+      toast.error(e?.message || "Code didn't match — try again");
+    }
+    setBusy2fa(false);
+  };
+
+  const cancelEnroll = async () => {
+    if (enrolling) {
+      try { await supabase.auth.mfa.unenroll({ factorId: enrolling.id }); } catch { /* ignore */ }
+    }
+    setEnrolling(null);
+    setCode("");
+  };
+
+  const turnOff = async (factorId: string) => {
+    setBusy2fa(true);
+    try {
+      const { error } = await supabase.auth.mfa.unenroll({ factorId });
+      if (error) throw error;
+      toast.success("Two-factor authentication is off");
+      await loadFactors();
+    } catch (e: any) {
+      toast.error(e?.message || "Couldn't turn off 2FA");
+    }
+    setBusy2fa(false);
+  };
+
+  const enabled = factors.length > 0;
+
+  return (
+    <div className={`mt-5 ${CARD}`}>
+      <SectionHead
+        title="Two-factor authentication"
+        desc="A 6-digit code from your authenticator app, required after your password."
+      />
+      <div className="px-6 py-5">
+        {loadingFactors ? (
+          <p className="flex items-center gap-2 text-[13px] text-os-faint"><Loader2 size={14} className="animate-spin" /> Checking…</p>
+        ) : enrolling ? (
+          <div className="space-y-4">
+            <p className="text-[13px] text-os-body">
+              Scan this QR code with your authenticator app (Google Authenticator, 1Password, Authy…),
+              then enter the 6-digit code it shows.
+            </p>
+            <div className="flex flex-wrap items-start gap-5">
+              {enrolling.qr ? (
+                <img
+                  src={`data:image/svg+xml;utf8,${encodeURIComponent(enrolling.qr)}`}
+                  alt="2FA QR code"
+                  className="h-[164px] w-[164px] rounded-[12px] border border-os-hairline/30 bg-white p-2"
+                />
+              ) : null}
+              <div className="min-w-[220px] flex-1 space-y-3">
+                <div>
+                  <label className={LABEL}>Can't scan? Enter this key</label>
+                  <p className="break-all rounded-[10px] border border-os-hairline/30 bg-os-bg/40 px-3 py-2 font-mono text-[12px] text-os-body">{enrolling.secret}</p>
+                </div>
+                <div>
+                  <label className={LABEL}>6-digit code</label>
+                  <input
+                    className={`${FIELD} max-w-[180px] text-center text-[18px] tracking-[0.3em]`}
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ""))}
+                    placeholder="••••••"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : enabled ? (
+          <div className="flex items-center justify-between gap-4 rounded-[12px] border border-os-hairline/30 bg-os-bg/40 px-4 py-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-9 w-9 place-items-center rounded-[10px] border border-os-hairline/40 bg-os-bg/60 text-os-good">
+                <ShieldCheck size={16} />
+              </span>
+              <div>
+                <p className="text-[14px] font-semibold text-os-heading">Two-factor is on</p>
+                <p className="text-[12px] text-os-faint">Signing in asks for a code from your authenticator app.</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-4 rounded-[12px] border border-os-hairline/30 bg-os-bg/40 px-4 py-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-9 w-9 place-items-center rounded-[10px] border border-os-hairline/40 bg-os-bg/60 text-os-accent">
+                <ShieldCheck size={16} />
+              </span>
+              <div>
+                <p className="text-[14px] font-semibold text-os-heading">Two-factor is off</p>
+                <p className="text-[12px] text-os-faint">Add an authenticator app so a stolen password isn't enough to get in.</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="flex justify-end gap-2 border-t border-os-hairline/20 bg-os-bg/30 px-6 py-3.5">
+        {enrolling ? (
+          <>
+            <button onClick={cancelEnroll} disabled={busy2fa} className={BTN_GHOST}>Cancel</button>
+            <button onClick={confirmEnroll} disabled={busy2fa || code.length < 6} className={BTN_PRIMARY}>
+              {busy2fa && <Loader2 size={14} className="animate-spin" />} Verify &amp; turn on
+            </button>
+          </>
+        ) : enabled ? (
+          <button onClick={() => turnOff(factors[0].id)} disabled={busy2fa} className={BTN_GHOST}>
+            {busy2fa && <Loader2 size={14} className="animate-spin" />} Turn off
+          </button>
+        ) : (
+          <button onClick={startEnroll} disabled={busy2fa || loadingFactors} className={BTN_PRIMARY}>
+            {busy2fa && <Loader2 size={14} className="animate-spin" />} Turn on two-factor
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function SectionHead({ title, desc }: { title: string; desc: string }) {
   return (
@@ -163,9 +334,16 @@ const Dashboard = () => {
   };
 
   const updatePassword = async () => {
-    if (newPassword.length < 6) return toast.error("Password must be at least 6 characters");
+    // Same rules as sign-up — a password change must not be the weak back door.
+    if (!passwordMeetsPolicy(newPassword)) {
+      return toast.error(`Password doesn't meet the requirements — still needed: ${firstUnmetRule(newPassword)}.`);
+    }
     if (newPassword !== confirmPassword) return toast.error("Passwords don't match");
     setPwBusy(true);
+    if (await isPasswordBreached(newPassword)) {
+      setPwBusy(false);
+      return toast.error("That password appears in known data breaches — pick a different one.");
+    }
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     setPwBusy(false);
     if (error) return toast.error(error.message);
@@ -338,6 +516,9 @@ const Dashboard = () => {
             </button>
           </div>
         </div>
+
+        {/* TWO-FACTOR AUTHENTICATION */}
+        <TwoFactorCard />
 
         {/* PAYMENT METHODS */}
         <div className={`mt-5 ${CARD}`}>
