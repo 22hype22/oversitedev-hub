@@ -12,7 +12,6 @@ const SUPPORT_BOT_ID = "a6be529f-a7f3-4a58-84c5-bcac5dbc97df";
 const POSTER_BOT_ID = "50927258-eb0f-4756-88d0-e7396aaab220";
 const TARGET_CHANNEL_ID = "1503905197695569950";
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
-const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp"];
 
 interface Props {
   open: boolean;
@@ -88,7 +87,6 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
         "Unknown";
 
       let proofUrl: string | null = null;
-      let proofIsImage = false;
 
       if (proofFile) {
         if (!authUser) throw new Error("You must be signed in to upload a file.");
@@ -100,13 +98,13 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
         if (upErr) throw upErr;
         const { data: pub } = supabase.storage.from("bot-assets").getPublicUrl(path);
         proofUrl = pub.publicUrl;
-        proofIsImage = IMAGE_EXTS.includes(ext);
       }
 
-      const exampleValue = proofUrl
-        ? proofIsImage
-          ? proofUrl
-          : `[${proofFile!.name}](${proofUrl})`
+      // The uploaded example goes into a THREAD off the posted message (the bot
+      // creates it and uploads the file there), so the message itself just notes
+      // where to find it instead of inlining a big image/link.
+      const exampleValue = proofFile
+        ? `${proofFile.name} — attached in the thread below`
         : "—";
 
       // Tokens the owner can use in a designed message via the Extras cog.
@@ -163,7 +161,13 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
       const payload: Record<string, any> = {
         channel_id: targetChannel,
         components_v2,
-        images: proofUrl && proofIsImage ? [proofUrl] : [],
+        images: [],
+        // The bot posts the message, then creates a thread off it and uploads
+        // the uploaded example inside that thread.
+        thread_files:
+          proofUrl && proofFile
+            ? [{ url: proofUrl, filename: proofFile.name, label: "Example" }]
+            : [],
       };
 
       const { data, error } = await supabase.rpc("enqueue_post_message", {
