@@ -76,12 +76,14 @@ export const RequestCustomFeatureDialog = ({ open, onOpenChange }: Props) => {
       }
 
       // Identify the submitter automatically (no username field to fill).
+      // Use their nickname (Discord username / handle) or the email they
+      // signed up with — never their real name (full_name / name).
       const { data: userData } = await supabase.auth.getUser();
       const authUser = userData?.user;
       const userName =
         (authUser?.user_metadata?.user_name as string) ||
-        (authUser?.user_metadata?.full_name as string) ||
-        (authUser?.user_metadata?.name as string) ||
+        (authUser?.user_metadata?.preferred_username as string) ||
+        (authUser?.user_metadata?.nickname as string) ||
         authUser?.email ||
         "Unknown";
 
