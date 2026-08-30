@@ -1642,7 +1642,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       setValues((prev) => ({
         ...prev,
         accent: cfg.accent ?? "co.uk",
-        speed: cfg.speed != null ? String(cfg.speed) : "1.1",
+        speed: cfg.speed != null ? String(cfg.speed) : "1.0",
         engine: cfg.engine ?? "gtts",
         voice_id: cfg.voice_id ?? "",
         join_message: cfg.join_message ?? "",
@@ -1660,7 +1660,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
       feature: "customs-tts",
       config: {
         accent: String(values.accent ?? "co.uk"),
-        speed: Number(values.speed ?? 1.1) || 1.1,
+        speed: Number(values.speed ?? 1.0) || 1.0,
         engine: String(values.engine ?? "gtts"),
         voice_id: String(values.voice_id ?? "").trim(),
         join_message: String(values.join_message ?? ""),
