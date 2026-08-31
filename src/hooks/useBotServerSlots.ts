@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { cacheGet, cacheSet } from "@/lib/uiCache";
 
 export interface BotServerLimit {
   bot_id: string;
@@ -44,14 +45,21 @@ function normalizeRuntimeGuilds(value: unknown): BotActiveGuild[] {
     .sort((a, b) => (a.guild_name ?? a.guild_id).localeCompare(b.guild_name ?? b.guild_id));
 }
 
+type SlotsCache = { limit: BotServerLimit | null; guilds: BotActiveGuild[] };
+
 export function useBotServerSlots(botId: string | undefined) {
-  const [limit, setLimit] = useState<BotServerLimit | null>(null);
-  const [guilds, setGuilds] = useState<BotActiveGuild[]>([]);
+  // Seed the slot count + server list from the last visit so "Loading
+  // servers…" doesn't sit blank; the live read + heartbeat refresh it.
+  const cacheKey = botId ? `slots:${botId}` : "";
+  const seeded = cacheKey ? cacheGet<SlotsCache>(cacheKey) : null;
+  const [limit, setLimit] = useState<BotServerLimit | null>(seeded?.limit ?? null);
+  const [guilds, setGuilds] = useState<BotActiveGuild[]>(seeded?.guilds ?? []);
   const [loading, setLoading] = useState(false);
 
   const readRuntimeStatus = useCallback(async () => {
     if (!botId) return;
-    setLoading(true);
+    // Only surface the spinner when there's nothing cached to show.
+    if (!cacheGet<SlotsCache>(`slots:${botId}`)) setLoading(true);
     try {
       const [{ data: limitData }, { data: statusData }, { data: activeData }] = await Promise.all([
         supabase.rpc("get_bot_server_limit", { _bot_id: botId }),
@@ -70,14 +78,16 @@ export function useBotServerSlots(botId: string | undefined) {
       // hasn't populated runtime_status.guilds yet (e.g. bots added directly
       // through Discord before this feature shipped).
       const finalGuilds = runtimeGuilds.length > 0 ? runtimeGuilds : ((activeData ?? []) as BotActiveGuild[]);
-      if (limitData) {
-        setLimit({ ...(limitData as unknown as BotServerLimit), current_count: finalGuilds.length });
-      }
+      const finalLimit = limitData
+        ? { ...(limitData as unknown as BotServerLimit), current_count: finalGuilds.length }
+        : null;
+      if (finalLimit) setLimit(finalLimit);
       setGuilds(finalGuilds);
+      if (cacheKey && finalLimit) cacheSet<SlotsCache>(cacheKey, { limit: finalLimit, guilds: finalGuilds });
     } finally {
       setLoading(false);
     }
-  }, [botId]);
+  }, [botId, cacheKey]);
 
   const refresh = useCallback(async () => {
     if (!botId) return;

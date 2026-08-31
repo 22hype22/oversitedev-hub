@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { cacheGet, cacheSet } from "@/lib/uiCache";
 
 export type BotLogLevel = "debug" | "info" | "warn" | "error";
 
@@ -19,13 +20,16 @@ export interface BotLog {
  *                for "all" (bounded by `limit` and the DB's 7-day retention).
  */
 export function useBotLogs(botId: string | null, limit = 50, sinceMs?: number | null) {
-  const [logs, setLogs] = useState<BotLog[]>([]);
+  // Seed from the last window we showed for this bot so logs are on screen
+  // instantly; the fresh query + realtime stream take over immediately.
+  const cacheKey = botId ? `logs:${botId}:${sinceMs ?? "all"}` : "";
+  const seeded = cacheKey ? cacheGet<BotLog[]>(cacheKey) : null;
+  const [logs, setLogs] = useState<BotLog[]>(seeded ?? []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!botId) return;
-    setLoading(true);
     setError(null);
     let query = supabase
       .from("bot_logs")
@@ -39,12 +43,13 @@ export function useBotLogs(botId: string | null, limit = 50, sinceMs?: number | 
       .limit(limit);
     if (error) {
       setError(error.message);
-      setLogs([]);
     } else {
-      setLogs((data ?? []) as BotLog[]);
+      const rows = (data ?? []) as BotLog[];
+      setLogs(rows);
+      if (cacheKey) cacheSet(cacheKey, rows);
     }
     setLoading(false);
-  }, [botId, limit, sinceMs]);
+  }, [botId, limit, sinceMs, cacheKey]);
 
   useEffect(() => {
     refresh();
@@ -65,14 +70,18 @@ export function useBotLogs(botId: string | null, limit = 50, sinceMs?: number | 
         },
         (payload) => {
           const row = payload.new as BotLog;
-          setLogs((prev) => [row, ...prev].slice(0, limit));
+          setLogs((prev) => {
+            const next = [row, ...prev].slice(0, limit);
+            if (cacheKey) cacheSet(cacheKey, next);
+            return next;
+          });
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [botId, limit]);
+  }, [botId, limit, cacheKey]);
 
   return { logs, loading, error, refresh };
 }
