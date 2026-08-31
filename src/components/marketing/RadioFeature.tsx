@@ -391,7 +391,7 @@ export function RadioFeature() {
                 <SlideText
                   label="Support"
                   title="Every ticket, handled."
-                  desc="Routing, transcripts and staff tools turn the chaos into clean tickets — so nothing slips through and every answer stays on record."
+                  desc="Routing, transcripts and staff tools turn the chaos into clean tickets, so nothing slips through and every answer stays on record."
                   cta={{ label: "Explore Support", to: "/bots" }}
                 />
               </div>

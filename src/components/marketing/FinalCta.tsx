@@ -14,8 +14,8 @@ export function FinalCta() {
             Put your server on autopilot
           </h3>
           <p className="relative mx-auto mt-4 max-w-[46ch] font-body text-[15px] leading-relaxed text-os-body [text-shadow:0_1px_16px_rgb(var(--os-ink)/0.85)]">
-            Deploy the bots, set it once, and let Oversite run the rest —
-            moderation, support, and utilities, always on call.
+            Deploy the bots, set it once, and let Oversite run the rest.
+            Moderation, support, and utilities, always on call.
           </p>
           <div className="relative mt-8 flex justify-center">
             <Link

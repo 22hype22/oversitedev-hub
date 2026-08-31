@@ -124,7 +124,7 @@ const BASES: Base[] = [
       "Warn, mute, ban, kick",
       "Anti-spam & anti-raid",
       "Phishing link detection",
-      "Advanced logging — edits, deletes, activity",
+      "Advanced logging: edits, deletes, activity",
       "NSFW invite & avatar scanning",
       "Auto-escalating warnings",
       "Channel lockdown & temp-bans",
@@ -169,7 +169,7 @@ const BASES: Base[] = [
   {
     id: "scratch",
     name: "All in One Pack",
-    tagline: "Protection + Support + Utilities — every base in one bot.",
+    tagline: "Protection + Support + Utilities. Every base in one bot.",
     icon: Sparkles,
     price: 199,
     oldPrice: 249,
@@ -181,18 +181,18 @@ const BASES: Base[] = [
       "Music, giveaways & starboard",
       "Leveling, economy & stream alerts",
       "Every command in one bot",
-      "Best value — save vs buying separately",
+      "Best value: save vs buying separately",
     ],
   },
   {
     id: "dispatch",
     name: "Oversite Dispatch",
-    tagline: "AI voice dispatcher for ER:LC — reads 911 calls and talks back.",
+    tagline: "AI voice dispatcher for ER:LC that reads 911 calls and talks back.",
     icon: Megaphone,
     price: 19.99,
     included: [
       "Reads live 911 calls aloud in a real dispatcher voice",
-      "Two-way voice — officers talk to dispatch",
+      "Two-way voice: officers talk to dispatch",
       "Nearest-unit dispatch from live positions",
       "Automatic officer-down & pursuit alerts",
       "BOLO broadcasts & call-cleared updates",
@@ -204,7 +204,7 @@ const BASES: Base[] = [
   {
     id: "erlc-spec",
     name: "ERLC Specialized",
-    tagline: "Purpose-built for ERLC servers — in-game moderation and department tools.",
+    tagline: "Purpose-built for ERLC servers, with in-game moderation and department tools.",
     icon: Gamepad2,
     price: 99,
     included: [
@@ -221,7 +221,7 @@ const BASES: Base[] = [
   {
     id: "customs",
     name: "Oversite Customs",
-    tagline: "Tickets, messaging, credits, and join logs — all dashboard-driven.",
+    tagline: "Tickets, messaging, credits, and join logs, all dashboard-driven.",
     icon: Ticket,
     price: 99,
     included: [
@@ -237,7 +237,7 @@ const BASES: Base[] = [
 const SHARED_ADDONS: Addon[] = [
   { id: "branding", name: "Custom Branding", desc: "Match your server's identity end-to-end.", icon: Palette, price: 25 },
   { id: "dashboard", name: "Web Dashboard", desc: "Hosted control panel for everything.", icon: Globe, price: 149.99, oldPrice: 300 },
-  { id: "multi-server", name: "Multi-Server License", desc: "Unlimited Discord servers — no per-slot fees.", icon: Globe2, price: 19.99 },
+  { id: "multi-server", name: "Multi-Server License", desc: "Unlimited Discord servers, no per-slot fees.", icon: Globe2, price: 19.99 },
 ];
 
 const ADDONS_BY_BASE: Record<string, Addon[]> = {
@@ -703,7 +703,7 @@ export function BotForge() {
       if (DISCORD_SINGLES.every((s) => next.includes(s))) {
         setActivePackTab("protection");
         sonnerToast.success("Switched to the All-in-One Pack", {
-          description: "All three bots together — best value.",
+          description: "All three bots together. Best value.",
         });
         return ["scratch", ...next.filter((b) => isRobloxBase(b))];
       }
@@ -1172,7 +1172,7 @@ export function BotForge() {
             </div>
             <div className="text-xs sm:text-sm font-body">
               <span className="font-semibold text-os-heading">Any two bots = $149 one-time.</span>{" "}
-              <span className="text-os-faint">Mix and match — protection, support, or utilities. Same price no matter which two.</span>
+              <span className="text-os-faint">Mix and match protection, support, or utilities. Same price no matter which two.</span>
             </div>
           </div>
           {/* Step 1 — Base */}
@@ -1318,8 +1318,8 @@ export function BotForge() {
               <>
                 <p className="font-body text-xs text-os-faint mb-4">
                   {isPack
-                    ? "The All-in-One Pack ships as three focused bots. Give each one its own name, icon, banner, and vibe — finish the description and we'll slide you to the next."
-                    : "You picked more than one bot. Give each one its own name, icon, banner, and vibe — finish the description and we'll slide you to the next."}
+                    ? "The All-in-One Pack ships as three focused bots. Give each one its own name, icon, banner, and vibe. Finish the description and we'll slide you to the next."
+                    : "You picked more than one bot. Give each one its own name, icon, banner, and vibe. Finish the description and we'll slide you to the next."}
                 </p>
                 <div
                   className="relative grid gap-2 mb-5 rounded-xl border border-os-hairline/40 bg-os-bg/40 p-1"
@@ -1442,7 +1442,7 @@ export function BotForge() {
                     id="bot-desc"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Tell us about your bot — what it does, its personality, the vibe you're going for, and anything that makes it uniquely yours."
+                    placeholder="Tell us about your bot: what it does, its personality, the vibe you're going for, and anything that makes it uniquely yours."
                     rows={5}
                     className="w-full rounded-lg border border-os-hairline/50 bg-os-bg/60 px-3 py-2.5 font-body text-[14px] text-os-heading placeholder:text-os-faint outline-none transition focus:border-os-accent/70 resize-y leading-relaxed"
                   />
@@ -1695,14 +1695,14 @@ export function BotForge() {
                 <p className="text-xs text-os-faint mt-1">
                   {hostingWaived ? (
                     comped ? (
-                      <>We host and keep your bot online 24/7 — hosting is waived for this account.</>
+                      <>We host and keep your bot online 24/7. Hosting is waived for this account.</>
                     ) : (
-                      <>We host and keep your bot online 24/7 — ER:LC bots include hosting free, so there's no monthly charge.</>
+                      <>We host and keep your bot online 24/7. ER:LC bots include free hosting, so there's no monthly charge.</>
                     )
                   ) : (
                     <>
                       We host and keep your bot online 24/7. <strong>Buy a 3rd bot and its
-                      hosting is free</strong> — 1 bot $5/mo, 2 bots $10/mo, 3 bots still $10/mo.
+                      hosting is free</strong>: 1 bot $5/mo, 2 bots $10/mo, 3 bots still $10/mo.
                     </>
                   )}
                 </p>
@@ -1863,8 +1863,8 @@ export function BotForge() {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {([
-                      { id: "v1", label: "Component V1", sub: "Stable — recommended" },
-                      { id: "v2", label: "Component V2", sub: "Newest — latest features" },
+                      { id: "v1", label: "Component V1", sub: "Stable · recommended" },
+                      { id: "v2", label: "Component V2", sub: "Newest · latest features" },
                     ] as const).map((opt) => {
                       const active = engineVersion === opt.id;
                       return (
@@ -2080,7 +2080,7 @@ export function BotForge() {
                   )
                 ) : (
                   <p className="mt-3 font-body text-base md:text-lg text-os-body">
-                    We're getting right to work on your build. Check your inbox — we'll
+                    We're getting right to work on your build. Check your inbox; we'll
                     be in touch shortly.
                   </p>
                 )}
