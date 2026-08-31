@@ -7,6 +7,31 @@ import { supabase } from "@/integrations/supabase/client";
 // it persists. Genuine offline still shows after the grace window.
 const OFFLINE_GRACE_MS = 25_000;
 
+// A heartbeat older than this means the cached "online" is no longer
+// trustworthy on its own — show it but keep the loading refresh going.
+const HB_FRESH_MS = 60_000;
+
+// Last-known health per bot, cached in localStorage so a return visit paints the
+// status instantly (an always-on bot shows Online immediately) instead of
+// sitting on "checking…" until the get_bot_health round-trip lands. The live
+// read still runs and corrects anything within a beat.
+const healthKey = (botId: string) => `oversite:bothealth:${botId}`;
+function readCachedHealth(botId: string): BotHealth | null {
+  try {
+    const raw = localStorage.getItem(healthKey(botId));
+    return raw ? (JSON.parse(raw) as BotHealth) : null;
+  } catch { return null; }
+}
+function writeCachedHealth(botId: string, h: BotHealth) {
+  try { localStorage.setItem(healthKey(botId), JSON.stringify(h)); } catch { /* ignore */ }
+}
+// True when the cached reading's heartbeat is recent enough to trust on sight.
+function cacheFresh(h: BotHealth | null): boolean {
+  if (!h || h.effective_status === "offline") return false;
+  const hb = h.last_heartbeat_at ? new Date(h.last_heartbeat_at).getTime() : 0;
+  return hb > 0 && Date.now() - hb < HB_FRESH_MS;
+}
+
 export type BotHealth = {
   bot_id: string;
   status: string;
@@ -23,8 +48,12 @@ export type BotHealth = {
 };
 
 export const useBotHealth = (botId: string | null) => {
-  const [health, setHealth] = useState<BotHealth | null>(null);
-  const [loading, setLoading] = useState(Boolean(botId));
+  // Seed from the last-known cache so the status is on screen from the first
+  // paint. If the cached heartbeat is fresh we're not even "loading" — the
+  // background read just confirms it.
+  const seeded = botId ? readCachedHealth(botId) : null;
+  const [health, setHealth] = useState<BotHealth | null>(seeded);
+  const [loading, setLoading] = useState(Boolean(botId) && !cacheFresh(seeded));
   // Last non-offline reading, and when the current offline streak began — used
   // to debounce transient offline flickers.
   const lastGoodRef = useRef<BotHealth | null>(null);
@@ -48,6 +77,7 @@ export const useBotHealth = (botId: string | null) => {
         lastGoodRef.current = h;
         offlineSinceRef.current = null;
         setHealth(h);
+        writeCachedHealth(botId, h);
       } else if (lastGoodRef.current) {
         // Offline, but we were up a moment ago. Hold the last good status until
         // it's been offline continuously past the grace window; the 10s poll
@@ -55,12 +85,14 @@ export const useBotHealth = (botId: string | null) => {
         if (offlineSinceRef.current == null) offlineSinceRef.current = Date.now();
         if (Date.now() - offlineSinceRef.current >= OFFLINE_GRACE_MS) {
           setHealth(h);
+          try { localStorage.removeItem(healthKey(botId)); } catch { /* ignore */ }
         } else {
           setHealth(lastGoodRef.current);
         }
       } else {
         // No prior good reading (e.g. it really is offline on first load).
         setHealth(h);
+        try { localStorage.removeItem(healthKey(botId)); } catch { /* ignore */ }
       }
     }
     setLoading(false);
@@ -72,10 +104,14 @@ export const useBotHealth = (botId: string | null) => {
       setLoading(false);
       return;
     }
-    // New bot selected — don't carry over the previous bot's smoothing state.
-    lastGoodRef.current = null;
+    // New bot selected — reseed smoothing + display from that bot's cache so
+    // the status shows immediately; only truly gate on "loading" when the
+    // cache is missing or its heartbeat is stale.
+    const cached = readCachedHealth(botId);
+    lastGoodRef.current = cached && cached.effective_status !== "offline" ? cached : null;
     offlineSinceRef.current = null;
-    setLoading(true);
+    setHealth(cached);
+    setLoading(!cacheFresh(cached));
     load();
     // Poll every 10s as a staleness fallback (a hard-killed worker can't
     // report anything, so only the heartbeat age reveals it's gone).

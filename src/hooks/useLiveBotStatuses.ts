@@ -72,6 +72,20 @@ function effectiveOf(status: string | null, hb: string | null): string {
   return s;
 }
 
+// Per-bot last-known status, cached in localStorage so the list badges paint
+// from the first frame instead of blanking until the DB read (and any Railway
+// verification) lands. The live poll corrects anything within a beat.
+const statusKey = (botId: string) => `oversite:botstatus:${botId}`;
+function readCachedStatus(botId: string): { status: string; hb: string | null } | null {
+  try {
+    const raw = localStorage.getItem(statusKey(botId));
+    return raw ? (JSON.parse(raw) as { status: string; hb: string | null }) : null;
+  } catch { return null; }
+}
+function writeCachedStatus(botId: string, row: { status: string; hb: string | null }) {
+  try { localStorage.setItem(statusKey(botId), JSON.stringify(row)); } catch { /* ignore */ }
+}
+
 export function useLiveBotStatuses(botIds: string[]) {
   const [rows, setRows] = useState<Record<string, { status: string; hb: string | null }>>({});
   const [tick, setTick] = useState(0);
@@ -84,6 +98,14 @@ export function useLiveBotStatuses(botIds: string[]) {
     if (!key) return;
     let cancelled = false;
     const ids = key.split(",");
+
+    // Paint last-known badges instantly from cache, then let the poll refresh.
+    const seed: Record<string, { status: string; hb: string | null }> = {};
+    for (const id of ids) {
+      const c = readCachedStatus(id);
+      if (c) seed[id] = c;
+    }
+    if (Object.keys(seed).length) setRows((prev) => ({ ...seed, ...prev }));
 
     // Overlay an active pin on top of what the database reports. Returns the
     // row to display; drops the pin once the DB has caught up (shows its own
@@ -114,6 +136,8 @@ export function useLiveBotStatuses(botIds: string[]) {
       const next: Record<string, { status: string; hb: string | null }> = {};
       for (const r of data as { bot_id: string; status: string; last_heartbeat_at: string | null }[]) {
         next[r.bot_id] = withPin(r.bot_id, { status: r.status, hb: r.last_heartbeat_at })!;
+        // Cache the raw DB reading (not the pin) so next visit seeds truth.
+        writeCachedStatus(r.bot_id, { status: r.status, hb: r.last_heartbeat_at });
       }
       // Pinned bots with no runtime row yet still need their label shown.
       for (const id of Object.keys(pinsRef.current)) {
@@ -147,11 +171,10 @@ export function useLiveBotStatuses(botIds: string[]) {
             setRows((prev) => {
               const merged = { ...prev };
               for (const [id, v] of Object.entries(verified)) {
-                const row = withPin(id, {
-                  status: v.status,
-                  hb: v.status === "online" ? now : prev[id]?.hb ?? null,
-                });
+                const raw = { status: v.status, hb: v.status === "online" ? now : prev[id]?.hb ?? null };
+                const row = withPin(id, raw);
                 if (row) merged[id] = row;
+                writeCachedStatus(id, raw);
               }
               return merged;
             });
