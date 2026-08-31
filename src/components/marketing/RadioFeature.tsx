@@ -7,29 +7,33 @@ import { cn } from "@/lib/utils";
 
 // ───────────────────────── Proximity radio ─────────────────────────
 // Real ambient audio for the radio slide: as the visitor scrolls toward this
-// section the station fades in, and it fades back out as they scroll away
-// (or flip the carousel off the Radio slide). Browsers block un-muted audio
-// until the page has been interacted with, so we TRY to auto-start on
-// approach; if that's refused, the play button on the card pulses and one tap
-// enables it — after which the proximity fade drives everything.
+// section the station fades in, fades back out on the way past, and fades
+// out/in when the carousel is flipped off/onto the Radio slide.
 //
-// Routed through a Web Audio GainNode (not element.volume) so the fade also
-// works on iOS, where media-element volume is read-only. The mp3 only loads
-// when the listener is actually enabled, so the page-load cost is zero.
+// Autoplay reality: browsers refuse audible playback until the visitor has
+// interacted with the page (a wheel/trackpad scroll does NOT count). So the
+// element loops MUTED from shortly after load — always warm — and we grab the
+// earliest legal moment to make it audible: repeated attempts near the
+// section, plus every kind of interaction event (including wheel/scroll, for
+// browsers whose policy already allows it). If everything is refused, the
+// card's play button pulses and one tap starts it.
+//
+// Volume rides a Web Audio GainNode (not element.volume) so the fade also
+// works on iOS, where media-element volume is read-only.
 // Swap the track by replacing public/radio-loop.mp3.
 const RADIO_SRC = "/radio-loop.mp3";
-const RADIO_MAX_VOL = 0.18; // background-ambience level, never loud
+const RADIO_MAX_VOL = 0.4;
 
 function useProximityRadio(sectionRef: React.RefObject<HTMLElement>, slideActive: boolean) {
-  const [playing, setPlaying] = useState(false); // user-intent: station on
-  const [needsTap, setNeedsTap] = useState(false); // autoplay refused → invite a tap
+  const [playing, setPlaying] = useState(false); // station audibly on
+  const [needsTap, setNeedsTap] = useState(false); // every auto-start refused → invite a tap
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const gainRef = useRef<GainNode | null>(null);
-  const enabledRef = useRef(false);
-  const userMutedRef = useRef(false); // explicit pause — stop auto-restarting
-  const triedAutoRef = useRef(false); // one autoplay attempt per approach
+  const runningRef = useRef(false); // audio is audible-capable (unmuted + ctx running)
+  const userMutedRef = useRef(false); // explicit pause — stop auto-starting
   const proxRef = useRef(0);
+  const lastTryRef = useRef(0);
   const slideRef = useRef(slideActive);
   slideRef.current = slideActive;
 
@@ -37,7 +41,12 @@ function useProximityRadio(sectionRef: React.RefObject<HTMLElement>, slideActive
     if (!audioRef.current) {
       const a = new Audio(RADIO_SRC);
       a.loop = true;
-      a.preload = "none";
+      a.preload = "auto";
+      // Warm silent loop: muted autoplay is always allowed, so the element is
+      // already playing when permission to be audible finally arrives — the
+      // start is then just an unmute, never a fresh (refusable) play().
+      a.muted = true;
+      a.play().catch(() => { /* will start on the first attempt below */ });
       audioRef.current = a;
     }
     if (!ctxRef.current) {
@@ -61,33 +70,36 @@ function useProximityRadio(sectionRef: React.RefObject<HTMLElement>, slideActive
   const applyVolume = () => {
     const a = audioRef.current;
     if (!a) return;
-    const target = enabledRef.current && slideRef.current ? Math.pow(proxRef.current, 1.6) * RADIO_MAX_VOL : 0;
+    const target = !userMutedRef.current && slideRef.current ? Math.pow(proxRef.current, 1.6) * RADIO_MAX_VOL : 0;
     const ctx = ctxRef.current;
     const gain = gainRef.current;
-    if (ctx && gain) gain.gain.setTargetAtTime(target, ctx.currentTime, 0.4);
+    if (ctx && gain) gain.gain.setTargetAtTime(target, ctx.currentTime, 0.45);
     else try { a.volume = target; } catch { /* iOS read-only volume */ }
-    // Once enabled the element keeps looping at gain 0 when far away (a 27s
-    // decoded loop is negligible), so coming back never needs a fresh play()
-    // call — which the browser could refuse outside a user gesture.
-    if (enabledRef.current && a.paused) {
-      a.play().catch(() => { /* will be unlocked by the next interaction */ });
-    }
   };
 
-  const enable = async (): Promise<boolean> => {
+  /** Attempt to make the station audible. Safe to call often — it no-ops once
+   * running and quietly restores the warm muted loop on refusal. */
+  const tryStart = async (): Promise<boolean> => {
+    if (runningRef.current || userMutedRef.current) return runningRef.current;
     ensureGraph();
+    const a = audioRef.current!;
+    const ctx = ctxRef.current;
     try {
-      await ctxRef.current?.resume();
-      if (ctxRef.current && ctxRef.current.state !== "running") throw new Error("suspended");
-      await audioRef.current!.play();
-      enabledRef.current = true;
-      userMutedRef.current = false;
+      a.muted = false;
+      const played = a.paused ? a.play() : Promise.resolve();
+      if (ctx && ctx.state !== "running") await ctx.resume();
+      await played;
+      if (ctx && ctx.state !== "running") throw new Error("suspended");
+      if (a.paused) throw new Error("paused");
+      runningRef.current = true;
       setPlaying(true);
       setNeedsTap(false);
       applyVolume();
       return true;
     } catch {
-      audioRef.current?.pause();
+      // Refused — go back to the warm silent loop and wait for the next chance.
+      a.muted = true;
+      if (a.paused) a.play().catch(() => { /* still locked */ });
       return false;
     }
   };
@@ -95,19 +107,23 @@ function useProximityRadio(sectionRef: React.RefObject<HTMLElement>, slideActive
   const toggle = () => {
     if (playing) {
       // Explicit off: fade to silence and stay off until tapped again.
-      enabledRef.current = false;
       userMutedRef.current = true;
       setPlaying(false);
       applyVolume();
-      const a = audioRef.current;
-      if (a) setTimeout(() => { if (!enabledRef.current) a.pause(); }, 900);
     } else {
-      void enable();
+      userMutedRef.current = false;
+      if (runningRef.current) {
+        setPlaying(true);
+        applyVolume();
+      } else {
+        void tryStart();
+      }
     }
   };
 
   // Scroll/resize → proximity of the section's center to the viewport's
-  // center (1 when centered, 0 a full viewport away), rAF-throttled.
+  // center (1 when centered, 0 a full viewport away), rAF-throttled. While the
+  // section is near, keep re-attempting the start about once a second.
   useEffect(() => {
     let raf = 0;
     const measure = () => {
@@ -118,12 +134,10 @@ function useProximityRadio(sectionRef: React.RefObject<HTMLElement>, slideActive
       const vh = window.innerHeight || 1;
       const center = r.top + r.height / 2 - vh / 2;
       proxRef.current = Math.max(0, 1 - Math.abs(center) / vh);
-      // Try to self-start on every fresh approach (not just once) — if the
-      // browser refuses, the first interaction anywhere unlocks it instead.
-      if (proxRef.current < 0.05) triedAutoRef.current = false;
-      if (!enabledRef.current && !userMutedRef.current && !triedAutoRef.current && slideRef.current && proxRef.current > 0.3) {
-        triedAutoRef.current = true;
-        void enable().then((ok) => { if (!ok) setNeedsTap(true); });
+      const now = Date.now();
+      if (!runningRef.current && !userMutedRef.current && slideRef.current && proxRef.current > 0.2 && now - lastTryRef.current > 1000) {
+        lastTryRef.current = now;
+        void tryStart().then((ok) => { if (!ok && proxRef.current > 0.3) setNeedsTap(true); });
       }
       applyVolume();
     };
@@ -139,28 +153,32 @@ function useProximityRadio(sectionRef: React.RefObject<HTMLElement>, slideActive
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // The browser only permits sound after SOME user interaction — so the very
-  // first click/tap/keypress anywhere on the page quietly unlocks the station
-  // (at gain 0 unless the section is in view). By the time anyone scrolls to
-  // the radio, it simply plays on its own — no button press needed.
+  // Any interaction anywhere unlocks the station at the earliest legal moment
+  // (kept at gain 0 unless the section is near). Wheel/scroll are included for
+  // browsers whose policy already permits audio — where they don't, the
+  // attempt is a harmless no-op.
   useEffect(() => {
+    const events = ["pointerdown", "mousedown", "keydown", "touchstart", "touchend", "click", "wheel"] as const;
     const unlock = () => {
-      if (enabledRef.current || userMutedRef.current) { cleanup(); return; }
-      void enable().then((ok) => { if (ok) { setNeedsTap(false); cleanup(); } });
+      if (runningRef.current || userMutedRef.current) { cleanup(); return; }
+      void tryStart().then((ok) => { if (ok) cleanup(); });
     };
-    const cleanup = () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
-      window.removeEventListener("touchend", unlock);
-    };
-    window.addEventListener("pointerdown", unlock);
-    window.addEventListener("keydown", unlock);
-    window.addEventListener("touchend", unlock);
+    const cleanup = () => events.forEach((e) => window.removeEventListener(e, unlock));
+    events.forEach((e) => window.addEventListener(e, unlock, { passive: true }));
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Carousel flips → refade immediately.
+  // Boot the warm muted loop shortly after load (off the critical path), so
+  // the track is downloaded and looping before anyone reaches the section.
+  useEffect(() => {
+    const t = setTimeout(ensureGraph, 3500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Carousel flips → refade immediately (out when leaving the Radio slide,
+  // back in when returning to it).
   useEffect(() => { applyVolume(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [slideActive]);
 
   // Unmount → tear the audio down completely.
