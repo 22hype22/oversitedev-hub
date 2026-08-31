@@ -121,15 +121,19 @@ type OwnedBotsSnapshot = {
 };
 const snapshotCache = new Map<string, OwnedBotsSnapshot>();
 
-// Persist the snapshot to sessionStorage too, so a HARD REFRESH (which wipes the
-// in-memory Map) can still paint the last-known bots instantly and refresh
-// silently — instead of showing the full-screen loader every time.
+// Persist the snapshot to localStorage too, so ANY return visit — a hard
+// refresh, a new tab, tomorrow morning — paints the last-known bots instantly
+// and refreshes silently, instead of showing the full-screen loader. The key
+// is per-user-id, so it's only ever served back to the same signed-in account,
+// and the background reload immediately corrects anything stale.
+// (Reads fall back to the old sessionStorage key once, for sessions that
+// predate this change.)
 const snapKey = (uid: string) => `oversite:bots:${uid}`;
 function readSnapshot(uid: string): OwnedBotsSnapshot | undefined {
   const mem = snapshotCache.get(uid);
   if (mem) return mem;
   try {
-    const raw = sessionStorage.getItem(snapKey(uid));
+    const raw = localStorage.getItem(snapKey(uid)) ?? sessionStorage.getItem(snapKey(uid));
     if (raw) {
       const snap = JSON.parse(raw) as OwnedBotsSnapshot;
       snapshotCache.set(uid, snap);
@@ -140,7 +144,7 @@ function readSnapshot(uid: string): OwnedBotsSnapshot | undefined {
 }
 function writeSnapshot(uid: string, snap: OwnedBotsSnapshot) {
   snapshotCache.set(uid, snap);
-  try { sessionStorage.setItem(snapKey(uid), JSON.stringify(snap)); } catch { /* ignore */ }
+  try { localStorage.setItem(snapKey(uid), JSON.stringify(snap)); } catch { /* ignore */ }
 }
 
 export function useOwnedBots() {

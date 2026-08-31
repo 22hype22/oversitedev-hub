@@ -13,6 +13,7 @@ import { PreferencesProvider } from "@/hooks/usePreferences";
 import { AutoTranslator } from "@/components/AutoTranslator";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { MarkdownFormattingToolbar } from "@/components/MarkdownFormattingToolbar";
+import { DashboardGhost, MarketingGhost } from "@/components/GhostSkeletons";
 import Index from "./pages/Index.tsx";
 
 // Lazy-load every route except the landing page so each one ships in its
@@ -124,55 +125,15 @@ const queryClient = new QueryClient({
 // Shown while a lazy route chunk downloads. Without this, Suspense renders
 // nothing and the user sees a blank dark screen until the chunk arrives —
 // which on a cold cache (e.g. the heavy bot-dashboard chunk) reads as "stuck".
-// Ghost loading: neutral skeleton blocks in the rough shape of a page — top
-// bar, heading, card grid — with a soft shimmer sweeping across them. Pure
-// CSS, respects prefers-reduced-motion (static blocks, no sweep).
-const RouteFallback = () => (
-  <div
-    role="status"
-    aria-label="Loading"
-    className="min-h-screen"
-    style={{ background: "linear-gradient(180deg, #232930, #1a1f25)" }}
-  >
-    <style>{`
-      @keyframes os-ghost{0%{background-position:200% 0}100%{background-position:-200% 0}}
-      .os-ghost{border-radius:10px;background:linear-gradient(90deg,rgba(201,219,230,.07) 25%,rgba(201,219,230,.16) 50%,rgba(201,219,230,.07) 75%);background-size:200% 100%;animation:os-ghost 1.5s ease-in-out infinite}
-      @media (prefers-reduced-motion: reduce){.os-ghost{animation:none;background:rgba(201,219,230,.09)}}
-    `}</style>
-    {/* Top bar */}
-    <div
-      className="flex items-center justify-between px-6 py-4"
-      style={{ borderBottom: "1px solid rgba(168,180,191,.08)" }}
-    >
-      <div className="os-ghost" style={{ width: 120, height: 28 }} />
-      <div className="flex items-center gap-3">
-        <div className="os-ghost hidden sm:block" style={{ width: 72, height: 28 }} />
-        <div className="os-ghost hidden sm:block" style={{ width: 72, height: 28 }} />
-        <div className="os-ghost" style={{ width: 96, height: 32, borderRadius: 999 }} />
-      </div>
-    </div>
-    {/* Page body */}
-    <div className="mx-auto w-full max-w-5xl px-6 pt-12">
-      <div className="os-ghost" style={{ width: "42%", height: 36, marginBottom: 14 }} />
-      <div className="os-ghost" style={{ width: "68%", height: 16, marginBottom: 8 }} />
-      <div className="os-ghost" style={{ width: "55%", height: 16, marginBottom: 36 }} />
-      <div className="grid gap-4 sm:grid-cols-3">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="rounded-2xl p-4"
-            style={{ border: "1px solid rgba(168,180,191,.10)", background: "rgba(46,54,63,.35)" }}
-          >
-            <div className="os-ghost" style={{ width: 40, height: 40, borderRadius: 12, marginBottom: 14 }} />
-            <div className="os-ghost" style={{ width: "70%", height: 14, marginBottom: 8 }} />
-            <div className="os-ghost" style={{ width: "90%", height: 12 }} />
-          </div>
-        ))}
-      </div>
-      <div className="os-ghost" style={{ width: "100%", height: 180, marginTop: 24, borderRadius: 16 }} />
-    </div>
-  </div>
-);
+// Ghost loading, shaped like the DESTINATION: heading to the dashboard shows
+// the dashboard's sidebar + card-grid skeleton; everything else shows the
+// marketing nav + hero skeleton. Both mirror the real loaded layouts (see
+// GhostSkeletons.tsx) so the swap to live content is seamless.
+const RouteFallback = () => {
+  const { pathname } = useLocation();
+  const dashy = pathname.startsWith("/bot-dashboard") || pathname.startsWith("/admin") || pathname.startsWith("/dashboard");
+  return dashy ? <DashboardGhost /> : <MarketingGhost />;
+};
 
 // Warm the hot route chunks once the browser goes idle after first paint, so
 // navigating to them later is instant instead of showing the ghost skeleton.
