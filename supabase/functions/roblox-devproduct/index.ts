@@ -94,18 +94,43 @@ async function resolveApiKey(botId: string, req: Request): Promise<string> {
 // Which experience the dev products live in. Owners can override the hardcoded
 // default per-bot (ROBLOX_DEVPRODUCT_PLACE_ID secret) so products are created in
 // THEIR store experience — the one their API key is authorized for.
-async function resolvePlaceId(botId: string, req: Request, fromBody: string): Promise<string> {
-  if (fromBody) return fromBody;
+// Extract every experience/place id (5+ digit run) from a raw secret value that
+// may list several — comma / space / newline separated — in the owner's chosen
+// order. Dev products fill the first experience until it can no longer take
+// more, then spill into the next (see the find_or_create handler).
+function parsePlaceIds(raw: string): string[] {
+  const ids = (raw.match(/\d{5,}/g) ?? []);
+  return [...new Set(ids)]; // de-dupe, preserve order
+}
+
+async function resolvePlaceIds(botId: string, req: Request, fromBody: string): Promise<string[]> {
+  if (fromBody) {
+    const ids = parsePlaceIds(fromBody);
+    if (ids.length) return ids;
+  }
   const token = getWorkerToken(req);
   if (token) {
     try {
       const { data, error } = await admin.rpc("runtime_get_bot_secret", {
         _token: token, _bot_id: botId, _key: "ROBLOX_DEVPRODUCT_PLACE_ID",
       });
-      if (!error && typeof data === "string" && data.trim()) return data.trim().replace(/\D/g, "") || DEFAULT_PLACE_ID;
+      if (!error && typeof data === "string" && data.trim()) {
+        const ids = parsePlaceIds(data);
+        if (ids.length) return ids;
+      }
     } catch (_e) { /* fall back to the default place */ }
   }
-  return DEFAULT_PLACE_ID;
+  return [DEFAULT_PLACE_ID];
+}
+
+// A create error that means "this experience can't take another dev product"
+// (Roblox caps them per experience) — the signal to spill into the next game.
+// Anything else (bad API key, invalid name) is a real failure we surface.
+function isExperienceFull(message: string): boolean {
+  const m = message.toLowerCase();
+  return m.includes("limit") || m.includes("maximum") || m.includes("too many")
+    || m.includes("quota") || m.includes("exceeded") || m.includes("cannot create more")
+    || m.includes("reached");
 }
 
 // ---------------- Roblox helpers ----------------
@@ -155,16 +180,19 @@ const norm = (s: string) => String(s || "").trim().toLowerCase();
 const DEVPRODUCT_FEATURE = "roblox-devproducts";
 const cacheKey = (placeId: string, name: string) => `${placeId}:${norm(name)}`;
 
-async function readDevCache(botId: string): Promise<Record<string, string>> {
+async function readDevMeta(botId: string): Promise<{ products: Record<string, string>; activeIdx: number }> {
   const { data } = await admin.from("bot_config").select("config")
     .eq("bot_id", botId).eq("feature", DEVPRODUCT_FEATURE).maybeSingle();
   const cfg = (data?.config ?? {}) as any;
-  return (cfg && typeof cfg.products === "object" && cfg.products) ? cfg.products : {};
+  return {
+    products: (cfg && typeof cfg.products === "object" && cfg.products) ? cfg.products : {},
+    activeIdx: Number.isInteger(cfg?.activeIdx) ? cfg.activeIdx : 0,
+  };
 }
 
-async function writeDevCache(botId: string, products: Record<string, string>) {
+async function writeDevMeta(botId: string, products: Record<string, string>, activeIdx: number) {
   await admin.from("bot_config").upsert(
-    { bot_id: botId, feature: DEVPRODUCT_FEATURE, config: { products }, updated_at: new Date().toISOString() },
+    { bot_id: botId, feature: DEVPRODUCT_FEATURE, config: { products, activeIdx }, updated_at: new Date().toISOString() },
     { onConflict: "bot_id,feature" },
   );
 }
@@ -218,33 +246,61 @@ Deno.serve(async (req) => {
 
   const action = String(body?.action ?? "");
   const name = String(body?.name ?? "").trim();
-  const configuredId = await resolvePlaceId(botId, req, String(body?.placeId ?? "").trim());
+  const configuredIds = await resolvePlaceIds(botId, req, String(body?.placeId ?? "").trim());
   if (!name) return json({ error: "name is required" }, 400);
 
   try {
-    // Accept a place OR experience/universe id; get the real universe (to create)
-    // and root place (for the buy link + cache key).
-    const { universeId, placeId } = await resolveIds(configuredId);
-    if (action === "find") {
-      const products = await readDevCache(botId);
-      const id = products[cacheKey(placeId, name)] || null;
-      return json({ ok: true, productId: id, buyUrl: buyUrlFor(placeId), placeId });
+    // Resolve every configured experience to its (universe, root place) pair.
+    // A bad id in the list is skipped rather than failing the whole request.
+    const resolved: { universeId: string; placeId: string }[] = [];
+    let resolveErr = "";
+    for (const id of configuredIds) {
+      try { resolved.push(await resolveIds(id)); }
+      catch (e) { resolveErr = e instanceof Error ? e.message : String(e); }
     }
+    if (resolved.length === 0) throw new Error(resolveErr || "No usable Roblox experience configured.");
+
+    if (action === "find") {
+      // The product may live in any configured experience — check them all.
+      const { products } = await readDevMeta(botId);
+      for (const { placeId } of resolved) {
+        const id = products[cacheKey(placeId, name)];
+        if (id) return json({ ok: true, productId: id, buyUrl: buyUrlFor(placeId), placeId });
+      }
+      return json({ ok: true, productId: null, buyUrl: buyUrlFor(resolved[0].placeId), placeId: resolved[0].placeId });
+    }
+
     if (action === "find_or_create") {
       const priceRobux = Math.max(0, Math.round(Number(body?.priceRobux ?? 0)) || 0);
-      const products = await readDevCache(botId);
-      const key = cacheKey(placeId, name);
-      if (products[key]) {
-        return json({ ok: true, productId: products[key], existed: true, priceRobux, buyUrl: buyUrlFor(placeId), placeId });
+      const meta = await readDevMeta(botId);
+      const products = meta.products;
+      // Already created in one of the experiences? Return it.
+      for (const { placeId } of resolved) {
+        const existing = products[cacheKey(placeId, name)];
+        if (existing) return json({ ok: true, productId: existing, existed: true, priceRobux, buyUrl: buyUrlFor(placeId), placeId });
       }
       const apiKey = await resolveApiKey(botId, req);
       if (!apiKey) {
         return json({ error: "No Roblox API key configured. Roblox no longer lets the .ROBLOSECURITY cookie create developer products — add a Roblox Open Cloud API key (with developer-product write access to the experience) in the dashboard under API keys & credentials." }, 500);
       }
-      const productId = await createDevProduct(universeId, name, priceRobux, apiKey);
-      products[key] = productId;
-      await writeDevCache(botId, products);
-      return json({ ok: true, productId, existed: false, priceRobux, buyUrl: buyUrlFor(placeId), placeId });
+      // Fill the active experience first; when it reports full, spill into the
+      // next one and remember that as the new active experience.
+      const startIdx = Math.min(Math.max(0, meta.activeIdx), resolved.length - 1);
+      let lastErr = "";
+      for (let i = startIdx; i < resolved.length; i++) {
+        const { universeId, placeId } = resolved[i];
+        try {
+          const productId = await createDevProduct(universeId, name, priceRobux, apiKey);
+          products[cacheKey(placeId, name)] = productId;
+          await writeDevMeta(botId, products, i); // this experience is the one taking products now
+          return json({ ok: true, productId, existed: false, priceRobux, buyUrl: buyUrlFor(placeId), placeId });
+        } catch (e) {
+          lastErr = e instanceof Error ? e.message : String(e);
+          if (i < resolved.length - 1 && isExperienceFull(lastErr)) continue; // full — try the next game
+          throw new Error(lastErr);
+        }
+      }
+      throw new Error(lastErr || "Couldn't create the developer product.");
     }
     return json({ error: "Unknown action" }, 400);
   } catch (err) {
