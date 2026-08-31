@@ -145,8 +145,7 @@ export function BotSecretsCard({ bot }: Props) {
   const [loading, setLoading] = useState(true);
 
   const scopes = useMemo(() => relevantScopes(bot), [bot]);
-  const showVoice = (bot.base ?? "").toLowerCase().trim() === "dispatch";
-  // API keys are gated by `manage_secrets` for invited members. The voice
+    // API keys are gated by `manage_secrets` for invited members. The voice
   // channel is bot config, not a secret, so it ALWAYS shows (owners and any
   // member who can reach this bot page). Owners: full access.
   const { permissions: teamPerms } = useTeamRole(bot.viaTeam ? bot.id : null);
@@ -191,14 +190,8 @@ export function BotSecretsCard({ bot }: Props) {
     )
     .sort((a, b) => a.sort_order - b.sort_order);
 
-  const voiceSlot = slots.find((s) => s.key === "DISPATCH_VOICE_CHANNEL_ID");
-  const voiceSet = !!voiceSlot?.is_set;
-  // The channel id itself is never returned (secrets are write-only), but the
-  // metadata carries the last 4 chars — enough to re-select the saved channel
-  // in the dropdown after a refresh so it doesn't look like it didn't save.
-  const voiceLastFour = voiceSlot?.is_set ? (voiceSlot.last_four ?? "") : "";
 
-  if (!loading && visible.length === 0 && !showVoice) return null;
+  if (!loading && visible.length === 0) return null;
 
   const allRequiredSet = visible.filter((s) => s.is_required).every((s) => s.is_set);
 
@@ -236,15 +229,6 @@ export function BotSecretsCard({ bot }: Props) {
             {visible.map((s) => (
               <SecretRow key={s.key} bot={bot} slot={s} onChanged={reload} />
             ))}
-            {showVoice && (
-              <VoiceChannelSection
-                bot={bot}
-                alreadySet={voiceSet}
-                savedLastFour={voiceLastFour}
-                onSaved={() => reload(true)}
-              />
-            )}
-            {showVoice && <RegionSection bot={bot} />}
           </>
         )}
       </div>
@@ -426,7 +410,7 @@ const REGION_US_STATES = [
 // like (its radio codes, signals, phonetics). Stored via the dispatch-region
 // edge function; the bot adopts it on its next config refresh (~60s), and the
 // bot's /region command writes back here, so the two stay in sync.
-function RegionSection({ bot }: { bot: OwnedBot }) {
+export function RegionSection({ botId }: { botId: string }) {
   const [region, setRegion] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -437,10 +421,10 @@ function RegionSection({ bot }: { bot: OwnedBot }) {
   // here without a manual refresh.
   const fetchRegion = useCallback(async () => {
     const { data } = await supabase.functions.invoke("dispatch-region", {
-      body: { botId: bot.id },
+      body: { botId: botId },
     });
     if ((data as any)?.region) setRegion((data as any).region);
-  }, [bot.id]);
+  }, [botId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -465,7 +449,7 @@ function RegionSection({ bot }: { bot: OwnedBot }) {
     setRegion(value);
     setSaving(true);
     const { data, error } = await supabase.functions.invoke("dispatch-region", {
-      body: { botId: bot.id, region: value },
+      body: { botId: botId, region: value },
     });
     setSaving(false);
     if (error || !(data as any)?.ok) {
@@ -544,21 +528,21 @@ function RegionSection({ bot }: { bot: OwnedBot }) {
 // "Voice channel" section. The chosen channel is written to the
 // DISPATCH_VOICE_CHANNEL_ID secret; the bot picks it up on its next config
 // refresh (~60s) with no restart.
-function VoiceChannelSection({
-  bot,
+export function VoiceChannelSection({
+  botId,
   alreadySet,
   savedLastFour,
   onSaved,
 }: {
-  bot: OwnedBot;
+  botId: string;
   alreadySet: boolean;
   savedLastFour: string;
   onSaved: () => void;
 }) {
-  const { guilds, loading: loadingGuilds } = useBotGuilds(bot.id);
+  const { guilds, loading: loadingGuilds } = useBotGuilds(botId);
   const [guildId, setGuildId] = useState<string | null>(null);
   const { channels, loading: loadingChannels, refreshing, refreshFromDiscord } = useBotChannels(
-    bot.id,
+    botId,
     guildId ?? undefined,
   );
   const [channelId, setChannelId] = useState("");
@@ -596,7 +580,7 @@ function VoiceChannelSection({
     if (!c) return;
     setSaving(true);
     const { data, error } = await (supabase as any).rpc("set_bot_secret", {
-      _bot_id: bot.id,
+      _bot_id: botId,
       _key: "DISPATCH_VOICE_CHANNEL_ID",
       _value: c.channel_id,
     });
@@ -719,6 +703,70 @@ function VoiceChannelSection({
       ) : alreadySet ? (
         <div className="vcfoot note">A voice channel is currently set. Pick again to change it.</div>
       ) : null}
+    </div>
+  );
+}
+
+
+/**
+ * Standalone dashboard BLOCKS for dispatch bots — the same region and voice
+ * pickers that used to hide inside the API-keys card, surfaced where every
+ * other bot shows its config blocks. Each block is self-contained: the voice
+ * block fetches its own slot metadata (saved-state + last-four) and refreshes
+ * it after a save.
+ */
+export function DispatchBlockCard({ botId, kind }: { botId: string; kind: "region" | "voice" }) {
+  const [slot, setSlot] = useState<{ set: boolean; lastFour: string } | null>(
+    kind === "voice" ? null : { set: false, lastFour: "" },
+  );
+  const loadSlot = useCallback(async () => {
+    if (kind !== "voice") return;
+    try {
+      const { data } = await (supabase as any).rpc("get_bot_secrets_metadata", { _bot_id: botId });
+      const s = ((data ?? []) as SlotMeta[]).find((x) => x.key === "DISPATCH_VOICE_CHANNEL_ID");
+      setSlot({ set: !!s?.is_set, lastFour: s?.is_set ? (s.last_four ?? "") : "" });
+    } catch {
+      setSlot({ set: false, lastFour: "" });
+    }
+  }, [botId, kind]);
+  useEffect(() => { void loadSlot(); }, [loadSlot]);
+
+  const title = kind === "region" ? "Dispatcher Region" : "Dispatch Voice Channel";
+  const sub = kind === "region"
+    ? "The real-world area your dispatcher talks like — its radio codes, signals and phonetics."
+    : "The voice channel your dispatcher joins to read calls and talk with officers.";
+
+  return (
+    <div className="oskeys">
+      <style>{SECRETS_CSS}</style>
+      <div className="panel">
+        <div className="phead">
+          <div className="pl">
+            <span className="ic">
+              {kind === "region" ? <Radio /> : <Server />}
+            </span>
+            <div>
+              <div className="pt">{title}</div>
+              <div className="ps">{sub}</div>
+            </div>
+          </div>
+        </div>
+        {kind === "region" ? (
+          <RegionSection botId={botId} />
+        ) : slot === null ? (
+          <div className="loading">
+            <Loader2 className="spin" size={15} />
+            Loading…
+          </div>
+        ) : (
+          <VoiceChannelSection
+            botId={botId}
+            alreadySet={slot.set}
+            savedLastFour={slot.lastFour}
+            onSaved={() => void loadSlot()}
+          />
+        )}
+      </div>
     </div>
   );
 }

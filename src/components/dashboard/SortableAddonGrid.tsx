@@ -23,6 +23,7 @@ const AddonConfigCard = lazy(() =>
   import("./AddonConfigCard").then((m) => ({ default: m.AddonConfigCard })),
 );
 import { TicketEditorCard } from "./TicketEditorCard";
+import { DispatchBlockCard } from "./BotSecretsCard";
 import { useBotAddonStates } from "@/hooks/useBotAddonStates";
 
 /**
@@ -139,6 +140,8 @@ function SortableCard({
             botAvatarUrl={botAvatarUrl}
             engineVersion={engineVersion}
           />
+        ) : id === "dispatch-region" || id === "dispatch-voice" ? (
+          <DispatchBlockCard botId={botId} kind={id === "dispatch-region" ? "region" : "voice"} />
         ) : (
           <AddonConfigCard
             addonId={id}
