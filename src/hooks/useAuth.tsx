@@ -12,6 +12,21 @@ const roleListeners = new Set<() => void>();
 let roleChannel: ReturnType<typeof supabase.channel> | null = null;
 let roleChannelUid: string | null = null;
 
+// Last-known admin answer per user, so a page refresh paints instantly from
+// cache instead of holding the whole app on a user_roles network round-trip.
+// The real check still runs right after and corrects + re-caches if the role
+// changed. UI gating only — RLS enforces actual permissions server-side.
+const adminKey = (uid: string) => `oversite:isadmin:${uid}`;
+function readAdminCache(uid: string): boolean | null {
+  try {
+    const v = localStorage.getItem(adminKey(uid));
+    return v === null ? null : v === "1";
+  } catch { return null; }
+}
+function writeAdminCache(uid: string, v: boolean) {
+  try { localStorage.setItem(adminKey(uid), v ? "1" : "0"); } catch { /* ignore */ }
+}
+
 function ensureRoleChannel(uid: string) {
   if (roleChannelUid === uid && roleChannel) return;
   if (roleChannel) {
@@ -40,7 +55,15 @@ export const useAuth = () => {
     let mounted = true;
 
     const checkAdmin = async (userId: string) => {
-      setRoleLoading(true);
+      // Seed from the cached answer so nothing waits on the network; the query
+      // below verifies in the background and corrects if the role changed.
+      const cached = readAdminCache(userId);
+      if (cached !== null) {
+        setIsAdmin(cached);
+        setRoleLoading(false);
+      } else {
+        setRoleLoading(true);
+      }
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
@@ -49,10 +72,14 @@ export const useAuth = () => {
         .maybeSingle();
       if (!mounted) return;
       if (error) {
-        // Don't lock the user out on transient errors — try again next auth event
+        // Don't lock the user out on transient errors — keep the cached answer
+        // and try again on the next auth event.
         console.warn("admin role check failed", error.message);
+        setRoleLoading(false);
+        return;
       }
       setIsAdmin(!!data);
+      writeAdminCache(userId, !!data);
       setRoleLoading(false);
     };
 
@@ -115,6 +142,7 @@ export const useAuth = () => {
         .eq("role", "admin")
         .maybeSingle();
       setIsAdmin(!!data);
+      writeAdminCache(uid, !!data);
     };
     roleListeners.add(recheck);
     ensureRoleChannel(uid);
