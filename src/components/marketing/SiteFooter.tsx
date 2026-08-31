@@ -108,7 +108,7 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-12 flex flex-col gap-2 border-t border-os-ink-line/70 py-6 sm:flex-row sm:items-center sm:justify-between">
-          <Mono className="text-os-faint">© 2026 Oversite — All rights reserved</Mono>
+          <Mono className="text-os-faint">© {new Date().getFullYear()} Oversite — All rights reserved</Mono>
           <Mono className="text-os-faint">Not affiliated with Discord Inc.</Mono>
         </div>
       </Container>
