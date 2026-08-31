@@ -405,30 +405,54 @@ export function TicketEditorCard({
 
   return (
     <>
-      <Card
-        onClick={() => setOpen(true)}
-        className={cn(
-          "group/card border-border transition-smooth p-6 flex flex-col h-[210px] relative cursor-pointer bg-card hover:bg-card/80 hover:border-primary/50 hover:shadow-elegant",
-        )}
-      >
-        <div className="flex items-start gap-3 mb-3">
-          <div className="h-10 w-10 rounded-lg border bg-primary/10 border-primary/20 grid place-items-center shrink-0 transition-smooth group-hover/card:bg-primary/15">
-            <ClipboardList className="h-5 w-5 text-primary" />
-          </div>
-          <h3 className="font-semibold text-base leading-tight pt-1.5 flex-1">
-            Ticket Panel Edit
-          </h3>
+      {/* Same 158px .acard tile as every other config block (CSS duplicated
+          on purpose — single-paste files), so all boxes line up identically. */}
+      <style>{`
+        .acard.acard{position:relative;height:158px;padding:15px;display:flex;flex-direction:column;border-radius:14px;
+          font-family:'Manrope',system-ui,-apple-system,"Segoe UI",sans-serif;border:1px solid #3a434d;
+          background:linear-gradient(180deg,#2d353e,#29313a);box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+          transition:transform .17s cubic-bezier(.22,1,.36,1),border-color .17s,box-shadow .17s;cursor:pointer}
+        .acard.on:hover{transform:translateY(-2px);border-color:rgba(201,219,230,.42);
+          box-shadow:0 16px 34px -18px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05)}
+        .acard.off{opacity:.5;filter:grayscale(.6);cursor:default;background:#272e36}
+        .acard .ac-head{display:flex;align-items:center;gap:10px}
+        .acard .ac-ico{height:34px;width:34px;border-radius:10px;flex:none;display:grid;place-items:center;
+          background:rgba(201,219,230,.10);border:1px solid rgba(201,219,230,.42);color:#C9DBE6;transition:.17s}
+        .acard.on:hover .ac-ico{background:rgba(201,219,230,.16)}
+        .acard.off .ac-ico{background:#343d46;border-color:#3a434d;color:#788591}
+        .acard .ac-ico svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none}
+        .acard .ac-title{flex:1;min-width:0;font-size:20px;font-weight:700;line-height:1.2;letter-spacing:-.01em;color:#E8EEF3;padding-top:0}
+        .acard.off .ac-title{color:#A8B4BF}
+        /* Enable/disable toggle — sits quietly in the top-right and blends into
+           the card, brightening only on hover so it never reads as a sore thumb.
+           Stays fully visible when the card is OFF so its state is obvious. */
+        .acard .ac-sw{padding-top:0;flex:none;opacity:.38;transform:scale(.82);transform-origin:right center;
+          transition:opacity .16s ease,transform .16s ease}
+        .acard:hover .ac-sw{opacity:.85}
+        .acard .ac-sw:hover{opacity:1}
+        .acard.off .ac-sw{opacity:1}
+        .acard .ac-summary{flex:1;margin-top:10px;font-size:12px;line-height:1.45;color:#788591;
+          overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3}
+        .acard .ac-foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+        .acard .ac-count{font-size:11.5px;font-weight:600;color:#788591}
+        .acard .ac-arrow{height:16px;width:16px;color:#788591;transition:transform .17s,color .17s}
+        .acard.on:hover .ac-arrow{color:#C9DBE6;transform:translateX(3px)}
+      `}</style>
+      <Card onClick={() => setOpen(true)} className="acard on">
+        <div className="ac-head">
+          <span className="ac-ico">
+            <ClipboardList />
+          </span>
+          <h3 className="ac-title">Ticket Panel Edit</h3>
         </div>
-        <p className="text-sm text-muted-foreground flex-1">
-          Edit the contents of ticket panels you've already posted.
-        </p>
-        <div className="flex items-center justify-between mt-3">
-          <span className="text-xs text-muted-foreground">
+        <p className="ac-summary">Edit the contents of ticket panels you've already posted.</p>
+        <div className="ac-foot">
+          <span className="ac-count">
             {panels.length > 0
               ? `${panels.length} panel${panels.length === 1 ? "" : "s"}`
               : "Open to edit"}
           </span>
-          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover/card:text-primary group-hover/card:translate-x-1 transition-smooth" />
+          <ArrowRight className="ac-arrow" />
         </div>
       </Card>
 

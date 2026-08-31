@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { KeyRound, Loader2, Server, Radio, RefreshCw, Check, ChevronsUpDown } from "lucide-react";
+import { KeyRound, Loader2, Server, Radio, RefreshCw, Check, ChevronsUpDown, ArrowRight } from "lucide-react";
 import type { OwnedBot } from "@/hooks/useOwnedBots";
 import { useTeamRole } from "@/hooks/useTeamRole";
 import {
@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Command,
   CommandEmpty,
@@ -710,12 +711,46 @@ export function VoiceChannelSection({
 
 /**
  * Standalone dashboard BLOCKS for dispatch bots — the same region and voice
- * pickers that used to hide inside the API-keys card, surfaced where every
- * other bot shows its config blocks. Each block is self-contained: the voice
- * block fetches its own slot metadata (saved-state + last-four) and refreshes
- * it after a save.
+ * pickers that used to hide inside the API-keys card, presented as the
+ * standard 158px config tile every other add-on uses (same .acard shell as
+ * AddonConfigCard — CSS duplicated on purpose, single-paste files) with the
+ * picker in a dialog. The voice block fetches its own slot metadata
+ * (saved-state + last-four) and refreshes it after a save.
  */
+const DISPATCH_TILE_CSS = `
+        .acard.acard{position:relative;height:158px;padding:15px;display:flex;flex-direction:column;border-radius:14px;
+          font-family:'Manrope',system-ui,-apple-system,"Segoe UI",sans-serif;border:1px solid #3a434d;
+          background:linear-gradient(180deg,#2d353e,#29313a);box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+          transition:transform .17s cubic-bezier(.22,1,.36,1),border-color .17s,box-shadow .17s;cursor:pointer}
+        .acard.on:hover{transform:translateY(-2px);border-color:rgba(201,219,230,.42);
+          box-shadow:0 16px 34px -18px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05)}
+        .acard.off{opacity:.5;filter:grayscale(.6);cursor:default;background:#272e36}
+        .acard .ac-head{display:flex;align-items:center;gap:10px}
+        .acard .ac-ico{height:34px;width:34px;border-radius:10px;flex:none;display:grid;place-items:center;
+          background:rgba(201,219,230,.10);border:1px solid rgba(201,219,230,.42);color:#C9DBE6;transition:.17s}
+        .acard.on:hover .ac-ico{background:rgba(201,219,230,.16)}
+        .acard.off .ac-ico{background:#343d46;border-color:#3a434d;color:#788591}
+        .acard .ac-ico svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none}
+        .acard .ac-title{flex:1;min-width:0;font-size:20px;font-weight:700;line-height:1.2;letter-spacing:-.01em;color:#E8EEF3;padding-top:0}
+        .acard.off .ac-title{color:#A8B4BF}
+        /* Enable/disable toggle — sits quietly in the top-right and blends into
+           the card, brightening only on hover so it never reads as a sore thumb.
+           Stays fully visible when the card is OFF so its state is obvious. */
+        .acard .ac-sw{padding-top:0;flex:none;opacity:.38;transform:scale(.82);transform-origin:right center;
+          transition:opacity .16s ease,transform .16s ease}
+        .acard:hover .ac-sw{opacity:.85}
+        .acard .ac-sw:hover{opacity:1}
+        .acard.off .ac-sw{opacity:1}
+        .acard .ac-summary{flex:1;margin-top:10px;font-size:12px;line-height:1.45;color:#788591;
+          overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3}
+        .acard .ac-foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+        .acard .ac-count{font-size:11.5px;font-weight:600;color:#788591}
+        .acard .ac-arrow{height:16px;width:16px;color:#788591;transition:transform .17s,color .17s}
+        .acard.on:hover .ac-arrow{color:#C9DBE6;transform:translateX(3px)}
+`;
+
 export function DispatchBlockCard({ botId, kind }: { botId: string; kind: "region" | "voice" }) {
+  const [open, setOpen] = useState(false);
   const [slot, setSlot] = useState<{ set: boolean; lastFour: string } | null>(
     kind === "voice" ? null : { set: false, lastFour: "" },
   );
@@ -731,42 +766,58 @@ export function DispatchBlockCard({ botId, kind }: { botId: string; kind: "regio
   }, [botId, kind]);
   useEffect(() => { void loadSlot(); }, [loadSlot]);
 
+  const Icon = kind === "region" ? Radio : Server;
   const title = kind === "region" ? "Dispatcher Region" : "Dispatch Voice Channel";
   const sub = kind === "region"
     ? "The real-world area your dispatcher talks like — its radio codes, signals and phonetics."
     : "The voice channel your dispatcher joins to read calls and talk with officers.";
 
   return (
-    <div className="oskeys">
-      <style>{SECRETS_CSS}</style>
-      <div className="panel">
-        <div className="phead">
-          <div className="pl">
-            <span className="ic">
-              {kind === "region" ? <Radio /> : <Server />}
-            </span>
-            <div>
-              <div className="pt">{title}</div>
-              <div className="ps">{sub}</div>
-            </div>
-          </div>
+    <>
+      <style>{DISPATCH_TILE_CSS}</style>
+      <div className="acard on" onClick={() => setOpen(true)}>
+        <div className="ac-head">
+          <span className="ac-ico">
+            <Icon />
+          </span>
+          <h3 className="ac-title">{title}</h3>
         </div>
-        {kind === "region" ? (
-          <RegionSection botId={botId} />
-        ) : slot === null ? (
-          <div className="loading">
-            <Loader2 className="spin" size={15} />
-            Loading…
-          </div>
-        ) : (
-          <VoiceChannelSection
-            botId={botId}
-            alreadySet={slot.set}
-            savedLastFour={slot.lastFour}
-            onSaved={() => void loadSlot()}
-          />
-        )}
+        <p className="ac-summary">{sub}</p>
+        <div className="ac-foot">
+          <span className="ac-count">1 setting</span>
+          <ArrowRight className="ac-arrow" />
+        </div>
       </div>
-    </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Icon className="h-5 w-5 text-os-accent" />
+              {title}
+            </DialogTitle>
+            <DialogDescription>{sub}</DialogDescription>
+          </DialogHeader>
+          <div className="oskeys">
+            <style>{SECRETS_CSS}</style>
+            {kind === "region" ? (
+              <RegionSection botId={botId} />
+            ) : slot === null ? (
+              <div className="loading">
+                <Loader2 className="spin" size={15} />
+                Loading…
+              </div>
+            ) : (
+              <VoiceChannelSection
+                botId={botId}
+                alreadySet={slot.set}
+                savedLastFour={slot.lastFour}
+                onSaved={() => void loadSlot()}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
