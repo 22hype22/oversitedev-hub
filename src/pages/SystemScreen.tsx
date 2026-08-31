@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
-import dashboardBg from "@/assets/dashboardBg";
+// The mountain backdrop as a real image asset (same file the dashboard and
+// error boundary use, so it's already cached) — replaces the old base64-inlined
+// module that shipped ~220KB of un-gzippable data URI inside a JS chunk.
+import dashboardBg from "@/assets/containers.webp";
 
 /**
  * Branded full-screen shell for the small "system" pages — 404, checkout,

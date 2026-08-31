@@ -124,39 +124,88 @@ const queryClient = new QueryClient({
 // Shown while a lazy route chunk downloads. Without this, Suspense renders
 // nothing and the user sees a blank dark screen until the chunk arrives —
 // which on a cold cache (e.g. the heavy bot-dashboard chunk) reads as "stuck".
-// Branded loading screen: the Oversite mountain ridge draws itself in,
-// sweeps away, and redraws. Pure SVG/CSS (no assets), respects
-// prefers-reduced-motion (static ridge instead of the draw loop).
+// Ghost loading: neutral skeleton blocks in the rough shape of a page — top
+// bar, heading, card grid — with a soft shimmer sweeping across them. Pure
+// CSS, respects prefers-reduced-motion (static blocks, no sweep).
 const RouteFallback = () => (
   <div
     role="status"
     aria-label="Loading"
-    className="min-h-screen grid place-items-center"
-    style={{
-      background:
-        "radial-gradient(120% 90% at 50% 115%, rgba(201,219,230,.10), transparent 55%), linear-gradient(180deg, #293038, #1a1f25)",
-    }}
+    className="min-h-screen"
+    style={{ background: "linear-gradient(180deg, #232930, #1a1f25)" }}
   >
     <style>{`
-      @keyframes os-ridge-draw{0%{stroke-dashoffset:340}55%{stroke-dashoffset:0}78%{stroke-dashoffset:0}100%{stroke-dashoffset:-340}}
-      .os-ridge path{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:2}
-      .os-ridge .draw{stroke:#C9DBE6;stroke-dasharray:340;stroke-dashoffset:340;animation:os-ridge-draw 2.6s cubic-bezier(.45,.05,.35,1) infinite;filter:drop-shadow(0 0 10px rgba(201,219,230,.35))}
-      .os-ridge .ghost{stroke:rgba(201,219,230,.14)}
-      @media (prefers-reduced-motion: reduce){.os-ridge .draw{animation:none;stroke-dashoffset:0}}
+      @keyframes os-ghost{0%{background-position:200% 0}100%{background-position:-200% 0}}
+      .os-ghost{border-radius:10px;background:linear-gradient(90deg,rgba(201,219,230,.07) 25%,rgba(201,219,230,.16) 50%,rgba(201,219,230,.07) 75%);background-size:200% 100%;animation:os-ghost 1.5s ease-in-out infinite}
+      @media (prefers-reduced-motion: reduce){.os-ghost{animation:none;background:rgba(201,219,230,.09)}}
     `}</style>
-    <svg
-      className="os-ridge"
-      width="190"
-      height="74"
-      viewBox="0 0 190 74"
-      style={{ overflow: "visible" }}
-      aria-hidden
+    {/* Top bar */}
+    <div
+      className="flex items-center justify-between px-6 py-4"
+      style={{ borderBottom: "1px solid rgba(168,180,191,.08)" }}
     >
-      <path className="ghost" d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70" />
-      <path className="draw" d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70" />
-    </svg>
+      <div className="os-ghost" style={{ width: 120, height: 28 }} />
+      <div className="flex items-center gap-3">
+        <div className="os-ghost hidden sm:block" style={{ width: 72, height: 28 }} />
+        <div className="os-ghost hidden sm:block" style={{ width: 72, height: 28 }} />
+        <div className="os-ghost" style={{ width: 96, height: 32, borderRadius: 999 }} />
+      </div>
+    </div>
+    {/* Page body */}
+    <div className="mx-auto w-full max-w-5xl px-6 pt-12">
+      <div className="os-ghost" style={{ width: "42%", height: 36, marginBottom: 14 }} />
+      <div className="os-ghost" style={{ width: "68%", height: 16, marginBottom: 8 }} />
+      <div className="os-ghost" style={{ width: "55%", height: 16, marginBottom: 36 }} />
+      <div className="grid gap-4 sm:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="rounded-2xl p-4"
+            style={{ border: "1px solid rgba(168,180,191,.10)", background: "rgba(46,54,63,.35)" }}
+          >
+            <div className="os-ghost" style={{ width: 40, height: 40, borderRadius: 12, marginBottom: 14 }} />
+            <div className="os-ghost" style={{ width: "70%", height: 14, marginBottom: 8 }} />
+            <div className="os-ghost" style={{ width: "90%", height: 12 }} />
+          </div>
+        ))}
+      </div>
+      <div className="os-ghost" style={{ width: "100%", height: 180, marginTop: 24, borderRadius: 16 }} />
+    </div>
   </div>
 );
+
+// Warm the hot route chunks once the browser goes idle after first paint, so
+// navigating to them later is instant instead of showing the ghost skeleton.
+// Auth + account Dashboard are small and always warmed; the heavy bot-dashboard
+// chunk is only warmed for visitors who actually have a session (a Supabase
+// auth token in storage) since everyone else will never open it.
+const PrefetchRoutes = () => {
+  useEffect(() => {
+    const warm = () => {
+      import("./pages/Auth.tsx");
+      import("./pages/Dashboard.tsx");
+      try {
+        const signedIn = Object.keys(localStorage).some(
+          (k) => k.startsWith("sb-") && k.includes("auth-token"),
+        );
+        if (signedIn) import("./pages/BotDashboard.tsx");
+      } catch {
+        /* storage blocked — skip the heavy chunk */
+      }
+    };
+    const w = window as unknown as {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(warm, { timeout: 5000 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const t = setTimeout(warm, 2500);
+    return () => clearTimeout(t);
+  }, []);
+  return null;
+};
 
 // Fires a page_view on every route change and keeps a presence ping going so
 // the admin Overview can show live visitors + the funnel.
@@ -237,6 +286,7 @@ const App = () => {
           <PreferencesProvider>
             <ScrollToTop />
             <AnalyticsTracker />
+            <PrefetchRoutes />
             <AutoTranslator />
             <MarkdownFormattingToolbar />
             <Suspense fallback={<RouteFallback />}>
