@@ -23,6 +23,10 @@ export const BOT_BASE_TAGLINES: Record<string, string> = {
 };
 
 export const BOT_ADDON_LABELS: Record<string, string> = {
+  // Dispatch — included base features
+  "dispatch-region": "Dispatcher Region",
+  "dispatch-voice": "Dispatch Voice Channel",
+
   // Protection — included base features
   "verification-system": "Verification System",
   "mod-actions": "Warn / Mute / Ban / Kick",
@@ -199,6 +203,9 @@ const SHARED_ADDON_IDS = ["branding", "dashboard", "multi-server"];
  * for them so customers can tweak the included behavior.
  */
 export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
+  // The dispatch bot's dashboard-driven settings, shown as config blocks like
+  // every other base (they used to hide inside the API-keys card only).
+  dispatch: ["dispatch-region", "dispatch-voice"],
   protection: [
     "verification-system",
     "mod-actions",

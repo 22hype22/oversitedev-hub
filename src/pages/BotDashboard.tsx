@@ -88,6 +88,7 @@ import {
   XCircle,
   Plus,
   ShieldCheck,
+  RadioTower,
   LifeBuoy,
   Wrench,
   Star,
@@ -242,7 +243,7 @@ const canCancelStatus = (status: string) =>
 
 /** Visual category metadata for grouped add-on config sections. */
 const ADDON_GROUPS: {
-  key: "protection" | "support" | "utilities" | "shared";
+  key: "protection" | "support" | "utilities" | "dispatch" | "shared";
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   ids: string[];
@@ -250,6 +251,7 @@ const ADDON_GROUPS: {
   { key: "protection", label: "Protection", icon: ShieldCheck, ids: PROTECTION_ADDON_IDS },
   { key: "support",    label: "Support",    icon: LifeBuoy,    ids: SUPPORT_ADDON_IDS },
   { key: "utilities",  label: "Utilities",  icon: Wrench,      ids: UTILITIES_ADDON_IDS },
+  { key: "dispatch",   label: "Dispatch",   icon: RadioTower,  ids: ["dispatch-region", "dispatch-voice"] },
   { key: "shared",     label: "Extras",     icon: Star,        ids: SHARED_ADDON_IDS },
 ];
 
