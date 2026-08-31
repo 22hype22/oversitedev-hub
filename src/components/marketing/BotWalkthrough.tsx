@@ -17,7 +17,7 @@ const BOTS: Bot[] = [
   {
     name: "Protection",
     icon: Shield,
-    line: "Stops raids before they ever land — auto-moderation, verification and a real-time threat shield, always on.",
+    line: "Stops raids before they ever land. Auto-moderation, verification and a real-time threat shield, always on.",
     features: [
       "Anti-raid + auto-mod",
       "Verification gate",
@@ -35,7 +35,7 @@ const BOTS: Bot[] = [
   {
     name: "Support",
     icon: LifeBuoy,
-    line: "Turns the chaos into clean tickets — routing, transcripts and staff tools so nothing slips through.",
+    line: "Turns the chaos into clean tickets: routing, transcripts and staff tools so nothing slips through.",
     features: [
       "Ticket routing",
       "Searchable transcripts",
@@ -53,7 +53,7 @@ const BOTS: Bot[] = [
   {
     name: "Utilities",
     icon: Wrench,
-    line: "Everything else your server runs on — leveling, giveaways, live AI radio and the stats that keep it moving.",
+    line: "Everything else your server runs on: leveling, giveaways, live AI radio and the stats that keep it moving.",
     features: [
       "Leveling + economy",
       "Giveaways + starboard",
@@ -71,7 +71,7 @@ const BOTS: Bot[] = [
   {
     name: "All-in-One",
     icon: Sparkles,
-    line: "Protection, Support and Utilities fused into a single bot — every base your server needs, one install.",
+    line: "Protection, Support and Utilities fused into a single bot. Every base your server needs, one install.",
     features: [
       "Everything in Protection",
       "Everything in Support",
@@ -89,7 +89,7 @@ const BOTS: Bot[] = [
   {
     name: "ERLC",
     icon: Siren,
-    line: "Emergency Response: Liberty County tools — sessions, in-game moderation and live server stats. Landing soon.",
+    line: "Emergency Response: Liberty County tools: sessions, in-game moderation and live server stats. Landing soon.",
     features: [
       "Session pings",
       "In-game moderation",

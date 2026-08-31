@@ -16,9 +16,9 @@ const TOPICS: Topic[] = [
     id: "start",
     label: "Getting started",
     qs: [
-      { q: "How fast can I get set up?", a: "Minutes. Authorize the bots, choose what you want enabled, and the auto-deploy pipeline has you live in under sixty seconds — all from the dashboard.", k: "fast setup quick start install time live" },
-      { q: "Do I have to host anything myself?", a: "No — every bot runs on Oversite's infrastructure. No VPS to rent, no process to keep alive, no token to babysit. You connect your server and we run it.", k: "host hosting vps server self infrastructure" },
-      { q: "Do I need to be technical?", a: "Not at all. Everything is managed from one visual dashboard — toggle features, fill in settings, and changes apply live with no code, config files, or restarts.", k: "technical code coding beginner easy non-technical" },
+      { q: "How fast can I get set up?", a: "Minutes. Authorize the bots, choose what you want enabled, and the auto-deploy pipeline has you live in under sixty seconds, all from the dashboard.", k: "fast setup quick start install time live" },
+      { q: "Do I have to host anything myself?", a: "No. Every bot runs on Oversite's infrastructure. No VPS to rent, no process to keep alive, no token to babysit. You connect your server and we run it.", k: "host hosting vps server self infrastructure" },
+      { q: "Do I need to be technical?", a: "Not at all. Everything is managed from one visual dashboard. Toggle features, fill in settings, and changes apply live with no code, config files, or restarts.", k: "technical code coding beginner easy non-technical" },
       { q: "How is everything managed?", a: "From a single dashboard. You configure every bot, your team, and all your settings in one place, with changes applying live across your server.", k: "manage managed dashboard control where panel" },
     ],
   },
@@ -26,18 +26,18 @@ const TOPICS: Topic[] = [
     id: "bots",
     label: "The bots",
     qs: [
-      { q: "What bots do you offer?", a: "Three core bots — Protection (anti-raid + moderation), Support (tickets) and Utilities (leveling, giveaways, live radio and more) — plus an All-in-One pack, with ERLC tools coming soon.", k: "bots offer products which what all" },
+      { q: "What bots do you offer?", a: "Three core bots: Protection (anti-raid + moderation), Support (tickets) and Utilities (leveling, giveaways, live radio and more). There's also an All-in-One pack, with ERLC tools coming soon.", k: "bots offer products which what all" },
       { q: "What does Protection do?", a: "Protection is your shield: anti-raid, verification, auto-moderation, phishing detection, logging and a real-time threat shield that quarantines bad actors before they reach your members.", k: "protection raid moderation security anti-raid verify shield" },
-      { q: "What does Support do?", a: "Support turns chaos into clean tickets — routing, claim system, searchable transcripts, ban appeals, reports and staff tools so nothing slips through.", k: "support tickets help transcripts appeals reports" },
-      { q: "What does Utilities do?", a: "Utilities is everything else your server runs on — leveling, economy, giveaways, reaction roles, server stats, Twitch/YouTube alerts and the live AI radio.", k: "utilities leveling giveaways radio roles stats economy music" },
+      { q: "What does Support do?", a: "Support turns chaos into clean tickets: routing, claim system, searchable transcripts, ban appeals, reports and staff tools so nothing slips through.", k: "support tickets help transcripts appeals reports" },
+      { q: "What does Utilities do?", a: "Utilities is everything else your server runs on: leveling, economy, giveaways, reaction roles, server stats, Twitch/YouTube alerts and the live AI radio.", k: "utilities leveling giveaways radio roles stats economy music" },
     ],
   },
   {
     id: "billing",
     label: "Billing & plans",
     qs: [
-      { q: "How much does it cost?", a: "You can run a single bot, mix two, or grab the All-in-One pack — so you only pay for what you need. For exact current pricing, open a ticket and the team will walk you through it.", k: "cost price pricing how much plans tiers" },
-      { q: "Can I use just one bot?", a: "Yes. Turn on only what your server needs and add the rest whenever you're ready — the platform scales with you, not the other way around.", k: "one bot single only just everything modular" },
+      { q: "How much does it cost?", a: "You can run a single bot, mix two, or grab the All-in-One pack, so you only pay for what you need. For exact current pricing, open a ticket and the team will walk you through it.", k: "cost price pricing how much plans tiers" },
+      { q: "Can I use just one bot?", a: "Yes. Turn on only what your server needs and add the rest whenever you're ready. The platform scales with you, not the other way around.", k: "one bot single only just everything modular" },
       { q: "What happens if I cancel?", a: "Cancel anytime. Your bots keep running until the end of the billing period, and your configuration is preserved in case you come back.", k: "cancel refund billing stop subscription quit" },
     ],
   },
@@ -46,8 +46,8 @@ const TOPICS: Topic[] = [
     label: "Account & data",
     qs: [
       { q: "Can my staff get access?", a: "Yes. Invite your staff, assign roles to control what they can touch, and every change is written to an audit log so nothing happens off the record.", k: "staff mods team access roles permissions audit" },
-      { q: "Is my data kept separate?", a: "Yes. Every server's configuration and data is isolated and permission-gated — nothing you set up is visible to anyone outside your authorized team.", k: "data privacy isolated separate secure security" },
-      { q: "Do settings survive updates?", a: "Yes. Your configuration is saved and reloads automatically, so updates and restarts never wipe your setup — everything stays exactly where you left it.", k: "settings save survive updates restart persist config reset wipe" },
+      { q: "Is my data kept separate?", a: "Yes. Every server's configuration and data is isolated and permission-gated, so nothing you set up is visible to anyone outside your authorized team.", k: "data privacy isolated separate secure security" },
+      { q: "Do settings survive updates?", a: "Yes. Your configuration is saved and reloads automatically, so updates and restarts never wipe your setup. Everything stays exactly where you left it.", k: "settings save survive updates restart persist config reset wipe" },
     ],
   },
 ];
@@ -55,7 +55,7 @@ const TOPICS: Topic[] = [
 const FLAT: QA[] = TOPICS.flatMap((t) => t.qs);
 
 const HUMAN_TEXT =
-  "No problem — the team can take it from here. Open a ticket in the Discord at .gg/oversite, or email support@oversite.shop and we'll jump in.";
+  "No problem. The team can take it from here. Open a ticket in the Discord at .gg/oversite, or email support@oversite.shop and we'll jump in.";
 
 function match(query: string): string {
   const tokens = query.toLowerCase().match(/[a-z]{3,}/g) ?? [];
@@ -71,7 +71,7 @@ function match(query: string): string {
     }
   }
   if (best && score > 0) return best.a;
-  return `I'm not sure on that one yet — but I can get you to someone who is. ${HUMAN_TEXT}`;
+  return `I'm not sure on that one yet, but I can get you to someone who is. ${HUMAN_TEXT}`;
 }
 
 type Msg = { from: "bot" | "user"; text: string };
@@ -112,7 +112,7 @@ export function HelpLounge({ open, onClose }: { open: boolean; onClose: () => vo
 
   const openTopic = (t: Topic) => {
     userSay(t.label);
-    botSay(`Sure — here's what people usually ask about ${t.label.toLowerCase()}.`, [
+    botSay(`Sure, here's what people usually ask about ${t.label.toLowerCase()}.`, [
       ...t.qs.map((qa) => ({ label: qa.q, run: () => askQ(qa, t) })),
       { label: "Talk to a human", run: human },
     ]);
@@ -139,7 +139,7 @@ export function HelpLounge({ open, onClose }: { open: boolean; onClose: () => vo
   useEffect(() => {
     if (open && !started.current) {
       started.current = true;
-      setMsgs([{ from: "bot", text: "Hey — I'm Ovie, the Oversite assistant. What can I help you with?" }]);
+      setMsgs([{ from: "bot", text: "Hey! I'm Ovie, the Oversite assistant. What can I help you with?" }]);
       setChips([
         ...TOPICS.map((t) => ({ label: t.label, run: () => openTopic(t) })),
         { label: "Talk to a human", run: human },
