@@ -218,6 +218,35 @@ const AnalyticsTracker = () => {
   return null;
 };
 
+// Per-route document titles, so the browser tab, history, and share sheets say
+// which page you're on instead of the one global index.html title everywhere.
+// /erlc-design is intentionally absent — it runs its own richer usePageSeo.
+const DEFAULT_TITLE = "Oversite Customs — The ERLC Design Server Platform";
+const ROUTE_TITLES: Record<string, string> = {
+  "/process": "How It Works — Oversite Customs",
+  "/products": "Products — Oversite Customs",
+  "/bots": "Discord Bots — Oversite Customs",
+  "/auth": "Sign In — Oversite Customs",
+  "/admin": "Admin — Oversite Customs",
+  "/dashboard": "Account — Oversite Customs",
+  "/bot-dashboard": "Dashboard — Oversite Customs",
+  "/checkout/return": "Checkout — Oversite Customs",
+  "/checkout/setup": "Checkout — Oversite Customs",
+  "/terms": "Terms of Service — Oversite Customs",
+  "/explore/team": "Meet the Team — Oversite Customs",
+  "/explore/owner": "Meet the Owner — Oversite Customs",
+  "/support-ideas": "Support & Ideas — Oversite Customs",
+  "/verify": "Verify — Oversite Customs",
+};
+const RouteTitles = () => {
+  const location = useLocation();
+  useEffect(() => {
+    if (location.pathname === "/erlc-design") return; // usePageSeo owns it
+    document.title = ROUTE_TITLES[location.pathname] ?? DEFAULT_TITLE;
+  }, [location.pathname]);
+  return null;
+};
+
 // Catches any render/effect crash (e.g. a realtime hiccup on tab return) and
 // shows a recoverable screen instead of a black void.
 class RouteErrorBoundary extends Component<{ children: ReactNode }, { crashed: boolean }> {
@@ -286,6 +315,7 @@ const App = () => {
           <PreferencesProvider>
             <ScrollToTop />
             <AnalyticsTracker />
+            <RouteTitles />
             <PrefetchRoutes />
             <AutoTranslator />
             <MarkdownFormattingToolbar />

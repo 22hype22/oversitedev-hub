@@ -235,6 +235,11 @@
   body {
     @apply bg-background text-foreground font-sans antialiased min-h-screen;
     font-family: 'Manrope', system-ui, sans-serif;
+    /* Never allow sideways page scroll — a single element poking past the
+       viewport (a wide shadow, a transformed card, a long word on mobile)
+       otherwise puts a horizontal scrollbar on the whole site. `clip` cuts
+       the overflow without creating a new scroll container. */
+    overflow-x: clip;
   }
 
   h1, h2, h3, h4 {
