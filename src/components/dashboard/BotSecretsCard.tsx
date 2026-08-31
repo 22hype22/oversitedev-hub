@@ -111,6 +111,27 @@ const SECRETS_CSS = `
 .oskeys .vcfoot.note{color:var(--faint)}
 `;
 
+// Once a secret is confirmed SET we remember it per (bot, key) in localStorage,
+// so a later metadata read that transiently returns is_set:false — or drops the
+// slot entirely — can never flip a genuinely-saved credential back to an empty
+// "Required" field. Only an explicit Remove clears the sticky flag.
+const stickyKey = (botId: string) => `oversite:secretsset:${botId}`;
+function stickyGet(botId: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(stickyKey(botId));
+    return new Set<string>(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch { return new Set<string>(); }
+}
+function stickySave(botId: string, set: Set<string>) {
+  try { localStorage.setItem(stickyKey(botId), JSON.stringify([...set])); } catch { /* ignore */ }
+}
+function stickyAdd(botId: string, key: string) {
+  const s = stickyGet(botId); s.add(key); stickySave(botId, s);
+}
+function stickyRemove(botId: string, key: string) {
+  const s = stickyGet(botId); s.delete(key); stickySave(botId, s);
+}
+
 type SlotMeta = {
   addon_id: string;
   key: string;
@@ -170,7 +191,13 @@ export function BotSecretsCard({ bot }: Props) {
       await new Promise((res) => setTimeout(res, 500 * (i + 1)));
     }
     if (ok) {
-      setSlots((data ?? []) as SlotMeta[]);
+      const fresh = (data ?? []) as SlotMeta[];
+      const sticky = stickyGet(bot.id);
+      for (const slot of fresh) {
+        if (slot.is_set) stickyAdd(bot.id, slot.key);
+        else if (sticky.has(slot.key)) slot.is_set = true; // known-set, don't downgrade
+      }
+      setSlots(fresh);
     } else {
       toast.error("Couldn't load credentials", { description: lastErr?.message ?? "Network error" });
       // leave existing slots untouched
@@ -294,6 +321,7 @@ function SecretRow({
     setValue("");
     setSavedLocal(true);
     setEditing(false);
+    stickyAdd(bot.id, slot.key);
     onChanged();
   };
 
@@ -310,6 +338,7 @@ function SecretRow({
       return;
     }
     toast.success(`${slot.label} removed`);
+    stickyRemove(bot.id, slot.key);
     setValue("");
     setSavedLocal(false);
     setEditing(true);
