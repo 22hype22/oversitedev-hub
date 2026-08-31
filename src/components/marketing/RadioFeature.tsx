@@ -1,11 +1,165 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Play, ArrowRight, SkipBack, SkipForward, Radio, ChevronLeft, ChevronRight, Shield, LifeBuoy, type LucideIcon } from "lucide-react";
+import { Play, Pause, ArrowRight, SkipBack, SkipForward, Radio, ChevronLeft, ChevronRight, Shield, LifeBuoy, type LucideIcon } from "lucide-react";
 import { Container, Mono } from "./primitives";
 import { usePrefersReducedMotion } from "./hooks";
 import { cn } from "@/lib/utils";
 
-function Equalizer({ bars = 20, className = "h-6" }: { bars?: number; className?: string }) {
+// ───────────────────────── Proximity radio ─────────────────────────
+// Real ambient audio for the radio slide: as the visitor scrolls toward this
+// section the station fades in, and it fades back out as they scroll away
+// (or flip the carousel off the Radio slide). Browsers block un-muted audio
+// until the page has been interacted with, so we TRY to auto-start on
+// approach; if that's refused, the play button on the card pulses and one tap
+// enables it — after which the proximity fade drives everything.
+//
+// Routed through a Web Audio GainNode (not element.volume) so the fade also
+// works on iOS, where media-element volume is read-only. The mp3 only loads
+// when the listener is actually enabled, so the page-load cost is zero.
+// Swap the track by replacing public/radio-loop.mp3.
+const RADIO_SRC = "/radio-loop.mp3";
+const RADIO_MAX_VOL = 0.4;
+
+function useProximityRadio(sectionRef: React.RefObject<HTMLElement>, slideActive: boolean) {
+  const [playing, setPlaying] = useState(false); // user-intent: station on
+  const [needsTap, setNeedsTap] = useState(false); // autoplay refused → invite a tap
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ctxRef = useRef<AudioContext | null>(null);
+  const gainRef = useRef<GainNode | null>(null);
+  const enabledRef = useRef(false);
+  const userMutedRef = useRef(false); // explicit pause — stop auto-restarting
+  const triedAutoRef = useRef(false);
+  const proxRef = useRef(0);
+  const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const slideRef = useRef(slideActive);
+  slideRef.current = slideActive;
+
+  const ensureGraph = () => {
+    if (!audioRef.current) {
+      const a = new Audio(RADIO_SRC);
+      a.loop = true;
+      a.preload = "none";
+      audioRef.current = a;
+    }
+    if (!ctxRef.current) {
+      try {
+        const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (Ctx) {
+          const ctx = new Ctx();
+          const src = ctx.createMediaElementSource(audioRef.current);
+          const gain = ctx.createGain();
+          gain.gain.value = 0;
+          src.connect(gain).connect(ctx.destination);
+          ctxRef.current = ctx;
+          gainRef.current = gain;
+        }
+      } catch {
+        /* no Web Audio — element.volume fallback below */
+      }
+    }
+  };
+
+  const applyVolume = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    const target = enabledRef.current && slideRef.current ? Math.pow(proxRef.current, 1.6) * RADIO_MAX_VOL : 0;
+    const ctx = ctxRef.current;
+    const gain = gainRef.current;
+    if (ctx && gain) gain.gain.setTargetAtTime(target, ctx.currentTime, 0.4);
+    else try { a.volume = target; } catch { /* iOS read-only volume */ }
+    // Fully faded out → actually pause after the tail, so a page parked far
+    // from the section isn't holding an audio stream open. Coming back
+    // (target > 0) resumes seamlessly.
+    if (enabledRef.current) {
+      if (target <= 0.002) {
+        if (!pauseTimerRef.current && !a.paused) {
+          pauseTimerRef.current = setTimeout(() => { pauseTimerRef.current = null; a.pause(); }, 1600);
+        }
+      } else {
+        if (pauseTimerRef.current) { clearTimeout(pauseTimerRef.current); pauseTimerRef.current = null; }
+        if (a.paused) a.play().catch(() => { /* lost permission — next tap re-enables */ });
+      }
+    }
+  };
+
+  const enable = async (): Promise<boolean> => {
+    ensureGraph();
+    try {
+      await ctxRef.current?.resume();
+      if (ctxRef.current && ctxRef.current.state !== "running") throw new Error("suspended");
+      await audioRef.current!.play();
+      enabledRef.current = true;
+      userMutedRef.current = false;
+      setPlaying(true);
+      setNeedsTap(false);
+      applyVolume();
+      return true;
+    } catch {
+      audioRef.current?.pause();
+      return false;
+    }
+  };
+
+  const toggle = () => {
+    if (playing) {
+      // Explicit off: fade to silence and stay off until tapped again.
+      enabledRef.current = false;
+      userMutedRef.current = true;
+      setPlaying(false);
+      applyVolume();
+      const a = audioRef.current;
+      if (a) setTimeout(() => { if (!enabledRef.current) a.pause(); }, 900);
+    } else {
+      void enable();
+    }
+  };
+
+  // Scroll/resize → proximity of the section's center to the viewport's
+  // center (1 when centered, 0 a full viewport away), rAF-throttled.
+  useEffect(() => {
+    let raf = 0;
+    const measure = () => {
+      raf = 0;
+      const el = sectionRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const vh = window.innerHeight || 1;
+      const center = r.top + r.height / 2 - vh / 2;
+      proxRef.current = Math.max(0, 1 - Math.abs(center) / vh);
+      if (!enabledRef.current && !userMutedRef.current && !triedAutoRef.current && slideRef.current && proxRef.current > 0.35) {
+        triedAutoRef.current = true;
+        void enable().then((ok) => { if (!ok) setNeedsTap(true); });
+      }
+      applyVolume();
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(measure); };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    measure();
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Carousel flips → refade immediately.
+  useEffect(() => { applyVolume(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [slideActive]);
+
+  // Unmount → tear the audio down completely.
+  useEffect(() => () => {
+    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+    audioRef.current?.pause();
+    audioRef.current = null;
+    void ctxRef.current?.close().catch(() => { /* already closed */ });
+    ctxRef.current = null;
+  }, []);
+
+  return { playing, needsTap, toggle };
+}
+
+function Equalizer({ bars = 20, className = "h-6", active = true }: { bars?: number; className?: string; active?: boolean }) {
   const reduced = usePrefersReducedMotion();
   // Deterministic per-bar variety — uneven peaks, durations and delays so the
   // wave reads organic and alive rather than a uniform mechanical sweep.
@@ -21,8 +175,8 @@ function Equalizer({ bars = 20, className = "h-6" }: { bars?: number; className?
           key={i}
           className="flex-1 rounded-full bg-gradient-to-b from-os-accent/40 via-os-accent to-os-accent/40 shadow-[0_0_10px_-3px_rgb(var(--os-accent)/0.65)]"
           style={
-            reduced
-              ? { height: `${b.peak}%` }
+            reduced || !active
+              ? { height: `${b.peak}%`, transform: active ? undefined : "scaleY(0.3)", transition: "transform 600ms ease" }
               : { height: `${b.peak}%`, transformOrigin: "center", animation: `os-eqc ${b.dur}ms ease-in-out ${b.delay}ms infinite alternate` }
           }
         />
@@ -33,7 +187,7 @@ function Equalizer({ bars = 20, className = "h-6" }: { bars?: number; className?
 }
 
 /** Now-playing panel — Radio is a feature of the Utilities bot. */
-function NowPlayingPanel() {
+function NowPlayingPanel({ playing, needsTap, onToggle }: { playing: boolean; needsTap: boolean; onToggle: () => void }) {
   return (
     <div className="relative overflow-hidden rounded-[26px] border border-os-ink-line bg-gradient-to-b from-os-ink-2/85 to-os-ink/85 p-5 shadow-[inset_0_1px_0_rgb(var(--os-ink-heading)/0.1),0_30px_70px_-30px_rgb(0_0_0/0.85)] backdrop-blur-sm sm:p-6">
       <div aria-hidden className="pointer-events-none absolute -top-20 left-1/2 h-44 w-44 -translate-x-1/2 rounded-full bg-os-accent/15 blur-3xl" />
@@ -46,7 +200,7 @@ function NowPlayingPanel() {
       </div>
 
       <div className="relative mt-5 flex h-40 items-center justify-center overflow-hidden rounded-2xl border border-os-ink-line/70 bg-os-ink/55 px-5 shadow-[inset_0_1px_0_rgb(var(--os-ink-heading)/0.06)]">
-        <Equalizer bars={26} className="h-24 w-full" />
+        <Equalizer bars={26} className="h-24 w-full" active={playing} />
       </div>
 
       <div className="relative mt-5">
@@ -68,9 +222,18 @@ function NowPlayingPanel() {
           <button type="button" aria-label="Previous" className="text-os-faint transition-colors hover:text-os-ink-heading">
             <SkipBack size={17} strokeWidth={2} aria-hidden />
           </button>
-          <span className="grid h-12 w-12 flex-none place-items-center rounded-full bg-os-accent text-os-accent-ink shadow-[0_0_26px_-6px_rgb(var(--os-accent)/0.85)]">
-            <Play size={17} className="ml-0.5" aria-hidden />
-          </span>
+          <button
+            type="button"
+            aria-label={playing ? "Pause the station" : "Play the station"}
+            aria-pressed={playing}
+            onClick={onToggle}
+            className={cn(
+              "grid h-12 w-12 flex-none cursor-pointer place-items-center rounded-full bg-os-accent text-os-accent-ink shadow-[0_0_26px_-6px_rgb(var(--os-accent)/0.85)] transition-transform hover:scale-105",
+              needsTap && !playing && "animate-pulse",
+            )}
+          >
+            {playing ? <Pause size={17} aria-hidden /> : <Play size={17} className="ml-0.5" aria-hidden />}
+          </button>
           <button type="button" aria-label="Next" className="text-os-faint transition-colors hover:text-os-ink-heading">
             <SkipForward size={17} strokeWidth={2} aria-hidden />
           </button>
@@ -135,11 +298,15 @@ const COUNT = 3;
 export function RadioFeature() {
   const [slide, setSlide] = useState(0);
   const go = (d: number) => setSlide((s) => (s + d + COUNT) % COUNT);
+  const sectionRef = useRef<HTMLElement>(null);
+  // Live station audio: fades in as this section approaches the viewport
+  // center, fades out on the way past — and only while the Radio slide is up.
+  const { playing, needsTap, toggle } = useProximityRadio(sectionRef, slide === 0);
   const arrow =
     "absolute top-1/2 z-20 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full border border-os-ink-line bg-os-ink-2/70 text-os-ink-body backdrop-blur-sm transition-colors hover:border-os-accent hover:text-os-accent";
 
   return (
-    <section id="radio" className="relative mt-28 flex min-h-[100svh] flex-col justify-center overflow-hidden bg-os-ink py-20 md:mt-40 md:py-28">
+    <section ref={sectionRef} id="radio" className="relative mt-28 flex min-h-[100svh] flex-col justify-center overflow-hidden bg-os-ink py-20 md:mt-40 md:py-28">
       <button type="button" aria-label="Previous" onClick={() => go(-1)} className={cn(arrow, "left-3 md:left-12")}>
         <ChevronLeft size={20} aria-hidden />
       </button>
@@ -162,7 +329,7 @@ export function RadioFeature() {
                   cta={{ label: "Explore Utilities", to: "/bots" }}
                 />
               </div>
-              <div className="lg:col-span-5"><NowPlayingPanel /></div>
+              <div className="lg:col-span-5"><NowPlayingPanel playing={playing} needsTap={needsTap} onToggle={toggle} /></div>
             </div>
 
             {/* slide 2 — Protection */}
