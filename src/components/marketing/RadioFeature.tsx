@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 // when the listener is actually enabled, so the page-load cost is zero.
 // Swap the track by replacing public/radio-loop.mp3.
 const RADIO_SRC = "/radio-loop.mp3";
-const RADIO_MAX_VOL = 0.4;
+const RADIO_MAX_VOL = 0.18; // background-ambience level, never loud
 
 function useProximityRadio(sectionRef: React.RefObject<HTMLElement>, slideActive: boolean) {
   const [playing, setPlaying] = useState(false); // user-intent: station on
@@ -28,9 +28,8 @@ function useProximityRadio(sectionRef: React.RefObject<HTMLElement>, slideActive
   const gainRef = useRef<GainNode | null>(null);
   const enabledRef = useRef(false);
   const userMutedRef = useRef(false); // explicit pause — stop auto-restarting
-  const triedAutoRef = useRef(false);
+  const triedAutoRef = useRef(false); // one autoplay attempt per approach
   const proxRef = useRef(0);
-  const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const slideRef = useRef(slideActive);
   slideRef.current = slideActive;
 
@@ -67,18 +66,11 @@ function useProximityRadio(sectionRef: React.RefObject<HTMLElement>, slideActive
     const gain = gainRef.current;
     if (ctx && gain) gain.gain.setTargetAtTime(target, ctx.currentTime, 0.4);
     else try { a.volume = target; } catch { /* iOS read-only volume */ }
-    // Fully faded out → actually pause after the tail, so a page parked far
-    // from the section isn't holding an audio stream open. Coming back
-    // (target > 0) resumes seamlessly.
-    if (enabledRef.current) {
-      if (target <= 0.002) {
-        if (!pauseTimerRef.current && !a.paused) {
-          pauseTimerRef.current = setTimeout(() => { pauseTimerRef.current = null; a.pause(); }, 1600);
-        }
-      } else {
-        if (pauseTimerRef.current) { clearTimeout(pauseTimerRef.current); pauseTimerRef.current = null; }
-        if (a.paused) a.play().catch(() => { /* lost permission — next tap re-enables */ });
-      }
+    // Once enabled the element keeps looping at gain 0 when far away (a 27s
+    // decoded loop is negligible), so coming back never needs a fresh play()
+    // call — which the browser could refuse outside a user gesture.
+    if (enabledRef.current && a.paused) {
+      a.play().catch(() => { /* will be unlocked by the next interaction */ });
     }
   };
 
@@ -126,7 +118,10 @@ function useProximityRadio(sectionRef: React.RefObject<HTMLElement>, slideActive
       const vh = window.innerHeight || 1;
       const center = r.top + r.height / 2 - vh / 2;
       proxRef.current = Math.max(0, 1 - Math.abs(center) / vh);
-      if (!enabledRef.current && !userMutedRef.current && !triedAutoRef.current && slideRef.current && proxRef.current > 0.35) {
+      // Try to self-start on every fresh approach (not just once) — if the
+      // browser refuses, the first interaction anywhere unlocks it instead.
+      if (proxRef.current < 0.05) triedAutoRef.current = false;
+      if (!enabledRef.current && !userMutedRef.current && !triedAutoRef.current && slideRef.current && proxRef.current > 0.3) {
         triedAutoRef.current = true;
         void enable().then((ok) => { if (!ok) setNeedsTap(true); });
       }
@@ -144,12 +139,32 @@ function useProximityRadio(sectionRef: React.RefObject<HTMLElement>, slideActive
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // The browser only permits sound after SOME user interaction — so the very
+  // first click/tap/keypress anywhere on the page quietly unlocks the station
+  // (at gain 0 unless the section is in view). By the time anyone scrolls to
+  // the radio, it simply plays on its own — no button press needed.
+  useEffect(() => {
+    const unlock = () => {
+      if (enabledRef.current || userMutedRef.current) { cleanup(); return; }
+      void enable().then((ok) => { if (ok) { setNeedsTap(false); cleanup(); } });
+    };
+    const cleanup = () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+      window.removeEventListener("touchend", unlock);
+    };
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    window.addEventListener("touchend", unlock);
+    return cleanup;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Carousel flips → refade immediately.
   useEffect(() => { applyVolume(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [slideActive]);
 
   // Unmount → tear the audio down completely.
   useEffect(() => () => {
-    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
     audioRef.current?.pause();
     audioRef.current = null;
     void ctxRef.current?.close().catch(() => { /* already closed */ });
