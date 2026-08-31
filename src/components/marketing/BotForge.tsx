@@ -1132,27 +1132,19 @@ export function BotForge() {
           aria-live="polite"
         >
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-os-hairline/40 bg-os-surface/90 px-10 py-8 shadow-2xl">
-            {/* Same self-drawing mountain ridge as the route/dashboard loaders
+            {/* Same ghost-loading shimmer as the route/dashboard skeletons
                 (see RouteFallback in App.tsx) so every wait screen shares one
                 identity. Duplicated markup on purpose — single-paste files. */}
             <style>{`
-              @keyframes os-ridge-draw{0%{stroke-dashoffset:340}55%{stroke-dashoffset:0}78%{stroke-dashoffset:0}100%{stroke-dashoffset:-340}}
-              .os-ridge path{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:2}
-              .os-ridge .draw{stroke:#C9DBE6;stroke-dasharray:340;stroke-dashoffset:340;animation:os-ridge-draw 2.6s cubic-bezier(.45,.05,.35,1) infinite;filter:drop-shadow(0 0 10px rgba(201,219,230,.35))}
-              .os-ridge .ghost{stroke:rgba(201,219,230,.14)}
-              @media (prefers-reduced-motion: reduce){.os-ridge .draw{animation:none;stroke-dashoffset:0}}
+              @keyframes os-ghost{0%{background-position:200% 0}100%{background-position:-200% 0}}
+              .os-ghost{border-radius:8px;background:linear-gradient(90deg,rgba(201,219,230,.08) 25%,rgba(201,219,230,.2) 50%,rgba(201,219,230,.08) 75%);background-size:200% 100%;animation:os-ghost 1.5s ease-in-out infinite}
+              @media (prefers-reduced-motion: reduce){.os-ghost{animation:none;background:rgba(201,219,230,.12)}}
             `}</style>
-            <svg
-              className="os-ridge"
-              width="150"
-              height="58"
-              viewBox="0 0 190 74"
-              style={{ overflow: "visible" }}
-              aria-hidden
-            >
-              <path className="ghost" d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70" />
-              <path className="draw" d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70" />
-            </svg>
+            <div className="flex w-40 flex-col gap-2" aria-hidden>
+              <div className="os-ghost" style={{ height: 10, width: "100%" }} />
+              <div className="os-ghost" style={{ height: 10, width: "72%" }} />
+              <div className="os-ghost" style={{ height: 10, width: "88%" }} />
+            </div>
             <div className="text-sm font-semibold text-os-heading">Placing your order…</div>
             <div className="text-xs text-os-faint">
               Setting everything up — this takes a few seconds. Don't close this tab.

@@ -1946,30 +1946,53 @@ const BotDashboard = () => {
   const liveIds = useMemo(() => owned.filter((b) => isLive(b)).map((b) => b.id), [owned]);
   const liveStatuses = useLiveBotStatuses(liveIds);
 
-  // First data load of the session (auth restore + bot list) — same
-  // self-drawing ridge as the route loader so loading feels like one system.
+  // First data load of the session (auth restore + bot list) — ghost loading:
+  // skeleton blocks in the shape of the dashboard (top bar, heading, bot
+  // cards) with a shimmer sweep, same language as the route fallback.
   // Revisits skip this entirely thanks to the useOwnedBots snapshot cache.
   if (loading || botsLoading) return (
     <div
       role="status"
       aria-label="Loading"
-      className="min-h-screen flex items-center justify-center"
-      style={{
-        background:
-          "radial-gradient(120% 90% at 50% 115%, rgba(201,219,230,.10), transparent 55%), linear-gradient(180deg, #293038, #1a1f25)",
-      }}
+      className="min-h-screen"
+      style={{ background: "linear-gradient(180deg, #232930, #1a1f25)" }}
     >
       <style>{`
-        @keyframes os-ridge-draw{0%{stroke-dashoffset:340}55%{stroke-dashoffset:0}78%{stroke-dashoffset:0}100%{stroke-dashoffset:-340}}
-        .os-ridge path{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:2}
-        .os-ridge .draw{stroke:#C9DBE6;stroke-dasharray:340;stroke-dashoffset:340;animation:os-ridge-draw 2.6s cubic-bezier(.45,.05,.35,1) infinite;filter:drop-shadow(0 0 10px rgba(201,219,230,.35))}
-        .os-ridge .ghost{stroke:rgba(201,219,230,.14)}
-        @media (prefers-reduced-motion: reduce){.os-ridge .draw{animation:none;stroke-dashoffset:0}}
+        @keyframes os-ghost{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        .os-ghost{border-radius:10px;background:linear-gradient(90deg,rgba(201,219,230,.07) 25%,rgba(201,219,230,.16) 50%,rgba(201,219,230,.07) 75%);background-size:200% 100%;animation:os-ghost 1.5s ease-in-out infinite}
+        @media (prefers-reduced-motion: reduce){.os-ghost{animation:none;background:rgba(201,219,230,.09)}}
       `}</style>
-      <svg className="os-ridge" width="190" height="74" viewBox="0 0 190 74" style={{ overflow: "visible" }} aria-hidden>
-        <path className="ghost" d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70" />
-        <path className="draw" d="M4 70 L44 26 L62 44 L95 6 L128 42 L148 24 L186 70" />
-      </svg>
+      <div
+        className="flex items-center justify-between px-6 py-4"
+        style={{ borderBottom: "1px solid rgba(168,180,191,.08)" }}
+      >
+        <div className="os-ghost" style={{ width: 120, height: 28 }} />
+        <div className="os-ghost" style={{ width: 36, height: 36, borderRadius: 999 }} />
+      </div>
+      <div className="mx-auto w-full max-w-5xl px-6 pt-10">
+        <div className="os-ghost" style={{ width: 200, height: 30, marginBottom: 10 }} />
+        <div className="os-ghost" style={{ width: 300, height: 14, marginBottom: 32 }} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[0, 1].map((i) => (
+            <div
+              key={i}
+              className="rounded-2xl p-5"
+              style={{ border: "1px solid rgba(168,180,191,.10)", background: "rgba(46,54,63,.35)" }}
+            >
+              <div className="flex items-center gap-3" style={{ marginBottom: 16 }}>
+                <div className="os-ghost" style={{ width: 44, height: 44, borderRadius: 12 }} />
+                <div className="flex-1">
+                  <div className="os-ghost" style={{ width: "55%", height: 14, marginBottom: 7 }} />
+                  <div className="os-ghost" style={{ width: "35%", height: 11 }} />
+                </div>
+              </div>
+              <div className="os-ghost" style={{ width: "100%", height: 12, marginBottom: 8 }} />
+              <div className="os-ghost" style={{ width: "80%", height: 12, marginBottom: 16 }} />
+              <div className="os-ghost" style={{ width: 110, height: 34, borderRadius: 10 }} />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
   if (!user) return null;

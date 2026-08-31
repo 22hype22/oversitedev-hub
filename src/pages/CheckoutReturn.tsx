@@ -8,7 +8,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMembership } from "@/hooks/useMembership";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
 import { DiscordJoinGate } from "@/components/checkout/DiscordJoinGate";
-import dashboardBg from "@/assets/dashboardBg";
+// Real image asset instead of the old ~220KB base64-in-JS module (see
+// SystemScreen.tsx) — shared with the dashboard so it's usually cached already.
+import dashboardBg from "@/assets/containers.webp";
 import { track } from "@/lib/analytics";
 
 // Self-contained "system page" shell (mountain backdrop + frosted slate glass).
