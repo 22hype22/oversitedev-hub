@@ -27,6 +27,12 @@ function resolveStripeEnv(): StripeEnv {
 }
 
 const PAID_STATUSES = ["paid", "ready"] as const;
+
+// Only Discord bots are billed monthly hosting. ER:LC / Roblox bots
+// (dispatch, erlc-spec, customs) are ONE-TIME purchases hosted free and must
+// NEVER count toward the hosting subscription. Allowlist the billable bases so
+// any future ER:LC base defaults to free rather than being charged by mistake.
+const BILLABLE_BASES = new Set(["protection", "support", "utilities", "scratch"]);
 const ACTIVE_SUB_STATUSES = new Set([
   "active",
   "trialing",
@@ -102,14 +108,18 @@ serve(async (req) => {
     const user = userRes?.user;
     if (!user) return new Response("Unauthorized", { status: 401, headers: corsHeaders });
 
-    // Count this user's paid (and ready) bots.
-    const { count, error: countErr } = await admin
+    // Count this user's paid (and ready) bots that are actually billable —
+    // Discord bots only. ER:LC / Roblox bots are one-time and hosted free, so
+    // they must never add to the monthly hosting subscription.
+    const { data: paidRows, error: countErr } = await admin
       .from("bot_orders")
-      .select("id", { count: "exact", head: true })
+      .select("base")
       .eq("user_id", user.id)
       .in("status", PAID_STATUSES as unknown as string[]);
     if (countErr) throw countErr;
-    const paidBots = count ?? 0;
+    const paidBots = (paidRows ?? []).filter(
+      (r: { base: string | null }) => BILLABLE_BASES.has((r.base ?? "").toLowerCase().trim()),
+    ).length;
 
     // Short-circuit: users who redeemed a billing override code are
     // paying off-platform (e.g. PayPal) — never create or modify a
