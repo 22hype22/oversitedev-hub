@@ -87,7 +87,7 @@ const TERMS: Section[] = [
     "You are solely responsible for how the bots are configured and used in the servers you control, and for ensuring that use complies with all applicable rules and laws. We may suspend or remove bots that we reasonably believe violate these Terms or create risk.",
   ]},
   { h: "6. Fees, subscriptions & renewals", body: [
-    "Some Services require a one-time build/setup fee and an ongoing monthly subscription for hosting, as shown at checkout. By purchasing, you authorize Oversite and Stripe to charge your selected payment method for the one-time fee and for the recurring monthly fee, which automatically renews each month at the then-current price until you cancel.",
+    "Some Services require a one-time build/setup fee and an ongoing monthly subscription for hosting, as shown at checkout; others (such as our ER:LC / Roblox bots) are one-time purchases with hosting included and no recurring fee. By purchasing, you authorize Oversite and Stripe to charge your selected payment method for the amounts shown at checkout — including, where applicable, a recurring monthly fee that automatically renews each month at the then-current price until you cancel.",
     "You may cancel at any time. When you cancel, your bot remains active through the end of the month you have already paid for, and is then removed from your server. Billing details, cancellation, and refunds are described in our Sales & Refunds policy, which is part of these Terms.",
   ]},
   { h: "7. Your content & license to operate", body: [
@@ -128,11 +128,12 @@ const TERMS: Section[] = [
 
 const REFUNDS: Section[] = [
   { h: "1. What you are purchasing", body: [
-    "Oversite bots are sold as a one-time build/setup fee plus an ongoing monthly hosting subscription, as shown at checkout. The one-time fee covers building and deploying your bot; the monthly fee keeps it hosted, maintained, and online.",
+    "Most Oversite Discord bots are sold as a one-time build/setup fee plus an ongoing monthly hosting subscription, as shown at checkout. The one-time fee covers building and deploying your bot; the monthly fee keeps it hosted, maintained, and online.",
+    "Some products — including our ER:LC / Roblox bots (for example Dispatch and Customs) — are one-time purchases with hosting included at no additional charge, and have no recurring monthly fee. What applies to your order is always shown at checkout before you pay and is what governs your purchase.",
     "Prices are listed at checkout and may exclude applicable taxes, which will be added where required.",
   ]},
   { h: "2. Billing & automatic renewal", body: [
-    "Payments are processed securely by Stripe. When you purchase, you are charged the one-time fee and your first monthly fee. The monthly subscription then automatically renews each month at the then-current price, charged to your payment method on file, until you cancel. By purchasing, you authorize these recurring charges.",
+    "Payments are processed securely by Stripe. For bots that include a monthly hosting subscription, you are charged the one-time fee and your first monthly fee at purchase, and the monthly subscription then automatically renews each month at the then-current price, charged to your payment method on file, until you cancel. By purchasing, you authorize these recurring charges. Products sold as one-time purchases (such as our ER:LC / Roblox bots) are charged once and do not renew.",
   ]},
   { h: "3. Cancellation", body: [
     "You can cancel your subscription at any time from your account settings or by emailing " + SUPPORT + ". When you cancel, your bot stays active through the end of the month you have already paid for; after that period ends, the subscription stops, no further charges are made, and the bot is removed from your server. We do not provide partial-month refunds for cancellations (see the money-back guarantee below).",
