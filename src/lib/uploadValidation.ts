@@ -61,6 +61,13 @@ export const UPLOAD_LIMITS = {
     exts: [...IMAGE_EXTS, ...DOC_EXTS],
     label: "images or docs (PDF, TXT, LOG, JSON, CSV, ZIP) up to 25 MB",
   },
+  /** bot-assets images only (e.g. /say message attachments). */
+  botImage: {
+    maxBytes: 25 * MB,
+    mimes: IMAGE_MIMES,
+    exts: IMAGE_EXTS,
+    label: "PNG, JPG, GIF or WebP up to 25 MB",
+  },
 } satisfies Record<string, UploadLimit>;
 
 /** Anything larger than this many megapixels is treated as a decompression

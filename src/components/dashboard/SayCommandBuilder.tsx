@@ -30,7 +30,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { resolveContentType } from "@/lib/uploadValidation";
+import { resolveContentType, validateImageUpload, UPLOAD_LIMITS } from "@/lib/uploadValidation";
 import { safeUrl, safeImageSrc } from "@/lib/sanitize";
 import { GuildChannelPicker } from "./GuildChannelPicker";
 import type { BotGuild, BotChannel } from "@/hooks/useGuildChannels";
@@ -134,7 +134,6 @@ export const SayCommandBuilder = forwardRef<
   // Files actually attached by the user
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
   type SavedDraft = {
     id: string;
@@ -710,16 +709,17 @@ export const SayCommandBuilder = forwardRef<
             multiple
             accept="image/png,image/jpeg,image/gif,image/webp"
             className="hidden"
-            onChange={(e) => {
+            onChange={async (e) => {
               const picked = Array.from(e.target.files ?? []);
+              // Allow re-selecting the same file later (reset now, before await).
+              if (fileInputRef.current) fileInputRef.current.value = "";
               const accepted: File[] = [];
               for (const f of picked) {
-                if (!f.type.startsWith("image/")) {
-                  toast.error(`${f.name} isn't an image.`);
-                  continue;
-                }
-                if (f.size > MAX_FILE_BYTES) {
-                  toast.error(`${f.name} is over the 25 MB limit.`);
+                // Shared guard: hard denylist (svg/html/js/exe…), MIME + extension
+                // allowlist, size cap, and a real image-decode / pixel-bomb check.
+                const check = await validateImageUpload(f, UPLOAD_LIMITS.botImage);
+                if (!check.ok) {
+                  toast.error(check.error ?? `${f.name} isn't an allowed image.`);
                   continue;
                 }
                 accepted.push(f);
@@ -727,8 +727,6 @@ export const SayCommandBuilder = forwardRef<
               if (accepted.length) {
                 setFiles((prev) => [...prev, ...accepted]);
               }
-              // Allow re-selecting the same file later
-              if (fileInputRef.current) fileInputRef.current.value = "";
             }}
           />
           {files.length > 0 && (
