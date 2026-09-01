@@ -10,6 +10,7 @@ import {
   BOT_BASE_TAGLINES,
   getAddonLabel,
   getIncludedAddonsForBase,
+  isRobloxBase,
 } from "@/lib/botCatalog";
 import { supabase } from "@/integrations/supabase/client";
 import { SystemScreen, SystemCard, SystemBadge } from "@/pages/SystemScreen";
@@ -713,7 +714,9 @@ const BotSection = ({
       </span>,
     );
   }
-  if (bot.monthly_hosting) {
+  // ER:LC / Roblox bots are hosted free — never show a monthly-hosting chip on
+  // them even if an older order row still has monthly_hosting=true stored.
+  if (bot.monthly_hosting && !isRobloxBase(bot.base)) {
     secondaryMeta.push(
       <span key="hosting" className="inline-flex items-center gap-1">
         <Server className="h-3 w-3" />

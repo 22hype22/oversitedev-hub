@@ -3,6 +3,7 @@
 // then enqueues a leave_guild command so the worker pulls each bot out of
 // every server it's in.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { isBillableBase } from "../_shared/billing.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -12,11 +13,17 @@ const supabase = createClient(
 async function expireOne(sub: { id: string; user_id: string }) {
   const { data: bots } = await supabase
     .from("bot_orders")
-    .select("id")
+    .select("id, base")
     .eq("user_id", sub.user_id)
     .in("status", ["paid", "ready"]);
 
-  const botIds = (bots ?? []).map((b: any) => b.id);
+  // Only cancel bots that are actually billed monthly hosting. ER:LC / Roblox
+  // bots (dispatch, erlc-spec, customs) are one-time purchases hosted free —
+  // they never contributed to this subscription, so a lapsed Discord-hosting
+  // payment must NOT pull them offline.
+  const botIds = (bots ?? [])
+    .filter((b: any) => isBillableBase(b.base))
+    .map((b: any) => b.id);
 
   if (botIds.length > 0) {
     await supabase

@@ -351,9 +351,15 @@ export const BotBuilder = () => {
   const [submitting, setSubmitting] = useState(false);
   const [paymentPlan, setPaymentPlan] = useState<"full" | "3" | "6" | "10">("full");
   const [engineVersion, setEngineVersion] = useState<"v1" | "v2">("v1");
-  // Managed hosting is always included on every bot — pricing is tiered
-  // per bot the user already owns ($5 for bot 1, $5 for bot 2, 3rd is free).
-  const monthlyHosting = true;
+  // Managed hosting is billed for Discord bots only — ER:LC / Roblox bots
+  // (dispatch, erlc-spec, customs) are one-time purchases hosted free, so their
+  // `monthly_hosting` column must be false. Compute it per bot base at insert.
+  const ROBLOX_BASE_IDS = new Set<string>(["dispatch", "erlc-spec", "customs"]);
+  const rowMonthlyHosting = (base: string) =>
+    !String(base)
+      .split(/[^a-z0-9-]+/i)
+      .filter(Boolean)
+      .every((tok) => ROBLOX_BASE_IDS.has(tok));
   const [discountCodeInput, setDiscountCodeInput] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState<{
     code: string;
@@ -683,7 +689,7 @@ export const BotBuilder = () => {
         banner_url: parentIdentity.banner ?? primary.banner,
         base: parentBase,
         addons: parentAddons,
-        monthly_hosting: monthlyHosting,
+        monthly_hosting: rowMonthlyHosting(parentBase),
         notes: notesField,
         total_amount: finalTotal,
         currency: "usd",
@@ -728,7 +734,7 @@ export const BotBuilder = () => {
             base: t.id,
             // Only this category's addons go on this bot.
             addons: filterAddonsForBase(addons, t.id),
-            monthly_hosting: monthlyHosting,
+            monthly_hosting: rowMonthlyHosting(t.id),
             notes: `Child of pack/multi order ${inserted.id}`,
             total_amount: 0,
             currency: "usd",
@@ -847,7 +853,7 @@ export const BotBuilder = () => {
             banner_url: primary.banner,
             base: baseField,
             addons,
-            monthly_hosting: monthlyHosting,
+            monthly_hosting: rowMonthlyHosting(baseField),
             notes: waitlistNotes,
             total_amount: finalTotal,
             currency: "usd",
