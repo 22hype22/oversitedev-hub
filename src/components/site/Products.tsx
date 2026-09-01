@@ -680,7 +680,7 @@ export const Products = () => {
               Storefront
             </div>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
-              Browse the <span className="text-gradient">catalog</span>
+              Browse the <span className="text-primary">catalog</span>
             </h1>
             <p className="mt-3 text-muted-foreground text-lg">
               Premium systems and assets for your community. Instant delivery on every order.
@@ -806,7 +806,7 @@ export const Products = () => {
               Monthly Subscriptions
             </div>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-              Choose your <span className="text-gradient">growth plan</span>
+              Choose your <span className="text-primary">growth plan</span>
             </h2>
             <p className="mt-3 text-muted-foreground">
               Flexible monthly pricing to fit any community's needs.
@@ -824,7 +824,7 @@ export const Products = () => {
                 }`}
               >
                 {s.popular && !suspended && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase bg-primary text-primary-foreground shadow-glow">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase bg-primary text-primary-foreground">
                     Popular
                   </div>
                 )}
@@ -887,7 +887,7 @@ export const Products = () => {
             All Products
           </div>
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-            One-time <span className="text-gradient">purchases</span>
+            One-time <span className="text-primary">purchases</span>
           </h2>
         </div>
 
@@ -1118,7 +1118,7 @@ export const Products = () => {
           variant="hero"
           size="lg"
           onClick={() => setCartOpen(true)}
-          className="fixed bottom-6 right-6 z-40 rounded-full shadow-glow h-14 pl-5 pr-6 gap-2"
+          className="fixed bottom-6 right-6 z-40 rounded-full shadow-lg h-14 pl-5 pr-6 gap-2"
           aria-label="View cart"
         >
           <ShoppingCart className="h-5 w-5" />
