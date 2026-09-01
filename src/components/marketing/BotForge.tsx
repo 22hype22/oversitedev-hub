@@ -474,9 +474,9 @@ export function BotForge() {
   const [submitting, setSubmitting] = useState(false);
   const [paymentPlan, setPaymentPlan] = useState<"full" | "3" | "6" | "10">("full");
   const [engineVersion, setEngineVersion] = useState<"v1" | "v2">("v1");
-  // Managed hosting is always included on every bot — pricing is tiered
-  // per bot the user already owns ($5 for bot 1, $5 for bot 2, 3rd is free).
-  const monthlyHosting = true;
+  // Managed hosting is billed for Discord bots only — ER:LC / Roblox bots are
+  // hosted free. The per-row `monthly_hosting` column is computed at insert time
+  // from each bot's base (see persistOrder), never hardcoded true.
   // Hosting is billed for Discord bots only — ER:LC / Roblox bots are hosted
   // free. So the monthly fee is waived for a comped account OR any order with
   // no Discord bot in it (e.g. Dispatch on its own).
@@ -844,7 +844,11 @@ export function BotForge() {
         banner_url: parentIdentity.banner ?? primary.banner,
         base: parentBase,
         addons: parentAddons,
-        monthly_hosting: monthlyHosting,
+        // Billed monthly hosting only for Discord bots. ER:LC / Roblox bots
+        // (dispatch, erlc-spec, customs) and comped orders are hosted free, so
+        // this must be false for them — the dashboard badge and any billing
+        // logic key off this column.
+        monthly_hosting: !comped && !isRobloxBase(parentBase),
         notes: notesField,
         total_amount: finalTotal,
         currency: "usd",
@@ -889,7 +893,8 @@ export function BotForge() {
             base: t.id,
             // Only this category's addons go on this bot.
             addons: filterAddonsForBase(addons, t.id),
-            monthly_hosting: monthlyHosting,
+            // Per-row hosting: ER:LC / Roblox sibling bots are hosted free.
+            monthly_hosting: !comped && !isRobloxBase(t.id),
             notes: `Child of pack/multi order ${inserted.id}`,
             total_amount: 0,
             currency: "usd",

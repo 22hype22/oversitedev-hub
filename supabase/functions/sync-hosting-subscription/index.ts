@@ -13,6 +13,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, createStripeClient } from "../_shared/stripe.ts";
+import { isBillableBase } from "../_shared/billing.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -28,11 +29,9 @@ function resolveStripeEnv(): StripeEnv {
 
 const PAID_STATUSES = ["paid", "ready"] as const;
 
-// Only Discord bots are billed monthly hosting. ER:LC / Roblox bots
-// (dispatch, erlc-spec, customs) are ONE-TIME purchases hosted free and must
-// NEVER count toward the hosting subscription. Allowlist the billable bases so
-// any future ER:LC base defaults to free rather than being charged by mistake.
-const BILLABLE_BASES = new Set(["protection", "support", "utilities", "scratch"]);
+// Which bot bases are billed monthly hosting lives in the shared billing
+// module (isBillableBase) so this function and enforce-hosting-grace can never
+// drift apart. ER:LC / Roblox bots are one-time and hosted free.
 const ACTIVE_SUB_STATUSES = new Set([
   "active",
   "trialing",
@@ -118,7 +117,7 @@ serve(async (req) => {
       .in("status", PAID_STATUSES as unknown as string[]);
     if (countErr) throw countErr;
     const paidBots = (paidRows ?? []).filter(
-      (r: { base: string | null }) => BILLABLE_BASES.has((r.base ?? "").toLowerCase().trim()),
+      (r: { base: string | null }) => isBillableBase(r.base),
     ).length;
 
     // Short-circuit: users who redeemed a billing override code are

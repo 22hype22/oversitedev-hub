@@ -4,6 +4,16 @@
  * "Add add-ons" dialog shows the same options and pricing.
  */
 
+// ER:LC / Roblox bots are one-time purchases hosted free — never billed a
+// monthly hosting fee. A `base` value can be compound (e.g. "protection+dispatch")
+// so isRobloxBase is true only when EVERY part is a Roblox base.
+export const ROBLOX_BASE_IDS = new Set<string>(["dispatch", "erlc-spec", "customs"]);
+export function isRobloxBase(base: string | null | undefined): boolean {
+  if (!base) return false;
+  const parts = String(base).split(/[^a-z0-9-]+/i).filter(Boolean);
+  return parts.length > 0 && parts.every((p) => ROBLOX_BASE_IDS.has(p));
+}
+
 export const BOT_BASE_LABELS: Record<string, string> = {
   protection: "Oversite Protection",
   support: "Oversite Support",
