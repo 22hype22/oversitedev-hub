@@ -1969,6 +1969,12 @@ export function BotForge() {
                   {confirmCtaLabel} <ArrowRight />
                 </button>
                 <BotStockIndicator className="mt-2" />
+                <p className="text-[10px] text-os-faint mt-2 leading-relaxed">
+                  By placing your order you agree to Oversite's{" "}
+                  <a href="/terms#terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-os-heading">Terms of Use</a>,{" "}
+                  <a href="/terms#privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-os-heading">Privacy Policy</a>, and{" "}
+                  <a href="/terms#refunds" target="_blank" rel="noopener noreferrer" className="underline hover:text-os-heading">Sales &amp; Refunds</a> policy, including{hostingWaived ? "" : " the automatic monthly renewal,"} the limitation of liability and binding arbitration terms.
+                </p>
               </>
             )}
 

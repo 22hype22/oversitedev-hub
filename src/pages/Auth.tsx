@@ -701,6 +701,14 @@ const Auth = () => {
                   later in Settings. A linked Discord is required before you can purchase a bot.
                 </p>
               )}
+              {mode === "signup" && (
+                <p className="text-[11px] leading-relaxed text-os-faint">
+                  By creating an account you agree to Oversite's{" "}
+                  <a href="/terms#terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-os-heading">Terms of Use</a>{" "}
+                  and{" "}
+                  <a href="/terms#privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-os-heading">Privacy Policy</a>.
+                </p>
+              )}
             </form>
 
             <div className="mt-6 flex items-center justify-between gap-3">
