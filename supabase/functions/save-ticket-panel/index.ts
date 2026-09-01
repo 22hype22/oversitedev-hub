@@ -45,6 +45,60 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // AuthZ: this function runs with the service-role key (bypasses RLS), so it
+    // must verify the caller before touching another bot's config. Require a
+    // valid user session and confirm the caller owns bot_id (or is an admin) —
+    // otherwise anyone could write/delete another bot's posted ticket panels.
+    const authHeader = req.headers.get("authorization") ?? "";
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing authorization" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false, autoRefreshToken: false } },
+    );
+    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userData?.user) {
+      return new Response(JSON.stringify({ error: "Invalid session" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userId = userData.user.id;
+    const { data: ownerRow, error: ownerErr } = await supabase
+      .from("bot_orders")
+      .select("id, user_id")
+      .eq("id", body.bot_id)
+      .maybeSingle();
+    if (ownerErr) {
+      return new Response(JSON.stringify({ error: ownerErr.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!ownerRow) {
+      return new Response(JSON.stringify({ error: "Bot not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (ownerRow.user_id !== userId) {
+      const { data: isAdmin } = await supabase.rpc("has_role", {
+        _user_id: userId,
+        _role: "admin",
+      });
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: "Not bot owner" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Fetch existing row (if any) for this bot + feature.
     const { data: existing, error: selectError } = await supabase
       .from("bot_config")

@@ -35,6 +35,30 @@ serve(async (req) => {
       });
     }
 
+    // AuthZ: this runs with the service-role key and mutates the order (status +
+    // Stripe customer). Require the caller to be signed in and own the order so
+    // nobody can start a card-save flow against someone else's order.
+    const authHeader = req.headers.get("authorization") ?? "";
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Not authenticated" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false, autoRefreshToken: false } },
+    );
+    const { data: userRes } = await userClient.auth.getUser();
+    const caller = userRes?.user;
+    if (!caller) {
+      return new Response(JSON.stringify({ error: "Not authenticated" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const env = resolveStripeEnv();
     const stripe = createStripeClient(env);
 
@@ -49,6 +73,15 @@ serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+    if (order.user_id !== caller.id) {
+      const { data: isAdmin } = await supabaseAdmin.rpc("has_role", { _user_id: caller.id, _role: "admin" });
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     let customerId = order.stripe_customer_id;

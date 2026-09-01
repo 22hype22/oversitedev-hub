@@ -72,13 +72,67 @@ Deno.serve(async (req) => {
 
     const { data: order } = await admin
       .from("bot_orders")
-      .select("id, railway_service_id, status, bot_token")
+      .select("id, user_id, railway_service_id, status, bot_token")
       .eq("id", orderId)
       .maybeSingle();
 
     if (!order) {
       return new Response(JSON.stringify({ error: "Order not found" }), {
         status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── AuthZ ────────────────────────────────────────────────────────────────
+    // This function runs with the service-role key and performs a DESTRUCTIVE
+    // teardown (deletes the Railway service, pulls the bot from every Discord
+    // server, wipes its identity, cancels the order). It is reachable over HTTP
+    // with only the public anon key, so it MUST authorize every caller:
+    //   • Dashboard / admin calls carry the user's JWT → require the caller to
+    //     own the order (or be an admin).
+    //   • The bot_orders cancellation trigger has no user → require a shared
+    //     INTERNAL_DEPLOY_SECRET header.
+    // Transitional: if INTERNAL_DEPLOY_SECRET is not configured yet, no-user
+    // calls are still allowed (today's trigger behavior) but logged, so nothing
+    // breaks on deploy. Set the secret + update the trigger to close that path.
+    const authHeader = req.headers.get("authorization") ?? "";
+    const providedSecret = req.headers.get("x-internal-secret") ?? "";
+    const internalSecret = Deno.env.get("INTERNAL_DEPLOY_SECRET") ?? "";
+
+    let callerUserId: string | null = null;
+    if (authHeader) {
+      const userClient = createClient(
+        supabaseUrl,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false, autoRefreshToken: false } },
+      );
+      const { data: u } = await userClient.auth.getUser();
+      callerUserId = u?.user?.id ?? null;
+    }
+
+    let authorized = false;
+    if (callerUserId) {
+      // A real signed-in user: must own the order, or be an admin.
+      if (order.user_id === callerUserId) {
+        authorized = true;
+      } else {
+        const { data: isAdmin } = await admin.rpc("has_role", { _user_id: callerUserId, _role: "admin" });
+        authorized = !!isAdmin;
+      }
+    } else if (internalSecret) {
+      // No user session: only the internal trigger, holding the shared secret.
+      authorized = providedSecret === internalSecret;
+    } else {
+      // Secret not configured yet — preserve the existing trigger path so
+      // teardown keeps working, but flag it loudly.
+      console.warn("[cancel-bot-deploy] INTERNAL_DEPLOY_SECRET not set — allowing an unauthenticated call. Set the secret and update the cancellation trigger to close this.");
+      authorized = true;
+    }
+
+    if (!authorized) {
+      console.warn("[cancel-bot-deploy] forbidden", { orderId, callerUserId });
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
