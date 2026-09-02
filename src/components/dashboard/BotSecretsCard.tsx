@@ -145,6 +145,9 @@ type SlotMeta = {
   last_four: string;
   updated_at: string | null;
   is_managed: boolean;
+  /** Character length of the saved value (0 when unset / unknown). Length only —
+   *  never the value. Present once the value-length migration is applied. */
+  value_length?: number;
 };
 
 // Remembered character length of each saved secret (per bot) so the masked dots
@@ -164,10 +167,14 @@ function lenSet(botId: string, key: string, n: number) {
     localStorage.setItem(lenKey(botId), JSON.stringify(m));
   } catch { /* ignore */ }
 }
-/** How many mask dots to show for a saved secret: its real length (clamped), or
- *  a default when we don't know it yet. */
-function maskCount(botId: string, key: string): number {
-  const n = lenGet(botId)[key] || 0;
+/** How many mask dots to show for a saved secret: its real length (clamped),
+ *  preferring the backend-reported length (works for keys set on any device),
+ *  falling back to the length we remembered locally at save time, then a
+ *  default when neither is known. */
+function maskCount(botId: string, slot: SlotMeta): number {
+  const n = (slot.value_length && slot.value_length > 0)
+    ? slot.value_length
+    : (lenGet(botId)[slot.key] || 0);
   if (!n) return MASK_DEFAULT;
   return Math.min(MASK_MAX, Math.max(4, n));
 }
@@ -424,7 +431,7 @@ function SecretRow({
           {/* Masked — the stored value is never displayed, even to the owner.
               The dot count mirrors the saved value's length (clamped), not a
               fixed row, so different keys read as different lengths. */}
-          <span className="dots">{"•".repeat(maskCount(bot.id, slot.key))}</span>
+          <span className="dots">{"•".repeat(maskCount(bot.id, slot))}</span>
           <span className="btns">
             <button type="button" className="mini" onClick={() => setEditing(true)}>
               Replace
