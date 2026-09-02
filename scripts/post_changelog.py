@@ -2,10 +2,13 @@
 """Post the weekly changelog to #package-updates as the Oversite bot.
 
 Input (stdin): plain text. A line starting with "## " starts a NEW BOX (its own
-code block / message) and becomes that box's first line. Inside a box:
-  "+ " -> green   (bug fixes / things added)
-  "~ " -> yellow  (updates / changes to existing behavior)
-Anything else is left uncolored. Red/minus is intentionally not used.
+code block / message) and becomes that box's first line. Colors, by content:
+  "+ Fixed ..."  -> orange  (bug fixes)
+  "+ ..."        -> green   (things added or changed)
+  "- ..."        -> red     (things removed)
+Anything else is left uncolored.
+EDIT_IDS=<id>,<id>,... edits those existing messages in place (box order) instead
+of posting new ones; DELETE_IDS=... deletes messages first.
 Each box is posted as its own message so every bot gets its own box.
 The bot token comes from the Railway service variables at runtime; never logged.
 """
@@ -26,10 +29,12 @@ def bot_token():
     with urllib.request.urlopen(req, timeout=30) as r:
         return json.load(r)["data"]["variables"]["DISCORD_TOKEN"]
 
-GREEN, YELLOW, RESET = "\x1b[32m", "\x1b[33m", "\x1b[0m"
+GREEN, ORANGE, RED, RESET = "\x1b[32m", "\x1b[33m", "\x1b[31m", "\x1b[0m"
 def color(line):
-    if line.startswith("+ "): return GREEN + line + RESET
-    if line.startswith("~ "): return YELLOW + line + RESET
+    low = line.lower()
+    if low.startswith("- "): return RED + line + RESET
+    if low.startswith("+ fixed"): return ORANGE + line + RESET
+    if low.startswith("+ "): return GREEN + line + RESET
     return line
 
 def boxes(text):
@@ -49,6 +54,13 @@ def post(token, content):
     with urllib.request.urlopen(req, timeout=30) as r:
         return json.load(r)["id"]
 
+def edit(token, mid, content):
+    body = json.dumps({"content": content, "allowed_mentions": {"parse": []}}).encode()
+    req = urllib.request.Request(f"https://discord.com/api/v10/channels/{CHANNEL}/messages/{mid}", data=body, method="PATCH",
+                                 headers={"Authorization": f"Bot {token}", "Content-Type": "application/json", "User-Agent": UA_DC})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.load(r)["id"]
+
 def delete(token, mid):
     req = urllib.request.Request(f"https://discord.com/api/v10/channels/{CHANNEL}/messages/{mid}", method="DELETE",
                                  headers={"Authorization": f"Bot {token}", "User-Agent": UA_DC})
@@ -60,14 +72,16 @@ def main():
     for mid in (os.environ.get("DELETE_IDS") or "").split(","):
         if mid.strip(): print("deleted", mid.strip(), delete(tok, mid.strip()))
     text = sys.stdin.read()
+    edit_ids = [m.strip() for m in (os.environ.get("EDIT_IDS") or "").split(",") if m.strip()]
     ids = []
-    for box in boxes(text):
+    for i, box in enumerate(boxes(text)):
         # strip trailing blank lines inside a box
         while box and not box[-1].strip(): box.pop()
         content = "```ansi\n" + "\n".join(color(l) for l in box) + "\n```"
         if len(content) > 1990: raise SystemExit(f"box too long ({len(content)} chars): {box[0]}")
-        ids.append(post(tok, content))
-    print("posted message id(s):", ", ".join(ids))
+        if i < len(edit_ids): ids.append(edit(tok, edit_ids[i], content) + " (edited)")
+        else: ids.append(post(tok, content))
+    print("message id(s):", ", ".join(ids))
 
 if __name__ == "__main__":
     main()

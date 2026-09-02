@@ -35,13 +35,15 @@ Oversite Dispatch, Oversite Customs, then **Website & Dashboard**.
 
 ## Colors
 
-| prefix | color  | use for                                  |
-|--------|--------|------------------------------------------|
-| `+ `   | green  | bug fixes and things added               |
-| `~ `   | yellow | updates / changes to existing behavior   |
+Every line starts with `+ ` or `- `. The color comes from the wording:
 
-Do **not** use `- ` (red). If something was removed, say what changed instead
-as a `~ ` line, or leave it out.
+| line looks like        | color  | use for                               |
+|------------------------|--------|---------------------------------------|
+| `+ Added ...` / `+ ...` | green  | things added or changed               |
+| `+ Fixed bug where ...` | orange | bug fixes                             |
+| `- Removed ...`         | red    | things taken out                      |
+
+Inside a box, list added/changed lines first, then fixes, then removals.
 
 ## Voice — write it like a person
 
@@ -89,8 +91,8 @@ on a weekly cron for Monday morning (e.g. 9:04 AM) with this prompt:
 > cross-check it against the last 7 days of commits from oversite-customs `main`
 > and oversitedev-hub `redesign` for anything missed, keep one line per feature
 > (merge repeat adjustments into a single line, never duplicate), one box per
-> bot plus a Website & Dashboard box, green `+` for fixes and additions, yellow
-> `~` for changes, never red, in plain human wording like "Fixed bug where …",
+> bot plus a Website & Dashboard box, green for added/changed lines, orange for
+> `+ Fixed bug where` lines, red for `- Removed` lines, in plain human wording like "Fixed bug where …",
 > no emojis or em dashes, then post with `python3 scripts/post_changelog.py`,
 > archive the draft to `docs/changelogs/<date>.txt`, reset the draft with next
 > week's empty boxes, and commit that to both `claude/happy-ritchie-stxxpu` and
