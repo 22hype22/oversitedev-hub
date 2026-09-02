@@ -140,6 +140,9 @@ Deno.serve(async (req) => {
             const rank = await robloxRank(robloxId, String(g.roblox_group_id));
             ok = rank > 0 && rank >= Number(g.roblox_min_rank || 1);
           }
+        } else if (g.kind === "roblox_user") {
+          // A specific Roblox account, invited by username (stored as its id).
+          ok = !!robloxId && String(g.roblox_user_id) === robloxId;
         }
       } catch (_) { ok = false; }
       if (!ok) continue;
