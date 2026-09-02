@@ -4,7 +4,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,7 +46,7 @@ type Member = {
   invite_token: string | null;
 };
 
-type TabKey = "members" | "roles" | "access" | "support";
+type TabKey = "members" | "roles" | "support";
 type RoleKey = "admin" | "moderator" | "viewer";
 
 const ROLE_OPTIONS: { key: RoleKey; label: string }[] = [
@@ -222,6 +221,16 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
   const [roleMenuEmail, setRoleMenuEmail] = useState<string | null>(null);
 
   const [inviteOpen, setInviteOpen] = useState(false);
+  // Bumped whenever an identity rule is added/removed so the rules list and the
+  // member source badges refresh together.
+  const [rulesVersion, setRulesVersion] = useState(0);
+  // lower(member_email) -> the access grant that materialized that member row
+  // (null for real email invites). Lets the roster badge Discord/Roblox members.
+  const [memberSource, setMemberSource] = useState<Record<string, string>>({});
+  // Standing identity rules for the selected group (Discord role / Roblox rank /
+  // specific Discord or Roblox people). Shown under the roster; also used to
+  // badge which sign-in a member came through.
+  const [grants, setGrants] = useState<AccessGrant[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [transferEmail, setTransferEmail] = useState<string | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
@@ -293,6 +302,20 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
       });
       if (error) throw error;
       setMembers((Array.isArray(data) ? data : []) as Member[]);
+      // Which of these rows came from an identity rule (Discord/Roblox) rather
+      // than an email invite — the roster reads the same table the resolver
+      // writes, tagged by access_grant_id.
+      try {
+        const { data: rows } = await (supabase as any)
+          .from("dashboard_team")
+          .select("member_email, access_grant_id")
+          .not("access_grant_id", "is", null);
+        const map: Record<string, string> = {};
+        for (const r of (rows ?? []) as { member_email: string; access_grant_id: string }[]) {
+          map[(r.member_email ?? "").toLowerCase()] = r.access_grant_id;
+        }
+        setMemberSource(map);
+      } catch { /* badges are cosmetic */ }
     } catch (e: any) {
       toast.error("Couldn't load members", { description: e?.message });
       setMembers([]);
@@ -305,6 +328,36 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
     if (selectedGroupId) void loadMembers(selectedGroupId);
     else setMembers([]);
   }, [selectedGroupId, loadMembers]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      let q = (supabase as any)
+        .from("dashboard_access_grants")
+        .select("*")
+        .eq("owner_user_id", ownerUserId)
+        .order("created_at", { ascending: false });
+      q = selectedGroupId ? q.eq("group_id", selectedGroupId) : q.is("group_id", null);
+      const { data } = await q;
+      if (!cancelled) setGrants((data ?? []) as AccessGrant[]);
+    })();
+    return () => { cancelled = true; };
+  }, [ownerUserId, selectedGroupId, rulesVersion]);
+
+  const removeGrant = useCallback(async (id: string) => {
+    const { error } = await (supabase as any).from("dashboard_access_grants").delete().eq("id", id);
+    if (error) return toast.error(`Couldn't remove: ${error.message}`);
+    setGrants((prev) => prev.filter((g) => g.id !== id));
+    toast.success("Access removed");
+    if (selectedGroupId) void loadMembers(selectedGroupId);
+  }, [selectedGroupId, loadMembers]);
+
+  /** Which sign-in a roster row came through, from the rule that created it. */
+  const identityFor = useCallback((email: string) => {
+    const gid = memberSource[(email ?? "").toLowerCase()];
+    if (!gid) return null;
+    return grantSource(grants.find((g) => g.id === gid)?.kind);
+  }, [memberSource, grants]);
 
   // Close dropdown / role menus on outside click.
   useEffect(() => {
@@ -469,7 +522,6 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
                   [
                     ["members", "Members"],
                     ["roles", "Roles"],
-                    ["access", "Access"],
                     ["support", "Support access"],
                   ] as [TabKey, string][]
                 ).map(([key, label]) => (
@@ -514,6 +566,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
                       <MemberRow
                         key={m.member_email}
                         member={m}
+                        identity={identityFor(m.member_email)}
                         menuOpen={roleMenuEmail === m.member_email}
                         onToggleMenu={() =>
                           setRoleMenuEmail((prev) =>
@@ -527,16 +580,15 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
                     ))}
                   </div>
                 )}
+
+                {/* Standing access rules — Discord roles / Roblox ranks, plus
+                    specific Discord or Roblox people who haven't signed in yet. */}
+                <AccessRules grants={grants} onRemove={removeGrant} />
               </div>
 
               {/* Roles */}
               <div className={"pane" + (tab === "roles" ? " on" : "")}>
                 <RolesMatrix ownerUserId={ownerUserId} groupId={selectedGroupId} />
-              </div>
-
-              {/* Access — grant dashboard access by Discord/Roblox identity */}
-              <div className={"pane" + (tab === "access" ? " on" : "")}>
-                <AccessGrants ownerUserId={ownerUserId} groupId={selectedGroupId} botId={ownedBots.find((b) => b.group_id === selectedGroupId)?.id} />
               </div>
 
               {/* Support */}
@@ -555,9 +607,13 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
       <InviteModal
         open={inviteOpen}
         onClose={() => setInviteOpen(false)}
+        ownerUserId={ownerUserId}
         groupId={selectedGroupId}
         groupName={selectedGroup?.name ?? ""}
-        onInvited={() => selectedGroupId && loadMembers(selectedGroupId)}
+        onInvited={() => {
+          if (selectedGroupId) void loadMembers(selectedGroupId);
+          setRulesVersion((v) => v + 1);
+        }}
       />
 
       <BotPickerModal
@@ -714,13 +770,21 @@ function MemberRow({
   onTransfer,
 }: {
   member: Member;
+  /** Sign-in this row came through: an identity rule, or null for an email invite. */
+  identity?: "discord" | "roblox" | null;
   menuOpen: boolean;
   onToggleMenu: () => void;
   onChangeRole: (email: string, role: RoleKey) => void;
   onRemove: (email: string) => void;
   onTransfer: (email: string) => void;
 }) {
-  const initial = (member.member_email[0] ?? "?").toUpperCase();
+  // Rows created by an identity rule for a Discord-only account carry a
+  // placeholder address — show the identity instead of the synthetic email.
+  const synthetic = /@access\.local$/i.test(member.member_email);
+  const shown = synthetic
+    ? `Discord ${member.member_email.replace(/^discord-/, "").replace(/@access\.local$/i, "")}`
+    : member.member_email;
+  const initial = (shown[0] ?? "?").toUpperCase();
   const isPending = !member.accepted && !member.is_owner;
   const metaClass = isPending ? "pending" : "active";
   const statusLine = member.is_owner
@@ -742,7 +806,14 @@ function MemberRow({
           {initial}
         </span>
         <div style={{ minWidth: 0 }}>
-          <div className="em">{member.member_email}</div>
+          <div className="em">
+            {shown}
+            {identity && (
+              <span className={"idb " + identity} title={identity === "discord" ? "Access through Discord" : "Access through Roblox"}>
+                {identity === "discord" ? "Discord" : "Roblox"}
+              </span>
+            )}
+          </div>
           <div className={"meta " + metaClass}>
             <span className="dot" />
             {statusLine}
@@ -861,11 +932,12 @@ const GLOBAL_GROUP_ID = "00000000-0000-0000-0000-000000000000";
 
 type AccessGrant = {
   id: string;
-  kind: "discord_member" | "discord_role" | "roblox_group_rank";
+  kind: "discord_member" | "discord_role" | "roblox_group_rank" | "roblox_user";
   discord_id: string | null;
   guild_id: string | null;
   roblox_group_id: string | null;
   roblox_min_rank: number | null;
+  roblox_user_id: string | null;
   role: string;
   label: string | null;
 };
@@ -874,147 +946,75 @@ const GRANT_KIND_LABEL: Record<AccessGrant["kind"], string> = {
   discord_member: "Discord member",
   discord_role: "Discord role",
   roblox_group_rank: "Roblox group rank",
+  roblox_user: "Roblox user",
 };
 
-function AccessGrants({ ownerUserId, groupId, botId }: { ownerUserId: string; groupId: string | null; botId?: string }) {
-  const [grants, setGrants] = useState<AccessGrant[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [kind, setKind] = useState<AccessGrant["kind"]>("discord_member");
-  const [discordId, setDiscordId] = useState("");
-  const [guildId, setGuildId] = useState("");
-  const [robloxGroup, setRobloxGroup] = useState("");
-  const [robloxRank, setRobloxRank] = useState("1");
-  const [role, setRole] = useState<RoleKey>("viewer");
-  const [saving, setSaving] = useState(false);
+/** Which sign-in a grant is keyed on — drives the badge on member rows. */
+function grantSource(kind: AccessGrant["kind"] | null | undefined): "discord" | "roblox" | null {
+  if (!kind) return null;
+  return kind.startsWith("discord") ? "discord" : "roblox";
+}
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    let q = (supabase as any)
-      .from("dashboard_access_grants")
-      .select("*")
-      .eq("owner_user_id", ownerUserId)
-      .order("created_at", { ascending: false });
-    q = groupId ? q.eq("group_id", groupId) : q.is("group_id", null);
-    const { data } = await q;
-    setGrants((data ?? []) as AccessGrant[]);
-    setLoading(false);
-  }, [ownerUserId, groupId]);
+/** One-line human summary of a rule, preferring the label saved at invite time
+ *  (e.g. the username that was typed) over raw ids. */
+function grantSummary(g: AccessGrant): string {
+  if (g.label) return g.label;
+  switch (g.kind) {
+    case "discord_member": return `Discord user ${g.discord_id}`;
+    case "discord_role": return `Discord role ${g.discord_id}${g.guild_id ? ` · server ${g.guild_id}` : ""}`;
+    case "roblox_group_rank": return `Roblox group ${g.roblox_group_id} · rank ${g.roblox_min_rank ?? 1}+`;
+    case "roblox_user": return `Roblox user ${g.roblox_user_id}`;
+  }
+}
 
-  useEffect(() => { void load(); }, [load]);
-
-  const add = async () => {
-    const row: Record<string, any> = {
-      owner_user_id: ownerUserId,
-      group_id: groupId,
-      kind,
-      role,
-      created_by: ownerUserId,
-    };
-    if (kind === "discord_member") {
-      const id = discordId.replace(/[^0-9]/g, "");
-      if (!id) return toast.error("Enter the member's Discord user ID.");
-      row.discord_id = id;
-    } else if (kind === "discord_role") {
-      const id = discordId.replace(/[^0-9]/g, "");
-      if (!id) return toast.error("Enter the Discord role ID.");
-      row.discord_id = id;
-      row.guild_id = guildId.replace(/[^0-9]/g, "") || null;
-    } else {
-      const g = robloxGroup.replace(/[^0-9]/g, "");
-      if (!g) return toast.error("Enter the Roblox group ID.");
-      row.roblox_group_id = g;
-      row.roblox_min_rank = Math.max(1, Number(robloxRank) || 1);
-    }
-    setSaving(true);
-    const { error } = await (supabase as any).from("dashboard_access_grants").insert(row);
-    setSaving(false);
-    if (error) return toast.error(`Couldn't add: ${error.message}`);
-    toast.success("Access rule added");
-    setDiscordId(""); setGuildId(""); setRobloxGroup(""); setRobloxRank("1");
-    void load();
-  };
-
-  const remove = async (id: string) => {
-    const { error } = await (supabase as any).from("dashboard_access_grants").delete().eq("id", id);
-    if (error) return toast.error(`Couldn't remove: ${error.message}`);
-    setGrants((prev) => prev.filter((g) => g.id !== id));
-  };
-
-  const input: CSSProperties = {
-    background: "rgba(15,18,22,.5)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8,
-    padding: "8px 10px", color: "#E8EEF3", fontSize: 13, outline: "none", width: "100%",
-  };
-  const summary = (g: AccessGrant) =>
-    g.kind === "discord_member" ? `Discord member ${g.discord_id}`
-    : g.kind === "discord_role" ? `Discord role ${g.discord_id}${g.guild_id ? ` · guild ${g.guild_id}` : ""}`
-    : `Roblox group ${g.roblox_group_id} · rank ≥ ${g.roblox_min_rank}`;
-
+/**
+ * Standing access rules for the group, shown under the roster. Adding rules now
+ * happens through the single Invite flow (by Discord / by Roblox); this only
+ * lists and removes them. A rule for a specific person shows as "waiting" until
+ * that person signs in and the resolver turns it into a normal member row.
+ */
+function AccessRules({ grants, onRemove }: { grants: AccessGrant[]; onRemove: (id: string) => void }) {
+  if (grants.length === 0) return null;
+  const isPerson = (g: AccessGrant) => g.kind === "discord_member" || g.kind === "roblox_user";
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <div className="note">
-        Grant dashboard access by identity, not just email. People must sign in with
-        <b> Discord</b> for member/role rules, and be <b>verified</b> for Roblox rules —
-        access is applied the next time they load the dashboard, and revoked automatically
-        if they lose the role or rank. Applies to the bots in this group.
+    <div className="rules">
+      <div className="rhead">
+        <span className="rt">Access rules</span>
+        <span className="rs">
+          Anyone matching a rule gets access the next time they open the dashboard, and loses it
+          automatically if they stop matching.
+        </span>
       </div>
-
-      <div style={{ display: "grid", gap: 10, padding: 14, border: "1px solid rgba(255,255,255,.08)", borderRadius: 12 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <label style={{ display: "grid", gap: 5 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#A8B4BF" }}>Access by</span>
-            <select style={input} value={kind} onChange={(e) => setKind(e.target.value as AccessGrant["kind"])}>
-              <option value="discord_member">Discord member</option>
-              <option value="discord_role">Discord role</option>
-              <option value="roblox_group_rank">Roblox group rank</option>
-            </select>
-          </label>
-          <label style={{ display: "grid", gap: 5 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#A8B4BF" }}>Grants role</span>
-            <select style={input} value={role} onChange={(e) => setRole(e.target.value as RoleKey)}>
-              {ROLE_OPTIONS.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
-            </select>
-          </label>
-        </div>
-
-        {kind === "roblox_group_rank" ? (
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
-            <input style={input} placeholder="Roblox group ID (e.g. 691798472)" value={robloxGroup} onChange={(e) => setRobloxGroup(e.target.value)} />
-            <input style={input} type="number" min={1} placeholder="Min rank" value={robloxRank} onChange={(e) => setRobloxRank(e.target.value)} />
-          </div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: kind === "discord_role" ? "1fr 1fr" : "1fr", gap: 10 }}>
-            <input style={input} placeholder={kind === "discord_role" ? "Discord role ID" : "Discord user ID"} value={discordId} onChange={(e) => setDiscordId(e.target.value)} />
-            {kind === "discord_role" && (
-              <input style={input} placeholder="Server (guild) ID — optional" value={guildId} onChange={(e) => setGuildId(e.target.value)} />
-            )}
-          </div>
-        )}
-
-        <div>
-          <button className="btnp" type="button" onClick={add} disabled={saving}>
-            {saving ? "Adding…" : "Add access rule"}
-          </button>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="loading sm">Loading…</div>
-      ) : grants.length === 0 ? (
-        <div className="loading sm">No identity access rules yet.</div>
-      ) : (
-        <div className="list">
-          {grants.map((g) => (
-            <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, color: "#E8EEF3", fontWeight: 600 }}>{GRANT_KIND_LABEL[g.kind]}</div>
-                <div style={{ fontSize: 12, color: "#788591", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{summary(g)}</div>
+      <div className="list">
+        {grants.map((g) => {
+          const src = grantSource(g.kind)!;
+          return (
+            <div key={g.id} className="li rule">
+              <div className="who">
+                <span className={"av id " + src}>{src === "discord" ? "D" : "R"}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div className="em">
+                    {grantSummary(g)}
+                    <span className={"idb " + src}>{GRANT_KIND_LABEL[g.kind]}</span>
+                  </div>
+                  <div className="meta pending">
+                    <span className="dot" />
+                    {isPerson(g)
+                      ? `Waiting for them to sign in with ${src === "discord" ? "Discord" : "a verified Roblox account"}`
+                      : "Applies to everyone who matches"}
+                  </div>
+                </div>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "#C9DBE6", textTransform: "uppercase", letterSpacing: ".05em" }}>{ROLE_OPTIONS.find((r) => r.key === g.role)?.label ?? g.role}</span>
-              <button type="button" onClick={() => remove(g.id)} style={{ background: "transparent", border: "1px solid rgba(255,255,255,.12)", color: "#A8B4BF", borderRadius: 8, padding: "5px 10px", fontSize: 12, cursor: "pointer" }}>Remove</button>
+              <span className={"role " + roleClass(g.role)}>{roleLabel(g.role)}</span>
+              <div className="act">
+                <button className="resend" type="button" onClick={() => onRemove(g.id)}>
+                  Remove
+                </button>
+              </div>
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1117,69 +1117,165 @@ function RolesMatrix({ ownerUserId, groupId }: { ownerUserId: string; groupId: s
 
 /* ------------------------------ invite modal ------------------------------ */
 
+type InviteMethod = "email" | "discord" | "roblox";
+type LookupHit = { id: string; username: string; name: string; guild?: string };
+
+/**
+ * One invite flow, three ways in:
+ *  - Email:   sends the existing invite email; they accept by signing in.
+ *  - Discord: a specific person (username or id) or a whole role. Stored as an
+ *             access rule; access appears when they sign in with Discord.
+ *  - Roblox:  a specific person (username) or everyone at a group rank+. Stored
+ *             as an access rule; needs a verified Roblox account.
+ * Identity invites never grant anything here — they write a rule, and
+ * team-access-resolve does the fail-closed matching on their next sign-in.
+ */
 function InviteModal({
   open,
   onClose,
+  ownerUserId,
   groupId,
   groupName,
   onInvited,
 }: {
   open: boolean;
   onClose: () => void;
+  ownerUserId: string;
   groupId: string | null;
   groupName: string;
   onInvited: () => void;
 }) {
-  const [email, setEmail] = useState("");
+  const [method, setMethod] = useState<InviteMethod>("email");
   const [role, setRole] = useState<RoleKey>("moderator");
   const [sending, setSending] = useState(false);
 
+  // email
+  const [email, setEmail] = useState("");
+  // discord / roblox — "person" vs "rule" (role / rank)
+  const [target, setTarget] = useState<"person" | "rule">("person");
+  const [query, setQuery] = useState("");
+  const [hits, setHits] = useState<LookupHit[]>([]);
+  const [picked, setPicked] = useState<LookupHit | null>(null);
+  const [looking, setLooking] = useState(false);
+  const [roleId, setRoleId] = useState("");
+  const [guildId, setGuildId] = useState("");
+  const [robloxGroup, setRobloxGroup] = useState("");
+  const [robloxRank, setRobloxRank] = useState("1");
+
   useEffect(() => {
     if (open) {
-      setEmail("");
-      setRole("moderator");
+      setMethod("email"); setRole("moderator"); setEmail("");
+      setTarget("person"); setQuery(""); setHits([]); setPicked(null);
+      setRoleId(""); setGuildId(""); setRobloxGroup(""); setRobloxRank("1");
     }
   }, [open]);
 
+  // Username -> id lookup (debounced). A pasted numeric id resolves instantly.
+  useEffect(() => {
+    if (!open || method === "email" || target !== "person") return;
+    const q = query.trim();
+    setPicked(null);
+    if (q.length < 2) { setHits([]); return; }
+    let cancelled = false;
+    setLooking(true);
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await supabase.functions.invoke("team-identity-lookup", {
+          body: { kind: method, query: q, groupId },
+        });
+        if (cancelled) return;
+        const results = ((data as any)?.results ?? []) as LookupHit[];
+        setHits(results);
+        if (results.length === 1) setPicked(results[0]);
+      } catch {
+        if (!cancelled) setHits([]);
+      } finally {
+        if (!cancelled) setLooking(false);
+      }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [query, method, target, open, groupId]);
+
   if (!open) return null;
 
-  const send = async () => {
-    const trimmed = email.trim();
-    if (!trimmed) {
-      toast.error("Enter an email");
-      return;
+  const invokeError = async (error: any, data: any): Promise<string | null> => {
+    // functions.invoke hides the JSON body of a non-2xx — dig the reason out.
+    if (error) {
+      try {
+        const body = await error?.context?.json?.();
+        if (body?.error) return String(body.error);
+      } catch { /* not JSON */ }
+      return error?.message ?? "request failed";
     }
+    if (data && data.ok === false) return String(data.error ?? "request failed");
+    return null;
+  };
+
+  const sendEmail = async () => {
+    const trimmed = email.trim();
+    if (!trimmed) return toast.error("Enter an email");
+    const { data, error } = await supabase.functions.invoke("team-invite-send", {
+      body: { email: trimmed, role, groupId },
+    });
+    const err = await invokeError(error, data);
+    if (err) throw new Error(err);
+    toast.success(`Invite sent to ${trimmed}`);
+  };
+
+  const addRule = async () => {
+    const row: Record<string, any> = {
+      owner_user_id: ownerUserId, group_id: groupId, role, created_by: ownerUserId,
+    };
+    if (method === "discord" && target === "person") {
+      if (!picked) throw new Error("Pick a person from the results first.");
+      row.kind = "discord_member"; row.discord_id = picked.id;
+      row.label = picked.username && picked.username !== picked.id ? `@${picked.username}` : `Discord ${picked.id}`;
+    } else if (method === "discord") {
+      const id = roleId.replace(/[^0-9]/g, "");
+      if (!id) throw new Error("Enter the Discord role ID.");
+      row.kind = "discord_role"; row.discord_id = id;
+      row.guild_id = guildId.replace(/[^0-9]/g, "") || null;
+      row.label = `Discord role ${id}`;
+    } else if (target === "person") {
+      if (!picked) throw new Error("Pick a Roblox user from the results first.");
+      row.kind = "roblox_user"; row.roblox_user_id = picked.id;
+      row.label = picked.username && picked.username !== picked.id ? `@${picked.username}` : `Roblox ${picked.id}`;
+    } else {
+      const g = robloxGroup.replace(/[^0-9]/g, "");
+      if (!g) throw new Error("Enter the Roblox group ID.");
+      const rank = Math.max(1, Number(robloxRank) || 1);
+      row.kind = "roblox_group_rank"; row.roblox_group_id = g; row.roblox_min_rank = rank;
+      row.label = `Roblox group ${g} · rank ${rank}+`;
+    }
+    const { error } = await (supabase as any).from("dashboard_access_grants").insert(row);
+    if (error) throw new Error(error.message);
+    toast.success(target === "person" ? `Invited ${row.label}` : "Access rule added");
+  };
+
+  const submit = async () => {
     if (!groupId) return;
     setSending(true);
     try {
-      const { data, error } = await supabase.functions.invoke("team-invite-send", {
-        body: { email: trimmed, role, groupId },
-      });
-      // functions.invoke reports any non-2xx as a generic "non-2xx status code"
-      // error and hides the JSON body — dig the real reason out of it so the
-      // toast is actionable instead of "an edge function".
-      let realError: string | null = null;
-      if (error) {
-        try {
-          const body = await (error as any)?.context?.json?.();
-          realError = body?.error ?? null;
-        } catch {
-          /* body not JSON */
-        }
-        if (!realError) realError = (error as any)?.message ?? "invite failed";
-      } else if (data && (data as any).ok === false) {
-        realError = (data as any).error ?? "invite failed";
-      }
-      if (realError) throw new Error(realError);
-      toast.success(`Invite sent to ${trimmed}`);
+      if (method === "email") await sendEmail(); else await addRule();
       onClose();
       onInvited();
     } catch (e: any) {
-      toast.error("Couldn't send invite", { description: e?.message });
+      toast.error("Couldn't invite", { description: e?.message });
     } finally {
       setSending(false);
     }
   };
+
+  const methods: { key: InviteMethod; mark: string; name: string; desc: string }[] = [
+    { key: "email", mark: "@", name: "Email", desc: "They sign in with the address you enter." },
+    { key: "discord", mark: "D", name: "Discord", desc: "A person, or everyone with a role." },
+    { key: "roblox", mark: "R", name: "Roblox", desc: "A user, or everyone at a group rank." },
+  ];
+
+  const personPlaceholder =
+    method === "discord" ? "Discord username, or paste a user ID" : "Roblox username, or paste a user ID";
+  const ctaLabel =
+    method === "email" ? "Send invite" : target === "person" ? "Invite" : "Add rule";
 
   return (
     <Portal>
@@ -1191,50 +1287,135 @@ function InviteModal({
             if (e.target === e.currentTarget) onClose();
           }}
         >
-          <div className="modal">
+          <div className="modal invite">
             <h3>Invite to {groupName}</h3>
-            <p className="ms">
-              They'll get an email to sign in, and can only manage this group's
-              bots.
-            </p>
-            <label className="fl">Email</label>
-            <input
-              className="fi"
-              type="email"
-              value={email}
-              autoFocus
-              autoComplete="off"
-              placeholder="name@email.com"
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void send();
-              }}
-            />
-            <label className="fl" style={{ marginTop: 16 }}>
-              Role
-            </label>
+            <p className="ms">Choose how you want to add them. They'll only be able to manage this group's bots.</p>
+
+            <div className="methods">
+              {methods.map((m) => (
+                <button
+                  key={m.key}
+                  type="button"
+                  className={"method" + (method === m.key ? " on" : "")}
+                  onClick={() => { setMethod(m.key); setQuery(""); setHits([]); setPicked(null); }}
+                >
+                  <span className="mi">{m.mark}</span>
+                  <span className="mn">{m.name}</span>
+                  <span className="md">{m.desc}</span>
+                </button>
+              ))}
+            </div>
+
+            {method === "email" ? (
+              <>
+                <label className="fl">Email</label>
+                <input
+                  className="fi"
+                  type="email"
+                  value={email}
+                  autoFocus
+                  autoComplete="off"
+                  placeholder="name@email.com"
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") void submit(); }}
+                />
+              </>
+            ) : (
+              <>
+                <div className="sub2">
+                  <div className={target === "person" ? "on" : ""} onClick={() => setTarget("person")}>
+                    {method === "discord" ? "A person" : "A user"}
+                  </div>
+                  <div className={target === "rule" ? "on" : ""} onClick={() => setTarget("rule")}>
+                    {method === "discord" ? "Everyone with a role" : "Everyone at a rank"}
+                  </div>
+                </div>
+
+                {target === "person" ? (
+                  <>
+                    <label className="fl">
+                      {method === "discord" ? "Discord user" : "Roblox user"}
+                      {looking && <span className="pickn">looking up…</span>}
+                    </label>
+                    <input
+                      className="fi"
+                      value={query}
+                      autoFocus
+                      autoComplete="off"
+                      placeholder={personPlaceholder}
+                      onChange={(e) => setQuery(e.target.value)}
+                    />
+                    {hits.length > 0 && (
+                      <div className="hits">
+                        {hits.map((h) => (
+                          <div
+                            key={h.id}
+                            className={"hit" + (picked?.id === h.id ? " on" : "")}
+                            onClick={() => setPicked(h)}
+                          >
+                            <span className={"av id " + method} style={{ height: 26, width: 26, fontSize: 11 }}>
+                              {method === "discord" ? "D" : "R"}
+                            </span>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div className="hn">{h.name || h.username}</div>
+                              <div className="hs">@{h.username}{h.guild ? ` · ${h.guild}` : ""} · {h.id}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {picked && (
+                      <div className="picked">
+                        Inviting <b>{picked.name || picked.username}</b>
+                        {method === "roblox" ? " — they need a verified Roblox account to get in." : " — they get access when they sign in with Discord."}
+                      </div>
+                    )}
+                    {!looking && query.trim().length >= 2 && hits.length === 0 && (
+                      <div className="picked" style={{ color: "var(--gfaint)" }}>
+                        {method === "discord"
+                          ? "No one by that name in your bots' servers — try their exact username or paste their ID."
+                          : "No Roblox user with that username."}
+                      </div>
+                    )}
+                  </>
+                ) : method === "discord" ? (
+                  <>
+                    <label className="fl">Discord role</label>
+                    <div className="grid2">
+                      <input className="fi" value={roleId} autoFocus placeholder="Role ID" onChange={(e) => setRoleId(e.target.value)} />
+                      <input className="fi" value={guildId} placeholder="Server ID (optional)" onChange={(e) => setGuildId(e.target.value)} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <label className="fl">Roblox group</label>
+                    <div className="grid2">
+                      <input className="fi" value={robloxGroup} autoFocus placeholder="Group ID (e.g. 691798472)" onChange={(e) => setRobloxGroup(e.target.value)} />
+                      <input className="fi" type="number" min={1} value={robloxRank} placeholder="Min rank" onChange={(e) => setRobloxRank(e.target.value)} />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            <label className="fl" style={{ marginTop: 16 }}>Role</label>
             <div className="seg">
               {ROLE_OPTIONS.map((r) => (
-                <div
-                  key={r.key}
-                  className={role === r.key ? "on" : ""}
-                  onClick={() => setRole(r.key)}
-                >
+                <div key={r.key} className={role === r.key ? "on" : ""} onClick={() => setRole(r.key)}>
                   {r.label}
                 </div>
               ))}
             </div>
+
             <div className="mfoot">
-              <button className="ghost" type="button" onClick={onClose}>
-                Cancel
-              </button>
+              <button className="ghost" type="button" onClick={onClose}>Cancel</button>
               <button
                 className="btnp"
                 type="button"
-                onClick={send}
-                disabled={sending}
+                onClick={submit}
+                disabled={sending || (method !== "email" && target === "person" && !picked)}
               >
-                {sending ? "Sending…" : "Send invite"}
+                {sending ? "Working…" : ctaLabel}
               </button>
             </div>
           </div>
@@ -2010,4 +2191,39 @@ const GTH_CSS = `
 .gthm .btnp{display:inline-flex;align-items:center;gap:7px;border:0;border-radius:11px;padding:10px 15px;background:var(--gaccent);color:var(--gaccentink);font-family:var(--gbodyf);font-weight:700;font-size:12.5px;cursor:pointer;transition:.15s}
 .gthm .btnp:hover{filter:brightness(1.06)} .gthm .btnp svg{width:15px;height:15px;stroke:currentColor;stroke-width:2;fill:none}
 .gthm .btnp:disabled{opacity:.45;cursor:not-allowed;filter:none}
+
+/* ── Invite: method picker ─────────────────────────────────────────────── */
+.gthm .modal.invite{max-width:480px}
+.gthm .methods{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:2px 0 18px}
+.gthm .method{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:12px 12px 11px;border-radius:12px;border:1px solid var(--ghair);background:var(--gbg);cursor:pointer;text-align:left;font-family:var(--gbodyf);transition:.15s}
+.gthm .method:hover{border-color:color-mix(in srgb,var(--gaccent) 40%,var(--ghair))}
+.gthm .method.on{border-color:var(--gaccent);background:color-mix(in srgb,var(--gaccent) 10%,transparent)}
+.gthm .method .mi{height:28px;width:28px;border-radius:8px;display:grid;place-items:center;background:var(--gsurface2);color:var(--gheading);font-family:var(--gdisp);font-weight:800;font-size:12px}
+.gthm .method.on .mi{background:var(--gaccent);color:var(--gaccentink)}
+.gthm .method .mn{font-family:var(--gdisp);font-weight:700;font-size:12.5px;color:var(--gheading)}
+.gthm .method .md{font-size:11px;color:var(--gfaint);line-height:1.35}
+.gthm .sub2{display:flex;gap:6px;margin:0 0 14px}
+.gthm .sub2 div{flex:1;text-align:center;padding:8px;border-radius:9px;border:1px solid var(--ghair);background:var(--gbg);font-size:12px;font-weight:600;color:var(--gbody);cursor:pointer}
+.gthm .sub2 div.on{border-color:var(--gaccent);background:color-mix(in srgb,var(--gaccent) 12%,transparent);color:var(--gheading)}
+.gthm .grid2{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+.gthm .hits{margin-top:8px;border:1px solid var(--ghair);border-radius:10px;overflow:hidden}
+.gthm .hit{display:flex;align-items:center;gap:10px;padding:9px 11px;cursor:pointer;border-top:1px solid var(--ghair);background:var(--gbg)}
+.gthm .hit:first-child{border-top:0} .gthm .hit:hover{background:var(--gsurface2)}
+.gthm .hit.on{background:color-mix(in srgb,var(--gaccent) 12%,transparent)}
+.gthm .hit .hn{color:var(--gheading);font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gthm .hit .hs{font-size:11px;color:var(--gfaint);font-family:var(--gmono)}
+.gthm .picked{margin-top:8px;font-size:12px;color:var(--gaccent)}
+.gthm .picked b{color:var(--gheading)}
+
+/* ── Roster: identity badges + access rules ────────────────────────────── */
+.gth .who .em{display:flex;align-items:center;gap:8px}
+.gth .idb{flex:none;font-family:var(--gdisp);font-weight:700;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;border-radius:6px;padding:3px 7px;border:1px solid transparent}
+.gth .idb.discord{color:#b9c6ff;background:rgba(88,101,242,.16);border-color:rgba(88,101,242,.32)}
+.gth .idb.roblox{color:#f0c8c8;background:rgba(226,64,64,.14);border-color:rgba(226,64,64,.3)}
+.gth .av.id.discord{background:linear-gradient(135deg,#5865F2,#3b46b8);color:#fff}
+.gth .av.id.roblox{background:linear-gradient(135deg,#e24040,#9c2323);color:#fff}
+.gth .rules{margin-top:26px;padding-top:18px;border-top:1px solid var(--ghair)}
+.gth .rhead{display:flex;flex-direction:column;gap:3px;margin-bottom:6px}
+.gth .rhead .rt{font-family:var(--gdisp);font-weight:700;font-size:14px;color:var(--gheading)}
+.gth .rhead .rs{font-size:11.5px;color:var(--gfaint);line-height:1.45;max-width:60ch}
 `;
