@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { KeyRound, Loader2, Server, Radio, RefreshCw, Check, ChevronsUpDown, ArrowRight } from "lucide-react";
 import type { OwnedBot } from "@/hooks/useOwnedBots";
 import { useTeamRole } from "@/hooks/useTeamRole";
+import { cacheGet, cacheSet } from "@/lib/uiCache";
 import {
   useBotGuilds,
   useBotChannels,
@@ -163,8 +164,14 @@ function relevantScopes(bot: OwnedBot): Set<string> {
 const PICKER_MANAGED = new Set(["DISPATCH_VOICE_CHANNEL_ID"]);
 
 export function BotSecretsCard({ bot }: Props) {
-  const [slots, setSlots] = useState<SlotMeta[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Seed the slot metadata from the last visit so the API-keys panel paints
+  // instantly instead of spinning on the get_bot_secrets_metadata round-trip
+  // every time the server is opened. Only metadata is cached (labels, is_set,
+  // last_four) — never the secret values. The live RPC refreshes below.
+  const cacheKey = `secrets:${bot.id}`;
+  const seeded = cacheGet<SlotMeta[]>(cacheKey);
+  const [slots, setSlots] = useState<SlotMeta[]>(seeded ?? []);
+  const [loading, setLoading] = useState(!seeded);
 
   const scopes = useMemo(() => relevantScopes(bot), [bot]);
     // API keys are gated by `manage_secrets` for invited members. The voice
@@ -198,15 +205,19 @@ export function BotSecretsCard({ bot }: Props) {
         else if (sticky.has(slot.key)) slot.is_set = true; // known-set, don't downgrade
       }
       setSlots(fresh);
+      cacheSet(cacheKey, fresh); // seed the next open instantly
     } else {
       toast.error("Couldn't load credentials", { description: lastErr?.message ?? "Network error" });
       // leave existing slots untouched
     }
     setLoading(false);
-  }, [bot.id]);
+  }, [bot.id, cacheKey]);
 
+  // On open, refresh silently when we already painted from cache (no spinner);
+  // only show the loading state on a true cold load.
+  const hadSeed = useRef(seeded != null);
   useEffect(() => {
-    reload();
+    reload(hadSeed.current);
   }, [reload]);
 
   const visible = (canSecrets ? slots : [])
