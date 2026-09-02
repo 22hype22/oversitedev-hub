@@ -147,6 +147,47 @@ type SlotMeta = {
   is_managed: boolean;
 };
 
+// Remembered character length of each saved secret (per bot) so the masked dots
+// reflect the real length instead of a fixed row. Length only — never the value.
+// Falls back to a default when unknown (e.g. a secret set on another device).
+const MASK_DEFAULT = 16;
+const MASK_MAX = 40;
+const lenKey = (botId: string) => `oversite:secretlen:${botId}`;
+function lenGet(botId: string): Record<string, number> {
+  try { return JSON.parse(localStorage.getItem(lenKey(botId)) || "{}") as Record<string, number>; }
+  catch { return {}; }
+}
+function lenSet(botId: string, key: string, n: number) {
+  try {
+    const m = lenGet(botId);
+    if (n > 0) m[key] = n; else delete m[key];
+    localStorage.setItem(lenKey(botId), JSON.stringify(m));
+  } catch { /* ignore */ }
+}
+/** How many mask dots to show for a saved secret: its real length (clamped), or
+ *  a default when we don't know it yet. */
+function maskCount(botId: string, key: string): number {
+  const n = lenGet(botId)[key] || 0;
+  if (!n) return MASK_DEFAULT;
+  return Math.min(MASK_MAX, Math.max(4, n));
+}
+
+// Until the multi-game wording reaches the DB slot (migration 20260901120000),
+// make clear in the UI that the store place ID accepts several comma-separated
+// games. Self-heals: once the DB text already says so, this adds nothing.
+function augmentSlot(slot: SlotMeta): SlotMeta {
+  if (slot.key !== "ROBLOX_DEVPRODUCT_PLACE_ID") return slot;
+  const d = slot.description ?? "";
+  if (/comma|more than one|multiple|\(s\)/i.test(d) || /,/.test(slot.placeholder ?? "")) return slot;
+  return {
+    ...slot,
+    description:
+      (d ? d + " " : "") +
+      "Have more than one game? Enter several place IDs separated by commas — new items fill the first, then roll into the next automatically.",
+    placeholder: "e.g. 10357040169, 128739314806275",
+  };
+}
+
 type Props = { bot: OwnedBot };
 
 // A slot belongs on this bot's dashboard when its addon_id matches the bot's
@@ -227,7 +268,8 @@ export function BotSecretsCard({ bot }: Props) {
         !PICKER_MANAGED.has(s.key) &&
         scopes.has((s.addon_id ?? "").toLowerCase().trim()),
     )
-    .sort((a, b) => a.sort_order - b.sort_order);
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map(augmentSlot);
 
 
   if (!loading && visible.length === 0) return null;
@@ -329,6 +371,7 @@ function SecretRow({
       return;
     }
     toast.success(`${slot.label} saved`);
+    lenSet(bot.id, slot.key, v.length); // mask dots reflect the real length
     setValue("");
     setSavedLocal(true);
     setEditing(false);
@@ -350,6 +393,7 @@ function SecretRow({
     }
     toast.success(`${slot.label} removed`);
     stickyRemove(bot.id, slot.key);
+    lenSet(bot.id, slot.key, 0); // forget the remembered length
     setValue("");
     setSavedLocal(false);
     setEditing(true);
@@ -377,8 +421,10 @@ function SecretRow({
 
       {isSet && !editing ? (
         <div className="savedrow">
-          {/* Masked — the stored value is never displayed, even to the owner. */}
-          <span className="dots">••••••••••••••••</span>
+          {/* Masked — the stored value is never displayed, even to the owner.
+              The dot count mirrors the saved value's length (clamped), not a
+              fixed row, so different keys read as different lengths. */}
+          <span className="dots">{"•".repeat(maskCount(bot.id, slot.key))}</span>
           <span className="btns">
             <button type="button" className="mini" onClick={() => setEditing(true)}>
               Replace
