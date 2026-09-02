@@ -1,32 +1,56 @@
 # Weekly changelog → Discord #package-updates
 
-Every week a recap of what changed on the bot and the dashboard is posted to
-`#package-updates` (channel `1544839523098431618`) **as the Oversite bot**. Only
-the weekly recap goes in that channel.
+Every week a recap of what changed goes to `#package-updates` (channel
+`1544839523098431618`) **as the Oversite bot**. Only the weekly recap is posted
+there, nothing else.
 
-## Format
+## Layout
 
-One Discord `ansi` code block (the poster splits it if it passes 2000 chars).
-Line prefixes decide the color:
+**One box per bot.** A line starting with `## ` starts a new box (its own code
+block, posted as its own message) and becomes the box's first line:
 
-| prefix | color  | use for                                   |
-|--------|--------|-------------------------------------------|
-| `+ `   | green  | bug fixes and things added                |
-| `~ `   | yellow | updates / changes to existing behavior    |
-| `- `   | red    | things removed                            |
+```
+## Oversite Network  ·  Weekly Update  ·  Aug 27 – Sep 2
+```
 
-Header lines (`Weekly Update · <dates>`, `Bot`, `Website / Dashboard`) stay
-uncolored. Plain English, one line per item, written for customers — say what it
-means for them, not the commit title. No emojis.
+Boxes to use, in this order, skipping any with no changes that week:
+Oversite Network, Oversite Protection, Oversite Support, Oversite Utilities,
+Oversite Dispatch, Oversite Customs, then **Website & Dashboard**.
+
+## Colors
+
+| prefix | color  | use for                                  |
+|--------|--------|------------------------------------------|
+| `+ `   | green  | bug fixes and things added               |
+| `~ `   | yellow | updates / changes to existing behavior   |
+
+Do **not** use `- ` (red). If something was removed, say what changed instead
+as a `~ ` line, or leave it out.
+
+## Voice — write it like a person
+
+Model the wording on this real post:
+
+```
++ Fixed bug where gamepasses did not give their respective items to players who bought them
++ Fixed bug where people who bought gamepasses before they were updated lost access to those items
+```
+
+- Start fixes with `Fixed bug where …`, additions with `Added …`, changes with a plain sentence.
+- Say what it means for the customer, not the commit title. No internal terms
+  (no "uvloop", "IDOR", "RLS", "skeletons", "backoff").
+- No emojis, no em dashes, no parentheses full of detail. Commas and plain words.
+- Short, one line per item.
 
 ## Posting
 
 ```
 RAILWAY_TOKEN=... python3 scripts/post_changelog.py < changelog.txt
+# to replace a previous post: DELETE_IDS=<id>,<id> ... same command
 ```
 
-The script pulls the bot's `DISCORD_TOKEN` from the Railway service variables at
-runtime (never stored in the repo) and posts the block(s).
+The script reads the bot's `DISCORD_TOKEN` from the Railway service variables
+at runtime (never stored) and posts one message per box.
 
 ## Gathering the week
 
@@ -35,16 +59,20 @@ git -C /path/to/oversite-customs log --since="7 days ago" --format="%ad  %s" --d
 git -C /path/to/oversitedev-hub  log --since="7 days ago" --format="%ad  %s" --date=short origin/redesign
 ```
 
+The bot repo is the Oversite Network bot. Dashboard commits that are about one
+bot (e.g. Dispatch config blocks) go in that bot's box; site-wide ones go in
+Website & Dashboard.
+
 ## Routine prompt (for the durable weekly schedule)
 
-Create a Routine (fresh session, env: Oversite Ad — it carries RAILWAY_TOKEN)
-on a weekly cron, e.g. Sunday 8:04 PM, with this prompt:
+Create a Routine (fresh session, env: Oversite Ad, which carries RAILWAY_TOKEN)
+on a weekly cron such as Sunday 8:04 PM with this prompt:
 
 > Post the weekly changelog to Discord. Read `docs/weekly-changelog.md` in the
 > oversitedev-hub repo and follow it exactly: gather the last 7 days of commits
-> from the oversite-customs `main` branch and the oversitedev-hub `redesign`
-> branch, write a customer-facing recap in the `+ / ~ / -` format (green fixes
-> and additions, yellow changes, red removals; sections "Bot" and
-> "Website / Dashboard"; no emojis), then post it to channel 1544839523098431618
-> with `python3 scripts/post_changelog.py`. Post only the recap and only in that
-> channel. If there were no changes in a section, omit the section.
+> from oversite-customs `main` and oversitedev-hub `redesign`, write one box per
+> bot plus a Website & Dashboard box, green `+` for fixes and additions, yellow
+> `~` for changes, never red, in plain human wording like "Fixed bug where …",
+> no emojis or em dashes, then post with `python3 scripts/post_changelog.py`.
+> Post only the recap and only in channel 1544839523098431618. Skip boxes with
+> no changes; if nothing changed at all, post nothing.
