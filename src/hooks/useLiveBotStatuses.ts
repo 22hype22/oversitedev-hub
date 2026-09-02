@@ -25,6 +25,13 @@ export type LiveBotStatus = {
 };
 
 const STALE_MS = 60_000;
+// Grace window after the hook mounts. On open, a bot's cached/last DB heartbeat
+// can already be >STALE_MS old even though the bot is fine — it would flash
+// "offline" until the Railway verification (bot-status-sync) confirms it online
+// a couple seconds later. During this window we keep showing a known-online bot
+// as online; a genuinely-down bot is corrected by that verification (which
+// writes a non-online status, bypassing this grace) within ~2s.
+const MOUNT_GRACE_MS = 7_000;
 // Minimum gap between Railway verification calls (bot-status-sync). Short
 // enough that every 30s poll can re-verify — a bot kept online by Railway
 // checks (dead heartbeat loop) must be refreshed before the 60s staleness
@@ -90,6 +97,7 @@ export function useLiveBotStatuses(botIds: string[]) {
   const [rows, setRows] = useState<Record<string, { status: string; hb: string | null }>>({});
   const [tick, setTick] = useState(0);
   const lastSyncRef = useRef(0);
+  const mountedAtRef = useRef(Date.now());
   const pinsRef = useRef<Record<string, { status: string; until: number }>>({});
   // Stable key so the effect doesn't resubscribe on every render.
   const key = useMemo(() => botIds.slice().sort().join(","), [botIds]);
@@ -98,6 +106,10 @@ export function useLiveBotStatuses(botIds: string[]) {
     if (!key) return;
     let cancelled = false;
     const ids = key.split(",");
+    // Restart the grace window for this bot set, and force one re-render right
+    // after it ends so a bot still not confirmed online settles to its truth.
+    mountedAtRef.current = Date.now();
+    const graceTimer = setTimeout(() => { if (!cancelled) setTick((n) => n + 1); }, MOUNT_GRACE_MS + 100);
 
     // Paint last-known badges instantly from cache, then let the poll refresh.
     const seed: Record<string, { status: string; hb: string | null }> = {};
@@ -249,6 +261,7 @@ export function useLiveBotStatuses(botIds: string[]) {
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      clearTimeout(graceTimer);
       window.removeEventListener(OPTIMISTIC_EVENT, onAnnounce);
       supabase.removeChannel(channel);
     };
@@ -261,9 +274,17 @@ export function useLiveBotStatuses(botIds: string[]) {
 
   return useMemo(() => {
     void tick;
+    const graceActive = Date.now() - mountedAtRef.current < MOUNT_GRACE_MS;
     const out: Record<string, LiveBotStatus> = {};
     for (const [id, r] of Object.entries(rows)) {
-      out[id] = { status: r.status, effective: effectiveOf(r.status, r.hb), last_heartbeat_at: r.hb };
+      let eff = effectiveOf(r.status, r.hb);
+      // On open, don't flash a known-online bot to offline just because its
+      // last heartbeat is briefly stale — the Railway verify corrects a truly
+      // down bot within ~2s (it writes a non-online status, which skips this).
+      if (graceActive && eff === "offline" && r.status === "online") {
+        eff = "online";
+      }
+      out[id] = { status: r.status, effective: eff, last_heartbeat_at: r.hb };
     }
     return out;
   }, [rows, tick]);
