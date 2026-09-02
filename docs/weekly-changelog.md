@@ -1,8 +1,24 @@
 # Weekly changelog → Discord #package-updates
 
-Every week a recap of what changed goes to `#package-updates` (channel
-`1544839523098431618`) **as the Oversite bot**. Only the weekly recap is posted
-there, nothing else.
+Every **Monday morning** a recap of the previous week goes to
+`#package-updates` (channel `1544839523098431618`) **as the Oversite bot**.
+Only the weekly recap is posted there, nothing else.
+
+## The running draft (how changes are remembered)
+
+`docs/changelog-draft.txt` is the source of truth for the next post. A line is
+added there **the moment a change ships**, in the customer-facing wording below,
+so Monday's post is not reconstructed from memory.
+
+**No duplicates.** One line per feature for the whole week. If a feature is
+changed and then adjusted again, **edit its existing line** to describe the end
+result. Never add a second line for the same thing. (Example: "Added a Delay
+button on ads" adjusted later to also retrofit old cards is still one line:
+"Added a Delay button on ad approvals so you can pick the day an ad goes out".)
+
+On Monday the job: cross-checks the draft against the week's git log for
+anything missed, posts it, archives it to `docs/changelogs/<date>.txt`, and
+resets the draft with next week's empty boxes.
 
 ## Layout
 
@@ -66,13 +82,17 @@ Website & Dashboard.
 ## Routine prompt (for the durable weekly schedule)
 
 Create a Routine (fresh session, env: Oversite Ad, which carries RAILWAY_TOKEN)
-on a weekly cron such as Sunday 8:04 PM with this prompt:
+on a weekly cron for Monday morning (e.g. 9:04 AM) with this prompt:
 
 > Post the weekly changelog to Discord. Read `docs/weekly-changelog.md` in the
-> oversitedev-hub repo and follow it exactly: gather the last 7 days of commits
-> from oversite-customs `main` and oversitedev-hub `redesign`, write one box per
+> oversitedev-hub repo and follow it exactly: start from `docs/changelog-draft.txt`,
+> cross-check it against the last 7 days of commits from oversite-customs `main`
+> and oversitedev-hub `redesign` for anything missed, keep one line per feature
+> (merge repeat adjustments into a single line, never duplicate), one box per
 > bot plus a Website & Dashboard box, green `+` for fixes and additions, yellow
 > `~` for changes, never red, in plain human wording like "Fixed bug where …",
-> no emojis or em dashes, then post with `python3 scripts/post_changelog.py`.
-> Post only the recap and only in channel 1544839523098431618. Skip boxes with
-> no changes; if nothing changed at all, post nothing.
+> no emojis or em dashes, then post with `python3 scripts/post_changelog.py`,
+> archive the draft to `docs/changelogs/<date>.txt`, reset the draft with next
+> week's empty boxes, and commit that to both `claude/happy-ritchie-stxxpu` and
+> `redesign`. Post only the recap and only in channel 1544839523098431618. Skip
+> boxes with no changes; if nothing changed at all, post nothing.
