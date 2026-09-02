@@ -210,10 +210,13 @@ const RouteTitles = () => {
 
 // Catches any render/effect crash (e.g. a realtime hiccup on tab return) and
 // shows a recoverable screen instead of a black void.
-class RouteErrorBoundary extends Component<{ children: ReactNode }, { crashed: boolean }> {
-  state = { crashed: false };
-  static getDerivedStateFromError() {
-    return { crashed: true };
+class RouteErrorBoundary extends Component<{ children: ReactNode }, { crashed: boolean; detail: string }> {
+  state = { crashed: false, detail: "" };
+  static getDerivedStateFromError(err: unknown) {
+    // Surface the actual message (small, muted) so a crash can be diagnosed
+    // from the screen instead of needing the browser console.
+    const detail = err instanceof Error ? `${err.name}: ${err.message}` : String(err ?? "");
+    return { crashed: true, detail };
   }
   componentDidCatch(err: unknown) {
     console.error("App error boundary caught:", err);
@@ -249,6 +252,14 @@ class RouteErrorBoundary extends Component<{ children: ReactNode }, { crashed: b
             <p className="mb-7 text-sm leading-relaxed" style={{ color: "#A8B4BF" }}>
               The page ran into an error. Reloading usually clears it right up — your data is safe.
             </p>
+            {this.state.detail && (
+              <p
+                className="mb-7 rounded-lg px-3 py-2 text-left text-[11px] leading-relaxed break-words"
+                style={{ color: "#788591", background: "rgba(0,0,0,.25)", fontFamily: "ui-monospace, monospace" }}
+              >
+                {this.state.detail}
+              </p>
+            )}
             <button
               onClick={() => window.location.reload()}
               className="inline-flex h-11 items-center justify-center rounded-xl px-6 text-sm font-bold"

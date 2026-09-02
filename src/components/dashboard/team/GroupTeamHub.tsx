@@ -306,9 +306,13 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
       // than an email invite — the roster reads the same table the resolver
       // writes, tagged by access_grant_id.
       try {
+        // Scoped to this owner's rows — an unscoped read makes RLS evaluate
+        // has_bot_team_access() on every row in the table, which is what made
+        // the Members tab take forever to load.
         const { data: rows } = await (supabase as any)
           .from("dashboard_team")
           .select("member_email, access_grant_id")
+          .eq("owner_user_id", ownerUserId)
           .not("access_grant_id", "is", null);
         const map: Record<string, string> = {};
         for (const r of (rows ?? []) as { member_email: string; access_grant_id: string }[]) {
@@ -322,7 +326,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
     } finally {
       setMembersLoading(false);
     }
-  }, []);
+  }, [ownerUserId]);
 
   useEffect(() => {
     if (selectedGroupId) void loadMembers(selectedGroupId);
@@ -763,6 +767,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 
 function MemberRow({
   member,
+  identity = null,
   menuOpen,
   onToggleMenu,
   onChangeRole,
