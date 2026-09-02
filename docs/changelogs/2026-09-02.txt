@@ -1,0 +1,31 @@
+## Oversite Network  ·  Weekly Update  ·  Aug 27 – Sep 2
+
++ Fixed bug where the bot would stay offline for a long time after Discord had a hiccup
++ Fixed bug where tickets never auto closed after the inactivity warning
++ Fixed bug where designers who left the server were still showing on the pricing board
++ Fixed bug where people lost their gamepass items after the bot restarted
++ Fixed bug where the giveaway entry counter kept getting rate limited
++ Added /packageback and /removepackageback so package previews can have a custom background
++ Added a Delay button on ad approvals so you can pick the day an ad goes out
++ Added -inactive hold to keep a ticket open for as long as you want
+~ Giveaways now keep the original post up so you can still see how many people entered, and the winner is announced in a new message under it
+~ You can now add more than one game for the store, and once one fills up new items go to the next one
+~ Music now picks the actual song instead of a music video, falls back to SoundCloud if YouTube blocks it, and picks back up where it left off after a restart
+~ The bot starts up a lot faster now
+~ Cleaned up the ads queue and status messages
+## Oversite Dispatch  ·  Weekly Update  ·  Aug 27 – Sep 2
+
++ Added the Dispatch settings to the dashboard so you can change the region and voice channel from there
+## Website & Dashboard  ·  Weekly Update  ·  Aug 27 – Sep 2
+
++ Fixed bug where ER:LC bots were being charged monthly hosting, they are a one time payment only
++ Fixed bug where a missed hosting payment could take down bots that were already paid in full
++ Fixed bug where bots showed as offline for a few seconds when opening the dashboard
++ Fixed bug where saved API keys sometimes showed up as empty
++ Fixed bug where the Members page was crashing and taking forever to load
++ Added the option to invite people by Discord or Roblox instead of just email
++ Added a terms and privacy agreement when signing up and checking out
+~ The whole dashboard loads a lot faster now
+~ Every settings box is the same size on every bot
+~ The dots on saved API keys now match how long the key actually is
+~ Tightened up security across the site

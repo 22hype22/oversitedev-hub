@@ -1,0 +1,12 @@
+# Running changelog draft — posted every Monday morning, then reset.
+# Add a line the moment a change lands. ONE line per feature: if something
+# gets adjusted again later in the week, EDIT its existing line to describe
+# the end result instead of adding another line. "+ " fixes/additions,
+# "~ " changes. Boxes start with "## ". Skip boxes with nothing in them.
+
+## Oversite Network  ·  Weekly Update  ·  Sep 3 – Sep 7
+
+## Oversite Dispatch  ·  Weekly Update  ·  Sep 3 – Sep 7
+
+## Website & Dashboard  ·  Weekly Update  ·  Sep 3 – Sep 7
+
