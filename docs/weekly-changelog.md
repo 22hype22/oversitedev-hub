@@ -64,8 +64,11 @@ Model the wording on this real post:
 
 ```
 RAILWAY_TOKEN=... python3 scripts/post_changelog.py < changelog.txt
-# to replace a previous post: DELETE_IDS=<id>,<id> ... same command
 ```
+
+**Never edit or delete an earlier post.** Every week is a fresh set of
+messages. If something in a past post was wrong, it gets a line in the next
+week's post, not a correction to the old one.
 
 The script reads the bot's `DISCORD_TOKEN` from the Railway service variables
 at runtime (never stored) and posts one message per box.
