@@ -15,6 +15,8 @@
 + Opening an order now asks you to tick a box agreeing to the Sales and Refund Policy, and the agreement is written into the ticket with the time
 + Added /away and /back for designers. Away hides you from the pricing board, tells the customers in your claimed tickets when you're back, and pauses the staff reminders on those tickets until you return
 + Running /payment inside an order ticket now links that payment to the order. When the customer pays, the bot posts in the ticket that the payment came through and counts it toward the designer who claimed it
++ Customers get the vouch DM the moment their order is marked completed, not only when the ticket closes
++ Added /myorders so customers can see their open orders, who has them, and where they are, plus their past orders. Staff can look up any member
 + Added a Sales Stats block. /sales shows each designer's completed orders, packages sold, and Robux and USD revenue for the week, month, or all time, and on the 1st of every month the bot posts last month's recap with the top designer
 
 ## Oversite Dispatch  ·  Weekly Update  ·  Sep 3 – Sep 7
