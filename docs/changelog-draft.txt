@@ -19,6 +19,9 @@
 + Added /myorders so customers can see their open orders, who has them, and where they are, plus their past orders. Staff can look up any member
 + Added a Sales Stats block. /sales shows each designer's completed orders, packages sold, and Robux and USD revenue for the week, month, or all time, and on the 1st of every month the bot posts last month's recap with the top designer
 
+## Oversite Roleplay  ·  Weekly Update  ·  Sep 3 – Sep 7
++ Added a Shifts block. /shift manage gives each staff member a panel with their shift time, break time, weekly quota progress and recent shifts, plus Start, Break and End buttons, and hands out your on-shift roles while they are on. /shift leaderboard ranks who has been on the most this week or all time, and /shift online lists who is on right now. All three messages are yours to write in the dashboard
+
 ## Oversite Dispatch  ·  Weekly Update  ·  Sep 3 – Sep 7
 
 ## Website & Dashboard  ·  Weekly Update  ·  Sep 3 – Sep 7
