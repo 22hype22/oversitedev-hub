@@ -937,6 +937,28 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "roleplay-shifts": {
+    title: "Shifts",
+    summary: "/shift manage, /shift leaderboard and /shift online for staff activity. Every message here is yours to write.",
+    icon: Clock,
+    fields: [
+      multirole("staff_role_ids", "Who can use shifts", "Leave empty to let everyone use /shift."),
+      multirole("onshift_role_ids", "Roles given while on shift", "Added when a shift starts and removed when it ends."),
+      { key: "quota_hours", label: "Weekly activity quota, hours", type: "number", placeholder: "0 for no quota", help: "The panel shows how much of this each person has done since Monday." },
+      channel("log_channel_id", "Shift log channel", "Optional. A short line when someone starts or ends a shift."),
+      header("Messages"),
+      { key: "manage_message", label: "/shift manage panel", type: "textarea", markdown: true,
+        defaultValue: "## Shift panel\n{status}\n\n**Total shift time:** {total_time}\n**Total break time:** {break_time}\n**Activity quota:** {quota}\n**Shifts this week:** {shifts}\n\n**Recent shifts**\n{recent}",
+        help: "Tokens: {user} {status} {total_time} {break_time} {quota} {shifts} {recent} {week_start}. The Start, Break and End buttons are added under it." },
+      { key: "leaderboard_message", label: "/shift leaderboard", type: "textarea", markdown: true,
+        defaultValue: "## Shift leaderboard, {period}\n{leaderboard}",
+        help: "Tokens: {leaderboard} {period} {week_start}. The leaderboard is one line per person, most time first." },
+      { key: "online_message", label: "/shift online", type: "textarea", markdown: true,
+        defaultValue: "## Staff on shift, {count}\n{online}",
+        help: "Tokens: {online} {count}. One line per person on shift, with how long they have been on." },
+    ],
+  },
+
   "customs-sales": {
     title: "Sales Stats",
     summary: "/sales shows each designer's orders, packages and revenue. Posts a recap with the top designer on the 1st of every month.",
