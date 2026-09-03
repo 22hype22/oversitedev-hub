@@ -24,7 +24,14 @@ export type LiveBotStatus = {
   last_heartbeat_at: string | null;
 };
 
-const STALE_MS = 60_000;
+// Matches the server's get_bot_health cutoff. Some bots heartbeat slower than
+// others, so a heartbeat that merely went quiet is not "offline" on its own.
+const STALE_MS = 120_000;
+// A row that still says online but whose heartbeat has gone quiet keeps showing
+// online while Railway is asked (bot-status-sync). Railway writes a real
+// "offline" row for a dead container, which wins immediately. Past this age
+// with no verdict we stop trusting it.
+const STALE_HARD_OFFLINE_MS = 10 * 60_000;
 // Grace window after the hook mounts. On open, a bot's cached/last DB heartbeat
 // can already be >STALE_MS old even though the bot is fine — it would flash
 // "offline" until the Railway verification (bot-status-sync) confirms it online
@@ -278,11 +285,12 @@ export function useLiveBotStatuses(botIds: string[]) {
     const out: Record<string, LiveBotStatus> = {};
     for (const [id, r] of Object.entries(rows)) {
       let eff = effectiveOf(r.status, r.hb);
-      // On open, don't flash a known-online bot to offline just because its
-      // last heartbeat is briefly stale — the Railway verify corrects a truly
-      // down bot within ~2s (it writes a non-online status, which skips this).
-      if (graceActive && eff === "offline" && r.status === "online") {
-        eff = "online";
+      // A quiet heartbeat on a row that still says online is "being checked",
+      // not offline: keep it online until Railway says otherwise (it writes a
+      // non-online status, which skips this) or the heartbeat is very old.
+      if (eff === "offline" && r.status === "online") {
+        const hbAge = r.hb ? Date.now() - new Date(r.hb).getTime() : Infinity;
+        if (graceActive || hbAge < STALE_HARD_OFFLINE_MS) eff = "online";
       }
       out[id] = { status: r.status, effective: eff, last_heartbeat_at: r.hb };
     }

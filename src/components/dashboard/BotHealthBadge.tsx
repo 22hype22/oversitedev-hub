@@ -6,6 +6,7 @@ const STATUS_META: Record<
   { label: string; className: string; icon: React.ComponentType<{ className?: string }>; pulse?: boolean }
 > = {
   online:     { label: "Online",      className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", icon: Activity, pulse: true },
+  checking:   { label: "Checking…",   className: "bg-muted text-muted-foreground border-border",             icon: Loader2 },
   offline:    { label: "Offline",     className: "bg-muted text-muted-foreground border-border",             icon: CircleOff },
   starting:   { label: "Starting",    className: "bg-blue-500/15 text-blue-400 border-blue-500/30",          icon: Loader2 },
   stopping:   { label: "Stopping",    className: "bg-amber-500/15 text-amber-400 border-amber-500/30",       icon: Loader2 },
@@ -46,9 +47,9 @@ export const BotHealthBadge = ({ botId }: { botId: string }) => {
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <span className={`${pillClass} ${meta.className}`} style={pillPad}>
-        <Icon className={`h-3 w-3 ${meta.pulse ? "animate-pulse" : ""}`} />
+        <Icon className={`h-3 w-3 ${meta.pulse ? "animate-pulse" : health.effective_status === "checking" ? "animate-spin" : ""}`} />
         {meta.label}
-        {health.stale && <span className="opacity-70">(stale)</span>}
+        {health.stale && health.effective_status !== "checking" && <span className="opacity-70">(stale)</span>}
       </span>
       {uptime && (
         <span className="text-[10px] text-muted-foreground">
