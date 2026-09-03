@@ -60,9 +60,10 @@ function repoSourceFor(base: string): string {
     case "dispatch":
       return "22hype22/oversite-dispatch";
     case "customs":
-    case "roleplay":
-      // Same codebase; BOT_BASE tells it which product it is.
       return "22hype22/oversite-customs";
+    case "roleplay":
+      // Same codebase as customs, mirrored into its own repo; BOT_BASE is still set.
+      return "22hype22/oversite-roleplay";
     case "protection":
     case "scratch":
     case "all-in-one-pack":
