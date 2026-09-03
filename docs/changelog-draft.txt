@@ -13,6 +13,7 @@
 + When an order closes, the customer now gets a DM with a summary, the transcript, and a button to vouch for the designer who handled it
 + Added /progress so a designer can tell the customer where their order is: started, draft ready, awaiting your approval, or delivered. It posts in the ticket and tags the stage on the channel name
 + Added /away and /back for designers. Away hides you from the pricing board, tells the customers in your claimed tickets when you're back, and pauses the staff reminders on those tickets until you return
++ Running /payment inside an order ticket now links that payment to the order. When the customer pays, the bot posts in the ticket that the payment came through and counts it toward the designer who claimed it
 + Added a Sales Stats block. /sales shows each designer's completed orders, packages sold, and Robux and USD revenue for the week, month, or all time, and on the 1st of every month the bot posts last month's recap with the top designer
 
 ## Oversite Dispatch  ·  Weekly Update  ·  Sep 3 – Sep 7
