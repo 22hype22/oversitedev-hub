@@ -22,4 +22,5 @@
 ## Oversite Dispatch  ·  Weekly Update  ·  Sep 3 – Sep 7
 
 ## Website & Dashboard  ·  Weekly Update  ·  Sep 3 – Sep 7
++ Added Oversite Roleplay to the store and dashboard. It ships with tickets, messages, join messages, verification, Roblox group sync, infraction and promotion logs, logging, giveaways, invite tracker, marketplace, ads, text to speech, economy and gambling, suggestions, blacklist logs, music, and auto radio
 
