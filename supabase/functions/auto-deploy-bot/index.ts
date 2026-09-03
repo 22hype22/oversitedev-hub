@@ -60,6 +60,8 @@ function repoSourceFor(base: string): string {
     case "dispatch":
       return "22hype22/oversite-dispatch";
     case "customs":
+    case "roleplay":
+      // Same codebase; BOT_BASE tells it which product it is.
       return "22hype22/oversite-customs";
     case "protection":
     case "scratch":
@@ -179,9 +181,9 @@ const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
   ],
 };
 
-function normalizeBase(base: string): "protection" | "support" | "utilities" | "scratch" | "customs" {
+function normalizeBase(base: string): "protection" | "support" | "utilities" | "scratch" | "customs" | "roleplay" {
   const b = (base ?? "").toLowerCase().trim();
-  if (b === "support" || b === "utilities" || b === "customs") return b;
+  if (b === "support" || b === "utilities" || b === "customs" || b === "roleplay") return b;
   if (
     b === "scratch" ||
     b === "all-in-one-pack" ||
@@ -1311,10 +1313,14 @@ Deno.serve(async (req) => {
     const purchasedAddons = Array.isArray((order as any).addons)
       ? ((order as any).addons as string[])
       : [];
-    const isDispatch = (order.base ?? "").toLowerCase().trim() === "dispatch";
+    const baseLower = (order.base ?? "").toLowerCase().trim();
+    const isDispatch = baseLower === "dispatch";
     const featureFlagVars = isDispatch
       ? await buildDispatchVars(admin, orderId, workerToken)
       : buildFeatureFlagVars(order.base, purchasedAddons);
+    // The customs codebase serves more than one product (Network, Roleplay);
+    // BOT_BASE tells the running bot which one it is.
+    const sharedCodebaseBases = ["customs", "roleplay"];
 
     const varsPayload: Record<string, string> = {
       DISCORD_TOKEN: botToken.trim(),
@@ -1324,6 +1330,7 @@ Deno.serve(async (req) => {
       SUPABASE_ANON_KEY: anonKey,
       WORKER_TOKEN: workerToken,
       SUPABASE_FN_URL: fnUrl,
+      ...(sharedCodebaseBases.includes(baseLower) ? { BOT_BASE: baseLower } : {}),
       ...featureFlagVars,
     };
 

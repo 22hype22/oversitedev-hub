@@ -354,7 +354,7 @@ export const BotBuilder = () => {
   // Managed hosting is billed for Discord bots only — ER:LC / Roblox bots
   // (dispatch, erlc-spec, customs) are one-time purchases hosted free, so their
   // `monthly_hosting` column must be false. Compute it per bot base at insert.
-  const ROBLOX_BASE_IDS = new Set<string>(["dispatch", "erlc-spec", "customs"]);
+  const ROBLOX_BASE_IDS = new Set<string>(["dispatch", "erlc-spec", "customs", "roleplay"]);
   const rowMonthlyHosting = (base: string) =>
     !String(base)
       .split(/[^a-z0-9-]+/i)

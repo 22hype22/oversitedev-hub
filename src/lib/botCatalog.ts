@@ -7,7 +7,7 @@
 // ER:LC / Roblox bots are one-time purchases hosted free — never billed a
 // monthly hosting fee. A `base` value can be compound (e.g. "protection+dispatch")
 // so isRobloxBase is true only when EVERY part is a Roblox base.
-export const ROBLOX_BASE_IDS = new Set<string>(["dispatch", "erlc-spec", "customs"]);
+export const ROBLOX_BASE_IDS = new Set<string>(["dispatch", "erlc-spec", "customs", "roleplay"]);
 export function isRobloxBase(base: string | null | undefined): boolean {
   if (!base) return false;
   const parts = String(base).split(/[^a-z0-9-]+/i).filter(Boolean);
@@ -21,6 +21,7 @@ export const BOT_BASE_LABELS: Record<string, string> = {
   scratch: "All in One Pack",
   dispatch: "Oversite Dispatch",
   customs: "Oversite Customs",
+  roleplay: "Oversite Roleplay",
 };
 
 export const BOT_BASE_TAGLINES: Record<string, string> = {
@@ -30,6 +31,7 @@ export const BOT_BASE_TAGLINES: Record<string, string> = {
   scratch: "Protection + Support + Utilities — every base in one bot.",
   dispatch: "AI voice dispatcher for ER:LC — reads 911 calls and talks back.",
   customs: "Tickets, messaging, credits, and join logs — all dashboard-driven.",
+  roleplay: "Everything an ER:LC roleplay community runs on, all dashboard-driven.",
 };
 
 export const BOT_ADDON_LABELS: Record<string, string> = {
@@ -238,6 +240,12 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
   ],
   utilities: [...ADDON_IDS_BY_BASE.utilities, "messages"],
   customs: ["invite-message", "customs-messages", "customs-tickets", "customs-verification", "customs-giveaway", "customs-robux-locker", "customs-order-status", "customs-pricing", "customs-portfolio", "customs-packages", "customs-orderlog", "customs-infraction", "customs-promotion", "customs-qualitycheck", "customs-payment", "customs-logging", "music-addon", "auto-radio", "roblox-group-sync", "invite-tracker", "marketplace", "ads", "customs-tts", "customs-gambling", "customs-suggestions", "customs-feedback", "customs-vouches", "customs-sales", "customs-freerelease", "customs-blacklist", "customs-announce", "customs-smallui"],
+  // Oversite Roleplay: the Network feature set minus the shop pieces (packages,
+  // pricing, portfolio, robux locker, order status, vouches, sales).
+  roleplay: ["invite-message", "customs-messages", "customs-tickets", "customs-verification", "roblox-group-sync",
+    "customs-infraction", "customs-promotion", "customs-logging", "customs-payment", "customs-giveaway", "music-addon",
+    "auto-radio", "invite-tracker", "marketplace", "ads", "customs-tts", "customs-gambling", "customs-suggestions",
+    "customs-blacklist", "customs-smallui"],
 };
 
 export function getIncludedAddonsForBase(baseId: string): string[] {
