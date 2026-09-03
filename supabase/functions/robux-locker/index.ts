@@ -15,8 +15,10 @@
 //
 // Secrets / env (Lovable Cloud -> Supabase -> Edge Function secrets):
 //   ROBLOX_COOKIE      .ROBLOSECURITY of the group's bot account (already set for payments)
-//   ROBLOX_GROUP_ID    OPTIONAL. The group id whose funds back the locker. If unset,
-//                      it's auto-detected from the cookie (the group the bot owns).
+//   ROBLOX_GROUP_ID    OPTIONAL. The group id whose funds back the locker. The
+//                      per-bot value from the dashboard's "API keys & credentials"
+//                      card wins; then this env; else it's auto-detected from the
+//                      cookie (the group the bot owns).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -88,12 +90,28 @@ function cookieHeaders(ck: string): Record<string, string> {
   return { Cookie: `.ROBLOSECURITY=${ck}` };
 }
 
-// The group id, resolved once and cached. If ROBLOX_GROUP_ID is set it wins;
-// otherwise we ask Roblox who this cookie belongs to and find the group it owns.
+// The Roblox group ID the owner typed under "API keys & credentials" for this
+// bot, if any. Read per request so different bots never share a group.
+async function resolveBotGroupId(botId: string, req: Request): Promise<string> {
+  const token = getWorkerToken(req);
+  if (!token) return "";
+  try {
+    const { data, error } = await admin.rpc("runtime_get_bot_secret", {
+      _token: token, _bot_id: botId, _key: "ROBLOX_GROUP_ID",
+    });
+    if (!error && typeof data === "string" && /^\d+$/.test(data.trim())) return data.trim();
+  } catch (_e) { /* fall through to auto-detect */ }
+  return "";
+}
+
+// The group id. Priority: the per-bot ROBLOX_GROUP_ID from the dashboard, then
+// the project-wide ROBLOX_GROUP_ID env, then auto-detect: ask Roblox who this
+// cookie belongs to and use the group it owns (cached per cookie account).
 let cachedGroupId = "";
 
-async function resolveGroupId(ck: string): Promise<string> {
+async function resolveGroupId(ck: string, botGroupId = ""): Promise<string> {
   if (!ck) throw new Error("ROBLOX_COOKIE is not configured");
+  if (botGroupId) return botGroupId;
   if (GROUP_ID) return GROUP_ID;
   if (cachedGroupId) return cachedGroupId;
 
@@ -133,9 +151,9 @@ async function resolveGroupId(ck: string): Promise<string> {
   return id;
 }
 
-async function groupFunds(ck: string): Promise<number> {
+async function groupFunds(ck: string, botGroupId = ""): Promise<number> {
   if (!ck) throw new Error("ROBLOX_COOKIE is not configured");
-  const groupId = await resolveGroupId(ck);
+  const groupId = await resolveGroupId(ck, botGroupId);
   const res = await fetch(`https://economy.roblox.com/v1/groups/${groupId}/currency`, {
     headers: cookieHeaders(ck),
   });
@@ -150,8 +168,8 @@ async function groupFunds(ck: string): Promise<number> {
 // Group revenue breakdown for a window (Day | Week | Month | Year). Includes
 // pendingRobux and the per-source figures (sales, payouts, etc.). Requires the
 // account to have "View group revenue" (owners have it).
-async function revenueSummary(ck: string, timeFrame: string): Promise<Record<string, unknown>> {
-  const groupId = await resolveGroupId(ck);
+async function revenueSummary(ck: string, timeFrame: string, botGroupId = ""): Promise<Record<string, unknown>> {
+  const groupId = await resolveGroupId(ck, botGroupId);
   const tf = ["Day", "Week", "Month", "Year"].includes(timeFrame) ? timeFrame : "Day";
   const res = await fetch(
     `https://economy.roblox.com/v1/groups/${groupId}/revenue/summary/${tf}`,
@@ -218,6 +236,7 @@ Deno.serve(async (req) => {
   const botId = await resolveBotId(req);
   if (!botId) return json({ error: "Unauthorized" }, 401);
   const ck = await resolveCookie(botId, req);
+  const botGroupId = await resolveBotGroupId(botId, req);
 
   let body: { action?: string; amount?: number; timeFrame?: string };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
@@ -226,14 +245,14 @@ Deno.serve(async (req) => {
 
   try {
     if (action === "funds") {
-      return json({ ok: true, robux: await groupFunds(ck) });
+      return json({ ok: true, robux: await groupFunds(ck, botGroupId) });
     }
     if (action === "funds_detail") {
-      const available = await groupFunds(ck);
+      const available = await groupFunds(ck, botGroupId);
       let summary: Record<string, unknown> | null = null;
       let summaryError: string | null = null;
       try {
-        summary = await revenueSummary(ck, String(body.timeFrame ?? "Day"));
+        summary = await revenueSummary(ck, String(body.timeFrame ?? "Day"), botGroupId);
       } catch (e) {
         summaryError = e instanceof Error ? e.message : String(e);
       }
@@ -269,7 +288,7 @@ Deno.serve(async (req) => {
       // Recent group SALE transactions (game passes, shirts, etc.), newest first.
       // Used by the purchase-logs poller. Each item: { id, created, buyerId,
       // buyerName, itemName, itemType, itemId, amount }.
-      const groupId = await resolveGroupId(ck);
+      const groupId = await resolveGroupId(ck, botGroupId);
       const limit = Math.min(100, Math.max(1, Number(body.limit ?? 25)));
       const res = await fetch(
         `https://economy.roblox.com/v2/groups/${groupId}/transactions?transactionType=Sale&limit=${limit}&sortOrder=Desc`,

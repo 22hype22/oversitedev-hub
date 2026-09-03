@@ -99,6 +99,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   "customs-gambling": "Economy & Gambling",
   "customs-suggestions": "Suggestions",
   "customs-feedback": "Feedback",
+  "customs-vouches": "Vouches",
   "customs-freerelease": "Free Release",
   "customs-blacklist": "Blacklist Logs",
   "customs-reportbug": "Report a Bug",
@@ -236,7 +237,7 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
     ...ADDON_IDS_BY_BASE.support.filter((id) => id !== "ticket-message-customization"),
   ],
   utilities: [...ADDON_IDS_BY_BASE.utilities, "messages"],
-  customs: ["invite-message", "customs-messages", "customs-tickets", "customs-verification", "customs-giveaway", "customs-robux-locker", "customs-order-status", "customs-pricing", "customs-portfolio", "customs-packages", "customs-orderlog", "customs-infraction", "customs-promotion", "customs-qualitycheck", "customs-payment", "customs-logging", "music-addon", "auto-radio", "roblox-group-sync", "invite-tracker", "marketplace", "ads", "customs-tts", "customs-gambling", "customs-suggestions", "customs-feedback", "customs-freerelease", "customs-blacklist", "customs-announce", "customs-smallui"],
+  customs: ["invite-message", "customs-messages", "customs-tickets", "customs-verification", "customs-giveaway", "customs-robux-locker", "customs-order-status", "customs-pricing", "customs-portfolio", "customs-packages", "customs-orderlog", "customs-infraction", "customs-promotion", "customs-qualitycheck", "customs-payment", "customs-logging", "music-addon", "auto-radio", "roblox-group-sync", "invite-tracker", "marketplace", "ads", "customs-tts", "customs-gambling", "customs-suggestions", "customs-feedback", "customs-vouches", "customs-freerelease", "customs-blacklist", "customs-announce", "customs-smallui"],
 };
 
 export function getIncludedAddonsForBase(baseId: string): string[] {
