@@ -937,6 +937,17 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "customs-sales": {
+    title: "Sales Stats",
+    summary: "/sales shows each designer's orders, packages and revenue. Posts a recap with the top designer on the 1st of every month.",
+    icon: BarChart3,
+    fields: [
+      channel("channel_id", "Monthly recap channel", "Where the monthly recap is posted. Leave empty to skip the post and just use /sales."),
+      multirole("staff_role_ids", "Who can run /sales", "Manage Server always can. Add designer or manager roles here to let them see the numbers too."),
+      toggle("monthly_post", "Post a monthly recap", true, "On the 1st of each month, last month's totals per designer and the top designer."),
+    ],
+  },
+
   "customs-freerelease": {
     title: "Free Release",
     summary: "/freerelease posts a drop that unlocks a file at a reaction goal.",

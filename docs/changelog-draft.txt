@@ -8,6 +8,9 @@
 + Added a Vouches block. Buyers run /vouch to rate a designer 1 to 5 stars with a short review, every vouch posts a card in your vouch channel, /vouches shows a designer's average and recent reviews, and the pricing board shows each designer's star rating next to their name
 + The Leave a Review button on package receipts now leaves a vouch for the designer who posted the package
 + Added a Roblox group ID box under API keys and credentials. The Robux Locker, sales tracking, and Roblox Group Sync all read it, so your group only has to be entered once
++ Staff reminders on claimed orders. If a customer has waited 12 hours with no staff reply, the bot pings whoever claimed it. At 24 hours it pings the ticket's staff roles along with the claimer
++ Queue updates for customers. When an open order moves in the line, the customer gets a message in their ticket saying they moved up to 3rd, were moved back, or are next up
++ Added a Sales Stats block. /sales shows each designer's completed orders, packages sold, and Robux and USD revenue for the week, month, or all time, and on the 1st of every month the bot posts last month's recap with the top designer
 
 ## Oversite Dispatch  ·  Weekly Update  ·  Sep 3 – Sep 7
 
