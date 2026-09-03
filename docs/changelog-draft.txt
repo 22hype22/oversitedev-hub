@@ -20,11 +20,13 @@
 + Added a Sales Stats block. /sales shows each designer's completed orders, packages sold, and Robux and USD revenue for the week, month, or all time, and on the 1st of every month the bot posts last month's recap with the top designer
 
 ## Oversite Roleplay  ·  Weekly Update  ·  Sep 3 – Sep 7
++ Added a Sessions block. /session manage gives staff a panel with a fixed menu to start a vote, start the session, boost it, or end it. Votes post with a Vote button that counts people up to the number you set, and every message it posts is yours to design in the dashboard
 + Added a Shifts block. /shift manage gives each staff member a panel with their shift time, break time, weekly quota progress and recent shifts, plus Start, Break and End buttons, and hands out your on-shift roles while they are on. /shift leaderboard ranks who has been on the most this week or all time, and /shift online lists who is on right now. All three messages are yours to write in the dashboard
 
 ## Oversite Dispatch  ·  Weekly Update  ·  Sep 3 – Sep 7
 
 ## Website & Dashboard  ·  Weekly Update  ·  Sep 3 – Sep 7
++ Message previews now show the parts the bot adds on its own, like the Verify button or the session menu, marked as locked so they can't be removed by mistake
 + Fixed bug where a bot showed as offline for a few seconds when you opened its page and its add-on blocks were locked until it flipped back. The dashboard now trusts a fresh heartbeat, shows Checking while it asks Railway about a quiet one, and only says offline when Railway says the bot is really down
 + Each bot in the list now has its own icon
 + Added Oversite Roleplay to the store and dashboard. It ships with tickets, messages, join messages, verification, Roblox group sync, infraction and promotion logs, logging, giveaways, invite tracker, marketplace, ads, text to speech, economy and gambling, suggestions, blacklist logs, music, and auto radio

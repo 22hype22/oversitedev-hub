@@ -42,6 +42,7 @@ import {
   ChevronsUpDown,
   Columns3,
   ShoppingCart,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { GuildChannelPicker } from "./GuildChannelPicker";
@@ -403,13 +404,17 @@ export type MessagesV2BuilderProps = {
   /** When true, the Add Component menu offers a "Fields (side by side)" component
    *  (used by the Packages card). Off everywhere else. */
   allowFields?: boolean;
+  /** Parts the bot adds to this message itself (a fixed menu, a Verify button,
+   *  a Vote button). They show in the editor stack and the preview with a lock,
+   *  can't be edited, moved or deleted, and are never part of getItems(). */
+  lockedItems?: V2Item[];
 };
 
 export const MessagesV2Builder = forwardRef<
   MessagesV2BuilderHandle,
   MessagesV2BuilderProps
 >(function MessagesV2Builder(
-  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [], hidePreview = false, onItemsChange, giveaway = false, allowFields = false },
+  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [], hidePreview = false, onItemsChange, giveaway = false, allowFields = false, lockedItems = [] },
 
   ref,
 ) {
@@ -589,6 +594,9 @@ export const MessagesV2Builder = forwardRef<
               moveChild={(cid, d) => moveChild(it.id, cid, d)}
             />
           ))}
+          {lockedItems.map((it) => (
+            <LockedBlock key={it.id} item={it} />
+          ))}
         </div>
 
         <AddComponentMenu onAdd={addItem} allowFields={allowFields} />
@@ -611,11 +619,17 @@ export const MessagesV2Builder = forwardRef<
               <span className="text-[11px] text-[#949ba4]">Today at {new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
             </div>
             <div className="mt-1 space-y-2">
-              {items.length === 0 && !previewExtras ? (
+              {items.length === 0 && !previewExtras && lockedItems.length === 0 ? (
                 <div className="text-xs text-[#949ba4] italic">No components yet — add one to see a preview.</div>
               ) : (
                 items.map((it) => <PreviewItem key={it.id} item={it} />)
               )}
+              {lockedItems.map((it) => (
+                <div key={it.id} className="relative" title="Added by the bot. This part can't be removed.">
+                  <PreviewItem item={it} />
+                  <Lock className="absolute -right-1 -top-1 h-3 w-3 text-[#949ba4]" />
+                </div>
+              ))}
               {previewExtras}
             </div>
 
@@ -768,6 +782,38 @@ function ItemBlock({
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** A part the bot adds itself: shown in the stack so the layout reads true,
+ *  locked so it can't be edited, moved or deleted. */
+function LockedBlock({ item }: { item: V2Item }) {
+  const summary =
+    item.type === "buttonRow"
+      ? item.buttons.map((b) => b.label).join(", ")
+      : item.type === "select_menu"
+        ? `${item.placeholder || "Menu"}: ${item.options.map((o) => o.label).join(", ")}`
+        : item.type === "text"
+          ? item.text
+          : "";
+  return (
+    <div className="rounded-lg border border-dashed border-border bg-muted/30">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
+        <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+          {labelFor(item.type)}
+          <span className="text-[10px] font-medium text-muted-foreground">added by the bot</span>
+        </div>
+        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground" title="This part is fixed. It can't be edited, moved or removed.">
+          <Lock className="h-3 w-3" /> Locked
+        </span>
+      </div>
+      <div className="px-3 py-2">
+        <div className="rounded bg-[#313338] p-2 text-white">
+          <PreviewItem item={item} />
+        </div>
+        {summary && <p className="mt-1.5 text-[11px] text-muted-foreground">{summary}</p>}
       </div>
     </div>
   );

@@ -48,6 +48,7 @@ import {
   Radio,
   Gamepad2,
   Star,
+  RadioTower,
   Repeat,
   Gift,
   BarChart,
@@ -956,6 +957,18 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
       { key: "online_message", label: "/shift online", type: "textarea", markdown: true,
         defaultValue: "## Staff on shift, {count}\n{online}",
         help: "Tokens: {online} {count}. One line per person on shift, with how long they have been on." },
+    ],
+  },
+
+  "roleplay-sessions": {
+    title: "Sessions",
+    summary: "/session manage: vote, start, boost and end your server sessions. Every message is yours to design.",
+    icon: RadioTower,
+    fields: [
+      multirole("manager_role_ids", "Who can manage sessions", "Manage Server always can."),
+      channel("channel_id", "Announcement channel", "Where votes, starts, boosts and shutdowns are posted. Leave empty to post where the command is run."),
+      role("ping_role_id", "Session ping role", "Pinged with every session message through the {ping} token."),
+      { key: "vote_needed", label: "Votes needed to pass", type: "number", placeholder: "5", defaultValue: 5, help: "The Vote button shows the count against this." },
     ],
   },
 
