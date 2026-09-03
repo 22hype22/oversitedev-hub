@@ -376,8 +376,10 @@ async function stripeRecent(_botId: string, limit: number): Promise<Array<Record
   // customs payment prices (lookup_key starts with "ovs_pay_"). Matching by the
   // price/product — not a per-payment tag — means even reused links log. Sessions
   // also carry the payer's name/email directly, so no extra fetch is needed.
+  // payment_intent is expanded so the ticket/designer metadata stamped by a
+  // /payment run inside a ticket comes back with the sale.
   const data = await stripeGet(
-    `checkout/sessions?limit=${Math.min(100, Math.max(1, limit))}&expand[]=data.line_items`,
+    `checkout/sessions?limit=${Math.min(100, Math.max(1, limit))}&expand[]=data.line_items&expand[]=data.payment_intent`,
   );
   const rows: any[] = Array.isArray(data?.data) ? data.data : [];
   return rows
@@ -386,14 +388,20 @@ async function stripeRecent(_botId: string, limit: number): Promise<Array<Record
       const items: any[] = Array.isArray(s?.line_items?.data) ? s.line_items.data : [];
       return items.some((li) => String(li?.price?.lookup_key ?? "").startsWith("ovs_pay_"));
     })
-    .map((s) => ({
-      id: String(s.payment_intent ?? s.id),
-      created: Number(s.created ?? 0),
-      amount: Number(s.amount_total ?? 0),
-      currency: String(s.currency ?? STRIPE_CURRENCY),
-      customer_name: String(s?.customer_details?.name ?? ""),
-      customer_email: String(s?.customer_details?.email ?? ""),
-    }));
+    .map((s) => {
+      const pi = s.payment_intent && typeof s.payment_intent === "object" ? s.payment_intent : null;
+      const meta = (pi?.metadata ?? {}) as Record<string, string>;
+      return {
+        id: String(pi?.id ?? s.payment_intent ?? s.id),
+        created: Number(s.created ?? 0),
+        amount: Number(s.amount_total ?? 0),
+        currency: String(s.currency ?? STRIPE_CURRENCY),
+        customer_name: String(s?.customer_details?.name ?? ""),
+        customer_email: String(s?.customer_details?.email ?? ""),
+        channel_id: String(meta.channel_id ?? ""),
+        designer_id: String(meta.designer_id ?? ""),
+      };
+    });
 }
 
 async function stripeStateGet(botId: string): Promise<string[]> {
@@ -422,6 +430,7 @@ Deno.serve(async (req) => {
     action?: string; method?: string; item?: number; price?: number;
     discord_id?: string; guild_id?: string; customer_name?: string;
     limit?: number; seen_ids?: unknown[];
+    channel_id?: string; designer_id?: string;
   };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
 
@@ -451,7 +460,12 @@ Deno.serve(async (req) => {
       // so the purchase-log poller can find THIS bot's payments and skip unrelated
       // charges on the same Stripe account. Stripe never sees Discord identity, so
       // the log's Customer is the payer's own name/email from the charge.
-      const url = await createStripePaymentLink(price, { app: STRIPE_APP_TAG, bot_id: botId });
+      // A /payment run inside a ticket also stamps the ticket + designer so the
+      // paid sale can be counted for that order (see stripeRecent).
+      const attribution: Record<string, string> = { app: STRIPE_APP_TAG, bot_id: botId };
+      if (/^\d{15,22}$/.test(String(body.channel_id ?? ""))) attribution.channel_id = String(body.channel_id);
+      if (/^\d{15,22}$/.test(String(body.designer_id ?? ""))) attribution.designer_id = String(body.designer_id);
+      const url = await createStripePaymentLink(price, attribution);
       return json({ ok: true, method, url, label: `$${price.toFixed(2)} (Stripe)` });
     }
 
