@@ -244,7 +244,7 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
   // Oversite Roleplay: the Network feature set minus the shop pieces (packages,
   // pricing, portfolio, robux locker, order status, vouches, sales).
   roleplay: ["invite-message", "customs-messages", "customs-tickets", "customs-verification", "roblox-group-sync",
-    "customs-infraction", "customs-promotion", "customs-logging", "customs-payment", "customs-giveaway", "music-addon",
+    "customs-infraction", "customs-promotion", "customs-logging", "customs-giveaway", "music-addon",
     "auto-radio", "invite-tracker", "marketplace", "ads", "customs-tts", "customs-gambling", "customs-suggestions",
     "customs-blacklist", "customs-smallui"],
 };
