@@ -5,6 +5,7 @@
 # "~ " changes. Boxes start with "## ". Skip boxes with nothing in them.
 
 ## Oversite Network  ·  Weekly Update  ·  Sep 3 – Sep 7
++ Rewrote every slash command description and option hint so they read like a person wrote them, with no staff tags or brackets
 + Added a Vouches block. Buyers run /vouch to rate a designer 1 to 5 stars with a short review, every vouch posts a card in your vouch channel, /vouches shows a designer's average and recent reviews, and the pricing board shows each designer's star rating next to their name
 + The Leave a Review button on package receipts now leaves a vouch for the designer who posted the package
 + Added a Roblox group ID box under API keys and credentials. The Robux Locker, sales tracking, and Roblox Group Sync all read it, so your group only has to be entered once
@@ -20,6 +21,7 @@
 + Added a Sales Stats block. /sales shows each designer's completed orders, packages sold, and Robux and USD revenue for the week, month, or all time, and on the 1st of every month the bot posts last month's recap with the top designer
 
 ## Oversite Roleplay  ·  Weekly Update  ·  Sep 3 – Sep 7
++ Rewrote every slash command description and option hint so they read like a person wrote them, with no staff tags or brackets
 + Added a Sessions block. /session manage gives staff a panel with a fixed menu to start a vote, start the session, boost it, or end it. Votes post with a Vote button that counts people up to the number you set, and every message it posts is yours to design in the dashboard
 + Added a Shifts block. /shift manage gives each staff member a panel with their shift time, break time, weekly quota progress and recent shifts, plus Start, Break and End buttons, and hands out your on-shift roles while they are on. /shift leaderboard ranks who has been on the most this week or all time, and /shift online lists who is on right now. All three messages are yours to write in the dashboard
 
