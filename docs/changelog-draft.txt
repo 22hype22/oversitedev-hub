@@ -5,6 +5,9 @@
 # "~ " changes. Boxes start with "## ". Skip boxes with nothing in them.
 
 ## Oversite Network  ·  Weekly Update  ·  Sep 3 – Sep 7
++ Added a Vouches block. Buyers run /vouch to rate a designer 1 to 5 stars with a short review, every vouch posts a card in your vouch channel, /vouches shows a designer's average and recent reviews, and the pricing board shows each designer's star rating next to their name
++ The Leave a Review button on package receipts now leaves a vouch for the designer who posted the package
++ Added a Roblox group ID box under API keys and credentials. The Robux Locker, sales tracking, and Roblox Group Sync all read it, so your group only has to be entered once
 
 ## Oversite Dispatch  ·  Weekly Update  ·  Sep 3 – Sep 7
 

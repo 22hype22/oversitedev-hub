@@ -925,6 +925,18 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     ],
   },
 
+  "customs-vouches": {
+    title: "Vouches",
+    summary: "/vouch lets buyers rate a designer 1 to 5 stars. Each vouch posts a card, and averages show on the pricing board.",
+    icon: Star,
+    fields: [
+      channel("channel_id", "Vouch channel", "Where every vouch card is posted. The receipt's Leave a Review button also lands here once this is set."),
+      multirole("designer_role_ids", "Who can be vouched for", "Only members with one of these roles can receive a vouch. Leave empty to allow anyone."),
+      toggle("show_on_pricing", "Show ratings on the pricing board", true, "Adds each designer's star average next to their name in /pricing."),
+      toggle("require_review", "Require a written review", false, "When on, a star rating alone isn't enough — buyers have to write a sentence too."),
+    ],
+  },
+
   "customs-freerelease": {
     title: "Free Release",
     summary: "/freerelease posts a drop that unlocks a file at a reaction goal.",
