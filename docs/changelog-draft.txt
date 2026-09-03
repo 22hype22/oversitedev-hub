@@ -11,7 +11,8 @@
 + Staff reminders on claimed orders. If a customer has waited 12 hours with no staff reply, the bot pings whoever claimed it. At 24 hours it pings the ticket's staff roles along with the claimer
 + Queue updates for customers. When an open order moves in the line, the customer gets a message in their ticket saying they moved up to 3rd, were moved back, or are next up
 + When an order closes, the customer now gets a DM with a summary, the transcript, and a button to vouch for the designer who handled it
-+ Added /progress so a designer can tell the customer where their order is: started, draft ready, awaiting your approval, or delivered. It posts in the ticket and tags the stage on the channel name
++ Orders now move through two stages on their own. When the payment comes through the ticket is marked in progress, and when the designer logs the order with /orderlog it is marked completed and the customer is told. /progress sets either by hand
++ Opening an order now asks you to tick a box agreeing to the Sales and Refund Policy, and the agreement is written into the ticket with the time
 + Added /away and /back for designers. Away hides you from the pricing board, tells the customers in your claimed tickets when you're back, and pauses the staff reminders on those tickets until you return
 + Running /payment inside an order ticket now links that payment to the order. When the customer pays, the bot posts in the ticket that the payment came through and counts it toward the designer who claimed it
 + Added a Sales Stats block. /sales shows each designer's completed orders, packages sold, and Robux and USD revenue for the week, month, or all time, and on the 1st of every month the bot posts last month's recap with the top designer
