@@ -681,7 +681,10 @@ export const BotOrdersLog = () => {
                                         ? "Failed"
                                         : "Deploying…"}
                                   </Badge>
-                                  {r.deployment_status === "failed" && (
+                                  {/* Failed: retry. Deployed: redeploy, which also re-links the
+                                      Railway service to the repo the deploy function names for
+                                      this base (used when a base moves to a new repo). */}
+                                  {(r.deployment_status === "failed" || r.deployment_status === "deployed") && (
                                     <Button
                                       variant="outline"
                                       size="sm"
@@ -694,16 +697,18 @@ export const BotOrdersLog = () => {
                                         );
                                         setRedeployingId(null);
                                         if (error) {
-                                          toast.error("Retry failed", {
+                                          toast.error(r.deployment_status === "failed" ? "Retry failed" : "Redeploy failed", {
                                             description: error.message,
                                           });
                                         } else {
-                                          toast.success("Deployment retried");
+                                          toast.success(r.deployment_status === "failed" ? "Deployment retried" : "Redeploy started");
                                           load();
                                         }
                                       }}
                                     >
-                                      {redeployingId === r.id ? "Retrying…" : "Retry deployment"}
+                                      {redeployingId === r.id
+                                        ? (r.deployment_status === "failed" ? "Retrying…" : "Redeploying…")
+                                        : (r.deployment_status === "failed" ? "Retry deployment" : "Redeploy")}
                                     </Button>
                                   )}
                                 </div>
