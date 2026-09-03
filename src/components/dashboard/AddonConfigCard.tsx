@@ -147,6 +147,43 @@ const hasCounterButton = (items: any[]): boolean =>
       (it?.type === "container" && hasCounterButton(it.children || [])),
   );
 
+// ---- Roleplay sessions: five designs in one block, each with the part the bot
+// adds shown locked in the builder (the manage menu, the Vote button).
+const SESSION_DESIGN_KEYS = ["panel", "vote", "start", "boost", "end"] as const;
+type SessionDesignKey = (typeof SESSION_DESIGN_KEYS)[number];
+const SESSION_DESIGN_META: Record<SessionDesignKey, { tab: string; hint: string }> = {
+  panel: { tab: "Manage panel", hint: "What staff see when they run /session manage. The menu under it is fixed." },
+  vote: { tab: "Vote", hint: "Posted when staff start a vote. The Vote button under it is fixed and shows the count. Tokens: {ping} {votes} {needed} {user}." },
+  start: { tab: "Start", hint: "Posted when the session starts. Tokens: {ping} {user} {started_at}." },
+  boost: { tab: "Boost", hint: "Posted when staff ask for more players. Tokens: {ping} {user}." },
+  end: { tab: "End", hint: "Posted when the session ends. Tokens: {ping} {user} {started_at} {started_by}." },
+};
+const sessionText = (text: string): V2Item =>
+  ({ id: gwUid(), type: "container", accentColor: "", children: [{ id: gwUid(), type: "text", text }] } as unknown as V2Item);
+const defaultSessionItems = (key: SessionDesignKey): V2Item[] => [sessionText({
+  panel: "## Session manager\nPick what to do from the menu below.",
+  vote: "## Session vote\n{ping} A session vote has started. Press Vote below if you can play.\n{votes} of {needed} votes so far.",
+  start: "## Session started\n{ping} The server is up, join in game now.\nStarted by {user}.",
+  boost: "## Session boost\n{ping} We need more players in the server right now. Come join.",
+  end: "## Session ended\n{ping} The server has shut down. Thanks to everyone who joined.\nEnded by {user}.",
+}[key])];
+const sessionLockedItems = (key: SessionDesignKey, voteNeeded: number): V2Item[] => {
+  if (key === "panel") {
+    return [{ id: "locked-session-menu", type: "select_menu", placeholder: "What do you want to do?", options: [
+      { label: "Start a session vote", description: "Post a vote and let players press Vote", display: true },
+      { label: "Start the session", description: "Announce the server is up", display: true },
+      { label: "Boost the session", description: "Ask for more players", display: true },
+      { label: "End the session", description: "Announce the shutdown", display: true },
+    ] } as unknown as V2Item];
+  }
+  if (key === "vote") {
+    return [{ id: "locked-session-vote", type: "buttonRow", buttons: [
+      { id: "locked-session-vote-btn", label: `Vote, 0 of ${voteNeeded || 5}`, style: "primary", disabled: true },
+    ] } as unknown as V2Item];
+  }
+  return [];
+};
+
 const withGiveawayEnter = (items: V2Item[]): V2Item[] =>
   hasCounterButton(items) ? items : [...items, giveawayEnterRow()];
 import { supabase } from "@/integrations/supabase/client";
@@ -297,6 +334,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   const isRobloxGroupSync = addonId === "roblox-group-sync";
   const isInviteTracker = addonId === "invite-tracker";
   const isAds = addonId === "ads";
+  const isRoleplaySessions = addonId === "roleplay-sessions";
   const config = getAddonConfig(addonId);
   const sayBuilderRef = useRef<SayCommandBuilderHandle>(null);
   const v2BuilderRef = useRef<MessagesV2BuilderHandle>(null);
@@ -1841,6 +1879,77 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
     else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
     else toast.success("Pricing saved & applied");
+    setOpen(false);
+  };
+
+  // ---------- roleplay: sessions (five designs, fixed menu + Vote button) ----------
+  const sessionsV2Refs = useRef<Record<string, MessagesV2BuilderHandle | null>>({});
+  const [sessionsV2Items, setSessionsV2Items] = useState<Record<SessionDesignKey, V2Item[]>>(
+    () => Object.fromEntries(SESSION_DESIGN_KEYS.map((k) => [k, defaultSessionItems(k)])) as Record<SessionDesignKey, V2Item[]>,
+  );
+  const [sessionsV2MountKey, setSessionsV2MountKey] = useState(0);
+  const [sessionsTab, setSessionsTab] = useState<SessionDesignKey>("panel");
+  useEffect(() => {
+    if (!isRoleplaySessions || !open || !botId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config, applied_at")
+        .eq("bot_id", botId)
+        .eq("feature", "roleplay-sessions")
+        .maybeSingle();
+      if (cancelled) return;
+      const cfg = (data?.config ?? {}) as Record<string, any>;
+      setValues((prev) => ({
+        ...prev,
+        manager_role_ids: Array.isArray(cfg.manager_role_ids) ? cfg.manager_role_ids.map(String) : [],
+        channel_id: cfg.channel_id ? String(cfg.channel_id) : "",
+        ping_role_id: cfg.ping_role_id ? String(cfg.ping_role_id) : "",
+        vote_needed: typeof cfg.vote_needed === "number" ? cfg.vote_needed : 5,
+      }));
+      const next = {} as Record<SessionDesignKey, V2Item[]>;
+      for (const k of SESSION_DESIGN_KEYS) {
+        const saved = cfg[`${k}_components`];
+        next[k] = Array.isArray(saved) && saved.length ? (saved as V2Item[]) : defaultSessionItems(k);
+      }
+      setSessionsV2Items(next);
+      setSessionsV2MountKey((k) => k + 1);
+      setSessionsTab("panel");
+      setAppliedAt((data as any)?.applied_at ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isRoleplaySessions, open, botId]);
+
+  const saveRoleplaySessions = async () => {
+    if (!botId) return toast.error("Missing bot id.");
+    setSaving(true);
+    const designs: Record<string, V2Item[]> = {};
+    for (const k of SESSION_DESIGN_KEYS) {
+      designs[`${k}_components`] = normalizeV2Items(sessionsV2Refs.current[k]?.getItems() ?? sessionsV2Items[k] ?? []);
+    }
+    const payload = {
+      bot_id: botId,
+      feature: "roleplay-sessions",
+      config: {
+        manager_role_ids: Array.isArray(values.manager_role_ids) ? (values.manager_role_ids as string[]).map(String) : [],
+        channel_id: String(values.channel_id ?? ""),
+        ping_role_id: String(values.ping_role_id ?? ""),
+        vote_needed: Math.max(1, Number(values.vote_needed) || 5),
+        ...designs,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    setSaving(false);
+    if (error) return toast.error(`Save failed: ${error.message}`);
+    const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {
+      _bot_id: botId, _feature: "roleplay-sessions",
+    });
+    const cmdResult = cmdData as { ok?: boolean; error?: string } | null;
+    if (cmdError) toast.warning(`Saved, but failed to notify bot: ${cmdError.message}`);
+    else if (cmdResult && cmdResult.ok === false) toast.warning(`Saved, but failed to notify bot: ${cmdResult.error ?? "unknown error"}`);
+    else toast.success("Sessions saved & applied");
     setOpen(false);
   };
 
@@ -4578,7 +4687,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
-              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isDesignerMsg || isCustomsSmallUi || isCustomsVerification || isCustomsTickets || isMarketplace || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsPackages || isCustomsFormLog || isCustomsLogging || isInviteTracker || isAds
+              : isTicketPanel || isTicketLifecycleMessages || isVerification || isInviteMessage || isDesignerMsg || isCustomsSmallUi || isCustomsVerification || isCustomsTickets || isMarketplace || isCustomsGiveaway || isCustomsRobuxLocker || isCustomsPricing || isCustomsPortfolio || isCustomsPackages || isCustomsFormLog || isCustomsLogging || isInviteTracker || isAds || isRoleplaySessions
                 ? "max-w-6xl max-h-[90vh] overflow-y-auto"
                 : isSayCommand || isRules || isGiveaway || isRemindme
                   ? "max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -4880,6 +4989,51 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               embedColor={giveawayEmbedColor}
               onEmbedColorChange={setGiveawayEmbedColor}
             />
+          ) : isRoleplaySessions ? (
+            <div className="space-y-5 py-2">
+              {config.fields
+                .filter((f) => (f.visibleIf ? f.visibleIf(values) : true))
+                .map((f) => (
+                  <div key={f.key}>{renderField(f)}</div>
+                ))}
+              <div className="space-y-2 pt-1">
+                <p className="text-sm font-semibold text-foreground">Session messages</p>
+                <p className="text-xs text-muted-foreground">
+                  Five messages, one per tab. Parts marked locked are added by the bot and stay put: the menu on the
+                  manage panel and the Vote button on the vote message.
+                </p>
+                <div className="inline-flex flex-wrap rounded-lg border border-border bg-background/40 p-0.5 text-xs">
+                  {SESSION_DESIGN_KEYS.map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setSessionsTab(k)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-md font-medium transition-colors",
+                        sessionsTab === k ? "bg-os-accent/15 text-foreground" : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {SESSION_DESIGN_META[k].tab}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground">{SESSION_DESIGN_META[sessionsTab].hint}</p>
+                {SESSION_DESIGN_KEYS.map((k) => (
+                  <div key={k} className={sessionsTab === k ? "" : "hidden"}>
+                    <MessagesV2Builder
+                      key={`roleplay-sessions-${k}-${sessionsV2MountKey}`}
+                      ref={(h) => { sessionsV2Refs.current[k] = h; }}
+                      embedded
+                      botId={botId}
+                      botName={botName}
+                      botAvatarUrl={botAvatarUrl}
+                      initialItems={sessionsV2Items[k]}
+                      lockedItems={sessionLockedItems(k, Number(values.vote_needed) || 5)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           ) : isCustomsGiveaway ? (
             <div className="space-y-5 py-2">
               {config.fields
@@ -5461,6 +5615,14 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                   botName={botName}
                   botAvatarUrl={botAvatarUrl}
                   initialItems={isCustomsVerification ? verifyPanelV2Items : isDesignerMsg || isCustomsSmallUi ? messagesV2Items : inviteV2Items}
+                  lockedItems={isCustomsVerification ? [{
+                    id: "locked-verify-button", type: "buttonRow", buttons: [{
+                      id: "locked-verify-btn",
+                      label: String(values.verify_button_label ?? "Verify").trim() || "Verify",
+                      style: (String(values.verify_button_style ?? "primary") as "primary" | "secondary" | "success" | "danger"),
+                      disabled: true,
+                    }],
+                  } as unknown as V2Item] : undefined}
                 />
               ) : (
                 <SayCommandBuilder
@@ -5707,6 +5869,8 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                     void saveServerStats();
                   } else if (isCustomsCredits) {
                     void saveCustomsCredits();
+                  } else if (isRoleplaySessions) {
+                    void saveRoleplaySessions();
                   } else if (isCustomsGiveaway) {
                     void saveCustomsGiveaway();
                   } else if (isCustomsRobuxLocker) {

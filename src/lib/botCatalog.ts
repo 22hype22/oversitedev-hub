@@ -104,6 +104,7 @@ export const BOT_ADDON_LABELS: Record<string, string> = {
   "customs-vouches": "Vouches",
   "customs-sales": "Sales Stats",
   "roleplay-shifts": "Shifts",
+  "roleplay-sessions": "Sessions",
   "customs-freerelease": "Free Release",
   "customs-blacklist": "Blacklist Logs",
   "customs-reportbug": "Report a Bug",
@@ -246,7 +247,7 @@ export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
   roleplay: ["invite-message", "customs-messages", "customs-tickets", "customs-verification", "roblox-group-sync",
     "customs-infraction", "customs-promotion", "customs-logging", "customs-giveaway", "music-addon",
     "auto-radio", "invite-tracker", "marketplace", "ads", "customs-tts", "customs-gambling", "customs-suggestions",
-    "customs-blacklist", "customs-smallui", "roleplay-shifts"],
+    "customs-blacklist", "customs-smallui", "roleplay-shifts", "roleplay-sessions"],
 };
 
 export function getIncludedAddonsForBase(baseId: string): string[] {
