@@ -202,23 +202,6 @@ const BASES: Base[] = [
     ],
   },
   {
-    id: "erlc-spec",
-    name: "ERLC Specialized",
-    tagline: "Purpose-built for ERLC servers, with in-game moderation and department tools.",
-    icon: Gamepad2,
-    price: 99,
-    included: [
-      "In-game moderation",
-      "Message-to-game linking",
-      "Department role management",
-      "Session tools & server binds",
-      "Live player & vehicle lookups",
-      "Automated shift & activity logging",
-      "Staff performance tracking",
-      "Custom in-game command binds",
-    ],
-  },
-  {
     id: "customs",
     name: "Oversite Customs",
     tagline: "Tickets, messaging, credits, and join logs, all dashboard-driven.",
@@ -303,7 +286,9 @@ const ADDONS_BY_BASE: Record<string, Addon[]> = {
 
 const ROBLOX_BASE_IDS = new Set<string>(["dispatch", "erlc-spec", "customs", "roleplay"]);
 const isRobloxBase = (id: string) => ROBLOX_BASE_IDS.has(id);
-const DEFAULT_STATUS: Record<string, BotStatus> = { "erlc-spec": "coming_soon" };
+const DEFAULT_STATUS: Record<string, BotStatus> = {};
+// Store order for the ER:LC row: Roleplay, then Customs beside it, Dispatch below.
+const ROBLOX_STORE_ORDER = ["roleplay", "customs", "dispatch"];
 
 const getAddonsForBase = (baseId: string): Addon[] => {
   if (baseId === "scratch") {
@@ -1293,7 +1278,9 @@ export function BotForge() {
                 );
                 };
                 const discordBases = BASES.filter((b) => !isRobloxBase(b.id));
-                const roblocBases = BASES.filter((b) => isRobloxBase(b.id));
+                const roblocBases = BASES.filter((b) => isRobloxBase(b.id)).sort(
+                  (a, b) => ROBLOX_STORE_ORDER.indexOf(a.id) - ROBLOX_STORE_ORDER.indexOf(b.id),
+                );
                 return (
                   <>
                     <div>
