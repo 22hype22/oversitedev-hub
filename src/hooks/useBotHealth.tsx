@@ -11,6 +11,15 @@ const OFFLINE_GRACE_MS = 25_000;
 // trustworthy on its own — show it but keep the loading refresh going.
 const HB_FRESH_MS = 60_000;
 
+// Status order of truth: a fresh heartbeat means online. A heartbeat that has
+// merely gone quiet (the row still says online, some bots heartbeat slower than
+// the server's cutoff) does NOT mean offline yet — it means "checking": Railway
+// is asked whether the container is running (bot-status-sync), and only its
+// answer, or a heartbeat this old, turns the page offline. This is what stops
+// the offline flash on open and the lockout that came with it.
+const VERIFY_COOLDOWN_MS = 20_000;
+const STALE_HARD_OFFLINE_MS = 10 * 60_000;
+
 // Last-known health per bot, cached in localStorage so a return visit paints the
 // status instantly (an always-on bot shows Online immediately) instead of
 // sitting on "checking…" until the get_bot_health round-trip lands. The live
@@ -58,6 +67,23 @@ export const useBotHealth = (botId: string | null) => {
   // to debounce transient offline flickers.
   const lastGoodRef = useRef<BotHealth | null>(null);
   const offlineSinceRef = useRef<number | null>(null);
+  const verifyRef = useRef<{ at: number; inFlight: boolean }>({ at: 0, inFlight: false });
+
+  // Ask Railway whether the container is actually running. Returns the mapped
+  // status ("online", "offline", "starting", ...) or null if it couldn't tell.
+  const verifyWithRailway = useCallback(async (id: string): Promise<string | null> => {
+    if (verifyRef.current.inFlight) return null;
+    verifyRef.current = { at: Date.now(), inFlight: true };
+    try {
+      const { data } = await supabase.functions.invoke("bot-status-sync", { body: { botIds: [id] } });
+      const v = (data?.statuses as Record<string, { status: string }> | undefined)?.[id];
+      return v?.status ?? null;
+    } catch {
+      return null;
+    } finally {
+      verifyRef.current.inFlight = false;
+    }
+  }, []);
 
   const load = useCallback(async () => {
     if (!botId) {
@@ -71,7 +97,29 @@ export const useBotHealth = (botId: string | null) => {
       _bot_id: botId,
     });
     if (!error && data) {
-      const h = data as BotHealth;
+      let h = data as BotHealth;
+      // Quiet heartbeat, row still says live: check with Railway before calling
+      // it offline. Show "checking" meanwhile so nothing locks.
+      if (h.effective_status === "offline" && h.stale) {
+        const hbAge = h.last_heartbeat_at ? Date.now() - new Date(h.last_heartbeat_at).getTime() : Infinity;
+        if (hbAge < STALE_HARD_OFFLINE_MS) {
+          const dueForVerify = Date.now() - verifyRef.current.at > VERIFY_COOLDOWN_MS;
+          setHealth(lastGoodRef.current ?? { ...h, effective_status: "checking" });
+          setLoading(false);
+          if (dueForVerify) {
+            const verdict = await verifyWithRailway(botId);
+            if (verdict === "online") {
+              h = { ...h, effective_status: "online", stale: false, last_heartbeat_at: new Date().toISOString() };
+            } else if (verdict && verdict !== "offline") {
+              h = { ...h, effective_status: verdict, stale: false };
+            } else if (verdict === null) {
+              return; // couldn't tell; keep "checking" until the next poll
+            }
+          } else {
+            return; // a verification ran moments ago; wait for its row update
+          }
+        }
+      }
       if (h.effective_status !== "offline") {
         // Any live/starting state — trust it and remember it as the last good.
         lastGoodRef.current = h;
@@ -96,7 +144,7 @@ export const useBotHealth = (botId: string | null) => {
       }
     }
     setLoading(false);
-  }, [botId]);
+  }, [botId, verifyWithRailway]);
 
   useEffect(() => {
     if (!botId) {

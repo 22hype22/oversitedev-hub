@@ -92,6 +92,7 @@ import {
   RadioTower,
   LifeBuoy,
   Wrench,
+  Gamepad2,
   Star,
   ArrowUpRight,
   Share2,
@@ -698,10 +699,14 @@ const BotSection = ({
     : null;
 
   // Icon for the bot's base ("what it originally was").
+  // One icon per product so the bot list reads at a glance.
   const BaseIcon =
     bot.base === "support" ? LifeBuoy
     : bot.base === "utilities" ? Wrench
     : bot.base === "scratch" ? Sparkles
+    : bot.base === "dispatch" ? RadioTower
+    : bot.base === "customs" ? Package
+    : bot.base === "roleplay" ? Gamepad2
     : ShieldCheck;
 
   // Secondary meta chips (engine · hosting · free · health) shown on row two.
