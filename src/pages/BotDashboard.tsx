@@ -738,7 +738,9 @@ const BotSection = ({
     );
   }
   if (!bot.isDemo) {
-    secondaryMeta.push(<BotHealthBadge key="health" botId={bot.id} />);
+    secondaryMeta.push(
+      <BotHealthBadge key="health" botId={bot.id} health={health} loading={healthLoading} reload={reloadHealth} />,
+    );
   }
 
   const headerBadges = (

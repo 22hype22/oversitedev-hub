@@ -33,3 +33,4 @@
 + Each bot in the list now has its own icon
 + Added Oversite Roleplay to the store and dashboard. It ships with tickets, messages, join messages, verification, Roblox group sync, infraction and promotion logs, logging, giveaways, invite tracker, marketplace, ads, text to speech, economy and gambling, suggestions, blacklist logs, music, and auto radio
 
++ Bot pages open faster. Channel and role lists, team permissions, and the bot list are now fetched once and shared across every block on the page instead of once per block

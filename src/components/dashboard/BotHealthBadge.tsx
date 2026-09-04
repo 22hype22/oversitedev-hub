@@ -1,4 +1,4 @@
-import { useBotHealth, formatUptime, formatRelative } from "@/hooks/useBotHealth";
+import { useBotHealth, formatUptime, formatRelative, type BotHealth } from "@/hooks/useBotHealth";
 import { Activity, CircleOff, AlertTriangle, RefreshCw, Pause, Loader2 } from "lucide-react";
 
 const STATUS_META: Record<
@@ -16,8 +16,23 @@ const STATUS_META: Record<
   suspended:  { label: "Suspended",   className: "bg-orange-500/15 text-orange-400 border-orange-500/30",    icon: Pause },
 };
 
-export const BotHealthBadge = ({ botId }: { botId: string }) => {
-  const { health, loading, reload } = useBotHealth(botId);
+type Props = {
+  botId: string;
+  /**
+   * When the parent already polls this bot's health, pass its reading here so
+   * the badge does not start a second poll of its own.
+   */
+  health?: BotHealth | null;
+  loading?: boolean;
+  reload?: () => void;
+};
+
+export const BotHealthBadge = ({ botId, health: givenHealth, loading: givenLoading, reload: givenReload }: Props) => {
+  const shared = givenHealth !== undefined;
+  const own = useBotHealth(shared ? null : botId);
+  const health = shared ? givenHealth : own.health;
+  const loading = shared ? Boolean(givenLoading) : own.loading;
+  const reload = shared ? (givenReload ?? (() => {})) : own.reload;
 
   // Match the "Ready to invite" status pill exactly: same font size/weight
   // and the same inline padding (the dashboard's `.osd *{padding:0}` reset

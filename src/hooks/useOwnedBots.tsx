@@ -202,11 +202,26 @@ export function useOwnedBots() {
     // for `bots`, but we keep the full list around so account-wide perks
     // (like the Web Dashboard add-on) survive cancellations of the order
     // they were originally purchased on.
-    const { data: own, error: ownErr } = await (supabase as any)
-      .from("bot_orders")
-      .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,group_id,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,paid_at,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true });
+    // The three membership lookups (own orders, support grants, team seats)
+    // are independent, so they run together instead of one after another.
+    const [{ data: own, error: ownErr }, { data: grants }, { data: memberships }] = await Promise.all([
+      (supabase as any)
+        .from("bot_orders")
+        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,group_id,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,paid_at,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true }),
+      (supabase as any)
+        .from("support_access_grants")
+        .select("owner_user_id")
+        .eq("admin_user_id", userId)
+        .is("revoked_at", null)
+        .gt("expires_at", new Date().toISOString()),
+      (supabase as any)
+        .from("dashboard_team")
+        .select("owner_user_id,role,accepted_at")
+        .eq("member_user_id", userId)
+        .not("accepted_at", "is", null),
+    ]);
 
     // If the request errored (auth race, transient network), DO NOT clobber
     // existing state with empty arrays — that's what was making the dashboard
@@ -233,39 +248,14 @@ export function useOwnedBots() {
     );
 
     // 2) Bots from active support-access grants
-    const { data: grants } = await (supabase as any)
-      .from("support_access_grants")
-      .select("owner_user_id")
-      .eq("admin_user_id", userId)
-      .is("revoked_at", null)
-      .gt("expires_at", new Date().toISOString());
-
     const supportOwnerIds: string[] = Array.from(
       new Set(((grants ?? []) as any[]).map((g) => g.owner_user_id).filter(Boolean)),
     ).filter((id) => id !== userId);
-
-    let supportMapped: OwnedBot[] = [];
-    if (supportOwnerIds.length > 0) {
-      const { data: supportRows } = await (supabase as any)
-        .from("bot_orders")
-        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status")
-        .in("user_id", supportOwnerIds)
-        .order("created_at", { ascending: true });
-      supportMapped = (supportRows ?? [])
-        .filter((row: any) => ACCESS_STATUSES.has(row.status))
-        .map((row: any) => mapRow(row, { viaSupport: true }));
-    }
 
     // 3) Bots from accounts where this user is an active team member
     //    (i.e. they accepted an invite). Owners of those accounts have
     //    granted us seats on their bots — we should show those here so
     //    invited admins/moderators/viewers can manage them.
-    const { data: memberships } = await (supabase as any)
-      .from("dashboard_team")
-      .select("owner_user_id,role,accepted_at")
-      .eq("member_user_id", userId)
-      .not("accepted_at", "is", null);
-
     const teamOwnerIds: string[] = Array.from(
       new Set(
         ((memberships ?? []) as any[])
@@ -275,17 +265,22 @@ export function useOwnedBots() {
       ),
     ).filter((id) => id !== userId);
 
-    let teamMapped: OwnedBot[] = [];
-    if (teamOwnerIds.length > 0) {
-      const { data: teamRows } = await (supabase as any)
-        .from("bot_orders")
-        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status")
-        .in("user_id", teamOwnerIds)
-        .order("created_at", { ascending: true });
-      teamMapped = (teamRows ?? [])
-        .filter((row: any) => ACCESS_STATUSES.has(row.status))
-        .map((row: any) => mapRow(row, { viaTeam: true }));
-    }
+    const SHARED_COLS =
+      "id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status";
+    const [supportRes, teamRes] = await Promise.all([
+      supportOwnerIds.length > 0
+        ? (supabase as any).from("bot_orders").select(SHARED_COLS).in("user_id", supportOwnerIds).order("created_at", { ascending: true })
+        : Promise.resolve({ data: [] }),
+      teamOwnerIds.length > 0
+        ? (supabase as any).from("bot_orders").select(SHARED_COLS).in("user_id", teamOwnerIds).order("created_at", { ascending: true })
+        : Promise.resolve({ data: [] }),
+    ]);
+    const supportMapped: OwnedBot[] = ((supportRes?.data ?? []) as any[])
+      .filter((row: any) => ACCESS_STATUSES.has(row.status))
+      .map((row: any) => mapRow(row, { viaSupport: true }));
+    const teamMapped: OwnedBot[] = ((teamRes?.data ?? []) as any[])
+      .filter((row: any) => ACCESS_STATUSES.has(row.status))
+      .map((row: any) => mapRow(row, { viaTeam: true }));
 
     // Auto-retry: if the first fetch came back with zero bots AND zero
     // entitlement AND no team/support seats, it's almost always an auth/RLS
