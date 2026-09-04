@@ -55,6 +55,93 @@ export function rolesAssignableBy(role: TeamRole | null): TeamRole[] {
   return candidates.filter((r) => ROLE_RANK[r] <= ceiling);
 }
 
+type Resolved = { role: TeamRole | null; permissions: TeamPermissions };
+
+// The effective role is resolved by an edge function. A bot page mounts this
+// hook from many places (every add-on block, the secrets card, the team hub,
+// the read-only scope), so the answer is shared: one request in flight per
+// user+bot, the last answer kept for the next mount, and one realtime channel
+// per bot that invalidates the shared answer for every subscriber at once.
+const roleCache = new Map<string, Resolved>();
+const roleInflight = new Map<string, Promise<Resolved>>();
+const roleListeners = new Map<string, Set<(r: Resolved) => void>>();
+const roleChannels = new Map<string, { channel: ReturnType<typeof supabase.channel>; refs: number }>();
+
+async function resolveRole(userId: string, botId: string, force = false): Promise<Resolved> {
+  const key = `${userId}:${botId}`;
+  const cached = roleCache.get(key);
+  if (cached && !force) return cached;
+  const pending = roleInflight.get(key);
+  if (pending) return pending;
+  const p = (async () => {
+    // Resolved by an auto-deploying edge function (service role) so it works
+    // regardless of whether the old team_get_effective_role migration deployed.
+    const { data, error } = await supabase.functions.invoke("team-effective-role", {
+      body: { botId },
+    });
+    const next: Resolved =
+      !error && data
+        ? {
+            role: ((data as any).role as TeamRole) ?? null,
+            permissions: { ...EMPTY, ...((data as any).permissions ?? {}) },
+          }
+        : { role: null, permissions: EMPTY };
+    roleCache.set(key, next);
+    roleListeners.get(key)?.forEach((fn) => fn(next));
+    return next;
+  })();
+  roleInflight.set(key, p);
+  p.finally(() => {
+    if (roleInflight.get(key) === p) roleInflight.delete(key);
+  });
+  return p;
+}
+
+function subscribeRole(userId: string, botId: string, fn: (r: Resolved) => void): () => void {
+  const key = `${userId}:${botId}`;
+  let set = roleListeners.get(key);
+  if (!set) {
+    set = new Set();
+    roleListeners.set(key, set);
+  }
+  set.add(fn);
+
+  // Live updates: when team membership for this bot or the owner's
+  // permission matrix changes, re-resolve once for everyone listening.
+  let entry = roleChannels.get(key);
+  if (!entry) {
+    const suffix = Math.random().toString(36).slice(2);
+    const channel = supabase
+      .channel(`team-role-${botId}-${userId}-${suffix}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "dashboard_team", filter: `bot_id=eq.${botId}` },
+        () => { void resolveRole(userId, botId, true); },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "dashboard_role_permissions" },
+        () => { void resolveRole(userId, botId, true); },
+      )
+      .subscribe();
+    entry = { channel, refs: 0 };
+    roleChannels.set(key, entry);
+  }
+  entry.refs += 1;
+
+  return () => {
+    set?.delete(fn);
+    const e = roleChannels.get(key);
+    if (e) {
+      e.refs -= 1;
+      if (e.refs <= 0) {
+        supabase.removeChannel(e.channel);
+        roleChannels.delete(key);
+      }
+    }
+  };
+}
+
 /**
  * Returns the current user's effective role + permissions for a specific bot.
  * If botId is null/undefined, returns null role + empty permissions.
@@ -62,67 +149,48 @@ export function rolesAssignableBy(role: TeamRole | null): TeamRole[] {
  */
 export function useTeamRole(botId?: string | null) {
   const { user } = useAuth();
-  const [role, setRole] = useState<TeamRole | null>(null);
-  const [permissions, setPermissions] = useState<TeamPermissions>(EMPTY);
-  const [loading, setLoading] = useState(true);
+  const userId = user?.id ?? null;
+  const seeded = userId && botId ? roleCache.get(`${userId}:${botId}`) : undefined;
+  const [role, setRole] = useState<TeamRole | null>(seeded?.role ?? null);
+  const [permissions, setPermissions] = useState<TeamPermissions>(seeded?.permissions ?? EMPTY);
+  const [loading, setLoading] = useState(!seeded);
 
   const reload = useCallback(async () => {
-    if (!user || !botId) {
+    if (!userId || !botId) {
       setRole(null);
       setPermissions(EMPTY);
       setLoading(false);
       return;
     }
-    // Resolved by an auto-deploying edge function (service role) so it works
-    // regardless of whether the old team_get_effective_role migration deployed.
-    const { data, error } = await supabase.functions.invoke("team-effective-role", {
-      body: { botId },
-    });
-    if (!error && data) {
-      setRole(((data as any).role as TeamRole) ?? null);
-      setPermissions({ ...EMPTY, ...((data as any).permissions ?? {}) });
-    } else {
+    const next = await resolveRole(userId, botId, true);
+    setRole(next.role);
+    setPermissions(next.permissions);
+    setLoading(false);
+  }, [userId, botId]);
+
+  useEffect(() => {
+    if (!userId || !botId) {
       setRole(null);
       setPermissions(EMPTY);
+      setLoading(false);
+      return;
     }
-    setLoading(false);
-  }, [user, botId]);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
-
-
-  // Live updates: when team membership for this bot changes, re-resolve.
-  useEffect(() => {
-    if (!user || !botId) return;
-    const suffix = Math.random().toString(36).slice(2);
-    const channel = supabase
-      .channel(`team-role-${botId}-${user.id}-${suffix}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "dashboard_team",
-          filter: `bot_id=eq.${botId}`,
-        },
-        () => { void reload(); },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "dashboard_role_permissions",
-        },
-        () => { void reload(); },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
+    let active = true;
+    const apply = (r: Resolved) => {
+      if (!active) return;
+      setRole(r.role);
+      setPermissions(r.permissions);
+      setLoading(false);
     };
-  }, [user, botId, reload]);
+    const unsubscribe = subscribeRole(userId, botId, apply);
+    const cached = roleCache.get(`${userId}:${botId}`);
+    if (cached) apply(cached);
+    void resolveRole(userId, botId).then(apply);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [userId, botId]);
 
   return useMemo(
     () => ({

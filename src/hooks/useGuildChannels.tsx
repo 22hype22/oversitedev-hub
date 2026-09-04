@@ -212,22 +212,37 @@ export function useBotGuilds(botId: string | undefined) {
  * fetch from Discord (queues a worker command, then re-reads the cache
  * once the command completes — polling for up to ~10s).
  */
-export function useBotChannels(botId: string | undefined, guildId: string | undefined) {
-  const [channels, setChannels] = useState<BotChannel[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastFetchedAt, setLastFetchedAt] = useState<string | null>(null);
-  const hasChannelsRef = useRef(false);
+type CachedChannelRow = BotChannel & { fetched_at: string };
 
-  const readCache = useCallback(async () => {
-    if (!botId || !guildId) {
-      setChannels([]);
-      hasChannelsRef.current = false;
-      setLastFetchedAt(null);
-      setLoading(false);
-      return;
-    }
-    setLoading((wasLoading) => (hasChannelsRef.current ? wasLoading : true));
+// One dashboard page mounts this hook many times (every add-on block, every
+// channel picker, every message builder), all for the same bot and guild.
+// Share the work across mounts: one cache read in flight per bot+guild, the
+// last result kept so a new mount paints instantly, and the Discord
+// auto-sync fired once per bot+guild per page load instead of once per mount.
+const channelRowsCache = new Map<string, CachedChannelRow[]>();
+const channelReadInflight = new Map<string, Promise<CachedChannelRow[]>>();
+const channelSyncInflight = new Map<string, Promise<{ ok: boolean; error?: string }>>();
+const channelAutoSynced = new Set<string>();
+
+const channelReadQueued = new Map<string, Promise<CachedChannelRow[]>>();
+
+function readChannelRows(botId: string, guildId: string, force = false): Promise<CachedChannelRow[]> {
+  const key = `${botId}:${guildId}`;
+  const pending = channelReadInflight.get(key);
+  if (pending && !force) return pending;
+  if (pending && force) {
+    // A write just landed while a read is in flight: queue exactly one
+    // follow-up read behind it so every caller gets the post-write rows.
+    const queued = channelReadQueued.get(key);
+    if (queued) return queued;
+    const next = pending.then(() => readChannelRows(botId, guildId, false), () => readChannelRows(botId, guildId, false));
+    channelReadQueued.set(key, next);
+    next.finally(() => {
+      if (channelReadQueued.get(key) === next) channelReadQueued.delete(key);
+    });
+    return next;
+  }
+  const p = (async () => {
     const { data } = await supabase
       .from("bot_channel_cache")
       .select("channel_id, channel_name, channel_type, parent_id, parent_name, position, parent_position, fetched_at")
@@ -235,7 +250,68 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
       .eq("guild_id", guildId)
       .order("parent_position", { ascending: true })
       .order("position", { ascending: true });
-    const rows = (data ?? []) as (BotChannel & { fetched_at: string })[];
+    const rows = (data ?? []) as CachedChannelRow[];
+    channelRowsCache.set(key, rows);
+    return rows;
+  })();
+  channelReadInflight.set(key, p);
+  p.finally(() => {
+    if (channelReadInflight.get(key) === p) channelReadInflight.delete(key);
+  });
+  return p;
+}
+
+function syncChannelsFromDiscord(botId: string, guildId: string): Promise<{ ok: boolean; error?: string }> {
+  const key = `${botId}:${guildId}`;
+  const pending = channelSyncInflight.get(key);
+  if (pending) return pending;
+  const p = (async () => {
+    // Call the bot-list-channels edge function, which fetches channels
+    // directly from Discord using the bot's DISCORD_TOKEN and refreshes
+    // bot_channel_cache. This bypasses the worker command queue so the
+    // refresh works for every bot type regardless of which orchestrator is
+    // online.
+    const { data, error } = await supabase.functions.invoke("bot-list-channels", {
+      body: { bot_id: botId, guild_id: guildId },
+    });
+    if (error) return { ok: false, error: error.message };
+    const result = (data ?? {}) as { ok?: boolean; error?: string };
+    if (!result.ok) return { ok: false, error: result.error ?? "request_failed" };
+    return { ok: true };
+  })();
+  channelSyncInflight.set(key, p);
+  p.finally(() => {
+    if (channelSyncInflight.get(key) === p) channelSyncInflight.delete(key);
+  });
+  return p;
+}
+
+export function useBotChannels(botId: string | undefined, guildId: string | undefined) {
+  const cacheKey = botId && guildId ? `${botId}:${guildId}` : null;
+  const seeded = cacheKey ? channelRowsCache.get(cacheKey) : undefined;
+  const [channels, setChannels] = useState<BotChannel[]>(seeded ?? []);
+  const [loading, setLoading] = useState(!seeded);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastFetchedAt, setLastFetchedAt] = useState<string | null>(seeded?.[0]?.fetched_at ?? null);
+  const hasChannelsRef = useRef((seeded?.length ?? 0) > 0);
+
+  const readCache = useCallback(async (force = false) => {
+    if (!botId || !guildId) {
+      setChannels([]);
+      hasChannelsRef.current = false;
+      setLastFetchedAt(null);
+      setLoading(false);
+      return;
+    }
+    const known = channelRowsCache.get(`${botId}:${guildId}`);
+    if (known) {
+      // Paint what the last read found while the fresh read runs.
+      hasChannelsRef.current = known.length > 0;
+      setChannels(known);
+      setLastFetchedAt(known[0]?.fetched_at ?? null);
+    }
+    setLoading((wasLoading) => (hasChannelsRef.current ? wasLoading : true));
+    const rows = await readChannelRows(botId, guildId, force);
     hasChannelsRef.current = rows.length > 0;
     setChannels(rows);
     setLastFetchedAt(rows[0]?.fetched_at ?? null);
@@ -265,7 +341,7 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
           const row =
             (payload.new as { guild_id?: string } | null) ??
             (payload.old as { guild_id?: string } | null);
-          if (row?.guild_id === guildId) readCache();
+          if (row?.guild_id === guildId) readCache(true);
         },
       )
       .subscribe();
@@ -275,32 +351,16 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
   }, [botId, guildId, readCache]);
 
   /**
-   * Queues a list_channels command to the worker. Polls the cache for ~10s
-   * waiting for the worker to update it.
+   * Pulls the live channel list from Discord into the cache, then re-reads
+   * it. Shared across every mount asking for the same bot and guild.
    */
   const refreshFromDiscord = useCallback(async () => {
     if (!botId || !guildId) return { ok: false, error: "no_guild" };
     setRefreshing(true);
     try {
-      // Call the bot-list-channels edge function, which fetches channels
-      // directly from Discord using the bot's DISCORD_TOKEN and refreshes
-      // bot_channel_cache. This bypasses the worker command queue so the
-      // refresh works for every bot type (protection / support / utilities)
-      // regardless of which orchestrator is online.
-      const { data, error } = await supabase.functions.invoke("bot-list-channels", {
-        body: { bot_id: botId, guild_id: guildId },
-      });
-      if (error) {
-        await readCache();
-        return { ok: false, error: error.message };
-      }
-      const result = (data ?? {}) as { ok?: boolean; error?: string };
-      if (!result.ok) {
-        await readCache();
-        return { ok: false, error: result.error ?? "request_failed" };
-      }
-      await readCache();
-      return { ok: true };
+      const result = await syncChannelsFromDiscord(botId, guildId);
+      await readCache(true);
+      return result;
     } finally {
       setRefreshing(false);
     }
@@ -311,17 +371,15 @@ export function useBotChannels(botId: string | undefined, guildId: string | unde
     refreshFromDiscordRef.current = refreshFromDiscord;
   }, [refreshFromDiscord]);
 
-  // Auto-sync from Discord when guild changes so the displayed channels match
-  // the live server order. Runs once per bot+guild per session to avoid
-  // hammering the worker. Keep this after refreshFromDiscordRef is updated so
-  // switching servers queues the refresh for the newly selected guild.
-  const autoSyncedRef = useRef<Set<string>>(new Set());
+  // Auto-sync from Discord when the guild changes so the displayed channels
+  // match the live server order. Runs once per bot+guild per page load across
+  // every mount of this hook, so a page with twenty channel pickers makes one
+  // Discord call instead of twenty.
   useEffect(() => {
     if (!botId || !guildId) return;
     const key = `${botId}:${guildId}`;
-    if (autoSyncedRef.current.has(key)) return;
-    autoSyncedRef.current.add(key);
-    // fire-and-forget; refreshFromDiscord polls the cache itself
+    if (channelAutoSynced.has(key)) return;
+    channelAutoSynced.add(key);
     void refreshFromDiscordRef.current?.();
   }, [botId, guildId]);
 
