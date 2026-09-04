@@ -33,5 +33,18 @@ project_id = "kqhyjxtylvigrezlxzpl"
     verify_jwt = false
   [functions.roblox-group-rank]
     verify_jwt = false
+  # Bot-facing APIs authenticate with their own worker token, not a user JWT.
+  # The gateway check must stay off or bots that send no bearer header get
+  # "Missing authorization header" on every heartbeat and command poll.
+  [functions.utilities-bot-api]
+    verify_jwt = false
+  [functions.bot-status-sync]
+    verify_jwt = false
+  [functions.robux-locker]
+    verify_jwt = false
+  [functions.payments-create]
+    verify_jwt = false
+  [functions.pricing]
+    verify_jwt = false
 
-# trigger function deploy
+# trigger function deploy (bot API gateway check off)
