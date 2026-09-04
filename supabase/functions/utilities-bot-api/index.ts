@@ -2,6 +2,8 @@
 // bot_orders without ever seeing the service-role key. Auth = WORKER_TOKEN
 // header, validated against the existing worker_tokens table via the
 // _worker_token_lookup() SECURITY DEFINER function.
+// The gateway JWT check for this function is turned off in supabase/config.toml:
+// the Railway bots authenticate with their worker token and send no bearer.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
