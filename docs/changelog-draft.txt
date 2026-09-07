@@ -48,3 +48,5 @@
 + Team access now follows groups. Someone given the Dashboard gets every bot, including bots added later. Someone given a group gets exactly that group's bots, and when a bot is moved into or out of the group their access moves with it
 + Per-group role permissions are now honoured everywhere, on the server and in the dashboard, with the group's own setting taking priority over the account-wide one
 + Viewers can open My Bots and look at a bot read-only. Editing still needs the edit permission
++ Variables now open in a side panel instead of a small dropdown, and the list is complete. Every block shows only the variables that work in it, for example {leaderboard} only on the shift leaderboard message, and each one says what it fills in. On plain text fields, tapping a variable drops it in where your cursor is
++ System Messages can now design four more Network messages: payment received, progress update, waiting on staff, and queue update

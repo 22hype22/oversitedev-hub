@@ -47,6 +47,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
+import { VariablesPanel, VariablesScopeProvider, useVariablesScope } from "./VariablesPanel";
+import { variablesFor } from "@/lib/messageVariables";
 import { cn } from "@/lib/utils";
 import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
 import { getAddonLabel } from "@/lib/botCatalog";
@@ -59,43 +61,12 @@ import { PostTypesManager } from "./PostTypesManager";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { sortedChannelCategoryEntries, useBotChannels } from "@/hooks/useGuildChannels";
 import { useBotRoles } from "@/hooks/useBotRoles";
-import { AtSign, Braces, X } from "lucide-react";
+import { AtSign, X } from "lucide-react";
 
-const INVITE_VARIABLES: { token: string; desc: string }[] = [
-  { token: "{user}", desc: "Mentions the new member" },
-  { token: "{username}", desc: "Their display name" },
-  { token: "{server}", desc: "Server name" },
-  { token: "{count}", desc: "Total members" },
-  { token: "{human_count}", desc: "Members excluding bots" },
-  { token: "{bot_count}", desc: "Number of bots" },
-  { token: "{boosts}", desc: "Total server boosts" },
-  { token: "{boost_level}", desc: "Boost tier (0–3)" },
-  { token: "{channel_count}", desc: "Number of channels" },
-  { token: "{role_count}", desc: "Number of roles" },
-  { token: "{invite list}", desc: "The invites leaderboard (top inviters)" },
-];
 
 // Form-log designs (/orderlog, /infraction, /promote). The auto infraction/
 // promotion logger also fills {target}, {date}, and {roles removed}.
-const FORMLOG_VARIABLES: { token: string; desc: string }[] = [
-  { token: "{Question: Label}", desc: "A text field — pops as an input, then fills in the answer" },
-  { token: "{File: Label}", desc: "A file-upload field" },
-  { token: "{user}", desc: "Who logged it (ran the command / added the reason)" },
-  { token: "{target}", desc: "Auto-log: the member whose roles changed" },
-  { token: "{roles removed}", desc: "Auto-log: the role(s) that changed" },
-  { token: "{date}", desc: "Auto-log: when it was logged" },
-];
 
-const GIVEAWAY_VARIABLES: { token: string; desc: string }[] = [
-  { token: "{prize}", desc: "What's being given away" },
-  { token: "{winners}", desc: "Number of winners" },
-  { token: "{entries}", desc: "Live entry count (updates as people join)" },
-  { token: "{participants}", desc: "List of everyone who entered" },
-  { token: "{end}", desc: "Live countdown to the end" },
-  { token: "{end_full}", desc: "Exact end date & time" },
-  { token: "{host}", desc: "Who started the giveaway" },
-  { token: "{winner_list}", desc: "The winners (fills in when it ends)" },
-];
 
 // Unique-ish ids for builder items generated on the dashboard.
 let __gwSeq = 0;
@@ -239,7 +210,18 @@ function persistTicketTemplates(list: TicketTemplate[]) {
  *
  * Mock UI only — values live in local state and "save" shows a toast.
  */
-export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineVersion: engineVersionProp, open: openProp, onOpenChange, enabled = true, onToggleEnabled }: Props) {
+export function AddonConfigCard(props: Props) {
+  // Every message builder inside reads the block (and design) it belongs to
+  // from this scope, so the Variables panel always lists the right tokens.
+  return (
+    <VariablesScopeProvider addonId={props.addonId}>
+      <AddonConfigCardInner {...props} />
+    </VariablesScopeProvider>
+  );
+}
+
+function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVersion: engineVersionProp, open: openProp, onOpenChange, enabled = true, onToggleEnabled }: Props) {
+  const variablesScope = useVariablesScope();
 
   const { botId: scopeBotId, viaTeam, readOnly: scopeReadOnly } = useBotScope();
   const { permissions, role } = useTeamRole(viaTeam ? (scopeBotId ?? botId ?? null) : null);
@@ -1437,8 +1419,16 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     { value: "ticket_closing", label: "Ticket — closing", hint: "Shown when a ticket is being closed. Use {user} (who closed it) and {reason}." },
     { value: "ticket_claimed", label: "Ticket — claimed", hint: "Shown when staff claims a ticket. Use {user}." },
     { value: "ticket_unclaimed", label: "Ticket — unclaimed", hint: "Shown when staff unclaims a ticket. Use {user}." },
+    { value: "ticket_payment_received", label: "Ticket — payment received", hint: "Posted in the order when a payment lands. Use {user}, {designer}, {amount} and {method}. Oversite Network only." },
+    { value: "ticket_progress", label: "Ticket — progress update", hint: "Posted when the designer moves the order to In progress or Completed. Use {user}, {status}, {note} and {staff}. Oversite Network only." },
+    { value: "ticket_staff_reminder", label: "Ticket — waiting on staff", hint: "Posted after 12 and 24 hours with no staff reply. Use {user}, {hours} and {roles}. Oversite Network only." },
+    { value: "ticket_queue_update", label: "Ticket — queue update", hint: "Posted when an order moves in the queue. Use {user}, {position}, {previous} and {direction}. Oversite Network only." },
   ];
   const [smallUiKey, setSmallUiKey] = useState<string>(SMALL_UI_OPTIONS[0].value);
+  useEffect(() => {
+    if (isCustomsSmallUi) variablesScope.setKey(smallUiKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCustomsSmallUi, smallUiKey]);
   const [smallUiMap, setSmallUiMap] = useState<Record<string, V2Item[]>>({});
 
   useEffect(() => {
@@ -1935,6 +1925,10 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
   );
   const [sessionsV2MountKey, setSessionsV2MountKey] = useState(0);
   const [sessionsTab, setSessionsTab] = useState<SessionDesignKey>("panel");
+  useEffect(() => {
+    if (isRoleplaySessions) variablesScope.setKey(sessionsTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRoleplaySessions, sessionsTab]);
   useEffect(() => {
     if (!isRoleplaySessions || !open || !botId) return;
     let cancelled = false;
@@ -4563,9 +4557,23 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
     }
 
     if (f.type === "textarea") {
+      const fieldVars = variablesFor(addonId, f.key);
+      const insertToken = (token: string) => {
+        const el = document.getElementById(f.key) as HTMLTextAreaElement | null;
+        const cur = String(value ?? "");
+        if (!el) { setValue(f.key, cur + token); return; }
+        const start = el.selectionStart ?? cur.length;
+        const end = el.selectionEnd ?? cur.length;
+        const next = cur.slice(0, start) + token + cur.slice(end);
+        setValue(f.key, next);
+        requestAnimationFrame(() => { try { el.focus(); el.setSelectionRange(start + token.length, start + token.length); } catch { /* ignore */ } });
+      };
       return (
         <div className="space-y-2">
-          <Label htmlFor={f.key}>{f.label}</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor={f.key}>{f.label}</Label>
+            {fieldVars.length > 0 && <VariablesPanel groups={fieldVars} onInsert={insertToken} size="xs" />}
+          </div>
           {f.markdown ? (
             <DiscordMarkdownTextarea
               id={f.key}
@@ -5090,37 +5098,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-foreground">Giveaway design</p>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button type="button" variant="outline" size="sm" className="gap-1.5 shrink-0">
-                        <Braces className="h-3.5 w-3.5" /> Variables
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-80 p-0">
-                      <div className="px-3 py-2 border-b border-border/60">
-                        <p className="text-xs font-semibold">Variables</p>
-                        <p className="text-[11px] text-muted-foreground">Click to copy, then paste into your design.</p>
-                      </div>
-                      <div className="py-1">
-                        {GIVEAWAY_VARIABLES.map((v) => (
-                          <button
-                            key={v.token}
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard?.writeText(v.token);
-                              toast.success(`Copied ${v.token}`);
-                            }}
-                            className="w-full flex items-start gap-2 px-3 py-1.5 text-left hover:bg-muted/60 transition-colors"
-                          >
-                            <code className="text-[11px] font-mono text-os-accent bg-os-accent/10 border border-os-accent/25 rounded px-1.5 py-0.5 shrink-0">
-                              {v.token}
-                            </code>
-                            <span className="text-[11px] text-muted-foreground leading-snug">{v.desc}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Design how each giveaway looks with the same builder as Messages. An{" "}
@@ -5319,6 +5296,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 </p>
                 <MessagesV2Builder
                   key={`ads-regular-v2-${adsRegularV2MountKey}`}
+                  variablesKey="regular"
                   ref={adsRegularV2Ref}
                   embedded
                   botId={botId}
@@ -5345,6 +5323,7 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                 </p>
                 <MessagesV2Builder
                   key={`ads-giveaway-v2-${adsGiveawayV2MountKey}`}
+                  variablesKey="giveaway"
                   ref={adsGiveawayV2Ref}
                   embedded
                   giveaway
@@ -5493,37 +5472,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-foreground">{config.title} message</p>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button type="button" variant="outline" size="sm" className="gap-1.5 shrink-0">
-                        <Braces className="h-3.5 w-3.5" /> Variables
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-80 p-0">
-                      <div className="px-3 py-2 border-b border-border/60">
-                        <p className="text-xs font-semibold">Variables</p>
-                        <p className="text-[11px] text-muted-foreground">Click to copy, then paste into your design.</p>
-                      </div>
-                      <div className="py-1">
-                        {FORMLOG_VARIABLES.map((v) => (
-                          <button
-                            key={v.token}
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard?.writeText(v.token);
-                              toast.success(`Copied ${v.token}`);
-                            }}
-                            className="w-full flex items-start gap-2 px-3 py-1.5 text-left hover:bg-muted/60 transition-colors"
-                          >
-                            <code className="text-[11px] font-mono text-os-accent bg-os-accent/10 border border-os-accent/25 rounded px-1.5 py-0.5 shrink-0">
-                              {v.token}
-                            </code>
-                            <span className="text-[11px] text-muted-foreground leading-snug">{v.desc}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Design the message that gets posted. Put{" "}
@@ -5611,46 +5559,6 @@ export function AddonConfigCard({ addonId, botId, botName, botAvatarUrl, engineV
                       ? (<>Add form fields with <code className="font-mono text-os-accent">{"{question: Label}"}</code>, <code className="font-mono text-os-accent">{"{drop down: Name A B C}"}</code>, <code className="font-mono text-os-accent">{"{file: Name}"}</code>, and <code className="font-mono text-os-accent">{"{user}"}</code> anywhere in the text — they become the form people fill in.</>)
                       : (<>Type variables like <code className="font-mono text-os-accent">{"{count}"}</code> anywhere — they fill in {isDesignerMsg ? "when the message is posted." : "when someone joins."}</>)}
                 </p>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" size="sm" className="gap-1.5 shrink-0">
-                      <Braces className="h-3.5 w-3.5" /> Variables
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="end" className="w-72 p-0">
-                    <div className="px-3 py-2 border-b border-border/60">
-                      <p className="text-xs font-semibold">Variables</p>
-                      <p className="text-[11px] text-muted-foreground">Click to copy, then paste into your message.</p>
-                    </div>
-                    <div className="py-1">
-                      {INVITE_VARIABLES.map((v) => (
-                        <button
-                          key={v.token}
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard?.writeText(v.token);
-                            toast.success(`Copied ${v.token}`);
-                          }}
-                          className="w-full flex items-start gap-2 px-3 py-1.5 text-left hover:bg-muted/60 transition-colors"
-                        >
-                          <code className="text-[11px] font-mono text-os-accent bg-os-accent/10 border border-os-accent/25 rounded px-1.5 py-0.5 shrink-0">
-                            {v.token}
-                          </code>
-                          <span className="text-[11px] text-muted-foreground leading-snug">{v.desc}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="px-3 py-2 border-t border-border/60 space-y-1">
-                      <p className="text-[11px] font-semibold text-foreground">Emojis</p>
-                      <p className="text-[11px] text-muted-foreground leading-snug">
-                        Paste any emoji directly. For a custom server emoji, type its name in colons like{" "}
-                        <code className="font-mono text-os-accent">:ovs:</code> — the bot swaps in the correct
-                        emoji when it posts (pasting the copied{" "}
-                        <code className="font-mono text-os-accent">:name~1:</code> works too).
-                      </p>
-                    </div>
-                  </PopoverContent>
-                </Popover>
               </div>
               {engineVersion === "v2" || isDesignerMsg || isCustomsSmallUi || isCustomsVerification ? (
                 <MessagesV2Builder
