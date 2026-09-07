@@ -102,12 +102,33 @@ export const BotIdentityEditor = ({
   const emojiFetchedRef = useRef(false);
 
 
-  useEffect(() => { setNameDraft(bot.bot_name); }, [bot.bot_name]);
+  // Follow the bot's saved values, but never over the top of something the
+  // user is typing. The bot list refreshes in the background right after a
+  // save; if the refresh landed while a second edit was in progress it used
+  // to reset the field to the saved text, and the next Save saw no change.
+  const lastName = useRef(bot.bot_name);
+  const lastPresence = useRef<PresenceStatus>((bot.presence_status as PresenceStatus) ?? "online");
+  const lastActivity = useRef(bot.activity_text ?? "");
+  const lastBio = useRef(bot.bot_bio ?? "");
   useEffect(() => {
-    setPresence((bot.presence_status as PresenceStatus) ?? "online");
+    setNameDraft((cur) => (cur === lastName.current ? bot.bot_name : cur));
+    lastName.current = bot.bot_name;
+  }, [bot.bot_name]);
+  useEffect(() => {
+    const next = (bot.presence_status as PresenceStatus) ?? "online";
+    setPresence((cur) => (cur === lastPresence.current ? next : cur));
+    lastPresence.current = next;
   }, [bot.presence_status]);
-  useEffect(() => { setActivityText(bot.activity_text ?? ""); }, [bot.activity_text]);
-  useEffect(() => { setBio(bot.bot_bio ?? ""); }, [bot.bot_bio]);
+  useEffect(() => {
+    const next = bot.activity_text ?? "";
+    setActivityText((cur) => (cur === lastActivity.current ? next : cur));
+    lastActivity.current = next;
+  }, [bot.activity_text]);
+  useEffect(() => {
+    const next = bot.bot_bio ?? "";
+    setBio((cur) => (cur === lastBio.current ? next : cur));
+    lastBio.current = next;
+  }, [bot.bot_bio]);
 
   // Load custom emojis from bot's guilds the first time the bio editor opens.
   useEffect(() => {
