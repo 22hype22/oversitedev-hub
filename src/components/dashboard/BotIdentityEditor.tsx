@@ -179,7 +179,7 @@ export const BotIdentityEditor = ({
     : false;
 
   const callUpdate = async (
-    patch: { username?: string; avatar?: string; banner?: string },
+    patch: { username?: string; avatar?: string; banner?: string; bio?: string },
   ): Promise<{ ok: boolean; data: any }> => {
     const { data, error } = await supabase.functions.invoke("bot-update-identity", {
       body: { bot_id: bot.id, ...patch },
@@ -364,12 +364,16 @@ export const BotIdentityEditor = ({
     const bioTrimmed = bio.trim();
     const bioChanged = bioTrimmed !== ((bot.bot_bio ?? "").trim());
 
-    if (!presenceChanged && !activityChanged && !bioChanged) {
+    // Nothing else changed and the text matches what we last sent: treat the
+    // click as "apply this again" rather than refusing. Discord sometimes
+    // takes a moment, and people re-save when they do not see it yet.
+    const reapplyBio = !presenceChanged && !activityChanged && !bioChanged && bioTrimmed.length > 0;
+    if (!presenceChanged && !activityChanged && !bioChanged && !reapplyBio) {
       toast.info("Nothing to save");
       return;
     }
 
-    if (bioChanged && bioTrimmed.length > 190) {
+    if ((bioChanged || reapplyBio) && bioTrimmed.length > 190) {
       toast.error("About Me must be 190 characters or fewer");
       return;
     }
@@ -424,99 +428,24 @@ export const BotIdentityEditor = ({
         }
       }
 
-      if (bioChanged) {
-        try {
-          const { error: upErr } = await (supabase as any)
-            .from("bot_orders")
-            .update({ bot_bio: bioTrimmed || null })
-            .eq("id", bot.id);
-          if (upErr) throw upErr;
-
-          const shortId = bot.id.slice(0, 8).toUpperCase();
-          let tokenLabel: string | null = null;
-          try {
-            const { data: labelData } = await (supabase as any).rpc(
-              "get_bot_token_label",
-              { _bot_id: bot.id },
-            );
-            if (typeof labelData === "string" && labelData.trim()) {
-              tokenLabel = labelData.trim();
-            }
-          } catch (labelErr) {
-            console.warn("token label lookup failed", labelErr);
-          }
-
-          const embedDescription =
-            `**Order ID:** \`${bot.id}\`\n` +
-            `**Bot:** ${bot.bot_name} (\`#${shortId}\`)\n` +
-            `**Discord App:** ${tokenLabel ?? "Unknown"}\n` +
-            `**Customer:** ${user.email ?? user.id}\n\n` +
-            `**Requested Description:**\n${bioTrimmed}`;
-
-          const { error: cmdErr } = await (supabase as any)
-            .from("bot_commands")
-            .insert([
-              {
-                bot_id: "e7f81d81-5645-4d81-93d4-1ae58b6ba77f",
-                user_id: user.id,
-                requested_by: user.id,
-                action: "bio_update_request",
-                status: "pending",
-                payload: {
-                  bot_name: bot.bot_name,
-                  bio: bioTrimmed,
-                  token_label: tokenLabel,
-                },
-              },
-              {
-                bot_id: "e7f81d81-5645-4d81-93d4-1ae58b6ba77f",
-                user_id: user.id,
-                requested_by: user.id,
-                action: "send_channel_message",
-                status: "pending",
-                payload: {
-                  channel_id: "1507437307349962842",
-                  content: "||@here||",
-                  order_id: bot.id,
-                  bot_name: bot.bot_name,
-                  short_id: shortId,
-                  customer: user.email ?? user.id,
-                  description: bioTrimmed,
-                  token_label: tokenLabel,
-                  embed: {
-                    author: { name: "Description Logging" },
-                    title: "New About Me update request",
-                    description: embedDescription,
-                    footer: { text: "Description update request" },
-                    color: 0x3b82f6,
-                  },
-                },
-              },
-            ]);
-
-          if (cmdErr) throw cmdErr;
-
-
+      if (bioChanged || reapplyBio) {
+        // The identity function sets the bot's About Me (the application
+        // description) on Discord directly, saves it on the order, and only
+        // asks the team to step in if Discord refuses it.
+        const { ok, data } = await callUpdate({ bio: bioTrimmed });
+        if (ok) {
           anySucceeded = true;
           bioSubmitted = true;
-        } catch (e: any) {
-          console.error("bio request save failed", e);
-          const msg = e?.message ?? "unknown error";
-          errors.push(`about me (${msg})`);
-          toast.error("Couldn't submit About Me request", { description: msg });
+          lastBio.current = bioTrimmed;
+        } else {
+          errors.push(`about me (${(data as any)?.error ?? "update failed"})`);
         }
       }
 
       if (errors.length === 0) {
-        if (bioSubmitted && !isDispatchBot) {
-          toast.success("Request submitted", {
-            description: "Our team will apply your About Me within 24 hours.",
-          });
-        } else {
-          toast.success("Confirmed", {
-            description: "Allow up to 60 seconds for the change to take effect.",
-          });
-        }
+        toast.success(bioSubmitted ? "About Me updated" : "Confirmed", {
+          description: "Allow up to 60 seconds for the change to show on Discord.",
+        });
       } else if (anySucceeded) {
         toast.warning("Partially saved", {
           description: `Failed: ${errors.join(", ")}`,
@@ -786,9 +715,7 @@ export const BotIdentityEditor = ({
                 <div className="bionote">
                   <Info />
                   <span>
-                    {isDispatchBot
-                      ? "Your About Me applies automatically — allow up to 60 seconds for it to appear on your bot's profile."
-                      : "Discord doesn't let bots change their own About Me through the API. When you save, we send the request to our team and apply it manually — usually within 24 hours."}
+                    Applies straight to your bot's profile when you save. Allow up to 60 seconds for Discord to show it.
                   </span>
                 </div>
                 <div className="biocount">{bio.length}/190</div>
