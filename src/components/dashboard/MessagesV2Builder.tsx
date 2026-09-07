@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { GuildChannelPicker } from "./GuildChannelPicker";
+import { ScopedVariablesPanel } from "./VariablesPanel";
 import { useBotChannels, type BotGuild, type BotChannel } from "@/hooks/useGuildChannels";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { cn } from "@/lib/utils";
@@ -408,13 +409,15 @@ export type MessagesV2BuilderProps = {
    *  a Vote button). They show in the editor stack and the preview with a lock,
    *  can't be edited, moved or deleted, and are never part of getItems(). */
   lockedItems?: V2Item[];
+  /** Narrows the Variables panel to one design when a block holds several. */
+  variablesKey?: string | null;
 };
 
 export const MessagesV2Builder = forwardRef<
   MessagesV2BuilderHandle,
   MessagesV2BuilderProps
 >(function MessagesV2Builder(
-  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [], hidePreview = false, onItemsChange, giveaway = false, allowFields = false, lockedItems = [] },
+  { botId, botName, botAvatarUrl, embedded = false, initialItems, previewExtras, editorNotice, categoryNames = [], hidePreview = false, onItemsChange, giveaway = false, allowFields = false, lockedItems = [], variablesKey },
 
   ref,
 ) {
@@ -577,6 +580,10 @@ export const MessagesV2Builder = forwardRef<
           </div>
         )}
 
+
+        <div className="flex items-center justify-end">
+          <ScopedVariablesPanel keyOverride={variablesKey} size="xs" />
+        </div>
 
         <div className="space-y-2">
           {items.map((it, i) => (
