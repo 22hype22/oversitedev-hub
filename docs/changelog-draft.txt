@@ -56,3 +56,4 @@
 + System Messages can now design four more Network messages: payment received, progress update, waiting on staff, and queue update
 + Every message preview on the site now has the Variables button, including the ticket panel editor, the say and rules builders, and the admin extras designer, each with the right list for that block
 + Bot About Me now applies straight to Discord when you save, for every bot, instead of going through a manual request. Saving the same text again re-applies it, and a second edit no longer comes back as Nothing to save
++ About Me now applies for every deployed bot. Bots whose token lives only on Railway are looked up there
