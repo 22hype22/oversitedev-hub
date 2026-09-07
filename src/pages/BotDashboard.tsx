@@ -1770,7 +1770,7 @@ const BotDashboard = () => {
 
   // Persist the active view + open bot so a refresh keeps you exactly where
   // you were instead of dropping you back on the dashboard home.
-  const [view, setView] = useState(() => restoredPosition(LS.view) || "dashboard");
+  const [view, setView] = useState(() => { const v = restoredPosition(LS.view) || "dashboard"; return v === "groups" ? "bots" : v; });
   // Shared, owner-set dashboard box layout (an ordered array of card ids).
   const [dashOrder, setDashOrder] = useState<string[]>(DEFAULT_DASH_ORDER);
   const dashSensors = useSensors(
@@ -2199,7 +2199,6 @@ const BotDashboard = () => {
     const allowed =
       view === "dashboard" || view === "support" ||
       ((view === "bots" || view === "bot") && canMyBots) ||
-      (view === "groups" && canGroups) ||
       (view === "activity" && canActivity) ||
       (view === "billing" && canBilling) ||
       (view === "team" && canManageTeam) ||
@@ -2550,7 +2549,6 @@ const BotDashboard = () => {
             <div className="glab">Menu</div>
             {navItem("dashboard", <svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v9h14v-9"/></svg>, "Dashboard")}
             {canMyBots && navItem("bots", <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>, "My Bots")}
-            {canGroups && navItem("groups", <svg viewBox="0 0 24 24"><circle cx="7" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M2 19a5 5 0 0 1 10 0M12 19a5 5 0 0 1 10 0"/></svg>, "Groups")}
             {canActivity && navItem("activity", <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg>, "Activity")}
 
             <div className="glab">Account</div>
@@ -2686,35 +2684,6 @@ const BotDashboard = () => {
                 </div>
               </div>
             )}
-
-            {/* GROUPS */}
-            <div className={"view" + (view === "groups" && canGroups ? " on" : "")}>
-              <div className="ph2" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "14px", flexWrap: "wrap" }}>
-                <div><h2>Groups</h2><p>Bundle bots from a server together, then give a team access to just that bundle.</p></div>
-                <button className="cta" onClick={async () => { const n = window.prompt("Name this group"); if (!n || !n.trim()) return; const { error } = await (supabase as any).rpc("group_create", { _name: n.trim(), _bot_ids: [] }); if (error) { toast.error("Couldn't create group", { description: error.message }); return; } await loadGroups(); window.dispatchEvent(new CustomEvent("oversite:groups-changed")); }}>+ New group</button>
-              </div>
-              <div className="groups">
-                {groups.length === 0 && <div className="card" style={{ textAlign: "center", color: "var(--faint)", fontSize: "13px" }}>No groups yet. Create one to bundle bots and share access.</div>}
-                {groups.map((g) => (
-                  <div className="gcard" key={g.id} style={{ position: "relative" }}>
-                    <button className="gdel" type="button" title="Delete group" aria-label={`Delete ${g.name}`} onClick={() => void deleteGroup(g.id, g.name)}><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-                    <div className="ghd"><div className="gi"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></div><div><div className="gname">{g.name}</div><div className="gmeta">{groupBotIds(g.id).length} bots</div></div></div>
-                    <div className="gbody">
-                      <div>
-                        <div className="gcl">Bots in this group</div>
-                        <div className="chips">
-                          {owned.map((b) => { const inG = b.group_id === g.id; return (<span className={"chip" + (inG ? "" : " add")} key={b.id} style={{ cursor: "pointer" }} onClick={() => void toggleBotInGroup(g.id, b.id)}>{inG ? botSvg(b.base) : null}{b.bot_name}{inG && <span className="x">×</span>}</span>); })}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="gcl">Team access</div>
-                        <div className="chips"><span className="chip add" onClick={() => go("team")}>+ Invite</span></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
 
             {/* ACTIVITY */}
             <div className={"view" + (view === "activity" && canActivity ? " on" : "")}>
