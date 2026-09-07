@@ -39,11 +39,13 @@ import {
   PointerSensor,
   closestCenter,
   pointerWithin,
+  rectIntersection,
   useDroppable,
   useSensor,
   useSensors,
   type CollisionDetection,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import {
@@ -1969,39 +1971,45 @@ const BotDashboard = () => {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const [botDragId, setBotDragId] = useState<string | null>(null);
-  const onBotDragStart = (e: DragStartEvent) => setBotDragId(String(e.active.id));
-  // Where a card lands. A card over another card wins (reorder, or move into
-  // that card's group). Otherwise the box the pointer is inside. Otherwise the
-  // nearest card in the same box, so the reorder preview never jumps between
-  // boxes on its own.
+  // The last box or card the drag passed over. Used when the drop itself
+  // reports nothing (a fast release just outside the measured rect).
+  const lastOverRef = useRef<string | null>(null);
+  const onBotDragStart = (e: DragStartEvent) => { lastOverRef.current = null; setBotDragId(String(e.active.id)); };
+  const onBotDragOver = (e: DragOverEvent) => { if (e.over) lastOverRef.current = String(e.over.id); };
+  // Where a card lands. A card under the pointer wins (reorder, or move into
+  // that card's group). Then the box the pointer is inside. Then any box the
+  // dragged card overlaps. Then the nearest card in the same area, so the
+  // reorder preview never jumps between areas on its own.
   const botCollision: CollisionDetection = (args) => {
+    const isBox = (id: unknown) => String(id).startsWith("group:");
     const within = pointerWithin(args);
-    const cards = within.filter((c) => !String(c.id).startsWith("group:"));
+    const cards = within.filter((c) => !isBox(c.id));
     if (cards.length) return cards;
-    const boxes = within.filter((c) => String(c.id).startsWith("group:"));
+    const boxes = within.filter((c) => isBox(c.id));
     if (boxes.length) return boxes;
-    const activeGroup = byId[String(args.active.id)]?.group_id ?? null;
-    const same = args.droppableContainers.filter((c) => !String(c.id).startsWith("group:") && (byId[String(c.id)]?.group_id ?? null) === activeGroup);
+    const overlapping = rectIntersection(args).filter((c) => isBox(c.id) && c.id !== "group:none");
+    if (overlapping.length) return overlapping;
+    const activeGroup = effectiveGroup(byId[String(args.active.id)]);
+    const same = args.droppableContainers.filter((c) => !isBox(c.id) && effectiveGroup(byId[String(c.id)]) === activeGroup);
     return closestCenter({ ...args, droppableContainers: same });
   };
   const onBotDragEnd = (e: DragEndEvent) => {
     setBotDragId(null);
-    const { active, over } = e;
-    if (!over || active.id === over.id) return;
+    const { active } = e;
+    const overId = e.over ? String(e.over.id) : lastOverRef.current;
+    lastOverRef.current = null;
+    if (!overId || String(active.id) === overId) return;
     const b = byId[String(active.id)];
     if (!b) return;
-    const overId = String(over.id);
     // The group the card was dropped in: a box directly, or the group of the card it landed on.
     const targetGroup = overId.startsWith("group:")
       ? (overId === "group:none" ? null : overId.slice(6))
-      : (byId[overId]?.group_id ?? null);
-    const fromGroup = b.group_id ?? null;
+      : effectiveGroup(byId[overId]);
+    const fromGroup = effectiveGroup(b);
     if (targetGroup !== fromGroup) {
       const g = targetGroup ? groups.find((x) => x.id === targetGroup) : null;
       if (targetGroup && !g) return;
-      void moveBotToGroup(b.id, fromGroup, targetGroup).then((ok) => {
-        if (ok) toast.success(g ? `${b.bot_name} moved to ${g.name}` : `${b.bot_name} taken out of its group`);
-      });
+      void moveBotToGroup(b, fromGroup, targetGroup, g?.name ?? null);
     }
     if (!overId.startsWith("group:")) {
       setOrder((p) => {
@@ -2016,6 +2024,14 @@ const BotDashboard = () => {
   // ---- groups (real, backed by the group_* RPCs — the SAME source as the
   // Team hub, so a group made here is a real group and shows up there too).
   const [groups, setGroups] = useState<Group[]>([]);
+  // Optimistic group placement: a dropped card shows in its new box at once,
+  // and the override clears when the server copy comes back.
+  const [groupOverride, setGroupOverride] = useState<Record<string, string | null>>({});
+  const effectiveGroup = (b: OwnedBot | undefined): string | null => {
+    if (!b) return null;
+    if (b.id in groupOverride) return groupOverride[b.id];
+    return b.group_id ?? null;
+  };
   const loadGroups = useCallback(async () => {
     try {
       const { data, error } = await (supabase as any).rpc("group_list");
@@ -2029,7 +2045,7 @@ const BotDashboard = () => {
   }, []);
   useEffect(() => { void loadGroups(); }, [loadGroups]);
   // Bots that sit outside every group (a stale group_id counts as ungrouped).
-  const ungroupedBots = owned.filter((b) => !b.group_id || !groups.some((g) => g.id === b.group_id));
+  const ungroupedBots = owned.filter((b) => { const gid = effectiveGroup(b); return !gid || !groups.some((g) => g.id === gid); });
   // Which bots are in a group is the source of truth on bot_orders.group_id.
   const groupBotIds = useCallback(
     (gid: string) => owned.filter((b) => b.group_id === gid).map((b) => b.id),
@@ -2071,22 +2087,43 @@ const BotDashboard = () => {
   }, [groupsOpen]);
 
   // Move a bot between groups (or out of one). One group per bot, so leaving
-  // the old group and joining the new one are both group_set_bots calls.
-  const moveBotToGroup = useCallback(async (botId: string, fromGroup: string | null, toGroup: string | null) => {
-    if (fromGroup) {
-      const rest = owned.filter((b) => b.group_id === fromGroup && b.id !== botId).map((b) => b.id);
-      const { error } = await (supabase as any).rpc("group_set_bots", { _group_id: fromGroup, _bot_ids: rest });
-      if (error) { toast.error("Couldn't move this bot", { description: error.message }); return false; }
+  // the old group and joining the new one are both group_set_bots calls. The
+  // card shows in its new box straight away; if the save fails it snaps back.
+  const moveBotToGroup = async (bot: OwnedBot, fromGroup: string | null, toGroup: string | null, toName: string | null) => {
+    const botId = bot.id;
+    setGroupOverride((o) => ({ ...o, [botId]: toGroup }));
+    const label = toName ? `Moving ${bot.bot_name} to ${toName}` : `Taking ${bot.bot_name} out of its group`;
+    const t = toast.loading(label);
+    const fail = (msg: string) => {
+      setGroupOverride((o) => { const n = { ...o }; delete n[botId]; return n; });
+      toast.error("Couldn't move this bot", { id: t, description: msg });
+    };
+    try {
+      if (fromGroup) {
+        const rest = owned.filter((b) => b.id !== botId && effectiveGroup(b) === fromGroup).map((b) => b.id);
+        const { error } = await (supabase as any).rpc("group_set_bots", { _group_id: fromGroup, _bot_ids: rest });
+        if (error) { fail(error.message); return false; }
+      }
+      if (toGroup) {
+        const current = owned.filter((b) => b.id !== botId && effectiveGroup(b) === toGroup).map((b) => b.id);
+        const { error } = await (supabase as any).rpc("group_set_bots", { _group_id: toGroup, _bot_ids: [...current, botId] });
+        if (error) { fail(error.message); return false; }
+      }
+      // Confirm against the server copy before dropping the optimistic placement.
+      const { data: row, error: readErr } = await (supabase as any).from("bot_orders").select("group_id").eq("id", botId).maybeSingle();
+      if (readErr) { fail(readErr.message); return false; }
+      const saved = (row?.group_id ?? null) as string | null;
+      if (saved !== toGroup) { fail("The group did not save. Try again, or use the Groups panel."); return false; }
+      await Promise.all([reload(), loadGroups()]);
+      setGroupOverride((o) => { const n = { ...o }; delete n[botId]; return n; });
+      window.dispatchEvent(new CustomEvent("oversite:groups-changed"));
+      toast.success(toName ? `${bot.bot_name} moved to ${toName}` : `${bot.bot_name} taken out of its group`, { id: t });
+      return true;
+    } catch (err: any) {
+      fail(err?.message ?? String(err));
+      return false;
     }
-    if (toGroup) {
-      const current = owned.filter((b) => b.group_id === toGroup).map((b) => b.id);
-      const { error } = await (supabase as any).rpc("group_set_bots", { _group_id: toGroup, _bot_ids: [...current, botId] });
-      if (error) { toast.error("Couldn't move this bot", { description: error.message }); return false; }
-    }
-    await Promise.all([reload(), loadGroups()]);
-    window.dispatchEvent(new CustomEvent("oversite:groups-changed"));
-    return true;
-  }, [owned, reload, loadGroups]);
+  };
 
   const deleteGroup = useCallback(async (gid: string, name: string) => {
     if (!window.confirm(`Delete the group "${name}"? Its bots stay on your account (just ungrouped), and anyone who had access through this group's team loses that access. This can't be undone.`)) return;
@@ -2528,9 +2565,9 @@ const BotDashboard = () => {
             {/* MY BOTS */}
             <div className={"view" + (view === "bots" && canMyBots ? " on" : "")}>
               <div className="drophint" style={{ margin: "0 0 12px" }}>{groups.length ? "Drag a card to reorder, or drop it inside a group." : "Drag a card to reorder."}</div>
-              <DndContext sensors={botSensors} collisionDetection={botCollision} onDragStart={onBotDragStart} onDragEnd={onBotDragEnd} onDragCancel={() => setBotDragId(null)}>
+              <DndContext sensors={botSensors} collisionDetection={botCollision} onDragStart={onBotDragStart} onDragOver={onBotDragOver} onDragEnd={onBotDragEnd} onDragCancel={() => { lastOverRef.current = null; setBotDragId(null); }}>
                 {/* Bots not in any group. Also the drop area for taking a bot out of its group. */}
-                <BotArea id="group:none" active={!!botDragId && !!byId[botDragId]?.group_id} label={groups.length ? "Not in a group" : null}>
+                <BotArea id="group:none" active={!!botDragId && !!effectiveGroup(byId[botDragId])} label={groups.length ? "Not in a group" : null}>
                   <SortableContext items={ungroupedBots.map((b) => b.id)} strategy={rectSortingStrategy}>
                     <div className={"botgrid" + (botDragId ? " dragging-active" : "")}>
                       {ungroupedBots.map((b) => (
@@ -2544,7 +2581,7 @@ const BotDashboard = () => {
                 </BotArea>
                 {/* One big box per group. The cards inside are the same cards; drop one in to put it in the group. */}
                 {canGroups && groups.map((g) => {
-                  const inG = owned.filter((b) => b.group_id === g.id);
+                  const inG = owned.filter((b) => effectiveGroup(b) === g.id);
                   return (
                     <GroupBox key={g.id} group={g} count={inG.length}>
                       <SortableContext items={inG.map((b) => b.id)} strategy={rectSortingStrategy}>
