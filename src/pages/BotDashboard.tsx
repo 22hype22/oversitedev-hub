@@ -1756,8 +1756,10 @@ const BotDashboard = () => {
   const { permissions: viewerPerms } = useTeamRole(isInvitedOnly ? firstTeamBotId : null);
   // Each permission unlocks a section of the dashboard for invited members.
   // Owners always have everything. With NO permissions, a member sees only the
-  // Dashboard and Support pages. Groups is an owner-only organizational tool.
-  const canMyBots       = !isInvitedOnly || viewerPerms.edit_bot_config; // My Bots (see & manage bots)
+  // Dashboard and Support pages. My Bots opens for anyone who can view the
+  // dashboard; a viewer gets it read-only (ReadOnlyBotScope), and the server
+  // refuses their writes regardless.
+  const canMyBots       = !isInvitedOnly || viewerPerms.view_dashboard;  // My Bots (see; edit needs edit_bot_config)
   const canActivity     = !isInvitedOnly || viewerPerms.view_logs;       // Activity / logs
   const canBilling      = !isInvitedOnly || viewerPerms.edit_billing;    // Billing
   const canManageTeam   = !isInvitedOnly || viewerPerms.manage_team;     // Team (invite & remove)

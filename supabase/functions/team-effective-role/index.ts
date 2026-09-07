@@ -66,14 +66,15 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, serviceKey)
 
-  // Who owns the bot?
+  // Who owns the bot, and which group is it in?
   const { data: bot } = await admin
     .from('bot_orders')
-    .select('user_id')
+    .select('user_id, group_id')
     .eq('id', botId)
     .maybeSingle()
   if (!bot) return json({ role: null, permissions: EMPTY })
   const owner = bot.user_id as string
+  const botGroup = (bot as any).group_id ? String((bot as any).group_id) : null
 
   // The bot's owner has full owner permissions.
   if (uid === owner) {
@@ -95,17 +96,23 @@ Deno.serve(async (req) => {
   const role = rows[0].role
 
   let permissions: Perms = DEFAULTS[role] ?? EMPTY
-  // Overlay any custom permissions the owner set for this role.
+  // Overlay the owner's custom permissions for this role. Owners can set them
+  // per group, so prefer the row for the bot's own group, then the
+  // account-wide row (no group, or the all-zero group id).
+  const GLOBAL_GROUP = '00000000-0000-0000-0000-000000000000'
   try {
-    const { data: custom } = await admin
+    const { data: rows } = await admin
       .from('dashboard_role_permissions')
-      .select('permissions')
+      .select('*')
       .eq('owner_user_id', owner)
       .eq('role', role)
-      .limit(1)
-      .maybeSingle()
-    if (custom?.permissions && typeof custom.permissions === 'object') {
-      permissions = { ...permissions, ...custom.permissions }
+    const list = (rows ?? []) as Array<{ permissions?: unknown; group_id?: string | null }>
+    const pick =
+      (botGroup ? list.find((r) => r.group_id === botGroup) : undefined) ??
+      list.find((r) => !r.group_id || r.group_id === GLOBAL_GROUP) ??
+      (list.length === 1 && list[0].group_id === undefined ? list[0] : undefined)
+    if (pick?.permissions && typeof pick.permissions === 'object') {
+      permissions = { ...permissions, ...(pick.permissions as Partial<Perms>) }
     }
   } catch {
     /* table/row absent — defaults are fine */
