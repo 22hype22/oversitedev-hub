@@ -38,8 +38,11 @@ import {
   KeyboardSensor,
   PointerSensor,
   closestCenter,
+  pointerWithin,
+  useDroppable,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -1403,6 +1406,27 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .addbot{border:1.5px dashed rgba(255,255,255,.16);border-radius:16px;background:rgba(255,255,255,.035);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--faint);cursor:pointer;min-height:262px;transition:.16s}
 .osd .addbot:hover{border-color:var(--accent);color:var(--heading);background:rgba(255,255,255,.055)}
 .osd .addbot svg{width:26px;height:26px;stroke:currentColor;stroke-width:1.6;fill:none}
+.osd .bcard .gtag{display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:10.5px;font-weight:600;color:var(--faint);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:2px 8px;align-self:flex-start}
+.osd .bcard .gtag i{height:5px;width:5px;border-radius:50%;background:var(--accent)}
+/* Group tiles under the bot grid: same dashed glass as Add a bot. Drop a bot card on one to put it in that group. */
+.osd .gstrip{margin-top:26px}
+.osd .gstrip .gsh{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+.osd .gstrip .gsh h3{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:14px;margin:0}
+.osd .gstrip .gsh span{font-size:11px;color:var(--faint)}
+.osd .gtile{position:relative;border:1.5px dashed rgba(255,255,255,.16);border-radius:16px;background:rgba(255,255,255,.035);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);padding:16px;min-height:132px;display:flex;flex-direction:column;gap:10px;color:var(--faint);transition:.16s}
+.osd .gtile .gth{display:flex;align-items:center;gap:9px}
+.osd .gtile .gti{height:30px;width:30px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:grid;place-items:center;color:var(--accent);flex:none}
+.osd .gtile .gti svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.7;fill:none}
+.osd .gtile .gtn{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.osd .gtile .gtc{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.osd .gtile .gtb{display:flex;flex-wrap:wrap;gap:6px}
+.osd .gtile .gtb span{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--body);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:3px 8px}
+.osd .gtile .gtb span svg{width:11px;height:11px;stroke:var(--accent);stroke-width:1.8;fill:none}
+.osd .gtile .gte{font-size:11.5px;color:var(--faint);margin-top:auto}
+.osd .gtile.over{border-color:var(--accent);border-style:solid;background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--heading);transform:scale(1.015)}
+.osd .gtile.newg{align-items:center;justify-content:center;cursor:pointer;gap:8px}
+.osd .gtile.newg:hover{border-color:var(--accent);color:var(--heading);background:rgba(255,255,255,.055)}
+.osd .gtile.newg svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.6;fill:none}
 .osd .feed{border:1px solid rgba(168,180,191,.14);border-radius:16px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);overflow:hidden}
 .osd .fitem{display:flex;gap:13px;padding:14px 18px;border-top:1px solid var(--hair)}
 .osd .fitem:first-child{border-top:0}
@@ -1690,6 +1714,26 @@ function BotSortableCard({
   );
 }
 
+// A group as a drop target on the My Bots page. Lights up while a bot card is
+// held over it; dropping the card puts that bot in the group.
+function GroupDropTile({ group, bots }: { group: Group; bots: OwnedBot[] }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `group:${group.id}` });
+  return (
+    <div ref={setNodeRef} className={"gtile" + (isOver ? " over" : "")}>
+      <div className="gth">
+        <span className="gti"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.8"/></svg></span>
+        <span className="gtn">{group.name}</span>
+        <span className="gtc">{bots.length} {bots.length === 1 ? "bot" : "bots"}</span>
+      </div>
+      {bots.length > 0 ? (
+        <div className="gtb">{bots.map((b) => <span key={b.id}>{botSvg(b.base)}{b.bot_name}</span>)}</div>
+      ) : (
+        <div className="gte">{isOver ? "Release to add" : "Empty. Drag a bot here."}</div>
+      )}
+    </div>
+  );
+}
+
 const BotDashboard = () => {
   const { user, isAdmin, loading } = useAuth();
   const { bots: ownedBots, dashboardBots, hasDashboardAccess, loading: botsLoading, reload } = useOwnedBots();
@@ -1920,10 +1964,27 @@ const BotDashboard = () => {
   );
   const [botDragId, setBotDragId] = useState<string | null>(null);
   const onBotDragStart = (e: DragStartEvent) => setBotDragId(String(e.active.id));
+  // A card dropped on a group tile goes into that group (one group per bot,
+  // so it leaves whatever group it was in). Group tiles win the hit test when
+  // the pointer is inside one; otherwise the normal reorder applies.
+  const botCollision: CollisionDetection = (args) => {
+    const tiles = pointerWithin(args).filter((c) => String(c.id).startsWith("group:"));
+    return tiles.length ? tiles : closestCenter(args);
+  };
   const onBotDragEnd = (e: DragEndEvent) => {
     setBotDragId(null);
     const { active, over } = e;
     if (!over || active.id === over.id) return;
+    const overId = String(over.id);
+    if (overId.startsWith("group:")) {
+      const gid = overId.slice(6);
+      const g = groups.find((x) => x.id === gid);
+      const b = byId[String(active.id)];
+      if (!g || !b) return;
+      if (b.group_id === gid) { toast(`${b.bot_name} is already in ${g.name}`); return; }
+      void assignBotToGroup(gid, b.id).then((ok) => { if (ok) toast.success(`${b.bot_name} moved to ${g.name}`); });
+      return;
+    }
     setOrder((p) => {
       const from = p.indexOf(String(active.id));
       const to = p.indexOf(String(over.id));
@@ -1986,6 +2047,16 @@ const BotDashboard = () => {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [groupsOpen]);
+
+  const assignBotToGroup = useCallback(async (gid: string, botId: string) => {
+    const current = owned.filter((b) => b.group_id === gid).map((b) => b.id);
+    if (current.includes(botId)) return true;
+    const { error } = await (supabase as any).rpc("group_set_bots", { _group_id: gid, _bot_ids: [...current, botId] });
+    if (error) { toast.error("Couldn't move this bot", { description: error.message }); return false; }
+    await Promise.all([reload(), loadGroups()]);
+    window.dispatchEvent(new CustomEvent("oversite:groups-changed"));
+    return true;
+  }, [owned, reload, loadGroups]);
 
   const deleteGroup = useCallback(async (gid: string, name: string) => {
     if (!window.confirm(`Delete the group "${name}"? Its bots stay on your account (just ungrouped), and anyone who had access through this group's team loses that access. This can't be undone.`)) return;
@@ -2164,6 +2235,9 @@ const BotDashboard = () => {
     <>
       <div className="a">{botSvg(b.base)}</div>
       <div className="nm">{b.bot_name}</div><div className="st" style={{ color: stColorLive(b) }}>● {stWordLive(b)}</div>
+      {b.group_id && groups.find((g) => g.id === b.group_id) && (
+        <span className="gtag"><i />{groups.find((g) => g.id === b.group_id)!.name}</span>
+      )}
       <div className="bstats"><div className="bx"><span className="k">Base</span><span className="v num">{BOT_BASE_LABELS[b.base] ?? b.base}</span></div><div className="bx"><span className="k">Add-ons</span><span className="v num">{b.addons.length}</span></div></div>
       <button className="ghost" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Open</button>
     </>
@@ -2427,7 +2501,7 @@ const BotDashboard = () => {
             {/* MY BOTS */}
             <div className={"view" + (view === "bots" && canMyBots ? " on" : "")}>
               <div className="drophint" style={{ margin: "0 0 12px" }}>Drag a card to reorder.</div>
-              <DndContext sensors={botSensors} collisionDetection={closestCenter} onDragStart={onBotDragStart} onDragEnd={onBotDragEnd} onDragCancel={() => setBotDragId(null)}>
+              <DndContext sensors={botSensors} collisionDetection={botCollision} onDragStart={onBotDragStart} onDragEnd={onBotDragEnd} onDragCancel={() => setBotDragId(null)}>
                 <SortableContext items={owned.map((b) => b.id)} strategy={rectSortingStrategy}>
                   <div className={"botgrid" + (botDragId ? " dragging-active" : "")}>
                     {owned.map((b) => (
@@ -2438,6 +2512,20 @@ const BotDashboard = () => {
                     <Link to="/bots" className="addbot" style={{ textDecoration: "none" }}><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add a bot</Link>
                   </div>
                 </SortableContext>
+                {canGroups && (
+                  <div className="gstrip">
+                    <div className="gsh"><h3>Groups</h3><span>Drop a bot on a group to put it there.</span></div>
+                    <div className="botgrid">
+                      {groups.map((g) => (
+                        <GroupDropTile key={g.id} group={g} bots={owned.filter((b) => b.group_id === g.id)} />
+                      ))}
+                      <div className="gtile newg" role="button" tabIndex={0} onClick={() => setGroupsOpen(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setGroupsOpen(true); } }}>
+                        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                        <span>New group</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {/* The card that follows the pointer while dragging. */}
                 <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }}>
                   {botDragId && byId[botDragId] ? (
