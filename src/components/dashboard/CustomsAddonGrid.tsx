@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -62,8 +62,12 @@ function reconcile(saved: string[] | null, current: string[]): string[] {
 }
 
 /** The card face (icon/title/summary/toggle). Shared by the in-grid sortable
- *  item and the floating drag overlay so they look identical. */
-function CardFace({
+ *  item and the floating drag overlay so they look identical.
+ *
+ *  Memoised: every drag move re-renders the sortable wrappers (their transform
+ *  changes), and without this the full add-on editor underneath re-rendered
+ *  with them, which is what made the drag stutter. */
+const CardFace = memo(function CardFace({
   id,
   botId,
   botName,
@@ -108,7 +112,7 @@ function CardFace({
       )}
     </Suspense>
   );
-}
+});
 
 function SortableCard({
   id,
@@ -138,11 +142,22 @@ function SortableCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id, disabled: dragDisabled });
+  } = useSortable({
+    id,
+    disabled: dragDisabled,
+    transition: { duration: 180, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+  });
+
+  // A stable toggle handler so the memoised face below is not re-rendered on
+  // every drag move just because the parent built a new arrow function.
+  const toggleRef = useRef(onToggleEnabled);
+  toggleRef.current = onToggleEnabled;
+  const stableToggle = useCallback((next: boolean) => toggleRef.current(next), []);
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: isDragging ? "none" : transition,
+    willChange: isDragging ? "transform" : undefined,
     // While this item is the one being dragged, it stays put as a faint
     // placeholder — the DragOverlay is what follows the cursor.
     opacity: isDragging ? 0.25 : 1,
@@ -168,7 +183,7 @@ function SortableCard({
         botAvatarUrl={botAvatarUrl}
         engineVersion={engineVersion}
         enabled={enabled}
-        onToggleEnabled={onToggleEnabled}
+        onToggleEnabled={stableToggle}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
       />

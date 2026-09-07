@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -69,6 +69,57 @@ function reconcile(saved: string[] | null, current: string[]): string[] {
   return [...kept, ...appended];
 }
 
+/** The card contents. Memoised so a drag move, which only changes the
+ *  wrapper's transform, does not re-render the full add-on editor under it. */
+const CardFace = memo(function CardFace({
+  id,
+  botId,
+  botName,
+  botAvatarUrl,
+  engineVersion,
+  enabled,
+  onToggleEnabled,
+  open,
+  onOpenChange,
+}: {
+  id: string;
+  botId: string;
+  botName: string;
+  botAvatarUrl?: string | null;
+  engineVersion?: "v1" | "v2";
+  enabled: boolean;
+  onToggleEnabled: (next: boolean) => void;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  return (
+    <Suspense fallback={<div className="h-24 rounded-xl border border-border/40 bg-card/40 animate-pulse" />}>
+      {id === "ticket-editor" ? (
+        <TicketEditorCard
+          botId={botId}
+          botName={botName}
+          botAvatarUrl={botAvatarUrl}
+          engineVersion={engineVersion}
+        />
+      ) : id === "dispatch-region" || id === "dispatch-voice" ? (
+        <DispatchBlockCard botId={botId} kind={id === "dispatch-region" ? "region" : "voice"} />
+      ) : (
+        <AddonConfigCard
+          addonId={id}
+          botId={botId}
+          botName={botName}
+          botAvatarUrl={botAvatarUrl}
+          engineVersion={engineVersion}
+          open={open}
+          onOpenChange={onOpenChange}
+          enabled={enabled}
+          onToggleEnabled={onToggleEnabled}
+        />
+      )}
+    </Suspense>
+  );
+});
+
 function SortableCard({
 
   id,
@@ -107,6 +158,11 @@ function SortableCard({
     },
   });
 
+  // Stable toggle so the memoised face keeps its props between drag moves.
+  const toggleRef = useRef(onToggleEnabled);
+  toggleRef.current = onToggleEnabled;
+  const stableToggle = useCallback((next: boolean) => toggleRef.current(next), []);
+
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition: isDragging ? "none" : transition,
@@ -132,30 +188,17 @@ function SortableCard({
       style={style}
       {...dragProps}
     >
-      <Suspense fallback={<div className="h-24 rounded-xl border border-border/40 bg-card/40 animate-pulse" />}>
-        {id === "ticket-editor" ? (
-          <TicketEditorCard
-            botId={botId}
-            botName={botName}
-            botAvatarUrl={botAvatarUrl}
-            engineVersion={engineVersion}
-          />
-        ) : id === "dispatch-region" || id === "dispatch-voice" ? (
-          <DispatchBlockCard botId={botId} kind={id === "dispatch-region" ? "region" : "voice"} />
-        ) : (
-          <AddonConfigCard
-            addonId={id}
-            botId={botId}
-            botName={botName}
-            botAvatarUrl={botAvatarUrl}
-            engineVersion={engineVersion}
-            open={dialogOpen}
-            onOpenChange={setDialogOpen}
-            enabled={enabled}
-            onToggleEnabled={onToggleEnabled}
-          />
-        )}
-      </Suspense>
+      <CardFace
+        id={id}
+        botId={botId}
+        botName={botName}
+        botAvatarUrl={botAvatarUrl}
+        engineVersion={engineVersion}
+        enabled={enabled}
+        onToggleEnabled={stableToggle}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
     </div>
   );
 }

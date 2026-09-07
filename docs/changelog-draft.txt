@@ -35,3 +35,5 @@
 
 + Bot pages open faster. Channel and role lists, team permissions, and the bot list are now fetched once and shared across every block on the page instead of once per block
 + My Bots cards now drag the same way the add-on blocks do, with a card that follows your finger or cursor, and it works on phones
++ Dragging cards on My Bots and the add-on blocks is smooth now. The frosted blur behind each card is paused while you drag, and the editors under the blocks no longer redraw on every move
++ Removed the Add a bot button from the top bar. Adding a bot lives on the My Bots page
