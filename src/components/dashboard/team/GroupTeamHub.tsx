@@ -310,7 +310,13 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
     return () => window.removeEventListener("oversite:groups-changed", onGroupsChanged);
   }, [loadGroups]);
 
-  const ownedBotIds = useMemo(() => ownedBots.map((b) => b.id), [ownedBots]);
+  // The bot list refreshes in the background every so often, which gives a new
+  // array each time. Key the ids on their joined string so the member loader
+  // keeps a stable identity and does not refetch (and re-toast) on every poll.
+  const ownedBotIdsKey = ownedBots.map((b) => b.id).sort().join(",");
+  const ownedBotIds = useMemo(() => (ownedBotIdsKey ? ownedBotIdsKey.split(",") : []), [ownedBotIdsKey]);
+  const ownedBotIdsRef = useRef<string[]>(ownedBotIds);
+  ownedBotIdsRef.current = ownedBotIds;
   const loadMembers = useCallback(async (groupId: string) => {
     setMembersLoading(true);
     try {
@@ -346,9 +352,10 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
           e.bots.add(String(r.bot_id));
           if (r.accepted_at && !e.m.accepted) { e.m.accepted = true; e.m.accepted_at = r.accepted_at; }
         }
-        const all = ownedBotIds.length;
+        const ids = ownedBotIdsRef.current;
+        const all = ids.length;
         const list = Array.from(byEmail.values())
-          .filter((e) => e.m.role !== "owner" && all > 0 && ownedBotIds.every((id) => e.bots.has(id)))
+          .filter((e) => e.m.role !== "owner" && all > 0 && ids.every((id) => e.bots.has(id)))
           .map((e) => e.m)
           .sort((a, b) => a.member_email.localeCompare(b.member_email));
         setMembers(list);
@@ -383,12 +390,18 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
     } finally {
       setMembersLoading(false);
     }
-  }, [ownerUserId, ownedBotIds]);
+  }, [ownerUserId]);
 
   useEffect(() => {
     if (selectedGroupId) void loadMembers(selectedGroupId);
     else setMembers([]);
   }, [selectedGroupId, loadMembers]);
+  // In the Dashboard scope the roster depends on which bots exist, so reload
+  // it when a bot is added or removed (the key changes), not on every poll.
+  useEffect(() => {
+    if (selectedGroupId === ALL_SCOPE && ownedBotIdsKey) void loadMembers(ALL_SCOPE);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownedBotIdsKey]);
 
   useEffect(() => {
     let cancelled = false;
