@@ -1275,6 +1275,36 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .bell:hover{background:rgba(255,255,255,.08);color:var(--heading)}
 .osd .bell svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.7;fill:none}
 .osd .bell .d{position:absolute;top:9px;right:11px;height:6px;width:6px;border-radius:999px;background:var(--accent)}
+/* Header "Groups" button: same glass as the bell, with a label. */
+.osd .hbtn{height:40px;padding:0 14px 0 12px;border-radius:11px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgba(255,255,255,.09);display:inline-flex;align-items:center;gap:8px;color:var(--body);font-family:var(--bodyf);font-weight:600;font-size:12.5px;cursor:pointer;transition:.15s}
+.osd .hbtn:hover{background:rgba(255,255,255,.08);color:var(--heading)}
+.osd .hbtn svg{width:16px;height:16px;stroke:currentColor;stroke-width:1.7;fill:none}
+/* Groups panel: a small sheet over the page for making groups and putting bots in them. */
+.osd .gscrim{position:fixed;inset:0;z-index:200;background:rgba(10,13,17,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:flex;align-items:flex-start;justify-content:center;padding:70px 18px 18px;animation:osd-fade .2s ease}
+.osd .gpanel{width:100%;max-width:560px;max-height:calc(100vh - 90px);overflow:auto;border:1px solid rgba(168,180,191,.16);border-radius:18px;background:linear-gradient(180deg,rgba(46,54,63,.97),rgba(39,46,54,.985));box-shadow:0 30px 70px -24px rgba(0,0,0,.85);padding:20px}
+.osd .gpanel .gph{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.osd .gpanel .gph h3{font-family:var(--disp);font-weight:800;font-size:17px;color:var(--heading);margin:0}
+.osd .gpanel .gph p{font-size:12px;color:var(--faint);margin:3px 0 0;line-height:1.45}
+.osd .gpanel .gclose{height:30px;width:30px;border-radius:8px;border:1px solid transparent;background:none;color:var(--faint);display:grid;place-items:center;cursor:pointer}
+.osd .gpanel .gclose:hover{background:var(--surface);color:var(--heading)}
+.osd .gpanel .gclose svg{width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round}
+.osd .gnew{display:flex;gap:8px;margin-bottom:16px}
+.osd .gnew input{flex:1;min-width:0;background:var(--bg);border:1px solid var(--hair);border-radius:10px;padding:10px 12px;color:var(--heading);font-family:var(--bodyf);font-size:13px;outline:none}
+.osd .gnew input:focus{border-color:color-mix(in srgb,var(--accent) 55%,var(--hair))}
+.osd .gnew input::placeholder{color:var(--faint)}
+.osd .gnew .cta{padding:10px 16px;white-space:nowrap}
+.osd .grow{padding:14px 0;border-top:1px solid var(--hair)}
+.osd .grow .grh{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.osd .grow .grn{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.osd .grow .grc{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.osd .grow .grdel{height:26px;width:26px;border-radius:8px;border:1px solid transparent;background:none;color:var(--faint);display:grid;place-items:center;cursor:pointer}
+.osd .grow .grdel svg{width:13px;height:13px;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round}
+.osd .grow .grdel:hover{color:#e6b7b7;background:rgba(190,120,120,.12);border-color:rgba(190,120,120,.28)}
+.osd .gempty{padding:22px 0;text-align:center;color:var(--faint);font-size:12.5px;border-top:1px solid var(--hair)}
+.osd .gfoot{margin-top:14px;padding-top:14px;border-top:1px solid var(--hair);display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:var(--faint)}
+.osd .gfoot button{background:none;border:0;color:var(--accent);font-family:var(--bodyf);font-weight:600;font-size:12.5px;cursor:pointer;padding:0}
+.osd .gfoot button:hover{text-decoration:underline}
+@media(max-width:560px){.osd .hbtn span{display:none}.osd .hbtn{padding:0 11px}}
 .osd .cta{background:var(--accent);color:var(--accentink);border:0;border-radius:11px;padding:11px 20px;font-family:var(--bodyf);font-weight:700;font-size:13px;cursor:pointer;transition:.15s;white-space:nowrap}
 .osd .cta:hover{filter:brightness(1.06)}
 .osd .view{display:none;animation:osd-fade .3s ease}
@@ -1934,6 +1964,29 @@ const BotDashboard = () => {
     window.dispatchEvent(new CustomEvent("oversite:groups-changed"));
   }, [owned, reload, loadGroups]);
 
+  // Header "Groups" panel: make a group and put bots in it without leaving
+  // the page. People get access to a group from the Team section.
+  const [groupsOpen, setGroupsOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const createGroup = useCallback(async () => {
+    const n = newGroupName.trim();
+    if (!n || creatingGroup) return;
+    setCreatingGroup(true);
+    const { error } = await (supabase as any).rpc("group_create", { _name: n, _bot_ids: [] });
+    setCreatingGroup(false);
+    if (error) { toast.error("Couldn't create group", { description: error.message }); return; }
+    setNewGroupName("");
+    await loadGroups();
+    window.dispatchEvent(new CustomEvent("oversite:groups-changed"));
+  }, [newGroupName, creatingGroup, loadGroups]);
+  useEffect(() => {
+    if (!groupsOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setGroupsOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [groupsOpen]);
+
   const deleteGroup = useCallback(async (gid: string, name: string) => {
     if (!window.confirm(`Delete the group "${name}"? Its bots stay on your account (just ungrouped), and anyone who had access through this group's team loses that access. This can't be undone.`)) return;
     // The bots that belong to this group — their team memberships get removed.
@@ -2354,6 +2407,12 @@ const BotDashboard = () => {
               </div>
               <div className="htools">
                 <div className="bell" id="tour-bell" onClick={() => go("activity")}><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>{unread > 0 && <span className="d" />}</div>
+                {canGroups && (
+                  <button type="button" className="hbtn" onClick={() => setGroupsOpen(true)} title="Groups">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.8"/><path d="M17.5 14v7M14 17.5h7"/></svg>
+                    <span>Groups</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -2389,6 +2448,47 @@ const BotDashboard = () => {
                 </DragOverlay>
               </DndContext>
             </div>
+
+            {groupsOpen && canGroups && (
+              <div className="gscrim" onClick={() => setGroupsOpen(false)}>
+                <div className="gpanel" role="dialog" aria-modal="true" aria-label="Groups" onClick={(e) => e.stopPropagation()}>
+                  <div className="gph">
+                    <div>
+                      <h3>Groups</h3>
+                      <p>Put bots into a group, then give people access to that group from Team.</p>
+                    </div>
+                    <button type="button" className="gclose" aria-label="Close" onClick={() => setGroupsOpen(false)}><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+                  </div>
+                  <div className="gnew">
+                    <input
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") void createGroup(); }}
+                      placeholder="New group name"
+                      autoFocus
+                    />
+                    <button type="button" className="cta" disabled={!newGroupName.trim() || creatingGroup} onClick={() => void createGroup()}>Create</button>
+                  </div>
+                  {groups.length === 0 && <div className="gempty">No groups yet. Name one above to start.</div>}
+                  {groups.map((g) => (
+                    <div className="grow" key={g.id}>
+                      <div className="grh">
+                        <span className="grn">{g.name}</span>
+                        <span className="grc">{groupBotIds(g.id).length} bots</span>
+                        <button type="button" className="grdel" title="Delete group" aria-label={`Delete ${g.name}`} onClick={() => void deleteGroup(g.id, g.name)}><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+                      </div>
+                      <div className="chips">
+                        {owned.map((b) => { const inG = b.group_id === g.id; return (<span className={"chip" + (inG ? "" : " add")} key={b.id} style={{ cursor: "pointer" }} onClick={() => void toggleBotInGroup(g.id, b.id)}>{inG ? botSvg(b.base) : null}{b.bot_name}{inG && <span className="x">×</span>}</span>); })}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="gfoot">
+                    <span>Give a team access to a group from the Team section.</span>
+                    {canManageTeam && <button type="button" onClick={() => { setGroupsOpen(false); go("team"); }}>Open Team</button>}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* GROUPS */}
             <div className={"view" + (view === "groups" && canGroups ? " on" : "")}>
