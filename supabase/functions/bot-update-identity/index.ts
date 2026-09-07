@@ -116,6 +116,47 @@ async function notifyStaffManualApply(opts: {
   }
 }
 
+// Railway lookup for a bot's Discord token. Tries the known service first,
+// then every service in the project whose BOT_ORDER_ID matches. Read-only.
+async function railwayTokenForBot(botId: string, serviceId: string | null): Promise<string | null> {
+  const token = Deno.env.get("RAILWAY_API_TOKEN");
+  const projectId = Deno.env.get("RAILWAY_PROJECT_ID");
+  const envId = Deno.env.get("RAILWAY_ENVIRONMENT_ID");
+  if (!token || !projectId || !envId) return null;
+  const gql = async (query: string, variables: Record<string, unknown>) => {
+    const res = await fetch("https://backboard.railway.com/graphql/v2", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ query, variables }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body?.errors) return null;
+    return body.data;
+  };
+  const varsFor = async (sid: string): Promise<Record<string, string> | null> => {
+    const d = await gql(
+      "query($p:String!,$e:String!,$s:String!){variables(projectId:$p,environmentId:$e,serviceId:$s)}",
+      { p: projectId, e: envId, s: sid },
+    );
+    return d?.variables ?? null;
+  };
+  try {
+    if (serviceId) {
+      const v = await varsFor(serviceId);
+      if (v?.DISCORD_TOKEN) return String(v.DISCORD_TOKEN);
+    }
+    const d = await gql("query($p:String!){project(id:$p){services{edges{node{id}}}}}", { p: projectId });
+    const ids: string[] = (d?.project?.services?.edges ?? []).map((e: any) => String(e?.node?.id ?? "")).filter(Boolean);
+    for (const sid of ids) {
+      const v = await varsFor(sid);
+      if (v && String(v.BOT_ORDER_ID ?? "") === botId && v.DISCORD_TOKEN) return String(v.DISCORD_TOKEN);
+    }
+  } catch (e) {
+    console.warn("[bot-update-identity] railway token lookup failed", (e as Error).message);
+  }
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { error: "POST only" });
@@ -172,7 +213,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderErr } = await admin
       .from("bot_orders")
-      .select("id, user_id, bot_name, discord_last_username_change_at")
+      .select("id, user_id, bot_name, discord_last_username_change_at, railway_service_id")
       .eq("id", botId)
       .maybeSingle();
     if (orderErr) return json(500, { error: orderErr.message });
@@ -191,7 +232,14 @@ Deno.serve(async (req) => {
       { _bot_id: botId },
     );
     if (tokenErr) return json(500, { error: `secret lookup failed: ${tokenErr.message}` });
-    const botToken = typeof tokenData === "string" ? tokenData : null;
+    let botToken = typeof tokenData === "string" ? tokenData : null;
+    // Bots that run on Railway keep their token in the service's variables,
+    // and some were set up before the token was ever stored on this side. Look
+    // the service up by its BOT_ORDER_ID variable so every deployed bot can
+    // have its profile edited, not only the ones with a token in the database.
+    if (!botToken) {
+      botToken = await railwayTokenForBot(botId, order.railway_service_id ?? null);
+    }
     if (!botToken) return json(400, { error: "Bot has no DISCORD_TOKEN configured" });
 
     // Resolve :emojiname: references in the bio against the bot's guild emojis.
