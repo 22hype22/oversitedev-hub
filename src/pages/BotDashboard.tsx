@@ -2032,17 +2032,29 @@ const BotDashboard = () => {
     if (b.id in groupOverride) return groupOverride[b.id];
     return b.group_id ?? null;
   };
+  // group_list can be slow. Paint the last known list at once (per account,
+  // from localStorage) and let the RPC correct it when it answers.
+  const groupsCacheKey = user?.id ? `oversite:groups:${user.id}` : null;
   const loadGroups = useCallback(async () => {
     try {
       const { data, error } = await (supabase as any).rpc("group_list");
       if (error) throw error;
       const list = (Array.isArray(data) ? data : []) as Array<{ id: string; name: string }>;
       // Hide the auto-created default "Oversite" group — only groups the owner made.
-      setGroups(list.filter((g) => (g.name ?? "").trim().toLowerCase() !== "oversite").map((g) => ({ id: g.id, name: g.name })));
+      const next = list.filter((g) => (g.name ?? "").trim().toLowerCase() !== "oversite").map((g) => ({ id: g.id, name: g.name }));
+      setGroups(next);
+      if (groupsCacheKey) { try { localStorage.setItem(groupsCacheKey, JSON.stringify(next)); } catch { /* ignore */ } }
     } catch (e: any) {
       console.error("group_list failed", e);
     }
-  }, []);
+  }, [groupsCacheKey]);
+  useEffect(() => {
+    if (!groupsCacheKey) return;
+    try {
+      const raw = localStorage.getItem(groupsCacheKey);
+      if (raw) { const cached = JSON.parse(raw) as Group[]; if (Array.isArray(cached)) setGroups(cached); }
+    } catch { /* ignore */ }
+  }, [groupsCacheKey]);
   useEffect(() => { void loadGroups(); }, [loadGroups]);
   // Bots that sit outside every group (a stale group_id counts as ungrouped).
   const ungroupedBots = owned.filter((b) => { const gid = effectiveGroup(b); return !gid || !groups.some((g) => g.id === gid); });
@@ -2051,17 +2063,36 @@ const BotDashboard = () => {
     (gid: string) => owned.filter((b) => b.group_id === gid).map((b) => b.id),
     [owned],
   );
+  // Put one bot in a group (or none) by writing bot_orders.group_id, which is
+  // what every part of the dashboard reads. Returns the saved value so the
+  // caller can confirm it stuck. Falls back to the group_set_bots RPC if the
+  // direct write is not allowed for this account.
+  const writeBotGroup = useCallback(async (botId: string, gid: string | null): Promise<{ saved: string | null } | { error: string }> => {
+    const t0 = performance.now();
+    const { data, error } = await (supabase as any).from("bot_orders").update({ group_id: gid }).eq("id", botId).select("group_id").maybeSingle();
+    console.info(`[groups] bot_orders.group_id write took ${((performance.now() - t0) / 1000).toFixed(2)}s`, error?.message ?? "");
+    if (!error && data) return { saved: (data.group_id ?? null) as string | null };
+    if (gid) {
+      const current = owned.filter((b) => b.id !== botId && b.group_id === gid).map((b) => b.id);
+      const { data: r, error: e2 } = await (supabase as any).rpc("group_set_bots", { _group_id: gid, _bot_ids: [...current, botId] });
+      if (e2) return { error: e2.message };
+      if (r && r.ok === false) return { error: r.error ?? "update failed" };
+    } else if (error) {
+      return { error: error.message };
+    }
+    const { data: row, error: e3 } = await (supabase as any).from("bot_orders").select("group_id").eq("id", botId).maybeSingle();
+    if (e3) return { error: e3.message };
+    return { saved: (row?.group_id ?? null) as string | null };
+  }, [owned]);
+
   const toggleBotInGroup = useCallback(async (gid: string, botId: string) => {
-    const current = owned.filter((b) => b.group_id === gid).map((b) => b.id);
-    const next = current.includes(botId)
-      ? current.filter((x) => x !== botId)
-      : [...current, botId];
-    const { error } = await (supabase as any).rpc("group_set_bots", { _group_id: gid, _bot_ids: next });
-    if (error) { toast.error("Couldn't update this group's bots", { description: error.message }); return; }
+    const inG = owned.some((b) => b.id === botId && b.group_id === gid);
+    const res = await writeBotGroup(botId, inG ? null : gid);
+    if ("error" in res) { toast.error("Couldn't update this group's bots", { description: res.error }); return; }
     await Promise.all([reload(), loadGroups()]);
     // Keep the Team hub's group list + bot counts in sync instantly.
     window.dispatchEvent(new CustomEvent("oversite:groups-changed"));
-  }, [owned, reload, loadGroups]);
+  }, [owned, reload, loadGroups, writeBotGroup]);
 
   // Header "Groups" panel: make a group and put bots in it without leaving
   // the page. People get access to a group from the Team section.
@@ -2086,71 +2117,34 @@ const BotDashboard = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, [groupsOpen]);
 
-  // Move a bot between groups (or out of one). One group per bot, so leaving
-  // the old group and joining the new one are both group_set_bots calls. The
-  // card shows in its new box straight away. The toast clears as soon as the
-  // save returns; the refresh and the read-back check run after, in the
-  // background, and only pull the card back if the save turns out not to
-  // have stuck.
-  const moveBotToGroup = async (bot: OwnedBot, fromGroup: string | null, toGroup: string | null, toName: string | null) => {
+  // Move a bot between groups (or out of one). One write to bot_orders.group_id,
+  // confirmed from the row the server sends back, so the success toast means
+  // it really saved. The card shows in its new box straight away; the list
+  // refresh runs afterwards in the background.
+  const moveBotToGroup = async (bot: OwnedBot, _fromGroup: string | null, toGroup: string | null, toName: string | null) => {
     const botId = bot.id;
     const started = performance.now();
-    const secs = () => ((performance.now() - started) / 1000).toFixed(1);
     setGroupOverride((o) => ({ ...o, [botId]: toGroup }));
     const label = toName ? `Moving ${bot.bot_name} to ${toName}` : `Taking ${bot.bot_name} out of its group`;
     const t = toast.loading(label);
-    // If the server is slow, say so rather than leaving a silent spinner.
     const slow = window.setTimeout(() => toast.loading(label, { id: t, description: "The server is taking a while to answer." }), 6000);
     const fail = (msg: string) => {
       window.clearTimeout(slow);
       setGroupOverride((o) => { const n = { ...o }; delete n[botId]; return n; });
       toast.error("Couldn't move this bot", { id: t, description: msg });
     };
-    const rpc = async (gid: string, ids: string[]) => {
-      const t0 = performance.now();
-      const { data, error } = await (supabase as any).rpc("group_set_bots", { _group_id: gid, _bot_ids: ids });
-      console.info(`[groups] group_set_bots ${gid} took ${((performance.now() - t0) / 1000).toFixed(2)}s`);
-      if (error) throw new Error(error.message);
-      if (data && data.ok === false) throw new Error(data.error ?? "update failed");
-    };
-    try {
-      // Leave the old group only if it is one of the owner's real groups. A
-      // bot can carry the id of a group that was deleted (or the hidden
-      // default group), and asking the server to edit that group fails with
-      // "group not found". Joining the new group overwrites the old id anyway;
-      // when there is no new group, clear the id directly.
-      const knownFrom = fromGroup && groups.some((g) => g.id === fromGroup) ? fromGroup : null;
-      if (knownFrom) await rpc(knownFrom, owned.filter((b) => b.id !== botId && effectiveGroup(b) === knownFrom).map((b) => b.id));
-      if (toGroup) {
-        await rpc(toGroup, [...owned.filter((b) => b.id !== botId && effectiveGroup(b) === toGroup).map((b) => b.id), botId]);
-      } else if (fromGroup && !knownFrom) {
-        const { error } = await (supabase as any).from("bot_orders").update({ group_id: null }).eq("id", botId);
-        if (error) throw new Error(error.message);
-      }
-    } catch (err: any) {
-      fail(err?.message ?? String(err));
-      return false;
-    }
+    const res = await writeBotGroup(botId, toGroup);
+    if ("error" in res) { fail(res.error); return false; }
+    if (res.saved !== toGroup) { fail("The group did not save. Try again, or use the Groups panel."); return false; }
     window.clearTimeout(slow);
-    const took = Number(secs());
+    const took = Number(((performance.now() - started) / 1000).toFixed(1));
     toast.success(toName ? `${bot.bot_name} moved to ${toName}` : `${bot.bot_name} taken out of its group`, {
       id: t,
       description: took > 3 ? `Saved. The server took ${took}s.` : undefined,
     });
-    // Background: confirm the server copy, then refresh the lists and drop the
-    // optimistic placement once the real data carries it.
     void (async () => {
       try {
-        const { data: row } = await (supabase as any).from("bot_orders").select("group_id").eq("id", botId).maybeSingle();
-        const saved = (row?.group_id ?? null) as string | null;
-        if (row && saved !== toGroup) {
-          setGroupOverride((o) => { const n = { ...o }; delete n[botId]; return n; });
-          toast.error(`${bot.bot_name} did not stay in ${toName ?? "the new spot"}`, { description: "The group did not save. Try again, or use the Groups panel." });
-          return;
-        }
-        const t1 = performance.now();
         await Promise.all([reload(), loadGroups()]);
-        console.info(`[groups] refresh took ${((performance.now() - t1) / 1000).toFixed(2)}s`);
       } catch (e) {
         console.error("[groups] refresh after move failed", e);
       } finally {
