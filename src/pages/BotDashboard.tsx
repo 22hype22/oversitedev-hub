@@ -1448,6 +1448,12 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .drophint{font-size:11px;color:var(--faint)}
 .osd .dragging-active .bcard:not(.dragging), .osd .dragging-active .fcard:not(.dragging){pointer-events:none}
 .osd .dragging-active .bcard:hover, .osd .dragging-active .fcard:hover{transform:none;border-color:rgba(168,180,191,.14);box-shadow:none}
+/* While a drag is in progress the cards move every frame. The frosted blur
+   behind each one has to be re-rendered on every move, which is what made the
+   drag stutter, so swap it for a solid fill and drop the hover transition
+   until the drop lands. */
+.osd .dragging-active .bcard{backdrop-filter:none;-webkit-backdrop-filter:none;background:linear-gradient(180deg,#2f3841,#272e36);transition:none;will-change:transform}
+.osd .bcard.overlay{backdrop-filter:none;-webkit-backdrop-filter:none;background:linear-gradient(180deg,#313a43,#282f37);cursor:grabbing;box-shadow:0 22px 60px -16px rgba(0,0,0,.65);border-color:color-mix(in srgb,var(--accent) 35%,transparent);transition:none}
 .osd .groups{display:flex;flex-direction:column;gap:16px}
 .osd .gcard{border:1px solid rgba(168,180,191,.14);border-radius:16px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);padding:18px}
 .osd .ghd{display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--hair);padding-bottom:14px;margin-bottom:16px}
@@ -1618,14 +1624,17 @@ function BotSortableCard({
   onOpen: () => void;
   children: ReactNode;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    transition: { duration: 180, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+  });
   return (
     <div
       ref={setNodeRef}
       className={"bcard" + (isDragging ? " dragging" : "")}
       style={{
         transform: DndCSS.Transform.toString(transform),
-        transition,
+        transition: isDragging ? "none" : transition,
         touchAction: "none",
       }}
       onClick={onOpen}
@@ -1780,7 +1789,6 @@ const BotDashboard = () => {
     { sel: "#tour-bots", title: "Your bots", body: "Every bot you own lives here — click one to open its control panel.", place: "left" },
     { sel: "#tour-activity", title: "Fleet activity", body: "A quick pulse of what your bots have been up to.", place: "top" },
     { sel: "#tour-bell", title: "Notifications", body: "Service alerts, billing, and team announcements land here.", place: "bottom" },
-    { sel: "#tour-add", title: "Add a bot", body: "Grow your fleet anytime.", place: "bottom" },
   ]), []);
   const [tourAsk, setTourAsk] = useState(false);
   const [tourOn, setTourOn] = useState(false);
@@ -2332,7 +2340,6 @@ const BotDashboard = () => {
               </div>
               <div className="htools">
                 <div className="bell" id="tour-bell" onClick={() => go("activity")}><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>{unread > 0 && <span className="d" />}</div>
-                <button className="cta" id="tour-add" onClick={() => go("bots")}>+ Add a bot</button>
               </div>
             </div>
 
@@ -2361,7 +2368,7 @@ const BotDashboard = () => {
                 {/* The card that follows the pointer while dragging. */}
                 <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }}>
                   {botDragId && byId[botDragId] ? (
-                    <div className="bcard" style={{ cursor: "grabbing", boxShadow: "0 22px 60px -16px rgba(0,0,0,.65)", borderColor: "color-mix(in srgb, var(--accent) 35%, transparent)" }}>
+                    <div className="bcard overlay">
                       {botCardFace(byId[botDragId])}
                     </div>
                   ) : null}
