@@ -1409,7 +1409,7 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .addbot:hover{border-color:var(--accent);color:var(--heading);background:rgba(255,255,255,.055)}
 .osd .addbot svg{width:26px;height:26px;stroke:currentColor;stroke-width:1.6;fill:none}
 /* Group boxes on My Bots: a big dashed glass box around each group's bot cards, same look as Add a bot. */
-.osd .gbox{position:relative;margin-top:18px;border:1.5px dashed rgba(255,255,255,.16);border-radius:20px;background:rgba(255,255,255,.03);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);padding:16px;transition:border-color .16s,background .16s}
+.osd .gbox{position:relative;margin-top:34px;border:1.5px dashed rgba(255,255,255,.16);border-radius:20px;background:rgba(255,255,255,.03);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);padding:16px;transition:border-color .16s,background .16s}
 .osd .gbox.over{border-color:var(--accent);border-style:solid;background:color-mix(in srgb,var(--accent) 8%,transparent)}
 .osd .gbh{display:flex;align-items:center;gap:9px;margin-bottom:14px}
 .osd .gbi{height:28px;width:28px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:grid;place-items:center;color:var(--accent);flex:none}
@@ -1418,7 +1418,7 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .gbc{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
 .osd .gbempty{min-height:150px;display:grid;place-items:center;color:var(--faint);font-size:12.5px;border-radius:14px;border:1px dashed rgba(255,255,255,.08)}
 .osd .gbox.over .gbempty{color:var(--heading);border-color:transparent}
-.osd .gbox.newg{display:flex;align-items:center;justify-content:center;gap:10px;min-height:88px;color:var(--faint);cursor:pointer;font-family:var(--bodyf);font-weight:600;font-size:13px}
+.osd .gbox.newg{margin-top:26px;display:flex;align-items:center;justify-content:center;gap:10px;min-height:88px;color:var(--faint);cursor:pointer;font-family:var(--bodyf);font-weight:600;font-size:13px}
 .osd .gbox.newg:hover{border-color:var(--accent);color:var(--heading);background:rgba(255,255,255,.055)}
 .osd .gbox.newg svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.6;fill:none}
 /* The ungrouped area: plain until a grouped bot is being dragged, then a dashed outline as the drop spot for leaving a group. */
@@ -2600,10 +2600,9 @@ const BotDashboard = () => {
 
             {/* MY BOTS */}
             <div className={"view" + (view === "bots" && canMyBots ? " on" : "")}>
-              <div className="drophint" style={{ margin: "0 0 12px" }}>{groups.length ? "Drag a card to reorder, or drop it inside a group." : "Drag a card to reorder."}</div>
               <DndContext sensors={botSensors} collisionDetection={botCollision} onDragStart={onBotDragStart} onDragOver={onBotDragOver} onDragEnd={onBotDragEnd} onDragCancel={() => { lastOverRef.current = null; setBotDragId(null); }}>
                 {/* Bots not in any group. Also the drop area for taking a bot out of its group. */}
-                <BotArea id="group:none" active={!!botDragId && !!effectiveGroup(byId[botDragId])} label={groups.length ? "Not in a group" : null}>
+                <BotArea id="group:none" active={!!botDragId && !!effectiveGroup(byId[botDragId])} label={null}>
                   <SortableContext items={ungroupedBots.map((b) => b.id)} strategy={rectSortingStrategy}>
                     <div className={"botgrid" + (botDragId ? " dragging-active" : "")}>
                       {ungroupedBots.map((b) => (
