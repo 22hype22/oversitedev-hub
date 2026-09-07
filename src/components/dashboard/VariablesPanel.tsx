@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode, type RefObject } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { Braces, Check, Copy, X } from "lucide-react";
 import { toast } from "sonner";
@@ -84,11 +84,17 @@ export function VariablesButton({ keyOverride, groups, onInsert, size = "sm", cl
 export function VariablesFlyout({ anchorRef }: { anchorRef: RefObject<HTMLElement | null> }) {
   const scope = useVariablesScope();
   const [rect, setRect] = useState<{ top: number; left: number; height: number; attached: boolean } | null>(null);
+  // `mounted` keeps the drawer in the DOM while it slides back in on close;
+  // `shown` is the target position (out or tucked away).
+  const [mounted, setMounted] = useState(false);
   const [shown, setShown] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const lastPanel = useRef<Request | null>(null);
+  if (scope.panel) lastPanel.current = scope.panel;
   const openNow = !!scope.panel;
   const WIDTH = 330;
   const GAP = 10;
+  const SLIDE_MS = 260;
 
   const measure = useCallback(() => {
     const el = anchorRef.current;
@@ -106,7 +112,13 @@ export function VariablesFlyout({ anchorRef }: { anchorRef: RefObject<HTMLElemen
   }, [anchorRef]);
 
   useLayoutEffect(() => {
-    if (!openNow) { setShown(false); return; }
+    if (!openNow) {
+      // Slide back behind the dialog, then leave the DOM.
+      setShown(false);
+      const t = window.setTimeout(() => setMounted(false), SLIDE_MS);
+      return () => window.clearTimeout(t);
+    }
+    setMounted(true);
     measure();
     // The dialog zooms in over about 200ms when it opens; measure again once
     // it has settled so the drawer sits flush against its final edge.
@@ -130,8 +142,8 @@ export function VariablesFlyout({ anchorRef }: { anchorRef: RefObject<HTMLElemen
   // already open the next time the block is opened.
   useEffect(() => () => scope.close(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!openNow || !rect || typeof document === "undefined") return null;
-  const { groups, onInsert } = scope.panel!;
+  if (!mounted || !rect || !lastPanel.current || typeof document === "undefined") return null;
+  const { groups, onInsert } = lastPanel.current;
 
   const pick = (token: string) => {
     try { void navigator.clipboard?.writeText(token); } catch { /* ignore */ }
@@ -144,19 +156,28 @@ export function VariablesFlyout({ anchorRef }: { anchorRef: RefObject<HTMLElemen
   return createPortal(
     <div
       data-variables-flyout
-      role="dialog"
-      aria-label="Variables"
       style={{
         position: "fixed",
         top: rect.top,
-        left: rect.left,
+        left: rect.attached ? rect.left - GAP : rect.left,
         height: rect.height,
-        width: WIDTH,
+        width: rect.attached ? WIDTH + GAP : WIDTH,
         zIndex: 60,
-        pointerEvents: "auto",
-        transform: shown ? "translateX(0)" : "translateX(-14px)",
-        opacity: shown ? 1 : 0,
-        transition: "transform .22s cubic-bezier(.22,1,.36,1), opacity .18s ease",
+        pointerEvents: shown ? "auto" : "none",
+        overflow: "hidden",
+      }}
+    >
+    <div
+      role="dialog"
+      aria-label="Variables"
+      style={{
+        position: "absolute",
+        top: 0,
+        left: rect.attached ? GAP : 0,
+        height: "100%",
+        width: WIDTH,
+        transform: shown ? "translateX(0)" : `translateX(${rect.attached ? "-100%" : "100%"})`,
+        transition: `transform ${SLIDE_MS}ms cubic-bezier(.22,1,.36,1)`,
       }}
       className={`flex flex-col border bg-background shadow-2xl ${rect.attached ? "rounded-r-lg border-l-0" : "rounded-lg"}`}
     >
@@ -202,6 +223,7 @@ export function VariablesFlyout({ anchorRef }: { anchorRef: RefObject<HTMLElemen
           </div>
         ))}
       </div>
+    </div>
     </div>,
     document.body,
   );
