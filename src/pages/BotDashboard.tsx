@@ -1406,27 +1406,24 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .addbot{border:1.5px dashed rgba(255,255,255,.16);border-radius:16px;background:rgba(255,255,255,.035);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--faint);cursor:pointer;min-height:262px;transition:.16s}
 .osd .addbot:hover{border-color:var(--accent);color:var(--heading);background:rgba(255,255,255,.055)}
 .osd .addbot svg{width:26px;height:26px;stroke:currentColor;stroke-width:1.6;fill:none}
-.osd .bcard .gtag{display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:10.5px;font-weight:600;color:var(--faint);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:2px 8px;align-self:flex-start}
-.osd .bcard .gtag i{height:5px;width:5px;border-radius:50%;background:var(--accent)}
-/* Group tiles under the bot grid: same dashed glass as Add a bot. Drop a bot card on one to put it in that group. */
-.osd .gstrip{margin-top:26px}
-.osd .gstrip .gsh{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
-.osd .gstrip .gsh h3{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:14px;margin:0}
-.osd .gstrip .gsh span{font-size:11px;color:var(--faint)}
-.osd .gtile{position:relative;border:1.5px dashed rgba(255,255,255,.16);border-radius:16px;background:rgba(255,255,255,.035);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);padding:16px;min-height:132px;display:flex;flex-direction:column;gap:10px;color:var(--faint);transition:.16s}
-.osd .gtile .gth{display:flex;align-items:center;gap:9px}
-.osd .gtile .gti{height:30px;width:30px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:grid;place-items:center;color:var(--accent);flex:none}
-.osd .gtile .gti svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.7;fill:none}
-.osd .gtile .gtn{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.osd .gtile .gtc{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
-.osd .gtile .gtb{display:flex;flex-wrap:wrap;gap:6px}
-.osd .gtile .gtb span{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--body);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:3px 8px}
-.osd .gtile .gtb span svg{width:11px;height:11px;stroke:var(--accent);stroke-width:1.8;fill:none}
-.osd .gtile .gte{font-size:11.5px;color:var(--faint);margin-top:auto}
-.osd .gtile.over{border-color:var(--accent);border-style:solid;background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--heading);transform:scale(1.015)}
-.osd .gtile.newg{align-items:center;justify-content:center;cursor:pointer;gap:8px}
-.osd .gtile.newg:hover{border-color:var(--accent);color:var(--heading);background:rgba(255,255,255,.055)}
-.osd .gtile.newg svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.6;fill:none}
+/* Group boxes on My Bots: a big dashed glass box around each group's bot cards, same look as Add a bot. */
+.osd .gbox{position:relative;margin-top:18px;border:1.5px dashed rgba(255,255,255,.16);border-radius:20px;background:rgba(255,255,255,.03);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);padding:16px;transition:border-color .16s,background .16s}
+.osd .gbox.over{border-color:var(--accent);border-style:solid;background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.osd .gbh{display:flex;align-items:center;gap:9px;margin-bottom:14px}
+.osd .gbi{height:28px;width:28px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:grid;place-items:center;color:var(--accent);flex:none}
+.osd .gbi svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.7;fill:none}
+.osd .gbn{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.osd .gbc{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.osd .gbempty{min-height:150px;display:grid;place-items:center;color:var(--faint);font-size:12.5px;border-radius:14px;border:1px dashed rgba(255,255,255,.08)}
+.osd .gbox.over .gbempty{color:var(--heading);border-color:transparent}
+.osd .gbox.newg{display:flex;align-items:center;justify-content:center;gap:10px;min-height:88px;color:var(--faint);cursor:pointer;font-family:var(--bodyf);font-weight:600;font-size:13px}
+.osd .gbox.newg:hover{border-color:var(--accent);color:var(--heading);background:rgba(255,255,255,.055)}
+.osd .gbox.newg svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.6;fill:none}
+/* The ungrouped area: plain until a grouped bot is being dragged, then a dashed outline as the drop spot for leaving a group. */
+.osd .barea{border:1.5px dashed transparent;border-radius:20px;padding:0;transition:border-color .16s,background .16s,padding .16s}
+.osd .barea.active{border-color:rgba(255,255,255,.14);padding:14px}
+.osd .barea.over{border-color:var(--accent);border-style:solid;background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.osd .barea .gbh{margin-bottom:10px}
 .osd .feed{border:1px solid rgba(168,180,191,.14);border-radius:16px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);overflow:hidden}
 .osd .fitem{display:flex;gap:13px;padding:14px 18px;border-top:1px solid var(--hair)}
 .osd .fitem:first-child{border-top:0}
@@ -1714,23 +1711,32 @@ function BotSortableCard({
   );
 }
 
-// A group as a drop target on the My Bots page. Lights up while a bot card is
-// held over it; dropping the card puts that bot in the group.
-function GroupDropTile({ group, bots }: { group: Group; bots: OwnedBot[] }) {
+// A group on the My Bots page: a big dashed box that holds that group's bot
+// cards. It lights up while a card is held over it; dropping the card puts
+// the bot in the group. The cards inside are the ordinary bot cards.
+function GroupBox({ group, count, children }: { group: Group; count: number; children: ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id: `group:${group.id}` });
   return (
-    <div ref={setNodeRef} className={"gtile" + (isOver ? " over" : "")}>
-      <div className="gth">
-        <span className="gti"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.8"/></svg></span>
-        <span className="gtn">{group.name}</span>
-        <span className="gtc">{bots.length} {bots.length === 1 ? "bot" : "bots"}</span>
+    <section ref={setNodeRef} className={"gbox" + (isOver ? " over" : "")}>
+      <div className="gbh">
+        <span className="gbi"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.8"/></svg></span>
+        <span className="gbn">{group.name}</span>
+        <span className="gbc">{count} {count === 1 ? "bot" : "bots"}</span>
       </div>
-      {bots.length > 0 ? (
-        <div className="gtb">{bots.map((b) => <span key={b.id}>{botSvg(b.base)}{b.bot_name}</span>)}</div>
-      ) : (
-        <div className="gte">{isOver ? "Release to add" : "Empty. Drag a bot here."}</div>
-      )}
-    </div>
+      {children}
+    </section>
+  );
+}
+
+// The ungrouped area. Invisible until a grouped bot is being dragged, when it
+// shows a dashed outline as the place to drop the bot to take it out of its group.
+function BotArea({ id, active, label, children }: { id: string; active: boolean; label: string | null; children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <section ref={setNodeRef} className={"barea" + (active ? " active" : "") + (isOver && active ? " over" : "")}>
+      {label && <div className="gbh"><span className="gbn">{label}</span></div>}
+      {children}
+    </section>
   );
 }
 
@@ -1964,33 +1970,47 @@ const BotDashboard = () => {
   );
   const [botDragId, setBotDragId] = useState<string | null>(null);
   const onBotDragStart = (e: DragStartEvent) => setBotDragId(String(e.active.id));
-  // A card dropped on a group tile goes into that group (one group per bot,
-  // so it leaves whatever group it was in). Group tiles win the hit test when
-  // the pointer is inside one; otherwise the normal reorder applies.
+  // Where a card lands. A card over another card wins (reorder, or move into
+  // that card's group). Otherwise the box the pointer is inside. Otherwise the
+  // nearest card in the same box, so the reorder preview never jumps between
+  // boxes on its own.
   const botCollision: CollisionDetection = (args) => {
-    const tiles = pointerWithin(args).filter((c) => String(c.id).startsWith("group:"));
-    return tiles.length ? tiles : closestCenter(args);
+    const within = pointerWithin(args);
+    const cards = within.filter((c) => !String(c.id).startsWith("group:"));
+    if (cards.length) return cards;
+    const boxes = within.filter((c) => String(c.id).startsWith("group:"));
+    if (boxes.length) return boxes;
+    const activeGroup = byId[String(args.active.id)]?.group_id ?? null;
+    const same = args.droppableContainers.filter((c) => !String(c.id).startsWith("group:") && (byId[String(c.id)]?.group_id ?? null) === activeGroup);
+    return closestCenter({ ...args, droppableContainers: same });
   };
   const onBotDragEnd = (e: DragEndEvent) => {
     setBotDragId(null);
     const { active, over } = e;
     if (!over || active.id === over.id) return;
+    const b = byId[String(active.id)];
+    if (!b) return;
     const overId = String(over.id);
-    if (overId.startsWith("group:")) {
-      const gid = overId.slice(6);
-      const g = groups.find((x) => x.id === gid);
-      const b = byId[String(active.id)];
-      if (!g || !b) return;
-      if (b.group_id === gid) { toast(`${b.bot_name} is already in ${g.name}`); return; }
-      void assignBotToGroup(gid, b.id).then((ok) => { if (ok) toast.success(`${b.bot_name} moved to ${g.name}`); });
-      return;
+    // The group the card was dropped in: a box directly, or the group of the card it landed on.
+    const targetGroup = overId.startsWith("group:")
+      ? (overId === "group:none" ? null : overId.slice(6))
+      : (byId[overId]?.group_id ?? null);
+    const fromGroup = b.group_id ?? null;
+    if (targetGroup !== fromGroup) {
+      const g = targetGroup ? groups.find((x) => x.id === targetGroup) : null;
+      if (targetGroup && !g) return;
+      void moveBotToGroup(b.id, fromGroup, targetGroup).then((ok) => {
+        if (ok) toast.success(g ? `${b.bot_name} moved to ${g.name}` : `${b.bot_name} taken out of its group`);
+      });
     }
-    setOrder((p) => {
-      const from = p.indexOf(String(active.id));
-      const to = p.indexOf(String(over.id));
-      if (from < 0 || to < 0) return p;
-      return arrayMove(p, from, to);
-    });
+    if (!overId.startsWith("group:")) {
+      setOrder((p) => {
+        const from = p.indexOf(String(active.id));
+        const to = p.indexOf(overId);
+        if (from < 0 || to < 0) return p;
+        return arrayMove(p, from, to);
+      });
+    }
   };
 
   // ---- groups (real, backed by the group_* RPCs — the SAME source as the
@@ -2008,6 +2028,8 @@ const BotDashboard = () => {
     }
   }, []);
   useEffect(() => { void loadGroups(); }, [loadGroups]);
+  // Bots that sit outside every group (a stale group_id counts as ungrouped).
+  const ungroupedBots = owned.filter((b) => !b.group_id || !groups.some((g) => g.id === b.group_id));
   // Which bots are in a group is the source of truth on bot_orders.group_id.
   const groupBotIds = useCallback(
     (gid: string) => owned.filter((b) => b.group_id === gid).map((b) => b.id),
@@ -2048,11 +2070,19 @@ const BotDashboard = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, [groupsOpen]);
 
-  const assignBotToGroup = useCallback(async (gid: string, botId: string) => {
-    const current = owned.filter((b) => b.group_id === gid).map((b) => b.id);
-    if (current.includes(botId)) return true;
-    const { error } = await (supabase as any).rpc("group_set_bots", { _group_id: gid, _bot_ids: [...current, botId] });
-    if (error) { toast.error("Couldn't move this bot", { description: error.message }); return false; }
+  // Move a bot between groups (or out of one). One group per bot, so leaving
+  // the old group and joining the new one are both group_set_bots calls.
+  const moveBotToGroup = useCallback(async (botId: string, fromGroup: string | null, toGroup: string | null) => {
+    if (fromGroup) {
+      const rest = owned.filter((b) => b.group_id === fromGroup && b.id !== botId).map((b) => b.id);
+      const { error } = await (supabase as any).rpc("group_set_bots", { _group_id: fromGroup, _bot_ids: rest });
+      if (error) { toast.error("Couldn't move this bot", { description: error.message }); return false; }
+    }
+    if (toGroup) {
+      const current = owned.filter((b) => b.group_id === toGroup).map((b) => b.id);
+      const { error } = await (supabase as any).rpc("group_set_bots", { _group_id: toGroup, _bot_ids: [...current, botId] });
+      if (error) { toast.error("Couldn't move this bot", { description: error.message }); return false; }
+    }
     await Promise.all([reload(), loadGroups()]);
     window.dispatchEvent(new CustomEvent("oversite:groups-changed"));
     return true;
@@ -2235,9 +2265,6 @@ const BotDashboard = () => {
     <>
       <div className="a">{botSvg(b.base)}</div>
       <div className="nm">{b.bot_name}</div><div className="st" style={{ color: stColorLive(b) }}>● {stWordLive(b)}</div>
-      {b.group_id && groups.find((g) => g.id === b.group_id) && (
-        <span className="gtag"><i />{groups.find((g) => g.id === b.group_id)!.name}</span>
-      )}
       <div className="bstats"><div className="bx"><span className="k">Base</span><span className="v num">{BOT_BASE_LABELS[b.base] ?? b.base}</span></div><div className="bx"><span className="k">Add-ons</span><span className="v num">{b.addons.length}</span></div></div>
       <button className="ghost" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Open</button>
     </>
@@ -2500,30 +2527,46 @@ const BotDashboard = () => {
 
             {/* MY BOTS */}
             <div className={"view" + (view === "bots" && canMyBots ? " on" : "")}>
-              <div className="drophint" style={{ margin: "0 0 12px" }}>Drag a card to reorder.</div>
+              <div className="drophint" style={{ margin: "0 0 12px" }}>{groups.length ? "Drag a card to reorder, or drop it inside a group." : "Drag a card to reorder."}</div>
               <DndContext sensors={botSensors} collisionDetection={botCollision} onDragStart={onBotDragStart} onDragEnd={onBotDragEnd} onDragCancel={() => setBotDragId(null)}>
-                <SortableContext items={owned.map((b) => b.id)} strategy={rectSortingStrategy}>
-                  <div className={"botgrid" + (botDragId ? " dragging-active" : "")}>
-                    {owned.map((b) => (
-                      <BotSortableCard key={b.id} id={b.id} onOpen={() => openBot(b.id)}>
-                        {botCardFace(b)}
-                      </BotSortableCard>
-                    ))}
-                    <Link to="/bots" className="addbot" style={{ textDecoration: "none" }}><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add a bot</Link>
-                  </div>
-                </SortableContext>
-                {canGroups && (
-                  <div className="gstrip">
-                    <div className="gsh"><h3>Groups</h3><span>Drop a bot on a group to put it there.</span></div>
-                    <div className="botgrid">
-                      {groups.map((g) => (
-                        <GroupDropTile key={g.id} group={g} bots={owned.filter((b) => b.group_id === g.id)} />
+                {/* Bots not in any group. Also the drop area for taking a bot out of its group. */}
+                <BotArea id="group:none" active={!!botDragId && !!byId[botDragId]?.group_id} label={groups.length ? "Not in a group" : null}>
+                  <SortableContext items={ungroupedBots.map((b) => b.id)} strategy={rectSortingStrategy}>
+                    <div className={"botgrid" + (botDragId ? " dragging-active" : "")}>
+                      {ungroupedBots.map((b) => (
+                        <BotSortableCard key={b.id} id={b.id} onOpen={() => openBot(b.id)}>
+                          {botCardFace(b)}
+                        </BotSortableCard>
                       ))}
-                      <div className="gtile newg" role="button" tabIndex={0} onClick={() => setGroupsOpen(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setGroupsOpen(true); } }}>
-                        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-                        <span>New group</span>
-                      </div>
+                      <Link to="/bots" className="addbot" style={{ textDecoration: "none" }}><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add a bot</Link>
                     </div>
+                  </SortableContext>
+                </BotArea>
+                {/* One big box per group. The cards inside are the same cards; drop one in to put it in the group. */}
+                {canGroups && groups.map((g) => {
+                  const inG = owned.filter((b) => b.group_id === g.id);
+                  return (
+                    <GroupBox key={g.id} group={g} count={inG.length}>
+                      <SortableContext items={inG.map((b) => b.id)} strategy={rectSortingStrategy}>
+                        {inG.length > 0 ? (
+                          <div className={"botgrid" + (botDragId ? " dragging-active" : "")}>
+                            {inG.map((b) => (
+                              <BotSortableCard key={b.id} id={b.id} onOpen={() => openBot(b.id)}>
+                                {botCardFace(b)}
+                              </BotSortableCard>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="gbempty">Drag a bot here.</div>
+                        )}
+                      </SortableContext>
+                    </GroupBox>
+                  );
+                })}
+                {canGroups && (
+                  <div className="gbox newg" role="button" tabIndex={0} onClick={() => setGroupsOpen(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setGroupsOpen(true); } }}>
+                    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                    <span>New group</span>
                   </div>
                 )}
                 {/* The card that follows the pointer while dragging. */}

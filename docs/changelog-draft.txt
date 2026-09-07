@@ -43,3 +43,4 @@
 + New Groups button next to the notification bell. Name a group, tap bots to put them in it, then give a team access to that group from the Team section
 + Fixed the Something hiccuped screen that could appear when opening a bot right after a site update. The page now refreshes itself to pick up the new build
 + My Bots now shows your groups as tiles under the bot cards. Drag a bot onto a group to put it there, and each card shows which group it is in
++ Groups on My Bots are now big boxes around the bot cards. Drag a card into a box to put the bot in that group, or back out to the top area to take it out
