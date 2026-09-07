@@ -39,4 +39,4 @@
 + Removed the Add a bot button from the top bar. Adding a bot lives on the My Bots page
 + Each bot on My Bots now has its own icon instead of the same shield for every base
 + Removed the duplicate My Bots heading on the My Bots page
-+ My Bots cards have a clearer glass look, and the card you drag now looks exactly like the one it left behind
++ The card you drag on My Bots now looks exactly like the one it left behind. The Add a bot tile and the notification bell have a slight glass look

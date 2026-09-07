@@ -1271,7 +1271,8 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .htools{display:flex;align-items:center;gap:11px}
 .osd .search{display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--hair);border-radius:11px;padding:9px 13px;color:var(--faint);font-size:13px;min-width:170px}
 .osd .search svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.8;fill:none}
-.osd .bell{height:40px;width:40px;border-radius:11px;background:var(--panel);border:1px solid var(--hair);display:grid;place-items:center;color:var(--body);cursor:pointer;position:relative}
+.osd .bell{height:40px;width:40px;border-radius:11px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgba(255,255,255,.09);display:grid;place-items:center;color:var(--body);cursor:pointer;position:relative;transition:.15s}
+.osd .bell:hover{background:rgba(255,255,255,.08);color:var(--heading)}
 .osd .bell svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.7;fill:none}
 .osd .bell .d{position:absolute;top:9px;right:11px;height:6px;width:6px;border-radius:999px;background:var(--accent)}
 .osd .cta{background:var(--accent);color:var(--accentink);border:0;border-radius:11px;padding:11px 20px;font-family:var(--bodyf);font-weight:700;font-size:13px;cursor:pointer;transition:.15s;white-space:nowrap}
@@ -1358,22 +1359,19 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .ph2 h2{font-family:var(--disp);font-size:24px;color:var(--heading);letter-spacing:-.02em}
 .osd .ph2 p{font-size:12.5px;color:var(--faint);margin-top:5px}
 .osd .botgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-/* Glass: a mostly clear pane over the wallpaper, heavier blur, a light rim
-   and a thin highlight along the top edge so it reads as a sheet of glass. */
-.osd .bcard{position:relative;border:1px solid rgba(255,255,255,.12);border-radius:18px;background:linear-gradient(160deg,rgba(255,255,255,.085),rgba(255,255,255,.03) 45%,rgba(255,255,255,.015));backdrop-filter:blur(26px) saturate(150%);-webkit-backdrop-filter:blur(26px) saturate(150%);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),inset 0 -1px 0 rgba(0,0,0,.18),0 24px 50px -32px rgba(0,0,0,.75);padding:18px;cursor:pointer;transition:.16s;display:flex;flex-direction:column;align-items:stretch;text-align:left;min-height:262px}
-.osd .bcard::before{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(115deg,rgba(255,255,255,.10) 0%,rgba(255,255,255,0) 38%);pointer-events:none}
-.osd .bcard:hover{border-color:color-mix(in srgb,var(--accent) 45%,rgba(255,255,255,.12));transform:translateY(-2px);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 -1px 0 rgba(0,0,0,.18),0 28px 56px -30px rgba(0,0,0,.8)}
-.osd .bcard .a{height:46px;width:46px;border-radius:13px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 1px 0 rgba(255,255,255,.12);display:grid;place-items:center;color:var(--accent);flex:none;margin-bottom:15px}
+.osd .bcard{position:relative;border:1px solid rgba(168,180,191,.14);border-radius:16px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);padding:18px;cursor:pointer;transition:.16s;display:flex;flex-direction:column;align-items:stretch;text-align:left;min-height:262px}
+.osd .bcard:hover{border-color:color-mix(in srgb,var(--accent) 35%,transparent);transform:translateY(-2px)}
+.osd .bcard .a{height:46px;width:46px;border-radius:13px;background:var(--panel);display:grid;place-items:center;color:var(--accent);flex:none;margin-bottom:15px}
 .osd .bcard .a svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.7;fill:none}
 .osd .bcard .nm{font-family:var(--disp);font-weight:700;color:var(--heading);font-size:16px}
 .osd .bcard .st{font-size:11px;margin-top:3px}
 .osd .bstats{display:flex;flex-direction:column;gap:8px;margin:16px 0}
-.osd .bstats .bx{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:9px 12px}
+.osd .bstats .bx{display:flex;align-items:center;justify-content:space-between;background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:9px 12px}
 .osd .bstats .k{font-size:11px;color:var(--faint)}
 .osd .bstats .v{font-family:var(--disp);font-weight:800;color:var(--heading);font-size:15px}
 .osd .bcard .ghost{margin-top:auto}
-.osd .addbot{border:1.5px dashed rgba(255,255,255,.14);border-radius:18px;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--faint);cursor:pointer;min-height:262px;transition:.16s}
-.osd .addbot:hover{border-color:var(--accent);color:var(--heading)}
+.osd .addbot{border:1.5px dashed rgba(255,255,255,.16);border-radius:16px;background:rgba(255,255,255,.035);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--faint);cursor:pointer;min-height:262px;transition:.16s}
+.osd .addbot:hover{border-color:var(--accent);color:var(--heading);background:rgba(255,255,255,.055)}
 .osd .addbot svg{width:26px;height:26px;stroke:currentColor;stroke-width:1.6;fill:none}
 .osd .feed{border:1px solid rgba(168,180,191,.14);border-radius:16px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);overflow:hidden}
 .osd .fitem{display:flex;gap:13px;padding:14px 18px;border-top:1px solid var(--hair)}
@@ -1455,12 +1453,12 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
    behind each one has to be re-rendered on every move, which is what made the
    drag stutter, so swap it for a solid fill and drop the hover transition
    until the drop lands. */
-.osd .dragging-active .bcard{backdrop-filter:none;-webkit-backdrop-filter:none;background:linear-gradient(160deg,rgba(60,70,80,.92),rgba(41,48,56,.94));transition:none;will-change:transform}
+.osd .dragging-active .bcard{backdrop-filter:none;-webkit-backdrop-filter:none;background:linear-gradient(180deg,#2f3841,#272e36);transition:none;will-change:transform}
 /* The card that follows the pointer. It keeps the normal glass look (one
    blurred element is cheap; it was the whole grid re-blurring that cost) and
    pins its layout so it matches the card left behind exactly: same width and
    height as the slot it came from, contents stretched, text left-aligned. */
-.osd .bcard.overlay{width:100%;height:100%;align-items:stretch;text-align:left;cursor:grabbing;transform:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -1px 0 rgba(0,0,0,.18),0 26px 60px -20px rgba(0,0,0,.7);border-color:color-mix(in srgb,var(--accent) 45%,rgba(255,255,255,.12));transition:none}
+.osd .bcard.overlay{width:100%;height:100%;align-items:stretch;text-align:left;cursor:grabbing;transform:none;box-shadow:0 22px 60px -16px rgba(0,0,0,.65);border-color:color-mix(in srgb,var(--accent) 35%,transparent);transition:none}
 .osd .bcard.overlay .bstats, .osd .bcard.overlay .ghost{width:100%}
 .osd .groups{display:flex;flex-direction:column;gap:16px}
 .osd .gcard{border:1px solid rgba(168,180,191,.14);border-radius:16px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);padding:18px}
