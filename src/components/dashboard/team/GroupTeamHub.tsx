@@ -323,6 +323,26 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
       if (groupId === ALL_SCOPE) {
         // Everyone with a seat on every bot the owner has. People limited to a
         // group have rows on that group's bots only and show under the group.
+        // Preferred path: one server-side roster call. Falls back to reading
+        // the seats directly if that function is not installed yet.
+        const { data: roster, error: rosterErr } = await (supabase as any).rpc("team_owner_roster");
+        if (!rosterErr && Array.isArray(roster)) {
+          const list: Member[] = roster
+            .filter((r: any) => r.scope === "all" && r.role !== "owner")
+            .map((r: any) => ({
+              member_email: r.member_email,
+              member_user_id: r.member_user_id ?? null,
+              role: r.role,
+              is_owner: false,
+              accepted: !!r.accepted,
+              accepted_at: r.accepted_at ?? null,
+              invited_at: r.invited_at ?? null,
+              invite_token: r.invite_token ?? null,
+            }));
+          setMembers(list);
+          setMembersLoading(false);
+          return;
+        }
         // Read the owner's rows for their own bots. Retried a few times before
         // giving up: a single dropped request must not empty the roster.
         const ids = ownedBotIdsRef.current;

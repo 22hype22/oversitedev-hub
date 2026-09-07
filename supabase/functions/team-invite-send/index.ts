@@ -48,11 +48,27 @@ Deno.serve(async (req) => {
   // Else if a botId is provided, scope the invite to that single bot (legacy).
   // Otherwise invite across every bot the caller owns so the dashboard team
   // stays unified across the owner's bots.
-  const { data: inviteResp, error: inviteErr } = groupId
-    ? await userClient.rpc('team_invite_member_group', { _email: email, _role: role, _group_id: groupId })
-    : botId
-    ? await userClient.rpc('team_invite_member', { _email: email, _role: role, _bot_id: botId })
-    : await userClient.rpc('team_invite_member_all_owner_bots', { _email: email, _role: role })
+  // Group invites go through team_invite_member_group_v2, which records the
+  // group on each seat so bots moved into the group later are covered. If the
+  // migration that adds it has not been applied yet, fall back to the older
+  // group invite so inviting keeps working.
+  let inviteResp: unknown = null
+  let inviteErr: { message: string } | null = null
+  if (groupId) {
+    const v2 = await userClient.rpc('team_invite_member_group_v2', { _email: email, _role: role, _group_id: groupId })
+    if (v2.error && /team_invite_member_group_v2|PGRST202|42883/i.test(`${v2.error.message} ${(v2.error as any).code ?? ''}`)) {
+      const v1 = await userClient.rpc('team_invite_member_group', { _email: email, _role: role, _group_id: groupId })
+      inviteResp = v1.data; inviteErr = v1.error
+    } else {
+      inviteResp = v2.data; inviteErr = v2.error
+    }
+  } else if (botId) {
+    const r = await userClient.rpc('team_invite_member', { _email: email, _role: role, _bot_id: botId })
+    inviteResp = r.data; inviteErr = r.error
+  } else {
+    const r = await userClient.rpc('team_invite_member_all_owner_bots', { _email: email, _role: role })
+    inviteResp = r.data; inviteErr = r.error
+  }
 
   if (inviteErr) return json({ ok: false, error: inviteErr.message }, 400)
   const result = inviteResp as { ok: boolean; error?: string; invite_token?: string; id?: string }

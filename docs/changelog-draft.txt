@@ -45,3 +45,6 @@
 + My Bots now shows your groups as tiles under the bot cards. Drag a bot onto a group to put it there, and each card shows which group it is in
 + Groups on My Bots are now big boxes around the bot cards. Drag a card into a box to put the bot in that group, or back out to the top area to take it out
 + Team page: pick Whole dashboard or a single group at the top. Whole dashboard gives someone every bot, including ones you add later. A group limits them to that group's bots
++ Team access now follows groups. Someone given the Dashboard gets every bot, including bots added later. Someone given a group gets exactly that group's bots, and when a bot is moved into or out of the group their access moves with it
++ Per-group role permissions are now honoured everywhere, on the server and in the dashboard, with the group's own setting taking priority over the account-wide one
++ Viewers can open My Bots and look at a bot read-only. Editing still needs the edit permission

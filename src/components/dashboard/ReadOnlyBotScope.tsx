@@ -35,12 +35,11 @@ export function useBotScope() {
  * viewer is a team member without the `edit_bot_config` permission on this
  * specific bot.
  *
- * Note: My Bots is now nav-gated on `edit_bot_config`, so a member who can even
- * reach a bot's page already has edit rights — this read-only branch is a
- * server-parity safety net (RLS still enforces `has_bot_team_perm`), not a
- * user-facing state. It disables inputs silently; there is intentionally no
- * banner (removed by request — access is communicated by which sections a role
- * can open, not an inline notice).
+ * My Bots opens for any member who can view the dashboard, so a viewer lands
+ * here with editing disabled. RLS still enforces `has_bot_team_perm` on the
+ * server, so this is the visible half of the same rule. Inputs are disabled
+ * silently; there is intentionally no banner (removed by request — access is
+ * communicated by which sections a role can open, not an inline notice).
  */
 export function ReadOnlyBotScope({ botId, ownerUserId, viaTeam, children }: Props) {
   const { permissions, loading } = useTeamRole(viaTeam ? botId : null);
