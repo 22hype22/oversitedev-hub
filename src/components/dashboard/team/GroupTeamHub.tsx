@@ -323,11 +323,33 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
       if (groupId === ALL_SCOPE) {
         // Everyone with a seat on every bot the owner has. People limited to a
         // group have rows on that group's bots only and show under the group.
-        const { data: rows, error } = await (supabase as any)
-          .from("dashboard_team")
-          .select("member_email, member_user_id, role, accepted_at, invited_at, invite_token, bot_id")
-          .eq("owner_user_id", ownerUserId);
-        if (error) throw error;
+        // Read the owner's rows for their own bots. Retried a few times before
+        // giving up: a single dropped request must not empty the roster.
+        const ids = ownedBotIdsRef.current;
+        let rows: any[] | null = null;
+        let lastErr: any = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            let q = (supabase as any)
+              .from("dashboard_team")
+              .select("member_email,member_user_id,role,accepted_at,invited_at,invite_token,bot_id")
+              .eq("owner_user_id", ownerUserId);
+            if (ids.length > 0) q = q.in("bot_id", ids);
+            const { data, error } = await q;
+            if (error) throw error;
+            rows = (data ?? []) as any[];
+            lastErr = null;
+            break;
+          } catch (e: any) {
+            lastErr = e;
+            console.error("[team] roster read failed", attempt + 1, e);
+            await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
+          }
+        }
+        if (lastErr) {
+          const msg = [lastErr?.message, lastErr?.details, lastErr?.hint, lastErr?.code].filter(Boolean).join(" · ");
+          throw new Error(msg || "request failed");
+        }
         const byEmail = new Map<string, { m: Member; bots: Set<string> }>();
         for (const r of (rows ?? []) as any[]) {
           const key = String(r.member_email ?? "").toLowerCase();
@@ -352,7 +374,6 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
           e.bots.add(String(r.bot_id));
           if (r.accepted_at && !e.m.accepted) { e.m.accepted = true; e.m.accepted_at = r.accepted_at; }
         }
-        const ids = ownedBotIdsRef.current;
         const all = ids.length;
         const list = Array.from(byEmail.values())
           .filter((e) => e.m.role !== "owner" && all > 0 && ids.every((id) => e.bots.has(id)))
