@@ -47,7 +47,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
-import { VariablesPanel, VariablesScopeProvider, useVariablesScope } from "./VariablesPanel";
+import { VariablesButton, VariablesFlyout, VariablesScopeProvider, isVariablesFlyoutTarget, useVariablesScope } from "./VariablesPanel";
 import { variablesFor } from "@/lib/messageVariables";
 import { cn } from "@/lib/utils";
 import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
@@ -222,6 +222,7 @@ export function AddonConfigCard(props: Props) {
 
 function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVersion: engineVersionProp, open: openProp, onOpenChange, enabled = true, onToggleEnabled }: Props) {
   const variablesScope = useVariablesScope();
+  const dialogContentRef = useRef<HTMLDivElement>(null);
 
   const { botId: scopeBotId, viaTeam, readOnly: scopeReadOnly } = useBotScope();
   const { permissions, role } = useTeamRole(viaTeam ? (scopeBotId ?? botId ?? null) : null);
@@ -4526,7 +4527,7 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <Label htmlFor={f.key}>{f.label}</Label>
-            {fieldVars.length > 0 && <VariablesPanel groups={fieldVars} onInsert={insertToken} size="xs" />}
+            {fieldVars.length > 0 && <VariablesButton groups={fieldVars} onInsert={insertToken} size="xs" />}
           </div>
           {f.markdown ? (
             <DiscordMarkdownTextarea
@@ -4692,6 +4693,10 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
+          ref={dialogContentRef}
+          onPointerDownOutside={(e) => { if (isVariablesFlyoutTarget(e.detail.originalEvent.target)) e.preventDefault(); }}
+          onInteractOutside={(e) => { if (isVariablesFlyoutTarget(e.detail.originalEvent.target)) e.preventDefault(); }}
+          onEscapeKeyDown={(e) => { if (variablesScope.panel) { e.preventDefault(); variablesScope.close(); } }}
           className={cn(
             isSayCommand && engineVersion === "v2"
               ? "max-w-6xl max-h-[90vh] overflow-y-auto"
@@ -4706,6 +4711,7 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
           )}
           hideClose
         >
+          <VariablesFlyout anchorRef={dialogContentRef} />
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Icon className="h-5 w-5 text-os-accent" />
@@ -5005,7 +5011,10 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Session messages</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Session messages</p>
+                  <VariablesButton />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Five messages, one per tab. Parts marked locked are added by the bot and stay put: the menu on the
                   manage panel and the Vote button on the vote message.
@@ -5052,6 +5061,7 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-foreground">Giveaway design</p>
+                  <VariablesButton />
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Design how each giveaway looks with the same builder as Messages. An{" "}
@@ -5133,7 +5143,10 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Robux Locker panel</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Robux Locker panel</p>
+                  <VariablesButton />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Design the panel members see, using the same builder as Messages. It posts to the
                   channel above when you Save. (Buy buttons come next — this is the panel design.)
@@ -5163,7 +5176,10 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">/pricing display</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">/pricing display</p>
+                  <VariablesButton />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Design how the pricing looks when a member runs{" "}
                   <code className="font-mono">/pricing</code> and picks a service — it posts publicly.
@@ -5192,7 +5208,10 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Portfolio post</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Portfolio post</p>
+                  <VariablesButton />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Design the post, using the same builder as Messages. When you run{" "}
                   <code className="font-mono">/portfolio</code>, this design is posted to the channel above.
@@ -5216,7 +5235,10 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Leaderboard message</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Leaderboard message</p>
+                  <VariablesButton />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Design what{" "}
                   <code className="font-mono">/leaderboard invites</code> posts. Put{" "}
@@ -5241,7 +5263,10 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Regular Post design</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Regular Post design</p>
+                  <VariablesButton keyOverride="regular" />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   How a normal ad posts. Tokens:{" "}
                   <code className="font-mono text-os-accent">{"{advertiser}"}</code>,{" "}
@@ -5250,7 +5275,6 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                 </p>
                 <MessagesV2Builder
                   key={`ads-regular-v2-${adsRegularV2MountKey}`}
-                  variablesKey="regular"
                   ref={adsRegularV2Ref}
                   embedded
                   botId={botId}
@@ -5260,7 +5284,10 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                 />
               </div>
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Sponsored Giveaway design</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Sponsored Giveaway design</p>
+                  <VariablesButton keyOverride="giveaway" />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   How a sponsored giveaway posts — the bot hosts it in your server and members click Enter to join. Add a{" "}
                   <span className="font-medium">Button Row → Counter</span> for the Enter button (or one is added automatically), and a{" "}
@@ -5277,7 +5304,6 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                 </p>
                 <MessagesV2Builder
                   key={`ads-giveaway-v2-${adsGiveawayV2MountKey}`}
-                  variablesKey="giveaway"
                   ref={adsGiveawayV2Ref}
                   embedded
                   giveaway
@@ -5288,7 +5314,10 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                 />
               </div>
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Claim panel design</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Claim panel design</p>
+                  <VariablesButton />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   How the “post an ad” pop-up looks when a member clicks Claim. The ping / post-type / add-on dropdowns and the Continue button are added automatically below your design. Tokens:{" "}
                   <code className="font-mono text-os-accent">{"{inventory list}"}</code> (a card per item, with a Quantity badge),{" "}
@@ -5306,7 +5335,10 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                 />
               </div>
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Empty inventory design</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Empty inventory design</p>
+                  <VariablesButton />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Shown when a member clicks Claim but has no ping credits yet. Tokens:{" "}
                   <code className="font-mono text-os-accent">{"{inventory list}"}</code>,{" "}
@@ -5324,7 +5356,10 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                 />
               </div>
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">“No posts available” design</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">“No posts available” design</p>
+                  <VariablesButton />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Shown when a member picks an add-on (Instant Post / Bypass Queue) but has no active post to apply it to. Leave empty for the default “No current posts available.” message.
                 </p>
@@ -5347,7 +5382,10 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Package card</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Package card</p>
+                  <VariablesButton />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Build the card on the left; the right shows exactly how{" "}
                   <code className="font-mono">/package</code> posts it (as an embed).
@@ -5394,7 +5432,10 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                   <div key={f.key}>{renderField(f)}</div>
                 ))}
               <div className="space-y-2 pt-1">
-                <p className="text-sm font-semibold text-foreground">Purchase log message</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">Purchase log message</p>
+                  <VariablesButton />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Design how each purchase is logged, using the same builder as Messages. Tokens:{" "}
                   <code className="font-mono text-os-accent">{"{customer}"}</code>,{" "}
@@ -5426,6 +5467,7 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-foreground">{config.title} message</p>
+                  <VariablesButton />
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Design the message that gets posted. Put{" "}
@@ -5513,6 +5555,7 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                       ? (<>Add form fields with <code className="font-mono text-os-accent">{"{question: Label}"}</code>, <code className="font-mono text-os-accent">{"{drop down: Name A B C}"}</code>, <code className="font-mono text-os-accent">{"{file: Name}"}</code>, and <code className="font-mono text-os-accent">{"{user}"}</code> anywhere in the text — they become the form people fill in.</>)
                       : (<>Type variables like <code className="font-mono text-os-accent">{"{count}"}</code> anywhere — they fill in {isDesignerMsg ? "when the message is posted." : "when someone joins."}</>)}
                 </p>
+                <VariablesButton />
               </div>
               {engineVersion === "v2" || isDesignerMsg || isCustomsSmallUi || isCustomsVerification ? (
                 <MessagesV2Builder
