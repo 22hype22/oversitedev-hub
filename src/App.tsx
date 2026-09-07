@@ -220,6 +220,19 @@ class RouteErrorBoundary extends Component<{ children: ReactNode }, { crashed: b
   }
   componentDidCatch(err: unknown) {
     console.error("App error boundary caught:", err);
+    // A chunk from an older build that no longer exists on the server (the tab
+    // was open across a deploy). Reload once so the tab picks up the new build
+    // instead of showing the crash screen; main.tsx guards against a loop.
+    const msg = err instanceof Error ? err.message : String(err ?? "");
+    if (/Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(msg)) {
+      try {
+        const key = "oversite:chunk-reload";
+        const last = Number(sessionStorage.getItem(key) || 0);
+        if (Date.now() - last < 15_000) return;
+        sessionStorage.setItem(key, String(Date.now()));
+      } catch { /* ignore */ }
+      window.location.reload();
+    }
   }
   render() {
     if (this.state.crashed) {

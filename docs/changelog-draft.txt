@@ -41,3 +41,4 @@
 + Removed the duplicate My Bots heading on the My Bots page
 + The card you drag on My Bots now looks exactly like the one it left behind. The Add a bot tile and the notification bell have a slight glass look
 + New Groups button next to the notification bell. Name a group, tap bots to put them in it, then give a team access to that group from the Team section
++ Fixed the Something hiccuped screen that could appear when opening a bot right after a site update. The page now refreshes itself to pick up the new build
