@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { VariablesButton } from "./VariablesPanel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -1028,11 +1029,14 @@ export const TicketPanelBuilder = forwardRef<TicketPanelBuilderHandle, Props>(
       {isV2 ? (
         <>
           <section className="space-y-4">
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">Panel Message</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                What members see when they open the panel.
-              </p>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Panel Message</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  What members see when they open the panel.
+                </p>
+              </div>
+              <VariablesButton />
             </div>
             {hydrated ? (
               <TicketPanelV2Builder

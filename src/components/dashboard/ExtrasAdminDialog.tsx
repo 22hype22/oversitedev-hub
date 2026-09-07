@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { useRef as useDomRef } from "react";
+import { VariablesButton, VariablesFlyout, VariablesScopeProvider, isVariablesFlyoutTarget } from "./VariablesPanel";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -42,6 +44,7 @@ export function ExtrasAdminDialog({
   tokens: string[];
 }) {
   const builderRef = useRef<MessagesV2BuilderHandle>(null);
+  const extrasDialogRef = useDomRef<HTMLDivElement>(null);
   const [items, setItems] = useState<V2Item[]>([]);
   const [mountKey, setMountKey] = useState(0);
   const [channelId, setChannelId] = useState("");
@@ -91,7 +94,14 @@ export function ExtrasAdminDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <VariablesScopeProvider addonId="extras">
+      <DialogContent
+        ref={extrasDialogRef}
+        onPointerDownOutside={(e) => { if (isVariablesFlyoutTarget(e.detail.originalEvent.target)) e.preventDefault(); }}
+        onInteractOutside={(e) => { if (isVariablesFlyoutTarget(e.detail.originalEvent.target)) e.preventDefault(); }}
+        className="max-w-6xl max-h-[90vh] overflow-y-auto"
+      >
+        <VariablesFlyout anchorRef={extrasDialogRef} />
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
@@ -116,12 +126,7 @@ export function ExtrasAdminDialog({
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <Label>Posted message</Label>
-              <p className="text-xs text-muted-foreground">
-                Variables:{" "}
-                {tokens.map((t) => (
-                  <code key={t} className="font-mono text-os-accent mr-1">{`{${t}}`}</code>
-                ))}
-              </p>
+              <VariablesButton groups={[{ title: "This form", vars: tokens.map((t) => ({ token: `{${t}}`, desc: "Filled in from the form" })) }]} size="xs" />
             </div>
             <MessagesV2Builder
               key={`extras-${feature}-${mountKey}`}
@@ -143,6 +148,7 @@ export function ExtrasAdminDialog({
           </Button>
         </div>
       </DialogContent>
+      </VariablesScopeProvider>
     </Dialog>
   );
 }

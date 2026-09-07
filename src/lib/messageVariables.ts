@@ -255,6 +255,21 @@ const MUSIC: VariableGroup = {
  * designs or fields. Returns an empty list when a block has no variables.
  */
 export function variablesFor(addonId: string, key?: string | null): VariableGroup[] {
+  return dedupe(groupsFor(addonId, key));
+}
+
+/** A token shows once per panel: the first group that lists it keeps it. */
+function dedupe(groups: VariableGroup[]): VariableGroup[] {
+  const seen = new Set<string>();
+  const out: VariableGroup[] = [];
+  for (const g of groups) {
+    const vars = g.vars.filter((v) => (seen.has(v.token) ? false : (seen.add(v.token), true)));
+    if (vars.length) out.push({ ...g, vars });
+  }
+  return out;
+}
+
+function groupsFor(addonId: string, key?: string | null): VariableGroup[] {
   switch (addonId) {
     case "invite-message":
       return [JOIN, SERVER];
@@ -310,11 +325,25 @@ export function variablesFor(addonId: string, key?: string | null): VariableGrou
       return Object.values(SHIFTS);
     }
     case "music-addon":
-      return key === "join_message" ? [MUSIC] : [];
+      return key === "join_message" ? [MUSIC] : key ? [] : [SERVER];
+    case "extras":
+      return [FORM_LOG, SERVER];
     default:
-      return [];
+      // Any message design the bots post runs through the same renderer, so
+      // the server-wide tokens always apply. A specific field key we do not
+      // know is a plain setting, not a message, and gets nothing.
+      return key ? [] : [SERVER];
   }
 }
+
+/** Blocks whose designs carry more than the server-wide list, for tests. */
+export const SCOPED_BLOCKS: Record<string, string[]> = {
+  "customs-smallui": Object.keys(SMALL_UI),
+  "roleplay-sessions": ["panel", ...Object.keys(SESSIONS)],
+  "roleplay-shifts": Object.keys(SHIFTS),
+  ads: ["regular", "giveaway"],
+  "music-addon": ["join_message"],
+};
 
 /** Total number of variables across groups, for the button label. */
 export function countVariables(groups: VariableGroup[]): number {

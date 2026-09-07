@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { VariablesButton } from "./VariablesPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -453,8 +454,11 @@ export const SayCommandBuilder = forwardRef<
               <Label htmlFor="say-content" className="font-semibold">
                 Content
               </Label>
-              <span className="text-xs text-muted-foreground italic">
-                {content.length}/{contentLimit}
+              <span className="flex items-center gap-2">
+                <VariablesButton size="xs" />
+                <span className="text-xs text-muted-foreground italic">
+                  {content.length}/{contentLimit}
+                </span>
               </span>
             </div>
             <DiscordMarkdownTextarea

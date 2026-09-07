@@ -34,6 +34,15 @@ See [`worker/CLAUDE.md`](./worker/CLAUDE.md).
 - `supabase/migrations/` — DB migrations (apply via the migration tool, not by hand)
 - `worker/src/addons/` — Discord addon implementations
 
+## Message variables (dashboard)
+
+- Every block with a message preview must show the Variables button, and its list must be
+  the tokens the bot actually fills in for that block. The list lives in
+  `src/lib/messageVariables.ts` (`variablesFor(addonId, key)`); add an entry there when you
+  add a block or a token, keyed to the design or field when a block holds several.
+- `MessagesV2Builder` shows a fallback button when the block placed none, and
+  `src/lib/messageVariables.test.ts` fails if a block answers with no variables. Do not remove either.
+
 ## Common tasks
 
 - **Add a Discord feature** → new addon in `worker/src/addons/`, register in

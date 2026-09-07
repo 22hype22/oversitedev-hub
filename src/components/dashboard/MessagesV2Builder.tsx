@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { GuildChannelPicker } from "./GuildChannelPicker";
+import { VariablesFallbackButton } from "./VariablesPanel";
 import { useBotChannels, type BotGuild, type BotChannel } from "@/hooks/useGuildChannels";
 import { useActiveGuild } from "@/hooks/useActiveGuild";
 import { cn } from "@/lib/utils";
@@ -577,6 +578,8 @@ export const MessagesV2Builder = forwardRef<
           </div>
         )}
 
+
+        <VariablesFallbackButton />
 
         <div className="space-y-2">
           {items.map((it, i) => (

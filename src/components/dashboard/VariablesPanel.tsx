@@ -19,20 +19,23 @@ type Scope = {
   panel: Request | null;
   open: (opts?: { keyOverride?: string | null; groups?: VariableGroup[]; onInsert?: (token: string) => void }) => void;
   close: () => void;
+  /** Explicit buttons currently mounted in this scope (a block's own header buttons). */
+  buttons: { current: number };
 };
 const ScopeCtx = createContext<Scope>({
-  addonId: null, key: null, setKey: () => {}, panel: null, open: () => {}, close: () => {},
+  addonId: null, key: null, setKey: () => {}, panel: null, open: () => {}, close: () => {}, buttons: { current: 0 },
 });
 
 export function VariablesScopeProvider({ addonId, children }: { addonId: string; children: ReactNode }) {
   const [key, setKey] = useState<string | null>(null);
   const [panel, setPanel] = useState<Request | null>(null);
+  const buttons = useRef(0);
   const open = useCallback<Scope["open"]>((opts) => {
     const groups = opts?.groups ?? variablesFor(addonId, opts?.keyOverride ?? key);
     setPanel({ groups, onInsert: opts?.onInsert });
   }, [addonId, key]);
   const close = useCallback(() => setPanel(null), []);
-  const value = useMemo(() => ({ addonId, key, setKey, panel, open, close }), [addonId, key, panel, open, close]);
+  const value = useMemo(() => ({ addonId, key, setKey, panel, open, close, buttons }), [addonId, key, panel, open, close]);
   return <ScopeCtx.Provider value={value}>{children}</ScopeCtx.Provider>;
 }
 
@@ -60,6 +63,12 @@ export function VariablesButton({ keyOverride, groups, onInsert, size = "sm", cl
   const scope = useVariablesScope();
   const list = groups ?? (scope.addonId ? variablesFor(scope.addonId, keyOverride ?? scope.key) : []);
   const total = countVariables(list);
+  // Register so the builder's fallback button knows a block already has one.
+  useLayoutEffect(() => {
+    if (total === 0 || groups) return;
+    scope.buttons.current += 1;
+    return () => { scope.buttons.current -= 1; };
+  }, [scope.buttons, total, groups]);
   if (total === 0) return null;
   return (
     <Button
@@ -73,6 +82,26 @@ export function VariablesButton({ keyOverride, groups, onInsert, size = "sm", cl
       <Braces className="h-3.5 w-3.5" /> Variables
       <span className="rounded-full bg-muted px-1.5 text-[10px] font-semibold text-muted-foreground">{total}</span>
     </Button>
+  );
+}
+
+/**
+ * Safety net rendered by every message builder: if the block around it did
+ * not place a Variables button of its own, this shows one, so no design can
+ * ship without a way to see its variables. Renders nothing otherwise.
+ */
+export function VariablesFallbackButton({ keyOverride }: { keyOverride?: string | null }) {
+  const scope = useVariablesScope();
+  const [show, setShow] = useState(false);
+  useLayoutEffect(() => {
+    // Runs after the block's own buttons registered (they sit earlier in the tree).
+    setShow(scope.buttons.current === 0);
+  });
+  if (!scope.addonId || !show) return null;
+  return (
+    <div className="flex items-center justify-end">
+      <VariablesButton keyOverride={keyOverride} groups={variablesFor(scope.addonId, keyOverride ?? scope.key)} size="xs" />
+    </div>
   );
 }
 
