@@ -500,7 +500,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
     (isAll ? ownedBots : ownedBots.filter((b) => b.group_id === selectedGroupId))
       .map((b) => b.bot_name)
       .join(", ") || "No bots yet";
-  const scopeName = isAll ? "Whole dashboard" : (selectedGroup?.name ?? "—");
+  const scopeName = isAll ? "Dashboard" : (selectedGroup?.name ?? "—");
 
   return (
     <div className="gth" ref={rootRef}>
@@ -513,7 +513,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
             <div className="ttl">
               <h2>Your team</h2>
               <p>
-                Give someone your whole dashboard, or just one group. People
+                Give someone your dashboard, or just one group. People
                 limited to a group only see that group's bots.
               </p>
             </div>
@@ -534,7 +534,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
                   <span className="lab">
                     {scopeName}
                   </span>
-                  <span className="n">{botCount} bots</span>
+                  <span className="n">{isAll ? "All bots" : `${botCount} bots`}</span>
                   <span className="car">
                     <CaretIcon />
                   </span>
@@ -550,8 +550,8 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
                     <span className="gi">
                       <AllIcon />
                     </span>
-                    <span className="nm">Whole dashboard</span>
-                    <span className="ct">{ownedBots.length} bots</span>
+                    <span className="nm">Dashboard</span>
+                    <span className="ct">All bots</span>
                     <span className="tick">
                       <TickIcon />
                     </span>
@@ -645,7 +645,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
                 {membersLoading ? (
                   <div className="loading sm">Loading members…</div>
                 ) : displayMembers.length === 0 ? (
-                  <div className="loading sm">{isAll ? "Nobody has the whole dashboard yet." : "No members yet."}</div>
+                  <div className="loading sm">{isAll ? "Nobody has the full dashboard yet." : "No members yet."}</div>
                 ) : (
                   <div className="list">
                     {displayMembers.map((m) => (
@@ -725,7 +725,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
         <TransferModal
           email={transferEmail}
           ownerUserId={ownerUserId}
-          groupLabel={isAll ? "your whole dashboard" : (groupName(selectedGroupId) ?? "this group")}
+          groupLabel={isAll ? "your dashboard" : (groupName(selectedGroupId) ?? "this group")}
           groupBotIds={(isAll ? ownedBots : ownedBots.filter((b) => b.group_id === selectedGroupId)).map((b) => b.id)}
           onClose={() => setTransferEmail(null)}
           onDone={() => selectedGroupId && loadMembers(selectedGroupId)}
