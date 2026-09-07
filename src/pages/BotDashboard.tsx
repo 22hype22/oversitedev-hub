@@ -34,16 +34,20 @@ import { SortableAddonGrid } from "@/components/dashboard/SortableAddonGrid";
 import { CustomsAddonGrid } from "@/components/dashboard/CustomsAddonGrid";
 import {
   DndContext,
+  DragOverlay,
+  KeyboardSensor,
   PointerSensor,
   closestCenter,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
   arrayMove,
   rectSortingStrategy,
+  sortableKeyboardCoordinates,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS as DndCSS } from "@dnd-kit/utilities";
@@ -1600,6 +1604,39 @@ function DashSortableCard({
   );
 }
 
+// One bot card on the My Bots grid. Same drag setup as the add-on blocks: the
+// whole card is the grab area, a small movement threshold keeps taps and
+// clicks working, and `touchAction: none` lets it drag on a phone. While a
+// card is being dragged it stays put as a faint placeholder; the copy that
+// follows the pointer is the <DragOverlay> rendered by the grid.
+function BotSortableCard({
+  id,
+  onOpen,
+  children,
+}: {
+  id: string;
+  onOpen: () => void;
+  children: ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={"bcard" + (isDragging ? " dragging" : "")}
+      style={{
+        transform: DndCSS.Transform.toString(transform),
+        transition,
+        touchAction: "none",
+      }}
+      onClick={onOpen}
+      {...attributes}
+      {...listeners}
+    >
+      {children}
+    </div>
+  );
+}
+
 const BotDashboard = () => {
   const { user, isAdmin, loading } = useAuth();
   const { bots: ownedBots, dashboardBots, hasDashboardAccess, loading: botsLoading, reload } = useOwnedBots();
@@ -1823,11 +1860,25 @@ const BotDashboard = () => {
 
   const orderedBots = useMemo(() => order.map((id) => byId[id]).filter(Boolean) as OwnedBot[], [order, byId]);
   const owned = orderedBots.filter((b) => !b.isDemo);
-  const dragId = useRef<string | null>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const onDragStart = (id: string) => { dragId.current = id; setDragActive(true); };
-  const onDragOver = (e: React.DragEvent, overId: string) => { e.preventDefault(); const from = dragId.current; if (!from || from === overId) return; setOrder((p) => { const a = [...p]; const fi = a.indexOf(from), oi = a.indexOf(overId); if (fi < 0 || oi < 0) return p; a.splice(fi, 1); a.splice(oi, 0, from); return a; }); };
-  const onDragEnd = () => { dragId.current = null; setDragActive(false); };
+  // My Bots drag: pointer (mouse and touch) plus keyboard, like the add-on
+  // blocks. The id being dragged drives the floating overlay card.
+  const botSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const [botDragId, setBotDragId] = useState<string | null>(null);
+  const onBotDragStart = (e: DragStartEvent) => setBotDragId(String(e.active.id));
+  const onBotDragEnd = (e: DragEndEvent) => {
+    setBotDragId(null);
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    setOrder((p) => {
+      const from = p.indexOf(String(active.id));
+      const to = p.indexOf(String(over.id));
+      if (from < 0 || to < 0) return p;
+      return arrayMove(p, from, to);
+    });
+  };
 
   // ---- groups (real, backed by the group_* RPCs — the SAME source as the
   // Team hub, so a group made here is a real group and shows up there too).
@@ -2031,6 +2082,17 @@ const BotDashboard = () => {
     const s = runtimeOf(b);
     return s ? (RUNTIME_WORD[s] ?? s) : stWord(b);
   };
+
+  // The inside of a My Bots card. Shared by the card in the grid and the copy
+  // that floats under the pointer while dragging, so the two look identical.
+  const botCardFace = (b: OwnedBot) => (
+    <>
+      <div className="a">{botSvg(b.base)}</div>
+      <div className="nm">{b.bot_name}</div><div className="st" style={{ color: stColorLive(b) }}>● {stWordLive(b)}</div>
+      <div className="bstats"><div className="bx"><span className="k">Base</span><span className="v num">{BOT_BASE_LABELS[b.base] ?? b.base}</span></div><div className="bx"><span className="k">Add-ons</span><span className="v num">{b.addons.length}</span></div></div>
+      <button className="ghost" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Open</button>
+    </>
+  );
 
   const filt = (f: string) => (b: OwnedBot) => f === "all" ? true : f === "online" ? stWordLive(b) === "Online" : stWordLive(b) !== "Online";
   const liveCount = owned.filter((b) => stWordLive(b) === "Online").length;
@@ -2285,17 +2347,26 @@ const BotDashboard = () => {
             {/* MY BOTS */}
             <div className={"view" + (view === "bots" && canMyBots ? " on" : "")}>
               <div className="ph2"><h2>My Bots</h2><p>{owned.length} bots in your fleet · <span className="drophint">drag to reorder</span></p></div>
-              <div className={"botgrid" + (dragActive ? " dragging-active" : "")}>
-                {owned.map((b) => (
-                  <div className="bcard" key={b.id} draggable onDragStart={() => onDragStart(b.id)} onDragOver={(e) => onDragOver(e, b.id)} onDragEnd={onDragEnd} onClick={() => openBot(b.id)}>
-                    <div className="a">{botSvg(b.base)}</div>
-                    <div className="nm">{b.bot_name}</div><div className="st" style={{ color: stColorLive(b) }}>● {stWordLive(b)}</div>
-                    <div className="bstats"><div className="bx"><span className="k">Base</span><span className="v num">{BOT_BASE_LABELS[b.base] ?? b.base}</span></div><div className="bx"><span className="k">Add-ons</span><span className="v num">{b.addons.length}</span></div></div>
-                    <button className="ghost" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Open</button>
+              <DndContext sensors={botSensors} collisionDetection={closestCenter} onDragStart={onBotDragStart} onDragEnd={onBotDragEnd} onDragCancel={() => setBotDragId(null)}>
+                <SortableContext items={owned.map((b) => b.id)} strategy={rectSortingStrategy}>
+                  <div className={"botgrid" + (botDragId ? " dragging-active" : "")}>
+                    {owned.map((b) => (
+                      <BotSortableCard key={b.id} id={b.id} onOpen={() => openBot(b.id)}>
+                        {botCardFace(b)}
+                      </BotSortableCard>
+                    ))}
+                    <Link to="/bots" className="addbot" style={{ textDecoration: "none" }}><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add a bot</Link>
                   </div>
-                ))}
-                <Link to="/bots" className="addbot" style={{ textDecoration: "none" }}><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add a bot</Link>
-              </div>
+                </SortableContext>
+                {/* The card that follows the pointer while dragging. */}
+                <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }}>
+                  {botDragId && byId[botDragId] ? (
+                    <div className="bcard" style={{ cursor: "grabbing", boxShadow: "0 22px 60px -16px rgba(0,0,0,.65)", borderColor: "color-mix(in srgb, var(--accent) 35%, transparent)" }}>
+                      {botCardFace(byId[botDragId])}
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
             </div>
 
             {/* GROUPS */}
