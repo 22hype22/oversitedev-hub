@@ -7,6 +7,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { useRef as useDomRef } from "react";
+import { VariablesFlyout, VariablesScopeProvider, isVariablesFlyoutTarget } from "./VariablesPanel";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -59,6 +61,7 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
       editingRef.current = editing;
     }, [editing]);
     const innerBuilderRef = useRef<TicketPanelBuilderHandle>(null);
+    const ticketDialogRef = useDomRef<HTMLDivElement>(null);
     const [savingEdit, setSavingEdit] = useState(false);
     const channelNamesRef = useRef<Map<string, string>>(new Map());
 
@@ -354,7 +357,14 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
         )}
 
         <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <VariablesScopeProvider addonId="ticket-message-customization">
+          <DialogContent
+            ref={ticketDialogRef}
+            onPointerDownOutside={(e) => { if (isVariablesFlyoutTarget(e.detail.originalEvent.target)) e.preventDefault(); }}
+            onInteractOutside={(e) => { if (isVariablesFlyoutTarget(e.detail.originalEvent.target)) e.preventDefault(); }}
+            className="max-w-6xl max-h-[90vh] overflow-y-auto"
+          >
+            <VariablesFlyout anchorRef={ticketDialogRef} />
             <DialogHeader>
               <DialogTitle>
                 Edit ticket panel
@@ -396,6 +406,7 @@ export const TicketEditor = forwardRef<TicketEditorHandle, Props>(
               </Button>
             </DialogFooter>
           </DialogContent>
+          </VariablesScopeProvider>
         </Dialog>
       </div>
     );
