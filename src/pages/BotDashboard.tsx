@@ -2114,8 +2114,19 @@ const BotDashboard = () => {
       if (data && data.ok === false) throw new Error(data.error ?? "update failed");
     };
     try {
-      if (fromGroup) await rpc(fromGroup, owned.filter((b) => b.id !== botId && effectiveGroup(b) === fromGroup).map((b) => b.id));
-      if (toGroup) await rpc(toGroup, [...owned.filter((b) => b.id !== botId && effectiveGroup(b) === toGroup).map((b) => b.id), botId]);
+      // Leave the old group only if it is one of the owner's real groups. A
+      // bot can carry the id of a group that was deleted (or the hidden
+      // default group), and asking the server to edit that group fails with
+      // "group not found". Joining the new group overwrites the old id anyway;
+      // when there is no new group, clear the id directly.
+      const knownFrom = fromGroup && groups.some((g) => g.id === fromGroup) ? fromGroup : null;
+      if (knownFrom) await rpc(knownFrom, owned.filter((b) => b.id !== botId && effectiveGroup(b) === knownFrom).map((b) => b.id));
+      if (toGroup) {
+        await rpc(toGroup, [...owned.filter((b) => b.id !== botId && effectiveGroup(b) === toGroup).map((b) => b.id), botId]);
+      } else if (fromGroup && !knownFrom) {
+        const { error } = await (supabase as any).from("bot_orders").update({ group_id: null }).eq("id", botId);
+        if (error) throw new Error(error.message);
+      }
     } catch (err: any) {
       fail(err?.message ?? String(err));
       return false;
