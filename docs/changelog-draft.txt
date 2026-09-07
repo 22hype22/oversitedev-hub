@@ -44,3 +44,4 @@
 + Fixed the Something hiccuped screen that could appear when opening a bot right after a site update. The page now refreshes itself to pick up the new build
 + My Bots now shows your groups as tiles under the bot cards. Drag a bot onto a group to put it there, and each card shows which group it is in
 + Groups on My Bots are now big boxes around the bot cards. Drag a card into a box to put the bot in that group, or back out to the top area to take it out
++ Team page: pick Whole dashboard or a single group at the top. Whole dashboard gives someone every bot, including ones you add later. A group limits them to that group's bots

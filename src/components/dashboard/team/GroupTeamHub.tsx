@@ -100,6 +100,15 @@ function shortDate(iso: string | null): string {
 
 /* ------------------------------ inline icons ------------------------------ */
 
+const ALL_SCOPE = "__all__";
+const AllIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" rx="1.6" />
+    <rect x="14" y="3" width="7" height="7" rx="1.6" />
+    <rect x="3" y="14" width="7" height="7" rx="1.6" />
+    <rect x="14" y="14" width="7" height="7" rx="1.6" />
+  </svg>
+);
 const BoxIcon = () => (
   <svg viewBox="0 0 24 24">
     <rect x="3" y="4" width="18" height="16" rx="2" />
@@ -192,7 +201,13 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupsLoading, setGroupsLoading] = useState(true);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  // ALL_SCOPE means "the whole dashboard": every bot the owner has, now and
+  // later. Anything else is a group id. Whole dashboard is the default so the
+  // hub is usable with no groups at all.
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(ALL_SCOPE);
+  const isAll = selectedGroupId === ALL_SCOPE;
+  // The group id to hand to group-scoped calls (null in whole-dashboard scope).
+  const groupScope = isAll ? null : selectedGroupId;
 
   const [members, setMembers] = useState<Member[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
@@ -254,8 +269,9 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
       );
       setGroups(list);
       setSelectedGroupId((prev) => {
+        if (prev === ALL_SCOPE) return prev;
         if (prev && list.some((g) => g.id === prev)) return prev;
-        return list[0]?.id ?? null;
+        return ALL_SCOPE;
       });
     } catch (e: any) {
       toast.error("Couldn't load groups", { description: e?.message });
@@ -281,7 +297,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
         // that DOES re-fetch.
         setGroups((prev) => {
           const next = prev.filter((g) => g.id !== removedId);
-          setSelectedGroupId((sel) => (sel === removedId ? (next[0]?.id ?? null) : sel));
+          setSelectedGroupId((sel) => (sel === removedId ? ALL_SCOPE : sel));
           return next;
         });
         return;
@@ -294,14 +310,55 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
     return () => window.removeEventListener("oversite:groups-changed", onGroupsChanged);
   }, [loadGroups]);
 
+  const ownedBotIds = useMemo(() => ownedBots.map((b) => b.id), [ownedBots]);
   const loadMembers = useCallback(async (groupId: string) => {
     setMembersLoading(true);
     try {
-      const { data, error } = await (supabase as any).rpc("team_group_members", {
-        _group_id: groupId,
-      });
-      if (error) throw error;
-      setMembers((Array.isArray(data) ? data : []) as Member[]);
+      if (groupId === ALL_SCOPE) {
+        // Everyone with a seat on every bot the owner has. People limited to a
+        // group have rows on that group's bots only and show under the group.
+        const { data: rows, error } = await (supabase as any)
+          .from("dashboard_team")
+          .select("member_email, member_user_id, role, accepted_at, invited_at, invite_token, bot_id")
+          .eq("owner_user_id", ownerUserId);
+        if (error) throw error;
+        const byEmail = new Map<string, { m: Member; bots: Set<string> }>();
+        for (const r of (rows ?? []) as any[]) {
+          const key = String(r.member_email ?? "").toLowerCase();
+          if (!key) continue;
+          let e = byEmail.get(key);
+          if (!e) {
+            e = {
+              m: {
+                member_email: r.member_email,
+                member_user_id: r.member_user_id ?? null,
+                role: r.role,
+                is_owner: r.role === "owner",
+                accepted: !!r.accepted_at,
+                accepted_at: r.accepted_at ?? null,
+                invited_at: r.invited_at ?? null,
+                invite_token: r.invite_token ?? null,
+              },
+              bots: new Set(),
+            };
+            byEmail.set(key, e);
+          }
+          e.bots.add(String(r.bot_id));
+          if (r.accepted_at && !e.m.accepted) { e.m.accepted = true; e.m.accepted_at = r.accepted_at; }
+        }
+        const all = ownedBotIds.length;
+        const list = Array.from(byEmail.values())
+          .filter((e) => e.m.role !== "owner" && all > 0 && ownedBotIds.every((id) => e.bots.has(id)))
+          .map((e) => e.m)
+          .sort((a, b) => a.member_email.localeCompare(b.member_email));
+        setMembers(list);
+      } else {
+        const { data, error } = await (supabase as any).rpc("team_group_members", {
+          _group_id: groupId,
+        });
+        if (error) throw error;
+        setMembers((Array.isArray(data) ? data : []) as Member[]);
+      }
       // Which of these rows came from an identity rule (Discord/Roblox) rather
       // than an email invite — the roster reads the same table the resolver
       // writes, tagged by access_grant_id.
@@ -326,7 +383,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
     } finally {
       setMembersLoading(false);
     }
-  }, [ownerUserId]);
+  }, [ownerUserId, ownedBotIds]);
 
   useEffect(() => {
     if (selectedGroupId) void loadMembers(selectedGroupId);
@@ -341,12 +398,12 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
         .select("*")
         .eq("owner_user_id", ownerUserId)
         .order("created_at", { ascending: false });
-      q = selectedGroupId ? q.eq("group_id", selectedGroupId) : q.is("group_id", null);
+      q = groupScope ? q.eq("group_id", groupScope) : q.is("group_id", null);
       const { data } = await q;
       if (!cancelled) setGrants((data ?? []) as AccessGrant[]);
     })();
     return () => { cancelled = true; };
-  }, [ownerUserId, selectedGroupId, rulesVersion]);
+  }, [ownerUserId, groupScope, rulesVersion]);
 
   const removeGrant = useCallback(async (id: string) => {
     const { error } = await (supabase as any).from("dashboard_access_grants").delete().eq("id", id);
@@ -380,10 +437,12 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
       if (!selectedGroupId) return;
       setRoleMenuEmail(null);
       try {
-        const { data, error } = await (supabase as any).rpc(
-          "team_update_member_role_group",
-          { _email: email, _role: role, _group_id: selectedGroupId },
-        );
+        const { data, error } = selectedGroupId === ALL_SCOPE
+          ? await (supabase as any).rpc("team_update_member_role_by_email", { _email: email, _role: role })
+          : await (supabase as any).rpc(
+            "team_update_member_role_group",
+            { _email: email, _role: role, _group_id: selectedGroupId },
+          );
         if (error) throw error;
         if (data && data.ok === false) throw new Error("update failed");
         toast.success(`${email} is now ${roleLabel(role)}`);
@@ -399,10 +458,12 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
     async (email: string) => {
       if (!selectedGroupId) return;
       try {
-        const { data, error } = await (supabase as any).rpc(
-          "team_remove_member_group",
-          { _email: email, _group_id: selectedGroupId },
-        );
+        const { data, error } = selectedGroupId === ALL_SCOPE
+          ? await (supabase as any).rpc("team_remove_member_by_email", { _email: email })
+          : await (supabase as any).rpc(
+            "team_remove_member_group",
+            { _email: email, _group_id: selectedGroupId },
+          );
         if (error) throw error;
         if (data && data.ok === false) throw new Error("remove failed");
         toast.success(`Removed ${email}`);
@@ -434,12 +495,12 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
   );
 
   const loading = groupsLoading || botsLoading;
-  const botCount = selectedGroup?.bot_count ?? 0;
+  const botCount = isAll ? ownedBots.length : (selectedGroup?.bot_count ?? 0);
   const botNames =
-    ownedBots
-      .filter((b) => b.group_id === selectedGroupId)
+    (isAll ? ownedBots : ownedBots.filter((b) => b.group_id === selectedGroupId))
       .map((b) => b.bot_name)
       .join(", ") || "No bots yet";
+  const scopeName = isAll ? "Whole dashboard" : (selectedGroup?.name ?? "—");
 
   return (
     <div className="gth" ref={rootRef}>
@@ -452,12 +513,12 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
             <div className="ttl">
               <h2>Your team</h2>
               <p>
-                Each group has its own bots and its own team. People only see the
-                group they're in.
+                Give someone your whole dashboard, or just one group. People
+                limited to a group only see that group's bots.
               </p>
             </div>
 
-            {groups.length > 0 && (
+            {(
               <div className={"dd" + (ddOpen ? " open" : "")}>
                 <button
                   className="ddbtn"
@@ -468,10 +529,10 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
                   }}
                 >
                   <span className="gi">
-                    <BoxIcon />
+                    {isAll ? <AllIcon /> : <BoxIcon />}
                   </span>
                   <span className="lab">
-                    {selectedGroup?.name ?? "Select group"}
+                    {scopeName}
                   </span>
                   <span className="n">{botCount} bots</span>
                   <span className="car">
@@ -479,6 +540,23 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
                   </span>
                 </button>
                 <div className="ddmenu">
+                  <div
+                    className={"ddi" + (isAll ? " on" : "")}
+                    onClick={() => {
+                      setSelectedGroupId(ALL_SCOPE);
+                      setDdOpen(false);
+                    }}
+                  >
+                    <span className="gi">
+                      <AllIcon />
+                    </span>
+                    <span className="nm">Whole dashboard</span>
+                    <span className="ct">{ownedBots.length} bots</span>
+                    <span className="tick">
+                      <TickIcon />
+                    </span>
+                  </div>
+                  {groups.length > 0 && <div className="ddsep" />}
                   {groups.map((g) => (
                     <div
                       key={g.id}
@@ -515,10 +593,8 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
           </div>
 
           {/* Body */}
-          {loading && groups.length === 0 ? (
+          {loading && ownedBots.length === 0 ? (
             <div className="loading">Loading…</div>
-          ) : groups.length === 0 ? (
-            <EmptyState onCreate={() => setCreateOpen(true)} />
           ) : (
             <>
               <div className="tabs">
@@ -544,10 +620,16 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
               <div className={"pane" + (tab === "members" ? " on" : "")}>
                 <div className="mhead">
                   <div>
-                    <div className="h">{selectedGroup?.name ?? "—"}</div>
+                    <div className="h">{scopeName}</div>
                     <div className="sub">
-                      {botNames} ·{" "}
-                      <a onClick={() => setManageOpen(true)}>Manage bots</a>
+                      {isAll ? (
+                        <>Every bot, including ones you add later. {botNames}</>
+                      ) : (
+                        <>
+                          {botNames} ·{" "}
+                          <a onClick={() => setManageOpen(true)}>Manage bots</a>
+                        </>
+                      )}
                     </div>
                   </div>
                   <button
@@ -563,7 +645,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
                 {membersLoading ? (
                   <div className="loading sm">Loading members…</div>
                 ) : displayMembers.length === 0 ? (
-                  <div className="loading sm">No members yet.</div>
+                  <div className="loading sm">{isAll ? "Nobody has the whole dashboard yet." : "No members yet."}</div>
                 ) : (
                   <div className="list">
                     {displayMembers.map((m) => (
@@ -592,7 +674,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
 
               {/* Roles */}
               <div className={"pane" + (tab === "roles" ? " on" : "")}>
-                <RolesMatrix ownerUserId={ownerUserId} groupId={selectedGroupId} />
+                <RolesMatrix ownerUserId={ownerUserId} groupId={groupScope} />
               </div>
 
               {/* Support */}
@@ -612,8 +694,8 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
         open={inviteOpen}
         onClose={() => setInviteOpen(false)}
         ownerUserId={ownerUserId}
-        groupId={selectedGroupId}
-        groupName={selectedGroup?.name ?? ""}
+        groupId={groupScope}
+        groupName={scopeName}
         onInvited={() => {
           if (selectedGroupId) void loadMembers(selectedGroupId);
           setRulesVersion((v) => v + 1);
@@ -634,7 +716,7 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
         onClose={() => setManageOpen(false)}
         mode="manage"
         bots={ownedBots}
-        groupId={selectedGroupId}
+        groupId={groupScope}
         groupName={groupName}
         onManaged={onBotsManaged}
       />
@@ -643,8 +725,8 @@ export function GroupTeamHub({ ownerUserId, ownerEmail }: Props) {
         <TransferModal
           email={transferEmail}
           ownerUserId={ownerUserId}
-          groupLabel={groupName(selectedGroupId) ?? "this group"}
-          groupBotIds={ownedBots.filter((b) => b.group_id === selectedGroupId).map((b) => b.id)}
+          groupLabel={isAll ? "your whole dashboard" : (groupName(selectedGroupId) ?? "this group")}
+          groupBotIds={(isAll ? ownedBots : ownedBots.filter((b) => b.group_id === selectedGroupId)).map((b) => b.id)}
           onClose={() => setTransferEmail(null)}
           onDone={() => selectedGroupId && loadMembers(selectedGroupId)}
         />
@@ -1219,8 +1301,10 @@ function InviteModal({
   const sendEmail = async () => {
     const trimmed = email.trim();
     if (!trimmed) return toast.error("Enter an email");
+    // No group means the whole dashboard: the invite covers every bot the
+    // owner has, now and later.
     const { data, error } = await supabase.functions.invoke("team-invite-send", {
-      body: { email: trimmed, role, groupId },
+      body: { email: trimmed, role, groupId: groupId ?? "" },
     });
     const err = await invokeError(error, data);
     if (err) throw new Error(err);
@@ -1258,7 +1342,6 @@ function InviteModal({
   };
 
   const submit = async () => {
-    if (!groupId) return;
     setSending(true);
     try {
       if (method === "email") await sendEmail(); else await addRule();
