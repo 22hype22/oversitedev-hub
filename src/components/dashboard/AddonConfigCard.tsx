@@ -47,7 +47,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
-import { VariablesButton, VariablesFlyout, VariablesScopeProvider, isVariablesFlyoutTarget, useVariablesScope } from "./VariablesPanel";
+import { VariablesButton, VariablesFlyout, VariablesScopeProvider, invalidateOrderStatusVariables, isVariablesFlyoutTarget, useVariablesScope } from "./VariablesPanel";
 import { variablesFor } from "@/lib/messageVariables";
 import { cn } from "@/lib/utils";
 import { getAddonConfig, type AddonField } from "@/lib/addonConfigs";
@@ -214,7 +214,7 @@ export function AddonConfigCard(props: Props) {
   // Every message builder inside reads the block (and design) it belongs to
   // from this scope, so the Variables panel always lists the right tokens.
   return (
-    <VariablesScopeProvider addonId={props.addonId}>
+    <VariablesScopeProvider addonId={props.addonId} botId={props.botId}>
       <AddonConfigCardInner {...props} />
     </VariablesScopeProvider>
   );
@@ -1597,6 +1597,7 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
       updated_at: new Date().toISOString(),
     };
     const { error } = await supabase.from("bot_config").upsert(payload, { onConflict: "bot_id,feature" });
+    invalidateOrderStatusVariables(botId);
     setSaving(false);
     if (error) return toast.error(`Save failed: ${error.message}`);
     const { data: cmdData, error: cmdError } = await supabase.rpc("enqueue_apply_config" as any, {

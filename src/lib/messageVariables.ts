@@ -16,19 +16,44 @@ export type VariableGroup = { title: string; note?: string; vars: Variable[] };
 
 const SERVER: VariableGroup = {
   title: "Server",
-  note: "Works in every message design. Fills in from the server the message is posted in.",
+  note: "Works in every message design. Fills in from the server the message is posted in. Spaces and underscores both work, so {member count} and {member_count} are the same.",
   vars: [
-    { token: "{server}", desc: "Server name" },
-    { token: "{count}", desc: "Total members" },
-    { token: "{human_count}", desc: "Members, not counting bots" },
-    { token: "{bot_count}", desc: "Bots in the server" },
-    { token: "{boosts}", desc: "Total server boosts" },
-    { token: "{boost_level}", desc: "Boost tier, 0 to 3" },
-    { token: "{channel_count}", desc: "Number of channels" },
-    { token: "{role_count}", desc: "Number of roles" },
+    { token: "{server}", desc: "Server name. Also {server name}" },
+    { token: "{count}", desc: "Total members. Also {members} and {member count}" },
+    { token: "{human_count}", desc: "Members, not counting bots. Also {humans}" },
+    { token: "{bot_count}", desc: "Bots in the server. Also {bots}" },
+    { token: "{boosts}", desc: "Total server boosts. Also {boost count} and {server boosts}" },
+    { token: "{boost_level}", desc: "Boost tier, 0 to 3. Also {boost tier}" },
+    { token: "{channel_count}", desc: "Number of channels. Also {channels}" },
+    { token: "{role_count}", desc: "Number of roles. Also {roles}" },
     { token: "{player_count}", desc: "Players in the linked game right now" },
+    { token: "{invite list}", desc: "The invites leaderboard, top inviters first" },
+    { token: "{queue list}", desc: "The ad queue, next to post first" },
   ],
 };
+
+/**
+ * Order Status services are named by the owner, so their tokens are built
+ * from the bot's own config: a service called Liveries gives {liveries} for
+ * the name with its status icon, and {liveriesstatus} for the icon and word.
+ * These work in every message design on that bot.
+ */
+export function orderStatusGroup(serviceNames: string[]): VariableGroup | null {
+  const vars: Variable[] = [];
+  for (const raw of serviceNames) {
+    const name = String(raw ?? "").trim();
+    const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!slug) continue;
+    vars.push({ token: `{${slug}}`, desc: `${name} with its status icon` });
+    vars.push({ token: `{${slug}status}`, desc: `${name} status, icon and word` });
+  }
+  if (!vars.length) return null;
+  return {
+    title: "Order status",
+    note: "One pair per service in your Order Status block. Updates as the queue opens, limits, or closes.",
+    vars,
+  };
+}
 
 const JOIN: VariableGroup = {
   title: "The member",

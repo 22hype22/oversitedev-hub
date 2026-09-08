@@ -3,7 +3,8 @@ import { createPortal } from "react-dom";
 import { Braces, Check, Copy, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { countVariables, variablesFor, type VariableGroup } from "@/lib/messageVariables";
+import { supabase } from "@/integrations/supabase/client";
+import { countVariables, orderStatusGroup, variablesFor, type VariableGroup } from "@/lib/messageVariables";
 
 /**
  * The Variables panel is a drawer that slides out of the side of the block's
@@ -21,21 +22,71 @@ type Scope = {
   close: () => void;
   /** Explicit buttons currently mounted in this scope (a block's own header buttons). */
   buttons: { current: number };
+  /** The full list for a design key, including the bot's own service tokens. */
+  listFor: (key?: string | null, groups?: VariableGroup[]) => VariableGroup[];
 };
 const ScopeCtx = createContext<Scope>({
-  addonId: null, key: null, setKey: () => {}, panel: null, open: () => {}, close: () => {}, buttons: { current: 0 },
+  addonId: null, key: null, setKey: () => {}, panel: null, open: () => {}, close: () => {}, buttons: { current: 0 }, listFor: () => [],
 });
 
-export function VariablesScopeProvider({ addonId, children }: { addonId: string; children: ReactNode }) {
+// Order Status service tokens are per bot and owner-named, so they are read
+// from the bot's config once per bot and cached for the session.
+const orderStatusCache = new Map<string, VariableGroup | null>();
+const orderStatusInflight = new Map<string, Promise<VariableGroup | null>>();
+function loadOrderStatusGroup(botId: string): Promise<VariableGroup | null> {
+  if (orderStatusCache.has(botId)) return Promise.resolve(orderStatusCache.get(botId) ?? null);
+  const pending = orderStatusInflight.get(botId);
+  if (pending) return pending;
+  const p = (async () => {
+    try {
+      const { data } = await supabase
+        .from("bot_config")
+        .select("config")
+        .eq("bot_id", botId)
+        .eq("feature", "customs-order-status")
+        .maybeSingle();
+      const cfg = (data?.config ?? {}) as { services?: Array<{ name?: string }> };
+      const names = (Array.isArray(cfg.services) ? cfg.services : []).map((s) => String(s?.name ?? ""));
+      const group = orderStatusGroup(names);
+      orderStatusCache.set(botId, group);
+      return group;
+    } catch {
+      return null;
+    } finally {
+      orderStatusInflight.delete(botId);
+    }
+  })();
+  orderStatusInflight.set(botId, p);
+  return p;
+}
+/** Forget a bot's cached service tokens, for after the Order Status block saves. */
+export function invalidateOrderStatusVariables(botId: string) {
+  orderStatusCache.delete(botId);
+}
+
+export function VariablesScopeProvider({ addonId, botId, children }: { addonId: string; botId?: string | null; children: ReactNode }) {
   const [key, setKey] = useState<string | null>(null);
   const [panel, setPanel] = useState<Request | null>(null);
+  const [extra, setExtra] = useState<VariableGroup | null>(null);
   const buttons = useRef(0);
+  useEffect(() => {
+    let alive = true;
+    if (!botId) { setExtra(null); return; }
+    void loadOrderStatusGroup(botId).then((g) => { if (alive) setExtra(g); });
+    return () => { alive = false; };
+  }, [botId]);
+  const listFor = useCallback((k?: string | null, groups?: VariableGroup[]) => {
+    if (groups) return groups;
+    const base = variablesFor(addonId, k ?? key);
+    // Service tokens apply to every message design on this bot, not to
+    // plain fields, so only add them where the server list is present.
+    return extra && base.some((g) => g.title === "Server") ? [...base, extra] : base;
+  }, [addonId, key, extra]);
   const open = useCallback<Scope["open"]>((opts) => {
-    const groups = opts?.groups ?? variablesFor(addonId, opts?.keyOverride ?? key);
-    setPanel({ groups, onInsert: opts?.onInsert });
-  }, [addonId, key]);
+    setPanel({ groups: listFor(opts?.keyOverride, opts?.groups), onInsert: opts?.onInsert });
+  }, [listFor]);
   const close = useCallback(() => setPanel(null), []);
-  const value = useMemo(() => ({ addonId, key, setKey, panel, open, close, buttons }), [addonId, key, panel, open, close]);
+  const value = useMemo(() => ({ addonId, key, setKey, panel, open, close, buttons, listFor }), [addonId, key, panel, open, close, listFor]);
   return <ScopeCtx.Provider value={value}>{children}</ScopeCtx.Provider>;
 }
 
@@ -61,7 +112,7 @@ export function VariablesButton({ keyOverride, groups, onInsert, size = "sm", cl
   className?: string;
 }) {
   const scope = useVariablesScope();
-  const list = groups ?? (scope.addonId ? variablesFor(scope.addonId, keyOverride ?? scope.key) : []);
+  const list = scope.addonId ? scope.listFor(keyOverride, groups) : (groups ?? []);
   const total = countVariables(list);
   // Register so the builder's fallback button knows a block already has one.
   useLayoutEffect(() => {
@@ -100,7 +151,7 @@ export function VariablesFallbackButton({ keyOverride }: { keyOverride?: string 
   if (!scope.addonId || !show) return null;
   return (
     <div className="flex items-center justify-end">
-      <VariablesButton keyOverride={keyOverride} groups={variablesFor(scope.addonId, keyOverride ?? scope.key)} size="xs" />
+      <VariablesButton keyOverride={keyOverride} groups={scope.listFor(keyOverride)} size="xs" />
     </div>
   );
 }
