@@ -1583,10 +1583,22 @@ export function BotForge() {
                   </div>
                 );
                 };
-                const discordBases = pricedBases.filter((b) => !isRobloxBase(b.id));
-                const roblocBases = pricedBases.filter((b) => isRobloxBase(b.id)).sort(
-                  (a, b) => ROBLOX_STORE_ORDER.indexOf(a.id) - ROBLOX_STORE_ORDER.indexOf(b.id),
-                );
+                // Bots you can buy now come first, then pre-orders, then coming
+                // soon, so a bot the owner parks moves to the back of its row.
+                const statusRank = (id: string) => {
+                  const st: BotStatus = availability[id] ?? DEFAULT_STATUS[id] ?? "available";
+                  return st === "available" ? 0 : st === "preorder" ? 1 : 2;
+                };
+                const byStatus = (a: PricedBase, b: PricedBase, tie: number) =>
+                  statusRank(a.id) - statusRank(b.id) || tie;
+                const discordBases = pricedBases
+                  .filter((b) => !isRobloxBase(b.id))
+                  .sort((a, b) => byStatus(a, b, pricedBases.indexOf(a) - pricedBases.indexOf(b)));
+                const roblocBases = pricedBases
+                  .filter((b) => isRobloxBase(b.id))
+                  .sort((a, b) =>
+                    byStatus(a, b, ROBLOX_STORE_ORDER.indexOf(a.id) - ROBLOX_STORE_ORDER.indexOf(b.id)),
+                  );
                 return (
                   <>
                     <div>
