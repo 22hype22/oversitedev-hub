@@ -74,3 +74,4 @@
 + Robux prices follow one fixed rule everywhere: 10,000 Robux per 100 dollars plus 30 percent, ending in 999. The old rate setting is gone
 + Bots set to pre-order or coming soon move to the back of their row on the builder
 + The checkout button on the builder is a new split design and says where it leads: Continue to payment, then Go to payment, Go to Robux payment, or Place order
++ Team members with edit access can now save a block and have the bot pick it up. Before, the save worked but the bot was never told
