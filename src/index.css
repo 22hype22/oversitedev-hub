@@ -148,7 +148,7 @@
     --os-accent: 201 219 230; /* #C9DBE6 icy light (light fills + highlights) */
     --os-accent-ink: 30 36 43; /* #1E242B dark text on icy fills */
     --os-accent-deep: 178 199 213; /* #B2C7D5 links/hover on dark */
-    --os-go: 127 224 181; /* #7FE0B5 mint: the one green, used for go/confirm actions */
+    --os-go: 52 211 153; /* #34D399 the one green: comped text, waived hosting, go/confirm actions */
     --os-accent-onink: 201 219 230; /* same icy light */
     --os-accent-soft: rgb(201 219 230 / 0.12);
 

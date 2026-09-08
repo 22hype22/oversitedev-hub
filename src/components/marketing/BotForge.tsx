@@ -480,13 +480,13 @@ function CheckoutButton({
       onClick={onClick}
       disabled={busy || leaving}
       style={{ transitionTimingFunction: EASE_OUT }}
-      className={`group relative mt-4 block w-full rounded-[14px] p-[3px] text-left bg-os-go/10 ring-1 ring-inset ring-os-go/30 transition-[transform,opacity] duration-[160ms] active:scale-[0.98] disabled:pointer-events-none ${
+      className={`group relative mt-4 block w-full rounded-[14px] p-[3px] text-left bg-os-go/15 ring-1 ring-inset ring-os-go/45 transition-[transform,opacity] duration-[160ms] active:scale-[0.98] disabled:pointer-events-none ${
         leaving ? "scale-[0.98] opacity-0" : busy ? "opacity-80" : ""
       }`}
     >
       <span
         style={{ transitionTimingFunction: EASE_OUT }}
-        className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[11px] px-14 text-os-heading bg-[linear-gradient(180deg,rgb(var(--os-go)/0.30),rgb(var(--os-go)/0.16))] shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgb(var(--os-go)/0.18),0_8px_20px_-14px_rgb(var(--os-go)/0.45)] transition-[background-color,box-shadow] duration-200 group-hover:bg-os-go/10"
+        className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[11px] px-14 text-os-heading bg-[linear-gradient(180deg,rgb(var(--os-go)/0.58),rgb(var(--os-go)/0.40))] shadow-[inset_0_1px_0_rgba(255,255,255,0.32),inset_0_-1px_0_rgb(var(--os-go)/0.35),0_8px_20px_-14px_rgb(var(--os-go)/0.5)] transition-[background-color,box-shadow] duration-200 group-hover:bg-os-go/15"
       >
         <span className="font-display text-[15px] font-semibold tracking-[-0.01em]">
           {busy ? busyLabel ?? label : label}
@@ -495,7 +495,7 @@ function CheckoutButton({
             right padding and steps up and right on hover. */}
         <span
           style={{ transitionTimingFunction: EASE_OUT }}
-          className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-os-go/25 text-os-go shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-[calc(50%+1px)]"
+          className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-os-bg/35 text-os-go shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-[calc(50%+1px)]"
         >
           {busy ? (
             <span className="h-3 w-3 animate-spin rounded-full border-2 border-os-go/30 border-t-os-go" />
@@ -2069,20 +2069,20 @@ export function BotForge() {
             )}
             {comped && (
               <div className="mt-1 flex items-center justify-between text-xs">
-                <span className="text-emerald-400 font-medium">
+                <span className="text-os-go font-medium">
                   Comped account — 100% off
                 </span>
-                <span className="text-emerald-400 font-medium">
+                <span className="text-os-go font-medium">
                   −${total.toFixed(2)}
                 </span>
               </div>
             )}
             {appliedDiscount && !comped && (
               <div className="mt-1 flex items-center justify-between text-xs">
-                <span className="text-emerald-400 font-medium">
+                <span className="text-os-go font-medium">
                   Code {appliedDiscount.code} applied
                 </span>
-                <span className="text-emerald-400 font-medium">
+                <span className="text-os-go font-medium">
                   −${discountAmount.toFixed(2)}
                 </span>
               </div>
@@ -2102,7 +2102,7 @@ export function BotForge() {
                         <span className="text-os-faint line-through font-normal mr-1.5">
                           +${money(monthlyBases.length ? monthlyTotal : monthlyRate)}/month
                         </span>
-                        <span className="text-emerald-400">waived</span>
+                        <span className="text-os-go">waived</span>
                       </>
                     ) : (
                       <>
@@ -2229,10 +2229,10 @@ export function BotForge() {
                     Have a discount code?
                   </div>
                   {appliedDiscount ? (
-                    <div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+                    <div className="flex items-center justify-between rounded-lg border border-os-go/30 bg-os-go/10 px-3 py-2">
                       <div className="text-xs">
                         <div className="font-mono font-semibold text-os-heading">{appliedDiscount.code}</div>
-                        <div className="text-emerald-400">
+                        <div className="text-os-go">
                           {appliedDiscount.kind === "percent"
                             ? `${appliedDiscount.value}% off`
                             : `$${appliedDiscount.value} off`}{" "}
@@ -2320,14 +2320,14 @@ export function BotForge() {
                     How would you like to pay?
                   </div>
                   {comped ? (
-                    <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3">
-                      <div className="text-xs font-medium text-emerald-400 flex items-center gap-1.5">
+                    <div className="rounded-lg border border-os-go/40 bg-os-go/10 p-3">
+                      <div className="text-xs font-medium text-os-go flex items-center gap-1.5">
                         <Check size={12} /> No payment required
                       </div>
                       <div className="text-[10px] text-os-faint mt-1 leading-relaxed">
                         This account is comped —{" "}
                         <span className="line-through">${total.toFixed(2)} once</span>{" "}
-                        <span className="text-emerald-400 font-medium">$0.00</span>. No card
+                        <span className="text-os-go font-medium">$0.00</span>. No card
                         needed; your build starts as soon as you place the order.
                       </div>
                     </div>
