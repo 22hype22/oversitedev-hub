@@ -54,6 +54,26 @@ Deno.serve(async (req) => {
     )
   }
 
+  // Who may send: the platform (service role) freely; a signed-in user only
+  // the transfer-complete note to their own address, with the dashboard link
+  // forced to this site. Nobody else.
+  const authHeader = req.headers.get('authorization') ?? ''
+  let callerRole = ''
+  try {
+    const payload = authHeader.slice(7).split('.')[1]
+    callerRole = String(JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))).role ?? '')
+  } catch { /* not a JWT */ }
+  let callerEmail: string | null = null
+  if (callerRole !== 'service_role') {
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.49.4')
+    const gate = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } })
+    const { data: u } = authHeader.startsWith('Bearer ') ? await gate.auth.getUser(authHeader.slice(7)) : { data: { user: null } }
+    callerEmail = u?.user?.email?.toLowerCase() ?? null
+    if (!callerEmail) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+  }
+
   // Parse request body
   let templateName: string
   let recipientEmail: string
@@ -68,6 +88,12 @@ Deno.serve(async (req) => {
     idempotencyKey = body.idempotencyKey || body.idempotency_key || messageId
     if (body.templateData && typeof body.templateData === 'object') {
       templateData = body.templateData
+    }
+    if (callerEmail) {
+      if (templateName !== 'team-transfer-complete' || String(recipientEmail ?? '').toLowerCase() !== callerEmail) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      templateData = { previousOwnerEmail: String(templateData.previousOwnerEmail ?? ''), dashboardUrl: 'https://www.oversite.shop/bot-dashboard' }
     }
   } catch {
     return new Response(

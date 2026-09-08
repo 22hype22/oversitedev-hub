@@ -57,9 +57,45 @@ async function sendDM(channelId: string, title: string, body: string) {
   }
 }
 
+function callerRole(req: Request): string {
+  const h = req.headers.get("authorization") ?? "";
+  if (!h.startsWith("Bearer ")) return "";
+  try {
+    const payload = h.slice(7).split(".")[1];
+    return String(JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))).role ?? "");
+  } catch {
+    return "";
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  // Only the platform itself (cron, discord-test-notification, triggers) may
+  // drain the queue: a service-role bearer or the internal secret.
+  if (callerRole(req) !== "service_role") {
+    // An admin pressing "send now" in the dashboard may also drain it.
+    let isAdmin = false;
+    const h = req.headers.get("authorization") ?? "";
+    if (h.startsWith("Bearer ")) {
+      const { data: u } = await admin.auth.getUser(h.slice(7));
+      if (u?.user?.id) {
+        const { data } = await admin.rpc("has_role", { _user_id: u.user.id, _role: "admin" });
+        isAdmin = !!data;
+      }
+    }
+    const provided = req.headers.get("x-internal-secret") ?? "";
+    const { data: cfg } = await admin.from("deploy_config").select("internal_secret").eq("id", 1).maybeSingle();
+    const stored = String(cfg?.internal_secret ?? "");
+    const envSecret = Deno.env.get("INTERNAL_DEPLOY_SECRET") ?? "";
+    if (!isAdmin && (!provided || !((stored.length >= 16 && provided === stored) || (envSecret && provided === envSecret)))) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
   }
 
   try {

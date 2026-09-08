@@ -114,7 +114,7 @@ function getWorkerToken(req: Request): { token: string; source: string } {
   return match ? { source: match[0], token: match[1] } : { token: "", source: "none" };
 }
 
-async function authenticate(req: Request): Promise<boolean> {
+async function authenticate(req: Request): Promise<{ ok: boolean; botId: string | null }> {
   const { token, source } = getWorkerToken(req);
   if (!token) {
     console.warn("utilities-bot-api auth failed: no worker token carrier", {
@@ -122,7 +122,7 @@ async function authenticate(req: Request): Promise<boolean> {
       hasXWorkerTokenUnderscore: req.headers.has("x_worker_token"),
       hasAuthorization: req.headers.has("authorization"),
     });
-    return false;
+    return { ok: false, botId: null };
   }
   const { data, error } = await admin.rpc("_worker_token_lookup", {
     _token: token,
@@ -132,7 +132,7 @@ async function authenticate(req: Request): Promise<boolean> {
       source,
       error: error?.message,
     });
-    return false;
+    return { ok: false, botId: null };
   }
   // touch last_used_at — fire and forget
   const tokenId = Array.isArray(data) ? data[0]?.token_id : (data as any).token_id;
@@ -143,17 +143,46 @@ async function authenticate(req: Request): Promise<boolean> {
       .eq("id", tokenId)
       .then(() => {});
   }
-  return true;
+  const tokenBotId = Array.isArray(data) ? data[0]?.bot_id ?? null : (data as any).bot_id ?? null;
+  return { ok: true, botId: tokenBotId ? String(tokenBotId) : null };
 }
+
+
+// Bots whose worker token may act across orders (the network bot that DMs
+// customers about their orders). Everything else is bound to its own bot.
+const PLATFORM_BOT_IDS = new Set(
+  (Deno.env.get("PLATFORM_BOT_IDS") || "50927258-eb0f-4756-88d0-e7396aaab220").split(",").map((s) => s.trim()).filter(Boolean),
+);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  if (!(await authenticate(req))) {
+  const auth = await authenticate(req);
+  if (!auth.ok) {
     return json(401, { error: "Invalid or missing worker token" });
   }
-
+  // A worker token acts for exactly one bot. Any bot_id in the query or body
+  // must be that bot, and the order-wide routes are for platform bots only.
   const url = new URL(req.url);
+  const tokenBotId = auth.botId;
+  const isPlatform = !!tokenBotId && PLATFORM_BOT_IDS.has(tokenBotId);
+  {
+    const path = url.pathname.replace(/^.*\/utilities-bot-api/, "") || "/";
+    let claimed = url.searchParams.get("bot_id") || "";
+    if (req.method !== "GET") {
+      try {
+        const peek = await req.clone().json();
+        claimed = String(peek?.bot_id || peek?.botId || claimed || "");
+      } catch { /* no body */ }
+    }
+    const orderWide = /^\/(pending|mark-dm-sent|cancel-order|confirm-payment)/.test(path);
+    if (orderWide && !isPlatform) return json(403, { error: "This token cannot act on other orders" });
+    if (!orderWide && claimed && (!tokenBotId || claimed !== tokenBotId)) {
+      return json(403, { error: "Worker token is not bound to this bot" });
+    }
+    if (!orderWide && !claimed && !tokenBotId) return json(403, { error: "Unbound worker token" });
+  }
+
   // Strip the function name prefix so we can route on the rest.
   const path = url.pathname.replace(/^.*\/utilities-bot-api/, "") || "/";
 

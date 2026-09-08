@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { useBotSalesMode, setBotSalesMode } from "@/hooks/useBotSalesMode";
 import { supabase } from "@/integrations/supabase/client";
 
-const SECURITY_CODE = "Oversite19!";
+const SECURITY_CODE = "CONFIRM";
 
 export const BotSalesModeSwitch = () => {
   const { mode } = useBotSalesMode();

@@ -36,6 +36,29 @@ Deno.serve(async (req) => {
     return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
 
+  // Signed-in callers only, thirty calls a minute each: this spends AI credits.
+  {
+    const authHeader = req.headers.get("authorization") ?? "";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    let uid: string | null = null;
+    if (authHeader.startsWith("Bearer ") && supabaseUrl && serviceKey) {
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.49.4");
+      const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+      const { data: u } = await admin.auth.getUser(authHeader.slice(7));
+      uid = u?.user?.id ?? null;
+      if (uid) {
+        const { data: allowed } = await admin.rpc("edge_rate_limit", { _key: `translate:${uid}`, _limit: 30, _window_seconds: 60 });
+        if (allowed === false) {
+          return new Response(JSON.stringify({ error: "Too many requests" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      }
+    }
+    if (!uid) {
+      return new Response(JSON.stringify({ error: "Sign in to translate" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+  }
+
   try {
     const { strings, target } = (await req.json()) as Body;
     if (!Array.isArray(strings) || typeof target !== "string") {

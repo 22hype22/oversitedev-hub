@@ -97,7 +97,13 @@ Deno.serve(async (req) => {
     // breaks on deploy. Set the secret + update the trigger to close that path.
     const authHeader = req.headers.get("authorization") ?? "";
     const providedSecret = req.headers.get("x-internal-secret") ?? "";
-    const internalSecret = Deno.env.get("INTERNAL_DEPLOY_SECRET") ?? "";
+    // The trigger's secret lives in deploy_config (service role only) so the
+    // database and this function share one value; the env var also works.
+    let internalSecret = Deno.env.get("INTERNAL_DEPLOY_SECRET") ?? "";
+    if (!internalSecret) {
+      const { data: cfg } = await admin.from("deploy_config").select("internal_secret").eq("id", 1).maybeSingle();
+      internalSecret = String(cfg?.internal_secret ?? "");
+    }
 
     let callerUserId: string | null = null;
     if (authHeader) {
@@ -119,14 +125,16 @@ Deno.serve(async (req) => {
         const { data: isAdmin } = await admin.rpc("has_role", { _user_id: callerUserId, _role: "admin" });
         authorized = !!isAdmin;
       }
-    } else if (internalSecret) {
-      // No user session: only the internal trigger, holding the shared secret.
-      authorized = providedSecret === internalSecret;
     } else {
-      // Secret not configured yet — preserve the existing trigger path so
-      // teardown keeps working, but flag it loudly.
-      console.warn("[cancel-bot-deploy] INTERNAL_DEPLOY_SECRET not set — allowing an unauthenticated call. Set the secret and update the cancellation trigger to close this.");
-      authorized = true;
+      // No user session: only the internal trigger, holding the shared secret.
+      // With no secret configured anywhere this fails closed.
+      authorized = internalSecret.length >= 16 && providedSecret === internalSecret;
+      if (!authorized && !internalSecret) {
+        // No secret exists anywhere yet (security migration not run): keep the
+        // trigger path working and say so loudly. Enforced once a secret exists.
+        console.warn("[cancel-bot-deploy] no internal secret configured yet; allowing the trigger call. Run the security migration to enforce it.");
+        authorized = true;
+      }
     }
 
     if (!authorized) {

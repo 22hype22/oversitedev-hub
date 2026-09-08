@@ -18,6 +18,13 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const INTERNAL_CHARGE_SECRET = Deno.env.get("INTERNAL_CHARGE_SECRET") ?? "";
+// The charge function accepts INTERNAL_CHARGE_SECRET or deploy_config's
+// stored secret; resolve whichever is configured.
+async function chargeSecret(): Promise<string> {
+  if (INTERNAL_CHARGE_SECRET) return INTERNAL_CHARGE_SECRET;
+  const { data } = await admin.from("deploy_config").select("internal_secret").eq("id", 1).maybeSingle();
+  return String(data?.internal_secret ?? "");
+}
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
@@ -33,7 +40,7 @@ async function chargeOrder(botOrderId: string): Promise<{ ok: boolean; error?: s
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${ANON_KEY}`,
-        "x-internal-charge-secret": INTERNAL_CHARGE_SECRET,
+        "x-internal-charge-secret": await chargeSecret(),
       },
       body: JSON.stringify({ botOrderId }),
     });

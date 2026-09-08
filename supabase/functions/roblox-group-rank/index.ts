@@ -287,6 +287,6 @@ Deno.serve(async (req) => {
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     console.error("roblox-group-rank error:", message);
-    return json({ error: message }, 500);
+    return json({ error: message.startsWith("Roblox") || /HTTP \d{3}/.test(message) ? "Roblox did not accept that request. Please try again." : message }, 500);
   }
 });

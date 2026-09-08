@@ -818,9 +818,9 @@ const ADMIN_HTML = `<div class="osd app">
           <div class="ch"><span class="eye">Storefront</span><h3>Market</h3><span class="mut">controls whether people can buy</span></div>
           <div class="cb">
             <div class="lbl2" data-dz="market-state">Checking…</div>
-            <div class="subnote" style="margin-top:6px">When off, customers can't place purchases or preorders — the store shows as closed. Requires your admin code.</div>
+            <div class="subnote" style="margin-top:6px">When off, customers can't place purchases or preorders — the store shows as closed. Requires your confirmation word.</div>
             <div class="confirm">
-              <input class="in mono" type="password" data-dz="market-code" placeholder="enter admin code to change">
+              <input class="in mono" type="password" data-dz="market-code" placeholder="type CONFIRM to change">
               <button class="btn danger" data-dz="market-btn"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>Close market</button>
             </div>
           </div>
@@ -844,10 +844,10 @@ const ADMIN_HTML = `<div class="osd app">
           <div class="cb">
             <div class="statusline" data-dz="fleet-state"><span class="pdot"></span> Checking…</div>
             <div class="subnote" data-dz="fleet-note">
-              Deactivating sends every live bot a stop command immediately. They stay in their servers — nothing is removed or kicked — they just go down until you reactivate them. Requires your admin code.
+              Deactivating sends every live bot a stop command immediately. They stay in their servers — nothing is removed or kicked — they just go down until you reactivate them. Requires your confirmation word.
             </div>
             <div class="confirm">
-              <input class="in mono" type="password" data-dz="fleet-code" placeholder="enter admin code to confirm">
+              <input class="in mono" type="password" data-dz="fleet-code" placeholder="type CONFIRM to confirm">
               <button class="btn danger big" data-dz="fleet-btn">Deactivate all bots</button>
             </div>
           </div>
@@ -2685,7 +2685,7 @@ function wireDanger(root: HTMLElement): void {
     const el = $(sel) as HTMLInputElement | null;
     if (el) el.value = v;
   };
-  const CODE = "Oversite19!";
+  const CODE = "CONFIRM";
 
   const stateEl = $('[data-dz="market-state"]');
   const marketBtn = $('[data-dz="market-btn"]') as HTMLButtonElement | null;
@@ -2705,7 +2705,7 @@ function wireDanger(root: HTMLElement): void {
     }
   }
   marketBtn?.addEventListener("click", async () => {
-    if (val('[data-dz="market-code"]') !== CODE) return toast.error("Wrong admin code");
+    if (val('[data-dz="market-code"]') !== CODE) return toast.error("Type CONFIRM to continue");
     const next = !suspended;
     const { data, error } = await sb.rpc("admin_set_market_suspended", { _suspended: next });
     if (error || !data?.ok) return toast.error(error?.message || data?.error || "Couldn't update");
@@ -2775,7 +2775,7 @@ function wireDanger(root: HTMLElement): void {
     }
   }
   fleetBtn?.addEventListener("click", async () => {
-    if (val('[data-dz="fleet-code"]') !== CODE) return toast.error("Wrong admin code");
+    if (val('[data-dz="fleet-code"]') !== CODE) return toast.error("Type CONFIRM to continue");
     if (!botsSuspended && !confirm("Send a STOP command to every live bot?")) return;
     const rpc = botsSuspended ? "admin_start_all_bots" : "admin_stop_all_bots";
     const { data, error } = await sb.rpc(rpc);

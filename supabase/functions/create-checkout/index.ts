@@ -102,6 +102,27 @@ serve(async (req) => {
         if (stripePrice.type === "recurring") hasRecurring = true;
         else hasOneTime = true;
         lineItems.push({ price: stripePrice.id, quantity: qty });
+      } else if (it.productId) {
+        // A catalog product is priced from the catalog, never from the client.
+        const { data: prod } = await supabaseAdmin
+          .from("products")
+          .select("id,name,price,upgrade_price,is_available")
+          .eq("id", it.productId)
+          .maybeSingle();
+        if (!prod || prod.is_available === false) return badRequest("One or more items are unavailable");
+        const dollars = it.purchaseType === "upgrade" && prod.upgrade_price != null ? Number(prod.upgrade_price) : Number(prod.price);
+        const cents = Math.round(dollars * 100);
+        if (!Number.isFinite(cents) || cents < 50) return badRequest("One or more items are unavailable");
+        it.amountCents = cents;
+        hasOneTime = true;
+        lineItems.push({
+          price_data: {
+            currency: "usd",
+            product_data: { name: it.purchaseType === "upgrade" ? `${prod.name} upgrade` : prod.name },
+            unit_amount: cents,
+          },
+          quantity: qty,
+        });
       } else if (it.amountCents && it.productName) {
         if (it.amountCents < 50) {
           return badRequest("Item amount too low");
@@ -152,7 +173,7 @@ serve(async (req) => {
     if (productIds.length > 0) {
       const { data: dbProducts } = await supabaseAdmin
         .from("products")
-        .select("id,name,file_url,file_name,price,current_version")
+        .select("id,name,file_url,file_name,price,upgrade_price,current_version")
         .in("id", productIds);
 
       const productMap = new Map((dbProducts || []).map((p) => [p.id, p]));
@@ -171,7 +192,7 @@ serve(async (req) => {
             product_name: isUpgrade ? `${p.name} — Upgrade` : p.name,
             file_url: p.file_url,
             file_name: p.file_name,
-            amount_cents: it.amountCents ?? Math.round(Number(p.price) * 100),
+            amount_cents: Math.round(Number((it.purchaseType === "upgrade" && (p as any).upgrade_price != null ? (p as any).upgrade_price : p.price)) * 100),
             currency: "usd",
             email: customerEmail || null,
             status: "pending",

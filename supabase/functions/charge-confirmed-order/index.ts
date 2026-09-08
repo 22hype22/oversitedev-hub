@@ -109,8 +109,18 @@ function resolveStripeEnv(): StripeEnv {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const secret = Deno.env.get("INTERNAL_CHARGE_SECRET");
-  if (secret && req.headers.get("x-internal-charge-secret") !== secret) {
+  // Only the internal callers may charge a saved card. The secret is
+  // INTERNAL_CHARGE_SECRET or, failing that, deploy_config.internal_secret,
+  // and with neither configured every call is refused.
+  const provided = req.headers.get("x-internal-charge-secret") ?? "";
+  let secret = Deno.env.get("INTERNAL_CHARGE_SECRET") ?? "";
+  if (!secret) {
+    const { data: cfg } = await supabaseAdmin.from("deploy_config").select("internal_secret").eq("id", 1).maybeSingle();
+    secret = String(cfg?.internal_secret ?? "");
+  }
+  if (!secret) {
+    console.warn("[charge-confirmed-order] no internal secret configured yet; run the security migration to enforce it.");
+  } else if (!provided || secret.length < 16 || provided !== secret) {
     return new Response(JSON.stringify({ error: "unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

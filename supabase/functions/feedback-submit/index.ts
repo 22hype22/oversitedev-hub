@@ -34,6 +34,13 @@ Deno.serve(async (req) => {
   if (type !== 'support' && type !== 'idea') {
     return json({ ok: false, error: 'invalid type' }, 400)
   }
+  // Open form: five submissions per address per hour.
+  {
+    const ip = (req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for') || 'unknown').split(',')[0].trim()
+    const limiter = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
+    const { data: allowed } = await limiter.rpc('edge_rate_limit', { _key: `feedback:${ip}`, _limit: 5, _window_seconds: 3600 })
+    if (allowed === false) return json({ ok: false, error: 'Too many messages from this connection. Try again in an hour.' }, 429)
+  }
   if (!message) return json({ ok: false, error: 'Please write a message.' }, 400)
   if (message.length > 4000) {
     return json({ ok: false, error: 'Message is too long.' }, 400)

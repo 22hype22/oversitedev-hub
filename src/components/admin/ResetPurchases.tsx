@@ -22,7 +22,7 @@ import { Trash2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-const RESET_CODE = "Oversite19!";
+const RESET_CODE = "CONFIRM";
 
 type RangeKey = "1h" | "24h" | "7d" | "30d" | "90d" | "all";
 
