@@ -29,7 +29,7 @@ const ROBLOX_COOKIE = Deno.env.get("ROBLOX_COOKIE") ?? "";
 const PLACE_ID = Deno.env.get("ROBLOX_ORDER_PLACE_ID") || "108687688483255";
 const ICON_URL = Deno.env.get("ROBLOX_ORDER_ICON_URL") || "https://www.oversite.shop/OversiteLogo.png";
 const GAMEPASS_ITEM_TYPE = 1;
-const DEFAULT_RATE = 285;
+const DEFAULT_RATE = 100;
 // Robux prices sit 30 percent above the dollar price. Keep in step with
 // ROBUX_MARKUP in src/hooks/useRobuxCheckout.tsx.
 const ROBUX_MARKUP = 1.3;
@@ -171,7 +171,12 @@ async function loadSettings(): Promise<{ enabled: boolean; rate: number }> {
   };
 }
 
-const robuxFor = (usd: number, rate: number) => Math.max(1, Math.ceil(Number(usd) * ROBUX_MARKUP * rate));
+// Dollar price plus the markup at the rate, bumped to the next thousand less
+// one so it ends in 999. Keep in step with robuxFor in useRobuxCheckout.tsx.
+const robuxFor = (usd: number, rate: number) => {
+  const raw = Math.max(0, Number(usd)) * ROBUX_MARKUP * rate;
+  return Math.max(99, (Math.floor(raw / 1000) + 1) * 1000 - 1);
+};
 
 type OrderRow = {
   id: string;

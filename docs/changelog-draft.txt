@@ -69,3 +69,5 @@
 + The card gear takes a discount instead of a crossed-out price. Leave it empty and the price shows on its own
 + The sale badge is gone from bot cards. Pre-order and Coming soon show in the top corner only
 + Every bot uses the same icon on the store cards and in the dashboard
++ Robux prices are 10,000 Robux per 100 dollars plus 30 percent, rounded to end in 999. A 99 dollar bot is 12,999 Robux
++ The Add for 50 dollars badge is gone and the price line on each bot card is one even row

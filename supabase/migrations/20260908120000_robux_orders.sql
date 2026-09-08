@@ -5,18 +5,19 @@
 -- (Roblox's cut) converted with the site-wide rate below; owning that
 -- gamepass is the proof of payment.
 --
--- app_settings: the switch and the rate (Robux per 1 USD before the markup).
+-- app_settings: the switch and the rate (Robux per 1 USD before the markup,
+--               100 by default so every $100 is 10,000 Robux). Prices end in 999.
 -- bot_orders:   how the order was paid plus the gamepass and buyer details.
 
 ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS robux_orders_enabled boolean NOT NULL DEFAULT true;
 
 ALTER TABLE public.app_settings
-  ADD COLUMN IF NOT EXISTS robux_per_usd numeric NOT NULL DEFAULT 285;
+  ADD COLUMN IF NOT EXISTS robux_per_usd numeric NOT NULL DEFAULT 100;
 
--- An earlier draft of this migration defaulted the rate to 400 with the
--- markup baked in. The markup is applied at checkout now, so reset it.
-UPDATE public.app_settings SET robux_per_usd = 285 WHERE id = 1 AND robux_per_usd = 400;
+-- Earlier drafts of this migration defaulted the rate to 400 or 285. The
+-- rule is now 10,000 Robux per $100 plus a 30 percent markup, so reset those.
+UPDATE public.app_settings SET robux_per_usd = 100 WHERE id = 1 AND robux_per_usd IN (400, 285);
 
 ALTER TABLE public.app_settings
   DROP CONSTRAINT IF EXISTS app_settings_robux_per_usd_check;
