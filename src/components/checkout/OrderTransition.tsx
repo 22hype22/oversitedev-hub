@@ -45,8 +45,8 @@ export function consumeOrderHandoff(): boolean {
 const CSS = `
 .otr{--go:#34D399;--go-rgb:52 211 153;--bad:#E08A8A;--bad-rgb:224 138 138;--heading:#E8EEF3;--body:#A8B4BF;--faint:#788591;--hair:rgba(86,98,110,.55);--bg:#21272e;--ink:#1E242B;--ease:cubic-bezier(.23,1,.32,1);--display:'Bricolage Grotesque',system-ui,sans-serif;--sans:'Space Grotesk',system-ui,sans-serif;position:fixed;inset:0;z-index:130;font-family:var(--sans);color:var(--body);display:grid;place-items:center;padding:24px;overflow:hidden}
 .otr-wash{position:absolute;inset:0;clip-path:circle(0px at var(--ox,50%) var(--oy,60%));opacity:0}
-.otr.go .otr-wash{background:linear-gradient(180deg,rgb(var(--go-rgb)/1),rgb(var(--go-rgb)/.86))}
-.otr.fail .otr-wash{background:linear-gradient(180deg,rgb(var(--bad-rgb)/1),rgb(var(--bad-rgb)/.88))}
+.otr.go .otr-wash{background:linear-gradient(180deg,#34D399,#2DBD87)}
+.otr.fail .otr-wash{background:linear-gradient(180deg,#E08A8A,#CF7878)}
 .otr.wash .otr-wash,.otr.settle .otr-wash{opacity:1;clip-path:circle(var(--or,120%) at var(--ox,50%) var(--oy,60%));transition:clip-path 640ms cubic-bezier(.32,.72,0,1),opacity 0s}
 .otr-ground{position:absolute;inset:0;background:radial-gradient(70% 55% at 50% 0%,rgb(var(--bad-rgb)/.14),transparent 60%),var(--bg);opacity:0}
 .otr.settle .otr-ground{opacity:1;transition:opacity 420ms var(--ease)}
