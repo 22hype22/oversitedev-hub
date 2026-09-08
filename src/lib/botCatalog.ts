@@ -1,3 +1,5 @@
+import { Shield, LifeBuoy, Wrench, Sparkles, Megaphone, Ticket, Gamepad2, type LucideIcon } from "lucide-react";
+
 /**
  * Lightweight metadata maps for bot bases and add-ons.
  * Kept in sync with the BotBuilder catalog so the dashboard
@@ -12,6 +14,27 @@ export function isRobloxBase(base: string | null | undefined): boolean {
   if (!base) return false;
   const parts = String(base).split(/[^a-z0-9-]+/i).filter(Boolean);
   return parts.length > 0 && parts.every((p) => ROBLOX_BASE_IDS.has(p));
+}
+
+/** One icon per base, shared by the store cards and the dashboard so a bot
+ *  looks the same where you buy it and where you run it. */
+export const BOT_BASE_ICONS: Record<string, LucideIcon> = {
+  protection: Shield,
+  support: LifeBuoy,
+  utilities: Wrench,
+  scratch: Sparkles,
+  dispatch: Megaphone,
+  customs: Ticket,
+  roleplay: Gamepad2,
+};
+
+/** Icon for a base, including compound ones like "protection+dispatch". */
+export function botBaseIcon(base: string | null | undefined): LucideIcon {
+  for (const part of String(base ?? "").split(/[^a-z0-9-]+/i)) {
+    const icon = BOT_BASE_ICONS[part];
+    if (icon) return icon;
+  }
+  return Shield;
 }
 
 export const BOT_BASE_LABELS: Record<string, string> = {

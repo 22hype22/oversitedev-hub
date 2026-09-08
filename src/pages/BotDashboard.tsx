@@ -11,6 +11,7 @@ import {
   getAddonLabel,
   getIncludedAddonsForBase,
   isRobloxBase,
+  botBaseIcon,
 } from "@/lib/botCatalog";
 import { supabase } from "@/integrations/supabase/client";
 import { SystemScreen, SystemCard, SystemBadge } from "@/pages/SystemScreen";
@@ -92,16 +93,13 @@ import {
   ArrowLeft,
   Globe,
   Terminal,
-  Package,
   Layers,
   Server,
   XCircle,
   Plus,
-  ShieldCheck,
-  RadioTower,
+  Shield,
   LifeBuoy,
   Wrench,
-  Gamepad2,
   Star,
   ArrowUpRight,
   Share2,
@@ -259,10 +257,10 @@ const ADDON_GROUPS: {
   icon: React.ComponentType<{ className?: string }>;
   ids: string[];
 }[] = [
-  { key: "protection", label: "Protection", icon: ShieldCheck, ids: PROTECTION_ADDON_IDS },
+  { key: "protection", label: "Protection", icon: Shield, ids: PROTECTION_ADDON_IDS },
   { key: "support",    label: "Support",    icon: LifeBuoy,    ids: SUPPORT_ADDON_IDS },
   { key: "utilities",  label: "Utilities",  icon: Wrench,      ids: UTILITIES_ADDON_IDS },
-  { key: "dispatch",   label: "Dispatch",   icon: RadioTower,  ids: ["dispatch-region", "dispatch-voice"] },
+  { key: "dispatch",   label: "Dispatch",   icon: Megaphone,   ids: ["dispatch-region", "dispatch-voice"] },
   { key: "shared",     label: "Extras",     icon: Star,        ids: SHARED_ADDON_IDS },
 ];
 
@@ -709,14 +707,7 @@ const BotSection = ({
 
   // Icon for the bot's base ("what it originally was").
   // One icon per product so the bot list reads at a glance.
-  const BaseIcon =
-    bot.base === "support" ? LifeBuoy
-    : bot.base === "utilities" ? Wrench
-    : bot.base === "scratch" ? Sparkles
-    : bot.base === "dispatch" ? RadioTower
-    : bot.base === "customs" ? Package
-    : bot.base === "roleplay" ? Gamepad2
-    : ShieldCheck;
+  const BaseIcon = botBaseIcon(bot.base);
 
   // Secondary meta chips (engine · hosting · free · health) shown on row two.
   const secondaryMeta: ReactNode[] = [];
@@ -1624,15 +1615,9 @@ const osTimeAgo = (iso: string) => {
 };
 
 // One icon per base, matching the icons on each bot's own page.
+// Same icon per base as the store cards (src/lib/botCatalog.ts).
 const botSvg = (base: string) => {
-  const Icon =
-    base === "support" ? LifeBuoy
-    : base === "utilities" ? Wrench
-    : base === "scratch" ? Sparkles
-    : base === "dispatch" ? RadioTower
-    : base === "customs" ? Package
-    : base === "roleplay" ? Gamepad2
-    : ShieldCheck;
+  const Icon = botBaseIcon(base);
   return <Icon />;
 };
 const isLive = (b: OwnedBot) => b.status === "live" || b.status === "ready";
