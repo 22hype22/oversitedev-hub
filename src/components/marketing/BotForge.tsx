@@ -447,6 +447,58 @@ function MoneyField({
   );
 }
 
+/**
+ * The checkout button: a split control with the action on the left and the
+ * amount in a darker cap on the right, a hairline top highlight, and an arrow
+ * that steps forward on hover. One piece, not a default pill.
+ */
+function CheckoutButton({
+  label,
+  amount,
+  busy,
+  busyLabel,
+  onClick,
+  buttonRef,
+}: {
+  label: string;
+  amount: string;
+  busy?: boolean;
+  busyLabel?: string;
+  onClick: () => void;
+  buttonRef?: React.Ref<HTMLButtonElement>;
+}) {
+  return (
+    <button
+      ref={buttonRef}
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      className="group relative mt-4 flex w-full items-stretch overflow-hidden rounded-xl border border-os-accent/70 bg-os-accent text-os-accent-ink shadow-[0_1px_0_rgba(255,255,255,.55)_inset,0_18px_40px_-18px_rgb(var(--os-accent)/0.55)] transition-[transform,box-shadow,filter] duration-200 hover:-translate-y-px hover:shadow-[0_1px_0_rgba(255,255,255,.6)_inset,0_22px_44px_-16px_rgb(var(--os-accent)/0.7)] active:translate-y-0 active:brightness-95 disabled:pointer-events-none disabled:opacity-60"
+    >
+      {/* Sheen that sweeps once across on hover */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/45 to-transparent opacity-0 transition-[transform,opacity] duration-700 ease-out group-hover:translate-x-[400%] group-hover:opacity-100"
+      />
+      <span className="flex flex-1 items-center justify-between gap-3 px-5 py-3.5">
+        <span className="font-display text-[15px] font-semibold tracking-[-0.01em]">
+          {busy ? busyLabel ?? label : label}
+        </span>
+        <span className="relative grid h-6 w-6 place-items-center rounded-full bg-os-accent-ink/10">
+          {busy ? (
+            <span className="h-3 w-3 animate-spin rounded-full border-2 border-os-accent-ink/30 border-t-os-accent-ink" />
+          ) : (
+            <ArrowRight size={14} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+          )}
+        </span>
+      </span>
+      <span className="flex items-center border-l border-os-accent-ink/15 bg-os-accent-ink/10 px-4 font-label text-[12px] font-bold tracking-[0.08em] tabular-nums">
+        {amount}
+      </span>
+    </button>
+  );
+}
+
 /** Owner-only gear on each bot card: status, price, monthly pricing, payment. */
 function BaseSettingsGear({ base, status }: { base: PricedBase; status: BotStatus }) {
   const [open, setOpen] = useState(false);
@@ -812,8 +864,9 @@ export function BotForge() {
   // While stockCount is still loading (null) we conservatively assume preorder so
   // the button doesn't flip mid-render.
   const inStock = salesLive && stockCount !== null && stockCount >= botsNeeded;
-  const primaryCtaLabel = inStock ? "Order my bot" : "Preorder my bot";
-  const confirmCtaLabel = inStock ? "Confirm order" : "Confirm preorder";
+  // Both buttons say where they lead: the first opens the payment section,
+  // the second leaves for the payment page (card, Robux, or a free order).
+  const primaryCtaLabel = "Continue to payment";
 
 
   // React to admin "INCLUDED" toggles in real time:
@@ -2057,13 +2110,12 @@ export function BotForge() {
             )}
             {!showPayment && (
               <>
-                <button
-                  className="w-full mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-os-accent px-6 py-3 font-label text-[12px] font-bold uppercase tracking-[0.14em] text-os-accent-ink transition hover:brightness-105 active:translate-y-px disabled:opacity-50 disabled:pointer-events-none"
+                <CheckoutButton
+                  label={primaryCtaLabel}
+                  amount={comped ? "$0.00" : `$${finalTotal.toFixed(2)}`}
+                  busy={submitting}
                   onClick={submit}
-                  disabled={submitting}
-                >
-                  {primaryCtaLabel} <ArrowRight />
-                </button>
+                />
                 <BotStockIndicator className="mt-2" />
               </>
             )}
@@ -2333,14 +2385,26 @@ export function BotForge() {
 
             {showPayment && (
               <>
-                <button
-                  ref={confirmBtnRef}
-                  className="w-full mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-os-accent px-6 py-3 font-label text-[12px] font-bold uppercase tracking-[0.14em] text-os-accent-ink transition hover:brightness-105 active:translate-y-px disabled:opacity-50 disabled:pointer-events-none"
+                <CheckoutButton
+                  buttonRef={confirmBtnRef}
+                  label={
+                    comped
+                      ? "Place order"
+                      : payMethod === "robux" && robuxAllowed && finalTotal > 0
+                        ? "Go to Robux payment"
+                        : "Go to payment"
+                  }
+                  amount={
+                    comped
+                      ? "$0.00"
+                      : payMethod === "robux" && robuxAllowed && finalTotal > 0
+                        ? formatRobux(robuxFor(finalTotal))
+                        : `$${finalTotal.toFixed(2)}`
+                  }
+                  busy={submitting}
+                  busyLabel={comped ? "Placing order" : "Opening payment"}
                   onClick={submit}
-                  disabled={submitting}
-                >
-                  {confirmCtaLabel} <ArrowRight />
-                </button>
+                />
                 <BotStockIndicator className="mt-2" />
                 <p className="text-[10px] text-os-faint mt-2 leading-relaxed">
                   By placing your order you agree to Oversite's{" "}
