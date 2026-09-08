@@ -82,3 +82,4 @@
 + If a payment does not go through, the same fill turns red and says Transaction incomplete with the reason and a way back
 + Placing an order no longer pops a loading box. The button carries the wait, and the green grows out of that button to fill the screen before the thank-you page
 + Security review and fixes across the site, database, and bot functions. Team seats, order payment status, bot secrets, and every bot's data are now locked to their owners
++ The Join Message block now opens in the V2 message builder like every other block. Designs saved with the old embed editor are carried over
