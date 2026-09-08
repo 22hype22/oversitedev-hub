@@ -72,7 +72,27 @@ async function expireOne(sub: { id: string; user_id: string }) {
   console.log("Expired hosting grace for user", sub.user_id, "cancelled", botIds.length, "bots");
 }
 
-Deno.serve(async (_req) => {
+// Only the database cron may run this. It cancels bots, so an open endpoint
+// would let anyone with the public key trigger a mass cancellation. The cron
+// sends the shared secret from deploy_config; nothing else knows it.
+async function callerAllowed(req: Request): Promise<boolean> {
+  const provided = req.headers.get("x-internal-secret") ?? "";
+  let secret = Deno.env.get("INTERNAL_DEPLOY_SECRET") ?? "";
+  if (!secret) {
+    const { data } = await supabase.from("deploy_config").select("internal_secret").eq("id", 1).maybeSingle();
+    secret = String(data?.internal_secret ?? "");
+  }
+  return secret.length >= 16 && provided === secret;
+}
+
+Deno.serve(async (req) => {
+  if (!(await callerAllowed(req))) {
+    console.warn("enforce-hosting-grace: forbidden caller");
+    return new Response(JSON.stringify({ error: "Forbidden" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
   try {
     const { data: due, error } = await supabase
       .from("hosting_subscriptions")
