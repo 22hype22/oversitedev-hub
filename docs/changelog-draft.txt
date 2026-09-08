@@ -61,3 +61,5 @@
 + The Variables panel is split into Server variables and Block variables, and the block slides over so it and the panel stay centred together
 + New groups show up the moment you create them instead of waiting on the server list
 + Dragging a bot or a block near the top or bottom of the screen scrolls the page much faster the closer you get to the edge
++ You can now pay a bot order with Robux on the website. Pick Robux at checkout, buy the gamepass made for your order, and the order is paid as soon as Roblox records the sale
++ Admins can turn Robux checkout on or off and set the Robux per dollar rate from the Danger Zone

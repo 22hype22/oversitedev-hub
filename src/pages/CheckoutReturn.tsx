@@ -40,6 +40,7 @@ export default function CheckoutReturn() {
   const sessionId = searchParams.get("session_id");
   const setupOrderId = searchParams.get("order");
   const comped = searchParams.get("comped") === "1";
+  const robux = searchParams.get("robux") === "1";
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [files, setFiles] = useState<PurchasedFile[]>([]);
@@ -127,7 +128,9 @@ export default function CheckoutReturn() {
         <p className="mb-6" style={{ color: "var(--os-body)" }}>
           {comped
             ? "100% off — no charge. Your order is all set."
-            : sessionId || setupOrderId
+            : robux
+              ? "Your Robux payment was verified."
+              : sessionId || setupOrderId
               ? "Your payment was received."
               : "No session information found."}
         </p>

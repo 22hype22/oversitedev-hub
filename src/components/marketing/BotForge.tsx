@@ -13,6 +13,7 @@ import {
 import { useBotAvailability, setBotAvailability, type BotStatus } from "@/hooks/useBotAvailability";
 import { useOwnedBots } from "@/hooks/useOwnedBots";
 import { useBotSalesMode } from "@/hooks/useBotSalesMode";
+import { useRobuxCheckout, robuxFor, formatRobux } from "@/hooks/useRobuxCheckout";
 import { useAddonOverrides, setAddonIncluded } from "@/hooks/useAddonOverrides";
 import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { BotStockIndicator } from "@/components/site/BotStockIndicator";
@@ -474,6 +475,16 @@ export function BotForge() {
   const [payZip, setPayZip] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [paymentPlan, setPaymentPlan] = useState<"full" | "3" | "6" | "10">("full");
+  // Card (saved now, charged at build start) or Robux (paid up front through
+  // a one-off gamepass on /checkout/robux). Robux is always paid in full.
+  const [payMethod, setPayMethod] = useState<"card" | "robux">("card");
+  const { enabled: robuxEnabled, rate: robuxRate } = useRobuxCheckout();
+  useEffect(() => {
+    if (payMethod === "robux") setPaymentPlan("full");
+  }, [payMethod]);
+  useEffect(() => {
+    if (!robuxEnabled) setPayMethod("card");
+  }, [robuxEnabled]);
   const [engineVersion, setEngineVersion] = useState<"v1" | "v2">("v1");
   // Managed hosting is billed for Discord bots only — ER:LC / Roblox bots are
   // hosted free. The per-row `monthly_hosting` column is computed at insert time
@@ -1006,6 +1017,13 @@ export function BotForge() {
         }
       } catch {
         /* not comped (or check failed) — fall through to normal checkout */
+      }
+
+      // Robux: the hosted page mints a gamepass for this order, the customer
+      // buys it on Roblox, and ownership marks the order paid. No card.
+      if (payMethod === "robux" && robuxEnabled && finalTotal > 0) {
+        window.location.href = `${window.location.origin}/checkout/robux?order=${orderId}`;
+        return;
       }
 
       // Save the card via a SetupIntent — NO charge happens here. The card is
@@ -1922,6 +1940,47 @@ export function BotForge() {
                     </div>
                   ) : (
                     <>
+                      {robuxEnabled && finalTotal > 0 && (
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                          {([
+                            { id: "card", label: "Card", sub: "Saved now, charged at build start" },
+                            { id: "robux", label: "Robux", sub: `${formatRobux(robuxFor(finalTotal, robuxRate))} up front` },
+                          ] as const).map((opt) => {
+                            const active = payMethod === opt.id;
+                            return (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => setPayMethod(opt.id)}
+                                className={`text-left rounded-lg border p-2.5 transition ${
+                                  active
+                                    ? "border-os-accent bg-os-accent/10 shadow-[0_0_30px_-10px_rgb(var(--os-accent)/0.6)]"
+                                    : "border-os-hairline/40 bg-os-bg/40 hover:border-os-accent/50"
+                                }`}
+                              >
+                                <div className="text-xs font-medium text-os-heading flex items-center justify-between">
+                                  {opt.label}
+                                  {active && <Check size={12} className="text-os-accent" />}
+                                </div>
+                                <div className="text-[10px] text-os-faint mt-0.5">{opt.sub}</div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {payMethod === "robux" && robuxEnabled && finalTotal > 0 ? (
+                        <div className="rounded-lg border border-os-accent/40 bg-os-accent/10 p-3">
+                          <div className="text-xs font-medium text-os-heading flex items-center justify-between">
+                            Pay in full with Robux
+                            <span className="text-os-accent">{formatRobux(robuxFor(finalTotal, robuxRate))}</span>
+                          </div>
+                          <div className="text-[10px] text-os-faint mt-1 leading-relaxed">
+                            ${finalTotal.toFixed(2)} at {Math.round(robuxRate).toLocaleString()} Robux per dollar. After
+                            you place the order you buy a gamepass made just for it on Roblox, and your
+                            order is paid the moment Roblox records the sale.
+                          </div>
+                        </div>
+                      ) : (
                       <div className="grid grid-cols-2 gap-2">
                         {([
                           { id: "full", label: "Pay in full", sub: `$${finalTotal.toFixed(2)} once` },
@@ -1950,11 +2009,14 @@ export function BotForge() {
                           );
                         })}
                       </div>
+                      )}
+                      {!(payMethod === "robux" && robuxEnabled && finalTotal > 0) && (
                       <p className="text-[10px] text-os-faint mt-2.5 leading-relaxed">
                         {paymentPlan === "full"
                           ? "One charge once we confirm your build scope."
                           : `${paymentPlan} equal monthly payments — no fees, no interest. Build starts after the first payment clears.`}
                       </p>
+                      )}
                     </>
                   )}
                 </div>

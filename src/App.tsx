@@ -29,6 +29,7 @@ const Admin = lazy(() => import("./pages/Admin.tsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const CheckoutReturn = lazy(() => import("./pages/CheckoutReturn.tsx"));
 const CheckoutSetup = lazy(() => import("./pages/CheckoutSetup.tsx"));
+const CheckoutRobux = lazy(() => import("./pages/CheckoutRobux.tsx"));
 const Terms = lazy(() => import("./pages/Terms.tsx"));
 const MeetTheOwner = lazy(() => import("./pages/MeetTheOwner.tsx"));
 const MeetTheTeam = lazy(() => import("./pages/MeetTheTeam.tsx"));
@@ -193,6 +194,7 @@ const ROUTE_TITLES: Record<string, string> = {
   "/bot-dashboard": "Dashboard — Oversite Customs",
   "/checkout/return": "Checkout — Oversite Customs",
   "/checkout/setup": "Checkout — Oversite Customs",
+  "/checkout/robux": "Pay with Robux — Oversite Customs",
   "/terms": "Terms of Service — Oversite Customs",
   "/explore/team": "Meet the Team — Oversite Customs",
   "/explore/owner": "Meet the Owner — Oversite Customs",
@@ -318,6 +320,7 @@ const App = () => {
                 <Route path="/bot-dashboard" element={<BotDashboard />} />
                 <Route path="/checkout/return" element={<CheckoutReturn />} />
                 <Route path="/checkout/setup" element={<CheckoutSetup />} />
+                <Route path="/checkout/robux" element={<CheckoutRobux />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/explore/team" element={<MeetTheTeam />} />
                 <Route path="/support-ideas" element={<SupportIdeas />} />
