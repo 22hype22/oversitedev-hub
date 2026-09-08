@@ -448,20 +448,18 @@ function MoneyField({
 }
 
 /**
- * The checkout button: a split control with the action on the left and the
- * amount in a darker cap on the right, a hairline top highlight, and an arrow
- * that steps forward on hover. One piece, not a default pill.
+ * The checkout button: a single face with a hairline top highlight, the
+ * label centred, an arrow disc pinned to the right that steps forward on
+ * hover, and a sheen that sweeps across once. No amount on it.
  */
 function CheckoutButton({
   label,
-  amount,
   busy,
   busyLabel,
   onClick,
   buttonRef,
 }: {
   label: string;
-  amount: string;
   busy?: boolean;
   busyLabel?: string;
   onClick: () => void;
@@ -473,27 +471,22 @@ function CheckoutButton({
       type="button"
       onClick={onClick}
       disabled={busy}
-      className="group relative mt-4 flex w-full items-stretch overflow-hidden rounded-xl border border-os-accent/70 bg-os-accent text-os-accent-ink shadow-[0_1px_0_rgba(255,255,255,.55)_inset,0_18px_40px_-18px_rgb(var(--os-accent)/0.55)] transition-[transform,box-shadow,filter] duration-200 hover:-translate-y-px hover:shadow-[0_1px_0_rgba(255,255,255,.6)_inset,0_22px_44px_-16px_rgb(var(--os-accent)/0.7)] active:translate-y-0 active:brightness-95 disabled:pointer-events-none disabled:opacity-60"
+      className="group relative mt-4 flex h-12 w-full items-center justify-center overflow-hidden rounded-xl border border-os-accent/70 bg-os-accent px-14 text-os-accent-ink shadow-[0_1px_0_rgba(255,255,255,.55)_inset,0_18px_40px_-18px_rgb(var(--os-accent)/0.55)] transition-[transform,box-shadow,filter] duration-200 hover:-translate-y-px hover:shadow-[0_1px_0_rgba(255,255,255,.6)_inset,0_22px_44px_-16px_rgb(var(--os-accent)/0.7)] active:translate-y-0 active:brightness-95 disabled:pointer-events-none disabled:opacity-60"
     >
       {/* Sheen that sweeps once across on hover */}
       <span
         aria-hidden
         className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/45 to-transparent opacity-0 transition-[transform,opacity] duration-700 ease-out group-hover:translate-x-[400%] group-hover:opacity-100"
       />
-      <span className="flex flex-1 items-center justify-between gap-3 px-5 py-3.5">
-        <span className="font-display text-[15px] font-semibold tracking-[-0.01em]">
-          {busy ? busyLabel ?? label : label}
-        </span>
-        <span className="relative grid h-6 w-6 place-items-center rounded-full bg-os-accent-ink/10">
-          {busy ? (
-            <span className="h-3 w-3 animate-spin rounded-full border-2 border-os-accent-ink/30 border-t-os-accent-ink" />
-          ) : (
-            <ArrowRight size={14} className="transition-transform duration-200 group-hover:translate-x-0.5" />
-          )}
-        </span>
+      <span className="font-display text-[15px] font-semibold tracking-[-0.01em]">
+        {busy ? busyLabel ?? label : label}
       </span>
-      <span className="flex items-center border-l border-os-accent-ink/15 bg-os-accent-ink/10 px-4 font-label text-[12px] font-bold tracking-[0.08em] tabular-nums">
-        {amount}
+      <span className="absolute right-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-os-accent-ink/10">
+        {busy ? (
+          <span className="h-3 w-3 animate-spin rounded-full border-2 border-os-accent-ink/30 border-t-os-accent-ink" />
+        ) : (
+          <ArrowRight size={14} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+        )}
       </span>
     </button>
   );
@@ -2112,7 +2105,6 @@ export function BotForge() {
               <>
                 <CheckoutButton
                   label={primaryCtaLabel}
-                  amount={comped ? "$0.00" : `$${finalTotal.toFixed(2)}`}
                   busy={submitting}
                   onClick={submit}
                 />
@@ -2393,13 +2385,6 @@ export function BotForge() {
                       : payMethod === "robux" && robuxAllowed && finalTotal > 0
                         ? "Go to Robux payment"
                         : "Go to payment"
-                  }
-                  amount={
-                    comped
-                      ? "$0.00"
-                      : payMethod === "robux" && robuxAllowed && finalTotal > 0
-                        ? formatRobux(robuxFor(finalTotal))
-                        : `$${finalTotal.toFixed(2)}`
                   }
                   busy={submitting}
                   busyLabel={comped ? "Placing order" : "Opening payment"}
