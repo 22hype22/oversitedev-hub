@@ -220,6 +220,49 @@ export function AddonConfigCard(props: Props) {
   );
 }
 
+// The join message used to be built with the embed (V1) editor. Turn a saved
+// embeds/messages config into V2 items so it opens in the V2 builder intact.
+function legacyInviteToV2(cfg: Record<string, any>): V2Item[] {
+  const uid = () => crypto.randomUUID();
+  const out: V2Item[] = [];
+  const embeds: any[] = Array.isArray(cfg.embeds) ? cfg.embeds : [];
+  for (const e of embeds) {
+    if (!e || typeof e !== "object") continue;
+    const children: any[] = [];
+    const head = [
+      e.authorName ? `-# ${String(e.authorName)}` : "",
+      e.title ? `## ${String(e.title)}` : "",
+      e.description ? String(e.description) : "",
+    ].filter(Boolean).join("\n");
+    if (head) {
+      if (e.thumbnailUrl) {
+        children.push({ id: uid(), type: "section", title: "", text: head, thumbnailUrl: String(e.thumbnailUrl), button: null });
+      } else {
+        children.push({ id: uid(), type: "text", text: head });
+      }
+    }
+    const fields = Array.isArray(e.fields)
+      ? e.fields.filter((f: any) => f && (f.name || f.value)).map((f: any) => ({
+          name: String(f.name ?? ""), value: String(f.value ?? ""), inline: !!f.inline,
+        }))
+      : [];
+    if (fields.length) children.push({ id: uid(), type: "fields", fields });
+    if (e.imageUrl) children.push({ id: uid(), type: "gallery", images: [String(e.imageUrl)] });
+    if (e.footerText) {
+      children.push({ id: uid(), type: "separator", divider: true, spacing: "small" });
+      children.push({ id: uid(), type: "text", text: `-# ${String(e.footerText)}` });
+    }
+    if (!children.length) continue;
+    out.push({ id: uid(), type: "container", accentColor: String(e.color || "#5865F2"), children } as unknown as V2Item);
+  }
+  const messages: any[] = Array.isArray(cfg.messages) ? cfg.messages : [];
+  for (const m of messages) {
+    const text = String(m ?? "").trim();
+    if (text) out.push({ id: uid(), type: "text", text } as V2Item);
+  }
+  return out;
+}
+
 function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVersion: engineVersionProp, open: openProp, onOpenChange, enabled = true, onToggleEnabled }: Props) {
   const variablesScope = useVariablesScope();
   const dialogContentRef = useRef<HTMLDivElement>(null);
@@ -327,7 +370,6 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
   const [verifyV2Items, setVerifyV2Items] = useState<V2Item[]>([]);
   const [verifyV2MountKey, setVerifyV2MountKey] = useState(0);
   const inviteV2Ref = useRef<MessagesV2BuilderHandle>(null);
-  const inviteSayRef = useRef<SayCommandBuilderHandle>(null);
   const [inviteV2Items, setInviteV2Items] = useState<V2Item[]>([]);
   const [inviteV2MountKey, setInviteV2MountKey] = useState(0);
   // Customs "Messages" — its own V2 builder ref/state (send-only, starts empty).
@@ -752,7 +794,9 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
       const components = Array.isArray((cfg as any).components)
         ? ((cfg as any).components as V2Item[])
         : [];
-      setInviteV2Items(components);
+      // Designs saved by the old embed builder come back as embeds/messages;
+      // lift them into V2 items so the owner keeps what they built.
+      setInviteV2Items(components.length ? components : legacyInviteToV2(cfg));
       setInviteV2MountKey((k) => k + 1);
       setAppliedAt((data as any).applied_at ?? null);
     })();
@@ -5558,8 +5602,7 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                 </p>
                 <VariablesButton />
               </div>
-              {engineVersion === "v2" || isDesignerMsg || isCustomsSmallUi || isCustomsVerification ? (
-                <MessagesV2Builder
+              <MessagesV2Builder
                   key={isCustomsVerification ? `verify-panel-v2-${verifyPanelV2MountKey}` : isDesignerMsg || isCustomsSmallUi ? `customs-msg-v2-${messagesV2MountKey}` : `invite-v2-${inviteV2MountKey}`}
                   ref={isCustomsVerification ? verifyPanelV2Ref : isDesignerMsg || isCustomsSmallUi ? messagesV2Ref : inviteV2Ref}
                   embedded
@@ -5575,18 +5618,7 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                       disabled: true,
                     }],
                   } as unknown as V2Item] : undefined}
-                />
-              ) : (
-                <SayCommandBuilder
-                  ref={inviteSayRef}
-                  mode="rules"
-                  feature="invite"
-                  extraConfig={{ channel_id: String(values.channel_id ?? "") }}
-                  botId={botId}
-                  botName={botName}
-                  botAvatarUrl={botAvatarUrl}
-                />
-              )}
+              />
             </div>
           ) : isTicketLike ? (
             <div className="space-y-5 py-2">
@@ -5723,17 +5755,7 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                     return;
                   }
                   if (isInviteMessage) {
-                    if (engineVersion === "v2") {
-                      void saveInviteMessage();
-                    } else {
-                      setSaving(true);
-                      try {
-                        const ok = await inviteSayRef.current?.send();
-                        if (ok) setOpen(false);
-                      } finally {
-                        setSaving(false);
-                      }
-                    }
+                    void saveInviteMessage();
                     return;
                   }
                   if (isTicketPanel) {
