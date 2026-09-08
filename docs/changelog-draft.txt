@@ -59,3 +59,5 @@
 + About Me now applies for every deployed bot. Bots whose token lives only on Railway are looked up there
 + The Variables panel now lists the order status service tokens you set up, like {liveries} and {liveriesstatus}, plus {invite list} and {queue list}, on every message design of that bot
 + The Variables panel is split into Server variables and Block variables, and the block slides over so it and the panel stay centred together
++ New groups show up the moment you create them instead of waiting on the server list
++ Dragging a bot or a block near the top or bottom of the screen scrolls the page much faster the closer you get to the edge

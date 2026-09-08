@@ -1644,6 +1644,11 @@ const CDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
 type Group = { id: string; name: string };
 
+// Auto-scroll while dragging: start scrolling once the pointer is in the
+// outer 30% of the viewport and ramp up hard the closer it gets to the edge,
+// so holding a card at the bottom of the screen moves the page quickly.
+const DRAG_AUTOSCROLL = { threshold: { x: 0.12, y: 0.3 }, acceleration: 45, interval: 5 } as const;
+
 const DEFAULT_DASH_ORDER = ["setup", "activity", "table", "bots", "spotlight"];
 
 // One draggable dashboard box. Whole card is the grab area; a small movement
@@ -2105,13 +2110,24 @@ const BotDashboard = () => {
     const n = newGroupName.trim();
     if (!n || creatingGroup) return;
     setCreatingGroup(true);
-    const { error } = await (supabase as any).rpc("group_create", { _name: n, _bot_ids: [] });
+    const t0 = performance.now();
+    const { data, error } = await (supabase as any).rpc("group_create", { _name: n, _bot_ids: [] });
+    console.info(`[groups] group_create took ${((performance.now() - t0) / 1000).toFixed(2)}s`);
     setCreatingGroup(false);
     if (error) { toast.error("Couldn't create group", { description: error.message }); return; }
+    if (data && data.ok === false) { toast.error("Couldn't create group", { description: data.error ?? "create failed" }); return; }
     setNewGroupName("");
-    await loadGroups();
+    // Show it straight away. group_list is slow, so it refreshes in the
+    // background and corrects the entry if anything differs.
+    const id = String(data?.id ?? data?.group_id ?? "");
+    if (id) {
+      setGroups((prev) => (prev.some((g) => g.id === id) ? prev : [...prev, { id, name: n }]));
+      if (groupsCacheKey) { try { localStorage.setItem(groupsCacheKey, JSON.stringify([...groups.filter((g) => g.id !== id), { id, name: n }])); } catch { /* ignore */ } }
+    }
+    toast.success(`Group ${n} created`);
     window.dispatchEvent(new CustomEvent("oversite:groups-changed"));
-  }, [newGroupName, creatingGroup, loadGroups]);
+    void loadGroups();
+  }, [newGroupName, creatingGroup, loadGroups, groups, groupsCacheKey]);
   useEffect(() => {
     if (!groupsOpen) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setGroupsOpen(false); };
@@ -2594,7 +2610,7 @@ const BotDashboard = () => {
 
             {/* MY BOTS */}
             <div className={"view" + (view === "bots" && canMyBots ? " on" : "")}>
-              <DndContext sensors={botSensors} collisionDetection={botCollision} onDragStart={onBotDragStart} onDragOver={onBotDragOver} onDragEnd={onBotDragEnd} onDragCancel={() => { lastOverRef.current = null; setBotDragId(null); }}>
+              <DndContext sensors={botSensors} collisionDetection={botCollision} autoScroll={DRAG_AUTOSCROLL} onDragStart={onBotDragStart} onDragOver={onBotDragOver} onDragEnd={onBotDragEnd} onDragCancel={() => { lastOverRef.current = null; setBotDragId(null); }}>
                 {/* Bots not in any group. Also the drop area for taking a bot out of its group. */}
                 <BotArea id="group:none" active={!!botDragId && !!effectiveGroup(byId[botDragId])} label={null}>
                   <SortableContext items={ungroupedBots.map((b) => b.id)} strategy={rectSortingStrategy}>
@@ -2664,7 +2680,7 @@ const BotDashboard = () => {
                       placeholder="New group name"
                       autoFocus
                     />
-                    <button type="button" className="cta" disabled={!newGroupName.trim() || creatingGroup} onClick={() => void createGroup()}>Create</button>
+                    <button type="button" className="cta" disabled={!newGroupName.trim() || creatingGroup} onClick={() => void createGroup()}>{creatingGroup ? "Creating…" : "Create"}</button>
                   </div>
                   {groups.length === 0 && <div className="gempty">No groups yet. Name one above to start.</div>}
                   {groups.map((g) => (

@@ -340,6 +340,7 @@ export function CustomsAddonGrid({
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
+      autoScroll={{ threshold: { x: 0.12, y: 0.3 }, acceleration: 45, interval: 5 }}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragCancel={() => setActiveId(null)}
