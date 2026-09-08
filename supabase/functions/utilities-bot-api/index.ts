@@ -148,10 +148,11 @@ async function authenticate(req: Request): Promise<{ ok: boolean; botId: string 
 }
 
 
-// Bots whose worker token may act across orders (the network bot that DMs
-// customers about their orders). Everything else is bound to its own bot.
+// Bots whose worker token may act across orders: the network bot and the
+// utilities bot, which DM customers about their orders and work the pending
+// order queue. Everything else is bound to its own bot.
 const PLATFORM_BOT_IDS = new Set(
-  (Deno.env.get("PLATFORM_BOT_IDS") || "50927258-eb0f-4756-88d0-e7396aaab220").split(",").map((s) => s.trim()).filter(Boolean),
+  (Deno.env.get("PLATFORM_BOT_IDS") || "50927258-eb0f-4756-88d0-e7396aaab220,8362bcce-cd0b-4999-9bff-1624d26aae30").split(",").map((s) => s.trim()).filter(Boolean),
 );
 
 Deno.serve(async (req) => {
