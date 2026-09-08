@@ -333,6 +333,7 @@ export function SortableAddonGrid({
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
+      autoScroll={{ threshold: { x: 0.12, y: 0.3 }, acceleration: 45, interval: 5 }}
       onDragEnd={onDragEnd}
     >
       <SortableContext items={displayOrder} strategy={rectSortingStrategy}>
