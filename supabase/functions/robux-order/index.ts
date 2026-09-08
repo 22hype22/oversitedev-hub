@@ -179,6 +179,8 @@ type OrderRow = {
   parent_order_id: string | null;
   status: string;
   bot_name: string | null;
+  base: string | null;
+  icon_url: string | null;
   total_amount: number | null;
   charged_at: string | null;
   payment_method: string | null;
@@ -192,7 +194,7 @@ async function loadOrder(orderId: string, userId: string): Promise<OrderRow> {
   const { data, error } = await admin
     .from("bot_orders")
     .select(
-      "id, user_id, parent_order_id, status, bot_name, total_amount, charged_at, payment_method, robux_gamepass_id, robux_amount, roblox_username, roblox_user_id",
+      "id, user_id, parent_order_id, status, bot_name, base, icon_url, total_amount, charged_at, payment_method, robux_gamepass_id, robux_amount, roblox_username, roblox_user_id",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -215,6 +217,8 @@ function summary(o: OrderRow) {
   return {
     orderId: o.id,
     botName: o.bot_name,
+    base: o.base,
+    iconUrl: o.icon_url && /^https?:\/\//.test(o.icon_url) ? o.icon_url : null,
     status: o.status,
     paid: isPaid(o),
     totalUsd: Number(o.total_amount ?? 0),

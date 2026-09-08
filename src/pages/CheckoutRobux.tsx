@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatRobux } from "@/hooks/useRobuxCheckout";
 import containers from "@/assets/containers.webp";
+import { OrderPlacedMoment } from "@/components/checkout/OrderPlacedMoment";
 
 // Same self-contained "system page" shell as /checkout/setup so the two
 // payment pages feel like one flow.
@@ -34,6 +35,8 @@ type Summary = {
   paid: boolean;
   status: string;
   botName: string | null;
+  base?: string | null;
+  iconUrl?: string | null;
   totalUsd: number;
   rate: number;
   robux: number;
@@ -76,6 +79,9 @@ export default function CheckoutRobux() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
+  // On verify, the placed moment plays over the card before Continue.
+  const [momentActive, setMomentActive] = useState(false);
+  const [momentCovered, setMomentCovered] = useState(false);
 
   const finish = (id: string) => navigate(`/checkout/return?order=${id}&robux=1`);
 
@@ -103,6 +109,7 @@ export default function CheckoutRobux() {
         setSummary(s);
         if (s.paid) {
           setStep("done");
+          setTimeout(() => setMomentActive(true), 400);
           return;
         }
         if (s.enabled === false) {
@@ -167,8 +174,7 @@ export default function CheckoutRobux() {
         if (s.success || s.paid) {
           setSummary(s);
           setStep("done");
-          toast.success("Payment verified");
-          setTimeout(() => finish(orderId), 1200);
+          setTimeout(() => setMomentActive(true), 120);
           return;
         }
         if (attempt === MAX_ATTEMPTS - 1) {
@@ -336,23 +342,30 @@ export default function CheckoutRobux() {
             )}
 
             {step === "done" && summary && (
-              <>
-                <h1 style={{ fontSize: 24, marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>
-                  <CheckCircle2 size={22} style={{ color: "#86d3a1" }} /> Payment verified
-                </h1>
-                <p style={{ fontSize: 14.5, lineHeight: 1.6, marginBottom: 20 }}>
-                  We matched your {robuxLabel} gamepass purchase to this order. One more step and your
-                  build is on its way.
-                </p>
-                <button
-                  type="button"
-                  className="ossys-accent"
-                  style={{ width: "100%" }}
-                  onClick={() => finish(orderId)}
-                >
-                  Continue
-                </button>
-              </>
+              <div style={{ position: "relative", overflow: "hidden", margin: -4, padding: 4 }}>
+                <OrderPlacedMoment
+                  active={momentActive}
+                  botName={summary.botName ?? ""}
+                  base={summary.base}
+                  iconUrl={summary.iconUrl}
+                  onCovered={() => setMomentCovered(true)}
+                  onContinue={() => finish(orderId)}
+                  note={`paid with ${robuxLabel}`}
+                />
+                {!momentCovered && (
+                  <div>
+                    <h1 style={{ fontSize: 24, marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>
+                      <CheckCircle2 size={22} style={{ color: "#86d3a1" }} /> Payment verified
+                    </h1>
+                    <p style={{ fontSize: 14.5, lineHeight: 1.6, marginBottom: 20 }}>
+                      We matched your {robuxLabel} gamepass purchase to this order.
+                    </p>
+                    <button type="button" className="ossys-accent" style={{ width: "100%" }} onClick={() => finish(orderId)}>
+                      Continue
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

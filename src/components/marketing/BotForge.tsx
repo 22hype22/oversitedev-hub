@@ -21,6 +21,7 @@ import { BotStockIndicator } from "@/components/site/BotStockIndicator";
 import { useBotStockCount } from "@/hooks/useBotStockCount";
 import { filterAddonsForBase } from "@/lib/addonCategories";
 import { BOT_BASE_ICONS } from "@/lib/botCatalog";
+import { OrderPlacedMoment } from "@/components/checkout/OrderPlacedMoment";
 import {
   Shield,
   LifeBuoy,
@@ -463,6 +464,7 @@ function CheckoutButton({
   busy,
   busyLabel,
   leaving,
+  placed,
   onClick,
   buttonRef,
 }: {
@@ -470,6 +472,8 @@ function CheckoutButton({
   busy?: boolean;
   busyLabel?: string;
   leaving?: boolean;
+  /** Order placed: the face folds into the disc and a check draws itself. */
+  placed?: boolean;
   onClick: () => void;
   buttonRef?: React.Ref<HTMLButtonElement>;
 }) {
@@ -478,26 +482,43 @@ function CheckoutButton({
       ref={buttonRef}
       type="button"
       onClick={onClick}
-      disabled={busy || leaving}
+      disabled={busy || leaving || placed}
       style={{ transitionTimingFunction: EASE_OUT }}
       className={`group relative mt-4 block w-full rounded-[14px] p-[3px] text-left bg-os-go/15 ring-1 ring-inset ring-os-go/45 transition-[transform,opacity] duration-[160ms] active:scale-[0.98] disabled:pointer-events-none ${
-        leaving ? "scale-[0.98] opacity-0" : busy ? "opacity-80" : ""
+        leaving ? "scale-[0.98] opacity-0" : busy && !placed ? "opacity-80" : ""
       }`}
     >
       <span
-        style={{ transitionTimingFunction: EASE_OUT }}
-        className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[11px] px-14 text-os-heading bg-[linear-gradient(180deg,rgb(var(--os-go)/0.58),rgb(var(--os-go)/0.40))] shadow-[inset_0_1px_0_rgba(255,255,255,0.32),inset_0_-1px_0_rgb(var(--os-go)/0.35),0_8px_20px_-14px_rgb(var(--os-go)/0.5)] transition-[background-color,box-shadow] duration-200 group-hover:bg-os-go/15"
+        style={{
+          transitionTimingFunction: EASE_OUT,
+          clipPath: placed ? "inset(0 calc(50% - 22px) 0 calc(50% - 22px) round 22px)" : "inset(0 0 0 0 round 11px)",
+        }}
+        className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[11px] px-14 text-os-heading bg-[linear-gradient(180deg,rgb(var(--os-go)/0.58),rgb(var(--os-go)/0.40))] shadow-[inset_0_1px_0_rgba(255,255,255,0.32),inset_0_-1px_0_rgb(var(--os-go)/0.35),0_8px_20px_-14px_rgb(var(--os-go)/0.5)] transition-[background-color,box-shadow,clip-path] duration-[340ms] group-hover:bg-os-go/15"
       >
-        <span className="font-display text-[15px] font-semibold tracking-[-0.01em]">
-          {busy ? busyLabel ?? label : label}
-        </span>
-        {/* Button in button: the arrow sits in its own disc flush with the
-            right padding and steps up and right on hover. */}
         <span
           style={{ transitionTimingFunction: EASE_OUT }}
-          className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-os-bg/35 text-os-go shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-[calc(50%+1px)]"
+          className={`font-display text-[15px] font-semibold tracking-[-0.01em] transition-[opacity,transform] duration-[120ms] ${
+            placed ? "translate-y-1 opacity-0" : ""
+          }`}
         >
-          {busy ? (
+          {busy && !placed ? busyLabel ?? label : label}
+        </span>
+        {/* Button in button: the arrow sits in its own disc flush with the
+            right padding and steps up and right on hover. On placed it slides
+            to the centre, turns solid green, and the check draws in. */}
+        <span
+          style={{ transitionTimingFunction: EASE_OUT, right: placed ? "calc(50% - 14px)" : undefined }}
+          className={`absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] transition-[transform,right,background-color,color] duration-[340ms] ${
+            placed
+              ? "bg-os-go text-os-accent-ink"
+              : "bg-os-bg/35 text-os-go group-hover:translate-x-0.5 group-hover:-translate-y-[calc(50%+1px)]"
+          }`}
+        >
+          {placed ? (
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M20 6 9 17l-5-5" className="os-check-draw" />
+            </svg>
+          ) : busy ? (
             <span className="h-3 w-3 animate-spin rounded-full border-2 border-os-go/30 border-t-os-go" />
           ) : (
             <ArrowRight size={14} strokeWidth={2} />
@@ -518,7 +539,10 @@ const PAY_REVEAL_CSS = `
 .os-pay-reveal>*:nth-child(3){animation-delay:80ms}
 .os-pay-reveal>*:nth-child(4){animation-delay:120ms}
 .os-pay-reveal>*:nth-child(5){animation-delay:160ms}
-@media (prefers-reduced-motion:reduce){@keyframes os-pay-in{from{opacity:0}to{opacity:1}}}
+.os-check-draw{stroke-dasharray:22;stroke-dashoffset:22;animation:os-check 300ms cubic-bezier(0.23,1,0.32,1) 240ms forwards}
+@keyframes os-check{to{stroke-dashoffset:0}}
+.os-placed-out{opacity:0;filter:blur(6px);pointer-events:none;transition:opacity 200ms cubic-bezier(0.23,1,0.32,1),filter 200ms cubic-bezier(0.23,1,0.32,1)}
+@media (prefers-reduced-motion:reduce){@keyframes os-pay-in{from{opacity:0}to{opacity:1}}.os-check-draw{animation-duration:1ms;animation-delay:0s}}
 `;
 
 /** Owner-only gear on each bot card: status, price, monthly pricing, payment. */
@@ -795,6 +819,27 @@ export function BotForge() {
   }, [user]);
   const [showAllAddons, setShowAllAddons] = useState<Record<string, boolean>>({});
   const [showPayment, setShowPayment] = useState(false);
+  // The order placed moment (comped orders place right here). The button
+  // folds into its check first, then the wash sweeps the estimate card and
+  // the placed state takes over. `covered` drops the old content while the
+  // card is fully green.
+  const [placed, setPlaced] = useState<{ id: string; name: string; base: string; icon: string | null } | null>(null);
+  const [placedActive, setPlacedActive] = useState(false);
+  const [placedCovered, setPlacedCovered] = useState(false);
+  const startPlacedMoment = (orderId: string) => {
+    const tabs = isPack ? PACK_TABS : visibleIdentityTabs;
+    const ident = usesPackTabs ? packIdentities[tabs[0].id] ?? identity : identity;
+    const base = usesPackTabs ? tabs[0].id : bases.join("+");
+    setPlaced({ id: orderId, name: ident.name.trim() || identity.name.trim(), base, icon: ident.icon ?? identity.icon });
+    setTimeout(() => setPlacedActive(true), 520);
+    setTimeout(() => {
+      document.getElementById("estimate-card")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 200);
+  };
+  const continueAfterPlaced = () => {
+    if (!placed) return;
+    window.location.href = `${window.location.origin}/checkout/return?order=${placed.id}&comped=1`;
+  };
   // The first button plays a short exit, then the payment panel opens and
   // its blocks rise in one after the other.
   const [ctaLeaving, setCtaLeaving] = useState(false);
@@ -1353,17 +1398,10 @@ export function BotForge() {
           body: { botOrderId: orderId },
         });
         if (comp?.comped) {
-          sonnerToast.success(
-            comp.status === "waitlisted" ? "You're on the list — 100% off" : "You're all set — 100% off",
-            {
-              description:
-                comp.status === "waitlisted"
-                  ? "No charge. Your bot is reserved and deploys the moment a slot frees up."
-                  : "No charge. Your bot is being prepared right now.",
-              duration: 9000,
-            },
-          );
-          window.location.href = `${window.location.origin}/checkout/return?order=${orderId}&comped=1`;
+          // No charge. Play the placed moment in the estimate card; Continue
+          // takes them on to the Discord step on the return page.
+          setSubmitting(false);
+          startPlacedMoment(orderId);
           return;
         }
       } catch {
@@ -2044,7 +2082,20 @@ export function BotForge() {
 
           {/* Estimate + submit */}
           <style>{PAY_REVEAL_CSS}</style>
-          <div className="rounded-2xl border border-os-accent/30 bg-gradient-to-br from-os-accent/10 via-os-surface/30 to-os-bg/40 backdrop-blur-sm p-5">
+          <div id="estimate-card" className="relative overflow-hidden rounded-2xl border border-os-accent/30 bg-gradient-to-br from-os-accent/10 via-os-surface/30 to-os-bg/40 backdrop-blur-sm p-5">
+            {placed && (
+              <OrderPlacedMoment
+                active={placedActive}
+                botName={placed.name}
+                base={placed.base}
+                iconUrl={placed.icon}
+                onCovered={() => setPlacedCovered(true)}
+                onContinue={continueAfterPlaced}
+                note="no charge"
+              />
+            )}
+            {!placedCovered && (
+            <div className={placedActive ? "os-placed-out" : ""}>
             <div className="flex items-center justify-between">
               <span className="font-label text-xs uppercase tracking-widest text-os-faint">
                 Estimated
@@ -2429,6 +2480,7 @@ export function BotForge() {
                   }
                   busy={submitting}
                   busyLabel={comped ? "Placing order" : "Opening payment"}
+                  placed={!!placed}
                   onClick={submit}
                 />
                 <BotStockIndicator className="mt-2" />
@@ -2446,6 +2498,8 @@ export function BotForge() {
             <p className="text-[10px] text-os-faint mt-3 leading-relaxed">
               *Final pricing depends on scope. We'll confirm everything before any work begins.
             </p>
+            </div>
+            )}
           </div>
         </aside>
       </div>
