@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-/** Robux per 1 USD before the markup: every $100 is 10,000 Robux. */
-export const DEFAULT_ROBUX_PER_USD = 100;
+/** Robux per 1 USD before the markup: every $100 is 10,000 Robux. Fixed. */
+export const ROBUX_PER_USD = 100;
 /** Robux prices are 30 percent above the dollar price to cover Roblox's cut. */
 export const ROBUX_MARKUP = 1.3;
 
@@ -10,35 +10,31 @@ export const ROBUX_MARKUP = 1.3;
  * Robux owed for a USD amount: the dollar price plus the markup at the rate,
  * then bumped to the next thousand less one so it ends in 999. $99 is 12,999.
  */
-export const robuxFor = (usd: number, rate: number) => {
-  const raw = Math.max(0, usd) * ROBUX_MARKUP * (rate > 0 ? rate : DEFAULT_ROBUX_PER_USD);
+export const robuxFor = (usd: number) => {
+  const raw = Math.max(0, usd) * ROBUX_MARKUP * ROBUX_PER_USD;
   return Math.max(99, (Math.floor(raw / 1000) + 1) * 1000 - 1);
 };
 
 export const formatRobux = (robux: number) => `R$ ${Math.round(robux).toLocaleString()}`;
 
 /**
- * Site-wide Robux checkout settings from `app_settings` (id = 1): whether the
- * option is offered and how many Robux one dollar costs. If the columns do not
- * exist yet (migration not run) the option is simply hidden.
+ * Whether Robux checkout is offered, from `app_settings` (id = 1). If the
+ * column does not exist yet (migration not run) the option is simply hidden.
+ * The price rule itself is fixed above and never read from the database.
  */
 export const useRobuxCheckout = () => {
   const [enabled, setEnabled] = useState(false);
-  const [rate, setRate] = useState(DEFAULT_ROBUX_PER_USD);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
     const apply = (row: any) => {
-      if (!row) return;
-      const r = Number(row.robux_per_usd);
-      if (Number.isFinite(r) && r > 0) setRate(r);
-      setEnabled(row.robux_orders_enabled !== false);
+      if (row && "robux_orders_enabled" in row) setEnabled(row.robux_orders_enabled !== false);
     };
     (async () => {
       const { data, error } = await (supabase as any)
         .from("app_settings")
-        .select("robux_orders_enabled, robux_per_usd")
+        .select("robux_orders_enabled")
         .eq("id", 1)
         .maybeSingle();
       if (!mounted) return;
@@ -59,5 +55,5 @@ export const useRobuxCheckout = () => {
     };
   }, []);
 
-  return { enabled, rate, loading };
+  return { enabled, loading };
 };

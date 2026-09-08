@@ -1,8 +1,8 @@
 // Robux checkout for bot orders.
 //
 // Every Robux order gets its own Roblox gamepass, priced at the order total
-// plus a 30 percent markup (Roblox's cut) converted with
-// app_settings.robux_per_usd. Owning that gamepass is the
+// plus a 30 percent markup (Roblox's cut) at 10,000 Robux per 100 dollars,
+// rounded to end in 999. Owning that gamepass is the
 // proof of payment, so two customers can never collide on one pass and a
 // price change on the shared /payment passes never affects an order.
 //
@@ -29,9 +29,8 @@ const ROBLOX_COOKIE = Deno.env.get("ROBLOX_COOKIE") ?? "";
 const PLACE_ID = Deno.env.get("ROBLOX_ORDER_PLACE_ID") || "108687688483255";
 const ICON_URL = Deno.env.get("ROBLOX_ORDER_ICON_URL") || "https://www.oversite.shop/OversiteLogo.png";
 const GAMEPASS_ITEM_TYPE = 1;
-const DEFAULT_RATE = 100;
-// Robux prices sit 30 percent above the dollar price. Keep in step with
-// ROBUX_MARKUP in src/hooks/useRobuxCheckout.tsx.
+// Fixed price rule. Keep in step with src/hooks/useRobuxCheckout.tsx.
+const ROBUX_PER_USD = 100;
 const ROBUX_MARKUP = 1.3;
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
@@ -152,10 +151,10 @@ async function ownsGamepass(userId: number, gamepassId: string): Promise<boolean
 
 // ---------------- settings + order helpers ----------------
 
-async function loadSettings(): Promise<{ enabled: boolean; rate: number }> {
+async function loadSettings(): Promise<{ enabled: boolean }> {
   const { data, error } = await admin
     .from("app_settings")
-    .select("robux_orders_enabled, robux_per_usd")
+    .select("robux_orders_enabled")
     .eq("id", 1)
     .maybeSingle();
   if (error) {
@@ -164,17 +163,13 @@ async function loadSettings(): Promise<{ enabled: boolean; rate: number }> {
     }
     throw new Error(error.message);
   }
-  const rate = Number(data?.robux_per_usd);
-  return {
-    enabled: data?.robux_orders_enabled !== false,
-    rate: Number.isFinite(rate) && rate > 0 ? rate : DEFAULT_RATE,
-  };
+  return { enabled: data?.robux_orders_enabled !== false };
 }
 
 // Dollar price plus the markup at the rate, bumped to the next thousand less
 // one so it ends in 999. Keep in step with robuxFor in useRobuxCheckout.tsx.
-const robuxFor = (usd: number, rate: number) => {
-  const raw = Math.max(0, Number(usd)) * ROBUX_MARKUP * rate;
+const robuxFor = (usd: number) => {
+  const raw = Math.max(0, Number(usd)) * ROBUX_MARKUP * ROBUX_PER_USD;
   return Math.max(99, (Math.floor(raw / 1000) + 1) * 1000 - 1);
 };
 
@@ -216,16 +211,16 @@ async function loadOrder(orderId: string, userId: string): Promise<OrderRow> {
 
 const isPaid = (o: OrderRow) => Boolean(o.charged_at) || !["pending_payment", "payment_failed"].includes(o.status);
 
-function summary(o: OrderRow, rate: number) {
+function summary(o: OrderRow) {
   return {
     orderId: o.id,
     botName: o.bot_name,
     status: o.status,
     paid: isPaid(o),
     totalUsd: Number(o.total_amount ?? 0),
-    rate,
+    rate: ROBUX_PER_USD,
     markup: ROBUX_MARKUP,
-    robux: o.robux_amount ?? robuxFor(Number(o.total_amount ?? 0), rate),
+    robux: o.robux_amount ?? robuxFor(Number(o.total_amount ?? 0)),
     gamepassId: o.robux_gamepass_id,
     gamepassUrl: o.robux_gamepass_id ? gamepassUrl(o.robux_gamepass_id) : null,
     robloxUsername: o.roblox_username,
@@ -259,13 +254,13 @@ Deno.serve(async (req) => {
     const order = await loadOrder(orderId, user.id);
 
     if (action === "status") {
-      return json({ ok: true, enabled: settings.enabled, ...summary(order, settings.rate) });
+      return json({ ok: true, enabled: settings.enabled, ...summary(order) });
     }
 
     if (action === "start") {
       if (!settings.enabled) return json({ error: "Robux checkout is turned off right now." }, 400);
       if (!ROBLOX_COOKIE) return json({ error: "Robux checkout isn't configured on the server yet." }, 500);
-      if (isPaid(order)) return json({ ok: true, ...summary(order, settings.rate) });
+      if (isPaid(order)) return json({ ok: true, ...summary(order) });
 
       const username = String(body.robloxUsername ?? "").trim();
       if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) {
@@ -277,7 +272,7 @@ Deno.serve(async (req) => {
       const roblox = await lookupUser(username);
       if (!roblox) return json({ error: `Roblox user "${username}" was not found.` }, 404);
 
-      const robux = robuxFor(total, settings.rate);
+      const robux = robuxFor(total);
       let gamepassId = order.robux_gamepass_id;
       if (!gamepassId) {
         const label = `Oversite order ${String(order.bot_name || "").trim() || order.id.slice(0, 8)}`;
@@ -307,13 +302,12 @@ Deno.serve(async (req) => {
         ok: true,
         ...summary(
           { ...order, robux_gamepass_id: gamepassId, robux_amount: robux, roblox_username: roblox.name, roblox_user_id: roblox.id },
-          settings.rate,
         ),
       });
     }
 
     if (action === "verify") {
-      if (isPaid(order)) return json({ ok: true, success: true, ...summary(order, settings.rate) });
+      if (isPaid(order)) return json({ ok: true, success: true, ...summary(order) });
       if (!order.robux_gamepass_id || !order.roblox_user_id) {
         return json({ error: "Start the Robux checkout first." }, 400);
       }
@@ -356,7 +350,7 @@ Deno.serve(async (req) => {
       return json({
         ok: true,
         success: true,
-        ...summary({ ...order, status: "paid", charged_at: ts }, settings.rate),
+        ...summary({ ...order, status: "paid", charged_at: ts }),
       });
     }
 

@@ -831,10 +831,8 @@ const ADMIN_HTML = `<div class="osd app">
           <div class="ch"><span class="eye">Storefront</span><h3>Robux checkout</h3><span class="mut">bot orders paid with Robux</span></div>
           <div class="cb">
             <div class="lbl2" data-dz="robux-state">Checking…</div>
-            <div class="subnote" style="margin-top:6px">Robux prices are the dollar price plus 30% (Roblox's cut) at this rate, rounded up to end in 999. At 100, $99 is 12,999 Robux. Each Robux order gets its own gamepass at that price, and owning the pass is the proof of payment.</div>
+            <div class="subnote" style="margin-top:6px">Robux prices are 10,000 Robux per $100 plus 30% (Roblox's cut), rounded up to end in 999, so $99 is 12,999 Robux. Each Robux order gets its own gamepass at that price, and owning the pass is the proof of payment.</div>
             <div class="confirm">
-              <input class="in mono" type="number" min="1" step="1" data-dz="robux-rate" placeholder="Robux per 1 USD, before the 30% markup">
-              <button class="btn" data-dz="robux-save">Save rate</button>
               <button class="btn" data-dz="robux-toggle">Turn off</button>
             </div>
           </div>
@@ -2716,49 +2714,34 @@ function wireDanger(root: HTMLElement): void {
     loadMarket();
   });
 
-  // Robux checkout — app_settings.robux_orders_enabled + robux_per_usd.
+  // Robux checkout — app_settings.robux_orders_enabled. The price rule is
+  // fixed in code (10,000 Robux per $100 plus 30%, ending in 999).
   const robuxStateEl = $('[data-dz="robux-state"]');
-  const robuxRateEl = $('[data-dz="robux-rate"]') as HTMLInputElement | null;
-  const robuxSaveBtn = $('[data-dz="robux-save"]') as HTMLButtonElement | null;
   const robuxToggleBtn = $('[data-dz="robux-toggle"]') as HTMLButtonElement | null;
   let robuxEnabled = true;
   async function loadRobux() {
     const { data, error } = await sb
       .from("app_settings")
-      .select("robux_orders_enabled, robux_per_usd")
+      .select("robux_orders_enabled")
       .eq("id", 1)
       .maybeSingle();
     if (error) {
       if (robuxStateEl)
         robuxStateEl.innerHTML =
           'Not set up yet <span class="pill-live" style="background:rgba(230,138,138,.15);color:#e08a8a">run the robux_orders migration</span>';
-      if (robuxSaveBtn) robuxSaveBtn.disabled = true;
       if (robuxToggleBtn) robuxToggleBtn.disabled = true;
       return;
     }
     robuxEnabled = data?.robux_orders_enabled !== false;
-    const rate = Number(data?.robux_per_usd ?? 100);
-    if (robuxRateEl && document.activeElement !== robuxRateEl) robuxRateEl.value = String(rate);
     if (robuxStateEl)
       robuxStateEl.innerHTML = robuxEnabled
-        ? `Robux checkout is on <span class="pill-live">${Math.round(rate).toLocaleString()} Robux per dollar, plus 30%</span>`
+        ? 'Robux checkout is on <span class="pill-live">$99 is 12,999 Robux</span>'
         : 'Robux checkout is <b style="color:#e08a8a">off</b> <span class="pill-live" style="background:rgba(230,138,138,.15);color:#e08a8a">card only</span>';
     if (robuxToggleBtn) {
       robuxToggleBtn.className = robuxEnabled ? "btn danger" : "btn";
       robuxToggleBtn.textContent = robuxEnabled ? "Turn off" : "Turn on";
     }
   }
-  robuxSaveBtn?.addEventListener("click", async () => {
-    const rate = Number(robuxRateEl?.value ?? "");
-    if (!Number.isFinite(rate) || rate <= 0) return toast.error("Enter a rate above 0");
-    const { error } = await sb
-      .from("app_settings")
-      .update({ robux_per_usd: rate, updated_at: new Date().toISOString() })
-      .eq("id", 1);
-    if (error) return toast.error(error.message || "Couldn't save the rate");
-    toast.success(`Rate saved: ${Math.round(rate).toLocaleString()} Robux per dollar`);
-    loadRobux();
-  });
   robuxToggleBtn?.addEventListener("click", async () => {
     const next = !robuxEnabled;
     const { error } = await sb
