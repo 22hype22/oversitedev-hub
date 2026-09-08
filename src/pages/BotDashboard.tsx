@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { RemovalUndoBar, type RemovalUndoItem } from "@/components/dashboard/RemovalUndoBar";
 import { AddAddonsDialog } from "@/components/dashboard/AddAddonsDialog";
 import { SortableAddonGrid } from "@/components/dashboard/SortableAddonGrid";
 import { CustomsAddonGrid } from "@/components/dashboard/CustomsAddonGrid";
@@ -249,6 +250,11 @@ const SHARED_ADDON_IDS: string[] = ["customs-messages", "invite-message", "custo
 // via ENTITLEMENT_STATUSES in useOwnedBots).
 const canCancelStatus = (status: string) =>
   status === "draft" || status === "submitted" || status === "paid" || status === "ready";
+// Only bots that bill monthly have a subscription to cancel. Roblox bases are
+// one-time purchases with free hosting, and personal bots are not billed at
+// all, so removing those is a plain delete. Mirrors the Hosting chip logic.
+const botHasSubscription = (bot: OwnedBot) =>
+  !!bot.monthly_hosting && !isRobloxBase(bot.base) && !bot.externallyManaged;
 
 /** Visual category metadata for grouped add-on config sections. */
 const ADDON_GROUPS: {
@@ -822,7 +828,7 @@ const BotSection = ({
             className="gap-2 text-destructive focus:text-destructive"
           >
             <XCircle className="h-4 w-4" />
-            Cancel subscription
+            {botHasSubscription(bot) ? "Cancel subscription" : "Delete bot"}
           </DropdownMenuItem>
         )}
         {showLeave && (
@@ -1769,10 +1775,13 @@ const BotDashboard = () => {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
   const [botId, setBotId] = useState<string | null>(() => restoredPosition(LS.bot) || null);
-  const [cancelTarget, setCancelTarget] = useState<OwnedBot | null>(null);
-  // Bots the user just cancelled — hidden from the dashboard instantly while the
-  // teardown completes (rolled back if the cancel actually fails).
+  // Bots the user just removed — hidden from the dashboard instantly. For 30s
+  // the removal is only local and the undo strip can bring the bot back; then
+  // the teardown runs for real (rolled back here if it actually fails).
   const [cancelledIds, setCancelledIds] = useState<Set<string>>(() => new Set());
+  const [pendingRemovals, setPendingRemovals] = useState<RemovalUndoItem[]>([]);
+  const pendingRef = useRef<Map<string, { bot: OwnedBot; timer: number }>>(new Map());
+  const accessTokenRef = useRef<string | null>(null);
   const [addonsTarget, setAddonsTarget] = useState<OwnedBot | null>(null);
 
   // The currently-rendered dashboard order (subset of dashOrder that has a
@@ -2211,41 +2220,111 @@ const BotDashboard = () => {
   const openPortal = async () => { const { data, error } = await supabase.functions.invoke("customer-portal"); if (error) { toast.error("Couldn't open billing portal", { description: error.message }); return; } const url = (data as { url?: string } | null)?.url; if (url) window.location.href = url; else toast.error("No billing portal available yet."); };
   const [confirmOut, setConfirmOut] = useState(false);
   const signOut = async () => { await supabase.auth.signOut(); navigate("/auth", { replace: true }); };
-  // Optimistic cancel: the status update fires server-side triggers and can
-  // take many seconds, so close the dialog immediately and track the work
-  // with a toast instead of freezing the UI on the button.
-  const cancelOrder = (bot: OwnedBot) => {
-    if (!user) return;
-    setCancelTarget(null);
-    // Remove it from the dashboard IMMEDIATELY (optimistic) and leave its page.
-    setCancelledIds((s) => { const n = new Set(s); n.add(bot.id); return n; });
-    if (botId === bot.id) setBotId(null);
-    // Tear down the deployment AND cancel the order server-side: cancel-bot-deploy
-    // runs with the service role, so it kills the Railway service (or detaches a
-    // self-hosted bot) AND flips status to 'cancelled' even when a direct client
-    // UPDATE is blocked by RLS. The direct update is a harmless fallback.
-    const work = (async () => {
-      const { error: fnErr } = await supabase.functions.invoke("cancel-bot-deploy", { body: { orderId: bot.id } });
-      if (fnErr) {
-        const { error: upErr } = await (supabase as any)
-          .from("bot_orders")
-          .update({ status: "cancelled" })
-          .eq("id", bot.id)
-          .eq("user_id", user.id);
-        if (upErr) throw new Error(upErr.message);
-      }
-      reload();
-    })();
-    // If it truly failed, roll back the optimistic removal so the bot reappears.
-    work.catch(() => {
-      setCancelledIds((s) => { const n = new Set(s); n.delete(bot.id); return n; });
-    });
-    toast.promise(work, {
-      loading: `Cancelling "${bot.bot_name}"…`,
-      success: `Cancelled "${bot.bot_name}"`,
-      error: (e: Error) => "Couldn't cancel — " + e.message,
-    });
+  // Tear down the deployment AND cancel the order server-side: cancel-bot-deploy
+  // runs with the service role, so it kills the Railway service (or detaches a
+  // self-hosted bot), frees the pool token, and flips status to 'cancelled'
+  // even when a direct client UPDATE is blocked by RLS. The direct update is a
+  // harmless fallback.
+  const teardown = async (bot: OwnedBot) => {
+    const { error: fnErr } = await supabase.functions.invoke("cancel-bot-deploy", { body: { orderId: bot.id } });
+    if (fnErr) {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error(fnErr.message);
+      const { error: upErr } = await (supabase as any)
+        .from("bot_orders")
+        .update({ status: "cancelled" })
+        .eq("id", bot.id)
+        .eq("user_id", u.user.id);
+      if (upErr) throw new Error(upErr.message);
+    }
   };
+
+  const dropPending = (id: string) => {
+    const entry = pendingRef.current.get(id);
+    if (entry) window.clearTimeout(entry.timer);
+    pendingRef.current.delete(id);
+    setPendingRemovals((list) => list.filter((it) => it.id !== id));
+  };
+
+  // The way back closed (timer ran out, strip dismissed, or the page was left):
+  // delete for good.
+  const commitRemoval = (id: string) => {
+    const entry = pendingRef.current.get(id);
+    if (!entry) return;
+    dropPending(id);
+    const bot = entry.bot;
+    teardown(bot)
+      .then(() => reload())
+      .catch((e: Error) => {
+        // It truly failed: bring the bot back so nothing looks deleted that isn't.
+        setCancelledIds((s) => { const n = new Set(s); n.delete(bot.id); return n; });
+        toast.error(`Couldn't ${botHasSubscription(bot) ? "cancel" : "delete"} "${bot.bot_name}"`, { description: e.message });
+      });
+  };
+
+  const undoRemoval = (id: string) => {
+    const entry = pendingRef.current.get(id);
+    if (!entry) return;
+    dropPending(id);
+    setCancelledIds((s) => { const n = new Set(s); n.delete(id); return n; });
+    toast.success(`"${entry.bot.bot_name}" is back`);
+  };
+
+  // Remove right away, no confirm box. The bot leaves the dashboard the moment
+  // it is clicked and the undo strip holds the only way back for 30 seconds.
+  const REMOVAL_WINDOW_MS = 30_000;
+  const startRemoval = (bot: OwnedBot) => {
+    if (!user || pendingRef.current.has(bot.id)) return;
+    setCancelledIds((s) => { const n = new Set(s); n.add(bot.id); return n; });
+    if (botId === bot.id) { setBotId(null); go("bots"); }
+    void supabase.auth.getSession().then(({ data }) => { accessTokenRef.current = data.session?.access_token ?? null; });
+    const timer = window.setTimeout(() => commitRemoval(bot.id), REMOVAL_WINDOW_MS);
+    pendingRef.current.set(bot.id, { bot, timer });
+    setPendingRemovals((list) => [
+      ...list,
+      {
+        id: bot.id,
+        name: bot.bot_name,
+        base: bot.base,
+        iconUrl: bot.icon_url,
+        subscription: botHasSubscription(bot),
+        startedAt: Date.now(),
+        windowMs: REMOVAL_WINDOW_MS,
+      },
+    ]);
+  };
+
+  // Leaving while a removal is pending counts as not going back. A keepalive
+  // request survives the tab closing; a route change inside the app runs the
+  // normal path from the unmount cleanup.
+  useEffect(() => {
+    const flushOnLeave = () => {
+      const token = accessTokenRef.current;
+      for (const [id, entry] of pendingRef.current) {
+        window.clearTimeout(entry.timer);
+        pendingRef.current.delete(id);
+        if (!token) continue;
+        try {
+          void fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cancel-bot-deploy`, {
+            method: "POST",
+            keepalive: true,
+            headers: {
+              "Content-Type": "application/json",
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ orderId: id }),
+          });
+        } catch { /* nothing else to try while the page is closing */ }
+      }
+    };
+    window.addEventListener("pagehide", flushOnLeave);
+    return () => {
+      window.removeEventListener("pagehide", flushOnLeave);
+      for (const id of Array.from(pendingRef.current.keys())) commitRemoval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => { if (loading) return; if (!user) navigate("/auth", { replace: true }); }, [user, loading, navigate]);
 
@@ -2708,7 +2787,7 @@ const BotDashboard = () => {
                     <div className="planrow"><div><div className="ct">Current plan</div><div className="planname">{owned.length} bot{owned.length === 1 ? "" : "s"} · monthly</div></div><span className="pillok">Active</span></div>
                     <div className="mrow"><span className="k">Bots</span><span className="v">{owned.length}</span></div>
                     <div className="mrow" style={{ borderBottom: 0 }}><span className="k">Manage</span><span className="v">Stripe portal</span></div>
-                    <div className="mbtns"><button className="ghost" onClick={() => firstOwned && setCancelTarget(firstOwned)}>Cancel a bot</button><button className="cta" style={{ width: "100%" }} onClick={openPortal}>Manage in portal</button></div>
+                    <div className="mbtns"><button className="ghost" onClick={() => go("bots")}>Cancel a bot</button><button className="cta" style={{ width: "100%" }} onClick={openPortal}>Manage in portal</button></div>
                   </div>
                   <div className="card"><div className="ch"><span className="ct">Invoices</span></div><p style={{ fontSize: "12.5px", color: "var(--faint)" }}>Your invoices and receipts live in the billing portal.</p></div>
                 </div>
@@ -2776,7 +2855,7 @@ const BotDashboard = () => {
                 <>
                   <span className="back" onClick={() => go("bots")}><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg> Back to my bots</span>
                   <ReadOnlyBotScope botId={activeBot.id} ownerUserId={activeBot.ownerUserId} viaTeam={activeBot.viaTeam}>
-                    <BotSection bot={activeBot} allBots={dashboardBots} userId={user.id} ownerEmail={user.email} freePeriod={freePeriods[activeBot.id]} onCancel={setCancelTarget} onAddAddons={setAddonsTarget} searchQuery="" highlightedAddonId={null} onReload={() => { reload(); reloadFreePeriods(); }} onEngineSwitch={(id, target) => setEngineOpt((prev) => ({ ...prev, [id]: target }))} />
+                    <BotSection bot={activeBot} allBots={dashboardBots} userId={user.id} ownerEmail={user.email} freePeriod={freePeriods[activeBot.id]} onCancel={startRemoval} onAddAddons={setAddonsTarget} searchQuery="" highlightedAddonId={null} onReload={() => { reload(); reloadFreePeriods(); }} onEngineSwitch={(id, target) => setEngineOpt((prev) => ({ ...prev, [id]: target }))} />
                   </ReadOnlyBotScope>
                 </>
               )}
@@ -2797,12 +2876,7 @@ const BotDashboard = () => {
         // every bot incl. dispatch, so it can't be used here — key on the base.
         && owned.some((b) => !b.viaTeam && !b.viaSupport && b.base !== "dispatch")
       } />
-      <AlertDialog open={!!cancelTarget} onOpenChange={(o) => !o && setCancelTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Cancel subscription for "{cancelTarget?.bot_name}"?</AlertDialogTitle><AlertDialogDescription>This stops recurring payments and hosting, takes the bot offline, and removes it from your dashboard.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Keep subscription</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(e) => { e.preventDefault(); if (cancelTarget) cancelOrder(cancelTarget); }}>Yes, cancel</AlertDialogAction></AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <RemovalUndoBar items={pendingRemovals} onUndo={undoRemoval} onClose={commitRemoval} />
       <AddAddonsDialog bot={addonsTarget} open={!!addonsTarget} onOpenChange={(o) => !o && setAddonsTarget(null)} />
       <AlertDialog open={confirmOut} onOpenChange={setConfirmOut}>
         <AlertDialogContent>
