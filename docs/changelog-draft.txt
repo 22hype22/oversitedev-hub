@@ -64,3 +64,4 @@
 + You can now pay a bot order with Robux on the website. Pick Robux at checkout, buy the gamepass made for your order, and the order is paid as soon as Roblox records the sale
 + Admins can turn Robux checkout on or off and set the Robux per dollar rate from the Danger Zone
 + The gear on each bot card in the builder now sets the status, the one-time price, a crossed-out price, and whether the bot has monthly pricing and how much
++ Each bot can be sold in USD, Robux, or both from the card gear, and checkout only offers what the picked bots allow

@@ -344,7 +344,8 @@ const PACK_TABS: { id: string; label: string; icon: typeof Shield }[] = [
 ];
 
 /** A base with the owner's price overrides folded in. */
-type PricedBase = Base & { monthly: boolean; monthlyPrice: number };
+type PayMode = "usd" | "robux" | "both";
+type PricedBase = Base & { monthly: boolean; monthlyPrice: number; pay: PayMode };
 
 const DEFAULT_MONTHLY_PRICE = 5;
 
@@ -358,7 +359,8 @@ function applyPricing(b: Base, p: BotPricing | undefined): PricedBase {
   const monthly = typeof p?.monthly === "boolean" ? p.monthly : !isRobloxBase(b.id);
   const m = Number(p?.monthly_price);
   const monthlyPrice = Number.isFinite(m) && m >= 0 ? m : DEFAULT_MONTHLY_PRICE;
-  return { ...b, price, oldPrice, monthly, monthlyPrice };
+  const pay: PayMode = p?.pay === "usd" || p?.pay === "robux" ? p.pay : "both";
+  return { ...b, price, oldPrice, monthly, monthlyPrice, pay };
 }
 
 const STATUS_OPTIONS: { id: BotStatus; label: string }[] = [
@@ -367,7 +369,76 @@ const STATUS_OPTIONS: { id: BotStatus; label: string }[] = [
   { id: "coming_soon", label: "Coming soon" },
 ];
 
-/** Owner-only gear on each bot card: status, price, and monthly pricing. */
+const PAY_OPTIONS: { id: PayMode; label: string }[] = [
+  { id: "both", label: "USD or Robux" },
+  { id: "usd", label: "USD only" },
+  { id: "robux", label: "Robux only" },
+];
+
+/** Three-way pill picker used inside the gear panel. */
+function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T;
+  options: { id: T; label: string }[];
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="grid gap-1 rounded-lg border border-os-hairline/50 bg-os-bg p-1" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+      {options.map((opt) => {
+        const active = value === opt.id;
+        return (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => onChange(opt.id)}
+            className={`rounded-md px-1 py-1.5 text-[11px] font-semibold leading-none transition ${
+              active ? "bg-os-accent text-os-accent-ink" : "text-os-body hover:bg-os-surface-2/60 hover:text-os-heading"
+            }`}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function MoneyField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  suffix,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  suffix?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-os-faint mb-1.5">{label}</span>
+      <span className="flex h-9 items-center rounded-lg border border-os-hairline/50 bg-os-bg px-2.5 transition focus-within:border-os-accent">
+        <span className="text-[13px] text-os-faint mr-1">$</span>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value.replace(/[^0-9.]/g, ""))}
+          className="min-w-0 flex-1 bg-transparent font-body text-[14px] text-os-heading placeholder:text-os-faint outline-none"
+        />
+        {suffix && <span className="text-[11px] text-os-faint ml-1">{suffix}</span>}
+      </span>
+    </label>
+  );
+}
+
+/** Owner-only gear on each bot card: status, price, monthly pricing, payment. */
 function BaseSettingsGear({ base, status }: { base: PricedBase; status: BotStatus }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -376,6 +447,7 @@ function BaseSettingsGear({ base, status }: { base: PricedBase; status: BotStatu
   const [oldPrice, setOldPrice] = useState(base.oldPrice != null ? String(base.oldPrice) : "");
   const [monthly, setMonthly] = useState(base.monthly);
   const [monthlyPrice, setMonthlyPrice] = useState(String(base.monthlyPrice));
+  const [pay, setPay] = useState<PayMode>(base.pay);
 
   // Reload the draft from live values each time the panel opens.
   useEffect(() => {
@@ -385,11 +457,12 @@ function BaseSettingsGear({ base, status }: { base: PricedBase; status: BotStatu
     setOldPrice(base.oldPrice != null ? String(base.oldPrice) : "");
     setMonthly(base.monthly);
     setMonthlyPrice(String(base.monthlyPrice));
-  }, [open, status, base.price, base.oldPrice, base.monthly, base.monthlyPrice]);
+    setPay(base.pay);
+  }, [open, status, base.price, base.oldPrice, base.monthly, base.monthlyPrice, base.pay]);
 
   const save = async () => {
     const p = Number(price);
-    if (!Number.isFinite(p) || p < 0) {
+    if (price.trim() === "" || !Number.isFinite(p) || p < 0) {
       sonnerToast.error("Enter a price of 0 or more");
       return;
     }
@@ -399,7 +472,7 @@ function BaseSettingsGear({ base, status }: { base: PricedBase; status: BotStatu
       return;
     }
     const m = Number(monthlyPrice);
-    if (monthly && (!Number.isFinite(m) || m < 0)) {
+    if (monthly && (monthlyPrice.trim() === "" || !Number.isFinite(m) || m < 0)) {
       sonnerToast.error("Enter a monthly price of 0 or more");
       return;
     }
@@ -410,6 +483,7 @@ function BaseSettingsGear({ base, status }: { base: PricedBase; status: BotStatu
         old_price: o,
         monthly,
         monthly_price: monthly ? m : base.monthlyPrice,
+        pay,
       });
       const res = data as { ok?: boolean; error?: string } | null;
       if (error || !res?.ok) {
@@ -435,9 +509,7 @@ function BaseSettingsGear({ base, status }: { base: PricedBase; status: BotStatu
     }
   };
 
-  const field =
-    "w-full rounded-lg border border-os-hairline/50 bg-os-bg/60 px-2.5 py-1.5 font-body text-[13px] text-os-heading placeholder:text-os-faint outline-none transition focus:border-os-accent/70";
-  const label = "block text-[10px] font-semibold uppercase tracking-wide text-os-faint mb-1";
+  const sectionLabel = "block text-[10px] font-semibold uppercase tracking-[0.12em] text-os-faint mb-1.5";
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -451,119 +523,80 @@ function BaseSettingsGear({ base, status }: { base: PricedBase; status: BotStatu
           <Settings2 size={13} />
         </button>
       </PopoverTrigger>
+      {/* The popover portals to <body>, outside the landing page's themed
+          root, so the theme class comes along or every os-* token is unset. */}
       <PopoverContent
         align="end"
-        sideOffset={6}
+        sideOffset={8}
+        collisionPadding={12}
         onClick={(e) => e.stopPropagation()}
-        className="w-64 rounded-xl border border-os-hairline/50 bg-os-surface/95 p-3 text-os-body shadow-xl backdrop-blur-md"
+        className="oversite-theme w-[300px] rounded-2xl border border-os-hairline/60 bg-os-surface p-0 text-os-body shadow-[0_24px_60px_-20px_rgba(0,0,0,.7)]"
       >
-        <div className="text-xs font-semibold text-os-heading mb-2.5">{base.name}</div>
+        <div className="flex items-center gap-2 border-b border-os-hairline/40 px-4 py-3">
+          <base.icon size={15} className="text-os-accent" />
+          <span className="font-display text-[13px] font-semibold text-os-heading">{base.name}</span>
+        </div>
 
-        <span className={label}>Status</span>
-        <div className="grid grid-cols-3 gap-1 mb-3">
-          {STATUS_OPTIONS.map((opt) => {
-            const active = draftStatus === opt.id;
-            return (
+        <div className="space-y-4 px-4 py-4">
+          <div>
+            <span className={sectionLabel}>Status</span>
+            <Segmented<BotStatus> value={draftStatus} options={STATUS_OPTIONS} onChange={(v) => setDraftStatus(v)} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <MoneyField label="One-time price" value={price} onChange={setPrice} />
+            <MoneyField label="Crossed out" value={oldPrice} onChange={setOldPrice} placeholder="none" />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-os-faint">Monthly pricing</span>
               <button
-                key={opt.id}
                 type="button"
-                onClick={() => setDraftStatus(opt.id)}
-                className={`rounded-md border px-1 py-1.5 text-[10px] font-semibold transition ${
-                  active
-                    ? "border-os-accent bg-os-accent/15 text-os-accent"
-                    : "border-os-hairline/40 bg-os-bg/40 text-os-body hover:border-os-accent/50"
+                role="switch"
+                aria-checked={monthly}
+                onClick={() => setMonthly((v) => !v)}
+                className={`relative h-5 w-9 shrink-0 rounded-full border transition ${
+                  monthly ? "border-os-accent bg-os-accent" : "border-os-hairline/60 bg-os-bg"
                 }`}
               >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <div>
-            <span className={label}>One-time price</span>
-            <div className="relative">
-              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-os-faint">$</span>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                inputMode="decimal"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                className={`${field} pl-5`}
-              />
-            </div>
-          </div>
-          <div>
-            <span className={label}>Crossed out</span>
-            <div className="relative">
-              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-os-faint">$</span>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                inputMode="decimal"
-                placeholder="none"
-                value={oldPrice}
-                onChange={(e) => setOldPrice(e.target.value)}
-                className={`${field} pl-5`}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-os-hairline/40 bg-os-bg/40 p-2 mb-3">
-          <label className="flex items-center justify-between gap-2 cursor-pointer">
-            <span className="text-[12px] font-medium text-os-heading">Monthly pricing</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={monthly}
-              onClick={() => setMonthly((v) => !v)}
-              className={`relative h-5 w-9 rounded-full border transition ${
-                monthly ? "border-os-accent bg-os-accent/70" : "border-os-hairline/50 bg-os-surface/70"
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 h-3.5 w-3.5 rounded-full bg-os-heading transition ${
-                  monthly ? "left-[18px]" : "left-0.5"
-                }`}
-              />
-            </button>
-          </label>
-          {monthly ? (
-            <div className="mt-2">
-              <span className={label}>Per month</span>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-os-faint">$</span>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  inputMode="decimal"
-                  value={monthlyPrice}
-                  onChange={(e) => setMonthlyPrice(e.target.value)}
-                  className={`${field} pl-5`}
+                <span
+                  className={`absolute top-[3px] h-3 w-3 rounded-full transition-all ${
+                    monthly ? "left-[19px] bg-os-accent-ink" : "left-[3px] bg-os-faint"
+                  }`}
                 />
-              </div>
+              </button>
             </div>
-          ) : (
-            <p className="mt-1.5 text-[10px] text-os-faint leading-relaxed">
-              One-time only. Hosting is free for this bot.
+            {monthly ? (
+              <MoneyField label="Per month" value={monthlyPrice} onChange={setMonthlyPrice} suffix="/mo" />
+            ) : (
+              <p className="text-[11px] leading-relaxed text-os-faint">One-time only. Hosting is free for this bot.</p>
+            )}
+          </div>
+
+          <div>
+            <span className={sectionLabel}>Sold in</span>
+            <Segmented<PayMode> value={pay} options={PAY_OPTIONS} onChange={(v) => setPay(v)} />
+            <p className="mt-1.5 text-[11px] leading-relaxed text-os-faint">
+              {pay === "both"
+                ? "Customers pick card or Robux at checkout."
+                : pay === "usd"
+                  ? "Card only. Robux is hidden for this bot."
+                  : "Robux only. The price converts at the site rate."}
             </p>
-          )}
+          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={save}
-          disabled={busy}
-          className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-os-accent px-3 py-2 text-[12px] font-bold text-os-accent-ink transition hover:brightness-105 disabled:opacity-50"
-        >
-          <Save size={12} /> {busy ? "Saving…" : "Save"}
-        </button>
+        <div className="border-t border-os-hairline/40 px-4 py-3">
+          <button
+            type="button"
+            onClick={save}
+            disabled={busy}
+            className="w-full inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-os-accent text-[12px] font-bold text-os-accent-ink transition hover:brightness-105 disabled:opacity-50"
+          >
+            <Save size={12} /> {busy ? "Saving…" : "Save changes"}
+          </button>
+        </div>
       </PopoverContent>
     </Popover>
   );
@@ -684,9 +717,6 @@ export function BotForge() {
   useEffect(() => {
     if (payMethod === "robux") setPaymentPlan("full");
   }, [payMethod]);
-  useEffect(() => {
-    if (!robuxEnabled) setPayMethod("card");
-  }, [robuxEnabled]);
   const [engineVersion, setEngineVersion] = useState<"v1" | "v2">("v1");
   // Managed hosting is billed for Discord bots only — ER:LC / Roblox bots are
   // hosted free. The per-row `monthly_hosting` column is computed at insert time
@@ -694,6 +724,16 @@ export function BotForge() {
   // Hosting is billed for Discord bots only — ER:LC / Roblox bots are hosted
   // free. So the monthly fee is waived for a comped account OR any order with
   // no Discord bot in it (e.g. Dispatch on its own).
+  // Which payment methods the selected bots allow. A bot sold in USD only
+  // hides Robux; one sold in Robux only hides the card. If the picks
+  // conflict, card wins so the order can still be placed.
+  const payModeOf = (id: string): PayMode => pricedBase(id)?.pay ?? "both";
+  const robuxAllowed = robuxEnabled && bases.length > 0 && bases.every((id) => payModeOf(id) !== "usd");
+  const cardAllowed = !robuxAllowed || bases.some((id) => payModeOf(id) !== "robux");
+  useEffect(() => {
+    if (payMethod === "robux" && !robuxAllowed) setPayMethod("card");
+    else if (payMethod === "card" && !cardAllowed) setPayMethod("robux");
+  }, [payMethod, robuxAllowed, cardAllowed]);
   const monthlyBases = bases.filter((b) => billsMonthly(b));
   const hostingWaived = comped || monthlyBases.length === 0;
   // Hosting is tiered per account: the first two monthly bots pay, the third
@@ -1230,7 +1270,7 @@ export function BotForge() {
 
       // Robux: the hosted page mints a gamepass for this order, the customer
       // buys it on Roblox, and ownership marks the order paid. No card.
-      if (payMethod === "robux" && robuxEnabled && finalTotal > 0) {
+      if (payMethod === "robux" && robuxAllowed && finalTotal > 0) {
         window.location.href = `${window.location.origin}/checkout/robux?order=${orderId}`;
         return;
       }
@@ -1494,6 +1534,11 @@ export function BotForge() {
                         <span className="font-semibold text-os-heading">${money(displayPrice)}</span>
                         {b.monthly && !comingSoon && (
                           <span className="text-os-faint">+ ${money(b.monthlyPrice)}/mo</span>
+                        )}
+                        {b.pay !== "both" && !comingSoon && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-os-surface/60 border border-os-hairline/50 text-os-faint text-[10px] font-semibold uppercase tracking-wide">
+                            {b.pay === "robux" ? "Robux only" : "USD only"}
+                          </span>
                         )}
                         {comingSoon ? null : isDiscountedSecond ? (
                           <span className="px-1.5 py-0.5 rounded-full bg-os-accent/15 border border-os-accent/30 text-os-accent text-[10px] font-semibold uppercase tracking-wide">
@@ -2154,7 +2199,7 @@ export function BotForge() {
                     </div>
                   ) : (
                     <>
-                      {robuxEnabled && finalTotal > 0 && (
+                      {robuxAllowed && cardAllowed && finalTotal > 0 && (
                         <div className="grid grid-cols-2 gap-2 mb-2">
                           {([
                             { id: "card", label: "Card", sub: "Saved now, charged at build start" },
@@ -2182,7 +2227,7 @@ export function BotForge() {
                           })}
                         </div>
                       )}
-                      {payMethod === "robux" && robuxEnabled && finalTotal > 0 ? (
+                      {payMethod === "robux" && robuxAllowed && finalTotal > 0 ? (
                         <div className="rounded-lg border border-os-accent/40 bg-os-accent/10 p-3">
                           <div className="text-xs font-medium text-os-heading flex items-center justify-between">
                             Pay in full with Robux
@@ -2224,7 +2269,7 @@ export function BotForge() {
                         })}
                       </div>
                       )}
-                      {!(payMethod === "robux" && robuxEnabled && finalTotal > 0) && (
+                      {!(payMethod === "robux" && robuxAllowed && finalTotal > 0) && (
                       <p className="text-[10px] text-os-faint mt-2.5 leading-relaxed">
                         {paymentPlan === "full"
                           ? "One charge once we confirm your build scope."

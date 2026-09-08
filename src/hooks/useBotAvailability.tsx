@@ -57,6 +57,8 @@ export type BotPricing = {
   old_price?: number | null;
   monthly?: boolean;
   monthly_price?: number;
+  /** How the bot can be bought. Missing means both. */
+  pay?: "usd" | "robux" | "both";
 };
 
 /**

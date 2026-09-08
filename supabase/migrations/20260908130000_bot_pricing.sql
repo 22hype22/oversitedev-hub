@@ -5,6 +5,7 @@
 --   old_price:     crossed-out price, null to hide it
 --   monthly:       whether this bot bills monthly hosting
 --   monthly_price: hosting price per month in USD
+--   pay:           'usd', 'robux', or 'both' (how the bot can be bought)
 -- }
 -- Missing keys fall back to the values built into the site.
 
