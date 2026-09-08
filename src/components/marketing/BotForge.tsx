@@ -1148,6 +1148,8 @@ export function BotForge() {
   }, [appliedDiscount, total]);
 
   const finalTotal = Math.max(0, Number((total - discountAmount).toFixed(2)));
+  // Paying in Robux: the card fields hide and the Robux note shows instead.
+  const robuxSelected = payMethod === "robux" && robuxAllowed && finalTotal > 0;
 
   const applyDiscount = async () => {
     const code = discountCodeInput.trim().toUpperCase();
@@ -2174,8 +2176,59 @@ export function BotForge() {
                 <div className="rounded-xl border border-os-hairline/40 bg-os-surface/30 backdrop-blur-sm p-4 space-y-3">
                   <div className="flex items-center gap-2 text-xs font-medium text-os-heading">
                     <LockIcon size={12} className="text-os-accent" />
-                    Secure payment details
+                    <span>
+                      Secure payment details with{" "}
+                      {robuxSelected ? (
+                        <a
+                          href="https://en.help.roblox.com/hc/en-us/articles/115004647846"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-os-accent underline decoration-os-accent/40 underline-offset-2 hover:decoration-os-accent"
+                        >
+                          Roblox
+                        </a>
+                      ) : (
+                        <a
+                          href="https://stripe.com/legal/consumer"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-os-accent underline decoration-os-accent/40 underline-offset-2 hover:decoration-os-accent"
+                        >
+                          Stripe
+                        </a>
+                      )}
+                    </span>
                   </div>
+                  {robuxAllowed && cardAllowed && finalTotal > 0 && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        { id: "card", label: "USD", sub: "Card through Stripe" },
+                        { id: "robux", label: "Robux", sub: `${formatRobux(robuxFor(finalTotal))} on Roblox` },
+                      ] as const).map((opt) => {
+                        const active = payMethod === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setPayMethod(opt.id)}
+                            className={`text-left rounded-lg border p-2.5 transition ${
+                              active
+                                ? "border-os-accent bg-os-accent/10"
+                                : "border-os-hairline/40 bg-os-bg/40 hover:border-os-accent/50"
+                            }`}
+                          >
+                            <div className="text-xs font-medium text-os-heading flex items-center justify-between">
+                              {opt.label}
+                              {active && <Check size={12} className="text-os-accent" />}
+                            </div>
+                            <div className="text-[10px] text-os-faint mt-0.5">{opt.sub}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {!robuxSelected && (
+                  <>
                   <div className="grid grid-cols-1 gap-2">
                     <input
                       placeholder="Full name"
@@ -2227,6 +2280,8 @@ export function BotForge() {
                   <p className="text-[10px] text-os-faint leading-relaxed">
                     This locks in your spot in the build queue. We'll only finalize the charge once we've confirmed your build scope.
                   </p>
+                  </>
+                  )}
                 </div>
 
                 {/* Discount code */}
@@ -2338,49 +2393,21 @@ export function BotForge() {
                         needed; your build starts as soon as you place the order.
                       </div>
                     </div>
+                  ) : robuxSelected ? (
+                    <div className="rounded-lg border border-os-accent/40 bg-os-accent/10 p-3">
+                      <div className="text-xs font-medium text-os-heading flex items-center justify-between">
+                        Pay in full with Robux
+                        <span className="text-os-accent">{formatRobux(robuxFor(finalTotal))}</span>
+                      </div>
+                      <div className="text-[10px] text-os-faint mt-1 leading-relaxed">
+                        ${finalTotal.toFixed(2)} plus 30 percent for Roblox's cut. After you place the
+                        order you sign in with Roblox, then buy a shirt from our group store on a Roblox
+                        Select account or a product in our Payment experience on a standard account.
+                        The order is paid the moment Roblox records the sale.
+                      </div>
+                    </div>
                   ) : (
                     <>
-                      {robuxAllowed && cardAllowed && finalTotal > 0 && (
-                        <div className="grid grid-cols-2 gap-2 mb-2">
-                          {([
-                            { id: "card", label: "Card", sub: "Saved now, charged at build start" },
-                            { id: "robux", label: "Robux", sub: `${formatRobux(robuxFor(finalTotal))} up front` },
-                          ] as const).map((opt) => {
-                            const active = payMethod === opt.id;
-                            return (
-                              <button
-                                key={opt.id}
-                                type="button"
-                                onClick={() => setPayMethod(opt.id)}
-                                className={`text-left rounded-lg border p-2.5 transition ${
-                                  active
-                                    ? "border-os-accent bg-os-accent/10 shadow-[0_0_30px_-10px_rgb(var(--os-accent)/0.6)]"
-                                    : "border-os-hairline/40 bg-os-bg/40 hover:border-os-accent/50"
-                                }`}
-                              >
-                                <div className="text-xs font-medium text-os-heading flex items-center justify-between">
-                                  {opt.label}
-                                  {active && <Check size={12} className="text-os-accent" />}
-                                </div>
-                                <div className="text-[10px] text-os-faint mt-0.5">{opt.sub}</div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                      {payMethod === "robux" && robuxAllowed && finalTotal > 0 ? (
-                        <div className="rounded-lg border border-os-accent/40 bg-os-accent/10 p-3">
-                          <div className="text-xs font-medium text-os-heading flex items-center justify-between">
-                            Pay in full with Robux
-                            <span className="text-os-accent">{formatRobux(robuxFor(finalTotal))}</span>
-                          </div>
-                          <div className="text-[10px] text-os-faint mt-1 leading-relaxed">
-                            ${finalTotal.toFixed(2)} plus 30 percent for Roblox's cut. After you place
-                            the order you buy a gamepass made just for it on Roblox, and your order is
-                            paid the moment Roblox records the sale.
-                          </div>
-                        </div>
-                      ) : (
                       <div className="grid grid-cols-2 gap-2">
                         {([
                           { id: "full", label: "Pay in full", sub: `$${finalTotal.toFixed(2)} once` },
@@ -2409,14 +2436,11 @@ export function BotForge() {
                           );
                         })}
                       </div>
-                      )}
-                      {!(payMethod === "robux" && robuxAllowed && finalTotal > 0) && (
                       <p className="text-[10px] text-os-faint mt-2.5 leading-relaxed">
                         {paymentPlan === "full"
                           ? "One charge once we confirm your build scope."
                           : `${paymentPlan} equal monthly payments — no fees, no interest. Build starts after the first payment clears.`}
                       </p>
-                      )}
                     </>
                   )}
                 </div>

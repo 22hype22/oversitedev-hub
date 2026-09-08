@@ -85,3 +85,5 @@
 + The Join Message block now opens in the V2 message builder like every other block. Designs saved with the old embed editor are carried over
 + Removing a bot from the dashboard now happens right away, with a strip at the top of the screen that gives you 30 seconds to go back. Closing the strip or letting it run out deletes the bot for good and frees its token. The menu now says Delete bot for one-time bots and Cancel subscription only for bots billed monthly
 + The website now sends anyone who opens it over plain http straight to the secure https address, and tells browsers to use https from then on
++ Paying with Robux now starts by linking your Roblox account, the same sign in as verification. Roblox Select accounts buy a shirt from our group store and standard accounts buy a product in our Payment experience, and the order is paid as soon as Roblox records the sale
++ The checkout payment box now says Secure payment details with Stripe, with Stripe linked to its consumer terms, and offers USD or Robux at the top of the box
