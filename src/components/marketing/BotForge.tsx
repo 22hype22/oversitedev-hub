@@ -20,6 +20,7 @@ import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { BotStockIndicator } from "@/components/site/BotStockIndicator";
 import { useBotStockCount } from "@/hooks/useBotStockCount";
 import { filterAddonsForBase } from "@/lib/addonCategories";
+import { BOT_BASE_ICONS } from "@/lib/botCatalog";
 import {
   Shield,
   LifeBuoy,
@@ -118,7 +119,7 @@ const BASES: Base[] = [
     id: "protection",
     name: "Oversite Protection",
     tagline: "Automod, anti-raid, and a full mod toolkit.",
-    icon: Shield,
+    icon: BOT_BASE_ICONS.protection,
     price: 99,
     oldPrice: 149,
     included: [
@@ -136,7 +137,7 @@ const BASES: Base[] = [
     id: "support",
     name: "Oversite Support",
     tagline: "Tickets, appeals, reports, and welcomes.",
-    icon: LifeBuoy,
+    icon: BOT_BASE_ICONS.support,
     price: 99,
     oldPrice: 149,
     included: [
@@ -154,7 +155,7 @@ const BASES: Base[] = [
     id: "utilities",
     name: "Oversite Utilities",
     tagline: "Announcements, roles, Roblox, music, more.",
-    icon: Wrench,
+    icon: BOT_BASE_ICONS.utilities,
     price: 99,
     oldPrice: 149,
     included: [
@@ -172,7 +173,7 @@ const BASES: Base[] = [
     id: "scratch",
     name: "All in One Pack",
     tagline: "Protection + Support + Utilities. Every base in one bot.",
-    icon: Sparkles,
+    icon: BOT_BASE_ICONS.scratch,
     price: 199,
     oldPrice: 249,
     included: [
@@ -190,7 +191,7 @@ const BASES: Base[] = [
     id: "dispatch",
     name: "Oversite Dispatch",
     tagline: "AI voice dispatcher for ER:LC that reads 911 calls and talks back.",
-    icon: Megaphone,
+    icon: BOT_BASE_ICONS.dispatch,
     price: 19.99,
     included: [
       "Reads live 911 calls aloud in a real dispatcher voice",
@@ -207,7 +208,7 @@ const BASES: Base[] = [
     id: "customs",
     name: "Oversite Customs",
     tagline: "Tickets, messaging, credits, and join logs, all dashboard-driven.",
-    icon: Ticket,
+    icon: BOT_BASE_ICONS.customs,
     price: 99,
     included: [
       "Ticket system with transcripts",
@@ -221,7 +222,7 @@ const BASES: Base[] = [
     id: "roleplay",
     name: "Oversite Roleplay",
     tagline: "Everything an ER:LC roleplay community runs on, all dashboard-driven.",
-    icon: Gamepad2,
+    icon: BOT_BASE_ICONS.roleplay,
     price: 99,
     included: [
       "Tickets with transcripts and claim flow",
@@ -1562,15 +1563,13 @@ export function BotForge() {
                             {b.pay === "robux" ? "Robux only" : "USD only"}
                           </span>
                         )}
-                        {comingSoon ? null : isDiscountedSecond ? (
+                        {/* Pre-order and Coming soon live in the top-right corner
+                            pill; no sale badge down here. */}
+                        {!comingSoon && isDiscountedSecond && (
                           <span className="px-1.5 py-0.5 rounded-full bg-os-accent/15 border border-os-accent/30 text-os-accent text-[10px] font-semibold uppercase tracking-wide">
                             Add for $50
                           </span>
-                        ) : b.oldPrice ? (
-                          <span className="px-1.5 py-0.5 rounded-full bg-os-accent/15 border border-os-accent/30 text-os-accent text-[10px] font-semibold uppercase tracking-wide">
-                            {salesLive ? "Sale" : "Preorder sale"}
-                          </span>
-                        ) : null}
+                        )}
                       </div>
                     </button>
                   </div>
