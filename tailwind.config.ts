@@ -73,6 +73,7 @@ export default {
           accent: "rgb(var(--os-accent) / <alpha-value>)",
           "accent-ink": "rgb(var(--os-accent-ink) / <alpha-value>)",
           "accent-deep": "rgb(var(--os-accent-deep) / <alpha-value>)",
+          go: "rgb(var(--os-go) / <alpha-value>)",
           "accent-onink": "rgb(var(--os-accent-onink) / <alpha-value>)",
           "accent-soft": "var(--os-accent-soft)",
           good: "rgb(var(--os-good) / <alpha-value>)",
