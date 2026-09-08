@@ -58,3 +58,4 @@
 + Bot About Me now applies straight to Discord when you save, for every bot, instead of going through a manual request. Saving the same text again re-applies it, and a second edit no longer comes back as Nothing to save
 + About Me now applies for every deployed bot. Bots whose token lives only on Railway are looked up there
 + The Variables panel now lists the order status service tokens you set up, like {liveries} and {liveriesstatus}, plus {invite list} and {queue list}, on every message design of that bot
++ The Variables panel is split into Server variables and Block variables, and the block slides over so it and the panel stay centred together
