@@ -3,14 +3,15 @@ import { track } from "@/lib/analytics";
 import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useBotAvailability, setBotAvailability, type BotStatus } from "@/hooks/useBotAvailability";
+  useBotAvailability,
+  setBotAvailability,
+  useBotPricing,
+  setBotPricing,
+  type BotStatus,
+  type BotPricing,
+} from "@/hooks/useBotAvailability";
 import { useOwnedBots } from "@/hooks/useOwnedBots";
 import { useBotSalesMode } from "@/hooks/useBotSalesMode";
 import { useRobuxCheckout, robuxFor, formatRobux } from "@/hooks/useRobuxCheckout";
@@ -342,40 +343,229 @@ const PACK_TABS: { id: string; label: string; icon: typeof Shield }[] = [
   { id: "utilities", label: "Utilities bot", icon: Wrench },
 ];
 
-function StatusGear({ baseId, status }: { baseId: string; status: BotStatus }) {
+/** A base with the owner's price overrides folded in. */
+type PricedBase = Base & { monthly: boolean; monthlyPrice: number };
+
+const DEFAULT_MONTHLY_PRICE = 5;
+
+function applyPricing(b: Base, p: BotPricing | undefined): PricedBase {
+  const price = p && Number.isFinite(Number(p.price)) && Number(p.price) >= 0 ? Number(p.price) : b.price;
+  let oldPrice = b.oldPrice;
+  if (p && "old_price" in p) {
+    const o = Number(p.old_price);
+    oldPrice = p.old_price != null && Number.isFinite(o) && o > 0 ? o : undefined;
+  }
+  const monthly = typeof p?.monthly === "boolean" ? p.monthly : !isRobloxBase(b.id);
+  const m = Number(p?.monthly_price);
+  const monthlyPrice = Number.isFinite(m) && m >= 0 ? m : DEFAULT_MONTHLY_PRICE;
+  return { ...b, price, oldPrice, monthly, monthlyPrice };
+}
+
+const STATUS_OPTIONS: { id: BotStatus; label: string }[] = [
+  { id: "available", label: "Available" },
+  { id: "preorder", label: "Pre-order" },
+  { id: "coming_soon", label: "Coming soon" },
+];
+
+/** Owner-only gear on each bot card: status, price, and monthly pricing. */
+function BaseSettingsGear({ base, status }: { base: PricedBase; status: BotStatus }) {
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const choose = async (next: BotStatus) => {
-    if (next === status) return;
+  const [draftStatus, setDraftStatus] = useState<BotStatus>(status);
+  const [price, setPrice] = useState(String(base.price));
+  const [oldPrice, setOldPrice] = useState(base.oldPrice != null ? String(base.oldPrice) : "");
+  const [monthly, setMonthly] = useState(base.monthly);
+  const [monthlyPrice, setMonthlyPrice] = useState(String(base.monthlyPrice));
+
+  // Reload the draft from live values each time the panel opens.
+  useEffect(() => {
+    if (!open) return;
+    setDraftStatus(status);
+    setPrice(String(base.price));
+    setOldPrice(base.oldPrice != null ? String(base.oldPrice) : "");
+    setMonthly(base.monthly);
+    setMonthlyPrice(String(base.monthlyPrice));
+  }, [open, status, base.price, base.oldPrice, base.monthly, base.monthlyPrice]);
+
+  const save = async () => {
+    const p = Number(price);
+    if (!Number.isFinite(p) || p < 0) {
+      sonnerToast.error("Enter a price of 0 or more");
+      return;
+    }
+    const o = oldPrice.trim() === "" ? null : Number(oldPrice);
+    if (o !== null && (!Number.isFinite(o) || o <= 0)) {
+      sonnerToast.error("The crossed-out price must be above 0, or leave it empty");
+      return;
+    }
+    const m = Number(monthlyPrice);
+    if (monthly && (!Number.isFinite(m) || m < 0)) {
+      sonnerToast.error("Enter a monthly price of 0 or more");
+      return;
+    }
     setBusy(true);
-    const { data, error } = await setBotAvailability(baseId, next);
-    setBusy(false);
-    const res = data as { ok?: boolean; error?: string } | null;
-    if (error || !res?.ok) {
-      sonnerToast.error("Couldn't update status", { description: res?.error ?? error?.message });
-    } else {
-      sonnerToast.success("Availability updated");
+    try {
+      const { data, error } = await setBotPricing(base.id, {
+        price: p,
+        old_price: o,
+        monthly,
+        monthly_price: monthly ? m : base.monthlyPrice,
+      });
+      const res = data as { ok?: boolean; error?: string } | null;
+      if (error || !res?.ok) {
+        sonnerToast.error("Couldn't save the pricing", {
+          description: res?.error ?? error?.message ?? "Run the bot_pricing migration if this keeps happening.",
+        });
+        return;
+      }
+      if (draftStatus !== status) {
+        const { data: sd, error: se } = await setBotAvailability(base.id, draftStatus);
+        const sres = sd as { ok?: boolean; error?: string } | null;
+        if (se || !sres?.ok) {
+          sonnerToast.error("Pricing saved, but the status didn't change", {
+            description: sres?.error ?? se?.message,
+          });
+          return;
+        }
+      }
+      sonnerToast.success(`${base.name} updated`);
+      setOpen(false);
+    } finally {
+      setBusy(false);
     }
   };
+
+  const field =
+    "w-full rounded-lg border border-os-hairline/50 bg-os-bg/60 px-2.5 py-1.5 font-body text-[13px] text-os-heading placeholder:text-os-faint outline-none transition focus:border-os-accent/70";
+  const label = "block text-[10px] font-semibold uppercase tracking-wide text-os-faint mb-1";
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label="Set availability"
+          aria-label={`Edit ${base.name}`}
           onClick={(e) => e.stopPropagation()}
           className="grid h-7 w-7 place-items-center rounded-lg border border-os-hairline/50 bg-os-surface/70 text-os-faint backdrop-blur-sm transition hover:border-os-accent/50 hover:text-os-heading"
         >
           <Settings2 size={13} />
         </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-[9rem]">
-        <DropdownMenuRadioGroup value={status} onValueChange={(v) => choose(v as BotStatus)}>
-          <DropdownMenuRadioItem value="available" disabled={busy}>Available</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="preorder" disabled={busy}>Pre-order</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="coming_soon" disabled={busy}>Coming Soon</DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        sideOffset={6}
+        onClick={(e) => e.stopPropagation()}
+        className="w-64 rounded-xl border border-os-hairline/50 bg-os-surface/95 p-3 text-os-body shadow-xl backdrop-blur-md"
+      >
+        <div className="text-xs font-semibold text-os-heading mb-2.5">{base.name}</div>
+
+        <span className={label}>Status</span>
+        <div className="grid grid-cols-3 gap-1 mb-3">
+          {STATUS_OPTIONS.map((opt) => {
+            const active = draftStatus === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setDraftStatus(opt.id)}
+                className={`rounded-md border px-1 py-1.5 text-[10px] font-semibold transition ${
+                  active
+                    ? "border-os-accent bg-os-accent/15 text-os-accent"
+                    : "border-os-hairline/40 bg-os-bg/40 text-os-body hover:border-os-accent/50"
+                }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div>
+            <span className={label}>One-time price</span>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-os-faint">$</span>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                inputMode="decimal"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                className={`${field} pl-5`}
+              />
+            </div>
+          </div>
+          <div>
+            <span className={label}>Crossed out</span>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-os-faint">$</span>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                inputMode="decimal"
+                placeholder="none"
+                value={oldPrice}
+                onChange={(e) => setOldPrice(e.target.value)}
+                className={`${field} pl-5`}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-os-hairline/40 bg-os-bg/40 p-2 mb-3">
+          <label className="flex items-center justify-between gap-2 cursor-pointer">
+            <span className="text-[12px] font-medium text-os-heading">Monthly pricing</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={monthly}
+              onClick={() => setMonthly((v) => !v)}
+              className={`relative h-5 w-9 rounded-full border transition ${
+                monthly ? "border-os-accent bg-os-accent/70" : "border-os-hairline/50 bg-os-surface/70"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-3.5 w-3.5 rounded-full bg-os-heading transition ${
+                  monthly ? "left-[18px]" : "left-0.5"
+                }`}
+              />
+            </button>
+          </label>
+          {monthly ? (
+            <div className="mt-2">
+              <span className={label}>Per month</span>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-os-faint">$</span>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  inputMode="decimal"
+                  value={monthlyPrice}
+                  onChange={(e) => setMonthlyPrice(e.target.value)}
+                  className={`${field} pl-5`}
+                />
+              </div>
+            </div>
+          ) : (
+            <p className="mt-1.5 text-[10px] text-os-faint leading-relaxed">
+              One-time only. Hosting is free for this bot.
+            </p>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={save}
+          disabled={busy}
+          className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-os-accent px-3 py-2 text-[12px] font-bold text-os-accent-ink transition hover:brightness-105 disabled:opacity-50"
+        >
+          <Save size={12} /> {busy ? "Saving…" : "Save"}
+        </button>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -386,6 +576,18 @@ export function BotForge() {
   }, []);
   const { user, isAdmin } = useAuth();
   const { availability } = useBotAvailability();
+  const { pricing } = useBotPricing();
+  // The catalog with the owner's price, crossed-out price, and monthly
+  // pricing overrides folded in. Everything below prices off this list.
+  const pricedBases = useMemo(() => BASES.map((b) => applyPricing(b, pricing[b.id])), [pricing]);
+  const pricedBase = (id: string) => pricedBases.find((b) => b.id === id);
+  // Does this base (possibly compound, e.g. "protection+dispatch") bill
+  // monthly hosting? Any monthly part makes the order monthly.
+  const billsMonthly = (base: string) =>
+    String(base)
+      .split(/[^a-z0-9-]+/i)
+      .filter(Boolean)
+      .some((id) => pricedBase(id)?.monthly ?? !isRobloxBase(id));
   const canManageStatus = (user?.email ?? "").toLowerCase() === "everant00@gmail.com";
   // COMP LIST: accounts on public.comped_emails never pay. The is_comped_email()
   // RPC answers yes/no for the signed-in user (the table itself is admin-only),
@@ -492,8 +694,15 @@ export function BotForge() {
   // Hosting is billed for Discord bots only — ER:LC / Roblox bots are hosted
   // free. So the monthly fee is waived for a comped account OR any order with
   // no Discord bot in it (e.g. Dispatch on its own).
-  const hasDiscordBot = bases.some((b) => !isRobloxBase(b));
-  const hostingWaived = comped || !hasDiscordBot;
+  const monthlyBases = bases.filter((b) => billsMonthly(b));
+  const hostingWaived = comped || monthlyBases.length === 0;
+  // Hosting is tiered per account: the first two monthly bots pay, the third
+  // is free. Priced off each bot's own monthly rate.
+  const monthlyRate = pricedBase(monthlyBases[0] ?? "")?.monthlyPrice ?? DEFAULT_MONTHLY_PRICE;
+  const monthlyTotal = monthlyBases
+    .slice(0, 2)
+    .reduce((sum, id) => sum + (pricedBase(id)?.monthlyPrice ?? DEFAULT_MONTHLY_PRICE), 0);
+  const money = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
   const [discountCodeInput, setDiscountCodeInput] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState<{
     code: string;
@@ -730,20 +939,20 @@ export function BotForge() {
     // Discord "first full, each additional $50" ladder.
     const roblocCost = bases
       .filter((id) => isRobloxBase(id))
-      .reduce((sum, id) => sum + (BASES.find((b) => b.id === id)?.price ?? 0), 0);
+      .reduce((sum, id) => sum + (pricedBases.find((b) => b.id === id)?.price ?? 0), 0);
     const discord = bases.filter((id) => !isRobloxBase(id));
     let discordCost = 0;
     if (discord.includes("scratch")) {
-      discordCost = BASES.find((b) => b.id === "scratch")?.price ?? 0;
+      discordCost = pricedBases.find((b) => b.id === "scratch")?.price ?? 0;
     } else {
       discordCost = discord.reduce((sum, id, idx) => {
-        const b = BASES.find((x) => x.id === id);
+        const b = pricedBases.find((x) => x.id === id);
         if (!b) return sum;
-        return sum + (idx === 0 ? b.price : SECOND_BOT_PRICE);
+        return sum + (idx === 0 ? b.price : Math.min(b.price, SECOND_BOT_PRICE));
       }, 0);
     }
     return discordCost + roblocCost;
-  }, [bases]);
+  }, [bases, pricedBases]);
 
   const discountAmount = useMemo(() => {
     if (!appliedDiscount) return 0;
@@ -860,7 +1069,7 @@ export function BotForge() {
         // (dispatch, erlc-spec, customs) and comped orders are hosted free, so
         // this must be false for them — the dashboard badge and any billing
         // logic key off this column.
-        monthly_hosting: !comped && !isRobloxBase(parentBase),
+        monthly_hosting: !comped && billsMonthly(parentBase),
         notes: notesField,
         total_amount: finalTotal,
         currency: "usd",
@@ -906,7 +1115,7 @@ export function BotForge() {
             // Only this category's addons go on this bot.
             addons: filterAddonsForBase(addons, t.id),
             // Per-row hosting: ER:LC / Roblox sibling bots are hosted free.
-            monthly_hosting: !comped && !isRobloxBase(t.id),
+            monthly_hosting: !comped && billsMonthly(t.id),
             notes: `Child of pack/multi order ${inserted.id}`,
             total_amount: 0,
             currency: "usd",
@@ -1195,7 +1404,9 @@ export function BotForge() {
               <Sparkles size={16} className="text-os-accent" />
             </div>
             <div className="text-xs sm:text-sm font-body">
-              <span className="font-semibold text-os-heading">Any two bots = $149 one-time.</span>{" "}
+              <span className="font-semibold text-os-heading">
+                Any two bots = ${money((pricedBase("protection")?.price ?? 99) + 50)} one-time.
+              </span>{" "}
               <span className="text-os-faint">Mix and match protection, support, or utilities. Same price no matter which two.</span>
             </div>
           </div>
@@ -1215,21 +1426,21 @@ export function BotForge() {
                 // First selected DISCORD single keeps full price; each additional
                 // Discord single is the $50 add-on. ER:LC bots price on their own.
                 const firstSingle = bases.find((id) => !isRobloxBase(id) && id !== "scratch");
-                const renderCard = (b: Base) => {
+                const renderCard = (b: PricedBase) => {
                 const Icon = b.icon;
                 const active = bases.includes(b.id);
                 const status: BotStatus = availability[b.id] ?? DEFAULT_STATUS[b.id] ?? "available";
                 const comingSoon = status === "coming_soon";
                 const preorder = status === "preorder";
                 const isDiscountedSecond =
-                  !comingSoon && !isRobloxBase(b.id) && b.id !== "scratch" && !!firstSingle && b.id !== firstSingle;
+                  !comingSoon && !isRobloxBase(b.id) && b.id !== "scratch" && !!firstSingle && b.id !== firstSingle && b.price > 50;
                 const displayPrice = isDiscountedSecond ? 50 : b.price;
                 const displayOldPrice = isDiscountedSecond ? b.price : b.oldPrice;
                 return (
                   <div key={b.id} className="relative">
                     {canManageStatus && (
                       <div className="absolute bottom-2 right-2 z-10">
-                        <StatusGear baseId={b.id} status={status} />
+                        <BaseSettingsGear base={b} status={status} />
                       </div>
                     )}
                     <button
@@ -1278,9 +1489,12 @@ export function BotForge() {
                       <div className="mt-auto pt-3 flex items-center gap-2 flex-wrap text-xs text-os-body">
                         <span>one-time</span>
                         {displayOldPrice && !comingSoon && (
-                          <span className="text-os-faint line-through">${displayOldPrice}</span>
+                          <span className="text-os-faint line-through">${money(displayOldPrice)}</span>
                         )}
-                        <span className="font-semibold text-os-heading">${displayPrice}</span>
+                        <span className="font-semibold text-os-heading">${money(displayPrice)}</span>
+                        {b.monthly && !comingSoon && (
+                          <span className="text-os-faint">+ ${money(b.monthlyPrice)}/mo</span>
+                        )}
                         {comingSoon ? null : isDiscountedSecond ? (
                           <span className="px-1.5 py-0.5 rounded-full bg-os-accent/15 border border-os-accent/30 text-os-accent text-[10px] font-semibold uppercase tracking-wide">
                             Add for $50
@@ -1295,8 +1509,8 @@ export function BotForge() {
                   </div>
                 );
                 };
-                const discordBases = BASES.filter((b) => !isRobloxBase(b.id));
-                const roblocBases = BASES.filter((b) => isRobloxBase(b.id)).sort(
+                const discordBases = pricedBases.filter((b) => !isRobloxBase(b.id));
+                const roblocBases = pricedBases.filter((b) => isRobloxBase(b.id)).sort(
                   (a, b) => ROBLOX_STORE_ORDER.indexOf(a.id) - ROBLOX_STORE_ORDER.indexOf(b.id),
                 );
                 return (
@@ -1707,13 +1921,13 @@ export function BotForge() {
                     {hostingWaived ? (
                       <>
                         <span className="text-os-faint line-through font-normal mr-1.5">
-                          +$5/month
+                          +${money(monthlyBases.length ? monthlyTotal : monthlyRate)}/month
                         </span>
                         <span className="text-emerald-400">waived</span>
                       </>
                     ) : (
                       <>
-                        +$5<span className="text-xs text-os-faint font-normal">/month</span>
+                        +${money(monthlyTotal)}<span className="text-xs text-os-faint font-normal">/month</span>
                       </>
                     )}
                   </span>
@@ -1723,12 +1937,12 @@ export function BotForge() {
                     comped ? (
                       <>We host and keep your bot online 24/7. Hosting is waived for this account.</>
                     ) : (
-                      <>We host and keep your bot online 24/7. ER:LC bots include free hosting, so there's no monthly charge.</>
+                      <>We host and keep your bot online 24/7. These bots include free hosting, so there's no monthly charge.</>
                     )
                   ) : (
                     <>
                       We host and keep your bot online 24/7. <strong>Buy a 3rd bot and its
-                      hosting is free</strong>: 1 bot $5/mo, 2 bots $10/mo, 3 bots still $10/mo.
+                      hosting is free</strong>: 1 bot ${money(monthlyRate)}/mo, 2 bots ${money(monthlyRate * 2)}/mo, 3 bots still ${money(monthlyRate * 2)}/mo.
                     </>
                   )}
                 </p>
