@@ -12,10 +12,11 @@
  */
 
 export type Variable = { token: string; desc: string };
-export type VariableGroup = { title: string; note?: string; vars: Variable[] };
+export type VariableGroup = { title: string; note?: string; vars: Variable[]; kind?: "server" | "block" };
 
 const SERVER: VariableGroup = {
   title: "Server",
+  kind: "server",
   note: "Works in every message design. Fills in from the server the message is posted in. Spaces and underscores both work, so {member count} and {member_count} are the same.",
   vars: [
     { token: "{server}", desc: "Server name. Also {server name}" },
@@ -27,9 +28,17 @@ const SERVER: VariableGroup = {
     { token: "{channel_count}", desc: "Number of channels. Also {channels}" },
     { token: "{role_count}", desc: "Number of roles. Also {roles}" },
     { token: "{player_count}", desc: "Players in the linked game right now" },
-    { token: "{invite list}", desc: "The invites leaderboard, top inviters first" },
-    { token: "{queue list}", desc: "The ad queue, next to post first" },
   ],
+};
+
+const INVITE_LIST: Variable = { token: "{invite list}", desc: "The invites leaderboard, top inviters first" };
+const QUEUE_LIST: Variable = { token: "{queue list}", desc: "The ad queue, next to post first" };
+const INVITE_TRACKER: VariableGroup = { title: "Invite tracker", vars: [INVITE_LIST] };
+const AD_QUEUE: VariableGroup = { title: "Ad queue", vars: [QUEUE_LIST] };
+const MESSAGE_LISTS: VariableGroup = {
+  title: "Lists",
+  note: "Live lists you can drop into a posted message.",
+  vars: [INVITE_LIST, QUEUE_LIST],
 };
 
 /**
@@ -299,6 +308,9 @@ function groupsFor(addonId: string, key?: string | null): VariableGroup[] {
     case "invite-message":
       return [JOIN, SERVER];
     case "customs-messages":
+      return [MESSAGE_LISTS, SERVER];
+    case "invite-tracker":
+      return [INVITE_TRACKER, SERVER];
     case "customs-announce":
     case "customs-blacklist":
     case "customs-verification":
@@ -335,7 +347,7 @@ function groupsFor(addonId: string, key?: string | null): VariableGroup[] {
     case "customs-freerelease":
       return [FREE_RELEASE, SERVER];
     case "ads":
-      return key === "giveaway" ? [ADS_GIVEAWAY, SERVER] : key === "regular" ? [ADS_REGULAR, SERVER] : [ADS_REGULAR, ADS_GIVEAWAY, SERVER];
+      return key === "giveaway" ? [ADS_GIVEAWAY, AD_QUEUE, SERVER] : key === "regular" ? [ADS_REGULAR, AD_QUEUE, SERVER] : [ADS_REGULAR, ADS_GIVEAWAY, AD_QUEUE, SERVER];
     case "customs-smallui": {
       if (key && SMALL_UI[key]) return [SMALL_UI[key], SERVER];
       return [...Object.values(SMALL_UI), SERVER];

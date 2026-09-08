@@ -191,18 +191,46 @@ export function VariablesFlyout({ anchorRef }: { anchorRef: RefObject<HTMLElemen
     });
   }, [anchorRef]);
 
+  // Slide the dialog left by half the drawer's width while the drawer is out,
+  // so the block and the drawer together stay centred on the screen. The
+  // drawer re-measures every frame while the dialog moves so it stays glued
+  // to the dialog's edge.
+  const shiftDialog = useCallback((out: boolean) => {
+    const el = anchorRef.current as HTMLElement | null;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const base = out ? r.right + (parseFloat(el.style.marginLeft || "0") || 0) * -1 : r.right;
+    const fits = base + GAP + WIDTH <= window.innerWidth - 8;
+    el.style.transition = `margin-left ${SLIDE_MS}ms cubic-bezier(.22,1,.36,1)`;
+    el.style.marginLeft = out && fits ? `${-Math.round((WIDTH + GAP) / 2)}px` : "0px";
+  }, [anchorRef]);
+  const trackWhileMoving = useCallback(() => {
+    const start = performance.now();
+    let raf = 0;
+    const step = () => {
+      measure();
+      if (performance.now() - start < SLIDE_MS + 80) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [measure]);
+
   useLayoutEffect(() => {
     if (!openNow) {
-      // Slide back behind the dialog, then leave the DOM.
+      // Slide back behind the dialog and let the dialog re-centre, then leave the DOM.
       setShown(false);
+      shiftDialog(false);
+      const stop = trackWhileMoving();
       const t = window.setTimeout(() => setMounted(false), SLIDE_MS);
-      return () => window.clearTimeout(t);
+      return () => { window.clearTimeout(t); stop(); };
     }
     setMounted(true);
     measure();
+    shiftDialog(true);
+    const stop = trackWhileMoving();
     // The dialog zooms in over about 200ms when it opens; measure again once
     // it has settled so the drawer sits flush against its final edge.
-    const settle = window.setTimeout(measure, 260);
+    const settle = window.setTimeout(measure, 320);
     const id = requestAnimationFrame(() => setShown(true));
     const el = anchorRef.current;
     const ro = el && typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
@@ -212,15 +240,20 @@ export function VariablesFlyout({ anchorRef }: { anchorRef: RefObject<HTMLElemen
     return () => {
       cancelAnimationFrame(id);
       window.clearTimeout(settle);
+      stop();
       ro?.disconnect();
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
     };
-  }, [openNow, measure, anchorRef]);
+  }, [openNow, measure, anchorRef, shiftDialog, trackWhileMoving]);
 
   // Closing the dialog unmounts this; make sure the drawer does not reappear
   // already open the next time the block is opened.
-  useEffect(() => () => scope.close(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => {
+    scope.close();
+    const el = anchorRef.current as HTMLElement | null;
+    if (el) el.style.marginLeft = "0px";
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!mounted || !rect || !lastPanel.current || typeof document === "undefined") return null;
   const { groups, onInsert } = lastPanel.current;
@@ -232,6 +265,43 @@ export function VariablesFlyout({ anchorRef }: { anchorRef: RefObject<HTMLElemen
     setCopied(token);
     window.setTimeout(() => setCopied((c) => (c === token ? null : c)), 1200);
   };
+
+  const serverGroups = groups.filter((g) => g.kind === "server");
+  const blockGroups = groups.filter((g) => g.kind !== "server");
+  const row = (v: { token: string; desc: string }) => (
+    <button
+      key={v.token}
+      type="button"
+      onClick={() => pick(v.token)}
+      className="w-full flex items-start gap-2.5 px-4 py-1.5 text-left hover:bg-muted/60 transition-colors"
+    >
+      <code className="mt-0.5 text-[11px] font-mono text-os-accent bg-os-accent/10 border border-os-accent/25 rounded px-1.5 py-0.5 shrink-0 whitespace-nowrap">
+        {v.token}
+      </code>
+      <span className="flex-1 text-[11.5px] text-muted-foreground leading-snug">{v.desc}</span>
+      {copied === v.token
+        ? <Check className="h-3.5 w-3.5 mt-0.5 shrink-0 text-emerald-400" />
+        : <Copy className="h-3 w-3 mt-1 shrink-0 text-muted-foreground/40" />}
+    </button>
+  );
+  const section = (title: string, note: string, list: VariableGroup[], empty: string) => (
+    <div className="py-2">
+      <div className="px-4 pt-2 pb-1">
+        <p className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{title}</p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground/80 leading-snug">{note}</p>
+      </div>
+      {list.length === 0 && <p className="px-4 py-2 text-[11.5px] text-muted-foreground/70">{empty}</p>}
+      {list.map((g) => (
+        <div key={g.title} className="pb-1">
+          {list.length > 1 && (
+            <p className="px-4 pt-2 pb-0.5 text-[11px] font-semibold text-foreground/80">{g.title}</p>
+          )}
+          {g.note && list.length > 1 && <p className="px-4 pb-1 text-[11px] text-muted-foreground/70 leading-snug">{g.note}</p>}
+          {g.vars.map(row)}
+        </div>
+      ))}
+    </div>
+  );
 
   return createPortal(
     <div
@@ -278,30 +348,19 @@ export function VariablesFlyout({ anchorRef }: { anchorRef: RefObject<HTMLElemen
         </button>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {groups.map((g) => (
-          <div key={g.title} className="py-1.5">
-            <div className="px-4 pt-2 pb-1">
-              <p className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{g.title}</p>
-              {g.note && <p className="mt-0.5 text-[11px] text-muted-foreground/80 leading-snug">{g.note}</p>}
-            </div>
-            {g.vars.map((v) => (
-              <button
-                key={v.token}
-                type="button"
-                onClick={() => pick(v.token)}
-                className="w-full flex items-start gap-2.5 px-4 py-1.5 text-left hover:bg-muted/60 transition-colors"
-              >
-                <code className="mt-0.5 text-[11px] font-mono text-os-accent bg-os-accent/10 border border-os-accent/25 rounded px-1.5 py-0.5 shrink-0 whitespace-nowrap">
-                  {v.token}
-                </code>
-                <span className="flex-1 text-[11.5px] text-muted-foreground leading-snug">{v.desc}</span>
-                {copied === v.token
-                  ? <Check className="h-3.5 w-3.5 mt-0.5 shrink-0 text-emerald-400" />
-                  : <Copy className="h-3 w-3 mt-1 shrink-0 text-muted-foreground/40" />}
-              </button>
-            ))}
-          </div>
-        ))}
+        {section(
+          "Server variables",
+          "Work in every message on every server. They fill in from the server the message is posted in.",
+          serverGroups,
+          "None.",
+        )}
+        <div className="mx-4 my-1 h-px bg-border/70" />
+        {section(
+          "Block variables",
+          "Only this block fills these in.",
+          blockGroups,
+          "This block has no variables of its own.",
+        )}
       </div>
     </div>
     </div>,
