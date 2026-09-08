@@ -448,20 +448,23 @@ function MoneyField({
 }
 
 /**
- * The checkout button: a single face with a hairline top highlight, the
- * label centred, an arrow disc pinned to the right that steps forward on
- * hover, and a sheen that sweeps across once. No amount on it.
+ * The checkout button: green glass. A translucent mint fill over a blur,
+ * a hairline highlight along the top, a soft outer glow, the label centred,
+ * an arrow disc pinned right that steps forward on hover, and a sheen that
+ * sweeps across once. `leaving` plays the exit before the payment panel opens.
  */
 function CheckoutButton({
   label,
   busy,
   busyLabel,
+  leaving,
   onClick,
   buttonRef,
 }: {
   label: string;
   busy?: boolean;
   busyLabel?: string;
+  leaving?: boolean;
   onClick: () => void;
   buttonRef?: React.Ref<HTMLButtonElement>;
 }) {
@@ -470,20 +473,27 @@ function CheckoutButton({
       ref={buttonRef}
       type="button"
       onClick={onClick}
-      disabled={busy}
-      className="group relative mt-4 flex h-12 w-full items-center justify-center overflow-hidden rounded-xl border border-os-accent/70 bg-os-accent px-14 text-os-accent-ink shadow-[0_1px_0_rgba(255,255,255,.55)_inset,0_18px_40px_-18px_rgb(var(--os-accent)/0.55)] transition-[transform,box-shadow,filter] duration-200 hover:-translate-y-px hover:shadow-[0_1px_0_rgba(255,255,255,.6)_inset,0_22px_44px_-16px_rgb(var(--os-accent)/0.7)] active:translate-y-0 active:brightness-95 disabled:pointer-events-none disabled:opacity-60"
+      disabled={busy || leaving}
+      className={`group relative mt-4 flex h-12 w-full items-center justify-center overflow-hidden rounded-xl border border-os-go/45 bg-os-go/15 px-14 text-os-heading backdrop-blur-md shadow-[0_1px_0_rgba(255,255,255,.28)_inset,0_-1px_0_rgb(var(--os-go)/0.25)_inset,0_10px_30px_-12px_rgb(var(--os-go)/0.55)] transition-[transform,box-shadow,background-color,opacity] duration-300 ease-out hover:-translate-y-px hover:bg-os-go/25 hover:shadow-[0_1px_0_rgba(255,255,255,.35)_inset,0_-1px_0_rgb(var(--os-go)/0.3)_inset,0_16px_40px_-12px_rgb(var(--os-go)/0.7)] active:translate-y-0 active:bg-os-go/30 disabled:pointer-events-none ${
+        leaving ? "scale-[0.97] opacity-0 translate-y-1" : busy ? "opacity-70" : ""
+      }`}
     >
+      {/* Glass: a soft light pooled at the top edge */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/12 to-transparent"
+      />
       {/* Sheen that sweeps once across on hover */}
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/45 to-transparent opacity-0 transition-[transform,opacity] duration-700 ease-out group-hover:translate-x-[400%] group-hover:opacity-100"
+        className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/25 to-transparent opacity-0 transition-[transform,opacity] duration-700 ease-out group-hover:translate-x-[400%] group-hover:opacity-100"
       />
-      <span className="font-display text-[15px] font-semibold tracking-[-0.01em]">
+      <span className="relative font-display text-[15px] font-semibold tracking-[-0.01em]">
         {busy ? busyLabel ?? label : label}
       </span>
-      <span className="absolute right-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-os-accent-ink/10">
+      <span className="absolute right-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full border border-os-go/40 bg-os-go/20 text-os-go">
         {busy ? (
-          <span className="h-3 w-3 animate-spin rounded-full border-2 border-os-accent-ink/30 border-t-os-accent-ink" />
+          <span className="h-3 w-3 animate-spin rounded-full border-2 border-os-go/30 border-t-os-go" />
         ) : (
           <ArrowRight size={14} className="transition-transform duration-200 group-hover:translate-x-0.5" />
         )}
@@ -491,6 +501,21 @@ function CheckoutButton({
     </button>
   );
 }
+
+/* Payment panel reveal: each block rises in, one after the other, and the
+   estimate card flashes a mint ring once as the panel lands. */
+const PAY_REVEAL_CSS = `
+@keyframes os-pay-in{from{opacity:0;transform:translateY(14px) scale(.985);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+@keyframes os-pay-ring{0%{box-shadow:0 0 0 0 rgb(var(--os-go)/0)}25%{box-shadow:0 0 0 2px rgb(var(--os-go)/.55),0 0 40px -6px rgb(var(--os-go)/.5)}100%{box-shadow:0 0 0 0 rgb(var(--os-go)/0)}}
+.os-pay-reveal>*{animation:os-pay-in .6s cubic-bezier(.22,1,.36,1) both}
+.os-pay-reveal>*:nth-child(1){animation-delay:.08s}
+.os-pay-reveal>*:nth-child(2){animation-delay:.18s}
+.os-pay-reveal>*:nth-child(3){animation-delay:.28s}
+.os-pay-reveal>*:nth-child(4){animation-delay:.38s}
+.os-pay-reveal>*:nth-child(5){animation-delay:.48s}
+.os-pay-ring{animation:os-pay-ring 1.4s ease-out .15s 1}
+@media (prefers-reduced-motion:reduce){.os-pay-reveal>*{animation:none}.os-pay-ring{animation:none}}
+`;
 
 /** Owner-only gear on each bot card: status, price, monthly pricing, payment. */
 function BaseSettingsGear({ base, status }: { base: PricedBase; status: BotStatus }) {
@@ -766,6 +791,10 @@ export function BotForge() {
   }, [user]);
   const [showAllAddons, setShowAllAddons] = useState<Record<string, boolean>>({});
   const [showPayment, setShowPayment] = useState(false);
+  // The first button plays a short exit, then the payment panel opens and
+  // its blocks rise in one after the other.
+  const [ctaLeaving, setCtaLeaving] = useState(false);
+  const [payRing, setPayRing] = useState(false);
   const [payFullName, setPayFullName] = useState("");
   const [payEmail, setPayEmail] = useState("");
   const [payCard, setPayCard] = useState("");
@@ -1273,13 +1302,21 @@ export function BotForge() {
       return;
     }
     if (!showPayment) {
-      setShowPayment(true);
-      // Scroll the payment section into view after it expands
+      if (ctaLeaving) return;
+      setCtaLeaving(true);
+      // Let the button finish its exit, then open the panel and ring the card.
+      setTimeout(() => {
+        setShowPayment(true);
+        setCtaLeaving(false);
+        setPayRing(true);
+        setTimeout(() => setPayRing(false), 1800);
+      }, 240);
+      // Scroll the payment section into view once it has expanded
       setTimeout(() => {
         document
           .getElementById("payment-section")
           ?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 350);
+      }, 560);
       return;
     }
     // Discord contact gate (live sales): nudge them to link Discord so we can
@@ -2005,7 +2042,8 @@ export function BotForge() {
           </div>
 
           {/* Estimate + submit */}
-          <div className="rounded-2xl border border-os-accent/30 bg-gradient-to-br from-os-accent/10 via-os-surface/30 to-os-bg/40 backdrop-blur-sm p-5">
+          <style>{PAY_REVEAL_CSS}</style>
+          <div className={`rounded-2xl border border-os-accent/30 bg-gradient-to-br from-os-accent/10 via-os-surface/30 to-os-bg/40 backdrop-blur-sm p-5 ${payRing ? "os-pay-ring" : ""}`}>
             <div className="flex items-center justify-between">
               <span className="font-label text-xs uppercase tracking-widest text-os-faint">
                 Estimated
@@ -2106,6 +2144,7 @@ export function BotForge() {
                 <CheckoutButton
                   label={primaryCtaLabel}
                   busy={submitting}
+                  leaving={ctaLeaving}
                   onClick={submit}
                 />
                 <BotStockIndicator className="mt-2" />
@@ -2122,7 +2161,7 @@ export function BotForge() {
                   : "grid-rows-[0fr] opacity-0 mt-0"
               }`}
             >
-              <div className="overflow-hidden">
+              <div className={`overflow-hidden ${showPayment ? "os-pay-reveal" : ""}`}>
                 <div className="rounded-xl border border-os-hairline/40 bg-os-surface/30 backdrop-blur-sm p-4 space-y-3">
                   <div className="flex items-center gap-2 text-xs font-medium text-os-heading">
                     <LockIcon size={12} className="text-os-accent" />
