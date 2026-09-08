@@ -21,7 +21,8 @@ import { BotStockIndicator } from "@/components/site/BotStockIndicator";
 import { useBotStockCount } from "@/hooks/useBotStockCount";
 import { filterAddonsForBase } from "@/lib/addonCategories";
 import { BOT_BASE_ICONS } from "@/lib/botCatalog";
-import { OrderTransition, markOrderHandoff } from "@/components/checkout/OrderTransition";
+import { OrderTransition, markOrderHandoff, originOf } from "@/components/checkout/OrderTransition";
+import { useNavigate } from "react-router-dom";
 import {
   Shield,
   LifeBuoy,
@@ -484,8 +485,9 @@ function CheckoutButton({
       onClick={onClick}
       disabled={busy || leaving || placed}
       style={{ transitionTimingFunction: EASE_OUT }}
+      aria-busy={busy || undefined}
       className={`group relative mt-4 block w-full rounded-[14px] p-[3px] text-left bg-os-go/15 ring-1 ring-inset ring-os-go/45 transition-[transform,opacity] duration-[160ms] active:scale-[0.98] disabled:pointer-events-none ${
-        leaving ? "scale-[0.98] opacity-0" : busy && !placed ? "opacity-80" : ""
+        leaving ? "scale-[0.98] opacity-0" : ""
       }`}
     >
       <span
@@ -495,9 +497,10 @@ function CheckoutButton({
         }}
         className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[11px] px-14 text-os-heading bg-[linear-gradient(180deg,rgb(var(--os-go)/0.58),rgb(var(--os-go)/0.40))] shadow-[inset_0_1px_0_rgba(255,255,255,0.32),inset_0_-1px_0_rgb(var(--os-go)/0.35),0_8px_20px_-14px_rgb(var(--os-go)/0.5)] transition-[background-color,box-shadow,clip-path] duration-[340ms] group-hover:bg-os-go/15"
       >
+        {busy && !placed && <span className="os-busy-sweep" aria-hidden />}
         <span
           style={{ transitionTimingFunction: EASE_OUT }}
-          className={`font-display text-[15px] font-semibold tracking-[-0.01em] transition-[opacity,transform] duration-[120ms] ${
+          className={`relative font-display text-[15px] font-semibold tracking-[-0.01em] transition-[opacity,transform] duration-[120ms] ${
             placed ? "translate-y-1 opacity-0" : ""
           }`}
         >
@@ -539,10 +542,12 @@ const PAY_REVEAL_CSS = `
 .os-pay-reveal>*:nth-child(3){animation-delay:80ms}
 .os-pay-reveal>*:nth-child(4){animation-delay:120ms}
 .os-pay-reveal>*:nth-child(5){animation-delay:160ms}
+.os-busy-sweep{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.16) 50%,transparent 100%);background-size:45% 100%;background-repeat:no-repeat;animation:os-sweep 1.3s cubic-bezier(0.45,0.05,0.55,0.95) infinite}
+@keyframes os-sweep{from{background-position:-60% 0}to{background-position:160% 0}}
 .os-check-draw{stroke-dasharray:22;stroke-dashoffset:22;animation:os-check 300ms cubic-bezier(0.23,1,0.32,1) 240ms forwards}
 @keyframes os-check{to{stroke-dashoffset:0}}
 .os-placed-out{opacity:0;filter:blur(6px);pointer-events:none;transition:opacity 200ms cubic-bezier(0.23,1,0.32,1),filter 200ms cubic-bezier(0.23,1,0.32,1)}
-@media (prefers-reduced-motion:reduce){@keyframes os-pay-in{from{opacity:0}to{opacity:1}}.os-check-draw{animation-duration:1ms;animation-delay:0s}}
+@media (prefers-reduced-motion:reduce){@keyframes os-pay-in{from{opacity:0}to{opacity:1}}.os-check-draw{animation-duration:1ms;animation-delay:0s}.os-busy-sweep{animation:none;background:none}}
 `;
 
 /** Owner-only gear on each bot card: status, price, monthly pricing, payment. */
@@ -822,10 +827,20 @@ export function BotForge() {
   // Order transitions. Green: the screen fills and hands off to the thank-you
   // page, which opens on the same green. Red: the payment did not go through;
   // the fill settles into the reason and a way back.
+  const navigate = useNavigate();
   const [goTo, setGoTo] = useState<string | null>(null);
   const [failReason, setFailReason] = useState<string | null>(null);
-  const leaveOnGreen = (url: string) => setGoTo(url);
+  // Both fills grow out of the button that was pressed.
+  const [fillOrigin, setFillOrigin] = useState<{ x: number; y: number } | null>(null);
+  const leaveOnGreen = (path: string) => {
+    setFillOrigin(originOf(confirmBtnRef.current));
+    // Warm the thank-you page's chunk while the screen fills, so the route
+    // change lands straight on its own green with nothing in between.
+    void import("@/pages/CheckoutReturn");
+    setGoTo(path);
+  };
   const failWith = (reason: string) => {
+    setFillOrigin(originOf(confirmBtnRef.current));
     setFailReason(reason);
   };
   // The first button plays a short exit, then the payment panel opens and
@@ -1388,7 +1403,7 @@ export function BotForge() {
         if (comp?.comped) {
           // No charge. Fill the screen green and hand off to the thank-you
           // page, which opens on the same green and carries the tracker.
-          leaveOnGreen(`${window.location.origin}/checkout/return?order=${orderId}&comped=1`);
+          leaveOnGreen(`/checkout/return?order=${orderId}&comped=1`);
           return;
         }
       } catch {
@@ -1517,62 +1532,8 @@ export function BotForge() {
 
   return (
     <section id="build" className="mt-24 scroll-mt-24">
-      {/* Placing-order overlay — the submit path does real server work
-          (order persist, comp check, Stripe setup) before redirecting, so
-          without this the click looks dead for several seconds. Shown for
-          the whole submit and kept up through the redirect (submitting is
-          intentionally never reset on the success paths). */}
-      {goTo && (
-        <OrderTransition
-          tone="go"
-          active
-          onFilled={() => {
-            markOrderHandoff();
-            window.location.href = goTo;
-          }}
-        />
-      )}
-      {failReason && (
-        <OrderTransition
-          tone="fail"
-          active
-          reason={failReason}
-          hint="Your bot and add-ons are still set up below, so you can go straight back to payment."
-          actionLabel="Back to checkout"
-          onAction={() => setFailReason(null)}
-        />
-      )}
-      {submitting && (
-        <div
-          className="fixed inset-0 z-[100] grid place-items-center"
-          style={{ background: "rgba(15,19,24,.72)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
-          role="status"
-          aria-live="polite"
-        >
-          <div
-            className="flex flex-col items-center gap-3 rounded-2xl border border-os-hairline/40 bg-os-surface/90 px-10 py-8 shadow-2xl transition-[opacity,transform] duration-200"
-            style={goTo ? { opacity: 0, transform: "scale(0.96)" } : undefined}
-          >
-            {/* Same ghost-loading shimmer as the route/dashboard skeletons
-                (see RouteFallback in App.tsx) so every wait screen shares one
-                identity. Duplicated markup on purpose — single-paste files. */}
-            <style>{`
-              @keyframes os-ghost{0%{background-position:200% 0}100%{background-position:-200% 0}}
-              .os-ghost{border-radius:8px;background:linear-gradient(90deg,rgba(201,219,230,.08) 25%,rgba(201,219,230,.2) 50%,rgba(201,219,230,.08) 75%);background-size:200% 100%;animation:os-ghost 1.5s ease-in-out infinite}
-              @media (prefers-reduced-motion: reduce){.os-ghost{animation:none;background:rgba(201,219,230,.12)}}
-            `}</style>
-            <div className="flex w-40 flex-col gap-2" aria-hidden>
-              <div className="os-ghost" style={{ height: 10, width: "100%" }} />
-              <div className="os-ghost" style={{ height: 10, width: "72%" }} />
-              <div className="os-ghost" style={{ height: 10, width: "88%" }} />
-            </div>
-            <div className="text-sm font-semibold text-os-heading">Placing your order…</div>
-            <div className="text-xs text-os-faint">
-              Setting everything up — this takes a few seconds. Don't close this tab.
-            </div>
-          </div>
-        </div>
-      )}
+      {/* While the order is placed, the confirm button itself carries the
+          wait (label, spinner in its disc, a slow light sweep). No overlay. */}
       <div className="max-w-3xl">
         <h2 className="font-display text-3xl md:text-5xl font-bold tracking-tight text-os-heading">
           Design your <span className="text-os-accent">dream bot.</span>
