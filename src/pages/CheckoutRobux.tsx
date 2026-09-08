@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatRobux } from "@/hooks/useRobuxCheckout";
 import containers from "@/assets/containers.webp";
-import { OrderTransition, markOrderHandoff } from "@/components/checkout/OrderTransition";
+import { OrderTransition, markOrderHandoff, originOf } from "@/components/checkout/OrderTransition";
 
 // Same self-contained "system page" shell as /checkout/setup so the two
 // payment pages feel like one flow.
@@ -83,6 +83,8 @@ export default function CheckoutRobux() {
   // A verification that never lands fills red with the reason instead.
   const [goGreen, setGoGreen] = useState(false);
   const [failReason, setFailReason] = useState<string | null>(null);
+  const verifyBtn = useRef<HTMLButtonElement>(null);
+  const [fillOrigin, setFillOrigin] = useState<{ x: number; y: number } | null>(null);
 
   const finish = (id: string) => {
     markOrderHandoff();
@@ -169,16 +171,20 @@ export default function CheckoutRobux() {
         try {
           s = await callRobux("verify", orderId);
         } catch (e) {
+          setFillOrigin(originOf(verifyBtn.current));
           setFailReason(e instanceof Error ? e.message : "We couldn't verify the purchase. Please try again.");
           return;
         }
         if (s.success || s.paid) {
           setSummary(s);
+          setFillOrigin(originOf(verifyBtn.current));
+          void import("@/pages/CheckoutReturn");
           setStep("done");
           setGoGreen(true);
           return;
         }
         if (attempt === MAX_ATTEMPTS - 1) {
+          setFillOrigin(originOf(verifyBtn.current));
           setFailReason(
             "Roblox has not recorded a purchase of this gamepass on that account yet. If you just bought it, give it a minute and press I've purchased again. If you have not bought it, nothing was charged.",
           );
@@ -206,11 +212,12 @@ export default function CheckoutRobux() {
   return (
     <main className="ossys" style={{ ["--os-mtn" as any]: `url(${containers})` }}>
       <style>{OSSYS_CSS}</style>
-      {goGreen && <OrderTransition tone="go" active onFilled={() => finish(orderId)} />}
+      {goGreen && <OrderTransition tone="go" active origin={fillOrigin} onFilled={() => finish(orderId)} />}
       {failReason && (
         <OrderTransition
           tone="fail"
           active
+          origin={fillOrigin}
           reason={failReason}
           actionLabel="Back to the gamepass"
           onAction={() => setFailReason(null)}
@@ -318,6 +325,7 @@ export default function CheckoutRobux() {
                   </a>
                 </div>
                 <button
+                  ref={verifyBtn}
                   type="button"
                   className="ossys-accent"
                   style={{ width: "100%" }}

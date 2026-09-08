@@ -80,3 +80,4 @@
 + Placing a comped order now plays a short moment in the estimate card: the button folds into a check, a green wash sweeps the card, and it becomes your bot with its name, what happens next, and a tracker. The same moment plays when a Robux payment verifies
 + Placing an order now fills the screen green and carries you straight into the thank-you page, which shows your bot, Order placed, and a Placed to Building to Live tracker that keeps moving
 + If a payment does not go through, the same fill turns red and says Transaction incomplete with the reason and a way back
++ Placing an order no longer pops a loading box. The button carries the wait, and the green grows out of that button to fill the screen before the thank-you page

@@ -44,10 +44,10 @@ export function consumeOrderHandoff(): boolean {
 
 const CSS = `
 .otr{--go:#34D399;--go-rgb:52 211 153;--bad:#E08A8A;--bad-rgb:224 138 138;--heading:#E8EEF3;--body:#A8B4BF;--faint:#788591;--hair:rgba(86,98,110,.55);--bg:#21272e;--ink:#1E242B;--ease:cubic-bezier(.23,1,.32,1);--display:'Bricolage Grotesque',system-ui,sans-serif;--sans:'Space Grotesk',system-ui,sans-serif;position:fixed;inset:0;z-index:130;font-family:var(--sans);color:var(--body);display:grid;place-items:center;padding:24px;overflow:hidden}
-.otr-wash{position:absolute;inset:0;clip-path:circle(0px at 50% 60%);opacity:0}
+.otr-wash{position:absolute;inset:0;clip-path:circle(0px at var(--ox,50%) var(--oy,60%));opacity:0}
 .otr.go .otr-wash{background:linear-gradient(180deg,rgb(var(--go-rgb)/1),rgb(var(--go-rgb)/.86))}
 .otr.fail .otr-wash{background:linear-gradient(180deg,rgb(var(--bad-rgb)/1),rgb(var(--bad-rgb)/.88))}
-.otr.wash .otr-wash,.otr.settle .otr-wash{opacity:1;clip-path:circle(120% at 50% 60%);transition:clip-path 640ms cubic-bezier(.32,.72,0,1),opacity 0s}
+.otr.wash .otr-wash,.otr.settle .otr-wash{opacity:1;clip-path:circle(var(--or,120%) at var(--ox,50%) var(--oy,60%));transition:clip-path 640ms cubic-bezier(.32,.72,0,1),opacity 0s}
 .otr-ground{position:absolute;inset:0;background:radial-gradient(70% 55% at 50% 0%,rgb(var(--bad-rgb)/.14),transparent 60%),var(--bg);opacity:0}
 .otr.settle .otr-ground{opacity:1;transition:opacity 420ms var(--ease)}
 .otr-ui{position:relative;width:min(100%,460px);opacity:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;text-align:center}
@@ -94,6 +94,9 @@ export type OrderTransitionProps = {
   tone: "go" | "fail";
   /** Starts the fill. Flip once. */
   active: boolean;
+  /** Where the fill grows from, in viewport pixels. Usually the button that
+   *  was pressed. Defaults to just below the centre of the screen. */
+  origin?: { x: number; y: number } | null;
   /** "go" only: called once the screen is fully green. Navigate here. */
   onFilled?: () => void;
   /** "fail" only. */
@@ -104,9 +107,17 @@ export type OrderTransitionProps = {
   onAction?: () => void;
 };
 
+/** Centre of an element in viewport pixels, for `origin`. */
+export function originOf(el: Element | null | undefined): { x: number; y: number } | null {
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
 export function OrderTransition({
   tone,
   active,
+  origin,
   onFilled,
   title = "Transaction incomplete",
   reason,
@@ -131,8 +142,19 @@ export function OrderTransition({
 
   if (!active) return null;
 
+  // Radius that reaches the farthest screen corner from the origin.
+  const vars: Record<string, string> = {};
+  if (origin && typeof window !== "undefined") {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const r = Math.hypot(Math.max(origin.x, w - origin.x), Math.max(origin.y, h - origin.y)) + 24;
+    vars["--ox"] = `${Math.round(origin.x)}px`;
+    vars["--oy"] = `${Math.round(origin.y)}px`;
+    vars["--or"] = `${Math.round(r)}px`;
+  }
+
   return (
-    <div className={`otr ${tone} ${stage}`} role={tone === "fail" ? "alertdialog" : "presentation"} aria-modal={tone === "fail" || undefined} aria-label={tone === "fail" ? title : undefined}>
+    <div className={`otr ${tone} ${stage}`} style={vars as React.CSSProperties} role={tone === "fail" ? "alertdialog" : "presentation"} aria-modal={tone === "fail" || undefined} aria-label={tone === "fail" ? title : undefined}>
       <style>{CSS}</style>
       <div className="otr-wash" aria-hidden />
       {tone === "fail" && (
