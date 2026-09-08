@@ -25,7 +25,10 @@ RUN npm run build
 FROM node:20-alpine AS run
 WORKDIR /app
 ENV NODE_ENV=production
-RUN npm install -g serve@14
+# serve-handler is the static engine behind `serve`; server.mjs wraps it so
+# plain-http visitors are sent to https and every response carries HSTS.
+RUN npm install --no-audit --no-fund serve-handler@6
 COPY --from=build /app/dist ./dist
-# Railway injects $PORT; serve the SPA with history-API fallback (-s).
-CMD ["sh", "-c", "serve -s dist -l ${PORT:-8080}"]
+COPY server.mjs ./server.mjs
+# Railway injects $PORT; server.mjs serves the SPA with history-API fallback.
+CMD ["node", "server.mjs"]

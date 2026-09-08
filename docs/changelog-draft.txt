@@ -84,3 +84,4 @@
 + Security review and fixes across the site, database, and bot functions. Team seats, order payment status, bot secrets, and every bot's data are now locked to their owners
 + The Join Message block now opens in the V2 message builder like every other block. Designs saved with the old embed editor are carried over
 + Removing a bot from the dashboard now happens right away, with a strip at the top of the screen that gives you 30 seconds to go back. Closing the strip or letting it run out deletes the bot for good and frees its token. The menu now says Delete bot for one-time bots and Cancel subscription only for bots billed monthly
++ The website now sends anyone who opens it over plain http straight to the secure https address, and tells browsers to use https from then on
