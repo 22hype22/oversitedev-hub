@@ -27,7 +27,7 @@ const OSSYS_CSS = `
 .ossys-foot a:hover{color:var(--os-heading)}
 .ossys-foot .sep{margin:0 10px;opacity:.45}
 .ossys-card{width:100%;border:1px solid var(--os-hair);border-radius:20px;background:linear-gradient(180deg,rgba(46,54,63,.72),rgba(39,46,54,.8));-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:0 34px 90px -34px rgba(0,0,0,.8);padding:38px 34px;text-align:center}
-.ossys-green{position:fixed;inset:0;z-index:5;background:linear-gradient(180deg,#34D399,rgba(52,211,153,.86));pointer-events:none;opacity:1;transition:opacity 520ms cubic-bezier(.23,1,.32,1) 120ms}
+.ossys-green{position:fixed;inset:0;z-index:5;background:linear-gradient(180deg,#34D399,#2DBD87);pointer-events:none;opacity:1;transition:opacity 520ms cubic-bezier(.23,1,.32,1) 120ms}
 .ossys-green.gone{opacity:0}
 .ossys-bot{width:72px;height:72px;border-radius:22px;margin:0 auto 16px;display:grid;place-items:center;position:relative;background:linear-gradient(180deg,rgba(201,219,230,.22),rgba(201,219,230,.08));box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 20px 40px -20px rgba(0,0,0,.8);color:var(--os-heading)}
 .ossys-bot img{width:100%;height:100%;border-radius:22px;object-fit:cover;display:block}
