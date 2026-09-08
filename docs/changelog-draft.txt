@@ -78,3 +78,5 @@
 + The checkout button is now green glass, and the payment panel opens with the button easing out, each block rising in one after the other, and a mint flash around the estimate card
 + The checkout button is reworked as a two-piece mint glass control with a pressed state, and the payment panel opens in one quick motion
 + Placing a comped order now plays a short moment in the estimate card: the button folds into a check, a green wash sweeps the card, and it becomes your bot with its name, what happens next, and a tracker. The same moment plays when a Robux payment verifies
++ Placing an order now fills the screen green and carries you straight into the thank-you page, which shows your bot, Order placed, and a Placed to Building to Live tracker that keeps moving
++ If a payment does not go through, the same fill turns red and says Transaction incomplete with the reason and a way back

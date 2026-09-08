@@ -48,7 +48,17 @@ const pillBase: React.CSSProperties = {
   border: "1px solid transparent",
 };
 
-export const DiscordJoinGate = ({ orderId }: { orderId: string }) => {
+export const DiscordJoinGate = ({
+  orderId,
+  onPhase,
+  onDeclined,
+}: {
+  orderId: string;
+  /** Fires when the order moves on: "building" for in stock, "waitlist" otherwise. */
+  onPhase?: (phase: "building" | "waitlist") => void;
+  /** Fires when the charge at build start was declined. */
+  onDeclined?: (reason: string) => void;
+}) => {
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>({ kind: "join" });
   const [busy, setBusy] = useState(false);
@@ -73,13 +83,34 @@ export const DiscordJoinGate = ({ orderId }: { orderId: string }) => {
         { body: { orderId } },
       );
       if (error || !data?.ok) {
-        toast.error(error?.message || data?.error || "Couldn't confirm — please try again.");
+        // A declined card comes back as a 402 with the reason in the body.
+        let reason = data?.error || error?.message || "";
+        const ctx = (error as { context?: Response } | null)?.context;
+        if (!data?.error && ctx && typeof ctx.json === "function") {
+          try {
+            const payload = await ctx.clone().json();
+            if (payload?.error) reason = String(payload.error);
+            if (payload?.declined && onDeclined) {
+              onDeclined(reason || "Your card was declined.");
+              return;
+            }
+          } catch {
+            /* keep the generic message */
+          }
+        }
+        if (data?.declined && onDeclined) {
+          onDeclined(reason || "Your card was declined.");
+          return;
+        }
+        toast.error(reason || "Couldn't confirm — please try again.");
         return;
       }
       if (data.path === "in_stock" || data.alreadyHandled) {
         setPhase({ kind: "in_stock" });
+        onPhase?.("building");
       } else {
         setPhase({ kind: "waitlist", botsNeeded: data.botsNeeded ?? 1 });
+        onPhase?.("waitlist");
       }
     } finally {
       setBusy(false);
