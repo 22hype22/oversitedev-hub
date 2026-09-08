@@ -52,9 +52,10 @@ export const useBotAvailability = () => {
 
 /** Per-bot price overrides the owner sets from the builder's gear. */
 export type BotPricing = {
+  /** List price in USD. */
   price?: number;
-  /** Crossed-out price. `null` hides the built-in one. */
-  old_price?: number | null;
+  /** Dollars off the list price. Missing or 0 means no discount. */
+  discount?: number;
   monthly?: boolean;
   monthly_price?: number;
   /** How the bot can be bought. Missing means both. */

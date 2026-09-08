@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export const DEFAULT_ROBUX_PER_USD = 400;
+/** Robux per 1 USD before the markup. Roughly the DevEx rate. */
+export const DEFAULT_ROBUX_PER_USD = 285;
+/** Robux prices are 30 percent above the dollar price to cover Roblox's cut. */
+export const ROBUX_MARKUP = 1.3;
 
-/** Robux owed for a USD amount at the given rate, rounded up to a whole Robux. */
+/** Robux owed for a USD amount: the dollar price plus the markup, converted at the rate, rounded up. */
 export const robuxFor = (usd: number, rate: number) =>
-  Math.max(1, Math.ceil(Math.max(0, usd) * (rate > 0 ? rate : DEFAULT_ROBUX_PER_USD)));
+  Math.max(1, Math.ceil(Math.max(0, usd) * ROBUX_MARKUP * (rate > 0 ? rate : DEFAULT_ROBUX_PER_USD)));
 
 export const formatRobux = (robux: number) => `R$ ${Math.round(robux).toLocaleString()}`;
 

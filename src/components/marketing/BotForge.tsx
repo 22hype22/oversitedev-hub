@@ -349,12 +349,20 @@ type PricedBase = Base & { monthly: boolean; monthlyPrice: number; pay: PayMode 
 
 const DEFAULT_MONTHLY_PRICE = 5;
 
+/** "$99" style: whole dollars stay whole, cents show two places. */
+const money = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+
 function applyPricing(b: Base, p: BotPricing | undefined): PricedBase {
-  const price = p && Number.isFinite(Number(p.price)) && Number(p.price) >= 0 ? Number(p.price) : b.price;
+  // Built-in bases already encode a discount as price + oldPrice. An override
+  // stores the list price and dollars off instead: no discount, no strike.
+  let price = b.price;
   let oldPrice = b.oldPrice;
-  if (p && "old_price" in p) {
-    const o = Number(p.old_price);
-    oldPrice = p.old_price != null && Number.isFinite(o) && o > 0 ? o : undefined;
+  if (p && Number.isFinite(Number(p.price)) && Number(p.price) >= 0) {
+    const list = Number(p.price);
+    const off = Number(p.discount);
+    const discount = Number.isFinite(off) && off > 0 ? Math.min(off, list) : 0;
+    price = Number((list - discount).toFixed(2));
+    oldPrice = discount > 0 ? list : undefined;
   }
   const monthly = typeof p?.monthly === "boolean" ? p.monthly : !isRobloxBase(b.id);
   const m = Number(p?.monthly_price);
@@ -443,8 +451,13 @@ function BaseSettingsGear({ base, status }: { base: PricedBase; status: BotStatu
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [draftStatus, setDraftStatus] = useState<BotStatus>(status);
-  const [price, setPrice] = useState(String(base.price));
-  const [oldPrice, setOldPrice] = useState(base.oldPrice != null ? String(base.oldPrice) : "");
+  // The panel edits the list price and the discount; the card shows the
+  // list price struck through and the discounted price next to it.
+  const listPriceOf = (b: PricedBase) => String(b.oldPrice ?? b.price);
+  const discountOf = (b: PricedBase) =>
+    b.oldPrice != null && b.oldPrice > b.price ? money(Number((b.oldPrice - b.price).toFixed(2))) : "";
+  const [price, setPrice] = useState(listPriceOf(base));
+  const [discount, setDiscount] = useState(discountOf(base));
   const [monthly, setMonthly] = useState(base.monthly);
   const [monthlyPrice, setMonthlyPrice] = useState(String(base.monthlyPrice));
   const [pay, setPay] = useState<PayMode>(base.pay);
@@ -453,8 +466,8 @@ function BaseSettingsGear({ base, status }: { base: PricedBase; status: BotStatu
   useEffect(() => {
     if (!open) return;
     setDraftStatus(status);
-    setPrice(String(base.price));
-    setOldPrice(base.oldPrice != null ? String(base.oldPrice) : "");
+    setPrice(listPriceOf(base));
+    setDiscount(discountOf(base));
     setMonthly(base.monthly);
     setMonthlyPrice(String(base.monthlyPrice));
     setPay(base.pay);
@@ -466,9 +479,9 @@ function BaseSettingsGear({ base, status }: { base: PricedBase; status: BotStatu
       sonnerToast.error("Enter a price of 0 or more");
       return;
     }
-    const o = oldPrice.trim() === "" ? null : Number(oldPrice);
-    if (o !== null && (!Number.isFinite(o) || o <= 0)) {
-      sonnerToast.error("The crossed-out price must be above 0, or leave it empty");
+    const d = discount.trim() === "" ? 0 : Number(discount);
+    if (!Number.isFinite(d) || d < 0 || d > p) {
+      sonnerToast.error("The discount must be between 0 and the price, or leave it empty");
       return;
     }
     const m = Number(monthlyPrice);
@@ -480,7 +493,7 @@ function BaseSettingsGear({ base, status }: { base: PricedBase; status: BotStatu
     try {
       const { data, error } = await setBotPricing(base.id, {
         price: p,
-        old_price: o,
+        discount: d > 0 ? d : 0,
         monthly,
         monthly_price: monthly ? m : base.monthlyPrice,
         pay,
@@ -545,8 +558,13 @@ function BaseSettingsGear({ base, status }: { base: PricedBase; status: BotStatu
 
           <div className="grid grid-cols-2 gap-2.5">
             <MoneyField label="One-time price" value={price} onChange={setPrice} />
-            <MoneyField label="Crossed out" value={oldPrice} onChange={setOldPrice} placeholder="none" />
+            <MoneyField label="Discount" value={discount} onChange={setDiscount} placeholder="none" suffix="off" />
           </div>
+          <p className="-mt-2 text-[11px] leading-relaxed text-os-faint">
+            {Number(discount) > 0 && Number(discount) <= Number(price)
+              ? `Shows as $${money(Number(price))} crossed out, $${money(Number((Number(price) - Number(discount)).toFixed(2)))} to pay.`
+              : "No discount. The price shows on its own."}
+          </p>
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
@@ -582,7 +600,7 @@ function BaseSettingsGear({ base, status }: { base: PricedBase; status: BotStatu
                 ? "Customers pick card or Robux at checkout."
                 : pay === "usd"
                   ? "Card only. Robux is hidden for this bot."
-                  : "Robux only. The price converts at the site rate."}
+                  : "Robux only. Robux prices are the dollar price plus 30 percent."}
             </p>
           </div>
         </div>
@@ -742,7 +760,6 @@ export function BotForge() {
   const monthlyTotal = monthlyBases
     .slice(0, 2)
     .reduce((sum, id) => sum + (pricedBase(id)?.monthlyPrice ?? DEFAULT_MONTHLY_PRICE), 0);
-  const money = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
   const [discountCodeInput, setDiscountCodeInput] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState<{
     code: string;
@@ -1532,6 +1549,11 @@ export function BotForge() {
                           <span className="text-os-faint line-through">${money(displayOldPrice)}</span>
                         )}
                         <span className="font-semibold text-os-heading">${money(displayPrice)}</span>
+                        {robuxEnabled && b.pay !== "usd" && !comingSoon && (
+                          <span className="text-os-faint">
+                            or <span className="font-semibold text-os-body">{formatRobux(robuxFor(displayPrice, robuxRate))}</span>
+                          </span>
+                        )}
                         {b.monthly && !comingSoon && (
                           <span className="text-os-faint">+ ${money(b.monthlyPrice)}/mo</span>
                         )}
@@ -1933,6 +1955,14 @@ export function BotForge() {
                 <span className="text-xs text-os-faint font-normal"> one-time*</span>
               </span>
             </div>
+            {!comped && robuxAllowed && finalTotal > 0 && (
+              <div className="mt-1 flex items-center justify-between text-xs">
+                <span className="text-os-faint">{payMethod === "robux" ? "Paying with Robux" : "Or with Robux"}</span>
+                <span className={payMethod === "robux" ? "font-semibold text-os-heading" : "text-os-faint"}>
+                  {formatRobux(robuxFor(finalTotal, robuxRate))}
+                </span>
+              </div>
+            )}
             {comped && (
               <div className="mt-1 flex items-center justify-between text-xs">
                 <span className="text-emerald-400 font-medium">
@@ -2234,9 +2264,9 @@ export function BotForge() {
                             <span className="text-os-accent">{formatRobux(robuxFor(finalTotal, robuxRate))}</span>
                           </div>
                           <div className="text-[10px] text-os-faint mt-1 leading-relaxed">
-                            ${finalTotal.toFixed(2)} at {Math.round(robuxRate).toLocaleString()} Robux per dollar. After
-                            you place the order you buy a gamepass made just for it on Roblox, and your
-                            order is paid the moment Roblox records the sale.
+                            ${finalTotal.toFixed(2)} plus 30 percent for Roblox's cut. After you place
+                            the order you buy a gamepass made just for it on Roblox, and your order is
+                            paid the moment Roblox records the sale.
                           </div>
                         </div>
                       ) : (
