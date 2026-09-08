@@ -732,7 +732,7 @@ export function BotForge() {
   // Card (saved now, charged at build start) or Robux (paid up front through
   // a one-off gamepass on /checkout/robux). Robux is always paid in full.
   const [payMethod, setPayMethod] = useState<"card" | "robux">("card");
-  const { enabled: robuxEnabled, rate: robuxRate } = useRobuxCheckout();
+  const { enabled: robuxEnabled } = useRobuxCheckout();
   useEffect(() => {
     if (payMethod === "robux") setPaymentPlan("full");
   }, [payMethod]);
@@ -1563,7 +1563,7 @@ export function BotForge() {
                         {robuxEnabled && b.pay !== "usd" && !comingSoon && (
                           <>
                             <span className="text-os-faint/50" aria-hidden>·</span>
-                            <span className="text-os-body">{formatRobux(robuxFor(displayPrice, robuxRate))}</span>
+                            <span className="text-os-body">{formatRobux(robuxFor(displayPrice))}</span>
                           </>
                         )}
                         {b.monthly && !comingSoon && (
@@ -1966,7 +1966,7 @@ export function BotForge() {
               <div className="mt-1 flex items-center justify-between text-xs">
                 <span className="text-os-faint">{payMethod === "robux" ? "Paying with Robux" : "Or with Robux"}</span>
                 <span className={payMethod === "robux" ? "font-semibold text-os-heading" : "text-os-faint"}>
-                  {formatRobux(robuxFor(finalTotal, robuxRate))}
+                  {formatRobux(robuxFor(finalTotal))}
                 </span>
               </div>
             )}
@@ -2240,7 +2240,7 @@ export function BotForge() {
                         <div className="grid grid-cols-2 gap-2 mb-2">
                           {([
                             { id: "card", label: "Card", sub: "Saved now, charged at build start" },
-                            { id: "robux", label: "Robux", sub: `${formatRobux(robuxFor(finalTotal, robuxRate))} up front` },
+                            { id: "robux", label: "Robux", sub: `${formatRobux(robuxFor(finalTotal))} up front` },
                           ] as const).map((opt) => {
                             const active = payMethod === opt.id;
                             return (
@@ -2268,7 +2268,7 @@ export function BotForge() {
                         <div className="rounded-lg border border-os-accent/40 bg-os-accent/10 p-3">
                           <div className="text-xs font-medium text-os-heading flex items-center justify-between">
                             Pay in full with Robux
-                            <span className="text-os-accent">{formatRobux(robuxFor(finalTotal, robuxRate))}</span>
+                            <span className="text-os-accent">{formatRobux(robuxFor(finalTotal))}</span>
                           </div>
                           <div className="text-[10px] text-os-faint mt-1 leading-relaxed">
                             ${finalTotal.toFixed(2)} plus 30 percent for Roblox's cut. After you place
