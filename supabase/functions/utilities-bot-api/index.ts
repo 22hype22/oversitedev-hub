@@ -114,7 +114,7 @@ function getWorkerToken(req: Request): { token: string; source: string } {
   return match ? { source: match[0], token: match[1] } : { token: "", source: "none" };
 }
 
-async function authenticate(req: Request): Promise<{ ok: boolean; botId: string | null }> {
+async function authenticate(req: Request): Promise<{ ok: boolean; botId: string | null; retry?: boolean }> {
   const { token, source } = getWorkerToken(req);
   if (!token) {
     console.warn("utilities-bot-api auth failed: no worker token carrier", {
@@ -127,7 +127,13 @@ async function authenticate(req: Request): Promise<{ ok: boolean; botId: string 
   const { data, error } = await admin.rpc("_worker_token_lookup", {
     _token: token,
   });
-  if (error || !data || (Array.isArray(data) && data.length === 0)) {
+  // A database hiccup (schema reload, timeout) is not a bad token. Say so,
+  // so the bot retries instead of logging that its token was rejected.
+  if (error) {
+    console.warn("utilities-bot-api auth unavailable: worker token lookup errored", { source, error: error.message });
+    return { ok: false, botId: null, retry: true };
+  }
+  if (!data || (Array.isArray(data) && data.length === 0)) {
     console.warn("utilities-bot-api auth failed: worker token lookup rejected", {
       source,
       error: error?.message,
@@ -160,6 +166,7 @@ Deno.serve(async (req) => {
 
   const auth = await authenticate(req);
   if (!auth.ok) {
+    if (auth.retry) return json(503, { error: "Token check unavailable, retry shortly" });
     return json(401, { error: "Invalid or missing worker token" });
   }
   // A worker token acts for exactly one bot. Any bot_id in the query or body
