@@ -1,17 +1,22 @@
 -- Robux checkout for bot orders on the website.
 --
 -- A customer can pay a bot order with Robux instead of a card. The order gets
--- its own one-off Roblox gamepass priced at the order total converted with the
--- site-wide rate below; owning that gamepass is the proof of payment.
+-- its own one-off Roblox gamepass priced at the order total plus 30 percent
+-- (Roblox's cut) converted with the site-wide rate below; owning that
+-- gamepass is the proof of payment.
 --
--- app_settings: the switch and the rate (Robux per 1 USD).
+-- app_settings: the switch and the rate (Robux per 1 USD before the markup).
 -- bot_orders:   how the order was paid plus the gamepass and buyer details.
 
 ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS robux_orders_enabled boolean NOT NULL DEFAULT true;
 
 ALTER TABLE public.app_settings
-  ADD COLUMN IF NOT EXISTS robux_per_usd numeric NOT NULL DEFAULT 400;
+  ADD COLUMN IF NOT EXISTS robux_per_usd numeric NOT NULL DEFAULT 285;
+
+-- An earlier draft of this migration defaulted the rate to 400 with the
+-- markup baked in. The markup is applied at checkout now, so reset it.
+UPDATE public.app_settings SET robux_per_usd = 285 WHERE id = 1 AND robux_per_usd = 400;
 
 ALTER TABLE public.app_settings
   DROP CONSTRAINT IF EXISTS app_settings_robux_per_usd_check;

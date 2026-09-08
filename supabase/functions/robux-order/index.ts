@@ -1,7 +1,8 @@
 // Robux checkout for bot orders.
 //
 // Every Robux order gets its own Roblox gamepass, priced at the order total
-// converted with app_settings.robux_per_usd. Owning that gamepass is the
+// plus a 30 percent markup (Roblox's cut) converted with
+// app_settings.robux_per_usd. Owning that gamepass is the
 // proof of payment, so two customers can never collide on one pass and a
 // price change on the shared /payment passes never affects an order.
 //
@@ -28,7 +29,10 @@ const ROBLOX_COOKIE = Deno.env.get("ROBLOX_COOKIE") ?? "";
 const PLACE_ID = Deno.env.get("ROBLOX_ORDER_PLACE_ID") || "108687688483255";
 const ICON_URL = Deno.env.get("ROBLOX_ORDER_ICON_URL") || "https://www.oversite.shop/OversiteLogo.png";
 const GAMEPASS_ITEM_TYPE = 1;
-const DEFAULT_RATE = 400;
+const DEFAULT_RATE = 285;
+// Robux prices sit 30 percent above the dollar price. Keep in step with
+// ROBUX_MARKUP in src/hooks/useRobuxCheckout.tsx.
+const ROBUX_MARKUP = 1.3;
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
@@ -167,7 +171,7 @@ async function loadSettings(): Promise<{ enabled: boolean; rate: number }> {
   };
 }
 
-const robuxFor = (usd: number, rate: number) => Math.max(1, Math.ceil(Number(usd) * rate));
+const robuxFor = (usd: number, rate: number) => Math.max(1, Math.ceil(Number(usd) * ROBUX_MARKUP * rate));
 
 type OrderRow = {
   id: string;
@@ -215,6 +219,7 @@ function summary(o: OrderRow, rate: number) {
     paid: isPaid(o),
     totalUsd: Number(o.total_amount ?? 0),
     rate,
+    markup: ROBUX_MARKUP,
     robux: o.robux_amount ?? robuxFor(Number(o.total_amount ?? 0), rate),
     gamepassId: o.robux_gamepass_id,
     gamepassUrl: o.robux_gamepass_id ? gamepassUrl(o.robux_gamepass_id) : null,

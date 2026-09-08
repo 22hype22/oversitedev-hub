@@ -1,8 +1,8 @@
 -- Per-bot pricing the owner edits from the gear on each bot card in the builder.
 --
 -- app_settings.bot_pricing is a map of base id -> {
---   price:         one-time price in USD (replaces the built-in price)
---   old_price:     crossed-out price, null to hide it
+--   price:         list price in USD (replaces the built-in price)
+--   discount:      dollars off; the list price shows crossed out when set
 --   monthly:       whether this bot bills monthly hosting
 --   monthly_price: hosting price per month in USD
 --   pay:           'usd', 'robux', or 'both' (how the bot can be bought)

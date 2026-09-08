@@ -65,3 +65,5 @@
 + Admins can turn Robux checkout on or off and set the Robux per dollar rate from the Danger Zone
 + The gear on each bot card in the builder now sets the status, the one-time price, a crossed-out price, and whether the bot has monthly pricing and how much
 + Each bot can be sold in USD, Robux, or both from the card gear, and checkout only offers what the picked bots allow
++ Robux prices are the dollar price plus 30 percent and show next to the one-time price on each bot card and in the estimate
++ The card gear takes a discount instead of a crossed-out price. Leave it empty and the price shows on its own

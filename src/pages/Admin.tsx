@@ -831,9 +831,9 @@ const ADMIN_HTML = `<div class="osd app">
           <div class="ch"><span class="eye">Storefront</span><h3>Robux checkout</h3><span class="mut">bot orders paid with Robux</span></div>
           <div class="cb">
             <div class="lbl2" data-dz="robux-state">Checking…</div>
-            <div class="subnote" style="margin-top:6px">Each Robux order gets its own gamepass priced at the order total times this rate. Owning the pass is the proof of payment. Roblox keeps 30% of gamepass sales, so set the rate with that in mind.</div>
+            <div class="subnote" style="margin-top:6px">Robux prices are the dollar price plus 30% (Roblox's cut), converted at this rate. Each Robux order gets its own gamepass at that price, and owning the pass is the proof of payment.</div>
             <div class="confirm">
-              <input class="in mono" type="number" min="1" step="1" data-dz="robux-rate" placeholder="Robux per 1 USD">
+              <input class="in mono" type="number" min="1" step="1" data-dz="robux-rate" placeholder="Robux per 1 USD, before the 30% markup">
               <button class="btn" data-dz="robux-save">Save rate</button>
               <button class="btn" data-dz="robux-toggle">Turn off</button>
             </div>
@@ -2737,11 +2737,11 @@ function wireDanger(root: HTMLElement): void {
       return;
     }
     robuxEnabled = data?.robux_orders_enabled !== false;
-    const rate = Number(data?.robux_per_usd ?? 400);
+    const rate = Number(data?.robux_per_usd ?? 285);
     if (robuxRateEl && document.activeElement !== robuxRateEl) robuxRateEl.value = String(rate);
     if (robuxStateEl)
       robuxStateEl.innerHTML = robuxEnabled
-        ? `Robux checkout is on <span class="pill-live">${Math.round(rate).toLocaleString()} Robux per dollar</span>`
+        ? `Robux checkout is on <span class="pill-live">${Math.round(rate).toLocaleString()} Robux per dollar, plus 30%</span>`
         : 'Robux checkout is <b style="color:#e08a8a">off</b> <span class="pill-live" style="background:rgba(230,138,138,.15);color:#e08a8a">card only</span>';
     if (robuxToggleBtn) {
       robuxToggleBtn.className = robuxEnabled ? "btn danger" : "btn";

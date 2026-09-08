@@ -229,8 +229,8 @@ export default function CheckoutRobux() {
                   {robuxLabel} for {summary.botName || "your bot"}
                 </h1>
                 <p style={{ fontSize: 14.5, lineHeight: 1.6, marginBottom: 20 }}>
-                  ${summary.totalUsd.toFixed(2)} at {Math.round(summary.rate).toLocaleString()} Robux per
-                  dollar. Tell us which Roblox account will buy the gamepass so we can match the sale.
+                  ${summary.totalUsd.toFixed(2)} plus 30 percent for Roblox's cut. Tell us which Roblox
+                  account will buy the gamepass so we can match the sale.
                 </p>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--os-heading)", marginBottom: 6 }}>
                   Roblox username
