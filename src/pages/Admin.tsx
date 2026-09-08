@@ -831,7 +831,7 @@ const ADMIN_HTML = `<div class="osd app">
           <div class="ch"><span class="eye">Storefront</span><h3>Robux checkout</h3><span class="mut">bot orders paid with Robux</span></div>
           <div class="cb">
             <div class="lbl2" data-dz="robux-state">Checking…</div>
-            <div class="subnote" style="margin-top:6px">Robux prices are the dollar price plus 30% (Roblox's cut), converted at this rate. Each Robux order gets its own gamepass at that price, and owning the pass is the proof of payment.</div>
+            <div class="subnote" style="margin-top:6px">Robux prices are the dollar price plus 30% (Roblox's cut) at this rate, rounded up to end in 999. At 100, $99 is 12,999 Robux. Each Robux order gets its own gamepass at that price, and owning the pass is the proof of payment.</div>
             <div class="confirm">
               <input class="in mono" type="number" min="1" step="1" data-dz="robux-rate" placeholder="Robux per 1 USD, before the 30% markup">
               <button class="btn" data-dz="robux-save">Save rate</button>
@@ -2737,7 +2737,7 @@ function wireDanger(root: HTMLElement): void {
       return;
     }
     robuxEnabled = data?.robux_orders_enabled !== false;
-    const rate = Number(data?.robux_per_usd ?? 285);
+    const rate = Number(data?.robux_per_usd ?? 100);
     if (robuxRateEl && document.activeElement !== robuxRateEl) robuxRateEl.value = String(rate);
     if (robuxStateEl)
       robuxStateEl.innerHTML = robuxEnabled

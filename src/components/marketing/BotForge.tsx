@@ -1544,31 +1544,39 @@ export function BotForge() {
                           </li>
                         ))}
                       </ul>
-                      <div className="mt-auto pt-3 flex items-center gap-2 flex-wrap text-xs text-os-body">
-                        <span>one-time</span>
-                        {displayOldPrice && !comingSoon && (
-                          <span className="text-os-faint line-through">${money(displayOldPrice)}</span>
-                        )}
-                        <span className="font-semibold text-os-heading">${money(displayPrice)}</span>
+                      {/* Price line: label, price, then the other ways to pay
+                          separated by dots. Everything sits on one baseline at
+                          one size; status lives in the corner pill, not here.
+                          Right padding keeps clear of the owner gear. */}
+                      <div
+                        className={`mt-auto pt-4 flex items-baseline gap-x-2 flex-wrap text-xs leading-none ${
+                          canManageStatus ? "pr-9" : ""
+                        }`}
+                      >
+                        <span className="text-os-faint">one-time</span>
+                        <span className="inline-flex items-baseline gap-x-1.5">
+                          {displayOldPrice && !comingSoon && (
+                            <span className="text-os-faint line-through">${money(displayOldPrice)}</span>
+                          )}
+                          <span className="font-semibold text-os-heading">${money(displayPrice)}</span>
+                        </span>
                         {robuxEnabled && b.pay !== "usd" && !comingSoon && (
-                          <span className="text-os-faint">
-                            or <span className="font-semibold text-os-body">{formatRobux(robuxFor(displayPrice, robuxRate))}</span>
-                          </span>
+                          <>
+                            <span className="text-os-faint/50" aria-hidden>·</span>
+                            <span className="text-os-body">{formatRobux(robuxFor(displayPrice, robuxRate))}</span>
+                          </>
                         )}
                         {b.monthly && !comingSoon && (
-                          <span className="text-os-faint">+ ${money(b.monthlyPrice)}/mo</span>
+                          <>
+                            <span className="text-os-faint/50" aria-hidden>·</span>
+                            <span className="text-os-faint">${money(b.monthlyPrice)}/mo hosting</span>
+                          </>
                         )}
                         {b.pay !== "both" && !comingSoon && (
-                          <span className="px-1.5 py-0.5 rounded-full bg-os-surface/60 border border-os-hairline/50 text-os-faint text-[10px] font-semibold uppercase tracking-wide">
-                            {b.pay === "robux" ? "Robux only" : "USD only"}
-                          </span>
-                        )}
-                        {/* Pre-order and Coming soon live in the top-right corner
-                            pill; no sale badge down here. */}
-                        {!comingSoon && isDiscountedSecond && (
-                          <span className="px-1.5 py-0.5 rounded-full bg-os-accent/15 border border-os-accent/30 text-os-accent text-[10px] font-semibold uppercase tracking-wide">
-                            Add for $50
-                          </span>
+                          <>
+                            <span className="text-os-faint/50" aria-hidden>·</span>
+                            <span className="text-os-faint">{b.pay === "robux" ? "Robux only" : "USD only"}</span>
+                          </>
                         )}
                       </div>
                     </button>
