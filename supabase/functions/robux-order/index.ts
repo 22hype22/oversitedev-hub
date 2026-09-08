@@ -362,6 +362,6 @@ Deno.serve(async (req) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("robux-order error:", message);
-    return json({ error: message }, 500);
+    return json({ error: message.startsWith("Roblox") || /HTTP \d{3}/.test(message) ? "Roblox did not accept that request. Please try again." : message }, 500);
   }
 });

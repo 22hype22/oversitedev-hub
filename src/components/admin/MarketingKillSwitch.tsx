@@ -18,7 +18,7 @@ import {
   setMarketingSuspended,
 } from "@/hooks/useMarketingSuspended";
 
-const SHUTDOWN_CODE = "Oversite19!";
+const SHUTDOWN_CODE = "CONFIRM";
 
 export const MarketingKillSwitch = () => {
   const { suspended } = useMarketingSuspended();

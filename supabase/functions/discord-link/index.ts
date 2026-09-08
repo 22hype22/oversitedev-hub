@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
       const tokenData = await tokenRes.json();
       if (!tokenRes.ok) {
         console.error('Discord token error', tokenData);
-        return json(400, { error: 'Discord rejected the code', details: tokenData });
+        console.warn('discord-link token exchange rejected', tokenData); return json(400, { error: 'Discord rejected the code' });
       }
 
       // Fetch identity

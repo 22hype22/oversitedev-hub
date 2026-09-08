@@ -974,6 +974,31 @@ async function buildDispatchVars(
   return vars;
 }
 
+
+// Internal secret shared with the database triggers: stored in deploy_config
+// (service role only) so the triggers and the functions read one value.
+// INTERNAL_DEPLOY_SECRET, if set, is also accepted.
+
+// True while no internal secret exists anywhere (the security migration has
+// not been run yet and INTERNAL_DEPLOY_SECRET is unset). The trigger paths
+// then behave as they did before; once a secret exists they are enforced.
+async function noSecretConfigured(admin: any): Promise<boolean> {
+  if (Deno.env.get("INTERNAL_DEPLOY_SECRET")) return false;
+  const { data, error } = await admin.from("deploy_config").select("internal_secret").eq("id", 1).maybeSingle();
+  if (error) return true;
+  return !String(data?.internal_secret ?? "");
+}
+
+async function internalSecretOk(req: Request, admin: any): Promise<boolean> {
+  const provided = req.headers.get("x-internal-secret") ?? "";
+  if (!provided) return false;
+  const envSecret = Deno.env.get("INTERNAL_DEPLOY_SECRET") ?? "";
+  if (envSecret && provided === envSecret) return true;
+  const { data } = await admin.from("deploy_config").select("internal_secret").eq("id", 1).maybeSingle();
+  const stored = String(data?.internal_secret ?? "");
+  return stored.length >= 16 && provided === stored;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -1013,11 +1038,54 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Who is asking? The database trigger (internal secret), or a signed-in
+    // owner, team editor, or admin. Anyone else is refused before any lookup.
+    let trusted = await internalSecretOk(req, admin);
+    if (!trusted && invocationSource === "trigger" && (await noSecretConfigured(admin))) {
+      console.warn("[auto-deploy-bot] no internal secret configured yet; allowing the trigger call. Run the security migration to enforce it.");
+      trusted = true;
+    }
+    let callerId: string | null = null;
+    if (!trusted) {
+      const authHeader = req.headers.get("authorization") ?? "";
+      if (authHeader.startsWith("Bearer ")) {
+        const { data: u } = await admin.auth.getUser(authHeader.slice(7));
+        callerId = u?.user?.id ?? null;
+      }
+      if (!callerId) {
+        return new Response(JSON.stringify({ error: "Not authorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const { data: order, error: orderErr } = await admin
       .from("bot_orders")
       .select("id, user_id, bot_name, bot_description, bot_bio, icon_url, base, bot_token, addons, railway_service_id, status, deployment_status, deployment_attempted_at, discord_user_id, ready_dm_sent")
       .eq("id", orderId)
       .maybeSingle();
+
+    if (!trusted && order && callerId && order.user_id !== callerId) {
+      const [{ data: isAdmin }, { data: canEdit }] = await Promise.all([
+        admin.rpc("has_role", { _user_id: callerId, _role: "admin" }),
+        admin.rpc("has_bot_team_perm", { _viewer_id: callerId, _bot_id: order.id, _perm: "edit_bot_config" }),
+      ]);
+      if (!isAdmin && !canEdit) {
+        return new Response(JSON.stringify({ error: "Not authorized" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+    // A signed-in caller can only (re)deploy an order that has been paid for
+    // or comped; the trigger path is reached only after payment already.
+    if (!trusted && order && !order.status.match(/^(paid|ready|live|deployed|building)$/)) {
+      return new Response(JSON.stringify({ error: "Order is not ready to deploy" }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (orderErr || !order) {
       // Surface WHY the lookup failed — a DB error here (bad key, missing
@@ -1055,17 +1123,7 @@ Deno.serve(async (req) => {
         countError: countErr?.message ?? null,
       });
       return new Response(
-        JSON.stringify({
-          error: "Order not found",
-          orderId: orderId ?? null,
-          dbError: orderErr?.message ?? null,
-          dbCode: (orderErr as { code?: string } | null)?.code ?? null,
-          keyKind,
-          keyRole,
-          usingOverride,
-          visibleRows: visibleRows ?? null,
-          countError: countErr?.message ?? null,
-        }),
+        JSON.stringify({ error: "Order not found" }),
         {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
