@@ -38,6 +38,8 @@ project_id = "kqhyjxtylvigrezlxzpl"
   # "Missing authorization header" on every heartbeat and command poll.
   [functions.utilities-bot-api]
     verify_jwt = false
+  [functions.support-bot-api]
+    verify_jwt = false
   [functions.bot-status-sync]
     verify_jwt = false
   [functions.robux-locker]

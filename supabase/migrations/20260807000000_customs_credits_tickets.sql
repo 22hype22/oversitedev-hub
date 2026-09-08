@@ -1,4 +1,8 @@
-CREATE TABLE IF NOT EXISTS public.bot_credits (
+-- Per-member credit ledger for the Customs bot (/credits add, remove, balance),
+-- plus a ticket log. Named bot_member_credits because bot_credits already
+-- holds the account-level store credit balance used by team transfers.
+
+CREATE TABLE IF NOT EXISTS public.bot_member_credits (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   bot_id uuid NOT NULL REFERENCES public.bot_orders(id) ON DELETE CASCADE,
   guild_id text NOT NULL,
@@ -9,23 +13,23 @@ CREATE TABLE IF NOT EXISTS public.bot_credits (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS bot_credits_lookup_idx
-  ON public.bot_credits (bot_id, guild_id, user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS bot_member_credits_lookup_idx
+  ON public.bot_member_credits (bot_id, guild_id, user_id, created_at DESC);
 
-ALTER TABLE public.bot_credits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bot_member_credits ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS bot_credits_owner_select ON public.bot_credits;
-CREATE POLICY bot_credits_owner_select ON public.bot_credits
+DROP POLICY IF EXISTS bot_member_credits_owner_select ON public.bot_member_credits;
+CREATE POLICY bot_member_credits_owner_select ON public.bot_member_credits
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM public.bot_orders o
-      WHERE o.id = bot_credits.bot_id
+      WHERE o.id = bot_member_credits.bot_id
         AND (o.user_id = auth.uid() OR public.has_role(auth.uid(), 'admin'))
     )
   );
 
-DROP POLICY IF EXISTS bot_credits_service_all ON public.bot_credits;
-CREATE POLICY bot_credits_service_all ON public.bot_credits
+DROP POLICY IF EXISTS bot_member_credits_service_all ON public.bot_member_credits;
+CREATE POLICY bot_member_credits_service_all ON public.bot_member_credits
   FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
 CREATE TABLE IF NOT EXISTS public.bot_tickets (
@@ -87,21 +91,21 @@ BEGIN
 
   IF _op = 'add' THEN
     _amount := COALESCE((_payload->>'amount')::integer, 0);
-    INSERT INTO public.bot_credits (bot_id, guild_id, user_id, amount, reason, granted_by)
+    INSERT INTO public.bot_member_credits (bot_id, guild_id, user_id, amount, reason, granted_by)
     VALUES (_bot_id, _guild, _user, _amount, _payload->>'reason', _payload->>'granted_by');
     SELECT COALESCE(SUM(amount), 0) INTO _total
-      FROM public.bot_credits
+      FROM public.bot_member_credits
      WHERE bot_id = _bot_id AND guild_id = _guild AND user_id = _user;
     RETURN jsonb_build_object('ok', true, 'total', _total);
 
   ELSIF _op = 'balance' THEN
     SELECT COALESCE(SUM(amount), 0) INTO _total
-      FROM public.bot_credits
+      FROM public.bot_member_credits
      WHERE bot_id = _bot_id AND guild_id = _guild AND user_id = _user;
     SELECT COALESCE(jsonb_agg(e ORDER BY e.created_at DESC), '[]'::jsonb) INTO _entries
       FROM (
         SELECT amount, reason, granted_by, created_at
-          FROM public.bot_credits
+          FROM public.bot_member_credits
          WHERE bot_id = _bot_id AND guild_id = _guild AND user_id = _user
          ORDER BY created_at DESC
          LIMIT 25
