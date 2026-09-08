@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { CheckCircle2, Copy, ExternalLink, Loader2 } from "lucide-react";
+import { CheckCircle2, Copy, ExternalLink, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,13 +23,25 @@ const OSSYS_CSS = `
 .ossys-ghost{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:46px;padding:0 18px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;text-decoration:none;background:rgba(232,238,243,.05);border:1px solid var(--os-hair);color:var(--os-heading);transition:background .15s}
 .ossys-ghost:hover{background:rgba(232,238,243,.09)}
 .ossys-pill{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;margin-bottom:18px;background:rgba(201,219,230,.12);border:1px solid rgba(201,219,230,.28);color:var(--os-accent)}
-.ossys-in{width:100%;height:46px;border-radius:12px;border:1px solid var(--os-hair);background:rgba(18,22,27,.5);color:var(--os-heading);padding:0 14px;font-size:15px;outline:none}
-.ossys-in:focus{border-color:rgba(201,219,230,.55)}
 .ossys-box{border:1px solid var(--os-hair);border-radius:12px;background:rgba(232,238,243,.045);padding:14px 16px;font-size:13px;line-height:1.6}
 .ossys-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;word-break:break-all;color:var(--os-heading)}
 .ossys-steps{margin:0;padding-left:18px;color:var(--os-body)}
 .ossys-steps li{margin:4px 0}
+.ossys-link{color:var(--os-faint);font-size:12px;background:none;border:0;cursor:pointer;text-decoration:underline;display:block;margin:14px auto 0}
+.ossys-acct{display:flex;align-items:center;gap:12px;border:1px solid var(--os-hair);border-radius:12px;background:rgba(232,238,243,.045);padding:12px 14px;margin-bottom:16px}
+.ossys-acct img{width:40px;height:40px;border-radius:10px;background:rgba(18,22,27,.5);flex:none}
+.ossys-acct .n{color:var(--os-heading);font-weight:700;font-size:14px}
+.ossys-acct .s{font-size:12px;color:var(--os-faint);margin-top:2px}
+.ossys-kind{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.ossys-kind button{text-align:left;border-radius:12px;border:1px solid var(--os-hair);background:rgba(18,22,27,.35);padding:12px 12px 11px;cursor:pointer;color:var(--os-body);transition:border-color .15s,background .15s}
+.ossys-kind button:hover{border-color:rgba(201,219,230,.45)}
+.ossys-kind button.on{border-color:var(--os-accent);background:rgba(201,219,230,.10)}
+.ossys-kind .t{display:flex;align-items:center;justify-content:space-between;color:var(--os-heading);font-weight:700;font-size:13.5px}
+.ossys-kind .d{font-size:11.5px;line-height:1.45;color:var(--os-faint);margin-top:4px}
+@media (max-width:420px){.ossys-kind{grid-template-columns:1fr}}
 `;
+
+type AccountKind = "standard" | "select";
 
 type Summary = {
   paid: boolean;
@@ -38,14 +50,17 @@ type Summary = {
   base?: string | null;
   iconUrl?: string | null;
   totalUsd: number;
-  rate: number;
   robux: number;
-  gamepassUrl: string | null;
+  itemKind: "gamepass" | "shirt" | "devproduct" | null;
+  itemId: string | null;
+  itemUrl: string | null;
+  itemName: string | null;
   robloxUsername: string | null;
   enabled?: boolean;
+  linked?: { robloxUserId: number | null; robloxUsername: string | null; accountKind: AccountKind | null };
 };
 
-type Step = "loading" | "username" | "purchase" | "done" | "error";
+type Step = "loading" | "link" | "kind" | "purchase" | "done" | "error";
 
 async function callRobux(action: string, orderId: string, extra: Record<string, unknown> = {}) {
   const { data, error } = await supabase.functions.invoke("robux-order", {
@@ -68,16 +83,20 @@ async function callRobux(action: string, orderId: string, extra: Record<string, 
   return data as Summary & { ok?: boolean; success?: boolean };
 }
 
+const headshot = (robloxUserId: number) =>
+  `https://www.roblox.com/headshot-thumbnail/image?userId=${robloxUserId}&width=150&height=150&format=png`;
+
 export default function CheckoutRobux() {
   const [params] = useSearchParams();
   const orderId = params.get("order") || "";
+  const justLinked = params.get("linked") === "1";
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
 
   const [step, setStep] = useState<Step>("loading");
   const [errorText, setErrorText] = useState<string>("");
   const [summary, setSummary] = useState<Summary | null>(null);
-  const [username, setUsername] = useState("");
+  const [kind, setKind] = useState<AccountKind>("standard");
   const [busy, setBusy] = useState(false);
   // On verify the screen fills green and hands off to the thank-you page.
   // A verification that never lands fills red with the reason instead.
@@ -91,7 +110,9 @@ export default function CheckoutRobux() {
     navigate(`/checkout/return?order=${id}&robux=1`);
   };
 
-  // Load where this order is: fresh, gamepass already made, or already paid.
+  const linked = summary?.linked && summary.linked.robloxUserId ? summary.linked : null;
+
+  // Load where this order is: not linked yet, linked, item ready, or paid.
   useEffect(() => {
     if (!orderId) {
       setErrorText("No order was given. Go back to the builder and place the order again.");
@@ -107,10 +128,7 @@ export default function CheckoutRobux() {
     let cancelled = false;
     (async () => {
       try {
-        const [s, profile] = await Promise.all([
-          callRobux("status", orderId),
-          supabase.from("profiles").select("roblox_username").eq("user_id", user.id).maybeSingle(),
-        ]);
+        const s = await callRobux("status", orderId);
         if (cancelled) return;
         setSummary(s);
         if (s.paid) {
@@ -122,9 +140,14 @@ export default function CheckoutRobux() {
           setStep("error");
           return;
         }
-        const saved = (s.robloxUsername || profile.data?.roblox_username || "").trim();
-        if (saved) setUsername(saved);
-        setStep(s.gamepassUrl ? "purchase" : "username");
+        if (s.linked?.accountKind) setKind(s.linked.accountKind);
+        if (!s.linked?.robloxUserId) {
+          setStep("link");
+        } else if (s.itemKind && s.itemUrl && !justLinked) {
+          setStep("purchase");
+        } else {
+          setStep("kind");
+        }
       } catch (e) {
         if (cancelled) return;
         setErrorText(e instanceof Error ? e.message : "Couldn't load this order.");
@@ -134,21 +157,33 @@ export default function CheckoutRobux() {
     return () => {
       cancelled = true;
     };
-  }, [orderId, user, authLoading]);
+  }, [orderId, user, authLoading, justLinked]);
 
-  const start = async () => {
-    const trimmed = username.trim();
-    if (!/^[A-Za-z0-9_]{3,20}$/.test(trimmed)) {
-      toast.error("Enter a valid Roblox username", {
-        description: "3 to 20 letters, numbers, or underscores.",
-      });
-      return;
-    }
+  // Sends the buyer to Roblox to sign in; Roblox brings them straight back
+  // here with the account attached.
+  const link = async () => {
     setBusy(true);
     try {
-      const s = await callRobux("start", orderId, { robloxUsername: trimmed });
+      const returnTo = `${window.location.origin}/checkout/robux?order=${encodeURIComponent(orderId)}`;
+      const { data, error } = await supabase.functions.invoke("roblox-verify", {
+        body: { action: "site_start", return_to: returnTo },
+      });
+      const url = (data as { url?: string; error?: string } | null)?.url;
+      if (error || !url) {
+        throw new Error((data as { error?: string } | null)?.error || error?.message || "Couldn't start the Roblox login.");
+      }
+      window.location.href = url;
+    } catch (e) {
+      toast.error("Couldn't open Roblox", { description: e instanceof Error ? e.message : "Please try again." });
+      setBusy(false);
+    }
+  };
+
+  const start = async () => {
+    setBusy(true);
+    try {
+      const s = await callRobux("start", orderId, { kind });
       setSummary(s);
-      if (s.robloxUsername) setUsername(s.robloxUsername);
       setStep(s.paid ? "done" : "purchase");
     } catch (e) {
       toast.error("Couldn't set up the Robux payment", {
@@ -186,7 +221,7 @@ export default function CheckoutRobux() {
         if (attempt === MAX_ATTEMPTS - 1) {
           setFillOrigin(originOf(verifyBtn.current));
           setFailReason(
-            "Roblox has not recorded a purchase of this gamepass on that account yet. If you just bought it, give it a minute and press I've purchased again. If you have not bought it, nothing was charged.",
+            `Roblox has not recorded that purchase on ${linked?.robloxUsername || "your account"} yet. If you just bought it, give it a minute and press I've purchased again. If you have not bought it, nothing was charged.`,
           );
           return;
         }
@@ -198,16 +233,29 @@ export default function CheckoutRobux() {
   };
 
   const copyLink = async () => {
-    if (!summary?.gamepassUrl) return;
+    if (!summary?.itemUrl) return;
     try {
-      await navigator.clipboard.writeText(summary.gamepassUrl);
-      toast.success("Gamepass link copied");
+      await navigator.clipboard.writeText(summary.itemUrl);
+      toast.success("Link copied");
     } catch {
       toast.error("Couldn't copy the link", { description: "Select the link and copy it by hand." });
     }
   };
 
   const robuxLabel = summary ? formatRobux(summary.robux) : "";
+  const isShirt = summary?.itemKind === "shirt";
+  const isProduct = summary?.itemKind === "devproduct";
+  const itemWord = isShirt ? "shirt" : isProduct ? "product" : "gamepass";
+
+  const accountCard = linked ? (
+    <div className="ossys-acct">
+      <img src={headshot(linked.robloxUserId as number)} alt="" />
+      <div>
+        <div className="n">{linked.robloxUsername}</div>
+        <div className="s">Linked Roblox account</div>
+      </div>
+    </div>
+  ) : null;
 
   return (
     <main className="ossys" style={{ ["--os-mtn" as any]: `url(${containers})` }}>
@@ -219,7 +267,7 @@ export default function CheckoutRobux() {
           active
           origin={fillOrigin}
           reason={failReason}
-          actionLabel="Back to the gamepass"
+          actionLabel={`Back to the ${itemWord}`}
           onAction={() => setFailReason(null)}
         />
       )}
@@ -247,38 +295,59 @@ export default function CheckoutRobux() {
               </>
             )}
 
-            {step === "username" && summary && (
+            {step === "link" && summary && (
               <>
                 <h1 style={{ fontSize: 24, marginBottom: 8 }}>
                   {robuxLabel} for {summary.botName || "your bot"}
                 </h1>
                 <p style={{ fontSize: 14.5, lineHeight: 1.6, marginBottom: 20 }}>
-                  ${summary.totalUsd.toFixed(2)} plus 30 percent for Roblox's cut. Tell us which Roblox
-                  account will buy the gamepass so we can match the sale.
+                  ${summary.totalUsd.toFixed(2)} plus 30 percent for Roblox's cut. Sign in with the Roblox
+                  account that will pay, so we can match the sale to this order.
                 </p>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--os-heading)", marginBottom: 6 }}>
-                  Roblox username
-                </label>
-                <input
-                  className="ossys-in"
-                  placeholder="e.g. Builderman"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void start();
-                  }}
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  className="ossys-accent"
-                  style={{ width: "100%", marginTop: 16 }}
-                  onClick={start}
-                  disabled={busy}
-                >
+                <button type="button" className="ossys-accent" style={{ width: "100%" }} onClick={link} disabled={busy}>
                   {busy ? (
                     <>
-                      <Loader2 size={16} className="animate-spin" /> Setting up your gamepass…
+                      <Loader2 size={16} className="animate-spin" /> Opening Roblox…
+                    </>
+                  ) : (
+                    <>
+                      Link my Roblox account <ExternalLink size={15} />
+                    </>
+                  )}
+                </button>
+                <p style={{ fontSize: 12, lineHeight: 1.6, textAlign: "center", color: "var(--os-faint)", marginTop: 14 }}>
+                  Roblox only tells us your username and id. Nothing is charged until you buy on Roblox.
+                </p>
+              </>
+            )}
+
+            {step === "kind" && summary && linked && (
+              <>
+                <h1 style={{ fontSize: 24, marginBottom: 8 }}>
+                  {robuxLabel} for {summary.botName || "your bot"}
+                </h1>
+                <p style={{ fontSize: 14.5, lineHeight: 1.6, marginBottom: 16 }}>
+                  Which kind of Roblox account is this? It decides how you pay.
+                </p>
+                {accountCard}
+                <div className="ossys-kind">
+                  {([
+                    { id: "standard", label: "Standard", desc: "Age 16 and up. You buy a product in our Payment experience." },
+                    { id: "select", label: "Roblox Select", desc: "Age 9 to 15. You buy a shirt from our group store." },
+                  ] as const).map((opt) => (
+                    <button key={opt.id} type="button" className={kind === opt.id ? "on" : ""} onClick={() => setKind(opt.id)}>
+                      <div className="t">
+                        {opt.label}
+                        {kind === opt.id && <Check size={13} style={{ color: "var(--os-accent)" }} />}
+                      </div>
+                      <div className="d">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+                <button type="button" className="ossys-accent" style={{ width: "100%" }} onClick={start} disabled={busy}>
+                  {busy ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" /> Setting up your {kind === "select" ? "shirt" : "product"}…
                     </>
                   ) : (
                     <>
@@ -286,41 +355,44 @@ export default function CheckoutRobux() {
                     </>
                   )}
                 </button>
-                <p style={{ fontSize: 12, lineHeight: 1.6, textAlign: "center", color: "var(--os-faint)", marginTop: 14 }}>
-                  The gamepass is made just for this order. Nothing is charged until you buy it on Roblox.
-                </p>
+                <button type="button" className="ossys-link" onClick={link} disabled={busy}>
+                  Not your account? Link a different one
+                </button>
               </>
             )}
 
             {step === "purchase" && summary && (
               <>
-                <h1 style={{ fontSize: 24, marginBottom: 8 }}>Buy the gamepass on Roblox</h1>
+                <h1 style={{ fontSize: 24, marginBottom: 8 }}>
+                  {isShirt ? "Buy the shirt on Roblox" : isProduct ? "Buy the product on Roblox" : "Buy the gamepass on Roblox"}
+                </h1>
                 <p style={{ fontSize: 14.5, lineHeight: 1.6, marginBottom: 16 }}>
                   Buy it for <strong style={{ color: "var(--os-heading)" }}>{robuxLabel}</strong> as{" "}
-                  <strong style={{ color: "var(--os-heading)" }}>{summary.robloxUsername || username}</strong>,
+                  <strong style={{ color: "var(--os-heading)" }}>{linked?.robloxUsername || summary.robloxUsername}</strong>,
                   then come back here and press "I've purchased".
                 </p>
                 <div className="ossys-box" style={{ marginBottom: 12 }}>
                   <ol className="ossys-steps">
-                    <li>Open the gamepass link below.</li>
-                    <li>Buy the gamepass on Roblox.</li>
+                    <li>Open the link below.</li>
+                    {isProduct ? (
+                      <li>
+                        On the Store tab, buy <strong style={{ color: "var(--os-heading)" }}>{summary.itemName}</strong> for {robuxLabel}.
+                      </li>
+                    ) : (
+                      <li>Buy the {itemWord} on Roblox for {robuxLabel}.</li>
+                    )}
                     <li>Give Roblox a few seconds to record the sale.</li>
-                    <li>Press "I've purchased" and we confirm ownership.</li>
+                    <li>Press "I've purchased" and we confirm it.</li>
                   </ol>
                 </div>
                 <div className="ossys-box ossys-mono" style={{ marginBottom: 16 }}>
-                  {summary.gamepassUrl}
+                  {summary.itemUrl}
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
                   <button type="button" className="ossys-ghost" onClick={copyLink}>
                     <Copy size={14} /> Copy link
                   </button>
-                  <a
-                    className="ossys-ghost"
-                    href={summary.gamepassUrl ?? "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                  <a className="ossys-ghost" href={summary.itemUrl ?? "#"} target="_blank" rel="noopener noreferrer">
                     <ExternalLink size={14} /> Open link
                   </a>
                 </div>
@@ -340,22 +412,8 @@ export default function CheckoutRobux() {
                     "I've purchased"
                   )}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setStep("username")}
-                  disabled={busy}
-                  style={{
-                    display: "block",
-                    margin: "14px auto 0",
-                    background: "none",
-                    border: 0,
-                    color: "var(--os-faint)",
-                    fontSize: 12,
-                    cursor: "pointer",
-                    textDecoration: "underline",
-                  }}
-                >
-                  Wrong Roblox account? Change it
+                <button type="button" className="ossys-link" onClick={() => setStep("kind")} disabled={busy}>
+                  Wrong account or account type? Change it
                 </button>
               </>
             )}
@@ -366,7 +424,7 @@ export default function CheckoutRobux() {
                   <CheckCircle2 size={22} style={{ color: "#86d3a1" }} /> Payment verified
                 </h1>
                 <p style={{ fontSize: 14.5, lineHeight: 1.6, marginBottom: 20 }}>
-                  We matched your {robuxLabel} gamepass purchase to this order.
+                  We matched your {robuxLabel} {itemWord} purchase to this order.
                 </p>
                 <button type="button" className="ossys-accent" style={{ width: "100%" }} onClick={() => finish(orderId)}>
                   Continue
@@ -376,7 +434,7 @@ export default function CheckoutRobux() {
           </div>
         </div>
       </div>
-      <div className="ossys-foot">Robux payments are verified against your Roblox inventory</div>
+      <div className="ossys-foot">Robux payments are matched to the sale on your linked Roblox account</div>
     </main>
   );
 }

@@ -133,6 +133,54 @@ async function handleStart(req: Request): Promise<Response> {
   return json({ url });
 }
 
+// ── POST site_start: a signed-in website user links their Roblox account ──
+// Uses the platform bot's Roblox OAuth app (the redirect URL is already
+// registered for it) and stores the result on the user's profile.
+const SITE_BOT_ID = Deno.env.get("SITE_ROBLOX_BOT_ID") || "50927258-eb0f-4756-88d0-e7396aaab220";
+const SITE_ORIGINS = (Deno.env.get("SITE_ORIGINS") || "https://www.oversite.shop,https://oversite.shop,http://localhost:8080,http://localhost:5173,http://127.0.0.1:4199")
+  .split(",").map((s) => s.trim()).filter(Boolean);
+function safeReturnTo(raw: string): string | null {
+  try {
+    const u = new URL(raw);
+    return SITE_ORIGINS.includes(u.origin) ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function handleSiteStart(req: Request): Promise<Response> {
+  const authHeader = req.headers.get("authorization") ?? "";
+  if (!authHeader.startsWith("Bearer ")) return json({ error: "Sign in to link your Roblox account." }, 401);
+  const { data: userData, error: userErr } = await admin.auth.getUser(authHeader.slice(7));
+  if (userErr || !userData?.user) return json({ error: "Sign in to link your Roblox account." }, 401);
+  const userId = userData.user.id;
+
+  const body = await req.json().catch(() => ({}));
+  const returnTo = safeReturnTo(String(body.return_to ?? ""));
+  if (!returnTo) return json({ error: "Bad return address." }, 400);
+
+  const cfg = await getConfig(SITE_BOT_ID);
+  const clientId = String(cfg?.roblox_client_id ?? "").trim();
+  if (!clientId) return json({ error: "Roblox login is not set up on the site yet." }, 500);
+
+  const state = crypto.randomUUID();
+  await admin.from("roblox_verify_sessions").delete().eq("site_user_id", userId);
+  const { error: insErr } = await admin.from("roblox_verify_sessions").insert({
+    state,
+    bot_id: SITE_BOT_ID,
+    site_user_id: userId,
+    return_to: returnTo,
+  });
+  if (insErr) return json({ error: `Could not start the Roblox login: ${insErr.message}` }, 500);
+
+  const url =
+    `${ROBLOX_AUTHORIZE}?client_id=${encodeURIComponent(clientId)}` +
+    `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+    `&scope=${encodeURIComponent("openid profile")}` +
+    `&response_type=code&state=${encodeURIComponent(state)}`;
+  return json({ url });
+}
+
 // ── GET callback: Roblox redirected the member back here ────────────────────
 async function handleCallback(url: URL): Promise<Response> {
   const code = url.searchParams.get("code");
@@ -145,7 +193,7 @@ async function handleCallback(url: URL): Promise<Response> {
   // Consume the session (one-time).
   const { data: sess } = await admin
     .from("roblox_verify_sessions")
-    .select("bot_id, guild_id, discord_user_id, expires_at")
+    .select("bot_id, guild_id, discord_user_id, expires_at, site_user_id, return_to")
     .eq("state", state)
     .maybeSingle();
   if (!sess) return page("Link expired", "That verification link is invalid or already used. Click Verify again.", false);
@@ -189,6 +237,27 @@ async function handleCallback(url: URL): Promise<Response> {
   if (!robloxId || !robloxUsername) return page("Couldn't read your Roblox profile", "Roblox returned no username.", false);
 
   // Store the link.
+  // A website login: remember the account on the profile and go back to the
+  // page that asked. Nothing touches Discord.
+  if ((sess as any).site_user_id) {
+    const { error: profErr } = await admin
+      .from("profiles")
+      .update({
+        roblox_user_id: Number(robloxId),
+        roblox_username: robloxUsername,
+        roblox_linked_at: new Date().toISOString(),
+      })
+      .eq("user_id", (sess as any).site_user_id);
+    if (profErr) return page("Couldn't save the link", profErr.message, false);
+    const back = safeReturnTo(String((sess as any).return_to ?? ""));
+    if (back) {
+      const u = new URL(back);
+      u.searchParams.set("linked", "1");
+      return redirect(u.toString());
+    }
+    return page("Roblox account linked", `Linked as ${robloxUsername}. You can go back to the checkout.`, true);
+  }
+
   await admin.from("roblox_verifications").upsert(
     {
       bot_id: sess.bot_id,
@@ -277,6 +346,7 @@ Deno.serve(async (req) => {
     if (req.method === "POST") {
       const body = await req.clone().json().catch(() => ({}));
       if (body?.action === "start") return await handleStart(req);
+      if (body?.action === "site_start") return await handleSiteStart(req);
       if (body?.action === "lookup") return await handleLookup(req);
       return json({ error: "Unknown action." }, 400);
     }
