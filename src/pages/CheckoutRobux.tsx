@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatRobux } from "@/hooks/useRobuxCheckout";
 import containers from "@/assets/containers.webp";
-import { OrderPlacedMoment } from "@/components/checkout/OrderPlacedMoment";
+import { OrderTransition, markOrderHandoff } from "@/components/checkout/OrderTransition";
 
 // Same self-contained "system page" shell as /checkout/setup so the two
 // payment pages feel like one flow.
@@ -79,11 +79,15 @@ export default function CheckoutRobux() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
-  // On verify, the placed moment plays over the card before Continue.
-  const [momentActive, setMomentActive] = useState(false);
-  const [momentCovered, setMomentCovered] = useState(false);
+  // On verify the screen fills green and hands off to the thank-you page.
+  // A verification that never lands fills red with the reason instead.
+  const [goGreen, setGoGreen] = useState(false);
+  const [failReason, setFailReason] = useState<string | null>(null);
 
-  const finish = (id: string) => navigate(`/checkout/return?order=${id}&robux=1`);
+  const finish = (id: string) => {
+    markOrderHandoff();
+    navigate(`/checkout/return?order=${id}&robux=1`);
+  };
 
   // Load where this order is: fresh, gamepass already made, or already paid.
   useEffect(() => {
@@ -109,7 +113,6 @@ export default function CheckoutRobux() {
         setSummary(s);
         if (s.paid) {
           setStep("done");
-          setTimeout(() => setMomentActive(true), 400);
           return;
         }
         if (s.enabled === false) {
@@ -166,21 +169,19 @@ export default function CheckoutRobux() {
         try {
           s = await callRobux("verify", orderId);
         } catch (e) {
-          toast.error("Not verified yet", {
-            description: e instanceof Error ? e.message : "Please try again.",
-          });
+          setFailReason(e instanceof Error ? e.message : "We couldn't verify the purchase. Please try again.");
           return;
         }
         if (s.success || s.paid) {
           setSummary(s);
           setStep("done");
-          setTimeout(() => setMomentActive(true), 120);
+          setGoGreen(true);
           return;
         }
         if (attempt === MAX_ATTEMPTS - 1) {
-          toast.error("Still processing", {
-            description: "Roblox hasn't recorded the sale yet. Wait a moment and try again.",
-          });
+          setFailReason(
+            "Roblox has not recorded a purchase of this gamepass on that account yet. If you just bought it, give it a minute and press I've purchased again. If you have not bought it, nothing was charged.",
+          );
           return;
         }
         await new Promise((r) => setTimeout(r, DELAY_MS));
@@ -205,6 +206,16 @@ export default function CheckoutRobux() {
   return (
     <main className="ossys" style={{ ["--os-mtn" as any]: `url(${containers})` }}>
       <style>{OSSYS_CSS}</style>
+      {goGreen && <OrderTransition tone="go" active onFilled={() => finish(orderId)} />}
+      {failReason && (
+        <OrderTransition
+          tone="fail"
+          active
+          reason={failReason}
+          actionLabel="Back to the gamepass"
+          onAction={() => setFailReason(null)}
+        />
+      )}
       <div className="ossys-mid">
         <div style={{ width: "100%", maxWidth: 480 }}>
           <div className="ossys-card">
@@ -342,30 +353,17 @@ export default function CheckoutRobux() {
             )}
 
             {step === "done" && summary && (
-              <div style={{ position: "relative", overflow: "hidden", margin: -4, padding: 4 }}>
-                <OrderPlacedMoment
-                  active={momentActive}
-                  botName={summary.botName ?? ""}
-                  base={summary.base}
-                  iconUrl={summary.iconUrl}
-                  onCovered={() => setMomentCovered(true)}
-                  onContinue={() => finish(orderId)}
-                  note={`paid with ${robuxLabel}`}
-                />
-                {!momentCovered && (
-                  <div>
-                    <h1 style={{ fontSize: 24, marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>
-                      <CheckCircle2 size={22} style={{ color: "#86d3a1" }} /> Payment verified
-                    </h1>
-                    <p style={{ fontSize: 14.5, lineHeight: 1.6, marginBottom: 20 }}>
-                      We matched your {robuxLabel} gamepass purchase to this order.
-                    </p>
-                    <button type="button" className="ossys-accent" style={{ width: "100%" }} onClick={() => finish(orderId)}>
-                      Continue
-                    </button>
-                  </div>
-                )}
-              </div>
+              <>
+                <h1 style={{ fontSize: 24, marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>
+                  <CheckCircle2 size={22} style={{ color: "#86d3a1" }} /> Payment verified
+                </h1>
+                <p style={{ fontSize: 14.5, lineHeight: 1.6, marginBottom: 20 }}>
+                  We matched your {robuxLabel} gamepass purchase to this order.
+                </p>
+                <button type="button" className="ossys-accent" style={{ width: "100%" }} onClick={() => finish(orderId)}>
+                  Continue
+                </button>
+              </>
             )}
           </div>
         </div>

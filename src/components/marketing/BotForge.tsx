@@ -21,7 +21,7 @@ import { BotStockIndicator } from "@/components/site/BotStockIndicator";
 import { useBotStockCount } from "@/hooks/useBotStockCount";
 import { filterAddonsForBase } from "@/lib/addonCategories";
 import { BOT_BASE_ICONS } from "@/lib/botCatalog";
-import { OrderPlacedMoment } from "@/components/checkout/OrderPlacedMoment";
+import { OrderTransition, markOrderHandoff } from "@/components/checkout/OrderTransition";
 import {
   Shield,
   LifeBuoy,
@@ -819,26 +819,14 @@ export function BotForge() {
   }, [user]);
   const [showAllAddons, setShowAllAddons] = useState<Record<string, boolean>>({});
   const [showPayment, setShowPayment] = useState(false);
-  // The order placed moment (comped orders place right here). The button
-  // folds into its check first, then the wash sweeps the estimate card and
-  // the placed state takes over. `covered` drops the old content while the
-  // card is fully green.
-  const [placed, setPlaced] = useState<{ id: string; name: string; base: string; icon: string | null } | null>(null);
-  const [placedActive, setPlacedActive] = useState(false);
-  const [placedCovered, setPlacedCovered] = useState(false);
-  const startPlacedMoment = (orderId: string) => {
-    const tabs = isPack ? PACK_TABS : visibleIdentityTabs;
-    const ident = usesPackTabs ? packIdentities[tabs[0].id] ?? identity : identity;
-    const base = usesPackTabs ? tabs[0].id : bases.join("+");
-    setPlaced({ id: orderId, name: ident.name.trim() || identity.name.trim(), base, icon: ident.icon ?? identity.icon });
-    setTimeout(() => setPlacedActive(true), 520);
-    setTimeout(() => {
-      document.getElementById("estimate-card")?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 200);
-  };
-  const continueAfterPlaced = () => {
-    if (!placed) return;
-    window.location.href = `${window.location.origin}/checkout/return?order=${placed.id}&comped=1`;
+  // Order transitions. Green: the screen fills and hands off to the thank-you
+  // page, which opens on the same green. Red: the payment did not go through;
+  // the fill settles into the reason and a way back.
+  const [goTo, setGoTo] = useState<string | null>(null);
+  const [failReason, setFailReason] = useState<string | null>(null);
+  const leaveOnGreen = (url: string) => setGoTo(url);
+  const failWith = (reason: string) => {
+    setFailReason(reason);
   };
   // The first button plays a short exit, then the payment panel opens and
   // its blocks rise in one after the other.
@@ -1270,7 +1258,7 @@ export function BotForge() {
       .select("id")
       .single();
     if (error || !inserted) {
-      sonnerToast.error("Couldn't save your order", { description: error?.message });
+      failWith(error?.message ? `We couldn't save your order: ${error.message}` : "We couldn't save your order. Nothing was charged.");
       return null;
     }
 
@@ -1398,10 +1386,9 @@ export function BotForge() {
           body: { botOrderId: orderId },
         });
         if (comp?.comped) {
-          // No charge. Play the placed moment in the estimate card; Continue
-          // takes them on to the Discord step on the return page.
-          setSubmitting(false);
-          startPlacedMoment(orderId);
+          // No charge. Fill the screen green and hand off to the thank-you
+          // page, which opens on the same green and carries the tracker.
+          leaveOnGreen(`${window.location.origin}/checkout/return?order=${orderId}&comped=1`);
           return;
         }
       } catch {
@@ -1426,10 +1413,8 @@ export function BotForge() {
         body: { botOrderId: orderId, customerEmail: user.email },
       });
       if (error || !data?.clientSecret) {
-        sonnerToast.error("Couldn't start checkout", {
-          description: error?.message || "Please try again.",
-        });
         setSubmitting(false);
+        failWith(data?.error || error?.message || "We couldn't open the payment page. Nothing was charged.");
         return;
       }
       // Send them to the hosted page that completes the SetupIntent (saves the
@@ -1537,6 +1522,26 @@ export function BotForge() {
           without this the click looks dead for several seconds. Shown for
           the whole submit and kept up through the redirect (submitting is
           intentionally never reset on the success paths). */}
+      {goTo && (
+        <OrderTransition
+          tone="go"
+          active
+          onFilled={() => {
+            markOrderHandoff();
+            window.location.href = goTo;
+          }}
+        />
+      )}
+      {failReason && (
+        <OrderTransition
+          tone="fail"
+          active
+          reason={failReason}
+          hint="Your bot and add-ons are still set up below, so you can go straight back to payment."
+          actionLabel="Back to checkout"
+          onAction={() => setFailReason(null)}
+        />
+      )}
       {submitting && (
         <div
           className="fixed inset-0 z-[100] grid place-items-center"
@@ -1544,7 +1549,10 @@ export function BotForge() {
           role="status"
           aria-live="polite"
         >
-          <div className="flex flex-col items-center gap-3 rounded-2xl border border-os-hairline/40 bg-os-surface/90 px-10 py-8 shadow-2xl">
+          <div
+            className="flex flex-col items-center gap-3 rounded-2xl border border-os-hairline/40 bg-os-surface/90 px-10 py-8 shadow-2xl transition-[opacity,transform] duration-200"
+            style={goTo ? { opacity: 0, transform: "scale(0.96)" } : undefined}
+          >
             {/* Same ghost-loading shimmer as the route/dashboard skeletons
                 (see RouteFallback in App.tsx) so every wait screen shares one
                 identity. Duplicated markup on purpose — single-paste files. */}
@@ -2082,20 +2090,7 @@ export function BotForge() {
 
           {/* Estimate + submit */}
           <style>{PAY_REVEAL_CSS}</style>
-          <div id="estimate-card" className="relative overflow-hidden rounded-2xl border border-os-accent/30 bg-gradient-to-br from-os-accent/10 via-os-surface/30 to-os-bg/40 backdrop-blur-sm p-5">
-            {placed && (
-              <OrderPlacedMoment
-                active={placedActive}
-                botName={placed.name}
-                base={placed.base}
-                iconUrl={placed.icon}
-                onCovered={() => setPlacedCovered(true)}
-                onContinue={continueAfterPlaced}
-                note="no charge"
-              />
-            )}
-            {!placedCovered && (
-            <div className={placedActive ? "os-placed-out" : ""}>
+          <div className="rounded-2xl border border-os-accent/30 bg-gradient-to-br from-os-accent/10 via-os-surface/30 to-os-bg/40 backdrop-blur-sm p-5">
             <div className="flex items-center justify-between">
               <span className="font-label text-xs uppercase tracking-widest text-os-faint">
                 Estimated
@@ -2480,7 +2475,6 @@ export function BotForge() {
                   }
                   busy={submitting}
                   busyLabel={comped ? "Placing order" : "Opening payment"}
-                  placed={!!placed}
                   onClick={submit}
                 />
                 <BotStockIndicator className="mt-2" />
@@ -2498,8 +2492,6 @@ export function BotForge() {
             <p className="text-[10px] text-os-faint mt-3 leading-relaxed">
               *Final pricing depends on scope. We'll confirm everything before any work begins.
             </p>
-            </div>
-            )}
           </div>
         </aside>
       </div>

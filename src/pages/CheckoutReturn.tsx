@@ -12,6 +12,8 @@ import { DiscordJoinGate } from "@/components/checkout/DiscordJoinGate";
 // SystemScreen.tsx) — shared with the dashboard so it's usually cached already.
 import dashboardBg from "@/assets/containers.webp";
 import { track } from "@/lib/analytics";
+import { OrderTracker, OrderTransition, consumeOrderHandoff, type OrderStep } from "@/components/checkout/OrderTransition";
+import { botBaseIcon } from "@/lib/botCatalog";
 
 // Self-contained "system page" shell (mountain backdrop + frosted slate glass).
 // Inlined rather than shared so no extra file is required.
@@ -25,6 +27,13 @@ const OSSYS_CSS = `
 .ossys-foot a:hover{color:var(--os-heading)}
 .ossys-foot .sep{margin:0 10px;opacity:.45}
 .ossys-card{width:100%;border:1px solid var(--os-hair);border-radius:20px;background:linear-gradient(180deg,rgba(46,54,63,.72),rgba(39,46,54,.8));-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:0 34px 90px -34px rgba(0,0,0,.8);padding:38px 34px;text-align:center}
+.ossys-green{position:fixed;inset:0;z-index:5;background:linear-gradient(180deg,#34D399,rgba(52,211,153,.86));pointer-events:none;opacity:1;transition:opacity 520ms cubic-bezier(.23,1,.32,1) 120ms}
+.ossys-green.gone{opacity:0}
+.ossys-bot{width:72px;height:72px;border-radius:22px;margin:0 auto 16px;display:grid;place-items:center;position:relative;background:linear-gradient(180deg,rgba(201,219,230,.22),rgba(201,219,230,.08));box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 20px 40px -20px rgba(0,0,0,.8);color:var(--os-heading)}
+.ossys-bot img{width:100%;height:100%;border-radius:22px;object-fit:cover;display:block}
+.ossys-bot i{position:absolute;right:-6px;bottom:-6px;width:26px;height:26px;border-radius:50%;background:#34D399;border:3px solid #293038;display:grid;place-items:center;color:#1E242B;transform:scale(0);transition:transform 300ms cubic-bezier(.34,1.56,.64,1) 700ms}
+.ossys-bot i.on{transform:scale(1)}
+.ossys-tag{font-size:13px;color:#34D399;font-weight:600;margin:6px 0 0}
 `;
 
 type PurchasedFile = {
@@ -48,6 +57,37 @@ export default function CheckoutReturn() {
   const [botOrderId, setBotOrderId] = useState<string | null>(setupOrderId);
   const [showClose, setShowClose] = useState(false);
   const { isMember } = useMembership();
+  // Opened on green from the builder or the Robux page: fade the green away
+  // so the two pages read as one move.
+  const [handoff] = useState(() => consumeOrderHandoff());
+  const [greenGone, setGreenGone] = useState(false);
+  useEffect(() => {
+    if (!handoff) return;
+    const t = setTimeout(() => setGreenGone(true), 60);
+    return () => clearTimeout(t);
+  }, [handoff]);
+  // The bot this order is for, and where it is in the pipeline.
+  const [bot, setBot] = useState<{ name: string; base: string | null; icon: string | null } | null>(null);
+  const [step, setStep] = useState<OrderStep>("placed");
+  const [declined, setDeclined] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user || !botOrderId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("bot_orders")
+        .select("bot_name, base, icon_url, status")
+        .eq("id", botOrderId)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      setBot({ name: data.bot_name ?? "", base: data.base ?? null, icon: data.icon_url ?? null });
+      if (data.status === "live") setStep("live");
+      else if (["ready", "building", "deploying"].includes(String(data.status))) setStep("building");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, botOrderId]);
 
   useEffect(() => {
     if (!sessionId && !setupOrderId) {
@@ -107,6 +147,17 @@ export default function CheckoutReturn() {
       {/* Mountain backdrop (base64-inlined) + dark scrim, card centered above */}
       <div className="ossys-bg" style={{ backgroundImage: `url(${dashboardBg})` }} aria-hidden />
       <div className="ossys-scrim" />
+      {handoff && <div className={`ossys-green ${greenGone ? "gone" : ""}`} aria-hidden />}
+      {declined && (
+        <OrderTransition
+          tone="fail"
+          active
+          reason={declined}
+          hint="Update your card from the dashboard and we will try again the moment you do."
+          actionLabel="Open dashboard"
+          onAction={() => navigate("/bot-dashboard")}
+        />
+      )}
       <div className="ossys-mid">
        <div style={{ width: "100%", maxWidth: 560 }}>
       <div className="ossys-card relative">
@@ -121,23 +172,58 @@ export default function CheckoutReturn() {
             <X className="h-4 w-4" />
           </button>
         )}
-        <CheckCircle2 className="mx-auto h-14 w-14 mb-4" style={{ color: "#86d3a1" }} />
-        <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--os-heading)" }}>
-          Thanks for your order!
-        </h1>
-        <p className="mb-6" style={{ color: "var(--os-body)" }}>
-          {comped
-            ? "100% off — no charge. Your order is all set."
-            : robux
-              ? "Your Robux payment was verified."
-              : sessionId || setupOrderId
-              ? "Your payment was received."
-              : "No session information found."}
-        </p>
+        {isBotOrder && bot ? (
+          <>
+            <div className="ossys-bot">
+              {bot.icon && /^(https?:|data:)/.test(bot.icon) ? (
+                <img src={bot.icon} alt="" />
+              ) : (
+                (() => {
+                  const Icon = botBaseIcon(bot.base);
+                  return <Icon size={32} strokeWidth={1.6} />;
+                })()
+              )}
+              <i className={greenGone || !handoff ? "on" : ""}>
+                <CheckCircle2 size={14} strokeWidth={3} />
+              </i>
+            </div>
+            <h1 className="text-2xl font-bold" style={{ color: "var(--os-heading)", letterSpacing: "-0.02em" }}>
+              {(bot.name || "Your bot").trim()} is yours.
+            </h1>
+            <div className="ossys-tag">
+              {comped ? "Order placed, no charge" : robux ? "Order placed, paid with Robux" : "Order placed"}
+            </div>
+            <div style={{ margin: "22px auto 26px", maxWidth: 380 }}>
+              <OrderTracker step={step} />
+            </div>
+          </>
+        ) : (
+          <>
+            <CheckCircle2 className="mx-auto h-14 w-14 mb-4" style={{ color: "#86d3a1" }} />
+            <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--os-heading)" }}>
+              Thanks for your order!
+            </h1>
+            <p className="mb-6" style={{ color: "var(--os-body)" }}>
+              {comped
+                ? "100% off — no charge. Your order is all set."
+                : robux
+                  ? "Your Robux payment was verified."
+                  : sessionId || setupOrderId
+                  ? "Your payment was received."
+                  : "No session information found."}
+            </p>
+          </>
+        )}
 
         {/* Bot order — Discord-join gate then status-driven next-step */}
         {isBotOrder && botOrderId && (
-          <DiscordJoinGate orderId={botOrderId} />
+          <DiscordJoinGate
+            orderId={botOrderId}
+            onPhase={(p) => {
+              if (p === "building") setStep("building");
+            }}
+            onDeclined={(reason) => setDeclined(reason)}
+          />
         )}
 
 
