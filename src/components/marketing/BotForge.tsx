@@ -448,11 +448,16 @@ function MoneyField({
 }
 
 /**
- * The checkout button: green glass. A translucent mint fill over a blur,
- * a hairline highlight along the top, a soft outer glow, the label centred,
- * an arrow disc pinned right that steps forward on hover, and a sheen that
- * sweeps across once. `leaving` plays the exit before the payment panel opens.
+ * The checkout button. Built as two nested pieces: a thin mint shell and
+ * the glass face inside it, with concentric radii so the edges read as one
+ * machined part. Glass comes from layered translucent gradients plus a 1px
+ * inner highlight, not a backdrop blur, so it stays cheap on a scrolling
+ * page. The arrow lives in its own disc and nudges on hover; the whole
+ * button presses in on :active. Every transition names its properties and
+ * uses a strong ease-out, and nothing runs longer than 200ms.
  */
+const EASE_OUT = "cubic-bezier(0.23,1,0.32,1)";
+
 function CheckoutButton({
   label,
   busy,
@@ -474,47 +479,46 @@ function CheckoutButton({
       type="button"
       onClick={onClick}
       disabled={busy || leaving}
-      className={`group relative mt-4 flex h-12 w-full items-center justify-center overflow-hidden rounded-xl border border-os-go/45 bg-os-go/15 px-14 text-os-heading backdrop-blur-md shadow-[0_1px_0_rgba(255,255,255,.28)_inset,0_-1px_0_rgb(var(--os-go)/0.25)_inset,0_10px_30px_-12px_rgb(var(--os-go)/0.55)] transition-[transform,box-shadow,background-color,opacity] duration-300 ease-out hover:-translate-y-px hover:bg-os-go/25 hover:shadow-[0_1px_0_rgba(255,255,255,.35)_inset,0_-1px_0_rgb(var(--os-go)/0.3)_inset,0_16px_40px_-12px_rgb(var(--os-go)/0.7)] active:translate-y-0 active:bg-os-go/30 disabled:pointer-events-none ${
-        leaving ? "scale-[0.97] opacity-0 translate-y-1" : busy ? "opacity-70" : ""
+      style={{ transitionTimingFunction: EASE_OUT }}
+      className={`group relative mt-4 block w-full rounded-[14px] p-[3px] text-left bg-os-go/10 ring-1 ring-inset ring-os-go/30 transition-[transform,opacity] duration-[160ms] active:scale-[0.98] disabled:pointer-events-none ${
+        leaving ? "scale-[0.98] opacity-0" : busy ? "opacity-80" : ""
       }`}
     >
-      {/* Glass: a soft light pooled at the top edge */}
       <span
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/12 to-transparent"
-      />
-      {/* Sheen that sweeps once across on hover */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/25 to-transparent opacity-0 transition-[transform,opacity] duration-700 ease-out group-hover:translate-x-[400%] group-hover:opacity-100"
-      />
-      <span className="relative font-display text-[15px] font-semibold tracking-[-0.01em]">
-        {busy ? busyLabel ?? label : label}
-      </span>
-      <span className="absolute right-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full border border-os-go/40 bg-os-go/20 text-os-go">
-        {busy ? (
-          <span className="h-3 w-3 animate-spin rounded-full border-2 border-os-go/30 border-t-os-go" />
-        ) : (
-          <ArrowRight size={14} className="transition-transform duration-200 group-hover:translate-x-0.5" />
-        )}
+        style={{ transitionTimingFunction: EASE_OUT }}
+        className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[11px] px-14 text-os-heading bg-[linear-gradient(180deg,rgb(var(--os-go)/0.30),rgb(var(--os-go)/0.16))] shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgb(var(--os-go)/0.18),0_8px_20px_-14px_rgb(var(--os-go)/0.45)] transition-[background-color,box-shadow] duration-200 group-hover:bg-os-go/10"
+      >
+        <span className="font-display text-[15px] font-semibold tracking-[-0.01em]">
+          {busy ? busyLabel ?? label : label}
+        </span>
+        {/* Button in button: the arrow sits in its own disc flush with the
+            right padding and steps up and right on hover. */}
+        <span
+          style={{ transitionTimingFunction: EASE_OUT }}
+          className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-os-go/25 text-os-go shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-[calc(50%+1px)]"
+        >
+          {busy ? (
+            <span className="h-3 w-3 animate-spin rounded-full border-2 border-os-go/30 border-t-os-go" />
+          ) : (
+            <ArrowRight size={14} strokeWidth={2} />
+          )}
+        </span>
       </span>
     </button>
   );
 }
 
-/* Payment panel reveal: each block rises in, one after the other, and the
-   estimate card flashes a mint ring once as the panel lands. */
+/* Payment panel reveal. Each block rises 8px and fades in, 40ms apart, on a
+   strong ease-out, so the panel reads as opening in one motion rather than
+   popping. Movement is dropped under reduced motion; the fade stays. */
 const PAY_REVEAL_CSS = `
-@keyframes os-pay-in{from{opacity:0;transform:translateY(14px) scale(.985);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
-@keyframes os-pay-ring{0%{box-shadow:0 0 0 0 rgb(var(--os-go)/0)}25%{box-shadow:0 0 0 2px rgb(var(--os-go)/.55),0 0 40px -6px rgb(var(--os-go)/.5)}100%{box-shadow:0 0 0 0 rgb(var(--os-go)/0)}}
-.os-pay-reveal>*{animation:os-pay-in .6s cubic-bezier(.22,1,.36,1) both}
-.os-pay-reveal>*:nth-child(1){animation-delay:.08s}
-.os-pay-reveal>*:nth-child(2){animation-delay:.18s}
-.os-pay-reveal>*:nth-child(3){animation-delay:.28s}
-.os-pay-reveal>*:nth-child(4){animation-delay:.38s}
-.os-pay-reveal>*:nth-child(5){animation-delay:.48s}
-.os-pay-ring{animation:os-pay-ring 1.4s ease-out .15s 1}
-@media (prefers-reduced-motion:reduce){.os-pay-reveal>*{animation:none}.os-pay-ring{animation:none}}
+@keyframes os-pay-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.os-pay-reveal>*{animation:os-pay-in 220ms cubic-bezier(0.23,1,0.32,1) both}
+.os-pay-reveal>*:nth-child(2){animation-delay:40ms}
+.os-pay-reveal>*:nth-child(3){animation-delay:80ms}
+.os-pay-reveal>*:nth-child(4){animation-delay:120ms}
+.os-pay-reveal>*:nth-child(5){animation-delay:160ms}
+@media (prefers-reduced-motion:reduce){@keyframes os-pay-in{from{opacity:0}to{opacity:1}}}
 `;
 
 /** Owner-only gear on each bot card: status, price, monthly pricing, payment. */
@@ -794,7 +798,6 @@ export function BotForge() {
   // The first button plays a short exit, then the payment panel opens and
   // its blocks rise in one after the other.
   const [ctaLeaving, setCtaLeaving] = useState(false);
-  const [payRing, setPayRing] = useState(false);
   const [payFullName, setPayFullName] = useState("");
   const [payEmail, setPayEmail] = useState("");
   const [payCard, setPayCard] = useState("");
@@ -1304,19 +1307,17 @@ export function BotForge() {
     if (!showPayment) {
       if (ctaLeaving) return;
       setCtaLeaving(true);
-      // Let the button finish its exit, then open the panel and ring the card.
+      // Let the button finish its 160ms exit, then open the panel.
       setTimeout(() => {
         setShowPayment(true);
         setCtaLeaving(false);
-        setPayRing(true);
-        setTimeout(() => setPayRing(false), 1800);
-      }, 240);
+      }, 160);
       // Scroll the payment section into view once it has expanded
       setTimeout(() => {
         document
           .getElementById("payment-section")
           ?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 560);
+      }, 440);
       return;
     }
     // Discord contact gate (live sales): nudge them to link Discord so we can
@@ -2043,7 +2044,7 @@ export function BotForge() {
 
           {/* Estimate + submit */}
           <style>{PAY_REVEAL_CSS}</style>
-          <div className={`rounded-2xl border border-os-accent/30 bg-gradient-to-br from-os-accent/10 via-os-surface/30 to-os-bg/40 backdrop-blur-sm p-5 ${payRing ? "os-pay-ring" : ""}`}>
+          <div className="rounded-2xl border border-os-accent/30 bg-gradient-to-br from-os-accent/10 via-os-surface/30 to-os-bg/40 backdrop-blur-sm p-5">
             <div className="flex items-center justify-between">
               <span className="font-label text-xs uppercase tracking-widest text-os-faint">
                 Estimated
@@ -2155,7 +2156,8 @@ export function BotForge() {
             {/* Collapsible payment / contact details */}
             <div
               id="payment-section"
-              className={`grid transition-all duration-500 ease-out ${
+              style={{ transitionTimingFunction: EASE_OUT }}
+              className={`grid transition-[grid-template-rows,opacity,margin] duration-[280ms] ${
                 showPayment
                   ? "grid-rows-[1fr] opacity-100 mt-4"
                   : "grid-rows-[0fr] opacity-0 mt-0"

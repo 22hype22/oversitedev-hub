@@ -76,3 +76,4 @@
 + The checkout button on the builder is a new split design and says where it leads: Continue to payment, then Go to payment, Go to Robux payment, or Place order
 + Team members with edit access can now save a block and have the bot pick it up. Before, the save worked but the bot was never told
 + The checkout button is now green glass, and the payment panel opens with the button easing out, each block rising in one after the other, and a mint flash around the estimate card
++ The checkout button is reworked as a two-piece mint glass control with a pressed state, and the payment panel opens in one quick motion
