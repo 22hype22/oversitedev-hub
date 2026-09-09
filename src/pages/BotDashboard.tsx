@@ -1317,8 +1317,11 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;align-items:start}
 .osd .left{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .osd .right{display:flex;flex-direction:column;gap:16px}
-.osd .dashgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
-.osd .dashgrid .dashcell{min-width:0}
+.osd .dashgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
+.osd .dashgrid .dashcell{min-width:0;display:flex}
+.osd .dashgrid .dashcell>.card{flex:1;min-width:0}
+.osd #tour-activity{display:flex;flex-direction:column}
+.osd #tour-activity .chart{flex:1;min-height:150px}
 .osd .dashgrid .dashcell.wide{grid-column:1/-1}
 .osd .dashgrid .dashcell.dragging{box-shadow:0 22px 60px -16px rgba(0,0,0,.65);border-radius:18px}
 .osd .card{border:1px solid rgba(168,180,191,.14);border-radius:18px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);padding:18px}
@@ -1337,10 +1340,11 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .leg{display:flex;gap:14px;font-size:11px;color:var(--faint)}
 .osd .leg span{display:inline-flex;align-items:center;gap:6px}
 .osd .leg i{height:8px;width:8px;border-radius:3px;display:inline-block}
-.osd .chart{display:flex;align-items:flex-end;gap:8px;height:120px;margin:6px 0 14px}
-.osd .chart .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
-.osd .chart .bars{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;gap:3px}
-.osd .chart .bar{width:7px;border-radius:3px;transition:height .3s}
+.osd .chart{display:flex;align-items:stretch;gap:8px;height:150px;margin:10px 0 14px}
+.osd .chart .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%}
+.osd .chart .bars{height:calc(100% - 22px);width:100%;display:flex;align-items:flex-end;justify-content:center;gap:4px;border-bottom:1px solid var(--hair)}
+.osd .chart .bar{width:9px;border-radius:3px 3px 0 0;transition:height .3s;min-height:2px}
+.osd .chart .col:hover .bar.buy{filter:brightness(1.12)}
 .osd .chart .bar.buy{background:var(--accent)}
 .osd .chart .bar.sell{background:var(--surface2)}
 .osd .chart .x{font-size:9.5px;color:var(--faint)}
