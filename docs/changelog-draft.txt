@@ -109,3 +109,4 @@
 + The up or down percent on Fleet activity now compares this week so far with the same days of last week
 + Each unfinished Setup step now has a Mark finished button beside its arrow, so you can check it off yourself. A step you marked says Marked by you and can be un-marked
 + Activity is now a real timeline: bots going offline and back with how long they were gone, settings applied, status and bio changes, members verifying with Roblox, messages posted, what Protection watched or flagged, and team invites. Filter chips sort it by kind
++ Billing is rebuilt: a summary of monthly hosting, one-time bots, and subscription state, a per-bot list of what you paid and what each costs a month, and the hosting card with the Stripe portal. The duplicate Billing heading is gone and the Groups button only shows where groups apply
