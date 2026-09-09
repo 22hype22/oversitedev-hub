@@ -3,10 +3,9 @@ import { ArrowUp, ArrowUpRight, Square } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * The Support view: a conversation with Oversite's assistant, set like a
- * document rather than a messaging app. Your question is the heading of
- * each exchange, the answer runs underneath as plain text arriving a few
- * words at a time, and exchanges are separated by a single hairline.
+ * The Support view: a conversation with Oversite's assistant. Your
+ * messages sit on the right in a soft bubble; the answers run on the left
+ * as plain text, arriving a few words at a time.
  * The thread is kept in this browser per user, and New chat clears it.
  *
  * Rendered inside the `.osd` shell so the dashboard's own variables apply.
@@ -31,7 +30,7 @@ const CSS = `
 .osd .sc .lnk:hover{color:var(--heading)}
 .osd .sc .lnk:focus-visible,.osd .sc .start:focus-visible,.osd .sc .send:focus-visible{outline:2px solid color-mix(in srgb,var(--accent) 60%,transparent);outline-offset:2px;border-radius:6px}
 .osd .sc .body{flex:1;min-height:0;overflow-y:auto;padding:30px 26px 22px}
-.osd .sc .col{max-width:64ch}
+.osd .sc .col{max-width:880px}
 .osd .sc .empty h3{font-family:var(--disp);font-weight:700;font-size:26px;line-height:1.05;letter-spacing:-.025em;color:var(--heading);text-wrap:balance}
 .osd .sc .empty p{margin-top:10px;font-size:13.5px;line-height:1.6;color:var(--faint);max-width:44ch}
 .osd .sc .starts{margin-top:26px;border-top:1px solid var(--hair)}
@@ -40,19 +39,21 @@ const CSS = `
 .osd .sc .start:hover{color:var(--heading);padding-left:6px}
 .osd .sc .start:hover svg{color:var(--heading);transform:translate(2px,-2px)}
 .osd .sc .start:active{transform:scale(.995)}
-.osd .sc .ex{padding:0 0 26px;margin-bottom:26px;border-bottom:1px solid var(--hair);animation:sc-in .55s ${EASE} both}
-.osd .sc .ex:last-child{border-bottom:0;margin-bottom:0;padding-bottom:6px}
+.osd .sc .m{display:flex;margin-bottom:22px;animation:sc-in .55s ${EASE} both}
+.osd .sc .m:last-child{margin-bottom:6px}
+.osd .sc .m.me{justify-content:flex-end}
+.osd .sc .m.me + .m.me{margin-top:-12px}
 @keyframes sc-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.osd .sc .q{font-family:var(--disp);font-weight:700;font-size:17px;line-height:1.3;letter-spacing:-.015em;color:var(--heading);white-space:pre-wrap;overflow-wrap:anywhere;text-wrap:pretty}
-.osd .sc .a{margin-top:12px;font-size:13.5px;line-height:1.7;color:var(--body);white-space:pre-wrap;overflow-wrap:anywhere;text-wrap:pretty}
+.osd .sc .q{max-width:min(72%,52ch);padding:10px 15px;border-radius:14px 14px 4px 14px;background:var(--surface2);box-shadow:inset 0 1px 0 rgba(255,255,255,.05);font-size:13.5px;line-height:1.55;color:var(--heading);white-space:pre-wrap;overflow-wrap:anywhere;text-wrap:pretty}
+.osd .sc .a{max-width:64ch;font-size:13.5px;line-height:1.7;color:var(--body);white-space:pre-wrap;overflow-wrap:anywhere;text-wrap:pretty}
 .osd .sc .a.bad{color:var(--bad)}
 .osd .sc .a a{color:var(--heading);text-decoration:underline;text-underline-offset:3px;text-decoration-color:color-mix(in srgb,var(--heading) 35%,transparent)}
-.osd .sc .wait{margin-top:16px;display:grid;gap:9px;max-width:56ch}
+.osd .sc .wait{margin-top:4px;display:grid;gap:9px;width:min(100%,56ch)}
 .osd .sc .wait i{display:block;height:10px;border-radius:5px;background:linear-gradient(90deg,var(--surface) 0%,var(--surface2) 45%,var(--surface) 90%);background-size:220% 100%;animation:sc-sheen 1.6s ${EASE} infinite}
 .osd .sc .wait i:nth-child(2){width:82%;animation-delay:.12s}.osd .sc .wait i:nth-child(3){width:58%;animation-delay:.24s}
 @keyframes sc-sheen{from{background-position:120% 0}to{background-position:-100% 0}}
 .osd .sc .foot{padding:14px 26px 16px;border-top:1px solid var(--hair)}
-.osd .sc .tray{max-width:64ch;padding:5px;border-radius:14px;background:rgba(33,39,46,.55);border:1px solid rgba(168,180,191,.1)}
+.osd .sc .tray{max-width:880px;padding:5px;border-radius:14px;background:rgba(33,39,46,.55);border:1px solid rgba(168,180,191,.1)}
 .osd .sc .field{display:flex;align-items:flex-end;gap:8px;padding:6px 6px 6px 14px;border-radius:10px;background:var(--panel);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);border:1px solid transparent;transition:border-color .3s ${EASE}}
 .osd .sc .tray:focus-within .field{border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
 .osd .sc textarea{flex:1;min-width:0;resize:none;border:0;outline:0;background:transparent;color:var(--heading);font-family:var(--bodyf);font-size:13.5px;line-height:1.5;padding:7px 0;max-height:160px}
@@ -64,11 +65,11 @@ const CSS = `
 .osd .sc .send:disabled{opacity:.3;cursor:default;transform:none}
 .osd .sc .send.stop{background:var(--surface2);color:var(--heading)}
 .osd .sc .send.stop svg{width:11px;height:11px;fill:currentColor}
-.osd .sc .note{max-width:64ch;margin-top:10px;font-size:11.5px;line-height:1.5;color:var(--faint)}
+.osd .sc .note{max-width:880px;margin-top:10px;font-size:11.5px;line-height:1.5;color:var(--faint)}
 .osd .sc .note a{color:var(--body);text-decoration:none;border-bottom:1px solid var(--hair);transition:color .2s ${EASE},border-color .2s ${EASE}}
 .osd .sc .note a:hover{color:var(--heading);border-color:var(--heading)}
-@media (max-width:640px){.osd .sc{height:calc(100dvh - 120px)}.osd .sc .top,.osd .sc .body,.osd .sc .foot{padding-left:16px;padding-right:16px}.osd .sc .top .t small{display:none}}
-@media (prefers-reduced-motion:reduce){.osd .sc .ex{animation:none}.osd .sc .wait i{animation:none;background:var(--surface)}.osd .sc *{transition:none!important}}
+@media (max-width:640px){.osd .sc{height:calc(100dvh - 120px)}.osd .sc .q{max-width:88%}.osd .sc .top,.osd .sc .body,.osd .sc .foot{padding-left:16px;padding-right:16px}.osd .sc .top .t small{display:none}}
+@media (prefers-reduced-motion:reduce){.osd .sc .m{animation:none}.osd .sc .wait i{animation:none;background:var(--surface)}.osd .sc *{transition:none!important}}
 `;
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -225,12 +226,6 @@ export function SupportChat({ userId }: { userId: string }) {
     requestAnimationFrame(() => taRef.current?.focus());
   };
 
-  // Group the flat list into question and answer pairs for the transcript.
-  const exchanges: { q: Msg; a?: Msg }[] = [];
-  for (const m of msgs) {
-    if (m.role === "user") exchanges.push({ q: m });
-    else if (exchanges.length) exchanges[exchanges.length - 1].a = m;
-  }
   const lastId = msgs[msgs.length - 1]?.id;
 
   return (
@@ -263,17 +258,23 @@ export function SupportChat({ userId }: { userId: string }) {
               </div>
             </div>
           ) : (
-            exchanges.map(({ q, a }) => {
-              const streaming = busy && a?.id === lastId;
+            msgs.map((m) => {
+              const streaming = busy && m.id === lastId && m.role === "assistant";
+              if (m.role === "user") {
+                return (
+                  <div className="m me" key={m.id}>
+                    <div className="q">{m.content}</div>
+                  </div>
+                );
+              }
               return (
-                <article className="ex" key={q.id}>
-                  <h4 className="q">{q.content}</h4>
-                  {a && (streaming && !a.content ? (
+                <div className="m" key={m.id}>
+                  {streaming && !m.content ? (
                     <div className="wait" aria-label="Writing an answer"><i /><i /><i /></div>
                   ) : (
-                    <p className={"a" + (a.failed ? " bad" : "")}><Answer text={a.content} /></p>
-                  ))}
-                </article>
+                    <p className={"a" + (m.failed ? " bad" : "")}><Answer text={m.content} /></p>
+                  )}
+                </div>
               );
             })
           )}
