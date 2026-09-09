@@ -6,10 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
  *   commands  slash commands, buttons, forms and prefix commands handled
  *   messages  messages the bots sent
  * Both come from bot_usage_metrics, which every bot reports in five minute
- * batches. Seven days ending today, with the same window a week earlier for
- * the delta.
+ * batches, summed across every bot the viewer has. The current calendar week,
+ * Sunday to Saturday, with the previous week for the delta.
  */
-export type FleetDay = { label: string; commands: number; messages: number };
+export type FleetDay = { label: string; commands: number; messages: number; /** After today: nothing to show yet. */ future: boolean; today: boolean };
 export type FleetActivity = {
   loading: boolean;
   days: FleetDay[];
@@ -32,10 +32,11 @@ export function useFleetActivity(userId: string | null | undefined, botIds: stri
   useEffect(() => {
     const ids = idsKey ? idsKey.split(",") : [];
     const today = startOfDay(new Date());
-    const first = new Date(today.getTime() - 13 * DAY_MS);
+    const weekStart = new Date(today.getTime() - today.getDay() * DAY_MS);
+    const first = new Date(weekStart.getTime() - 7 * DAY_MS);
     const empty = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today.getTime() - (6 - i) * DAY_MS);
-      return { label: DAY_LABELS[d.getDay()], commands: 0, messages: 0 };
+      const d = new Date(weekStart.getTime() + i * DAY_MS);
+      return { label: DAY_LABELS[i], commands: 0, messages: 0, future: d.getTime() > today.getTime(), today: d.getTime() === today.getTime() };
     });
     if (!userId || ids.length === 0) {
       setState({ loading: false, days: empty, thisWeek: 0, lastWeek: 0, deltaPct: null });
@@ -50,7 +51,7 @@ export function useFleetActivity(userId: string | null | undefined, botIds: stri
         .in("bot_id", ids)
         .gte("bucket_start", since);
       if (cancelled) return;
-      // 14 slots: 0..6 last week, 7..13 this week (13 = today).
+      // 14 slots: 0..6 last week, 7..13 this week, Sunday first.
       const commands = new Array<number>(14).fill(0);
       const messages = new Array<number>(14).fill(0);
       const slot = (iso: string) => Math.floor((startOfDay(new Date(iso)).getTime() - first.getTime()) / DAY_MS);

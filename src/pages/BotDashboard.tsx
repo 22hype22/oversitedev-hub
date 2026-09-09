@@ -1321,7 +1321,7 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .dashgrid .dashcell{min-width:0;display:flex}
 .osd .dashgrid .dashcell>.card{flex:1;min-width:0}
 .osd #tour-activity{display:flex;flex-direction:column}
-.osd #tour-activity .chart{flex:1;min-height:150px}
+.osd #tour-activity .chart{flex:1;min-height:170px}
 .osd .dashgrid .dashcell.wide{grid-column:1/-1}
 .osd .dashgrid .dashcell.dragging{box-shadow:0 22px 60px -16px rgba(0,0,0,.65);border-radius:18px}
 .osd .card{border:1px solid rgba(168,180,191,.14);border-radius:18px;background:linear-gradient(180deg,rgba(46,54,63,.7),rgba(39,46,54,.76));backdrop-filter:blur(12px);padding:18px}
@@ -1340,9 +1340,12 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .leg{display:flex;gap:14px;font-size:11px;color:var(--faint)}
 .osd .leg span{display:inline-flex;align-items:center;gap:6px}
 .osd .leg i{height:8px;width:8px;border-radius:3px;display:inline-block}
-.osd .chart{display:flex;align-items:stretch;gap:8px;height:150px;margin:10px 0 14px}
+.osd .chart{display:flex;align-items:stretch;gap:8px;height:170px;margin:10px 0 14px}
 .osd .chart .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%}
-.osd .chart .bars{height:calc(100% - 22px);width:100%;display:flex;align-items:flex-end;justify-content:center;gap:4px;border-bottom:1px solid var(--hair)}
+.osd .chart .bars{height:calc(100% - 40px);width:100%;display:flex;align-items:flex-end;justify-content:center;gap:4px;border-bottom:1px solid var(--hair)}
+.osd .chart .col.future .x,.osd .chart .col.future .n{opacity:.4}
+.osd .chart .col.today .x{color:var(--accent)}
+.osd .chart .n{font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--heading);margin-top:-2px;font-variant-numeric:tabular-nums}
 .osd .chart .bar{width:9px;border-radius:3px 3px 0 0;transition:height .3s;min-height:2px}
 .osd .chart .col:hover .bar.buy{filter:brightness(1.12)}
 .osd .chart .bar.buy{background:var(--accent)}
@@ -2513,16 +2516,21 @@ const BotDashboard = () => {
         const delta = fleet.deltaPct;
         return (
           <div className="card" id="tour-activity">
-            <div className="ch"><div><span className="ct">Fleet activity</span><div style={{ fontSize: "11px", color: "var(--faint)", marginTop: "2px" }}>Last 7 days</div></div></div>
+            <div className="ch"><div><span className="ct">Fleet activity</span><div style={{ fontSize: "11px", color: "var(--faint)", marginTop: "2px" }}>This week, every bot</div></div></div>
             <div className="leg"><span><i style={{ background: "var(--accent)" }} />Commands</span><span><i style={{ background: "var(--surface2)" }} />Messages</span></div>
             <div className="chart">
               {fleet.days.map((d, i) => (
-                <div className="col" key={i} title={`${d.label}: ${d.commands} commands, ${d.messages} messages`}>
+                <div className={"col" + (d.future ? " future" : "") + (d.today ? " today" : "")} key={i} title={d.future ? `${d.label}: not yet` : `${d.label}: ${d.commands} commands, ${d.messages} messages`}>
                   <div className="bars">
-                    <div className="bar buy" style={{ height: d.commands > 0 ? pct(d.commands) : "2px", opacity: d.commands > 0 ? 1 : 0.35 }} />
-                    <div className="bar sell" style={{ height: d.messages > 0 ? pct(d.messages) : "2px", opacity: d.messages > 0 ? 1 : 0.35 }} />
+                    {!d.future && (
+                      <>
+                        <div className="bar buy" style={{ height: d.commands > 0 ? pct(d.commands) : "2px", opacity: d.commands > 0 ? 1 : 0.35 }} />
+                        <div className="bar sell" style={{ height: d.messages > 0 ? pct(d.messages) : "2px", opacity: d.messages > 0 ? 1 : 0.35 }} />
+                      </>
+                    )}
                   </div>
                   <div className="x">{d.label}</div>
+                  <div className="n">{d.future ? "–" : (d.commands + d.messages).toLocaleString()}</div>
                 </div>
               ))}
             </div>
