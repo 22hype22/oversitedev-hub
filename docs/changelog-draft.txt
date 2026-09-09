@@ -88,3 +88,4 @@
 + Paying with Robux now starts by linking your Roblox account, the same sign in as verification. Roblox Select accounts buy a shirt from our group store and standard accounts buy a product in our Payment experience, and the order is paid as soon as Roblox records the sale
 + The checkout payment box now says Secure payment details with Stripe, with Stripe linked to its consumer terms, and offers USD or Robux at the top of the box
 + Bot cards now read the price as USD or Robux, with the hosting fee after, so it does not look like three separate charges
++ The Start building and Build your bot buttons across the site now share the checkout button's design, a glass face inside a thin bezel with the arrow in its own disc

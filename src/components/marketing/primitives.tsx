@@ -58,7 +58,11 @@ export function Container({ children, className }: { children: ReactNode; classN
   return <div className={cn("mx-auto w-full max-w-[1320px] px-5 md:px-8", className)}>{children}</div>;
 }
 
-/** Squared icy button — light fill, dark ink, uppercase mono, arrow. */
+const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)";
+
+/** Icy glass button: a thin bezel around a lit face, with the arrow in its
+ *  own disc that steps up and right on hover. Same build as the checkout
+ *  button, in the accent colour. */
 export function AccentButton({
   to,
   href,
@@ -71,19 +75,30 @@ export function AccentButton({
   className?: string;
 }) {
   const classes = cn(
-    "group inline-flex items-center gap-3 bg-os-accent px-6 py-3.5 font-label text-[12px] font-bold uppercase tracking-[0.14em] text-os-accent-ink",
-    "transition-[filter] duration-200 hover:brightness-105 active:translate-y-px",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-os-accent focus-visible:ring-offset-2 focus-visible:ring-offset-os-bg",
+    "group relative inline-block rounded-[14px] p-[3px] bg-os-accent/15 ring-1 ring-inset ring-os-accent/45",
+    "transition-transform duration-[160ms] active:scale-[0.98]",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-os-accent",
     className,
   );
   const inner = (
-    <>
-      {children}
-      <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-1">→</span>
-    </>
+    <span
+      style={{ transitionTimingFunction: EASE_OUT }}
+      className="relative flex h-11 items-center rounded-[11px] pl-6 pr-14 text-os-heading bg-[linear-gradient(180deg,rgb(var(--os-accent)/0.58),rgb(var(--os-accent)/0.40))] shadow-[inset_0_1px_0_rgba(255,255,255,0.32),inset_0_-1px_0_rgb(var(--os-accent)/0.35),0_8px_20px_-14px_rgb(var(--os-accent)/0.5)] transition-[background-color,box-shadow] duration-[340ms] group-hover:bg-os-accent/15"
+    >
+      <span className="whitespace-nowrap font-label text-[12px] font-bold uppercase tracking-[0.14em]">{children}</span>
+      <span
+        style={{ transitionTimingFunction: EASE_OUT }}
+        aria-hidden
+        className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-os-bg/35 text-os-accent shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] transition-transform duration-[340ms] group-hover:translate-x-0.5 group-hover:-translate-y-[calc(50%+1px)]"
+      >
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 12h14M13 6l6 6-6 6" />
+        </svg>
+      </span>
+    </span>
   );
-  if (to) return <Link to={to} className={classes}>{inner}</Link>;
-  return <a href={href} className={classes}>{inner}</a>;
+  if (to) return <Link to={to} className={classes} style={{ transitionTimingFunction: EASE_OUT }}>{inner}</Link>;
+  return <a href={href} className={classes} style={{ transitionTimingFunction: EASE_OUT }}>{inner}</a>;
 }
 
 /** Outline arrow link, mono uppercase. */
