@@ -2391,7 +2391,7 @@ const BotDashboard = () => {
   // Billing: the hosting subscription, the store's monthly prices, and what
   // each bot was paid with.
   const hosting = useHostingSubscription();
-  const pricing = useBotPricing();
+  const { pricing } = useBotPricing();
   type BillRow = { total_amount: number; paid_at: string | null; payment_method: string | null; robux_amount: number | null; discount_amount: number | null };
   const [billRows, setBillRows] = useState<Record<string, BillRow>>({});
   const billIdsKey = owned.filter((b) => !b.viaTeam && !b.viaSupport).map((b) => b.id).join(",");
