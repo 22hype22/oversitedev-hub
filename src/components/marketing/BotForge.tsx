@@ -1561,6 +1561,16 @@ export function BotForge() {
               <span className="text-os-faint">Mix and match protection, support, or utilities. Same price no matter which two.</span>
             </div>
           </div>
+          {/* Identity callout */}
+          <div className="rounded-xl border border-os-accent/30 bg-gradient-to-r from-os-accent/10 via-os-accent/5 to-transparent p-3 flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-os-accent/15 border border-os-accent/30 grid place-items-center shrink-0">
+              <Palette size={16} className="text-os-accent" />
+            </div>
+            <div className="text-xs sm:text-sm font-body">
+              <span className="font-semibold text-os-heading">Every bot is yours to shape.</span>{" "}
+              <span className="text-os-faint">Name, icon, banner, bio, and status are all yours to set, and you can change any of them whenever you like. Changes go live right away.</span>
+            </div>
+          </div>
           {/* Step 1 — Base */}
           <div id="pick-base" className="rounded-2xl border border-os-hairline/40 bg-os-surface/30 backdrop-blur-sm p-6 scroll-mt-24">
             <div className="flex items-center gap-3 mb-4">
