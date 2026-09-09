@@ -95,3 +95,4 @@
 + Picking a banner or icon in the builder now opens the same editor as the dashboard, so you can zoom, drag, rotate, and flip before it is set
 + Meet the Team is no longer linked from the site footer
 + Support and Ideas is no longer linked from the site footer
++ Footer links now go where they say: FAQ opens the FAQ section from any page, and Memberships is gone
