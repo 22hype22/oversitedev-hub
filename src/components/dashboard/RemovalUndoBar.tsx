@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { botBaseIcon } from "@/lib/botCatalog";
 
 /**
- * The strip that drops from the top of the dashboard after a bot is removed.
- * The bot is already gone from the list; this is the only way back. When the
- * countdown ends, or the strip is closed, the removal is committed for good.
+ * The quiet toast in the bottom left after a bot is removed. The bot is
+ * already gone from the list; Undo is the only way back. When the countdown
+ * ends, or the toast is closed, the removal is committed for good.
  *
  * Rendered inside the `.osd` shell so the dashboard's own variables apply.
  */
@@ -27,29 +26,22 @@ type Props = {
 };
 
 const CSS = `
-.osd .undo-stack{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:160;width:min(560px,calc(100vw - 24px));display:flex;flex-direction:column;gap:8px;pointer-events:none}
-.osd .undo{pointer-events:auto;position:relative;overflow:hidden;border:1px solid var(--hair);border-radius:16px;background:linear-gradient(180deg,color-mix(in srgb,var(--bad) 6%,var(--surface)),var(--panel));box-shadow:0 24px 60px -22px rgba(0,0,0,.8),0 0 0 1px rgba(0,0,0,.25);animation:undo-in .38s cubic-bezier(.22,1,.36,1)}
-@keyframes undo-in{from{opacity:0;transform:translateY(-18px) scale(.985)}to{opacity:1;transform:none}}
-.osd .undo .row{display:flex;align-items:center;gap:12px;padding:12px 12px 12px 14px}
-.osd .undo .ic{height:36px;width:36px;flex:none;border-radius:11px;overflow:hidden;display:grid;place-items:center;background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--bad) 26%,transparent)}
-.osd .undo .ic img{height:100%;width:100%;object-fit:cover;filter:saturate(.35);opacity:.8}
-.osd .undo .ic svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none}
-.osd .undo .tx{min-width:0;flex:1}
-.osd .undo .t{font-family:var(--disp);font-weight:700;font-size:13.5px;color:var(--heading);line-height:1.15;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.osd .undo .s{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:4px;letter-spacing:.02em;font-variant-numeric:tabular-nums}
-.osd .undo .s b{color:var(--body);font-weight:400}
-.osd .undo .back{flex:none;height:32px;padding:0 13px;border-radius:10px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--hair));background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--heading);font-family:var(--bodyf);font-weight:700;font-size:12.5px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:background .15s,border-color .15s,transform .12s}
-.osd .undo .back svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.2;fill:none}
-.osd .undo .back:hover{background:color-mix(in srgb,var(--accent) 22%,transparent);border-color:color-mix(in srgb,var(--accent) 70%,var(--hair))}
-.osd .undo .back:active{transform:scale(.97)}
-.osd .undo .x{flex:none;height:28px;width:28px;border-radius:9px;border:1px solid transparent;background:transparent;color:var(--faint);display:grid;place-items:center;cursor:pointer;padding:0;transition:.15s}
-.osd .undo .x:hover{background:var(--surface2);color:var(--heading);border-color:var(--hair)}
+.osd .undo-stack{position:fixed;left:18px;bottom:18px;z-index:160;display:flex;flex-direction:column;gap:8px;pointer-events:none;max-width:calc(100vw - 36px)}
+.osd .undo{pointer-events:auto;position:relative;display:flex;align-items:center;gap:6px;height:44px;padding:0 6px 0 14px;border-radius:12px;background:#12161b;color:var(--heading);border:1px solid rgba(168,180,191,.14);box-shadow:0 18px 40px -18px rgba(0,0,0,.9);animation:undo-in .32s cubic-bezier(.22,1,.36,1);white-space:nowrap}
+@keyframes undo-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.osd .undo .msg{font-family:var(--bodyf);font-size:13px;font-weight:500;color:var(--heading);margin-right:8px;overflow:hidden;text-overflow:ellipsis}
+.osd .undo .msg b{font-weight:700}
+.osd .undo .cnt{font-family:var(--mono);font-size:11px;color:var(--faint);margin-right:2px;font-variant-numeric:tabular-nums}
+.osd .undo .back{font-family:var(--bodyf);font-weight:700;font-size:12.5px;color:var(--accent);background:none;border:0;border-radius:8px;padding:8px 10px;cursor:pointer;transition:background .15s}
+.osd .undo .back:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.osd .undo .x{height:30px;width:30px;border-radius:8px;border:0;background:transparent;color:var(--faint);display:grid;place-items:center;cursor:pointer;padding:0;transition:.15s}
+.osd .undo .x:hover{background:var(--surface2);color:var(--heading)}
 .osd .undo .x svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none}
-.osd .undo .drain{position:absolute;left:0;right:0;bottom:0;height:2px;background:color-mix(in srgb,var(--hair) 60%,transparent)}
-.osd .undo .drain i{position:absolute;inset:0;transform-origin:left center;background:linear-gradient(90deg,var(--bad),color-mix(in srgb,var(--bad) 45%,transparent));animation:undo-drain linear forwards}
+.osd .undo .drain{position:absolute;left:12px;right:12px;bottom:0;height:2px;border-radius:2px;background:color-mix(in srgb,var(--accent) 16%,transparent);overflow:hidden}
+.osd .undo .drain i{position:absolute;inset:0;transform-origin:left center;background:var(--accent);animation:undo-drain linear forwards}
 @keyframes undo-drain{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 @media (prefers-reduced-motion:reduce){.osd .undo{animation:none}.osd .undo .drain i{animation:none;transform:none}}
-@media (max-width:480px){.osd .undo .back span{display:none}.osd .undo .back{padding:0 11px}}
+@media (max-width:480px){.osd .undo-stack{left:12px;right:12px;max-width:none}.osd .undo{width:100%}.osd .undo .msg{flex:1}}
 `;
 
 const useNow = (active: boolean) => {
@@ -82,27 +74,16 @@ export function RemovalUndoBar({ items, onUndo, onClose }: Props) {
       {items.map((it) => {
         const elapsed = Math.max(0, now - it.startedAt);
         const left = Math.max(0, Math.ceil((it.windowMs - elapsed) / 1000));
-        const Icon = botBaseIcon(it.base);
         return (
           <div className="undo" key={it.id}>
-            <div className="row">
-              <div className="ic">
-                {it.iconUrl ? <img src={it.iconUrl} alt="" /> : <Icon />}
-              </div>
-              <div className="tx">
-                <div className="t">{it.subscription ? "Cancelled" : "Deleted"} {it.name}</div>
-                <div className="s">
-                  Gone for good in <b>{left}s</b>. Go back to keep it.
-                </div>
-              </div>
-              <button type="button" className="back" onClick={() => onUndo(it.id)}>
-                <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>
-                <span>Go back</span>
-              </button>
-              <button type="button" className="x" aria-label="Close and delete now" onClick={() => onClose(it.id)}>
-                <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg>
-              </button>
-            </div>
+            <span className="msg">
+              {it.subscription ? "Cancelled" : "Deleted"} <b>{it.name}</b>
+            </span>
+            <span className="cnt">{left}s</span>
+            <button type="button" className="back" onClick={() => onUndo(it.id)}>Undo</button>
+            <button type="button" className="x" aria-label="Close and delete now" onClick={() => onClose(it.id)}>
+              <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
             <Drain windowMs={it.windowMs} startedAt={it.startedAt} />
           </div>
         );
