@@ -55,7 +55,7 @@ const TOPICS: Topic[] = [
 const FLAT: QA[] = TOPICS.flatMap((t) => t.qs);
 
 const HUMAN_TEXT =
-  "No problem. The team can take it from here. Open a ticket in the Discord at .gg/oversite, or email support@oversite.shop and we'll jump in.";
+  "No problem. The team can take it from here. Open a ticket in the Discord at .gg/ovs, or email support@oversite.shop and we'll jump in.";
 
 function match(query: string): string {
   const tokens = query.toLowerCase().match(/[a-z]{3,}/g) ?? [];

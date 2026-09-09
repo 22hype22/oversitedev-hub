@@ -86,7 +86,7 @@ export function SiteFooter() {
                   <span className="flex-none text-os-faint transition-colors group-hover:text-os-accent">
                     <DiscordIcon size={14} />
                   </span>
-                  .gg/oversite
+                  .gg/ovs
                 </a>
               </li>
             </ul>
