@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, useCallback, useLayoutEffect, useMemo, type ReactNode } from "react";
 import { useBotHealth } from "@/hooks/useBotHealth";
 import { useLiveBotStatuses } from "@/hooks/useLiveBotStatuses";
+import { useSetupProgress } from "@/hooks/useSetupProgress";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useOwnedBots, type OwnedBot } from "@/hooks/useOwnedBots";
@@ -2333,6 +2334,14 @@ const BotDashboard = () => {
   // and crash the page on the loading → loaded transition.
   const liveIds = useMemo(() => owned.filter((b) => isLive(b)).map((b) => b.id), [owned]);
   const liveStatuses = useLiveBotStatuses(liveIds);
+  // The Setup card reads real data: billing only when a bot bills monthly,
+  // team only in team mode, and whether every owned bot has anything set.
+  const setupBotIds = useMemo(
+    () => owned.filter((b) => !b.viaTeam && !b.viaSupport).map((b) => b.id),
+    [owned],
+  );
+  const setupNeedsBilling = owned.some((b) => !b.viaTeam && !b.viaSupport && botHasSubscription(b));
+  const setup = useSetupProgress(user?.id, setupBotIds, setupNeedsBilling, wsMode === "team");
 
   // First data load of the session (auth restore + bot list) — ghost loading
   // shaped like the REAL dashboard shell (sidebar + header + card grid), so
@@ -2426,15 +2435,58 @@ const BotDashboard = () => {
   // customers get the same order as plain cells (no drag code at all).
   const renderDash = () => {
     const cells: Record<string, ReactNode> = {
-      setup: (
-        <div className="card cust">
-          <div className="ch"><span className="ct">Setup</span><span className="dots">···</span></div>
-          <div className="ph"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg></div>
-          <h3>Almost there</h3>
-          <p>{isTeam ? "Connect billing, invite your team, then set each bot's commands." : "Connect billing, then set each bot's commands."}</p>
-          <button className="ghost" onClick={() => go("settings")}>Pick up where you left off</button>
-        </div>
-      ),
+      setup: (() => {
+        const allOnline = owned.length > 0 && liveCount === owned.length;
+        type Step = { key: string; title: string; desc: string; done: boolean; go: () => void };
+        const steps: Step[] = [];
+        if (setup.billing !== null) {
+          steps.push({ key: "billing", title: "Connect billing", desc: setup.billing ? "Hosting is on a subscription." : "Add a card so monthly hosting stays on.", done: setup.billing, go: () => go("billing") });
+        }
+        if (setup.team !== null) {
+          steps.push({ key: "team", title: "Invite your team", desc: setup.team ? "Your team has been invited." : "Give people access to your bots.", done: setup.team, go: () => go("team") });
+        }
+        const left = setup.unconfiguredBotIds.length;
+        steps.push({
+          key: "commands",
+          title: "Set each bot's commands",
+          desc: left === 0 ? "Every bot has its settings." : `${left} bot${left === 1 ? "" : "s"} still ${left === 1 ? "has" : "have"} nothing set.`,
+          done: owned.length > 0 && left === 0,
+          go: () => { const id = setup.unconfiguredBotIds[0]; if (id) openBot(id); else go("bots"); },
+        });
+        steps.push({ key: "online", title: "Bring every bot online", desc: allOnline ? "All bots are online." : `${liveCount} of ${owned.length} online.`, done: allOnline, go: () => go("bots") });
+        const doneCount = steps.filter((st) => st.done).length;
+        const complete = !setup.loading && owned.length > 0 && doneCount === steps.length;
+        const next = steps.find((st) => !st.done);
+        return (
+          <div className="card cust">
+            <div className="ch">
+              <span className="ct">Setup</span>
+              {complete
+                ? <span className="pillok">Complete</span>
+                : <span style={{ fontFamily: "var(--mono)", fontSize: "11px", color: "var(--faint)" }}>{setup.loading ? "" : `${doneCount} of ${steps.length}`}</span>}
+            </div>
+            <h3>{complete ? "Setup complete" : owned.length === 0 ? "Start with a bot" : "Almost there"}</h3>
+            <p>{complete ? "Everything is connected and every bot is set." : owned.length === 0 ? "Order your first bot and this list fills in as you go." : "Work through these and the card marks itself complete."}</p>
+            <div style={{ marginBottom: next ? "14px" : 0 }}>
+              {steps.map((st) => (
+                <div className="togrow" key={st.key} style={{ cursor: st.done ? "default" : "pointer" }} onClick={() => { if (!st.done) st.go(); }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+                    <span aria-hidden style={{ flex: "none", height: "20px", width: "20px", borderRadius: "999px", display: "grid", placeItems: "center", background: st.done ? "var(--ok)" : "transparent", border: st.done ? "0" : "1.5px solid var(--hair)", color: "var(--bg)", transition: "background .2s" }}>
+                      {st.done && <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
+                    </span>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="tl" style={{ color: st.done ? "var(--faint)" : "var(--heading)", textDecoration: st.done ? "line-through" : "none", textDecorationColor: "var(--hair)" }}>{st.title}</div>
+                      <div className="td">{st.desc}</div>
+                    </div>
+                  </div>
+                  {!st.done && <span style={{ color: "var(--faint)", fontSize: "12px", flex: "none" }}>›</span>}
+                </div>
+              ))}
+            </div>
+            {next && <button className="ghost" onClick={next.go}>{owned.length === 0 ? "Order a bot" : `Next: ${next.title}`}</button>}
+          </div>
+        );
+      })(),
       activity: (
         <div className="card" id="tour-activity">
           <div className="ch"><div><span className="ct">Fleet activity</span><div style={{ fontSize: "11px", color: "var(--faint)", marginTop: "2px" }}>This week</div></div><span className="dots">···</span></div>
