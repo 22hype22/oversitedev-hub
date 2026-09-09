@@ -115,3 +115,5 @@ Every Discord link on the site and dashboard now goes to the Oversite Customs se
 The support chat is restyled as a quiet transcript: your question as a heading, the answer beneath it, hairlines between exchanges, no avatars or bubbles.
 Support chat: your messages sit on the right in a bubble, answers on the left, so it is clear who is talking.
 Support chat has a past chats column: every conversation is saved, grouped by day, and can be reopened or deleted.
+The support assistant now knows the full product: every bot's features and commands, prices and bundles, hosting tiers, server slots, payment plans, the card and Robux checkout flows, refunds and the 10 day grace period, every dashboard section, team roles, and the privacy and AI terms.
+Billing now shows each bot's real monthly hosting price instead of a flat 5.
