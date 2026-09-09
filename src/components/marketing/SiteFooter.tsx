@@ -19,7 +19,7 @@ const COLUMNS: { heading: string; links: LinkItem[] }[] = [
       { label: "ER:LC Design", to: "/erlc-design" },
       { label: "Our Process", to: "/process" },
       { label: "Bots", to: "/bots" },
-      { label: "FAQ", to: "#faq" },
+      { label: "FAQ", to: "/#faq" },
     ],
   },
   {
@@ -28,7 +28,6 @@ const COLUMNS: { heading: string; links: LinkItem[] }[] = [
       { label: "Sign In", to: "/auth" },
       { label: "Create Account", to: "/auth" },
       { label: "Dashboard", to: "/dashboard" },
-      { label: "Memberships", to: "/products" },
     ],
   },
 ];
@@ -36,12 +35,10 @@ const COLUMNS: { heading: string; links: LinkItem[] }[] = [
 const LINK_CLS =
   "font-label text-[13px] tracking-[0.01em] text-os-ink-body transition-colors hover:text-os-heading";
 
+// Every link routes through the app, so a section link like /#faq works from
+// any page: the route changes to home and the hash scrolls to the section.
 function FooterLink({ to, label }: LinkItem) {
-  return to.startsWith("#") ? (
-    <a href={to} className={LINK_CLS}>{label}</a>
-  ) : (
-    <Link to={to} className={LINK_CLS}>{label}</Link>
-  );
+  return <Link to={to} className={LINK_CLS}>{label}</Link>;
 }
 
 export function SiteFooter() {
