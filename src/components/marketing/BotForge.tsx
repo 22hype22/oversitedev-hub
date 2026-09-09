@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 import { toast as sonnerToast } from "sonner";
+import { ImageCropModal, BANNER_RATIO } from "@/components/dashboard/ImageCropModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -908,6 +909,9 @@ export function BotForge() {
 
   const iconInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
+  // A picked image opens the same zoom, drag, rotate editor the dashboard
+  // uses, so the crop the buyer sees here is the crop Discord gets.
+  const [crop, setCrop] = useState<{ src: string; mode: "avatar" | "banner" } | null>(null);
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
 
   const isPack = bases.includes("scratch");
@@ -1019,15 +1023,21 @@ export function BotForge() {
   };
 
 
-  const handleFile = (file: File | undefined, setter: (v: string) => void) => {
+  const handleFile = (file: File | undefined, mode: "avatar" | "banner") => {
     if (!file) return;
     if (file.size > 4 * 1024 * 1024) {
       sonnerToast.error("Image too large", { description: "Please keep it under 4MB." });
       return;
     }
     const reader = new FileReader();
-    reader.onload = (e) => setter(e.target?.result as string);
+    reader.onload = (e) => setCrop({ src: String(e.target?.result ?? ""), mode });
     reader.readAsDataURL(file);
+  };
+  const applyCrop = (dataUrl: string) => {
+    if (!crop) return;
+    if (crop.mode === "avatar") setIcon(dataUrl);
+    else setBanner(dataUrl);
+    setCrop(null);
   };
 
   const toggleAddon = (id: string) => {
@@ -1814,7 +1824,7 @@ export function BotForge() {
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    onChange={(e) => handleFile(e.target.files?.[0], setBanner)}
+                    onChange={(e) => { handleFile(e.target.files?.[0], "banner"); e.target.value = ""; }}
                   />
                 </div>
 
@@ -1837,11 +1847,11 @@ export function BotForge() {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={(e) => handleFile(e.target.files?.[0], setIcon)}
+                      onChange={(e) => { handleFile(e.target.files?.[0], "avatar"); e.target.value = ""; }}
                     />
                   </div>
                   <p className="font-body text-xs text-os-faint pb-2 leading-relaxed">
-                    PNG/JPG up to 4MB. Icon shows as the bot's avatar; banner appears at the top of the profile.
+                    PNG/JPG up to 4MB. You can zoom, drag, and rotate after picking. Icon shows as the bot's avatar; banner appears at the top of the profile.
                   </p>
                 </div>
               </div>
@@ -1858,7 +1868,7 @@ export function BotForge() {
                     placeholder={
                       isPack
                         ? `e.g. ${PACK_TABS.find((t) => t.id === activePackTab)?.label}`
-                        : "e.g. Sentinel, Helper, NovaBot..."
+                        : "e.g. Oversite, .refined, The Six Roleplay"
                     }
                     className="w-full rounded-lg border border-os-hairline/50 bg-os-bg/60 px-3 py-2.5 font-body text-[14px] text-os-heading placeholder:text-os-faint outline-none transition focus:border-os-accent/70"
                   />
@@ -2063,6 +2073,15 @@ export function BotForge() {
 
           {/* Estimate + submit */}
           <style>{PAY_REVEAL_CSS}</style>
+          {crop && (
+            <ImageCropModal
+              src={crop.src}
+              mode={crop.mode}
+              bannerRatio={BANNER_RATIO}
+              onApply={applyCrop}
+              onCancel={() => setCrop(null)}
+            />
+          )}
           <div className="rounded-2xl border border-os-accent/30 bg-gradient-to-br from-os-accent/10 via-os-surface/30 to-os-bg/40 backdrop-blur-sm p-5">
             <div className="flex items-center justify-between">
               <span className="font-label text-xs uppercase tracking-widest text-os-faint">
