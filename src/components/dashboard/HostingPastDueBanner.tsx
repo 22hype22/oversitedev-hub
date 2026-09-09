@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
 
-const SUPPORT_DISCORD_URL = "https://discord.gg/B23N33DfUU";
+const SUPPORT_DISCORD_URL = "https://discord.gg/ovs";
 
 export function HostingPastDueBanner() {
   const { isPastDue, graceDaysRemaining, graceEndsAt } = useHostingSubscription();

@@ -287,7 +287,7 @@ export function SupportChat({ userId }: { userId: string }) {
         </div>
         <div className="hint">
           AI answers from what Oversite knows, so double check anything important. Need a person? Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> or join the{" "}
-          <a href="https://discord.gg/oversite" target="_blank" rel="noreferrer">Discord</a>.
+          <a href="https://discord.gg/ovs" target="_blank" rel="noreferrer">Discord</a>.
         </div>
       </div>
     </div>

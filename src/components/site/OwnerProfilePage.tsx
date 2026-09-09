@@ -46,7 +46,7 @@ type PortfolioItem = {
 };
 
 const SOCIALS = [
-  { label: "Discord", href: "https://discord.gg/oversite", icon: MessageCircle },
+  { label: "Discord", href: "https://discord.gg/ovs", icon: MessageCircle },
   { label: "Website", href: "https://www.oversite.shop", icon: Globe },
 ];
 

@@ -78,7 +78,7 @@ export function SiteFooter() {
               </li>
               <li>
                 <a
-                  href="https://discord.gg/oversite"
+                  href="https://discord.gg/ovs"
                   target="_blank"
                   rel="noreferrer"
                   className="group inline-flex items-center gap-2 font-label text-[13px] tracking-[0.01em] text-os-ink-body transition-colors hover:text-os-heading"

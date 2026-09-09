@@ -33,7 +33,7 @@ export const Contact = () => {
 
             <div className="mt-8 space-y-4">
               <a
-                href="https://discord.gg/B23N33DfUU"
+                href="https://discord.gg/ovs"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 text-sm group"
@@ -46,7 +46,7 @@ export const Contact = () => {
                 </span>
               </a>
               <a
-                href="https://discord.gg/B23N33DfUU"
+                href="https://discord.gg/ovs"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 text-sm group"
