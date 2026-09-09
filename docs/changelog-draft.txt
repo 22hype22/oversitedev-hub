@@ -89,3 +89,4 @@
 + The checkout payment box now says Secure payment details with Stripe, with Stripe linked to its consumer terms, and offers USD or Robux at the top of the box
 + Bot cards now read the price as USD or Robux, with the hosting fee after, so it does not look like three separate charges
 + The Start building and Build your bot buttons across the site now share the checkout button's design, a glass face inside a thin bezel with the arrow in its own disc
++ The outlined Start building and Build your bot buttons now hover with a wipe: a thick outline sweeps over the thin one and the label brightens under it. The label is set in the headline face instead of mono caps

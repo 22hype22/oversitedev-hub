@@ -60,9 +60,9 @@ export function Container({ children, className }: { children: ReactNode; classN
 
 const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)";
 
-/** Icy glass button: a thin bezel around a lit face, with the arrow in its
- *  own disc that steps up and right on hover. Same build as the checkout
- *  button, in the accent colour. */
+/** Outlined button whose hover is a wipe: a thick accent outline sweeps over
+ *  the thin one from left to right, and the label brightens under it as it
+ *  passes. The box never fills. */
 export function AccentButton({
   to,
   href,
@@ -75,30 +75,46 @@ export function AccentButton({
   className?: string;
 }) {
   const classes = cn(
-    "group relative inline-block rounded-[14px] p-[3px] bg-os-accent/15 ring-1 ring-inset ring-os-accent/45",
+    "group relative inline-flex h-[46px] items-center gap-3 rounded-[10px] px-[22px] text-os-heading isolate",
     "transition-transform duration-[160ms] active:scale-[0.98]",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-os-accent",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-os-accent focus-visible:ring-offset-2 focus-visible:ring-offset-os-bg",
     className,
   );
   const inner = (
-    <span
-      style={{ transitionTimingFunction: EASE_OUT }}
-      className="relative flex h-11 items-center rounded-[11px] pl-6 pr-14 text-os-heading bg-[linear-gradient(180deg,rgb(var(--os-accent)/0.58),rgb(var(--os-accent)/0.40))] shadow-[inset_0_1px_0_rgba(255,255,255,0.32),inset_0_-1px_0_rgb(var(--os-accent)/0.35),0_8px_20px_-14px_rgb(var(--os-accent)/0.5)] transition-[background-color,box-shadow] duration-[340ms] group-hover:bg-os-accent/15"
-    >
-      <span className="whitespace-nowrap font-label text-[12px] font-bold uppercase tracking-[0.14em]">{children}</span>
+    <>
+      {/* The thin line that is always there. */}
+      <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] border border-os-accent/40" />
+      {/* The thick line, revealed left to right. */}
+      <span
+        aria-hidden
+        style={{ transitionTimingFunction: EASE_OUT }}
+        className="pointer-events-none absolute inset-0 rounded-[inherit] border-[2.5px] border-os-accent [clip-path:inset(0_100%_0_0)] transition-[clip-path] duration-[420ms] group-hover:[clip-path:inset(0_0_0_0)] motion-reduce:transition-none"
+      />
       <span
         style={{ transitionTimingFunction: EASE_OUT }}
-        aria-hidden
-        className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-os-bg/35 text-os-accent shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] transition-transform duration-[340ms] group-hover:translate-x-0.5 group-hover:-translate-y-[calc(50%+1px)]"
+        className="whitespace-nowrap font-display text-[15px] font-semibold tracking-[-0.01em] text-transparent bg-clip-text bg-[linear-gradient(90deg,#fff_50%,rgb(var(--os-body))_50%)] bg-[length:200%_100%] bg-[position:100%_0] transition-[background-position] duration-[420ms] group-hover:bg-[position:0_0] motion-reduce:transition-none"
       >
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M5 12h14M13 6l6 6-6 6" />
-        </svg>
+        {children}
       </span>
-    </span>
+      <svg
+        aria-hidden
+        viewBox="0 0 24 24"
+        width="15"
+        height="15"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ transitionTimingFunction: EASE_OUT }}
+        className="transition-transform duration-300 group-hover:translate-x-[3px] motion-reduce:transition-none"
+      >
+        <path d="M5 12h14M13 6l6 6-6 6" />
+      </svg>
+    </>
   );
-  if (to) return <Link to={to} className={classes} style={{ transitionTimingFunction: EASE_OUT }}>{inner}</Link>;
-  return <a href={href} className={classes} style={{ transitionTimingFunction: EASE_OUT }}>{inner}</a>;
+  if (to) return <Link to={to} className={classes}>{inner}</Link>;
+  return <a href={href} className={classes}>{inner}</a>;
 }
 
 /** Outline arrow link, mono uppercase. */
