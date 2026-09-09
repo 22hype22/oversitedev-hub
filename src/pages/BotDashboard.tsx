@@ -2503,32 +2503,32 @@ const BotDashboard = () => {
         );
       })(),
       activity: (() => {
-        const peak = Math.max(1, ...fleet.days.map((d) => Math.max(d.events, d.blocked)));
+        const peak = Math.max(1, ...fleet.days.map((d) => Math.max(d.commands, d.messages)));
         const pct = (n: number) => `${Math.round((n / peak) * 100)}%`;
         const quiet = !fleet.loading && fleet.thisWeek === 0 && fleet.lastWeek === 0;
         const delta = fleet.deltaPct;
         return (
           <div className="card" id="tour-activity">
             <div className="ch"><div><span className="ct">Fleet activity</span><div style={{ fontSize: "11px", color: "var(--faint)", marginTop: "2px" }}>Last 7 days</div></div></div>
-            <div className="leg"><span><i style={{ background: "var(--accent)" }} />Events</span><span><i style={{ background: "var(--surface2)" }} />Blocked</span></div>
+            <div className="leg"><span><i style={{ background: "var(--accent)" }} />Commands</span><span><i style={{ background: "var(--surface2)" }} />Messages</span></div>
             <div className="chart">
               {fleet.days.map((d, i) => (
-                <div className="col" key={i} title={`${d.label}: ${d.events} events, ${d.blocked} blocked`}>
+                <div className="col" key={i} title={`${d.label}: ${d.commands} commands, ${d.messages} messages`}>
                   <div className="bars">
-                    <div className="bar buy" style={{ height: d.events > 0 ? pct(d.events) : "2px", opacity: d.events > 0 ? 1 : 0.35 }} />
-                    <div className="bar sell" style={{ height: d.blocked > 0 ? pct(d.blocked) : "2px", opacity: d.blocked > 0 ? 1 : 0.35 }} />
+                    <div className="bar buy" style={{ height: d.commands > 0 ? pct(d.commands) : "2px", opacity: d.commands > 0 ? 1 : 0.35 }} />
+                    <div className="bar sell" style={{ height: d.messages > 0 ? pct(d.messages) : "2px", opacity: d.messages > 0 ? 1 : 0.35 }} />
                   </div>
                   <div className="x">{d.label}</div>
                 </div>
               ))}
             </div>
             <div className="kpis">
-              <span className="big num">{fleet.loading ? "" : fleet.thisWeek.toLocaleString()}<span className="unit">{fleet.loading ? "" : fleet.thisWeek === 1 ? "event" : "events"}</span></span>
+              <span className="big num">{fleet.loading ? "" : fleet.thisWeek.toLocaleString()}<span className="unit">{fleet.loading ? "" : fleet.thisWeek === 1 ? "use this week" : "uses this week"}</span></span>
               {!fleet.loading && delta !== null && delta !== 0 && (
                 <span className={"updelta" + (delta < 0 ? " down" : "")}>{delta > 0 ? "▲" : "▼"} {Math.abs(delta)}%</span>
               )}
               {!fleet.loading && delta === 0 && <span className="updelta flat">no change</span>}
-              <span className="vs">{quiet ? "No activity yet" : fleet.lastWeek === 0 ? "nothing last week" : "vs last week"}</span>
+              <span className="vs">{quiet ? "No use recorded yet" : fleet.lastWeek === 0 ? "nothing last week" : "vs last week"}</span>
             </div>
           </div>
         );
