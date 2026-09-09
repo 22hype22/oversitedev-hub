@@ -2500,7 +2500,6 @@ const BotDashboard = () => {
             <div className="mrow"><span className="k">Add-ons</span><span className="v">{spotlight.addons.length}</span></div>
             <div className="mrow" style={{ borderBottom: 0 }}><span className="k">Engine</span><span className="v">{spotlight.engine_version === "v2" ? "V2" : "V1"}</span></div>
           </div>
-          <div className="mbtns"><button className="ghost" onClick={() => openBot(spotlight.id)}>Configure</button><button className="cta" style={{ width: "100%" }} onClick={() => openBot(spotlight.id)}>Open bot</button></div>
         </div>
       ) : null,
     };
