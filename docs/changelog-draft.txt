@@ -102,3 +102,4 @@
 + The Setup card now walks each bot through three steps in order: preview your bot, invite it to your server, set up its APIs. Each step reads real data and the card marks itself complete
 + Fleet activity now shows real numbers: commands, messages, and moderation events per day for the last 7 days, blocked actions, and this week's total against last week
 + The stray dots on Your bots and the corner arrow on the bot spotlight are gone
++ The dashboard home no longer shows the Your bots list and the bot spotlight card. The bot table above them already covers both
