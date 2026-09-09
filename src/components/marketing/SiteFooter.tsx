@@ -19,7 +19,6 @@ const COLUMNS: { heading: string; links: LinkItem[] }[] = [
       { label: "ER:LC Design", to: "/erlc-design" },
       { label: "Our Process", to: "/process" },
       { label: "Bots", to: "/bots" },
-      { label: "Meet the Team", to: "/explore/team" },
       { label: "Support and Ideas", to: "/support-ideas" },
       { label: "FAQ", to: "#faq" },
     ],

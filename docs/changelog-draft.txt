@@ -93,3 +93,4 @@
 + The Privacy Policy and Terms of Use now say which features use AI and which providers process that content, and that AI tools help build and run Oversite
 + The builder now says every bot's name, icon, banner, bio, and status are yours to set and can be changed at any time
 + Picking a banner or icon in the builder now opens the same editor as the dashboard, so you can zoom, drag, rotate, and flip before it is set
++ Meet the Team is no longer linked from the site footer
