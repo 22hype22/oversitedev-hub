@@ -2540,7 +2540,7 @@ const BotDashboard = () => {
                 <span className={"updelta" + (delta < 0 ? " down" : "")}>{delta > 0 ? "▲" : "▼"} {Math.abs(delta)}%</span>
               )}
               {!fleet.loading && delta === 0 && <span className="updelta flat">no change</span>}
-              <span className="vs">{quiet ? "No use recorded yet" : fleet.lastWeek === 0 ? "nothing last week" : "vs last week"}</span>
+              <span className="vs">{quiet ? "No use recorded yet" : fleet.lastWeek === 0 ? "nothing this time last week" : "vs this time last week"}</span>
             </div>
           </div>
         );
