@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const DISCORD_INVITE = "https://discord.gg/oversite";
+const DISCORD_INVITE = "https://discord.gg/ovs";
 
 type Phase =
   | { kind: "join" }
