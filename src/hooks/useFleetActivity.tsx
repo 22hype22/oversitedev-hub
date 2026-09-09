@@ -13,7 +13,7 @@ export type FleetDay = { label: string; commands: number; messages: number; /** 
 export type FleetActivity = {
   loading: boolean;
   days: FleetDay[];
-  /** Commands plus messages this week and last week. */
+  /** Commands plus messages this week so far, and the same days of last week. */
   thisWeek: number;
   lastWeek: number;
   /** Percent change against last week, or null when last week had nothing. */
@@ -63,8 +63,11 @@ export function useFleetActivity(userId: string | null | undefined, botIds: stri
       }
       const days = empty.map((d, i) => ({ ...d, commands: commands[7 + i], messages: messages[7 + i] }));
       const total = (from: number, to: number) => commands.slice(from, to).reduce((a, b) => a + b, 0) + messages.slice(from, to).reduce((a, b) => a + b, 0);
+      // Compare like with like: this week so far against the same days of
+      // last week, so a Wednesday is never measured against a whole week.
+      const dayIndex = today.getDay();
       const thisWeek = total(7, 14);
-      const lastWeek = total(0, 7);
+      const lastWeek = total(0, dayIndex + 1);
       const deltaPct = lastWeek > 0 ? Math.round(((thisWeek - lastWeek) / lastWeek) * 100) : null;
       setState({ loading: false, days, thisWeek, lastWeek, deltaPct });
     })();

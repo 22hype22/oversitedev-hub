@@ -106,3 +106,4 @@
 + Fleet activity now shows how much your bots were used each day: commands on one bar, messages sent on the other, with the week's total uses against last week. The Network and Roleplay bots now count their commands and messages so the chart fills in
 + Fleet activity bars now actually draw, and the card stretches to the same height as the Setup card beside it
 + Fleet activity now runs Sunday to Saturday for the current week, shows the total under each day, leaves days that have not happened yet empty, and adds up every bot you own
++ The up or down percent on Fleet activity now compares this week so far with the same days of last week
