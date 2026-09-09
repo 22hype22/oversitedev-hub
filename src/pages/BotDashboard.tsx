@@ -188,6 +188,7 @@ import containers from "@/assets/containers.webp";
 import { Input } from "@/components/ui/input";
 import { HostingPastDueBanner } from "@/components/dashboard/HostingPastDueBanner";
 import { ReadOnlyBotScope } from "@/components/dashboard/ReadOnlyBotScope";
+import { SupportChat } from "@/components/dashboard/SupportChat";
 import { useTeamRole } from "@/hooks/useTeamRole";
 import { useHostingSubscriptionSync } from "@/hooks/useHostingSubscriptionSync";
 import { useHostingSubscription } from "@/hooks/useHostingSubscription";
@@ -3059,7 +3060,6 @@ const BotDashboard = () => {
 
             {/* SETTINGS */}
             <div className={"view" + (view === "settings" && canManageSettings ? " on" : "")}>
-              <div className="ph2"><h2>Settings</h2><p>Your account, workspace, and notifications.</p></div>
               <div className="card" style={{ marginBottom: "16px" }}>
                 <div className="ch"><span className="ct">Workspace</span></div>
                 <p style={{ fontSize: "12.5px", color: "var(--faint)", marginBottom: "14px" }}>Choose how you run your fleet. Switching to team unlocks members, roles, and announcements.</p>
@@ -3097,11 +3097,7 @@ const BotDashboard = () => {
 
             {/* SUPPORT */}
             <div className={"view" + (view === "support" ? " on" : "")}>
-              <div className="ph2"><h2>Support</h2><p>We usually reply within a few hours.</p></div>
-              <div className="bgrid">
-                <div className="card"><div className="ch"><span className="ct">Contact us</span></div><p style={{ fontSize: "12.5px", color: "var(--faint)", lineHeight: 1.5, marginBottom: "14px" }}>Email <span style={{ color: "var(--accent)" }}>support@oversite.shop</span> or open a ticket in our Discord.</p><div className="mbtns"><a className="ghost" href="mailto:support@oversite.shop" style={{ textDecoration: "none", textAlign: "center" }}>Email us</a><a className="cta" href="https://discord.gg/oversite" target="_blank" rel="noreferrer" style={{ width: "100%", textDecoration: "none", textAlign: "center" }}>Join Discord</a></div><button className="ghost" style={{ marginTop: "10px" }} onClick={() => { lsDel(LS.tour); go("dashboard"); startTour(); }}>↺ Replay dashboard tour</button></div>
-                <div className="card"><div className="ch"><span className="ct">Quick answers</span></div><div className="togrow" style={{ cursor: "pointer" }}><div className="tl">How do I add a bot to my server?</div><span className="dots">›</span></div><div className="togrow" style={{ cursor: "pointer" }}><div className="tl">Can I cancel anytime?</div><span className="dots">›</span></div><div className="togrow" style={{ cursor: "pointer" }}><div className="tl">How do refunds work?</div><span className="dots">›</span></div></div>
-              </div>
+              {view === "support" && <SupportChat userId={user.id} />}
             </div>
 
             {/* PER-BOT — real working blocks */}
