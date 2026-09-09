@@ -90,3 +90,4 @@
 + Bot cards now read the price as USD or Robux, with the hosting fee after, so it does not look like three separate charges
 + The Start building and Build your bot buttons across the site now share the checkout button's design, a glass face inside a thin bezel with the arrow in its own disc
 + The outlined Start building and Build your bot buttons now hover with a wipe: a thick outline sweeps over the thin one and the label brightens under it. The label is set in the headline face instead of mono caps
++ The Privacy Policy and Terms of Use now say which features use AI and which providers process that content, and that AI tools help build and run Oversite
