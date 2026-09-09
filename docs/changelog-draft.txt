@@ -96,4 +96,4 @@
 + Meet the Team is no longer linked from the site footer
 + Support and Ideas is no longer linked from the site footer
 + Footer links now go where they say: FAQ opens the FAQ section from any page, and Memberships is gone
-+ The undo after deleting a bot is now a quiet toast in the bottom left with Undo and a close button, instead of a strip across the top
++ The undo after deleting a bot is now a small card at the top with the bot icon, the seconds left, and an Undo button whose ring empties as time runs out, next to the close button
