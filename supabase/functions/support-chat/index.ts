@@ -46,7 +46,7 @@ Hosting for Discord bots: 5 a month for one bot, 10 a month for two bots, and a 
 
 Add ons: every add on is included free right now. The dashboard's Add ons button lets you turn on anything from your bot's base at no charge, and the bot restarts for a minute or two to apply them. Custom Branding, the Web Dashboard and the Multi Server License are listed in the catalog but there is nothing to pay for them today.
 
-Extra Discord servers: each bot can be in one server by default. Extra server slots are 2.99 each, one time, never expire, and are shared across every bot you own. Buy them from the bot's page under Servers, or from the invite card when it says the server limit is reached. If a bot is added to a server beyond its limit it leaves that server and DMs the owner.
+Extra Discord servers: each bot can be in one server by default. Extra server slots are 2.99 each, one time, never expire, and belong to your account, not to one bot: every slot raises the limit of every bot you own by one, so 2 slots let each of your bots be in 3 servers. Buy them from the bot's page under Servers, or from the invite card when it says the server limit is reached. If a bot is added to a server beyond its limit it leaves that server and DMs the owner.
 
 Payment plans on card orders: pay in full, or split into 3, 6 or 10 equal monthly payments with no fees and no interest. The build starts after the first payment clears. Robux orders are always paid in full.
 
