@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
  */
 
 const SUPPORT = "support@oversite.shop";
-const EFFECTIVE = "June 27, 2026";
+const EFFECTIVE = "September 9, 2026";
 const STATE = "Minnesota, United States";
 
 type Section = { h: string; body: string[] };
@@ -45,26 +45,32 @@ const PRIVACY: Section[] = [
     "We use information to: create and manage your account; configure, deploy, host, and maintain your bots; process payments, subscriptions, and renewals; provide customer support; operate and secure the Services and prevent fraud and abuse; send you service, account, billing, and (optional) update notifications; comply with legal obligations; and improve the Services.",
   ]},
   { h: "6. How we share information", body: [
-    "We share information only as needed to run the Services, with providers that process data on our behalf: Stripe (payments), Discord and Google (sign-in and bot functionality), Supabase (database and authentication), and our hosting and infrastructure providers (for example, Railway).",
+    "We share information only as needed to run the Services, with providers that process data on our behalf: Stripe (payments), Discord and Google (sign-in and bot functionality), Supabase (database and authentication), our hosting and infrastructure providers (for example, Railway), and the artificial intelligence providers described in Section 7.",
     "We may also disclose information if required by law or valid legal process, or where we believe in good faith it is necessary to enforce our terms or protect the rights, safety, and property of Oversite, our users, or others. We do not sell your personal information.",
   ]},
-  { h: "7. Cookies", body: [
+  { h: "7. Artificial intelligence features", body: [
+    "Some features of the Services are powered by artificial intelligence models run by third parties. Message translation uses Google Gemini models through an AI gateway operated by Lovable. Avatar safety screening on the Protection bot sends the avatar image being checked to Anthropic (Claude). Text-to-speech and radio voices use Google, Microsoft, or ElevenLabs speech services, depending on what the bot owner has enabled. We may add or change providers; this section will be updated when we do.",
+    "We send a provider only the content that feature needs: the text being translated, the image being screened, or the text being spoken. We do not send your account details, payment details, or Discord credentials to AI providers, and we do not use your content to train AI models. Content sent to a provider is processed under that provider’s own terms and privacy policy.",
+    "AI output can be wrong, incomplete, or inappropriate. Automated actions a bot takes based on AI output, such as flagging or removing an avatar, are controlled by the server owner’s settings and can be reviewed and reversed by the server’s staff. If you believe an automated decision was made in error, contact the server’s staff or reach us at " + SUPPORT + ".",
+    "We also use AI-assisted tools to help build and operate the Services, including writing and reviewing code and drafting support replies. A person at Oversite remains responsible for the Services and for any reply you receive from us.",
+  ]},
+  { h: "8. Cookies", body: [
     "We use essential cookies and similar technologies to keep you signed in and remember your preferences. We do not use third-party advertising cookies. You can control cookies in your browser settings, but some features may not work without them.",
   ]},
-  { h: "8. Data security", body: [
+  { h: "9. Data security", body: [
     "We use reasonable technical and organizational safeguards, including encryption of data in transit and access controls, to protect your information. However, no method of transmission or storage is completely secure, and we cannot guarantee absolute security.",
   ]},
-  { h: "9. Data retention & deletion", body: [
+  { h: "10. Data retention & deletion", body: [
     "We keep information for as long as your account and bots are active and as needed to provide the Services, comply with legal and tax obligations, resolve disputes, and enforce our agreements.",
     "When you remove a bot from a server, that bot stops collecting new data from it. When you delete your account, or on request, we delete or anonymize your associated personal data within a reasonable period, except where we are required to retain it by law.",
   ]},
-  { h: "10. Your rights & choices", body: [
+  { h: "11. Your rights & choices", body: [
     "Depending on where you live (including under the GDPR and CCPA), you may have the right to access, correct, delete, port, or restrict the processing of your personal information, and to object to certain processing. To exercise these rights, email " + SUPPORT + ". You can also remove a bot from your server at any time and manage optional notification categories in your account settings.",
   ]},
-  { h: "11. Children", body: [
+  { h: "12. Children", body: [
     "The Services are intended for users who are at least 13 years old (or the minimum age Discord requires in your region). We do not knowingly collect personal information from children under 13. If you believe a child under 13 has provided us information, contact " + SUPPORT + " and we will delete it.",
   ]},
-  { h: "12. International users & changes", body: [
+  { h: "13. International users & changes", body: [
     "We operate from the United States; if you use the Services from outside the U.S., your information is processed in the U.S. We may update this Privacy Policy from time to time; material changes will be posted here with a new effective date, and your continued use of the Services means you accept the updated policy.",
   ]},
 ];
@@ -99,29 +105,35 @@ const TERMS: Section[] = [
   { h: "9. Third-party services", body: [
     "The Services rely on third parties including Discord, Stripe, Google, and our infrastructure providers. Your use of those services is subject to their terms and policies. We are not responsible for third-party services or for outages, changes, or actions outside our control (including Discord outages or API changes).",
   ]},
-  { h: "10. Disclaimers — “as is”", body: [
+  { h: "10. Artificial intelligence & automated features", body: [
+    "Parts of the Services use artificial intelligence, including message translation, text-to-speech and radio voices, avatar and content screening, and similar features we may add. AI-generated output may be inaccurate, incomplete, offensive, or unsuitable for your purpose. You are responsible for reviewing AI output before relying on it, and it is not legal, financial, medical, or other professional advice.",
+    "Automated actions taken by a bot, including actions based on AI output, follow the settings chosen by the server owner. The server owner is responsible for those settings and for reviewing and reversing automated actions where appropriate. Oversite is not liable for automated actions taken under a server owner’s configuration.",
+    "You may not use AI features to create or distribute content that is unlawful, that infringes the rights of others, or that violates Discord’s or Roblox’s rules. AI features are provided by third-party providers named in our Privacy Policy and your use of them is also subject to those providers’ terms.",
+    "We use AI-assisted tools in building and operating the Services, including software development and customer support, under human supervision. Nothing in the Services should be read as a promise that any particular part was or was not produced with AI assistance.",
+  ]},
+  { h: "11. Disclaimers — “as is”", body: [
     "The Services are provided “as is” and “as available,” without warranties of any kind, whether express, implied, or statutory, including any implied warranties of merchantability, fitness for a particular purpose, title, and non-infringement. We do not warrant that the Services will be uninterrupted, secure, error-free, or that bots will remain online at all times, including due to factors outside our control.",
   ]},
-  { h: "11. Limitation of liability", body: [
+  { h: "12. Limitation of liability", body: [
     "To the maximum extent permitted by law, Oversite and its owner will not be liable for any indirect, incidental, special, consequential, exemplary, or punitive damages, or for any loss of profits, revenue, data, goodwill, or business, arising out of or related to the Services, even if advised of the possibility.",
     "To the maximum extent permitted by law, Oversite’s total aggregate liability for all claims relating to the Services will not exceed the greater of (a) the total amount you paid Oversite in the three (3) months before the event giving rise to the claim, or (b) twenty U.S. dollars ($20).",
   ]},
-  { h: "12. Indemnification", body: [
+  { h: "13. Indemnification", body: [
     "You agree to indemnify, defend, and hold harmless Oversite and its owner from and against any claims, damages, losses, liabilities, and expenses (including reasonable attorneys’ fees) arising out of or related to your use of the Services, your content or servers, your violation of these Terms, or your violation of any law or third-party right.",
   ]},
-  { h: "13. Suspension & termination", body: [
+  { h: "14. Suspension & termination", body: [
     "We may suspend or terminate your access, with or without notice, if you violate these Terms, fail to pay, or create legal risk or harm to the Services or others. You may stop using the Services at any time by cancelling and removing the bots. Sections that by their nature should survive termination — including fees owed, ownership, disclaimers, limitation of liability, indemnification, and dispute resolution — will survive.",
   ]},
-  { h: "14. Dispute resolution — arbitration & class-action waiver", body: [
+  { h: "15. Dispute resolution — arbitration & class-action waiver", body: [
     "Please read this section carefully — it affects your legal rights. First, informal resolution: before starting any formal proceeding, you agree to contact us at " + SUPPORT + " and give us at least thirty (30) days to resolve the dispute informally.",
     "Binding arbitration: except as noted below, any dispute arising out of or relating to the Services or these Terms will be resolved by final and binding individual arbitration administered under the rules of a recognized arbitration provider, rather than in court. The Federal Arbitration Act governs the interpretation and enforcement of this section.",
     "Class-action & jury waiver: you and Oversite agree that disputes will be brought only in an individual capacity, and not as a plaintiff or class member in any class, collective, or representative proceeding. You and Oversite waive any right to a jury trial.",
     "Exceptions & opt-out: either party may bring an individual claim in small-claims court, and either party may seek injunctive relief for intellectual-property or unauthorized-access claims. You may opt out of this arbitration agreement by emailing " + SUPPORT + " within thirty (30) days of first accepting these Terms, stating your intent to opt out.",
   ]},
-  { h: "15. Governing law & changes", body: [
+  { h: "16. Governing law & changes", body: [
     "These Terms and any dispute are governed by the laws of the State of Minnesota and applicable U.S. federal law, without regard to conflict-of-laws rules; venue for any matter not subject to arbitration lies in the state or federal courts located in Minnesota. We may update these Terms from time to time; material changes will be posted here with a new effective date, and your continued use means you accept them.",
   ]},
-  { h: "16. Contact", body: [
+  { h: "17. Contact", body: [
     "Questions about these Terms? Email " + SUPPORT + ".",
   ]},
 ];
