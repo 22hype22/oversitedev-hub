@@ -108,3 +108,4 @@
 + Fleet activity now runs Sunday to Saturday for the current week, shows the total under each day, leaves days that have not happened yet empty, and adds up every bot you own
 + The up or down percent on Fleet activity now compares this week so far with the same days of last week
 + Each unfinished Setup step now has a Mark finished button beside its arrow, so you can check it off yourself. A step you marked says Marked by you and can be un-marked
++ Activity is now a real timeline: bots going offline and back with how long they were gone, settings applied, status and bio changes, members verifying with Roblox, messages posted, what Protection watched or flagged, and team invites. Filter chips sort it by kind

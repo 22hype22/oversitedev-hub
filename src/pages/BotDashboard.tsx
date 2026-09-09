@@ -3,6 +3,7 @@ import { useBotHealth } from "@/hooks/useBotHealth";
 import { useLiveBotStatuses } from "@/hooks/useLiveBotStatuses";
 import { useSetupProgress } from "@/hooks/useSetupProgress";
 import { useFleetActivity } from "@/hooks/useFleetActivity";
+import { useFleetTimeline, type TimelineKind } from "@/hooks/useFleetTimeline";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useOwnedBots, type OwnedBot } from "@/hooks/useOwnedBots";
@@ -2364,6 +2365,9 @@ const BotDashboard = () => {
   };
   const fleetBotIds = useMemo(() => owned.map((b) => b.id), [owned]);
   const fleet = useFleetActivity(user?.id, fleetBotIds);
+  const timelineBots = useMemo(() => owned.map((b) => ({ id: b.id, name: b.bot_name })), [owned]);
+  const timeline = useFleetTimeline(user?.id, timelineBots);
+  const [timelineFilter, setTimelineFilter] = useState<TimelineKind | "all">("all");
 
   // First data load of the session (auth restore + bot list) — ghost loading
   // shaped like the REAL dashboard shell (sidebar + header + card grid), so
@@ -2873,13 +2877,47 @@ const BotDashboard = () => {
 
             {/* ACTIVITY */}
             <div className={"view" + (view === "activity" && canActivity ? " on" : "")}>
-              <div className="ph2"><h2>Activity</h2><p>Everything your bots have done, newest first.</p></div>
-              <div className="feed" style={{ marginTop: "6px" }}>
-                {notifications.length === 0 && <div className="fitem"><div><div className="ttl">No activity yet</div><div className="meta">Events from your bots will show up here.</div></div></div>}
-                {notifications.map((n: BotNotification) => (
-                  <div className="fitem" key={n.id}><div className="fi" style={{ color: "var(--accent)", background: "rgba(201,219,230,.1)" }}><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg></div><div><div className="ttl">{n.title}</div><div className="meta">{n.body}</div></div><div className="tm">{osTimeAgo(n.created_at)}</div></div>
-                ))}
-              </div>
+              <div className="ph2"><h2>Activity</h2><p>What your bots and your team have been doing, newest first.</p></div>
+              {(() => {
+                const KINDS: { id: TimelineKind | "all"; label: string }[] = [
+                  { id: "all", label: "All" }, { id: "uptime", label: "Uptime" }, { id: "settings", label: "Settings" },
+                  { id: "moderation", label: "Moderation" }, { id: "members", label: "Members" }, { id: "messages", label: "Messages" }, { id: "team", label: "Team" },
+                ];
+                const ICON: Record<TimelineKind, string> = {
+                  uptime: "M12 3v18M3 12h18",
+                  settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z",
+                  moderation: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
+                  members: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM19 8l2 2 4-4",
+                  messages: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
+                  team: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8",
+                };
+                const rows = timeline.items.filter((it) => timelineFilter === "all" || it.kind === timelineFilter);
+                const tone = (kind: TimelineKind, bad?: boolean) =>
+                  bad ? { color: "var(--bad)", background: "rgba(233,139,139,.12)" }
+                  : kind === "uptime" || kind === "members" ? { color: "var(--ok)", background: "rgba(134,211,161,.12)" }
+                  : kind === "team" ? { color: "var(--gold)", background: "rgba(203,178,119,.12)" }
+                  : { color: "var(--accent)", background: "rgba(201,219,230,.1)" };
+                return (
+                  <>
+                    <div className="tabs" style={{ marginTop: "6px", marginBottom: "12px", display: "inline-flex" }}>
+                      {KINDS.map((k) => (
+                        <button key={k.id} className={timelineFilter === k.id ? "on" : ""} onClick={() => setTimelineFilter(k.id)}>{k.label}</button>
+                      ))}
+                    </div>
+                    <div className="feed">
+                      {timeline.loading && <div className="fitem"><div><div className="ttl">Loading activity</div><div className="meta">Pulling the last 30 days from your bots.</div></div></div>}
+                      {!timeline.loading && rows.length === 0 && <div className="fitem"><div><div className="ttl">Nothing here yet</div><div className="meta">{timelineFilter === "all" ? "Events from your bots and team will show up here." : "Nothing of this kind in the last 30 days."}</div></div></div>}
+                      {rows.map((it) => (
+                        <div className="fitem" key={it.id}>
+                          <div className="fi" style={tone(it.kind, it.bad)}><svg viewBox="0 0 24 24"><path d={ICON[it.kind]} /></svg></div>
+                          <div style={{ minWidth: 0 }}><div className="ttl">{it.title}</div><div className="meta">{it.meta}</div></div>
+                          <div className="tm">{osTimeAgo(it.at)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* BILLING */}
