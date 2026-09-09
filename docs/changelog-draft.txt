@@ -97,3 +97,4 @@
 + Support and Ideas is no longer linked from the site footer
 + Footer links now go where they say: FAQ opens the FAQ section from any page, and Memberships is gone
 + The undo after deleting a bot is now a small card at the top with the bot icon, the seconds left, and an Undo button whose ring empties as time runs out, next to the close button
++ The bot spotlight card on the dashboard home no longer shows Configure and Open bot buttons. The corner arrow and each row's Open button already do that
