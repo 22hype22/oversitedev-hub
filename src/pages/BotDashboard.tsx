@@ -1643,7 +1643,7 @@ type Group = { id: string; name: string };
 // so holding a card at the bottom of the screen moves the page quickly.
 const DRAG_AUTOSCROLL = { threshold: { x: 0.12, y: 0.3 }, acceleration: 45, interval: 5 } as const;
 
-const DEFAULT_DASH_ORDER = ["setup", "activity", "table", "bots", "spotlight"];
+const DEFAULT_DASH_ORDER = ["setup", "activity", "table"];
 
 // One draggable dashboard box. Whole card is the grab area; a small movement
 // threshold on the sensor lets clicks on inner buttons/rows still register.
@@ -2560,37 +2560,6 @@ const BotDashboard = () => {
           </table></div>
         </div>
       ),
-      bots: (
-        <div className="card" id="tour-bots">
-          <div className="ch"><span className="ct">Your bots</span></div>
-          <div className="tabs">
-            <button className={listFilter === "all" ? "on" : ""} onClick={() => setListFilter("all")}>All</button>
-            <button className={listFilter === "online" ? "on" : ""} onClick={() => setListFilter("online")}>Online</button>
-            <button className={listFilter === "warn" ? "on" : ""} onClick={() => setListFilter("warn")}>Other</button>
-          </div>
-          <div>
-            {owned.filter(filt(listFilter)).map((b) => (
-              <div className="tok" key={b.id} onClick={() => openBot(b.id)}>
-                <div className="ic">{botSvg(b.base)}</div>
-                <div><div className="v">{b.bot_name}</div><div className="s">{stWordLive(b).toLowerCase()}</div></div>
-                <button className="act" onClick={(e) => { e.stopPropagation(); openBot(b.id); }}>Open</button>
-              </div>
-            ))}
-            {owned.length === 0 && <div className="tok"><div><div className="s">No bots yet.</div></div></div>}
-          </div>
-        </div>
-      ),
-      spotlight: spotlight ? (
-        <div className="card">
-          <div className="mname">{spotlight.bot_name} <span className="x">{BOT_BASE_LABELS[spotlight.base] ?? spotlight.base}</span></div>
-          <div className="mhot">Your fleet</div>
-          <div style={{ marginTop: "14px" }}>
-            <div className="mrow"><span className="k">Status</span><span className="v" style={{ color: stColorLive(spotlight) }}>{stWordLive(spotlight)}</span></div>
-            <div className="mrow"><span className="k">Add-ons</span><span className="v">{spotlight.addons.length}</span></div>
-            <div className="mrow" style={{ borderBottom: 0 }}><span className="k">Engine</span><span className="v">{spotlight.engine_version === "v2" ? "V2" : "V1"}</span></div>
-          </div>
-        </div>
-      ) : null,
     };
     const wide = new Set(["table"]);
     const ordered = [
