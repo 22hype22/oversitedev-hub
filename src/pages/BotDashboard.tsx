@@ -2350,6 +2350,18 @@ const BotDashboard = () => {
     [owned],
   );
   const setup = useSetupProgress(user?.id, setupBotIds);
+  // Steps the owner marked finished by hand. Kept per account in this browser.
+  const setupDoneKey = `os_setup_done:${user?.id ?? "anon"}`;
+  const [manualDone, setManualDone] = useState<string[]>(() => {
+    try { const raw = localStorage.getItem(setupDoneKey); return raw ? (JSON.parse(raw) as string[]) : []; } catch { return []; }
+  });
+  const setManual = (key: string, done: boolean) => {
+    setManualDone((prev) => {
+      const next = done ? Array.from(new Set([...prev, key])) : prev.filter((k) => k !== key);
+      try { localStorage.setItem(setupDoneKey, JSON.stringify(next)); } catch { /* storage may be blocked */ }
+      return next;
+    });
+  };
   const fleetBotIds = useMemo(() => owned.map((b) => b.id), [owned]);
   const fleet = useFleetActivity(user?.id, fleetBotIds);
 
@@ -2476,6 +2488,7 @@ const BotDashboard = () => {
             go: () => openBot(apisMissing[0]?.id ?? mine[0]?.id),
           },
         ];
+        for (const st of steps) if (manualDone.includes(st.key)) st.done = true;
         const doneCount = steps.filter((st) => st.done).length;
         const complete = !setup.loading && mine.length > 0 && doneCount === steps.length;
         const next = steps.find((st) => !st.done);
@@ -2501,7 +2514,29 @@ const BotDashboard = () => {
                       <div className="td">{st.desc}</div>
                     </div>
                   </div>
-                  {!st.done && mine.length > 0 && <span style={{ color: "var(--faint)", fontSize: "12px", flex: "none" }}>›</span>}
+                  {!st.done && mine.length > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: "none" }}>
+                      <button
+                        type="button"
+                        title="Mark this step finished"
+                        onClick={(e) => { e.stopPropagation(); setManual(st.key, true); }}
+                        style={{ height: "26px", padding: "0 10px", borderRadius: "8px", border: "1px solid var(--hair)", background: "transparent", color: "var(--body)", fontFamily: "var(--bodyf)", fontSize: "11.5px", fontWeight: 600, cursor: "pointer" }}
+                      >
+                        Mark finished
+                      </button>
+                      <span style={{ color: "var(--faint)", fontSize: "12px" }}>›</span>
+                    </div>
+                  )}
+                  {st.done && manualDone.includes(st.key) && (
+                    <button
+                      type="button"
+                      title="Un-mark this step"
+                      onClick={(e) => { e.stopPropagation(); setManual(st.key, false); }}
+                      style={{ height: "26px", padding: "0 10px", borderRadius: "8px", border: "1px solid transparent", background: "transparent", color: "var(--faint)", fontFamily: "var(--bodyf)", fontSize: "11.5px", fontWeight: 600, cursor: "pointer", flex: "none" }}
+                    >
+                      Marked by you
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
