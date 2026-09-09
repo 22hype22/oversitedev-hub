@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState, useCallback, useLayoutEffe
 import { useBotHealth } from "@/hooks/useBotHealth";
 import { useLiveBotStatuses } from "@/hooks/useLiveBotStatuses";
 import { useSetupProgress } from "@/hooks/useSetupProgress";
+import { useFleetActivity } from "@/hooks/useFleetActivity";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useOwnedBots, type OwnedBot } from "@/hooks/useOwnedBots";
@@ -1345,8 +1346,11 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .chart .x{font-size:9.5px;color:var(--faint)}
 .osd .kpis{display:flex;align-items:center;gap:12px}
 .osd .kpis .big{font-family:var(--disp);font-size:30px;font-weight:800;color:var(--heading);letter-spacing:-.02em}
-.osd .kpis .big sup{font-size:15px;color:var(--faint);font-weight:600}
+.osd .kpis .big{display:inline-flex;align-items:baseline;gap:6px}
+.osd .kpis .unit{font-family:var(--bodyf);font-size:12.5px;color:var(--faint);font-weight:600;letter-spacing:0}
 .osd .updelta{font-size:11px;color:var(--ok);background:rgba(134,211,161,.12);border-radius:999px;padding:3px 9px;font-weight:700}
+.osd .updelta.down{color:var(--bad);background:rgba(233,139,139,.12)}
+.osd .updelta.flat{color:var(--faint);background:var(--surface2)}
 .osd .kpis .vs{font-size:11px;color:var(--faint);margin-left:auto}
 .osd .tabs{display:flex;gap:5px;background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:4px;margin-bottom:14px;flex-wrap:wrap}
 .osd .tabs button{border:0;background:transparent;color:var(--faint);font-family:var(--bodyf);font-size:11.5px;font-weight:600;padding:6px 11px;border-radius:7px;cursor:pointer;transition:.14s}
@@ -1631,8 +1635,6 @@ const isLive = (b: OwnedBot) => b.status === "live" || b.status === "ready";
 const stColor = (b: OwnedBot) => isLive(b) ? "var(--ok)" : (b.status === "submitted" || b.status === "paid" || b.status === "building") ? "var(--gold)" : "var(--faint)";
 const stWord = (b: OwnedBot) => isLive(b) ? "Online" : (b.status === "submitted" || b.status === "paid" || b.status === "building") ? "Building" : (getStatusMeta(b.status).label);
 
-const CHART = [[40,22],[55,30],[35,18],[70,40],[48,26],[80,44],[60,33]];
-const CDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
 type Group = { id: string; name: string };
 
@@ -2334,14 +2336,15 @@ const BotDashboard = () => {
   // and crash the page on the loading → loaded transition.
   const liveIds = useMemo(() => owned.filter((b) => isLive(b)).map((b) => b.id), [owned]);
   const liveStatuses = useLiveBotStatuses(liveIds);
-  // The Setup card reads real data: billing only when a bot bills monthly,
-  // team only in team mode, and whether every owned bot has anything set.
+  // The Setup card walks each bot through preview, server invite, and API
+  // keys, from real data.
   const setupBotIds = useMemo(
     () => owned.filter((b) => !b.viaTeam && !b.viaSupport).map((b) => b.id),
     [owned],
   );
-  const setupNeedsBilling = owned.some((b) => !b.viaTeam && !b.viaSupport && botHasSubscription(b));
-  const setup = useSetupProgress(user?.id, setupBotIds, setupNeedsBilling, wsMode === "team");
+  const setup = useSetupProgress(user?.id, setupBotIds);
+  const fleetBotIds = useMemo(() => owned.map((b) => b.id), [owned]);
+  const fleet = useFleetActivity(user?.id, fleetBotIds);
 
   // First data load of the session (auth restore + bot list) — ghost loading
   // shaped like the REAL dashboard shell (sidebar + header + card grid), so
@@ -2436,26 +2439,38 @@ const BotDashboard = () => {
   const renderDash = () => {
     const cells: Record<string, ReactNode> = {
       setup: (() => {
-        const allOnline = owned.length > 0 && liveCount === owned.length;
+        const mine = owned.filter((b) => !b.viaTeam && !b.viaSupport);
+        const byId = (ids: string[]) => mine.filter((b) => ids.includes(b.id));
+        const noIcon = mine.filter((b) => !b.icon_url);
+        const notInvited = byId(setup.notInvitedBotIds);
+        const apisMissing = byId(setup.apisMissingBotIds);
+        const plural = (n: number) => `${n} bot${n === 1 ? "" : "s"}`;
         type Step = { key: string; title: string; desc: string; done: boolean; go: () => void };
-        const steps: Step[] = [];
-        if (setup.billing !== null) {
-          steps.push({ key: "billing", title: "Connect billing", desc: setup.billing ? "Hosting is on a subscription." : "Add a card so monthly hosting stays on.", done: setup.billing, go: () => go("billing") });
-        }
-        if (setup.team !== null) {
-          steps.push({ key: "team", title: "Invite your team", desc: setup.team ? "Your team has been invited." : "Give people access to your bots.", done: setup.team, go: () => go("team") });
-        }
-        const left = setup.unconfiguredBotIds.length;
-        steps.push({
-          key: "commands",
-          title: "Set each bot's commands",
-          desc: left === 0 ? "Every bot has its settings." : `${left} bot${left === 1 ? "" : "s"} still ${left === 1 ? "has" : "have"} nothing set.`,
-          done: owned.length > 0 && left === 0,
-          go: () => { const id = setup.unconfiguredBotIds[0]; if (id) openBot(id); else go("bots"); },
-        });
-        steps.push({ key: "online", title: "Bring every bot online", desc: allOnline ? "All bots are online." : `${liveCount} of ${owned.length} online.`, done: allOnline, go: () => go("bots") });
+        const steps: Step[] = [
+          {
+            key: "preview",
+            title: "Preview your bot",
+            desc: noIcon.length === 0 ? "Every bot has its name and icon." : `${plural(noIcon.length)} still ${noIcon.length === 1 ? "needs" : "need"} an icon. Open the bot to see how it looks and set it.`,
+            done: mine.length > 0 && noIcon.length === 0,
+            go: () => openBot(noIcon[0]?.id ?? mine[0]?.id),
+          },
+          {
+            key: "invite",
+            title: "Invite it to your server",
+            desc: notInvited.length === 0 ? "Every bot is in a server." : `${plural(notInvited.length)} ${notInvited.length === 1 ? "is" : "are"} not in a server yet. Use the invite link on the bot's page.`,
+            done: mine.length > 0 && notInvited.length === 0,
+            go: () => openBot(notInvited[0]?.id ?? mine[0]?.id),
+          },
+          {
+            key: "apis",
+            title: "Set up its APIs",
+            desc: apisMissing.length === 0 ? "Every required key is in place." : `${plural(apisMissing.length)} ${apisMissing.length === 1 ? "is" : "are"} missing a required key. Fill it under API keys and credentials.`,
+            done: mine.length > 0 && apisMissing.length === 0,
+            go: () => openBot(apisMissing[0]?.id ?? mine[0]?.id),
+          },
+        ];
         const doneCount = steps.filter((st) => st.done).length;
-        const complete = !setup.loading && owned.length > 0 && doneCount === steps.length;
+        const complete = !setup.loading && mine.length > 0 && doneCount === steps.length;
         const next = steps.find((st) => !st.done);
         return (
           <div className="card cust">
@@ -2465,36 +2480,59 @@ const BotDashboard = () => {
                 ? <span className="pillok">Complete</span>
                 : <span style={{ fontFamily: "var(--mono)", fontSize: "11px", color: "var(--faint)" }}>{setup.loading ? "" : `${doneCount} of ${steps.length}`}</span>}
             </div>
-            <h3>{complete ? "Setup complete" : owned.length === 0 ? "Start with a bot" : "Almost there"}</h3>
-            <p>{complete ? "Everything is connected and every bot is set." : owned.length === 0 ? "Order your first bot and this list fills in as you go." : "Work through these and the card marks itself complete."}</p>
+            <h3>{complete ? "Setup complete" : mine.length === 0 ? "Start with a bot" : "Almost there"}</h3>
+            <p>{complete ? "Every bot is previewed, in a server, and has its keys." : mine.length === 0 ? "Order your first bot and this list fills in as you go." : "Three steps, in order. The card marks itself complete when they are done."}</p>
             <div style={{ marginBottom: next ? "14px" : 0 }}>
-              {steps.map((st) => (
-                <div className="togrow" key={st.key} style={{ cursor: st.done ? "default" : "pointer" }} onClick={() => { if (!st.done) st.go(); }}>
+              {steps.map((st, i) => (
+                <div className="togrow" key={st.key} style={{ cursor: st.done || mine.length === 0 ? "default" : "pointer" }} onClick={() => { if (!st.done && mine.length > 0) st.go(); }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
-                    <span aria-hidden style={{ flex: "none", height: "20px", width: "20px", borderRadius: "999px", display: "grid", placeItems: "center", background: st.done ? "var(--ok)" : "transparent", border: st.done ? "0" : "1.5px solid var(--hair)", color: "var(--bg)", transition: "background .2s" }}>
-                      {st.done && <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
+                    <span aria-hidden style={{ flex: "none", height: "22px", width: "22px", borderRadius: "999px", display: "grid", placeItems: "center", background: st.done ? "var(--ok)" : "transparent", border: st.done ? "0" : "1.5px solid var(--hair)", color: st.done ? "var(--bg)" : "var(--faint)", fontFamily: "var(--mono)", fontSize: "11px", fontWeight: 700, transition: "background .2s" }}>
+                      {st.done ? <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg> : i + 1}
                     </span>
                     <div style={{ minWidth: 0 }}>
                       <div className="tl" style={{ color: st.done ? "var(--faint)" : "var(--heading)", textDecoration: st.done ? "line-through" : "none", textDecorationColor: "var(--hair)" }}>{st.title}</div>
                       <div className="td">{st.desc}</div>
                     </div>
                   </div>
-                  {!st.done && <span style={{ color: "var(--faint)", fontSize: "12px", flex: "none" }}>›</span>}
+                  {!st.done && mine.length > 0 && <span style={{ color: "var(--faint)", fontSize: "12px", flex: "none" }}>›</span>}
                 </div>
               ))}
             </div>
-            {next && <button className="ghost" onClick={next.go}>{owned.length === 0 ? "Order a bot" : `Next: ${next.title}`}</button>}
+            {next && <button className="ghost" onClick={mine.length === 0 ? () => navigate("/bots") : next.go}>{mine.length === 0 ? "Order a bot" : `Next: ${next.title}`}</button>}
           </div>
         );
       })(),
-      activity: (
-        <div className="card" id="tour-activity">
-          <div className="ch"><div><span className="ct">Fleet activity</span><div style={{ fontSize: "11px", color: "var(--faint)", marginTop: "2px" }}>This week</div></div><span className="dots">···</span></div>
-          <div className="leg"><span><i style={{ background: "var(--accent)" }} />Events</span><span><i style={{ background: "var(--surface2)" }} />Blocked</span></div>
-          <div className="chart">{CHART.map((d, i) => (<div className="col" key={i}><div className="bars"><div className="bar buy" style={{ height: d[0] + "%" }} /><div className="bar sell" style={{ height: d[1] + "%" }} /></div><div className="x">{CDAYS[i]}</div></div>))}</div>
-          <div className="kpis"><span className="big num">{owned.length ? "8.9" : "0"}<sup>%</sup></span><span className="updelta">▲ 2%</span><span className="vs">vs last week</span></div>
-        </div>
-      ),
+      activity: (() => {
+        const peak = Math.max(1, ...fleet.days.map((d) => Math.max(d.events, d.blocked)));
+        const pct = (n: number) => `${Math.round((n / peak) * 100)}%`;
+        const quiet = !fleet.loading && fleet.thisWeek === 0 && fleet.lastWeek === 0;
+        const delta = fleet.deltaPct;
+        return (
+          <div className="card" id="tour-activity">
+            <div className="ch"><div><span className="ct">Fleet activity</span><div style={{ fontSize: "11px", color: "var(--faint)", marginTop: "2px" }}>Last 7 days</div></div></div>
+            <div className="leg"><span><i style={{ background: "var(--accent)" }} />Events</span><span><i style={{ background: "var(--surface2)" }} />Blocked</span></div>
+            <div className="chart">
+              {fleet.days.map((d, i) => (
+                <div className="col" key={i} title={`${d.label}: ${d.events} events, ${d.blocked} blocked`}>
+                  <div className="bars">
+                    <div className="bar buy" style={{ height: d.events > 0 ? pct(d.events) : "2px", opacity: d.events > 0 ? 1 : 0.35 }} />
+                    <div className="bar sell" style={{ height: d.blocked > 0 ? pct(d.blocked) : "2px", opacity: d.blocked > 0 ? 1 : 0.35 }} />
+                  </div>
+                  <div className="x">{d.label}</div>
+                </div>
+              ))}
+            </div>
+            <div className="kpis">
+              <span className="big num">{fleet.loading ? "" : fleet.thisWeek.toLocaleString()}<span className="unit">{fleet.loading ? "" : fleet.thisWeek === 1 ? "event" : "events"}</span></span>
+              {!fleet.loading && delta !== null && delta !== 0 && (
+                <span className={"updelta" + (delta < 0 ? " down" : "")}>{delta > 0 ? "▲" : "▼"} {Math.abs(delta)}%</span>
+              )}
+              {!fleet.loading && delta === 0 && <span className="updelta flat">no change</span>}
+              <span className="vs">{quiet ? "No activity yet" : fleet.lastWeek === 0 ? "nothing last week" : "vs last week"}</span>
+            </div>
+          </div>
+        );
+      })(),
       table: (
         <div className="card assets">
           <div className="thead">
@@ -2524,7 +2562,7 @@ const BotDashboard = () => {
       ),
       bots: (
         <div className="card" id="tour-bots">
-          <div className="ch"><span className="ct">Your bots</span><span className="dots">···</span></div>
+          <div className="ch"><span className="ct">Your bots</span></div>
           <div className="tabs">
             <button className={listFilter === "all" ? "on" : ""} onClick={() => setListFilter("all")}>All</button>
             <button className={listFilter === "online" ? "on" : ""} onClick={() => setListFilter("online")}>Online</button>
@@ -2544,7 +2582,6 @@ const BotDashboard = () => {
       ),
       spotlight: spotlight ? (
         <div className="card">
-          <div className="mhead"><div /><div className="mout" onClick={() => openBot(spotlight.id)}><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></div></div>
           <div className="mname">{spotlight.bot_name} <span className="x">{BOT_BASE_LABELS[spotlight.base] ?? spotlight.base}</span></div>
           <div className="mhot">Your fleet</div>
           <div style={{ marginTop: "14px" }}>

@@ -99,3 +99,6 @@
 + The undo after deleting a bot is now a small card at the top with the bot icon, the seconds left, and an Undo button whose ring empties as time runs out, next to the close button
 + The bot spotlight card on the dashboard home no longer shows Configure and Open bot buttons. The corner arrow and each row's Open button already do that
 + The Setup card on the dashboard home is now a real checklist. It checks billing, team invites, whether every bot has settings, and whether every bot is online, each row jumps to the right place, and it marks itself complete when everything is done
++ The Setup card now walks each bot through three steps in order: preview your bot, invite it to your server, set up its APIs. Each step reads real data and the card marks itself complete
++ Fleet activity now shows real numbers: commands, messages, and moderation events per day for the last 7 days, blocked actions, and this week's total against last week
++ The stray dots on Your bots and the corner arrow on the bot spotlight are gone
