@@ -190,6 +190,8 @@ import { HostingPastDueBanner } from "@/components/dashboard/HostingPastDueBanne
 import { ReadOnlyBotScope } from "@/components/dashboard/ReadOnlyBotScope";
 import { useTeamRole } from "@/hooks/useTeamRole";
 import { useHostingSubscriptionSync } from "@/hooks/useHostingSubscriptionSync";
+import { useHostingSubscription } from "@/hooks/useHostingSubscription";
+import { useBotPricing } from "@/hooks/useBotAvailability";
 
 /** Add-on ids grouped by category — used to render config boxes per group.
  *  Order here is the exact left→right, top→bottom order shown in the dashboard.
@@ -1445,6 +1447,26 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .fitem .meta{font-size:11px;color:var(--faint);margin-top:2px}
 .osd .fitem .tm{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
 .osd .bgrid{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;align-items:start}
+.osd .bsum{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.osd .btile{border:1px solid rgba(168,180,191,.14);border-radius:14px;background:linear-gradient(180deg,rgba(46,54,63,.6),rgba(39,46,54,.7));padding:14px 16px}
+.osd .btile .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.osd .btile .v{font-family:var(--disp);font-weight:800;font-size:26px;color:var(--heading);letter-spacing:-.02em;margin-top:6px;line-height:1.1}
+.osd .btile .v span{font-family:var(--bodyf);font-size:12px;font-weight:600;color:var(--faint);margin-left:4px;letter-spacing:0}
+.osd .btile .s{font-size:11.5px;color:var(--faint);margin-top:5px;line-height:1.4}
+.osd .brow{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--hair);cursor:pointer}
+.osd .brow:first-of-type{border-top:0}
+.osd .brow.total{cursor:default;border-top:1px solid rgba(201,219,230,.3);margin-top:2px}
+.osd .brow .bic{height:34px;width:34px;border-radius:10px;flex:none;display:grid;place-items:center;background:var(--panel);border:1px solid var(--hair);color:var(--accent)}
+.osd .brow .bic svg{width:16px;height:16px;stroke:currentColor;stroke-width:1.8;fill:none}
+.osd .brow .btx{flex:1;min-width:0}
+.osd .brow .bn{color:var(--heading);font-size:13px;font-weight:600}
+.osd .brow .bs{font-size:11.5px;color:var(--faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.osd .brow .bam{text-align:right;flex:none}
+.osd .brow .bam .a{font-family:var(--disp);font-weight:800;font-size:16px;color:var(--heading);letter-spacing:-.01em}
+.osd .brow .bam .a span{font-family:var(--bodyf);font-size:11px;font-weight:600;color:var(--faint);margin-left:2px}
+.osd .brow .bam .l{font-size:10.5px;color:var(--faint);margin-top:1px}
+.osd .pillbad{font-size:11px;color:var(--bad);background:rgba(233,139,139,.12);border-radius:999px;padding:4px 11px;font-weight:700}
+@media(max-width:900px){.osd .bsum{grid-template-columns:1fr}}
 .osd .planrow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
 .osd .planname{font-family:var(--disp);font-weight:800;color:var(--heading);font-size:22px}
 .osd .pillok{font-size:11px;color:var(--ok);background:rgba(134,211,161,.12);border-radius:999px;padding:4px 11px;font-weight:700}
@@ -2365,6 +2387,29 @@ const BotDashboard = () => {
   };
   const fleetBotIds = useMemo(() => owned.map((b) => b.id), [owned]);
   const fleet = useFleetActivity(user?.id, fleetBotIds);
+  // Billing: the hosting subscription, the store's monthly prices, and what
+  // each bot was paid with.
+  const hosting = useHostingSubscription();
+  const pricing = useBotPricing();
+  type BillRow = { total_amount: number; paid_at: string | null; payment_method: string | null; robux_amount: number | null; discount_amount: number | null };
+  const [billRows, setBillRows] = useState<Record<string, BillRow>>({});
+  const billIdsKey = owned.filter((b) => !b.viaTeam && !b.viaSupport).map((b) => b.id).join(",");
+  useEffect(() => {
+    const ids = billIdsKey ? billIdsKey.split(",") : [];
+    if (!user?.id || ids.length === 0) { setBillRows({}); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("bot_orders")
+        .select("id, total_amount, paid_at, payment_method, robux_amount, discount_amount")
+        .in("id", ids);
+      if (cancelled) return;
+      const m: Record<string, BillRow> = {};
+      for (const r of (data ?? []) as (BillRow & { id: string })[]) m[r.id] = r;
+      setBillRows(m);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, billIdsKey]);
   const timelineBots = useMemo(() => owned.map((b) => ({ id: b.id, name: b.bot_name })), [owned]);
   const timeline = useFleetTimeline(user?.id, timelineBots);
   const [timelineFilter, setTimelineFilter] = useState<TimelineKind | "all">("all");
@@ -2763,7 +2808,7 @@ const BotDashboard = () => {
               </div>
               <div className="htools">
                 <div className="bell" id="tour-bell" onClick={() => go("activity")}><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>{unread > 0 && <span className="d" />}</div>
-                {canGroups && (
+                {canGroups && (view === "dashboard" || view === "bots" || view === "bot") && (
                   <button type="button" className="hbtn" onClick={() => setGroupsOpen(true)} title="Groups">
                     <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.8"/><path d="M17.5 14v7M14 17.5h7"/></svg>
                     <span>Groups</span>
@@ -2922,19 +2967,87 @@ const BotDashboard = () => {
 
             {/* BILLING */}
             <div className={"view" + (view === "billing" && canBilling ? " on" : "")}>
-              <div className="ph2"><h2>Billing</h2><p>Plan, payment method, and invoices.</p></div>
-              <div className="bgrid">
-                <div>
-                  <div className="card" style={{ marginBottom: "16px" }}>
-                    <div className="planrow"><div><div className="ct">Current plan</div><div className="planname">{owned.length} bot{owned.length === 1 ? "" : "s"} · monthly</div></div><span className="pillok">Active</span></div>
-                    <div className="mrow"><span className="k">Bots</span><span className="v">{owned.length}</span></div>
-                    <div className="mrow" style={{ borderBottom: 0 }}><span className="k">Manage</span><span className="v">Stripe portal</span></div>
-                    <div className="mbtns"><button className="ghost" onClick={() => go("bots")}>Cancel a bot</button><button className="cta" style={{ width: "100%" }} onClick={openPortal}>Manage in portal</button></div>
-                  </div>
-                  <div className="card"><div className="ch"><span className="ct">Invoices</span></div><p style={{ fontSize: "12.5px", color: "var(--faint)" }}>Your invoices and receipts live in the billing portal.</p></div>
-                </div>
-                <div className="card"><div className="ch"><span className="ct">Payment method</span></div><div className="pm"><div className="cc" /><div><div className="pmno">Managed in portal</div><div style={{ fontSize: "11px", color: "var(--faint)", marginTop: "2px" }}>Secure Stripe billing</div></div></div><button className="ghost" style={{ marginTop: "12px" }} onClick={openPortal}>Open portal</button></div>
-              </div>
+              {(() => {
+                const mine = owned.filter((b) => !b.viaTeam && !b.viaSupport);
+                const monthlyOf = (b: OwnedBot) => {
+                  const m = Number(pricing[b.base]?.monthly_price);
+                  return Number.isFinite(m) && m >= 0 ? m : 5;
+                };
+                const billed = mine.filter((b) => botHasSubscription(b));
+                const oneTime = mine.filter((b) => !botHasSubscription(b));
+                const perMonth = billed.reduce((sum, b) => sum + monthlyOf(b), 0);
+                const sub = hosting.subscription;
+                const covered = !!(sub as any)?.billing_override;
+                const money = (n: number) => `$${n.toFixed(n % 1 === 0 ? 0 : 2)}`;
+                const when = (iso: string | null | undefined) => iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "";
+                const paidLine = (b: OwnedBot) => {
+                  const r = billRows[b.id];
+                  if (!r) return "";
+                  const total = Number(r.total_amount ?? 0);
+                  if (r.payment_method === "robux" && r.robux_amount) return `Paid R$ ${Number(r.robux_amount).toLocaleString()} with Robux${r.paid_at ? ` on ${when(r.paid_at)}` : ""}`;
+                  if (total <= 0) return r.paid_at ? `Comped on ${when(r.paid_at)}` : "Comped";
+                  return `Paid ${money(total)}${r.discount_amount ? ` after ${money(Number(r.discount_amount))} off` : ""}${r.paid_at ? ` on ${when(r.paid_at)}` : ""}`;
+                };
+                const subState = billed.length === 0
+                  ? { pill: "None needed", cls: "pillok", title: "No subscription", body: "Every bot you own is a one-time purchase with free hosting." }
+                  : covered
+                    ? { pill: "Covered", cls: "pillok", title: "Hosting is covered", body: "Your monthly hosting is comped. Nothing is charged." }
+                    : hosting.isPastDue
+                      ? { pill: "Past due", cls: "pillbad", title: "Payment overdue", body: hosting.graceDaysRemaining !== null ? `Update your card within ${hosting.graceDaysRemaining} day${hosting.graceDaysRemaining === 1 ? "" : "s"} to keep your bots online.` : "Update your card to keep your bots online." }
+                      : sub
+                        ? { pill: "Active", cls: "pillok", title: `${money(perMonth)} a month`, body: sub.status === "active" && (sub as any).current_period_end ? `Renews ${when((sub as any).current_period_end)}.` : "Billed monthly through Stripe." }
+                        : { pill: "Not set up", cls: "pillbad", title: "No card on file", body: "Add a card so monthly hosting stays on." };
+                return (
+                  <>
+                    <div className="bsum">
+                      <div className="btile"><div className="k">Monthly hosting</div><div className="v">{covered ? "$0" : money(perMonth)}<span>/mo</span></div><div className="s">{billed.length} bot{billed.length === 1 ? "" : "s"} billed monthly{covered && perMonth > 0 ? `, ${money(perMonth)} covered` : ""}</div></div>
+                      <div className="btile"><div className="k">One-time bots</div><div className="v">{oneTime.length}</div><div className="s">Hosting included, nothing recurring</div></div>
+                      <div className="btile"><div className="k">Subscription</div><div className="v" style={{ fontSize: "20px" }}>{subState.pill}</div><div className="s">{subState.body}</div></div>
+                    </div>
+                    <div className="bgrid">
+                      <div className="card">
+                        <div className="ch"><span className="ct">What you pay</span><span style={{ fontFamily: "var(--mono)", fontSize: "11px", color: "var(--faint)" }}>{mine.length} bot{mine.length === 1 ? "" : "s"}</span></div>
+                        {mine.length === 0 && <p style={{ fontSize: "12.5px", color: "var(--faint)" }}>You do not own a bot yet.</p>}
+                        {mine.map((b) => (
+                          <div className="brow" key={b.id} onClick={() => openBot(b.id)} role="button" tabIndex={0}>
+                            <div className="bic">{botSvg(b.base)}</div>
+                            <div className="btx">
+                              <div className="bn">{b.bot_name}</div>
+                              <div className="bs">{BOT_BASE_LABELS[b.base] ?? b.base}{paidLine(b) ? ` · ${paidLine(b)}` : ""}</div>
+                            </div>
+                            <div className="bam">
+                              {botHasSubscription(b)
+                                ? <><div className="a">{covered ? "$0" : money(monthlyOf(b))}<span>/mo</span></div><div className="l">{covered ? "hosting covered" : "hosting"}</div></>
+                                : <><div className="a">Free</div><div className="l">hosting included</div></>}
+                            </div>
+                          </div>
+                        ))}
+                        {billed.length > 0 && (
+                          <div className="brow total">
+                            <div className="btx"><div className="bn">Total each month</div><div className="bs">{covered ? "Covered by Oversite" : "Charged to the card in Stripe"}</div></div>
+                            <div className="bam"><div className="a">{covered ? "$0" : money(perMonth)}<span>/mo</span></div></div>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="card" style={{ marginBottom: "16px" }}>
+                          <div className="ch"><span className="ct">Hosting subscription</span><span className={subState.cls}>{subState.pill}</span></div>
+                          <div className="planname" style={{ fontSize: "20px" }}>{subState.title}</div>
+                          <p style={{ fontSize: "12.5px", color: "var(--faint)", margin: "6px 0 14px", lineHeight: 1.5 }}>{subState.body}</p>
+                          <div className="mrow"><span className="k">Payment method</span><span className="v">{billed.length ? "Card in Stripe" : "None needed"}</span></div>
+                          <div className="mrow" style={{ borderBottom: 0 }}><span className="k">Invoices and receipts</span><span className="v">In Stripe</span></div>
+                          {billed.length > 0 && <button className="cta" style={{ width: "100%", marginTop: "14px" }} onClick={openPortal}>Open Stripe portal</button>}
+                        </div>
+                        <div className="card">
+                          <div className="ch"><span className="ct">Need to stop a bot?</span></div>
+                          <p style={{ fontSize: "12.5px", color: "var(--faint)", lineHeight: 1.5, marginBottom: "12px" }}>Open the bot and use its menu. A monthly bot stops billing the moment it is cancelled, and you get thirty seconds to change your mind.</p>
+                          <button className="ghost" onClick={() => go("bots")}>Go to my bots</button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* TEAM */}
