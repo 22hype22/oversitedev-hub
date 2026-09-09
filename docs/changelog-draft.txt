@@ -112,3 +112,4 @@
 + Billing is rebuilt: a summary of monthly hosting, one-time bots, and subscription state, a per-bot list of what you paid and what each costs a month, and the hosting card with the Stripe portal. The duplicate Billing heading is gone and the Groups button only shows where groups apply
 Support in the dashboard is now a chat with Oversite's AI assistant, which answers questions about setup, billing, refunds, Robux payments and the dashboard. The Settings and Support page headers are gone.
 Every Discord link on the site and dashboard now goes to the Oversite Customs server at discord.gg/ovs.
+The support chat is restyled as a quiet transcript: your question as a heading, the answer beneath it, hairlines between exchanges, no avatars or bubbles.
