@@ -1655,8 +1655,8 @@ export function BotForge() {
                         </span>
                         {robuxEnabled && b.pay !== "usd" && !comingSoon && (
                           <>
-                            <span className="text-os-faint/50" aria-hidden>·</span>
-                            <span className="text-os-body">{formatRobux(robuxFor(displayPrice))}</span>
+                            <span className="text-os-faint">or</span>
+                            <span className="font-semibold text-os-heading">{formatRobux(robuxFor(displayPrice))}</span>
                           </>
                         )}
                         {b.monthly && !comingSoon && (
