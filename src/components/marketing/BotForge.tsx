@@ -2550,7 +2550,12 @@ export function BotForge() {
                   By placing your order you agree to Oversite's{" "}
                   <a href="/legal/terms-of-use" target="_blank" rel="noopener noreferrer" className="underline hover:text-os-heading">Terms of Use</a>,{" "}
                   <a href="/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="underline hover:text-os-heading">Privacy Policy</a>, and{" "}
-                  <a href="/legal/sales-and-refunds" target="_blank" rel="noopener noreferrer" className="underline hover:text-os-heading">Sales &amp; Refunds</a> policy, including{hostingWaived ? "" : " the automatic monthly renewal,"} the limitation of liability and binding arbitration terms.
+                  <a href="/legal/sales-and-refunds" target="_blank" rel="noopener noreferrer" className="underline hover:text-os-heading">Sales &amp; Refunds</a> policy, including the limitation of liability and binding arbitration terms.
+                  {!hostingWaived && (
+                    <>
+                      {" "}Hosting is a continuous subscription: {money(monthlyTotal)} a month, charged to your saved card when your build starts and then every month until you cancel. Cancel anytime in one step from your dashboard.
+                    </>
+                  )}
                 </p>
               </>
             )}
