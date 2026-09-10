@@ -27,6 +27,7 @@
 // Payment experience), optional ROBLOX_ORDER_PLACE_ID and ROBLOX_GROUP_ID.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { robuxProductThumb } from "../_shared/robux-product-thumb.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -237,7 +238,9 @@ async function nextShirtSlot(buyerId: number): Promise<number> {
 
 const PRODUCT_DESCRIPTION = "Oversite order payment";
 
-type DevProduct = { id: string; name: string; price: number; forSale: boolean; ours: boolean };
+type DevProduct = { id: string; name: string; price: number; forSale: boolean; ours: boolean; hasThumb: boolean };
+// The icon a product gets when none was uploaded.
+const DEFAULT_PRODUCT_ICON = "88963008124478";
 
 function productHeaders(): Record<string, string> {
   if (!ROBLOX_API_KEY) {
@@ -262,15 +265,23 @@ async function listDevProducts(): Promise<DevProduct[]> {
     price: Number(r?.priceInformation?.defaultPriceInRobux ?? r?.priceInRobux ?? r?.price ?? NaN),
     forSale: r?.isForSale !== false,
     ours: String(r?.description ?? "") === PRODUCT_DESCRIPTION,
+    hasThumb: Boolean(r?.iconImageAssetId) && String(r.iconImageAssetId) !== DEFAULT_PRODUCT_ICON,
   })).filter((r) => r.id);
 }
 
-async function updateDevProduct(id: string, fields: { price?: number; name?: string; forSale?: boolean }): Promise<void> {
+// The product must be buyable from its page outside the game, which needs
+// the store page flag and a thumbnail. Both go through the same update call.
+async function updateDevProduct(
+  id: string,
+  fields: { price?: number; name?: string; forSale?: boolean; storePage?: boolean; thumbnail?: boolean },
+): Promise<void> {
   const universeId = await resolveUniverseId();
   const form = new FormData();
   if (fields.price !== undefined) form.append("price", String(Math.max(0, Math.round(fields.price))));
   if (fields.name !== undefined) form.append("name", fields.name.slice(0, 100));
   if (fields.forSale !== undefined) form.append("isForSale", fields.forSale ? "true" : "false");
+  if (fields.storePage !== undefined) form.append("storePageEnabled", fields.storePage ? "true" : "false");
+  if (fields.thumbnail) form.append("imageFile", new Blob([robuxProductThumb()], { type: "image/png" }), "oversite.png");
   const res = await fetch(`https://apis.roblox.com/developer-products/v2/universes/${universeId}/developer-products/${id}`, {
     method: "PATCH",
     headers: productHeaders(),
@@ -286,6 +297,7 @@ async function createDevProduct(name: string, priceRobux: number): Promise<strin
   form.append("description", PRODUCT_DESCRIPTION);
   form.append("isForSale", "true");
   form.append("price", String(Math.max(0, Math.round(priceRobux))));
+  form.append("imageFile", new Blob([robuxProductThumb()], { type: "image/png" }), "oversite.png");
   const res = await fetch(`https://apis.roblox.com/developer-products/v2/universes/${universeId}/developer-products`, {
     method: "POST",
     headers: productHeaders(),
@@ -296,6 +308,7 @@ async function createDevProduct(name: string, priceRobux: number): Promise<strin
   let id = String(data?.id ?? data?.productId ?? data?.developerProductId ?? "");
   if (!id && typeof data?.path === "string") id = data.path.split("/").pop() ?? "";
   if (!id) throw new Error("Roblox returned no product id.");
+  await updateDevProduct(id, { storePage: true, thumbnail: true });
   return id;
 }
 
@@ -323,7 +336,7 @@ async function ensureDevProduct(order: OrderRow, priceRobux: number): Promise<st
     if (busy) own = undefined;
   }
   if (own) {
-    if (own.price !== Math.round(priceRobux) || !own.forSale) await updateDevProduct(own.id, { price: priceRobux, forSale: true });
+    await updateDevProduct(own.id, { price: priceRobux, forSale: true, storePage: true, thumbnail: !own.hasThumb });
     return own.id;
   }
   const taken = products.some((p) => same(p.name, wanted));
