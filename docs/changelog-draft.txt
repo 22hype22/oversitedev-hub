@@ -143,3 +143,4 @@ Offline notifications only for real outages: a bot has to be offline for five mi
 Robux checkout names each developer product after the order and price, so the same bot name ordered twice no longer fails with a duplicate name.
 Comped accounts see R$ 0 on Roblox instead of Free on Roblox in the payment picker.
 Robux developer products are named Oversite followed by the bot name. An existing product with that name is reused and re-priced to the order's current Robux amount, so discounts and price changes show on the product instead of creating another one.
+Robux checkout says when the price already includes a discount code, showing the price before the code crossed out.
