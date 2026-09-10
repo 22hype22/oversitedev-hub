@@ -68,26 +68,21 @@ const CSS = `
 .otr-btn i svg{width:13px;height:13px}
 @media (prefers-reduced-motion:reduce){.otr.wash .otr-wash,.otr.settle .otr-wash,.otr.settle .otr-ground{transition:none}.otr.settle .otr-ui>*{animation:none}}
 
-.otk{--go:#34D399;--go-rgb:52 211 153;--heading:#E8EEF3;--faint:#788591;--hair:rgba(86,98,110,.55);--ease:cubic-bezier(.23,1,.32,1);font-family:'Space Grotesk',system-ui,sans-serif}
-.otk-track{display:grid;grid-template-columns:auto 1fr auto 1fr auto;align-items:center}
-.otk-node{width:12px;height:12px;border-radius:50%;background:var(--hair);position:relative;transition:background 300ms var(--ease),box-shadow 300ms var(--ease)}
-.otk-node.lit{background:var(--go);box-shadow:0 0 0 4px rgb(var(--go-rgb)/.18)}
-.otk-node.next::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:1.5px solid rgb(var(--go-rgb)/.55);animation:otk-ping 1.6s var(--ease) infinite}
+.otk{--go:#34D399;--go-rgb:52 211 153;--heading:#E8EEF3;--faint:#788591;--hair:rgba(86,98,110,.55);--ease:cubic-bezier(.32,.72,0,1);font-family:'Space Grotesk',system-ui,sans-serif;padding:0 30px}
+.otk-rail{position:relative;height:12px;container-type:inline-size}
+.otk-rail .track{position:absolute;left:6px;right:6px;top:5px;height:2px;border-radius:2px;background:var(--hair)}
+.otk-rail .fill{position:absolute;left:6px;width:calc(100% - 12px);top:5px;height:2px;border-radius:2px;background:linear-gradient(90deg,rgb(var(--go-rgb)/.55),var(--go));transform-origin:left center;transform:scaleX(var(--f,0));transition:transform 900ms var(--ease)}
+.otk-rail .node{position:absolute;top:0;width:12px;height:12px;border-radius:50%;background:var(--hair);transform:translateX(-50%);transition:background 300ms var(--ease) 500ms}
+.otk-rail .node.lit{background:var(--go)}
+.otk-rail .marker{position:absolute;top:0;left:0;width:12px;height:12px;border-radius:50%;background:var(--go);box-shadow:0 0 0 4px rgb(var(--go-rgb)/.18),0 0 16px rgb(var(--go-rgb)/.55);transform:translateX(calc((100cqw - 12px) * var(--f,0)));transition:transform 900ms var(--ease)}
+.otk-rail .marker::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:1.5px solid rgb(var(--go-rgb)/.55);animation:otk-ping 1.6s var(--ease) infinite}
+.otk.done .marker::after{animation:none;opacity:0}
 @keyframes otk-ping{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.6);opacity:0}}
-.otk-line{height:2px;background:var(--hair);position:relative;margin:0 8px;container-type:inline-size}
-.otk-line .fill{position:absolute;inset:0;background:linear-gradient(90deg,var(--go),rgb(var(--go-rgb)/.35));transform:scaleX(0);transform-origin:left;transition:transform 700ms var(--ease) 200ms}
-.otk-line.done .fill{background:var(--go);transform:scaleX(1)}
-.otk-line.live .fill{transform:scaleX(1)}
-.otk-line .pulse{position:absolute;top:50%;left:0;width:56px;height:8px;margin-top:-4px;border-radius:8px;background:linear-gradient(90deg,rgb(var(--go-rgb)/0),rgb(var(--go-rgb)/.9) 70%,#fff);filter:drop-shadow(0 0 6px rgb(var(--go-rgb)/.7));opacity:0;pointer-events:none}
-.otk-line.live .pulse{animation:otk-travel 1.7s cubic-bezier(.45,.05,.55,.95) 600ms infinite}
-.otk-line.done .pulse{background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.55) 70%,#fff);filter:none;animation:otk-travel 3.6s linear infinite}
-.otk-line.idle .pulse{background:linear-gradient(90deg,rgb(var(--go-rgb)/0),rgb(var(--go-rgb)/.35));filter:none;animation:otk-travel 5s linear infinite}
-@keyframes otk-travel{0%{transform:translateX(-56px);opacity:0}12%{opacity:1}88%{opacity:1}100%{transform:translateX(100cqw);opacity:0}}
-.otk-labels{display:grid;grid-template-columns:1fr 1fr 1fr;font-size:12.5px;color:var(--faint);margin-top:10px}
-.otk-labels span:nth-child(2){text-align:center}.otk-labels span:last-child{text-align:right}
+.otk-labels{position:relative;height:16px;margin-top:10px;font-size:12.5px;line-height:16px;color:var(--faint)}
+.otk-labels span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap;transition:color 300ms var(--ease)}
 .otk-labels .on{color:var(--heading);font-weight:600}
 .otk-labels .soon{color:var(--go)}
-@media (prefers-reduced-motion:reduce){.otk-node.next::after,.otk-line .pulse{animation:none}.otk-line .pulse{opacity:0}.otk-line .fill{transition-duration:1ms;transition-delay:0s}}
+@media (prefers-reduced-motion:reduce){.otk-rail .fill,.otk-rail .marker,.otk-rail .node{transition:none}.otk-rail .marker::after{animation:none}}
 `;
 
 export type OrderTransitionProps = {
@@ -137,13 +132,25 @@ export function OrderTransition({
   useEffect(() => {
     if (!active) return;
     const timers: number[] = [];
-    timers.push(window.setTimeout(() => setStage("wash"), delayMs));
+    let raf = 0;
+    // Two frames after the delay, so the closed circle is painted first and
+    // the browser transitions from it; a same-frame switch fills instantly.
+    timers.push(
+      window.setTimeout(() => {
+        raf = requestAnimationFrame(() => {
+          raf = requestAnimationFrame(() => setStage("wash"));
+        });
+      }, delayMs),
+    );
     if (tone === "go") {
-      timers.push(window.setTimeout(() => onFilled?.(), delayMs + 760));
+      timers.push(window.setTimeout(() => onFilled?.(), delayMs + 820));
     } else {
-      timers.push(window.setTimeout(() => setStage("settle"), delayMs + 900));
+      timers.push(window.setTimeout(() => setStage("settle"), delayMs + 960));
     }
-    return () => timers.forEach(clearTimeout);
+    return () => {
+      timers.forEach(clearTimeout);
+      cancelAnimationFrame(raf);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, tone]);
 
@@ -191,31 +198,30 @@ export function OrderTransition({
 
 export type OrderStep = "placed" | "building" | "live";
 
-/** Placed / Building / Live. Every segment keeps moving: the one in progress
- *  runs a fast bright pulse, finished ones a slow white shimmer, and the one
- *  still ahead a slow faint drift, so the order never looks parked. */
+/** Placed / Building / Live, as one rail. A single lit marker sits on the
+ *  current step and travels to the next one when the order moves on, the
+ *  line filling in behind it. Labels sit directly under their dots. */
 export function OrderTracker({ step, className }: { step: OrderStep; className?: string }) {
   const idx = step === "placed" ? 0 : step === "building" ? 1 : 2;
+  const at = ["6px", "50%", "calc(100% - 6px)"];
+  const names = ["Placed", "Building", "Live"];
   return (
-    <div className={`otk ${className ?? ""}`} aria-label={`Order progress: ${step}`}>
+    <div className={`otk ${idx === 2 ? "done" : ""} ${className ?? ""}`} style={{ "--f": idx / 2 } as React.CSSProperties} aria-label={`Order progress: ${step}`}>
       <style>{CSS}</style>
-      <div className="otk-track">
-        <div className={`otk-node ${idx >= 0 ? "lit" : ""}`} />
-        <div className={`otk-line ${idx >= 1 ? "done" : "live"}`}>
-          <span className="fill" />
-          <span className="pulse" aria-hidden />
-        </div>
-        <div className={`otk-node ${idx >= 1 ? "lit" : idx === 0 ? "next" : ""}`} />
-        <div className={`otk-line ${idx >= 2 ? "done" : idx === 1 ? "live" : "idle"}`}>
-          <span className="fill" />
-          <span className="pulse" aria-hidden />
-        </div>
-        <div className={`otk-node ${idx >= 2 ? "lit" : idx === 1 ? "next" : ""}`} />
+      <div className="otk-rail" aria-hidden>
+        <span className="track" />
+        <span className="fill" />
+        {at.map((left, i) => (
+          <span key={i} className={`node ${idx >= i ? "lit" : ""}`} style={{ left }} />
+        ))}
+        <span className="marker" />
       </div>
       <div className="otk-labels">
-        <span className={idx === 0 ? "on" : idx > 0 ? "on" : ""}>Placed</span>
-        <span className={idx === 1 ? "on" : idx === 0 ? "soon" : idx > 1 ? "on" : ""}>Building</span>
-        <span className={idx === 2 ? "on" : idx === 1 ? "soon" : ""}>Live</span>
+        {names.map((n, i) => (
+          <span key={n} className={i <= idx ? "on" : i === idx + 1 ? "soon" : ""} style={{ left: at[i] }}>
+            {n}
+          </span>
+        ))}
       </div>
     </div>
   );

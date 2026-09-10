@@ -267,7 +267,7 @@ export default function CheckoutRobux() {
   return (
     <main className="ossys" style={{ ["--os-mtn" as any]: `url(${containers})` }}>
       <style>{OSSYS_CSS}</style>
-      {goGreen && <OrderTransition tone="go" active origin={fillOrigin} onFilled={() => finish(orderId)} />}
+      {goGreen && <OrderTransition tone="go" active origin={fillOrigin} startRadius={16} delayMs={120} onFilled={() => finish(orderId)} />}
       {failReason && (
         <OrderTransition
           tone="fail"

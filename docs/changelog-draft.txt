@@ -129,3 +129,4 @@ No bot can start building until its payment is confirmed: a database rule and th
 Comped accounts are free whether they pick USD or Robux, and discount codes shape the Robux price the same way they shape the dollar price.
 Estimate in Robux: comped and discounted orders show the full Robux price crossed out, the new one, and the amount off in Robux.
 Standard account Robux orders now open the developer product's own page on Roblox instead of the game's Store tab.
+Order tracker: one lit marker travels from Placed to Building to Live with the line filling behind it, labels sit under their dots, and the green handoff grows from the button every time.
