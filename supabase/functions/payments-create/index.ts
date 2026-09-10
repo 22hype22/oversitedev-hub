@@ -400,6 +400,8 @@ async function stripeRecent(_botId: string, limit: number): Promise<Array<Record
         customer_email: String(s?.customer_details?.email ?? ""),
         channel_id: String(meta.channel_id ?? ""),
         designer_id: String(meta.designer_id ?? ""),
+        discord_id: String(meta.discord_id ?? ""),
+        pkg_msg_id: String(meta.pkg_msg_id ?? ""),
       };
     });
 }
@@ -431,6 +433,7 @@ Deno.serve(async (req) => {
     discord_id?: string; guild_id?: string; customer_name?: string;
     limit?: number; seen_ids?: unknown[];
     channel_id?: string; designer_id?: string;
+    pkg_msg_id?: string;
   };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
 
@@ -465,6 +468,10 @@ Deno.serve(async (req) => {
       const attribution: Record<string, string> = { app: STRIPE_APP_TAG, bot_id: botId };
       if (/^\d{15,22}$/.test(String(body.channel_id ?? ""))) attribution.channel_id = String(body.channel_id);
       if (/^\d{15,22}$/.test(String(body.designer_id ?? ""))) attribution.designer_id = String(body.designer_id);
+      // Who is paying and for which package, so the claim can be checked
+      // against the payment instead of taken on trust.
+      if (/^\d{15,22}$/.test(String(body.discord_id ?? ""))) attribution.discord_id = String(body.discord_id);
+      if (/^\d{15,22}$/.test(String(body.pkg_msg_id ?? ""))) attribution.pkg_msg_id = String(body.pkg_msg_id);
       const url = await createStripePaymentLink(price, attribution);
       return json({ ok: true, method, url, label: `$${price.toFixed(2)} (Stripe)` });
     }
