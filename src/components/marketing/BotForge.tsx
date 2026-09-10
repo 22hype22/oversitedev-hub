@@ -1545,7 +1545,34 @@ export function BotForge() {
   return (
     <section id="build" className="mt-24 scroll-mt-24">
       {/* While the order is placed, the confirm button itself carries the
-          wait (label, spinner in its disc, a slow light sweep). No overlay. */}
+          wait (label, spinner in its disc, a slow light sweep). No overlay.
+          Once it lands, the screen fills from that button: green carries
+          the order to the thank-you page, red shows why it stopped. */}
+      {goTo && (
+        <OrderTransition
+          tone="go"
+          active
+          origin={fillOrigin}
+          onFilled={() => {
+            markOrderHandoff();
+            window.location.href = goTo;
+          }}
+        />
+      )}
+      {failReason && (
+        <OrderTransition
+          tone="fail"
+          active
+          origin={fillOrigin}
+          reason={failReason}
+          hint="Your bot and add-ons are still set up below, so you can go straight back to payment."
+          actionLabel="Back to checkout"
+          onAction={() => {
+            setFailReason(null);
+            setSubmitting(false);
+          }}
+        />
+      )}
       <div className="max-w-3xl">
         <h2 className="font-display text-3xl md:text-5xl font-bold tracking-tight text-os-heading">
           Design your <span className="text-os-accent">dream bot.</span>
