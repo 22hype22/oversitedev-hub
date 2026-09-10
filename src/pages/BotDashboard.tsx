@@ -2376,9 +2376,13 @@ const BotDashboard = () => {
   const setup = useSetupProgress(user?.id, setupBotIds);
   // Steps the owner marked finished by hand. Kept per account in this browser.
   const setupDoneKey = `os_setup_done:${user?.id ?? "anon"}`;
-  const [manualDone, setManualDone] = useState<string[]>(() => {
-    try { const raw = localStorage.getItem(setupDoneKey); return raw ? (JSON.parse(raw) as string[]) : []; } catch { return []; }
-  });
+  const readManualDone = (key: string): string[] => {
+    try { const raw = localStorage.getItem(key); return raw ? (JSON.parse(raw) as string[]) : []; } catch { return []; }
+  };
+  const [manualDone, setManualDone] = useState<string[]>(() => readManualDone(setupDoneKey));
+  // The account is not known on the very first render, so the marks are read
+  // again the moment it is; otherwise a hard refresh shows them unmarked.
+  useEffect(() => { setManualDone(readManualDone(setupDoneKey)); }, [setupDoneKey]);
   const setManual = (key: string, done: boolean) => {
     setManualDone((prev) => {
       const next = done ? Array.from(new Set([...prev, key])) : prev.filter((k) => k !== key);
