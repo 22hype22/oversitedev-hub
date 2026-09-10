@@ -58,12 +58,17 @@ function json(body: unknown, status = 200) {
 
 const gamepassUrl = (id: string) => `https://www.roblox.com/game-pass/${id}/`;
 const shirtUrl = (id: string) => `https://www.roblox.com/catalog/${id}/`;
-const storeUrl = () => `https://www.roblox.com/games/${PLACE_ID}/#!/store`;
+let cachedUniverseId: string | null = null;
+// A developer product has its own web page once the experience id is known;
+// until then the experience's Store tab is the fallback.
+const storeUrl = (productId?: string | null) =>
+  productId && cachedUniverseId
+    ? `https://www.roblox.com/developer-product/${cachedUniverseId}/product/${productId}`
+    : `https://www.roblox.com/games/${PLACE_ID}/#!/store`;
 const cookieHeaders = (extra: Record<string, string> = {}) => ({ Cookie: `.ROBLOSECURITY=${ROBLOX_COOKIE}`, ...extra });
 
 // ---------------- Roblox session helpers ----------------
 
-let cachedUniverseId: string | null = null;
 async function resolveUniverseId(): Promise<string> {
   if (cachedUniverseId) return cachedUniverseId;
   const res = await fetch(`https://apis.roblox.com/universes/v1/places/${PLACE_ID}/universe`);
@@ -406,7 +411,7 @@ function summary(o: OrderRow, profile?: Profile) {
   const itemId = o.robux_item_id ?? o.robux_gamepass_id ?? null;
   const itemUrl =
     kind === "shirt" && itemId ? shirtUrl(itemId)
-    : kind === "devproduct" ? storeUrl()
+    : kind === "devproduct" ? storeUrl(itemId)
     : kind === "gamepass" && itemId ? gamepassUrl(itemId)
     : null;
   return {
@@ -466,6 +471,9 @@ Deno.serve(async (req) => {
     const order = await loadOrder(orderId, user.id);
     const profile = await loadProfile(user.id);
     await warmHeadshot(profile.roblox_user_id);
+    // The product link needs the experience id; resolve it once so every
+    // summary, status included, can point straight at the product.
+    if (order.robux_item_kind === "devproduct") await resolveUniverseId().catch(() => {});
 
     if (action === "status") {
       return json({ ok: true, enabled: settings.enabled, ...summary(order, profile) });
