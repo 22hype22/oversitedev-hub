@@ -336,11 +336,11 @@ export default function CheckoutReturn() {
       </div>
       {/* Legal footer — each opens the tabbed /terms page in a new tab */}
       <div className="ossys-foot">
-        <a href="/terms#terms" target="_blank" rel="noopener noreferrer">Terms of Use</a>
+        <a href="/legal/terms-of-use" target="_blank" rel="noopener noreferrer">Terms of Use</a>
         <span className="sep">·</span>
-        <a href="/terms#privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+        <a href="/legal/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
         <span className="sep">·</span>
-        <a href="/terms#refunds" target="_blank" rel="noopener noreferrer">Sales &amp; Refunds</a>
+        <a href="/legal/sales-and-refunds" target="_blank" rel="noopener noreferrer">Sales &amp; Refunds</a>
       </div>
     </main>
   );

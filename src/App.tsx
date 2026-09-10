@@ -196,6 +196,9 @@ const ROUTE_TITLES: Record<string, string> = {
   "/checkout/setup": "Checkout — Oversite Customs",
   "/checkout/robux": "Pay with Robux — Oversite Customs",
   "/terms": "Terms of Service — Oversite Customs",
+  "/legal/privacy-policy": "Privacy Policy — Oversite Customs",
+  "/legal/terms-of-use": "Terms of Use — Oversite Customs",
+  "/legal/sales-and-refunds": "Sales & Refunds — Oversite Customs",
   "/explore/team": "Meet the Team — Oversite Customs",
   "/explore/owner": "Meet the Owner — Oversite Customs",
   "/support-ideas": "Support & Ideas — Oversite Customs",
@@ -322,6 +325,7 @@ const App = () => {
                 <Route path="/checkout/setup" element={<CheckoutSetup />} />
                 <Route path="/checkout/robux" element={<CheckoutRobux />} />
                 <Route path="/terms" element={<Terms />} />
+                <Route path="/legal/:doc" element={<Terms />} />
                 <Route path="/explore/team" element={<MeetTheTeam />} />
                 <Route path="/support-ideas" element={<SupportIdeas />} />
                 <Route path="/explore/owner" element={<MeetTheOwner />} />

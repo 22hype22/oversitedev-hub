@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ShieldCheck, FileText, Receipt } from "lucide-react";
 import { SiteNav } from "@/components/marketing/SiteNav";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
@@ -20,7 +20,7 @@ const EFFECTIVE = "September 9, 2026";
 const STATE = "Minnesota, United States";
 
 type Section = { h: string; body: string[] };
-type Doc = { key: string; label: string; title: string; icon: typeof FileText; intro: string; sections: Section[] };
+type Doc = { key: string; slug: string; label: string; title: string; icon: typeof FileText; intro: string; sections: Section[] };
 
 const PRIVACY: Section[] = [
   { h: "1. Who we are", body: [
@@ -169,19 +169,28 @@ const REFUNDS: Section[] = [
 ];
 
 const DOCS: Doc[] = [
-  { key: "privacy", label: "Privacy Policy", title: "Privacy Policy", icon: ShieldCheck, intro: "How Oversite collects, uses and protects your information.", sections: PRIVACY },
-  { key: "terms", label: "Terms of Use", title: "Terms of Use", icon: FileText, intro: "The rules for using Oversite’s website and services.", sections: TERMS },
-  { key: "refunds", label: "Sales & Refunds", title: "Sales & Refunds", icon: Receipt, intro: "Billing, automatic renewal, cancellations and refunds.", sections: REFUNDS },
+  { key: "privacy", slug: "privacy-policy", label: "Privacy Policy", title: "Privacy Policy", icon: ShieldCheck, intro: "How Oversite collects, uses and protects your information.", sections: PRIVACY },
+  { key: "terms", slug: "terms-of-use", label: "Terms of Use", title: "Terms of Use", icon: FileText, intro: "The rules for using Oversite’s website and services.", sections: TERMS },
+  { key: "refunds", slug: "sales-and-refunds", label: "Sales & Refunds", title: "Sales & Refunds", icon: Receipt, intro: "Billing, automatic renewal, cancellations and refunds.", sections: REFUNDS },
 ];
 
 const Terms = () => {
+  // Each document has its own address under /legal. The old /terms#key
+  // addresses still work: they are sent to the matching new one.
   const { hash } = useLocation();
-  const [active, setActive] = useState<string>("privacy");
-
+  const { doc: slug } = useParams<{ doc: string }>();
+  const navigate = useNavigate();
   useEffect(() => {
+    if (slug) return;
     const key = hash.replace("#", "");
-    if (DOCS.some((d) => d.key === key)) setActive(key);
-  }, [hash]);
+    const target = DOCS.find((d) => d.key === key) ?? DOCS[0];
+    navigate(`/legal/${target.slug}`, { replace: true });
+  }, [slug, hash, navigate]);
+  const active = DOCS.find((d) => d.slug === slug)?.key ?? "privacy";
+  const setActive = (key: string) => {
+    const target = DOCS.find((d) => d.key === key);
+    if (target) navigate(`/legal/${target.slug}`);
+  };
 
   const doc = DOCS.find((d) => d.key === active) ?? DOCS[0];
 
