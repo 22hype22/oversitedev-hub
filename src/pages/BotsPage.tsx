@@ -107,15 +107,10 @@ function BotSpotlight({ bot, flip }: { bot: Bot; flip: boolean }) {
           ))}
         </ul>
 
-        <div className="mt-7 flex flex-wrap items-center gap-4">
-          <div className="flex items-baseline gap-2.5">
-            <span className="font-body text-[15px] text-os-faint line-through">${bot.oldPrice}</span>
-            <span className="font-display text-[26px] font-bold tracking-[-0.01em] text-os-heading">${bot.price}</span>
-            <span className="font-label text-[11px] uppercase tracking-[0.14em] text-os-faint">one-time</span>
-          </div>
-          <span className="rounded-full border border-os-accent/40 bg-os-accent/10 px-2.5 py-1 font-label text-[10px] font-bold uppercase tracking-[0.12em] text-os-accent">
-            Preorder sale
-          </span>
+        <div className="mt-7 flex items-baseline gap-2.5">
+          <span className="font-body text-[15px] text-os-faint line-through">${bot.oldPrice}</span>
+          <span className="font-display text-[26px] font-bold tracking-[-0.01em] text-os-heading">${bot.price}</span>
+          <span className="font-label text-[11px] uppercase tracking-[0.14em] text-os-faint">one-time</span>
         </div>
       </div>
     </Reveal>
