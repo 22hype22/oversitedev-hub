@@ -2285,7 +2285,7 @@ export function BotForge() {
                     <div className="grid grid-cols-2 gap-2">
                       {([
                         { id: "card", label: "USD", sub: "Card through Stripe" },
-                        { id: "robux", label: "Robux", sub: comped ? "Free on Roblox" : `${formatRobux(robuxFor(finalTotal))} on Roblox` },
+                        { id: "robux", label: "Robux", sub: comped ? "R$ 0 on Roblox" : `${formatRobux(robuxFor(finalTotal))} on Roblox` },
                       ] as const).map((opt) => {
                         const active = payMethod === opt.id;
                         return (
