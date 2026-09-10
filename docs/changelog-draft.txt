@@ -124,3 +124,4 @@ Placing an order in the builder fills the screen and hands off to the thank you 
 Placing an order: the button's label fades, the disc slides to the middle and spins, then swells and the green fills the screen from it. Choosing Robux now works on comped accounts. The removal undo card sits in the middle of the screen.
 Linking a Roblox account on the Robux page works again; the function's preflight was missing a header the site sends.
 Builder: the two bot deal callout is gone, the identity note is text only, and the Preorder sale label is off the bot cards.
+Builder estimate: picking Robux swaps the Robux amount up into the big price and the dollars down underneath, with a slide. The hosting panel only shows for Protection, Support and Utilities.
