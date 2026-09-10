@@ -363,9 +363,9 @@ async function recentSales(kind: string | null): Promise<Sale[]> {
 
 // Did this Roblox user buy this item in the last five minutes, and after the
 // order was set up? The sale has to be in the group's own transaction log;
-// nothing else counts. The amount must match for shirts, because a shirt
-// slot can be re-priced for the next order while an earlier buyer is still
-// looking at it.
+// nothing else counts, and the amount must match the order: a shirt slot can
+// be re-priced for the next order while an earlier buyer is still looking at
+// it, and a product's price can change with a discount.
 const SALE_WINDOW_MS = 5 * 60 * 1000;
 async function saleFound(o: OrderRow): Promise<boolean> {
   const buyer = String(o.roblox_user_id ?? "");
@@ -377,7 +377,7 @@ async function saleFound(o: OrderRow): Promise<boolean> {
   return sales.some((s) =>
     s.buyerId === buyer &&
     s.itemId === item &&
-    (o.robux_item_kind !== "shirt" || s.amount === Number(o.robux_amount ?? -1)) &&
+    s.amount === Number(o.robux_amount ?? -1) &&
     Boolean(s.created) && Date.parse(s.created) >= since,
   );
 }
