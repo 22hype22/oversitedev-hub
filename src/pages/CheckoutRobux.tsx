@@ -378,7 +378,7 @@ export default function CheckoutRobux() {
                     <li>Open the link below.</li>
                     {isProduct ? (
                       <li>
-                        On the Store tab, buy <strong style={{ color: "var(--os-heading)" }}>{summary.itemName}</strong> for {robuxLabel}.
+                        Buy <strong style={{ color: "var(--os-heading)" }}>{summary.itemName}</strong> for {robuxLabel} on its page.
                       </li>
                     ) : (
                       <li>Buy the {itemWord} on Roblox for {robuxLabel}.</li>
