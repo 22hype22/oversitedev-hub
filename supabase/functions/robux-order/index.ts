@@ -417,7 +417,14 @@ async function loadOrder(orderId: string, userId: string): Promise<OrderRow> {
 
 const isPaid = (o: OrderRow) => Boolean(o.charged_at) || !["pending_payment", "payment_failed"].includes(o.status);
 
-const itemName = (o: OrderRow) => `Oversite order ${String(o.bot_name || "").trim() || o.id.slice(0, 8)}`;
+// Roblox refuses two developer products with the same name in one
+// universe, so the name carries the order id and the price as well as the
+// bot name; the same bot name ordered twice, or re-priced, still gets its
+// own product.
+const itemName = (o: OrderRow, robux?: number) => {
+  const base = `Oversite order ${String(o.bot_name || "").trim() || o.id.slice(0, 8)}`;
+  return robux ? `${base} ${o.id.slice(0, 8)} R${robux}` : base;
+};
 
 function summary(o: OrderRow, profile?: Profile) {
   const kind = o.robux_item_kind ?? (o.robux_gamepass_id ? "gamepass" : null);
@@ -522,7 +529,15 @@ Deno.serve(async (req) => {
         if (order.robux_item_kind === "devproduct" && order.robux_item_id && order.robux_amount === robux) {
           itemId = order.robux_item_id;
         } else {
-          itemId = await createDevProduct(itemName(order), robux);
+          try {
+            itemId = await createDevProduct(itemName(order, robux), robux);
+          } catch (e) {
+            // A product with this name already exists, from a build that
+            // named products by bot name alone. Try once more with a name
+            // no earlier product can have.
+            if (!String((e as Error)?.message ?? "").includes("DuplicateProductName")) throw e;
+            itemId = await createDevProduct(`${itemName(order, robux)} ${Date.now().toString(36)}`, robux);
+          }
         }
       }
 

@@ -139,3 +139,6 @@ Privacy Policy, Terms of Use and Sales & Refund Policy rewritten for Minnesota l
 Checkout states the hosting subscription amount, that it renews monthly until cancelled, and how to cancel, right under the Place order button.
 FAQ and support answers about cancelling now match the policy: charges stop at once, 30-second undo, bot removed and data deleted, automatic refund within 14 days.
 docs/legal-notes.md records the statutes the legal documents were drafted against, the drafting choices, and the open items to raise with counsel.
+Offline notifications only for real outages: a bot has to be offline for five minutes before you're told, back-online notices only follow a real outage, and a bot you stopped yourself is never reported offline. Redeploys no longer light up the bell.
+Robux checkout names each developer product after the order and price, so the same bot name ordered twice no longer fails with a duplicate name.
+Comped accounts see R$ 0 on Roblox instead of Free on Roblox in the payment picker.
