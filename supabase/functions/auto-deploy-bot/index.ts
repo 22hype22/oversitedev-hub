@@ -1080,9 +1080,10 @@ Deno.serve(async (req) => {
     }
     // Nothing builds until the money has landed. Every path that reaches
     // here is meant to have charged the card, matched the Robux sale, or
-    // comped the order, and each of those stamps charged_at or paid_at; an
-    // order that still owes anything stops here whoever asked.
-    if (order && Number(order.total_amount ?? 0) > 0 && !order.charged_at && !order.paid_at) {
+    // comped the order, and each of those stamps charged_at (paid_at alone
+    // only means a card was saved); an order that still owes anything
+    // stops here whoever asked.
+    if (order && Number(order.total_amount ?? 0) > 0 && !order.charged_at) {
       console.error("[auto-deploy-bot] refused: payment not confirmed", { orderId, status: order.status });
       await admin
         .from("bot_orders")

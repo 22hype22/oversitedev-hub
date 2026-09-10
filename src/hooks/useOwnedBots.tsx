@@ -61,6 +61,13 @@ export type OwnedBot = {
 // worker finished building & deployed the bot — those should show too.
 const ACCESS_STATUSES = new Set(["paid", "ready"]);
 
+// "paid" is stamped when a card is saved, before anything is charged. A bot
+// only appears once the charge went through (charged_at), a Robux sale was
+// matched (also charged_at), or there was nothing to pay.
+const isBought = (row: any) =>
+  row.status === "ready" ||
+  (row.status === "paid" && (Boolean(row.charged_at) || Number(row.total_amount ?? 0) <= 0));
+
 // Statuses that count as a real purchase (entitlement-bearing). Used to
 // decide whether the user has unlocked account-wide perks like the Web
 // Dashboard add-on, even if the underlying bot order was later cancelled.
@@ -207,7 +214,7 @@ export function useOwnedBots() {
     const [{ data: own, error: ownErr }, { data: grants }, { data: memberships }] = await Promise.all([
       (supabase as any)
         .from("bot_orders")
-        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,group_id,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,paid_at,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status")
+        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,group_id,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,paid_at,total_amount,charged_at,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status")
         .eq("user_id", userId)
         .order("created_at", { ascending: true }),
       (supabase as any)
@@ -235,7 +242,7 @@ export function useOwnedBots() {
 
     const ownAll: any[] = own ?? [];
     const ownMapped: OwnedBot[] = ownAll
-      .filter((row: any) => ACCESS_STATUSES.has(row.status))
+      .filter((row: any) => isBought(row))
       .map((row: any) => mapRow(row));
 
     // Account-wide entitlement: any order that was ever paid for and
@@ -266,7 +273,7 @@ export function useOwnedBots() {
     ).filter((id) => id !== userId);
 
     const SHARED_COLS =
-      "id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status";
+      "id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount,charged_at,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status";
     const [supportRes, teamRes] = await Promise.all([
       supportOwnerIds.length > 0
         ? (supabase as any).from("bot_orders").select(SHARED_COLS).in("user_id", supportOwnerIds).order("created_at", { ascending: true })
@@ -276,10 +283,10 @@ export function useOwnedBots() {
         : Promise.resolve({ data: [] }),
     ]);
     const supportMapped: OwnedBot[] = ((supportRes?.data ?? []) as any[])
-      .filter((row: any) => ACCESS_STATUSES.has(row.status))
+      .filter((row: any) => isBought(row))
       .map((row: any) => mapRow(row, { viaSupport: true }));
     const teamMapped: OwnedBot[] = ((teamRes?.data ?? []) as any[])
-      .filter((row: any) => ACCESS_STATUSES.has(row.status))
+      .filter((row: any) => isBought(row))
       .map((row: any) => mapRow(row, { viaTeam: true }));
 
     // Auto-retry: if the first fetch came back with zero bots AND zero
