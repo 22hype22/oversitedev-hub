@@ -71,8 +71,12 @@ export default function CheckoutReturn() {
   const [step, setStep] = useState<OrderStep>("placed");
   const [declined, setDeclined] = useState<string | null>(null);
   // Where the order is, kept fresh: Building once the build has started,
-  // Live only once the bot has actually deployed and is online, which is the
-  // moment it is ready to use in the dashboard. Polls until then.
+  // Where the order really is. Every position on the bar is a state the
+  // backend recorded: the order row's status and deployment status, then
+  // the bot's own runtime status once it exists. Polled every two seconds
+  // and refreshed the moment either row changes.
+  const [progress, setProgress] = useState(0);
+  const [caption, setCaption] = useState<string>("Join the Discord and press I've joined to start the build.");
   useEffect(() => {
     if (!user || !botOrderId) return;
     let cancelled = false;
@@ -80,31 +84,73 @@ export default function CheckoutReturn() {
     const read = async () => {
       const { data } = await (supabase as any)
         .from("bot_orders")
-        .select("bot_name, base, icon_url, status, deployment_status")
+        .select("bot_name, base, icon_url, status, deployment_status, railway_service_id")
         .eq("id", botOrderId)
         .maybeSingle();
       if (cancelled || !data) return;
       setBot({ name: data.bot_name ?? "", base: data.base ?? null, icon: data.icon_url ?? null });
       const st = String(data.status ?? "");
       const dep = String(data.deployment_status ?? "");
-      let live = st === "live";
-      if (!live && dep === "deployed") {
+      let runtime = "";
+      if (st === "ready" || st === "live" || dep === "deployed" || dep === "deploying") {
         const { data: health } = await (supabase as any).rpc("get_bot_health", { _bot_id: botOrderId });
         if (cancelled) return;
-        const h = (health ?? {}) as { effective_status?: string; status?: string };
-        live = (h.effective_status ?? h.status) === "online";
+        const h = (health ?? {}) as { effective_status?: string; status?: string; never_started?: boolean };
+        runtime = h.never_started ? "" : String(h.effective_status ?? h.status ?? "");
       }
+      const live = st === "live" || runtime === "online";
       if (live) {
+        setProgress(100);
+        setCaption("Online. Taking you to your dashboard.");
         setStep("live");
         return;
       }
-      if (["ready", "building", "deploying"].includes(st) || dep === "deploying") setStep("building");
-      timer = window.setTimeout(read, 4000);
+      if (dep === "failed") {
+        setProgress(15);
+        setCaption("The build hit a problem. We have been notified and will sort it out; you'll get a Discord DM.");
+        setStep("building");
+      } else if (runtime === "starting" || runtime === "updating" || runtime === "restarting") {
+        setProgress(80);
+        setCaption("Starting up and connecting to Discord.");
+        setStep("building");
+      } else if (dep === "deployed") {
+        setProgress(55);
+        setCaption("Building on our servers.");
+        setStep("building");
+      } else if (dep === "deploying") {
+        setProgress(40);
+        setCaption("Setting up your bot's server.");
+        setStep("building");
+      } else if (dep === "queued") {
+        setProgress(25);
+        setCaption("In the build queue. A slot opens shortly.");
+        setStep("building");
+      } else if (["ready", "building", "deploying"].includes(st)) {
+        setProgress(15);
+        setCaption("Order confirmed. Starting the build.");
+        setStep("building");
+      } else {
+        setProgress(0);
+        setCaption("Join the Discord and press I've joined to start the build.");
+      }
+      timer = window.setTimeout(read, 2000);
     };
     void read();
+    const channel = supabase
+      .channel(`order-progress-${botOrderId}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "bot_orders", filter: `id=eq.${botOrderId}` }, () => {
+        window.clearTimeout(timer);
+        void read();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "bot_runtime_status", filter: `bot_id=eq.${botOrderId}` }, () => {
+        window.clearTimeout(timer);
+        void read();
+      })
+      .subscribe();
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      supabase.removeChannel(channel);
     };
   }, [user, botOrderId]);
 
@@ -219,7 +265,7 @@ export default function CheckoutReturn() {
               {comped ? "Order placed, no charge" : robux ? "Order placed, paid with Robux" : "Order placed"}
             </div>
             <div style={{ margin: "22px auto 26px", maxWidth: 380 }}>
-              <OrderTracker step={step} />
+              <OrderTracker step={step} progress={progress} caption={caption} />
             </div>
           </>
         ) : (

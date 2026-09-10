@@ -70,11 +70,11 @@ const CSS = `
 
 .otk{--go:#34D399;--go-rgb:52 211 153;--heading:#E8EEF3;--faint:#788591;--hair:rgba(86,98,110,.55);--ease:cubic-bezier(.32,.72,0,1);font-family:'Space Grotesk',system-ui,sans-serif;padding:0 30px}
 .otk-rail{position:relative;height:12px}
-.otk-rail .seg{position:absolute;top:5px;height:2px;border-radius:2px;background:var(--hair);overflow:hidden}
-.otk-rail .seg .fill{position:absolute;inset:0;border-radius:2px;background:var(--go);transform-origin:left center;transform:scaleX(0);transition:transform 700ms var(--ease)}
-.otk-rail .seg.done .fill{transform:scaleX(1)}
-.otk-rail .seg.progress .fill{background:linear-gradient(90deg,var(--go),rgb(var(--go-rgb)/.55));animation:otk-progress var(--expect,60s) cubic-bezier(.18,.7,.3,1) forwards}
-@keyframes otk-progress{from{transform:scaleX(0)}to{transform:scaleX(.92)}}
+.otk-rail .track{position:absolute;left:6px;right:6px;top:5px;height:2px;border-radius:2px;background:var(--hair);overflow:hidden}
+.otk-rail .track .fill{position:absolute;top:0;bottom:0;left:0;width:var(--p,0%);border-radius:2px;background:var(--go);transition:width 900ms var(--ease)}
+.otk-rail .track .fill::after{content:"";position:absolute;top:0;bottom:0;right:0;width:60px;background:linear-gradient(90deg,rgb(var(--go-rgb)/0),rgb(255 255 255/.55));opacity:0;transition:opacity 300ms var(--ease)}
+.otk.moving .track .fill::after{opacity:1;animation:otk-sheen 1.4s ease-in-out infinite}
+@keyframes otk-sheen{0%{transform:translateX(-60px);opacity:0}30%{opacity:1}100%{transform:translateX(0);opacity:0}}
 .otk-rail .node{position:absolute;top:0;width:12px;height:12px;border-radius:50%;background:var(--hair);transform:translateX(-50%);transition:background 400ms var(--ease),box-shadow 400ms var(--ease)}
 .otk-rail .node.done{background:var(--go)}
 .otk-rail .node.now{background:var(--go);box-shadow:0 0 0 4px rgb(var(--go-rgb)/.18),0 0 14px rgb(var(--go-rgb)/.5)}
@@ -83,7 +83,9 @@ const CSS = `
 .otk-labels{position:relative;height:16px;margin-top:10px;font-size:12.5px;line-height:16px;color:var(--faint)}
 .otk-labels span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap;transition:color 300ms var(--ease)}
 .otk-labels .now{color:var(--heading);font-weight:600}
-@media (prefers-reduced-motion:reduce){.otk-rail .seg .fill,.otk-rail .node{transition:none}.otk-rail .seg.progress .fill{animation:none;transform:scaleX(.5)}.otk-rail .node.now::after{animation:none}}
+.otk-cap{margin-top:12px;text-align:center;font-size:12.5px;line-height:1.4;color:var(--faint);min-height:17px;transition:opacity 300ms var(--ease)}
+.otk-cap b{color:var(--heading);font-weight:600}
+@media (prefers-reduced-motion:reduce){.otk-rail .track .fill,.otk-rail .node{transition:none}.otk.moving .track .fill::after{animation:none;opacity:0}.otk-rail .node.now::after{animation:none}}
 `;
 
 export type OrderTransitionProps = {
@@ -199,25 +201,34 @@ export function OrderTransition({
 
 export type OrderStep = "placed" | "building" | "live";
 
-/** Placed / Building / Live. The step in progress has the pulsing green dot
- *  and the white label; finished steps are solid green with a green line
- *  behind them; steps still to come stay grey. While the bot is building,
- *  the line to Live fills over the time a build usually takes and holds
- *  just short of the end until the bot is really online. */
-export function OrderTracker({ step, className, expectSeconds = 60 }: { step: OrderStep; className?: string; expectSeconds?: number }) {
-  const idx = step === "placed" ? 0 : step === "building" ? 1 : 2;
+/** Placed / Building / Live on one rail. The green fill sits at `progress`
+ *  percent, which the page derives from the order's real state, so every
+ *  move of the bar is a state the backend actually reached. A sheen runs
+ *  along the fill while the order is between states. The step in progress
+ *  has the pulsing dot and the white label; the caption names the state. */
+export function OrderTracker({
+  step,
+  progress,
+  caption,
+  className,
+}: {
+  step: OrderStep;
+  progress?: number;
+  caption?: string;
+  className?: string;
+}) {
+  const p = Math.max(0, Math.min(100, progress ?? (step === "placed" ? 0 : step === "building" ? 50 : 100)));
+  // The lit dot is the one the fill has reached.
+  const idx = p >= 100 ? 2 : p >= 50 ? 1 : 0;
   const at = ["6px", "50%", "calc(100% - 6px)"];
   const names = ["Placed", "Building", "Live"];
   const node = (i: number) => (i < idx ? "done" : i === idx ? "now" : "");
-  // Segment i runs from step i to step i + 1. It is done once step i + 1 is
-  // reached, and fills toward Live while the bot is building.
-  const seg = (i: number) => (i + 1 <= idx ? "done" : i === 1 && idx === 1 ? "progress" : "");
+  const moving = p > 0 && p < 100;
   return (
-    <div className={`otk ${className ?? ""}`} style={{ "--expect": `${expectSeconds}s` } as React.CSSProperties} aria-label={`Order progress: ${step}`}>
+    <div className={`otk ${moving ? "moving" : ""} ${className ?? ""}`} aria-label={`Order progress: ${step}, ${Math.round(p)} percent`}>
       <style>{CSS}</style>
       <div className="otk-rail" aria-hidden>
-        <span className={`seg ${seg(0)}`} style={{ left: "6px", width: "calc(50% - 6px)" }}><span className="fill" /></span>
-        <span className={`seg ${seg(1)}`} style={{ left: "50%", width: "calc(50% - 6px)" }}><span className="fill" /></span>
+        <span className="track"><span className="fill" style={{ "--p": `${p}%` } as React.CSSProperties} /></span>
         {at.map((left, i) => (
           <span key={i} className={`node ${node(i)}`} style={{ left }} />
         ))}
@@ -229,6 +240,7 @@ export function OrderTracker({ step, className, expectSeconds = 60 }: { step: Or
           </span>
         ))}
       </div>
+      {caption !== undefined && <div className="otk-cap" aria-live="polite">{caption}</div>}
     </div>
   );
 }
