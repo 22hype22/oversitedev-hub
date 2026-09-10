@@ -31,6 +31,7 @@ const CheckoutReturn = lazy(() => import("./pages/CheckoutReturn.tsx"));
 const CheckoutSetup = lazy(() => import("./pages/CheckoutSetup.tsx"));
 const CheckoutRobux = lazy(() => import("./pages/CheckoutRobux.tsx"));
 const Terms = lazy(() => import("./pages/Terms.tsx"));
+const Legal = lazy(() => import("./pages/Legal.tsx"));
 const MeetTheOwner = lazy(() => import("./pages/MeetTheOwner.tsx"));
 const MeetTheTeam = lazy(() => import("./pages/MeetTheTeam.tsx"));
 const Plugyxz = lazy(() => import("./pages/Plugyxz.tsx"));
@@ -196,6 +197,7 @@ const ROUTE_TITLES: Record<string, string> = {
   "/checkout/setup": "Checkout — Oversite Customs",
   "/checkout/robux": "Pay with Robux — Oversite Customs",
   "/terms": "Terms of Service — Oversite Customs",
+  "/legal": "Legal — Oversite Customs",
   "/legal/privacy-policy": "Privacy Policy — Oversite Customs",
   "/legal/terms-of-use": "Terms of Use — Oversite Customs",
   "/legal/sales-and-refunds": "Sales & Refunds — Oversite Customs",
@@ -325,6 +327,7 @@ const App = () => {
                 <Route path="/checkout/setup" element={<CheckoutSetup />} />
                 <Route path="/checkout/robux" element={<CheckoutRobux />} />
                 <Route path="/terms" element={<Terms />} />
+                <Route path="/legal" element={<Legal />} />
                 <Route path="/legal/:doc" element={<Terms />} />
                 <Route path="/explore/team" element={<MeetTheTeam />} />
                 <Route path="/support-ideas" element={<SupportIdeas />} />
