@@ -1167,7 +1167,9 @@ export function BotForge() {
 
   const finalTotal = Math.max(0, Number((total - discountAmount).toFixed(2)));
   // Paying in Robux: the card fields hide and the Robux note shows instead.
-  const robuxSelected = payMethod === "robux" && robuxAllowed && finalTotal > 0;
+  // A comped account never reaches the Robux checkout: its order is placed
+  // free whichever way it chose to pay.
+  const robuxSelected = payMethod === "robux" && robuxAllowed && finalTotal > 0 && !comped;
 
   const applyDiscount = async () => {
     const code = discountCodeInput.trim().toUpperCase();
