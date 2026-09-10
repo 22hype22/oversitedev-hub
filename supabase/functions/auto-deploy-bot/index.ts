@@ -776,6 +776,41 @@ async function alertStaffIdentityStuck(
   }
 }
 
+// Discord refuses the gateway connection when a bot asks for privileged
+// intents its application has not enabled. An application may enable the
+// limited forms of those intents (enough for bots in under 100 servers)
+// through the API with its own token, so every pooled application gets
+// them switched on before its bot is deployed.
+const GATEWAY_PRESENCE_LIMITED = 1 << 13;
+const GATEWAY_GUILD_MEMBERS_LIMITED = 1 << 15;
+const GATEWAY_MESSAGE_CONTENT_LIMITED = 1 << 19;
+const LIMITED_INTENT_FLAGS = GATEWAY_PRESENCE_LIMITED | GATEWAY_GUILD_MEMBERS_LIMITED | GATEWAY_MESSAGE_CONTENT_LIMITED;
+async function ensureGatewayIntents(botToken: string): Promise<void> {
+  try {
+    const headers = { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" };
+    const cur = await fetch("https://discord.com/api/v10/applications/@me", { headers });
+    if (!cur.ok) {
+      console.warn("[auto-deploy-bot] intents: could not read application", { status: cur.status });
+      return;
+    }
+    const app = await cur.json();
+    const flags = Number(app?.flags ?? 0);
+    if ((flags & LIMITED_INTENT_FLAGS) === LIMITED_INTENT_FLAGS) return;
+    const res = await fetch("https://discord.com/api/v10/applications/@me", {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ flags: flags | LIMITED_INTENT_FLAGS }),
+    });
+    if (!res.ok) {
+      console.warn("[auto-deploy-bot] intents: patch failed", { status: res.status, body: (await res.text()).slice(0, 200) });
+      return;
+    }
+    console.log("[auto-deploy-bot] intents enabled on the application", { before: flags });
+  } catch (e) {
+    console.warn("[auto-deploy-bot] intents: threw", { e: String(e) });
+  }
+}
+
 async function applyDiscordIdentity(
   botToken: string,
   identity: { username?: string | null; iconUrl?: string | null; bio?: string | null },
@@ -1345,6 +1380,8 @@ Deno.serve(async (req) => {
     const repo = repoSourceFor(order.base);
 
     // Mark as deploying
+    if (botToken) await ensureGatewayIntents(botToken);
+
     await admin
       .from("bot_orders")
       .update({
