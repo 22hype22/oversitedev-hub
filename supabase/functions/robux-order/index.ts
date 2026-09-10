@@ -5,12 +5,14 @@
 // order total plus a 30 percent markup at 10,000 Robux per 100 dollars,
 // rounded to end in 999.
 //
-//   Every account          -> one of the group's payment shirts is re-priced
+//   Roblox Select account  -> one of the group's payment shirts is re-priced
 //                             to the order and the buyer purchases it from the
-//                             catalog. Roblox stopped selling developer
-//                             products outside the game in 2026, so the
-//                             product code below only serves orders that
-//                             already carry one.
+//                             catalog.
+//   Standard account       -> a game pass is created for the order in one of
+//                             the payment experiences and bought from its
+//                             page. Roblox stopped selling developer products
+//                             outside the game in 2026; that code only serves
+//                             orders that already carry one.
 //
 // Both show up as sales in the group's Robux transactions, which is how the
 // purchase is confirmed: a sale by that Roblox user for that item. Shirts are
@@ -39,7 +41,11 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ROBLOX_COOKIE = Deno.env.get("ROBLOX_COOKIE") ?? "";
 const ROBLOX_API_KEY = Deno.env.get("ROBLOX_API_KEY") ?? "";
-const PLACE_ID = Deno.env.get("ROBLOX_ORDER_PLACE_ID") || "108687688483255";
+// The experiences that hold order passes, in the order they are used. When
+// one has reached Roblox's limit of passes on sale, the next one is used.
+const PLACE_IDS = (Deno.env.get("ROBLOX_ORDER_PLACE_IDS") || Deno.env.get("ROBLOX_ORDER_PLACE_ID") || "99629898994812,128739314806275")
+  .split(",").map((s) => s.trim()).filter(Boolean);
+const PLACE_ID = PLACE_IDS[0];
 const GROUP_ID_ENV = Deno.env.get("ROBLOX_GROUP_ID") ?? "";
 const SHIRT_IDS = (Deno.env.get("ROBLOX_SHIRT_IDS") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 const SHIRT_COLLECTIBLE_IDS = (Deno.env.get("ROBLOX_SHIRT_COLLECTIBLE_IDS") ?? "").split(",").map((s) => s.trim());
@@ -49,7 +55,7 @@ const ROBUX_PER_USD = 100;
 const ROBUX_MARKUP = 1.3;
 // What a comped account pays on Roblox: a token amount, at Roblox's minimum
 // for each item type, so the flow can still be tested end to end.
-const COMPED_TEST_ROBUX = { devproduct: 1, shirt: 5 } as const;
+const COMPED_TEST_ROBUX = { devproduct: 1, shirt: 5, gamepass: 1 } as const;
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
@@ -73,14 +79,29 @@ const cookieHeaders = (extra: Record<string, string> = {}) => ({ Cookie: `.ROBLO
 
 // ---------------- Roblox session helpers ----------------
 
-async function resolveUniverseId(): Promise<string> {
-  if (cachedUniverseId) return cachedUniverseId;
-  const res = await fetch(`https://apis.roblox.com/universes/v1/places/${PLACE_ID}/universe`);
+const universeByPlace = new Map<string, string>();
+async function universeForPlace(placeId: string): Promise<string> {
+  const hit = universeByPlace.get(placeId);
+  if (hit) return hit;
+  const res = await fetch(`https://apis.roblox.com/universes/v1/places/${placeId}/universe`);
   if (!res.ok) throw new Error(`Couldn't resolve the payment place (HTTP ${res.status}).`);
   const data = await res.json();
   if (!data?.universeId) throw new Error("Roblox returned no universe for the payment place.");
-  cachedUniverseId = String(data.universeId);
+  universeByPlace.set(placeId, String(data.universeId));
+  return String(data.universeId);
+}
+async function resolveUniverseId(): Promise<string> {
+  if (cachedUniverseId) return cachedUniverseId;
+  cachedUniverseId = await universeForPlace(PLACE_ID);
   return cachedUniverseId;
+}
+async function passUniverses(): Promise<string[]> {
+  const out: string[] = [];
+  for (const placeId of PLACE_IDS) {
+    try { out.push(await universeForPlace(placeId)); } catch (e) { console.warn("robux-order: place skipped", placeId, (e as Error)?.message); }
+  }
+  if (out.length === 0) throw new Error("No payment experience is configured.");
+  return out;
 }
 
 // The group that owns the Payment experience. Its transactions list is where
@@ -115,21 +136,134 @@ async function withCsrf(doReq: (token: string) => Promise<Response>): Promise<Re
   return res;
 }
 
-// ---------------- legacy per-order gamepass (orders started before shirts and products) ----------------
+// ---------------- per-order game passes (standard accounts) ----------------
+//
+// Each order gets its own pass, named after the bot, priced to the order and
+// bought from the pass page. Passes belong to the group's payment experiences;
+// Roblox caps how many can be on sale per experience, so a pass comes off
+// sale once paid, stale unpaid ones are cleared, and when an experience is
+// full the next one is used.
 
-async function setGamepassPrice(gamepassId: string, priceRobux: number): Promise<void> {
-  const universeId = await resolveUniverseId();
+type OrderPass = { id: string; name: string; price: number; forSale: boolean; ours: boolean };
+
+function passRow(r: any): OrderPass {
+  return {
+    id: String(r?.gamePassId ?? r?.id ?? ""),
+    name: String(r?.name ?? ""),
+    price: Number(r?.priceInformation?.defaultPriceInRobux ?? r?.price ?? NaN),
+    forSale: r?.isForSale !== false,
+    ours: String(r?.description ?? "") === PRODUCT_DESCRIPTION,
+  };
+}
+
+async function passLimitReached(universeId: string): Promise<boolean> {
+  const res = await fetch(`https://apis.roblox.com/game-passes/v1/game-passes/universes/${universeId}/sales-limit`, { headers: cookieHeaders() });
+  if (!res.ok) throw new Error(`Roblox wouldn't report the pass limit (HTTP ${res.status}).`);
+  const data = await res.json();
+  return data?.hasLimitBeenReached === true;
+}
+
+async function listOurPasses(universeId: string): Promise<OrderPass[]> {
+  const res = await fetch(`https://apis.roblox.com/game-passes/v1/universes/${universeId}/game-passes/creator?pageSize=100`, { headers: cookieHeaders() });
+  if (!res.ok) throw new Error(`Roblox wouldn't list the passes (HTTP ${res.status}).`);
+  const data = await res.json();
+  const rows: any[] = Array.isArray(data?.gamePasses) ? data.gamePasses : Array.isArray(data?.data) ? data.data : [];
+  return rows.map(passRow).filter((r) => r.id && r.ours);
+}
+
+async function updatePass(universeId: string, passId: string, fields: { price?: number; forSale?: boolean; name?: string }): Promise<boolean> {
   const res = await withCsrf((token) => {
     const form = new FormData();
-    form.append("isForSale", priceRobux > 0 ? "true" : "false");
-    form.append("price", String(priceRobux));
-    return fetch(`https://apis.roblox.com/game-passes/v1/universes/${universeId}/game-passes/${gamepassId}`, {
+    if (fields.name !== undefined) form.append("name", fields.name.slice(0, 50));
+    if (fields.forSale !== undefined) form.append("isForSale", fields.forSale ? "true" : "false");
+    if (fields.price !== undefined) form.append("price", String(Math.max(1, Math.round(fields.price))));
+    return fetch(`https://apis.roblox.com/game-passes/v1/universes/${universeId}/game-passes/${passId}`, {
       method: "PATCH",
       headers: cookieHeaders({ "x-csrf-token": token }),
       body: form,
     });
   });
-  if (!res.ok) throw new Error(`Roblox wouldn't update the gamepass price (HTTP ${res.status}).`);
+  return res.ok;
+}
+
+async function createPass(universeId: string, name: string, priceRobux: number): Promise<string> {
+  const res = await withCsrf((token) => {
+    const form = new FormData();
+    form.append("name", name.slice(0, 50));
+    form.append("description", PRODUCT_DESCRIPTION);
+    form.append("price", String(Math.max(1, Math.round(priceRobux))));
+    form.append("isForSale", "true");
+    form.append("imageFile", new Blob([robuxProductThumb()], { type: "image/png" }), "oversite.png");
+    return fetch(`https://apis.roblox.com/game-passes/v1/universes/${universeId}/game-passes`, {
+      method: "POST",
+      headers: cookieHeaders({ "x-csrf-token": token }),
+      body: form,
+    });
+  });
+  if (!res.ok) throw new Error(`Roblox wouldn't create the pass (HTTP ${res.status}): ${(await res.text()).slice(0, 200)}`);
+  const data = await res.json();
+  const id = String(data?.gamePassId ?? data?.id ?? "");
+  if (!id) throw new Error("Roblox returned no pass id.");
+  return id;
+}
+
+// Take off sale every pass of ours that no order has been working on for two
+// hours. Frees slots for new orders.
+async function freeStalePasses(universeId: string): Promise<number> {
+  const passes = (await listOurPasses(universeId)).filter((p) => p.forSale);
+  if (passes.length === 0) return 0;
+  const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  const { data: busy } = await admin
+    .from("bot_orders")
+    .select("robux_item_id")
+    .in("robux_item_id", passes.map((p) => p.id))
+    .eq("status", "pending_payment")
+    .gt("updated_at", since);
+  const keep = new Set((busy ?? []).map((r: any) => String(r.robux_item_id)));
+  let freed = 0;
+  for (const p of passes) {
+    if (keep.has(p.id)) continue;
+    if (await updatePass(universeId, p.id, { forSale: false })) freed++;
+  }
+  return freed;
+}
+
+// The order's pass at this price, on sale. Reuses the order's own pass;
+// otherwise creates one in the first experience with a free slot.
+async function ensurePass(order: OrderRow, priceRobux: number): Promise<string> {
+  const universes = await passUniverses();
+  const own = order.robux_item_kind === "gamepass" ? order.robux_item_id : order.robux_gamepass_id;
+  if (own) {
+    for (const u of universes) {
+      if (await updatePass(u, own, { price: priceRobux, forSale: true, name: itemName(order) })) return own;
+    }
+  }
+  for (const u of universes) {
+    let full = await passLimitReached(u);
+    if (full) {
+      await freeStalePasses(u);
+      full = await passLimitReached(u);
+    }
+    if (full) continue;
+    return await createPass(u, itemName(order), priceRobux);
+  }
+  throw new Error("Every order slot on Roblox is busy right now. Try again in a few minutes, or open a ticket in our Discord and we will take your order by hand.");
+}
+
+// After payment the pass comes off sale so it takes no slot. Best effort.
+async function retirePass(passId: string): Promise<void> {
+  for (const u of await passUniverses()) {
+    if (await updatePass(u, passId, { forSale: false })) return;
+  }
+}
+
+// Legacy name kept for older call sites.
+async function setGamepassPrice(gamepassId: string, priceRobux: number): Promise<void> {
+  if (priceRobux <= 0) return await retirePass(gamepassId);
+  for (const u of await passUniverses()) {
+    if (await updatePass(u, gamepassId, { price: priceRobux, forSale: true })) return;
+  }
+  throw new Error("Roblox wouldn't update the gamepass price.");
 }
 
 async function ownsItem(userId: number, itemType: string | number, itemId: string): Promise<boolean | null> {
@@ -251,8 +385,7 @@ function productHeaders(): Record<string, string> {
 
 // Every developer product in the payment universe. Products we did not
 // create (the description tells them apart) are never changed.
-async function listDevProducts(): Promise<DevProduct[]> {
-  const universeId = await resolveUniverseId();
+async function listDevProducts(universeId: string): Promise<DevProduct[]> {
   const res = await fetch(`https://apis.roblox.com/developer-products/v2/universes/${universeId}/developer-products/creator`, {
     headers: productHeaders(),
   });
@@ -272,10 +405,10 @@ async function listDevProducts(): Promise<DevProduct[]> {
 // The product must be buyable from its page outside the game, which needs
 // the store page flag and a thumbnail. Both go through the same update call.
 async function updateDevProduct(
+  universeId: string,
   id: string,
   fields: { price?: number; name?: string; forSale?: boolean; storePage?: boolean; thumbnail?: boolean },
 ): Promise<void> {
-  const universeId = await resolveUniverseId();
   const form = new FormData();
   if (fields.price !== undefined) form.append("price", String(Math.max(0, Math.round(fields.price))));
   if (fields.name !== undefined) form.append("name", fields.name.slice(0, 100));
@@ -290,8 +423,7 @@ async function updateDevProduct(
   if (!res.ok) throw new Error(`Roblox wouldn't update the product (HTTP ${res.status}): ${(await res.text()).slice(0, 200)}`);
 }
 
-async function createDevProduct(name: string, priceRobux: number): Promise<string> {
-  const universeId = await resolveUniverseId();
+async function createDevProduct(universeId: string, name: string, priceRobux: number): Promise<string> {
   const form = new FormData();
   form.append("name", name.slice(0, 100));
   form.append("description", PRODUCT_DESCRIPTION);
@@ -308,45 +440,54 @@ async function createDevProduct(name: string, priceRobux: number): Promise<strin
   let id = String(data?.id ?? data?.productId ?? data?.developerProductId ?? "");
   if (!id && typeof data?.path === "string") id = data.path.split("/").pop() ?? "";
   if (!id) throw new Error("Roblox returned no product id.");
-  await updateDevProduct(id, { storePage: true, thumbnail: true });
+  await updateDevProduct(universeId, id, { storePage: true, thumbnail: true });
   return id;
 }
 
-// A product with this name at this price, for sale. Reuses and re-prices
-// one we made earlier, so a discount or a price change shows up on the
-// existing product; steps aside with a suffix when the name belongs to a
-// product that is not ours.
+// A product with this name at this price, for sale, in the first payment
+// experience that will take it. Reuses and re-prices one we made earlier, so
+// a discount or a price change shows up on the existing product; steps aside
+// with a suffix when the name belongs to a product that is not ours.
 async function ensureDevProduct(order: OrderRow, priceRobux: number): Promise<string> {
   const wanted = itemName(order);
-  const products = await listDevProducts();
   const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
-  let own = products.find((p) => p.ours && same(p.name, wanted));
-  if (own) {
-    // Another customer may be mid-purchase on this very product (same bot
-    // name); re-pricing it under them would break their checkout.
-    const { data: busy } = await admin
-      .from("bot_orders")
-      .select("id")
-      .eq("robux_item_id", own.id)
-      .neq("user_id", order.user_id)
-      .eq("status", "pending_payment")
-      .gt("updated_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
-      .limit(1)
-      .maybeSingle();
-    if (busy) own = undefined;
+  let lastError: Error | null = null;
+  for (const universeId of await passUniverses()) {
+    try {
+      const products = await listDevProducts(universeId);
+      let own = products.find((p) => p.ours && same(p.name, wanted));
+      if (own) {
+        // Another customer may be mid-purchase on this very product (same bot
+        // name); re-pricing it under them would break their checkout.
+        const { data: busy } = await admin
+          .from("bot_orders")
+          .select("id")
+          .eq("robux_item_id", own.id)
+          .neq("user_id", order.user_id)
+          .eq("status", "pending_payment")
+          .gt("updated_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
+          .limit(1)
+          .maybeSingle();
+        if (busy) own = undefined;
+      }
+      if (own) {
+        await updateDevProduct(universeId, own.id, { price: priceRobux, forSale: true, storePage: true, thumbnail: !own.hasThumb });
+        return own.id;
+      }
+      const taken = products.some((p) => same(p.name, wanted));
+      const name = taken ? `${wanted} ${order.id.slice(0, 8)}` : wanted;
+      try {
+        return await createDevProduct(universeId, name, priceRobux);
+      } catch (e) {
+        if (!String((e as Error)?.message ?? "").includes("DuplicateProductName")) throw e;
+        return await createDevProduct(universeId, `${wanted} ${order.id.slice(0, 8)} ${Date.now().toString(36)}`, priceRobux);
+      }
+    } catch (e) {
+      lastError = e as Error;
+      console.warn("robux-order: product not possible in universe", universeId, lastError.message);
+    }
   }
-  if (own) {
-    await updateDevProduct(own.id, { price: priceRobux, forSale: true, storePage: true, thumbnail: !own.hasThumb });
-    return own.id;
-  }
-  const taken = products.some((p) => same(p.name, wanted));
-  const name = taken ? `${wanted} ${order.id.slice(0, 8)}` : wanted;
-  try {
-    return await createDevProduct(name, priceRobux);
-  } catch (e) {
-    if (!String((e as Error)?.message ?? "").includes("DuplicateProductName")) throw e;
-    return await createDevProduct(`${wanted} ${order.id.slice(0, 8)} ${Date.now().toString(36)}`, priceRobux);
-  }
+  throw lastError ?? new Error("No payment experience would take the product.");
 }
 
 // ---------------- sales confirmation ----------------
@@ -399,7 +540,7 @@ async function recentSales(kind: string | null): Promise<Sale[]> {
 const SALE_WINDOW_MS = 5 * 60 * 1000;
 async function saleFound(o: OrderRow): Promise<boolean> {
   const buyer = String(o.roblox_user_id ?? "");
-  const item = String(o.robux_item_id ?? "");
+  const item = String(o.robux_item_id ?? o.robux_gamepass_id ?? "");
   if (!buyer || !item) return false;
   const started = o.robux_started_at ? Date.parse(o.robux_started_at) - 60 * 1000 : 0;
   const since = Math.max(started, Date.now() - SALE_WINDOW_MS);
@@ -543,7 +684,7 @@ function summary(o: OrderRow, profile?: Profile) {
     itemKind: kind,
     itemId,
     itemUrl,
-    itemName: kind === "devproduct" ? itemName(o) : null,
+    itemName: kind === "devproduct" || kind === "gamepass" ? itemName(o) : null,
     // Kept for older clients.
     gamepassId: o.robux_gamepass_id,
     gamepassUrl: o.robux_gamepass_id ? gamepassUrl(o.robux_gamepass_id) : null,
@@ -614,7 +755,7 @@ Deno.serve(async (req) => {
       const compedAccount = Boolean(comp);
       const total = compedAccount ? 0 : Number(order.total_amount ?? 0);
       if (!compedAccount && !(total > 0)) return json({ error: "This order has nothing to pay." }, 400);
-      const robux = compedAccount ? COMPED_TEST_ROBUX.shirt : robuxFor(total);
+      const robux = compedAccount ? COMPED_TEST_ROBUX[kind === "select" ? "shirt" : "gamepass"] : robuxFor(total);
       if (compedAccount && order.discount_code !== "COMP") {
         const listed = Number(order.total_amount ?? 0) + Number(order.discount_amount ?? 0);
         await admin.from("bot_orders")
@@ -626,17 +767,20 @@ Deno.serve(async (req) => {
       // Remember the answer for next time.
       await admin.from("profiles").update({ roblox_account_kind: kind }).eq("user_id", user.id);
 
-      let itemKind: "shirt" | "devproduct";
+      let itemKind: "shirt" | "devproduct" | "gamepass";
       let itemId: string;
       let slot: number | null = null;
-      // Every account buys a shirt. Roblox no longer sells developer
-      // products outside the game, so the product path only remains for
-      // orders that already carry one.
-      itemKind = "shirt";
-      slot = await nextShirtSlot(Number(profile.roblox_user_id));
-      itemId = SHIRT_IDS[slot - 1];
-      await updateShirtPrice(itemId, robux, SHIRT_COLLECTIBLE_IDS[slot - 1] || undefined);
-      void kind;
+      if (kind === "select") {
+        itemKind = "shirt";
+        slot = await nextShirtSlot(Number(profile.roblox_user_id));
+        itemId = SHIRT_IDS[slot - 1];
+        await updateShirtPrice(itemId, robux, SHIRT_COLLECTIBLE_IDS[slot - 1] || undefined);
+      } else {
+        // Roblox no longer sells developer products outside the game, so a
+        // standard account gets its own game pass instead.
+        itemKind = "gamepass";
+        itemId = await ensurePass(order, robux);
+      }
 
       const now = new Date().toISOString();
       const patch = {
@@ -646,6 +790,7 @@ Deno.serve(async (req) => {
         installment_amount: null,
         robux_item_kind: itemKind,
         robux_item_id: itemId,
+        robux_gamepass_id: itemKind === "gamepass" ? itemId : null,
         robux_shirt_slot: slot,
         robux_amount: robux,
         roblox_username: profile.roblox_username,
@@ -668,11 +813,7 @@ Deno.serve(async (req) => {
       if (!kind || !order.roblox_user_id) return json({ error: "Start the Robux checkout first." }, 400);
 
       let confirmed = false;
-      if (kind === "gamepass") {
-        confirmed = (await ownsItem(Number(order.roblox_user_id), GAMEPASS_ITEM_TYPE, String(order.robux_gamepass_id))) === true;
-      } else {
-        confirmed = await saleFound(order);
-      }
+      confirmed = await saleFound(order);
       if (!confirmed) {
         return json({
           ok: true,
@@ -698,10 +839,10 @@ Deno.serve(async (req) => {
         .eq("parent_order_id", order.id)
         .in("status", ["pending_payment", "payment_failed"]);
 
-      // A legacy pass comes off sale so nobody else can buy it. Best effort.
-      if (kind === "gamepass" && order.robux_gamepass_id) {
+      // The pass comes off sale so it takes no slot. Best effort.
+      if (kind === "gamepass" && (order.robux_item_id || order.robux_gamepass_id)) {
         try {
-          await setGamepassPrice(order.robux_gamepass_id, 0);
+          await retirePass(String(order.robux_item_id ?? order.robux_gamepass_id));
         } catch (e) {
           console.warn("robux-order: could not take the gamepass off sale", (e as Error)?.message);
         }

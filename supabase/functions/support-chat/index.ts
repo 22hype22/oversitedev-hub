@@ -60,7 +60,7 @@ Payments go through Stripe. Cards are the payment method today, and PayPal and A
 PAYING IN ROBUX
 Pick Robux in the payment box at checkout. The Robux price is the dollar total times 1.3 times 100, rounded up to end in 999, so a 99 dollar bot is 12,999 Robux. The 30 percent covers Roblox's cut. Then:
 1. Link your Roblox account. This is a normal Roblox login on roblox.com. We only receive your username and id.
-2. Say which kind of account it is. Standard is age 16 and up and Roblox Select is age 9 to 15; either way you buy a shirt from our group store, Oversite Customs.
+2. Say which kind of account it is. Standard is age 16 and up and buys a game pass made for the order from its page on Roblox. Roblox Select is age 9 to 15 and buys a shirt from our group store, Oversite Customs.
 3. Open the link, buy the item for the shown Robux, give Roblox a few seconds to record it, then press I've purchased.
 We match the sale on your linked account against the order. If it is not found yet, wait about 30 seconds and press I've purchased again. If you did not buy anything, nothing was charged. Once matched the order is marked paid. Hosting for Discord bots can be paid in Robux as well; if checkout does not offer it, ask in a ticket. The Roblox group is Oversite Customs, and for standard accounts we link straight to the developer product, so there is no game to open. Robux refunds are paid out through the Oversite Customs group: you must be in the group for 2 weeks for payouts, and you get 70 percent back because Roblox keeps the other 30.
 
