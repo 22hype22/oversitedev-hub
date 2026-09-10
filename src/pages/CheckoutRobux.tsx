@@ -274,11 +274,6 @@ export default function CheckoutRobux() {
       <div className="ossys-mid">
         <div style={{ width: "100%", maxWidth: 480 }}>
           <div className="ossys-card">
-            <span className="ossys-pill">
-              <span style={{ width: 7, height: 7, borderRadius: 999, background: "var(--os-accent)" }} />
-              Pay with Robux
-            </span>
-
             {step === "loading" && (
               <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14 }}>
                 <Loader2 size={16} className="animate-spin" /> Loading your order…
