@@ -874,9 +874,9 @@ export function BotForge() {
   // conflict, card wins so the order can still be placed.
   const payModeOf = (id: string): PayMode => pricedBase(id)?.pay ?? "both";
   const robuxAllowed = robuxEnabled && bases.length > 0 && bases.every((id) => payModeOf(id) !== "usd");
-  // A comped account pays nothing, unless it deliberately picks Robux: then
-  // the order goes through the Robux checkout like anyone else's.
-  const comped = compedAccount && !(payMethod === "robux" && robuxAllowed);
+  // A comped account pays nothing whichever way it chooses to pay: the order
+  // is fulfilled free through the same steps, and the Robux figure reads 0.
+  const comped = compedAccount;
   // A comped order is always fulfilled in full at $0, never as installments,
   // so pin the plan to "full" in case one was selected before the check resolved.
   useEffect(() => {
@@ -2144,7 +2144,7 @@ export function BotForge() {
                   </div>
                   <div className="os-pswap-stack">
                     <span className={`os-pswap-v ${robuxFirst ? "sec" : "pri"}`}>{usdValue}</span>
-                    <span className={`os-pswap-v ${robuxFirst ? "pri" : "sec"}`}>{formatRobux(robuxFor(finalTotal))}</span>
+                    <span className={`os-pswap-v ${robuxFirst ? "pri" : "sec"}`}>{comped ? "R$ 0" : formatRobux(robuxFor(finalTotal))}</span>
                   </div>
                 </div>
               );
@@ -2278,7 +2278,7 @@ export function BotForge() {
                     <div className="grid grid-cols-2 gap-2">
                       {([
                         { id: "card", label: "USD", sub: "Card through Stripe" },
-                        { id: "robux", label: "Robux", sub: `${formatRobux(robuxFor(finalTotal))} on Roblox` },
+                        { id: "robux", label: "Robux", sub: comped ? "Free on Roblox" : `${formatRobux(robuxFor(finalTotal))} on Roblox` },
                       ] as const).map((opt) => {
                         const active = payMethod === opt.id;
                         return (
