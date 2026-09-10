@@ -2493,8 +2493,7 @@ export function BotForge() {
                           ? "This account is comped, so Roblox charges a token amount instead of the price."
                           : `$${finalTotal.toFixed(2)} plus 30 percent for Roblox's cut.`}{" "}
                         After you place the
-                        order you sign in with Roblox, then buy a shirt from our group store on a Roblox
-                        Select account or a product in our Payment experience on a standard account.
+                        order you sign in with Roblox, then buy a shirt from our group store.
                         The order is paid the moment Roblox records the sale.
                       </div>
                     </div>
