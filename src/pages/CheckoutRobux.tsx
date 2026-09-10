@@ -52,6 +52,9 @@ type Summary = {
   iconUrl?: string | null;
   totalUsd: number;
   robux: number;
+  discountCode?: string | null;
+  discountUsd?: number;
+  listRobux?: number;
   itemKind: "gamepass" | "shirt" | "devproduct" | null;
   itemId: string | null;
   itemUrl: string | null;
@@ -372,6 +375,12 @@ export default function CheckoutRobux() {
                   Buy it for <strong style={{ color: "var(--os-heading)" }}>{robuxLabel}</strong> as{" "}
                   <strong style={{ color: "var(--os-heading)" }}>{linked?.robloxUsername || summary.robloxUsername}</strong>,
                   then come back here and press "I've purchased".
+                  {summary.discountCode && summary.listRobux && summary.listRobux > summary.robux && (
+                    <>
+                      {" "}The price already has your <strong style={{ color: "var(--os-heading)" }}>{summary.discountCode}</strong> discount in it:{" "}
+                      <span style={{ textDecoration: "line-through" }}>{formatRobux(summary.listRobux)}</span> before it.
+                    </>
+                  )}
                 </p>
                 <div className="ossys-box" style={{ marginBottom: 12 }}>
                   <ol className="ossys-steps">

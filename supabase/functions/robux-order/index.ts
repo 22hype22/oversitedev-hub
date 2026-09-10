@@ -448,6 +448,8 @@ type OrderRow = {
   base: string | null;
   icon_url: string | null;
   total_amount: number | null;
+  discount_code: string | null;
+  discount_amount: number | null;
   charged_at: string | null;
   payment_method: string | null;
   robux_gamepass_id: string | null;
@@ -461,7 +463,7 @@ type OrderRow = {
 };
 
 const ORDER_COLUMNS =
-  "id, user_id, parent_order_id, status, bot_name, base, icon_url, total_amount, charged_at, payment_method, robux_gamepass_id, robux_amount, roblox_username, roblox_user_id, robux_item_kind, robux_item_id, robux_shirt_slot, updated_at";
+  "id, user_id, parent_order_id, status, bot_name, base, icon_url, total_amount, discount_code, discount_amount, charged_at, payment_method, robux_gamepass_id, robux_amount, roblox_username, roblox_user_id, robux_item_kind, robux_item_id, robux_shirt_slot, updated_at";
 
 async function loadOrder(orderId: string, userId: string): Promise<OrderRow> {
   const { data, error } = await admin.from("bot_orders").select(ORDER_COLUMNS).eq("id", orderId).maybeSingle();
@@ -504,6 +506,10 @@ function summary(o: OrderRow, profile?: Profile) {
     rate: ROBUX_PER_USD,
     markup: ROBUX_MARKUP,
     robux: o.robux_amount ?? robuxFor(Number(o.total_amount ?? 0)),
+    // The Robux price already has the discount in it; these let the page say so.
+    discountCode: Number(o.discount_amount ?? 0) > 0 ? o.discount_code ?? null : null,
+    discountUsd: Number(o.discount_amount ?? 0),
+    listRobux: robuxFor(Number(o.total_amount ?? 0) + Number(o.discount_amount ?? 0)),
     itemKind: kind,
     itemId,
     itemUrl,
