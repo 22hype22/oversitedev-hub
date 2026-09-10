@@ -337,7 +337,7 @@ export default function CheckoutRobux() {
                 {accountCard}
                 <div className="ossys-kind">
                   {([
-                    { id: "standard", label: "Standard", desc: "Age 16 and up. You buy a product in our Payment experience." },
+                    { id: "standard", label: "Standard", desc: "Age 16 and up. You buy a shirt from our group store." },
                     { id: "select", label: "Roblox Select", desc: "Age 9 to 15. You buy a shirt from our group store." },
                   ] as const).map((opt) => (
                     <button key={opt.id} type="button" className={kind === opt.id ? "on" : ""} onClick={() => setKind(opt.id)}>

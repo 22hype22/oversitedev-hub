@@ -5,12 +5,12 @@
 // order total plus a 30 percent markup at 10,000 Robux per 100 dollars,
 // rounded to end in 999.
 //
-//   Roblox Select account  -> one of the group's payment shirts is re-priced
+//   Every account          -> one of the group's payment shirts is re-priced
 //                             to the order and the buyer purchases it from the
-//                             catalog.
-//   Standard account       -> a developer product is created for the order in
-//                             the Payment experience and bought from its Store
-//                             tab.
+//                             catalog. Roblox stopped selling developer
+//                             products outside the game in 2026, so the
+//                             product code below only serves orders that
+//                             already carry one.
 //
 // Both show up as sales in the group's Robux transactions, which is how the
 // purchase is confirmed: a sale by that Roblox user for that item. Shirts are
@@ -614,7 +614,7 @@ Deno.serve(async (req) => {
       const compedAccount = Boolean(comp);
       const total = compedAccount ? 0 : Number(order.total_amount ?? 0);
       if (!compedAccount && !(total > 0)) return json({ error: "This order has nothing to pay." }, 400);
-      const robux = compedAccount ? COMPED_TEST_ROBUX[kind === "select" ? "shirt" : "devproduct"] : robuxFor(total);
+      const robux = compedAccount ? COMPED_TEST_ROBUX.shirt : robuxFor(total);
       if (compedAccount && order.discount_code !== "COMP") {
         const listed = Number(order.total_amount ?? 0) + Number(order.discount_amount ?? 0);
         await admin.from("bot_orders")
@@ -629,17 +629,14 @@ Deno.serve(async (req) => {
       let itemKind: "shirt" | "devproduct";
       let itemId: string;
       let slot: number | null = null;
-      if (kind === "select") {
-        itemKind = "shirt";
-        slot = await nextShirtSlot(Number(profile.roblox_user_id));
-        itemId = SHIRT_IDS[slot - 1];
-        await updateShirtPrice(itemId, robux, SHIRT_COLLECTIBLE_IDS[slot - 1] || undefined);
-      } else {
-        itemKind = "devproduct";
-        // Always checked against Roblox, so the product carries the order's
-        // current price even if it was re-priced by hand in the meantime.
-        itemId = await ensureDevProduct(order, robux);
-      }
+      // Every account buys a shirt. Roblox no longer sells developer
+      // products outside the game, so the product path only remains for
+      // orders that already carry one.
+      itemKind = "shirt";
+      slot = await nextShirtSlot(Number(profile.roblox_user_id));
+      itemId = SHIRT_IDS[slot - 1];
+      await updateShirtPrice(itemId, robux, SHIRT_COLLECTIBLE_IDS[slot - 1] || undefined);
+      void kind;
 
       const now = new Date().toISOString();
       const patch = {
