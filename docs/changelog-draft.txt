@@ -117,3 +117,4 @@ Support chat: your messages sit on the right in a bubble, answers on the left, s
 Support chat has a past chats column: every conversation is saved, grouped by day, and can be reopened or deleted.
 The support assistant now knows the full product: every bot's features and commands, prices and bundles, hosting tiers, server slots, payment plans, the card and Robux checkout flows, refunds and the 10 day grace period, every dashboard section, team roles, and the privacy and AI terms.
 Billing now shows each bot's real monthly hosting price instead of a flat 5.
+The support assistant now carries the team's own answers: support hours and the Need assistance button, discounts, custom work pricing, which bot to pick, refunds and credits, payment plan due dates, setup fixes, and how to reach a person.
