@@ -149,3 +149,4 @@ Comped accounts are free whichever payment they pick: choosing Robux no longer c
 Card fields stay hidden whenever Robux is picked, including on comped accounts.
 Comped accounts that pick Robux pay a token R$1 (R$5 for a shirt) so the Robux flow can be tested for real; the order is marked comped like a comped card order.
 Robux developer products are created buyable from their own page: the store page flag is set and the Oversite thumbnail uploaded on every product, and re-applied when a product is reused.
+Site settings (Robux option, availability pills, sales mode, pricing, marketing switch) load once with the app through a plain request and are shared by every hook, so they appear with the page instead of waiting on the session; one realtime channel replaces five.

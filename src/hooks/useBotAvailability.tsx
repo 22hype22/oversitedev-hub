@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { refreshAppSettings, useAppSettings } from "@/lib/appSettings";
 
 export type BotStatus = "available" | "preorder" | "coming_soon";
 
@@ -10,43 +10,9 @@ export type BotStatus = "available" | "preorder" | "coming_soon";
  * "available" at the call site.
  */
 export const useBotAvailability = () => {
-  const [availability, setAvailability] = useState<Record<string, BotStatus>>({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const load = async () => {
-      const { data } = await (supabase as any)
-        .from("app_settings")
-        .select("bot_availability")
-        .eq("id", 1)
-        .maybeSingle();
-      if (!mounted) return;
-      const map = (data?.bot_availability ?? {}) as Record<string, BotStatus>;
-      setAvailability(map);
-      setLoading(false);
-    };
-    load();
-
-    const channel = supabase
-      .channel(`app-settings-availability-${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "app_settings" },
-        (payload: any) => {
-          const next = (payload.new as any)?.bot_availability;
-          if (next && typeof next === "object") setAvailability(next);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      mounted = false;
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
+  const { row, loading } = useAppSettings();
+  const raw = row?.bot_availability;
+  const availability = (raw && typeof raw === "object" ? raw : {}) as Record<string, BotStatus>;
   return { availability, loading };
 };
 
@@ -67,37 +33,9 @@ export type BotPricing = {
  * updates. Missing keys mean "use the price built into the site".
  */
 export const useBotPricing = () => {
-  const [pricing, setPricing] = useState<Record<string, BotPricing>>({});
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const { data } = await (supabase as any)
-        .from("app_settings")
-        .select("bot_pricing")
-        .eq("id", 1)
-        .maybeSingle();
-      if (!mounted) return;
-      const map = data?.bot_pricing;
-      if (map && typeof map === "object") setPricing(map as Record<string, BotPricing>);
-    })();
-    const channel = supabase
-      .channel(`app-settings-pricing-${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "app_settings" },
-        (payload: any) => {
-          const next = (payload.new as any)?.bot_pricing;
-          if (next && typeof next === "object") setPricing(next);
-        },
-      )
-      .subscribe();
-    return () => {
-      mounted = false;
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
+  const { row } = useAppSettings();
+  const raw = row?.bot_pricing;
+  const pricing = (raw && typeof raw === "object" ? raw : {}) as Record<string, BotPricing>;
   return { pricing };
 };
 
@@ -107,6 +45,7 @@ export const setBotPricing = async (baseId: string, pricing: BotPricing) => {
     _base_id: baseId,
     _pricing: pricing,
   });
+  void refreshAppSettings();
   return { data, error };
 };
 
@@ -116,5 +55,6 @@ export const setBotAvailability = async (baseId: string, status: BotStatus) => {
     _base_id: baseId,
     _status: status,
   });
+  void refreshAppSettings();
   return { data, error };
 };

@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useAppSettings } from "@/lib/appSettings";
 
 /** Robux per 1 USD before the markup: every $100 is 10,000 Robux. Fixed. */
 export const ROBUX_PER_USD = 100;
@@ -23,37 +22,7 @@ export const formatRobux = (robux: number) => `R$ ${Math.round(robux).toLocaleSt
  * The price rule itself is fixed above and never read from the database.
  */
 export const useRobuxCheckout = () => {
-  const [enabled, setEnabled] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-    const apply = (row: any) => {
-      if (row && "robux_orders_enabled" in row) setEnabled(row.robux_orders_enabled !== false);
-    };
-    (async () => {
-      const { data, error } = await (supabase as any)
-        .from("app_settings")
-        .select("robux_orders_enabled")
-        .eq("id", 1)
-        .maybeSingle();
-      if (!mounted) return;
-      if (!error) apply(data);
-      setLoading(false);
-    })();
-    const channel = supabase
-      .channel(`app-settings-robux-${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "app_settings" },
-        (payload: any) => apply(payload.new),
-      )
-      .subscribe();
-    return () => {
-      mounted = false;
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
+  const { row, loading } = useAppSettings();
+  const enabled = !!row && "robux_orders_enabled" in row && row.robux_orders_enabled !== false;
   return { enabled, loading };
 };

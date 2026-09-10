@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { refreshAppSettings, useAppSettings } from "@/lib/appSettings";
 
 export type BotSalesMode = "preorder" | "live";
 
@@ -9,43 +9,8 @@ export type BotSalesMode = "preorder" | "live";
  * instantly — signed in or not.
  */
 export const useBotSalesMode = () => {
-  const [mode, setMode] = useState<BotSalesMode>("preorder");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const load = async () => {
-      const { data } = await (supabase as any)
-        .from("app_settings")
-        .select("bot_sales_mode")
-        .eq("id", 1)
-        .maybeSingle();
-      if (!mounted) return;
-      const next = data?.bot_sales_mode === "live" ? "live" : "preorder";
-      setMode(next);
-      setLoading(false);
-    };
-    load();
-
-    const channel = supabase
-      .channel(`app-settings-bot-sales-${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "app_settings" },
-        (payload: any) => {
-          const next = (payload.new as any)?.bot_sales_mode;
-          if (next === "live" || next === "preorder") setMode(next);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      mounted = false;
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
+  const { row, loading } = useAppSettings();
+  const mode: BotSalesMode = row?.bot_sales_mode === "live" ? "live" : "preorder";
   return { mode, loading, isPreorder: mode === "preorder", isLive: mode === "live" };
 };
 
@@ -55,5 +20,6 @@ export const setBotSalesMode = async (next: BotSalesMode) => {
     .from("app_settings")
     .update({ bot_sales_mode: next, updated_at: new Date().toISOString() })
     .eq("id", 1);
+  void refreshAppSettings();
   return { error };
 };

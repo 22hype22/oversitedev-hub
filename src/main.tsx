@@ -4,6 +4,8 @@ import "./index.css";
 // Import once at startup so the saved theme is applied to <html> on every
 // page, not just routes (like Dashboard) that happen to import useTheme.
 import "./hooks/useTheme";
+// Public site settings start loading with the app, before any page mounts.
+import "@/lib/appSettings";
 
 // Stale build recovery. Every deploy renames the code chunks. A tab that was
 // opened before a deploy and then tries to load a chunk it has not fetched
