@@ -566,6 +566,12 @@ Deno.serve(async (req) => {
 
     if (action === "start") {
       if (!settings.enabled) return json({ error: "Robux checkout is turned off right now." }, 400);
+      // A comped account owes nothing; it must not be sent to buy anything.
+      const email = String(user.email ?? "").toLowerCase();
+      if (email) {
+        const { data: comp } = await admin.from("comped_emails").select("id").ilike("email", email).limit(1).maybeSingle();
+        if (comp) return json({ error: "This account is comped, so there is nothing to pay. Go back and place the order; it is free.", comped: true }, 400);
+      }
       if (!ROBLOX_COOKIE) return json({ error: "Robux checkout isn't configured on the server yet." }, 500);
       if (isPaid(order)) return json({ ok: true, ...summary(order, profile) });
       if (!profile.roblox_user_id || !profile.roblox_username) {
