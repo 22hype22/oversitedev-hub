@@ -232,19 +232,60 @@ async function nextShirtSlot(buyerId: number): Promise<number> {
 
 // ---------------- developer products (standard accounts) ----------------
 
-async function createDevProduct(name: string, priceRobux: number): Promise<string> {
+const PRODUCT_DESCRIPTION = "Oversite order payment";
+
+type DevProduct = { id: string; name: string; price: number; forSale: boolean; ours: boolean };
+
+function productHeaders(): Record<string, string> {
   if (!ROBLOX_API_KEY) {
     throw new Error("Developer products aren't set up on the site yet. Add a Roblox Open Cloud API key (ROBLOX_API_KEY).");
   }
+  return { "x-api-key": ROBLOX_API_KEY };
+}
+
+// Every developer product in the payment universe. Products we did not
+// create (the description tells them apart) are never changed.
+async function listDevProducts(): Promise<DevProduct[]> {
+  const universeId = await resolveUniverseId();
+  const res = await fetch(`https://apis.roblox.com/developer-products/v2/universes/${universeId}/developer-products/creator`, {
+    headers: productHeaders(),
+  });
+  if (!res.ok) throw new Error(`Roblox wouldn't list the products (HTTP ${res.status}): ${(await res.text()).slice(0, 200)}`);
+  const data = await res.json();
+  const rows: any[] = Array.isArray(data?.developerProducts) ? data.developerProducts : Array.isArray(data) ? data : [];
+  return rows.map((r) => ({
+    id: String(r?.productId ?? r?.id ?? ""),
+    name: String(r?.name ?? ""),
+    price: Number(r?.priceInformation?.defaultPriceInRobux ?? r?.priceInRobux ?? r?.price ?? NaN),
+    forSale: r?.isForSale !== false,
+    ours: String(r?.description ?? "") === PRODUCT_DESCRIPTION,
+  })).filter((r) => r.id);
+}
+
+async function updateDevProduct(id: string, fields: { price?: number; name?: string; forSale?: boolean }): Promise<void> {
+  const universeId = await resolveUniverseId();
+  const form = new FormData();
+  if (fields.price !== undefined) form.append("price", String(Math.max(0, Math.round(fields.price))));
+  if (fields.name !== undefined) form.append("name", fields.name.slice(0, 100));
+  if (fields.forSale !== undefined) form.append("isForSale", fields.forSale ? "true" : "false");
+  const res = await fetch(`https://apis.roblox.com/developer-products/v2/universes/${universeId}/developer-products/${id}`, {
+    method: "PATCH",
+    headers: productHeaders(),
+    body: form,
+  });
+  if (!res.ok) throw new Error(`Roblox wouldn't update the product (HTTP ${res.status}): ${(await res.text()).slice(0, 200)}`);
+}
+
+async function createDevProduct(name: string, priceRobux: number): Promise<string> {
   const universeId = await resolveUniverseId();
   const form = new FormData();
   form.append("name", name.slice(0, 100));
-  form.append("description", "Oversite order payment");
+  form.append("description", PRODUCT_DESCRIPTION);
   form.append("isForSale", "true");
   form.append("price", String(Math.max(0, Math.round(priceRobux))));
   const res = await fetch(`https://apis.roblox.com/developer-products/v2/universes/${universeId}/developer-products`, {
     method: "POST",
-    headers: { "x-api-key": ROBLOX_API_KEY },
+    headers: productHeaders(),
     body: form,
   });
   if (!res.ok) throw new Error(`Roblox wouldn't create the product (HTTP ${res.status}): ${(await res.text()).slice(0, 200)}`);
@@ -253,6 +294,29 @@ async function createDevProduct(name: string, priceRobux: number): Promise<strin
   if (!id && typeof data?.path === "string") id = data.path.split("/").pop() ?? "";
   if (!id) throw new Error("Roblox returned no product id.");
   return id;
+}
+
+// A product with this name at this price, for sale. Reuses and re-prices
+// one we made earlier, so a discount or a price change shows up on the
+// existing product; steps aside with a suffix when the name belongs to a
+// product that is not ours.
+async function ensureDevProduct(order: OrderRow, priceRobux: number): Promise<string> {
+  const wanted = itemName(order);
+  const products = await listDevProducts();
+  const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+  const own = products.find((p) => p.ours && same(p.name, wanted));
+  if (own) {
+    if (own.price !== Math.round(priceRobux) || !own.forSale) await updateDevProduct(own.id, { price: priceRobux, forSale: true });
+    return own.id;
+  }
+  const taken = products.some((p) => same(p.name, wanted));
+  const name = taken ? `${wanted} ${order.id.slice(0, 8)}` : wanted;
+  try {
+    return await createDevProduct(name, priceRobux);
+  } catch (e) {
+    if (!String((e as Error)?.message ?? "").includes("DuplicateProductName")) throw e;
+    return await createDevProduct(`${wanted} ${order.id.slice(0, 8)} ${Date.now().toString(36)}`, priceRobux);
+  }
 }
 
 // ---------------- sales confirmation ----------------
@@ -417,14 +481,9 @@ async function loadOrder(orderId: string, userId: string): Promise<OrderRow> {
 
 const isPaid = (o: OrderRow) => Boolean(o.charged_at) || !["pending_payment", "payment_failed"].includes(o.status);
 
-// Roblox refuses two developer products with the same name in one
-// universe, so the name carries the order id and the price as well as the
-// bot name; the same bot name ordered twice, or re-priced, still gets its
-// own product.
-const itemName = (o: OrderRow, robux?: number) => {
-  const base = `Oversite order ${String(o.bot_name || "").trim() || o.id.slice(0, 8)}`;
-  return robux ? `${base} ${o.id.slice(0, 8)} R${robux}` : base;
-};
+// The product is named after the bot. Roblox refuses two products with the
+// same name in a universe, so ensureDevProduct reuses ours when one exists.
+const itemName = (o: OrderRow) => `Oversite ${String(o.bot_name || "").trim() || o.id.slice(0, 8)}`;
 
 function summary(o: OrderRow, profile?: Profile) {
   const kind = o.robux_item_kind ?? (o.robux_gamepass_id ? "gamepass" : null);
@@ -525,20 +584,9 @@ Deno.serve(async (req) => {
         await updateShirtPrice(itemId, robux, SHIRT_COLLECTIBLE_IDS[slot - 1] || undefined);
       } else {
         itemKind = "devproduct";
-        // Reuse the order's own product when it already exists at this price.
-        if (order.robux_item_kind === "devproduct" && order.robux_item_id && order.robux_amount === robux) {
-          itemId = order.robux_item_id;
-        } else {
-          try {
-            itemId = await createDevProduct(itemName(order, robux), robux);
-          } catch (e) {
-            // A product with this name already exists, from a build that
-            // named products by bot name alone. Try once more with a name
-            // no earlier product can have.
-            if (!String((e as Error)?.message ?? "").includes("DuplicateProductName")) throw e;
-            itemId = await createDevProduct(`${itemName(order, robux)} ${Date.now().toString(36)}`, robux);
-          }
-        }
+        // Always checked against Roblox, so the product carries the order's
+        // current price even if it was re-priced by hand in the meantime.
+        itemId = await ensureDevProduct(order, robux);
       }
 
       const now = new Date().toISOString();
