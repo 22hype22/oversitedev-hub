@@ -542,6 +542,12 @@ const PAY_REVEAL_CSS = `
 .os-pay-reveal>*:nth-child(3){animation-delay:80ms}
 .os-pay-reveal>*:nth-child(4){animation-delay:120ms}
 .os-pay-reveal>*:nth-child(5){animation-delay:160ms}
+.os-pswap-stack{position:relative;height:52px;min-width:150px}
+.os-pswap-v{position:absolute;right:0;top:0;white-space:nowrap;font-size:24px;line-height:32px;font-weight:700;letter-spacing:-.01em;color:rgb(var(--os-heading));transform-origin:100% 0;transition:transform 520ms cubic-bezier(.32,.72,0,1),color 320ms cubic-bezier(.23,1,.32,1)}
+.os-pswap-v.sec{transform:translateY(36px) scale(.5);color:rgb(var(--os-faint));font-weight:600}
+.os-pswap-lbl{position:absolute;left:0;top:0;white-space:nowrap;opacity:0;transform:translateY(4px);transition:opacity 260ms cubic-bezier(.23,1,.32,1),transform 360ms cubic-bezier(.32,.72,0,1)}
+.os-pswap-lbl.on{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.os-pswap-v,.os-pswap-lbl{transition:none}}
 .os-busy-sweep{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.16) 50%,transparent 100%);background-size:45% 100%;background-repeat:no-repeat;animation:os-sweep 1.3s cubic-bezier(0.45,0.05,0.55,0.95) infinite}
 @keyframes os-sweep{from{background-position:-60% 0}to{background-position:160% 0}}
 .os-check-draw{stroke-dasharray:22;stroke-dashoffset:22;animation:os-check 300ms cubic-bezier(0.23,1,0.32,1) 240ms forwards}
@@ -2103,28 +2109,47 @@ export function BotForge() {
             />
           )}
           <div className="rounded-2xl border border-os-accent/30 bg-gradient-to-br from-os-accent/10 via-os-surface/30 to-os-bg/40 backdrop-blur-sm p-5">
-            <div className="flex items-center justify-between">
-              <span className="font-label text-xs uppercase tracking-widest text-os-faint">
-                Estimated
-              </span>
-              <span className="text-2xl font-bold tracking-tight text-os-heading">
-                {(appliedDiscount || comped) && (
-                  <span className="text-base text-os-faint line-through font-normal mr-2">
-                    ${total.toFixed(2)}
-                  </span>
-                )}
-                ${(comped ? 0 : finalTotal).toFixed(2)}
-                <span className="text-xs text-os-faint font-normal"> one-time*</span>
-              </span>
-            </div>
-            {robuxAllowed && finalTotal > 0 && (
-              <div className="mt-1 flex items-center justify-between text-xs">
-                <span className="text-os-faint">{payMethod === "robux" ? "Paying with Robux" : "Or with Robux"}</span>
-                <span className={payMethod === "robux" ? "font-semibold text-os-heading" : "text-os-faint"}>
-                  {formatRobux(robuxFor(finalTotal))}
-                </span>
-              </div>
-            )}
+            {(() => {
+              const showRobux = robuxAllowed && finalTotal > 0;
+              const robuxFirst = showRobux && payMethod === "robux";
+              const usdValue = (
+                <>
+                  {(appliedDiscount || comped) && (
+                    <span className="text-base text-os-faint line-through font-normal mr-2">
+                      ${total.toFixed(2)}
+                    </span>
+                  )}
+                  ${(comped ? 0 : finalTotal).toFixed(2)}
+                  <span className="text-xs text-os-faint font-normal"> one-time*</span>
+                </>
+              );
+              if (!showRobux) {
+                return (
+                  <div className="flex items-center justify-between">
+                    <span className="font-label text-xs uppercase tracking-widest text-os-faint">Estimated</span>
+                    <span className="text-2xl font-bold tracking-tight text-os-heading">{usdValue}</span>
+                  </div>
+                );
+              }
+              // Both prices live in one stack. Whichever is being paid sits
+              // large on top; the other waits small underneath. Picking the
+              // other one swaps them, each sliding into the other's place.
+              return (
+                <div className="flex items-start justify-between os-pswap">
+                  <div className="flex flex-col justify-between self-stretch">
+                    <span className="font-label text-xs uppercase tracking-widest text-os-faint">Estimated</span>
+                    <span className="relative block h-4 text-xs text-os-faint">
+                      <span className={`os-pswap-lbl ${robuxFirst ? "" : "on"}`}>Or with Robux</span>
+                      <span className={`os-pswap-lbl ${robuxFirst ? "on" : ""}`}>Or in USD</span>
+                    </span>
+                  </div>
+                  <div className="os-pswap-stack">
+                    <span className={`os-pswap-v ${robuxFirst ? "sec" : "pri"}`}>{usdValue}</span>
+                    <span className={`os-pswap-v ${robuxFirst ? "pri" : "sec"}`}>{formatRobux(robuxFor(finalTotal))}</span>
+                  </div>
+                </div>
+              );
+            })()}
             {comped && (
               <div className="mt-1 flex items-center justify-between text-xs">
                 <span className="text-os-go font-medium">
@@ -2145,46 +2170,48 @@ export function BotForge() {
                 </span>
               </div>
             )}
-            {/* Managed hosting — always included. Pricing is tiered across the
-                user's account: $5/mo for bot 1, $5/mo for bot 2, 3rd bot free. */}
-            <div className="mt-4 w-full rounded-lg border border-os-accent/40 bg-os-accent/5 p-3 flex items-start gap-3">
-              <div className="h-5 w-5 rounded-md bg-os-accent border border-os-accent grid place-items-center shrink-0 mt-0.5">
-                <Check size={12} className="text-os-accent-ink" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <span className="text-sm font-medium text-os-heading">Managed hosting included</span>
-                  <span className="text-sm font-semibold text-os-heading">
+            {/* Managed hosting: only the Discord bases bill monthly, so the
+                panel only shows when one of them is in the order. */}
+            {monthlyBases.length > 0 && (
+              <div className="mt-4 w-full rounded-lg border border-os-accent/40 bg-os-accent/5 p-3 flex items-start gap-3">
+                <div className="h-5 w-5 rounded-md bg-os-accent border border-os-accent grid place-items-center shrink-0 mt-0.5">
+                  <Check size={12} className="text-os-accent-ink" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-os-heading">Managed hosting included</span>
+                    <span className="text-sm font-semibold text-os-heading">
+                      {hostingWaived ? (
+                        <>
+                          <span className="text-os-faint line-through font-normal mr-1.5">
+                            +${money(monthlyBases.length ? monthlyTotal : monthlyRate)}/month
+                          </span>
+                          <span className="text-os-go">waived</span>
+                        </>
+                      ) : (
+                        <>
+                          +${money(monthlyTotal)}<span className="text-xs text-os-faint font-normal">/month</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                  <p className="text-xs text-os-faint mt-1">
                     {hostingWaived ? (
-                      <>
-                        <span className="text-os-faint line-through font-normal mr-1.5">
-                          +${money(monthlyBases.length ? monthlyTotal : monthlyRate)}/month
-                        </span>
-                        <span className="text-os-go">waived</span>
-                      </>
+                      comped ? (
+                        <>We host and keep your bot online 24/7. Hosting is waived for this account.</>
+                      ) : (
+                        <>We host and keep your bot online 24/7. These bots include free hosting, so there's no monthly charge.</>
+                      )
                     ) : (
                       <>
-                        +${money(monthlyTotal)}<span className="text-xs text-os-faint font-normal">/month</span>
+                        We host and keep your bot online 24/7. <strong>Buy a 3rd bot and its
+                        hosting is free</strong>: 1 bot ${money(monthlyRate)}/mo, 2 bots ${money(monthlyRate * 2)}/mo, 3 bots still ${money(monthlyRate * 2)}/mo.
                       </>
                     )}
-                  </span>
+                  </p>
                 </div>
-                <p className="text-xs text-os-faint mt-1">
-                  {hostingWaived ? (
-                    comped ? (
-                      <>We host and keep your bot online 24/7. Hosting is waived for this account.</>
-                    ) : (
-                      <>We host and keep your bot online 24/7. These bots include free hosting, so there's no monthly charge.</>
-                    )
-                  ) : (
-                    <>
-                      We host and keep your bot online 24/7. <strong>Buy a 3rd bot and its
-                      hosting is free</strong>: 1 bot ${money(monthlyRate)}/mo, 2 bots ${money(monthlyRate * 2)}/mo, 3 bots still ${money(monthlyRate * 2)}/mo.
-                    </>
-                  )}
-                </p>
               </div>
-            </div>
+            )}
             {addons.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {addons.map((id) => {
