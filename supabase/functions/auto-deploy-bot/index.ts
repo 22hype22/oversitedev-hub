@@ -1062,7 +1062,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderErr } = await admin
       .from("bot_orders")
-      .select("id, user_id, bot_name, bot_description, bot_bio, icon_url, base, bot_token, addons, railway_service_id, status, deployment_status, deployment_attempted_at, discord_user_id, ready_dm_sent")
+      .select("id, user_id, bot_name, bot_description, bot_bio, icon_url, base, bot_token, addons, railway_service_id, status, deployment_status, deployment_attempted_at, discord_user_id, ready_dm_sent, total_amount, charged_at, paid_at")
       .eq("id", orderId)
       .maybeSingle();
 
@@ -1077,6 +1077,21 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+    }
+    // Nothing builds until the money has landed. Every path that reaches
+    // here is meant to have charged the card, matched the Robux sale, or
+    // comped the order, and each of those stamps charged_at or paid_at; an
+    // order that still owes anything stops here whoever asked.
+    if (order && Number(order.total_amount ?? 0) > 0 && !order.charged_at && !order.paid_at) {
+      console.error("[auto-deploy-bot] refused: payment not confirmed", { orderId, status: order.status });
+      await admin
+        .from("bot_orders")
+        .update({ deployment_status: "failed", deployment_error: "Payment not confirmed, build not started", updated_at: new Date().toISOString() })
+        .eq("id", orderId);
+      return new Response(JSON.stringify({ error: "Payment not confirmed, build not started" }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
     // A signed-in caller can only (re)deploy an order that has been paid for
     // or comped; the trigger path is reached only after payment already.

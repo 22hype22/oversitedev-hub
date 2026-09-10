@@ -2125,7 +2125,7 @@ export function BotForge() {
               if (!showRobux) {
                 return (
                   <div className="flex items-center justify-between">
-                    <span className="font-label text-xs uppercase tracking-widest text-os-faint">One-time estimate</span>
+                    <span className="font-label text-xs uppercase tracking-widest text-os-faint">One-time payment</span>
                     <span className="text-2xl font-bold tracking-tight text-os-heading">{usdValue}</span>
                   </div>
                 );
@@ -2136,7 +2136,7 @@ export function BotForge() {
               return (
                 <div className="flex items-start justify-between os-pswap">
                   <div className="relative self-stretch">
-                    <span className="block font-label text-xs uppercase tracking-widest leading-8 text-os-faint">One-time estimate</span>
+                    <span className="block font-label text-xs uppercase tracking-widest leading-8 text-os-faint">One-time payment</span>
                     <span className="absolute left-0 top-9 block h-4 text-xs leading-4 text-os-faint">
                       <span className={`os-pswap-lbl ${robuxFirst ? "" : "on"}`}>Or with Robux</span>
                       <span className={`os-pswap-lbl ${robuxFirst ? "on" : ""}`}>Or in USD</span>

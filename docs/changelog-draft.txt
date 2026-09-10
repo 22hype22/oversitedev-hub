@@ -125,3 +125,4 @@ Placing an order: the button's label fades, the disc slides to the middle and sp
 Linking a Roblox account on the Robux page works again; the function's preflight was missing a header the site sends.
 Builder: the two bot deal callout is gone, the identity note is text only, and the Preorder sale label is off the bot cards.
 Builder estimate: picking Robux swaps the Robux amount up into the big price and the dollars down underneath, with a slide. The hosting panel only shows for Protection, Support and Utilities.
+No bot can start building until its payment is confirmed: a database rule and the deploy function both refuse an unpaid order. The estimate label reads One-time payment.
