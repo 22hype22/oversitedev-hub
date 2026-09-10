@@ -10,7 +10,7 @@ const ITEMS = [
   { q: "Do I have to host anything myself?", a: "No. Every bot runs on Oversite's infrastructure. There's no VPS to rent, no process to keep alive, and no token to babysit. You connect your server and we run it." },
   { q: "How fast can I get set up?", a: "Minutes. Authorize the bots, choose what you want enabled, and our auto-deploy pipeline has you live in under sixty seconds, all from the dashboard." },
   { q: "Can my moderators and staff get access?", a: "Yes. Invite your staff, assign roles to control what they can touch, and every change is written to an audit log so nothing happens off the record." },
-  { q: "What happens if I cancel?", a: "Cancel anytime. Your bots keep running until the end of the billing period, and your configuration is preserved in case you come back." },
+  { q: "What happens if I cancel?", a: "Cancel anytime from your dashboard. Charges stop right away, you get a thirty-second undo, and then the bot is removed from your servers and its data is deleted. Cancel within fourteen days of buying and the refund is automatic." },
   { q: "Do my settings survive updates and restarts?", a: "Yes. Your configuration is saved and reloads automatically, so updates and restarts never wipe your setup. Everything stays exactly where you left it." },
   { q: "Do I have to use everything at once?", a: "No. Turn on only what your server needs and add the rest whenever you're ready. The platform scales with you, not the other way around." },
   { q: "Is my server's data kept separate from other customers?", a: "Yes. Every server's configuration and data is isolated, and access is permission-gated, so nothing you set up is visible to anyone outside your authorized team." },

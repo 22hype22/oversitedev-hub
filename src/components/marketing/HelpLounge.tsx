@@ -38,7 +38,7 @@ const TOPICS: Topic[] = [
     qs: [
       { q: "How much does it cost?", a: "You can run a single bot, mix two, or grab the All-in-One pack, so you only pay for what you need. For exact current pricing, open a ticket and the team will walk you through it.", k: "cost price pricing how much plans tiers" },
       { q: "Can I use just one bot?", a: "Yes. Turn on only what your server needs and add the rest whenever you're ready. The platform scales with you, not the other way around.", k: "one bot single only just everything modular" },
-      { q: "What happens if I cancel?", a: "Cancel anytime. Your bots keep running until the end of the billing period, and your configuration is preserved in case you come back.", k: "cancel refund billing stop subscription quit" },
+      { q: "What happens if I cancel?", a: "Cancel anytime from your dashboard. Charges stop right away, you get a thirty-second undo, and then the bot is removed and its data is deleted. Cancel within fourteen days of buying and the refund is automatic.", k: "cancel refund billing stop subscription quit" },
     ],
   },
   {
