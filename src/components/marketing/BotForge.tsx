@@ -2120,13 +2120,12 @@ export function BotForge() {
                     </span>
                   )}
                   ${(comped ? 0 : finalTotal).toFixed(2)}
-                  <span className="text-xs text-os-faint font-normal"> one-time*</span>
                 </>
               );
               if (!showRobux) {
                 return (
                   <div className="flex items-center justify-between">
-                    <span className="font-label text-xs uppercase tracking-widest text-os-faint">Estimated</span>
+                    <span className="font-label text-xs uppercase tracking-widest text-os-faint">One-time estimate</span>
                     <span className="text-2xl font-bold tracking-tight text-os-heading">{usdValue}</span>
                   </div>
                 );
@@ -2136,9 +2135,9 @@ export function BotForge() {
               // other one swaps them, each sliding into the other's place.
               return (
                 <div className="flex items-start justify-between os-pswap">
-                  <div className="flex flex-col justify-between self-stretch">
-                    <span className="font-label text-xs uppercase tracking-widest text-os-faint">Estimated</span>
-                    <span className="relative block h-4 text-xs text-os-faint">
+                  <div className="relative self-stretch">
+                    <span className="block font-label text-xs uppercase tracking-widest leading-8 text-os-faint">One-time estimate</span>
+                    <span className="absolute left-0 top-9 block h-4 text-xs leading-4 text-os-faint">
                       <span className={`os-pswap-lbl ${robuxFirst ? "" : "on"}`}>Or with Robux</span>
                       <span className={`os-pswap-lbl ${robuxFirst ? "on" : ""}`}>Or in USD</span>
                     </span>
@@ -2552,7 +2551,7 @@ export function BotForge() {
 
 
             <p className="text-[10px] text-os-faint mt-3 leading-relaxed">
-              *Final pricing depends on scope. We'll confirm everything before any work begins.
+              Final pricing depends on scope. We'll confirm everything before any work begins.
             </p>
           </div>
         </aside>
