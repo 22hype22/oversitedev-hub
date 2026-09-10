@@ -492,7 +492,7 @@ async function ensureDevProduct(order: OrderRow, priceRobux: number): Promise<st
 
 // ---------------- sales confirmation ----------------
 
-type Sale = { buyerId: string; itemId: string; itemType: string; amount: number; created: string };
+type Sale = { buyerId: string; itemId: string; itemType: string; name: string; universeId: string; amount: number; created: string };
 
 // The payment shirts can belong to a different group than the Payment
 // experience, and a shirt sale shows up in the shirt's group. Resolve that
@@ -527,28 +527,51 @@ async function recentSales(kind: string | null): Promise<Sale[]> {
     buyerId: String(r?.agent?.id ?? ""),
     itemId: String(r?.details?.id ?? ""),
     itemType: String(r?.details?.type ?? ""),
+    name: String(r?.details?.name ?? ""),
+    universeId: String(r?.details?.place?.universeId ?? ""),
     amount: Number(r?.currency?.amount ?? 0),
     created: String(r?.created ?? ""),
   }));
 }
 
-// Did this Roblox user buy this item in the last five minutes, and after the
-// order was set up? The sale has to be in the group's own transaction log;
-// nothing else counts, and the amount must match the order: a shirt slot can
-// be re-priced for the next order while an earlier buyer is still looking at
-// it, and a product's price can change with a discount.
+// Did this Roblox user buy this order's item? The sale has to be in the
+// group's own transaction log; nothing else counts.
+//
+// The log records what the group received, which is the price less Roblox's
+// 30 percent, rounded, so the amount is checked against that. A shirt slot
+// is shared and re-priced between orders, so a shirt sale must be recent:
+// within five minutes. A pass is made for one order and its log entry
+// carries the pass name and the experience rather than the pass id, so it
+// is matched on buyer, name and experience, any time after the order began.
 const SALE_WINDOW_MS = 5 * 60 * 1000;
+const amountMatches = (logged: number, price: number) => {
+  if (logged === price) return true;
+  const net = price * 0.7;
+  return logged >= Math.floor(net) - 1 && logged <= Math.ceil(net) + 1;
+};
 async function saleFound(o: OrderRow): Promise<boolean> {
   const buyer = String(o.roblox_user_id ?? "");
   const item = String(o.robux_item_id ?? o.robux_gamepass_id ?? "");
   if (!buyer || !item) return false;
-  const started = o.robux_started_at ? Date.parse(o.robux_started_at) - 60 * 1000 : 0;
-  const since = Math.max(started, Date.now() - SALE_WINDOW_MS);
-  const sales = await recentSales(o.robux_item_kind);
+  const price = Number(o.robux_amount ?? -1);
+  const kind = o.robux_item_kind ?? (o.robux_gamepass_id ? "gamepass" : null);
+  const sales = await recentSales(kind);
+  if (kind === "gamepass") {
+    const universes = new Set(await passUniverses());
+    const wanted = itemName(o).trim().toLowerCase();
+    const since = Date.parse(o.created_at ?? "") || 0;
+    return sales.some((s) =>
+      s.buyerId === buyer &&
+      (s.itemId === item || (s.itemType === "GamePass" && s.name.trim().toLowerCase() === wanted && universes.has(s.universeId))) &&
+      amountMatches(s.amount, price) &&
+      Boolean(s.created) && Date.parse(s.created) >= since,
+    );
+  }
+  const since = Date.now() - SALE_WINDOW_MS;
   return sales.some((s) =>
     s.buyerId === buyer &&
     s.itemId === item &&
-    s.amount === Number(o.robux_amount ?? -1) &&
+    amountMatches(s.amount, price) &&
     Boolean(s.created) && Date.parse(s.created) >= since,
   );
 }
@@ -618,6 +641,7 @@ type OrderRow = {
   bot_name: string | null;
   base: string | null;
   icon_url: string | null;
+  created_at: string | null;
   total_amount: number | null;
   discount_code: string | null;
   discount_amount: number | null;
@@ -634,7 +658,7 @@ type OrderRow = {
 };
 
 const ORDER_COLUMNS =
-  "id, user_id, parent_order_id, status, bot_name, base, icon_url, total_amount, discount_code, discount_amount, charged_at, payment_method, robux_gamepass_id, robux_amount, roblox_username, roblox_user_id, robux_item_kind, robux_item_id, robux_shirt_slot, updated_at";
+  "id, user_id, parent_order_id, status, bot_name, base, icon_url, created_at, total_amount, discount_code, discount_amount, charged_at, payment_method, robux_gamepass_id, robux_amount, roblox_username, roblox_user_id, robux_item_kind, robux_item_id, robux_shirt_slot, updated_at";
 
 async function loadOrder(orderId: string, userId: string): Promise<OrderRow> {
   const { data, error } = await admin.from("bot_orders").select(ORDER_COLUMNS).eq("id", orderId).maybeSingle();
