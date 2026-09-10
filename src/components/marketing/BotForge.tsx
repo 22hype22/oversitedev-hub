@@ -1167,9 +1167,11 @@ export function BotForge() {
 
   const finalTotal = Math.max(0, Number((total - discountAmount).toFixed(2)));
   // Paying in Robux: the card fields hide and the Robux note shows instead.
-  // A comped account never reaches the Robux checkout: its order is placed
-  // free whichever way it chose to pay.
-  const robuxSelected = payMethod === "robux" && robuxAllowed && finalTotal > 0 && !comped;
+  // A comped account that picks Robux still goes through the Robux checkout,
+  // for a token amount, so the flow is exercised for real.
+  const robuxSelected = payMethod === "robux" && robuxAllowed && (finalTotal > 0 || comped);
+  const COMPED_TEST_ROBUX = 1;
+  const robuxDue = comped ? COMPED_TEST_ROBUX : robuxFor(finalTotal);
   // What the customer picked, for the form: Robux picked means no card fields,
   // comped or not.
   const robuxPicked = payMethod === "robux" && robuxAllowed;
@@ -2153,7 +2155,7 @@ export function BotForge() {
                       {(appliedDiscount || comped) && (
                         <span className="text-base text-os-faint line-through font-normal mr-2">{formatRobux(robuxFor(total))}</span>
                       )}
-                      {comped ? "R$ 0" : formatRobux(robuxFor(finalTotal))}
+                      {formatRobux(robuxDue)}
                     </span>
                   </div>
                 </div>
@@ -2165,7 +2167,7 @@ export function BotForge() {
                   Comped account — 100% off
                 </span>
                 <span className="text-os-go font-medium">
-                  {robuxAllowed && payMethod === "robux" ? `−${formatRobux(robuxFor(total))}` : `−$${total.toFixed(2)}`}
+                  {robuxAllowed && payMethod === "robux" ? `−${formatRobux(robuxFor(total) - robuxDue)}` : `−$${total.toFixed(2)}`}
                 </span>
               </div>
             )}
@@ -2290,7 +2292,7 @@ export function BotForge() {
                     <div className="grid grid-cols-2 gap-2">
                       {([
                         { id: "card", label: "USD", sub: "Card through Stripe" },
-                        { id: "robux", label: "Robux", sub: comped ? "R$ 0 on Roblox" : `${formatRobux(robuxFor(finalTotal))} on Roblox` },
+                        { id: "robux", label: "Robux", sub: `${formatRobux(robuxDue)} on Roblox` },
                       ] as const).map((opt) => {
                         const active = payMethod === opt.id;
                         return (
@@ -2468,7 +2470,7 @@ export function BotForge() {
                     <CreditCard size={12} className="text-os-accent" />
                     How would you like to pay?
                   </div>
-                  {comped ? (
+                  {comped && !robuxSelected ? (
                     <div className="rounded-lg border border-os-go/40 bg-os-go/10 p-3">
                       <div className="text-xs font-medium text-os-go flex items-center gap-1.5">
                         <Check size={12} /> No payment required
@@ -2484,10 +2486,13 @@ export function BotForge() {
                     <div className="rounded-lg border border-os-accent/40 bg-os-accent/10 p-3">
                       <div className="text-xs font-medium text-os-heading flex items-center justify-between">
                         Pay in full with Robux
-                        <span className="text-os-accent">{formatRobux(robuxFor(finalTotal))}</span>
+                        <span className="text-os-accent">{formatRobux(robuxDue)}</span>
                       </div>
                       <div className="text-[10px] text-os-faint mt-1 leading-relaxed">
-                        ${finalTotal.toFixed(2)} plus 30 percent for Roblox's cut. After you place the
+                        {comped
+                          ? "This account is comped, so Roblox charges a token amount instead of the price."
+                          : `$${finalTotal.toFixed(2)} plus 30 percent for Roblox's cut.`}{" "}
+                        After you place the
                         order you sign in with Roblox, then buy a shirt from our group store on a Roblox
                         Select account or a product in our Payment experience on a standard account.
                         The order is paid the moment Roblox records the sale.
@@ -2538,16 +2543,10 @@ export function BotForge() {
               <>
                 <CheckoutButton
                   buttonRef={confirmBtnRef}
-                  label={
-                    comped
-                      ? "Place order"
-                      : payMethod === "robux" && robuxAllowed && finalTotal > 0
-                        ? "Go to Robux payment"
-                        : "Go to payment"
-                  }
+                  label={robuxSelected ? "Go to Robux payment" : comped ? "Place order" : "Go to payment"}
                   busy={submitting}
                   placed={!!goTo}
-                  busyLabel={comped ? "Placing order" : "Opening payment"}
+                  busyLabel={comped && !robuxSelected ? "Placing order" : "Opening payment"}
                   onClick={submit}
                 />
                 <BotStockIndicator className="mt-2" />

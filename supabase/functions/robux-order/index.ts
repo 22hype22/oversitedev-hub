@@ -46,6 +46,9 @@ const GAMEPASS_ITEM_TYPE = 1;
 // Fixed price rule. Keep in step with src/hooks/useRobuxCheckout.tsx.
 const ROBUX_PER_USD = 100;
 const ROBUX_MARKUP = 1.3;
+// What a comped account pays on Roblox: a token amount, at Roblox's minimum
+// for each item type, so the flow can still be tested end to end.
+const COMPED_TEST_ROBUX = { devproduct: 1, shirt: 5 } as const;
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
@@ -304,7 +307,21 @@ async function ensureDevProduct(order: OrderRow, priceRobux: number): Promise<st
   const wanted = itemName(order);
   const products = await listDevProducts();
   const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
-  const own = products.find((p) => p.ours && same(p.name, wanted));
+  let own = products.find((p) => p.ours && same(p.name, wanted));
+  if (own) {
+    // Another customer may be mid-purchase on this very product (same bot
+    // name); re-pricing it under them would break their checkout.
+    const { data: busy } = await admin
+      .from("bot_orders")
+      .select("id")
+      .eq("robux_item_id", own.id)
+      .neq("user_id", order.user_id)
+      .eq("status", "pending_payment")
+      .gt("updated_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
+      .limit(1)
+      .maybeSingle();
+    if (busy) own = undefined;
+  }
   if (own) {
     if (own.price !== Math.round(priceRobux) || !own.forSale) await updateDevProduct(own.id, { price: priceRobux, forSale: true });
     return own.id;
@@ -566,12 +583,6 @@ Deno.serve(async (req) => {
 
     if (action === "start") {
       if (!settings.enabled) return json({ error: "Robux checkout is turned off right now." }, 400);
-      // A comped account owes nothing; it must not be sent to buy anything.
-      const email = String(user.email ?? "").toLowerCase();
-      if (email) {
-        const { data: comp } = await admin.from("comped_emails").select("id").ilike("email", email).limit(1).maybeSingle();
-        if (comp) return json({ error: "This account is comped, so there is nothing to pay. Go back and place the order; it is free.", comped: true }, 400);
-      }
       if (!ROBLOX_COOKIE) return json({ error: "Robux checkout isn't configured on the server yet." }, 500);
       if (isPaid(order)) return json({ ok: true, ...summary(order, profile) });
       if (!profile.roblox_user_id || !profile.roblox_username) {
@@ -579,9 +590,25 @@ Deno.serve(async (req) => {
       }
       const kind = body.kind === "select" ? "select" : body.kind === "standard" ? "standard" : "";
       if (!kind) return json({ error: "Say whether this is a Roblox Select account." }, 400);
-      const total = Number(order.total_amount ?? 0);
-      if (!(total > 0)) return json({ error: "This order has nothing to pay." }, 400);
-      const robux = robuxFor(total);
+
+      // A comped account owes nothing, but still pays a token amount in
+      // Robux so the whole flow can be exercised for real. The order is
+      // marked comped the same way a comped card order is.
+      const email = String(user.email ?? "").toLowerCase();
+      const { data: comp } = email
+        ? await admin.from("comped_emails").select("id").ilike("email", email).limit(1).maybeSingle()
+        : { data: null };
+      const compedAccount = Boolean(comp);
+      const total = compedAccount ? 0 : Number(order.total_amount ?? 0);
+      if (!compedAccount && !(total > 0)) return json({ error: "This order has nothing to pay." }, 400);
+      const robux = compedAccount ? COMPED_TEST_ROBUX[kind === "select" ? "shirt" : "devproduct"] : robuxFor(total);
+      if (compedAccount && order.discount_code !== "COMP") {
+        const listed = Number(order.total_amount ?? 0) + Number(order.discount_amount ?? 0);
+        await admin.from("bot_orders")
+          .update({ total_amount: 0, discount_code: "COMP", discount_amount: listed, updated_at: new Date().toISOString() })
+          .eq("id", order.id);
+        order.total_amount = 0; order.discount_code = "COMP"; order.discount_amount = listed;
+      }
 
       // Remember the answer for next time.
       await admin.from("profiles").update({ roblox_account_kind: kind }).eq("user_id", user.id);
