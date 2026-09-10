@@ -2144,7 +2144,12 @@ export function BotForge() {
                   </div>
                   <div className="os-pswap-stack">
                     <span className={`os-pswap-v ${robuxFirst ? "sec" : "pri"}`}>{usdValue}</span>
-                    <span className={`os-pswap-v ${robuxFirst ? "pri" : "sec"}`}>{comped ? "R$ 0" : formatRobux(robuxFor(finalTotal))}</span>
+                    <span className={`os-pswap-v ${robuxFirst ? "pri" : "sec"}`}>
+                      {(appliedDiscount || comped) && (
+                        <span className="text-base text-os-faint line-through font-normal mr-2">{formatRobux(robuxFor(total))}</span>
+                      )}
+                      {comped ? "R$ 0" : formatRobux(robuxFor(finalTotal))}
+                    </span>
                   </div>
                 </div>
               );
@@ -2155,7 +2160,7 @@ export function BotForge() {
                   Comped account — 100% off
                 </span>
                 <span className="text-os-go font-medium">
-                  −${total.toFixed(2)}
+                  {robuxAllowed && payMethod === "robux" ? `−${formatRobux(robuxFor(total))}` : `−$${total.toFixed(2)}`}
                 </span>
               </div>
             )}
@@ -2165,7 +2170,9 @@ export function BotForge() {
                   Code {appliedDiscount.code} applied
                 </span>
                 <span className="text-os-go font-medium">
-                  −${discountAmount.toFixed(2)}
+                  {robuxAllowed && payMethod === "robux"
+                    ? `−${formatRobux(Math.max(0, robuxFor(total) - robuxFor(finalTotal)))}`
+                    : `−$${discountAmount.toFixed(2)}`}
                 </span>
               </div>
             )}
