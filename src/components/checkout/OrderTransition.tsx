@@ -69,20 +69,21 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){.otr.wash .otr-wash,.otr.settle .otr-wash,.otr.settle .otr-ground{transition:none}.otr.settle .otr-ui>*{animation:none}}
 
 .otk{--go:#34D399;--go-rgb:52 211 153;--heading:#E8EEF3;--faint:#788591;--hair:rgba(86,98,110,.55);--ease:cubic-bezier(.32,.72,0,1);font-family:'Space Grotesk',system-ui,sans-serif;padding:0 30px}
-.otk-rail{position:relative;height:12px;container-type:inline-size}
-.otk-rail .track{position:absolute;left:6px;right:6px;top:5px;height:2px;border-radius:2px;background:var(--hair)}
-.otk-rail .fill{position:absolute;left:6px;width:calc(100% - 12px);top:5px;height:2px;border-radius:2px;background:linear-gradient(90deg,rgb(var(--go-rgb)/.55),var(--go));transform-origin:left center;transform:scaleX(var(--f,0));transition:transform 900ms var(--ease)}
-.otk-rail .node{position:absolute;top:0;width:12px;height:12px;border-radius:50%;background:var(--hair);transform:translateX(-50%);transition:background 300ms var(--ease) 500ms}
-.otk-rail .node.lit{background:var(--go)}
-.otk-rail .marker{position:absolute;top:0;left:0;width:12px;height:12px;border-radius:50%;background:var(--go);box-shadow:0 0 0 4px rgb(var(--go-rgb)/.18),0 0 16px rgb(var(--go-rgb)/.55);transform:translateX(calc((100cqw - 12px) * var(--f,0)));transition:transform 900ms var(--ease)}
-.otk-rail .marker::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:1.5px solid rgb(var(--go-rgb)/.55);animation:otk-ping 1.6s var(--ease) infinite}
-.otk.done .marker::after{animation:none;opacity:0}
+.otk-rail{position:relative;height:12px}
+.otk-rail .seg{position:absolute;top:5px;height:2px;border-radius:2px;background:var(--hair);overflow:hidden}
+.otk-rail .seg .fill{position:absolute;inset:0;border-radius:2px;background:var(--go);transform-origin:left center;transform:scaleX(0);transition:transform 700ms var(--ease)}
+.otk-rail .seg.done .fill{transform:scaleX(1)}
+.otk-rail .seg.progress .fill{background:linear-gradient(90deg,var(--go),rgb(var(--go-rgb)/.55));animation:otk-progress var(--expect,60s) cubic-bezier(.18,.7,.3,1) forwards}
+@keyframes otk-progress{from{transform:scaleX(0)}to{transform:scaleX(.92)}}
+.otk-rail .node{position:absolute;top:0;width:12px;height:12px;border-radius:50%;background:var(--hair);transform:translateX(-50%);transition:background 400ms var(--ease),box-shadow 400ms var(--ease)}
+.otk-rail .node.done{background:var(--go)}
+.otk-rail .node.now{background:var(--go);box-shadow:0 0 0 4px rgb(var(--go-rgb)/.18),0 0 14px rgb(var(--go-rgb)/.5)}
+.otk-rail .node.now::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:1.5px solid rgb(var(--go-rgb)/.55);animation:otk-ping 1.6s var(--ease) infinite}
 @keyframes otk-ping{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.6);opacity:0}}
 .otk-labels{position:relative;height:16px;margin-top:10px;font-size:12.5px;line-height:16px;color:var(--faint)}
 .otk-labels span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap;transition:color 300ms var(--ease)}
-.otk-labels .on{color:var(--heading);font-weight:600}
-.otk-labels .soon{color:var(--go)}
-@media (prefers-reduced-motion:reduce){.otk-rail .fill,.otk-rail .marker,.otk-rail .node{transition:none}.otk-rail .marker::after{animation:none}}
+.otk-labels .now{color:var(--heading);font-weight:600}
+@media (prefers-reduced-motion:reduce){.otk-rail .seg .fill,.otk-rail .node{transition:none}.otk-rail .seg.progress .fill{animation:none;transform:scaleX(.5)}.otk-rail .node.now::after{animation:none}}
 `;
 
 export type OrderTransitionProps = {
@@ -198,27 +199,32 @@ export function OrderTransition({
 
 export type OrderStep = "placed" | "building" | "live";
 
-/** Placed / Building / Live, as one rail. A single lit marker sits on the
- *  current step and travels to the next one when the order moves on, the
- *  line filling in behind it. Labels sit directly under their dots. */
-export function OrderTracker({ step, className }: { step: OrderStep; className?: string }) {
+/** Placed / Building / Live. The step in progress has the pulsing green dot
+ *  and the white label; finished steps are solid green with a green line
+ *  behind them; steps still to come stay grey. While the bot is building,
+ *  the line to Live fills over the time a build usually takes and holds
+ *  just short of the end until the bot is really online. */
+export function OrderTracker({ step, className, expectSeconds = 60 }: { step: OrderStep; className?: string; expectSeconds?: number }) {
   const idx = step === "placed" ? 0 : step === "building" ? 1 : 2;
   const at = ["6px", "50%", "calc(100% - 6px)"];
   const names = ["Placed", "Building", "Live"];
+  const node = (i: number) => (i < idx ? "done" : i === idx ? "now" : "");
+  // Segment i runs from step i to step i + 1. It is done once step i + 1 is
+  // reached, and fills toward Live while the bot is building.
+  const seg = (i: number) => (i + 1 <= idx ? "done" : i === 1 && idx === 1 ? "progress" : "");
   return (
-    <div className={`otk ${idx === 2 ? "done" : ""} ${className ?? ""}`} style={{ "--f": idx / 2 } as React.CSSProperties} aria-label={`Order progress: ${step}`}>
+    <div className={`otk ${className ?? ""}`} style={{ "--expect": `${expectSeconds}s` } as React.CSSProperties} aria-label={`Order progress: ${step}`}>
       <style>{CSS}</style>
       <div className="otk-rail" aria-hidden>
-        <span className="track" />
-        <span className="fill" />
+        <span className={`seg ${seg(0)}`} style={{ left: "6px", width: "calc(50% - 6px)" }}><span className="fill" /></span>
+        <span className={`seg ${seg(1)}`} style={{ left: "50%", width: "calc(50% - 6px)" }}><span className="fill" /></span>
         {at.map((left, i) => (
-          <span key={i} className={`node ${idx >= i ? "lit" : ""}`} style={{ left }} />
+          <span key={i} className={`node ${node(i)}`} style={{ left }} />
         ))}
-        <span className="marker" />
       </div>
       <div className="otk-labels">
         {names.map((n, i) => (
-          <span key={n} className={i <= idx ? "on" : i === idx + 1 ? "soon" : ""} style={{ left: at[i] }}>
+          <span key={n} className={i === idx ? "now" : ""} style={{ left: at[i] }}>
             {n}
           </span>
         ))}
