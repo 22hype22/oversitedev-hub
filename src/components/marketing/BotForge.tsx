@@ -28,7 +28,6 @@ import {
   Shield,
   LifeBuoy,
   Wrench,
-  Sparkles,
   Palette,
   BarChart3,
   Globe,
@@ -1595,23 +1594,8 @@ export function BotForge() {
       <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: configurator */}
         <div className="lg:col-span-2 space-y-8">
-          {/* Two-bot deal callout */}
-          <div className="rounded-xl border border-os-accent/30 bg-gradient-to-r from-os-accent/10 via-os-accent/5 to-transparent p-3 flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-os-accent/15 border border-os-accent/30 grid place-items-center shrink-0">
-              <Sparkles size={16} className="text-os-accent" />
-            </div>
-            <div className="text-xs sm:text-sm font-body">
-              <span className="font-semibold text-os-heading">
-                Any two bots = ${money((pricedBase("protection")?.price ?? 99) + 50)} one-time.
-              </span>{" "}
-              <span className="text-os-faint">Mix and match protection, support, or utilities. Same price no matter which two.</span>
-            </div>
-          </div>
           {/* Identity callout */}
-          <div className="rounded-xl border border-os-accent/30 bg-gradient-to-r from-os-accent/10 via-os-accent/5 to-transparent p-3 flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-os-accent/15 border border-os-accent/30 grid place-items-center shrink-0">
-              <Palette size={16} className="text-os-accent" />
-            </div>
+          <div className="rounded-xl border border-os-accent/30 bg-gradient-to-r from-os-accent/10 via-os-accent/5 to-transparent px-4 py-3">
             <div className="text-xs sm:text-sm font-body">
               <span className="font-semibold text-os-heading">Every bot is yours to shape.</span>{" "}
               <span className="text-os-faint">Name, icon, banner, bio, and status are all yours to set, and you can change any of them whenever you like. Changes go live right away.</span>
