@@ -201,13 +201,22 @@ async function updateShirtPrice(assetId: string, priceRobux: number, collectible
 
 // The payment shirts are shared by every Robux checkout. Hand out the one
 // that has been idle longest, so two buyers in the same minute never share.
-async function nextShirtSlot(): Promise<number> {
+// A shirt the buyer already owns cannot be bought again, so only shirts they
+// do not own are handed out. Someone who owns every one is sent to a ticket.
+async function nextShirtSlot(buyerId: number): Promise<number> {
   if (SHIRT_IDS.length === 0) throw new Error("No payment shirts are configured yet (ROBLOX_SHIRT_IDS).");
+  const owned = await Promise.all(SHIRT_IDS.map((id) => ownsItem(buyerId, "Asset", id)));
+  const open = SHIRT_IDS.map((_, i) => i + 1).filter((slot) => owned[slot - 1] !== true);
+  if (open.length === 0) {
+    throw new Error(
+      "Your Roblox account already owns every one of our payment shirts, so Roblox will not sell you another. Open a ticket in our Discord, in #dashboard press Need assistance, and we will take your order by hand.",
+    );
+  }
   const { data } = await admin.from("app_settings").select("robux_shirt_slots").eq("id", 1).maybeSingle();
   const used = ((data as any)?.robux_shirt_slots ?? {}) as Record<string, string>;
-  let best = 1;
+  let best = open[0];
   let bestAt = Number.POSITIVE_INFINITY;
-  for (let slot = 1; slot <= SHIRT_IDS.length; slot++) {
+  for (const slot of open) {
     const at = used[String(slot)] ? Date.parse(used[String(slot)]) : 0;
     if (at < bestAt) {
       best = slot;
@@ -288,20 +297,24 @@ async function recentSales(kind: string | null): Promise<Sale[]> {
   }));
 }
 
-// Did this Roblox user buy this item since the order was set up? The amount
-// must match for shirts, because a shirt slot can be re-priced for the next
-// order while an earlier buyer is still looking at it.
+// Did this Roblox user buy this item in the last five minutes, and after the
+// order was set up? The sale has to be in the group's own transaction log;
+// nothing else counts. The amount must match for shirts, because a shirt
+// slot can be re-priced for the next order while an earlier buyer is still
+// looking at it.
+const SALE_WINDOW_MS = 5 * 60 * 1000;
 async function saleFound(o: OrderRow): Promise<boolean> {
   const buyer = String(o.roblox_user_id ?? "");
   const item = String(o.robux_item_id ?? "");
   if (!buyer || !item) return false;
-  const since = o.robux_started_at ? Date.parse(o.robux_started_at) - 5 * 60 * 1000 : 0;
+  const started = o.robux_started_at ? Date.parse(o.robux_started_at) - 60 * 1000 : 0;
+  const since = Math.max(started, Date.now() - SALE_WINDOW_MS);
   const sales = await recentSales(o.robux_item_kind);
   return sales.some((s) =>
     s.buyerId === buyer &&
     s.itemId === item &&
     (o.robux_item_kind !== "shirt" || s.amount === Number(o.robux_amount ?? -1)) &&
-    (!s.created || Date.parse(s.created) >= since),
+    Boolean(s.created) && Date.parse(s.created) >= since,
   );
 }
 
@@ -500,7 +513,7 @@ Deno.serve(async (req) => {
       let slot: number | null = null;
       if (kind === "select") {
         itemKind = "shirt";
-        slot = await nextShirtSlot();
+        slot = await nextShirtSlot(Number(profile.roblox_user_id));
         itemId = SHIRT_IDS[slot - 1];
         await updateShirtPrice(itemId, robux, SHIRT_COLLECTIBLE_IDS[slot - 1] || undefined);
       } else {
@@ -547,15 +560,12 @@ Deno.serve(async (req) => {
         confirmed = (await ownsItem(Number(order.roblox_user_id), GAMEPASS_ITEM_TYPE, String(order.robux_gamepass_id))) === true;
       } else {
         confirmed = await saleFound(order);
-        if (!confirmed && kind === "shirt" && order.robux_item_id) {
-          confirmed = (await ownsItem(Number(order.roblox_user_id), "Asset", order.robux_item_id)) === true;
-        }
       }
       if (!confirmed) {
         return json({
           ok: true,
           success: false,
-          error: "We couldn't find your purchase yet. If you just bought it, wait about 30 seconds and try again.",
+          error: "We couldn't find a purchase on your account in the last five minutes. If you just bought it, give Roblox about 30 seconds and try again. If you bought it earlier, open a ticket in our Discord and we will match it by hand.",
         });
       }
 
