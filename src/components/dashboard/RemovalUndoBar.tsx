@@ -28,7 +28,7 @@ type Props = {
 };
 
 const CSS = `
-.osd .undo-stack{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:160;width:min(520px,calc(100vw - 24px));display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.osd .undo-stack{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:160;width:min(520px,calc(100vw - 24px));display:flex;flex-direction:column;gap:8px;pointer-events:none}
 .osd .undo{pointer-events:auto;display:flex;align-items:center;gap:12px;padding:10px 8px 10px 12px;border-radius:14px;background:var(--panel);border:1px solid var(--hair);box-shadow:0 22px 50px -22px rgba(0,0,0,.85);animation:undo-in .36s cubic-bezier(.22,1,.36,1)}
 @keyframes undo-in{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
 .osd .undo .ic{height:34px;width:34px;flex:none;border-radius:10px;overflow:hidden;display:grid;place-items:center;background:linear-gradient(135deg,var(--surface2),var(--surface));color:var(--accent)}

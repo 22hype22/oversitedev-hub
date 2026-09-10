@@ -44,7 +44,7 @@ export function consumeOrderHandoff(): boolean {
 
 const CSS = `
 .otr{--go:#34D399;--go-rgb:52 211 153;--bad:#E08A8A;--bad-rgb:224 138 138;--heading:#E8EEF3;--body:#A8B4BF;--faint:#788591;--hair:rgba(86,98,110,.55);--bg:#21272e;--ink:#1E242B;--ease:cubic-bezier(.23,1,.32,1);--display:'Bricolage Grotesque',system-ui,sans-serif;--sans:'Space Grotesk',system-ui,sans-serif;position:fixed;inset:0;z-index:130;font-family:var(--sans);color:var(--body);display:grid;place-items:center;padding:24px;overflow:hidden}
-.otr-wash{position:absolute;inset:0;clip-path:circle(0px at var(--ox,50%) var(--oy,60%));opacity:0}
+.otr-wash{position:absolute;inset:0;clip-path:circle(var(--sr,0px) at var(--ox,50%) var(--oy,60%));opacity:0}
 .otr.go .otr-wash{background:linear-gradient(180deg,#34D399,#2DBD87)}
 .otr.fail .otr-wash{background:linear-gradient(180deg,#E08A8A,#CF7878)}
 .otr.wash .otr-wash,.otr.settle .otr-wash{opacity:1;clip-path:circle(var(--or,120%) at var(--ox,50%) var(--oy,60%));transition:clip-path 640ms cubic-bezier(.32,.72,0,1),opacity 0s}
@@ -97,6 +97,11 @@ export type OrderTransitionProps = {
   /** Where the fill grows from, in viewport pixels. Usually the button that
    *  was pressed. Defaults to just below the centre of the screen. */
   origin?: { x: number; y: number } | null;
+  /** Radius the fill starts at, in pixels: the size of the disc it grows out
+   *  of. Defaults to a point. */
+  startRadius?: number;
+  /** Wait this long before growing, so the disc's own move reads first. */
+  delayMs?: number;
   /** "go" only: called once the screen is fully green. Navigate here. */
   onFilled?: () => void;
   /** "fail" only. */
@@ -118,6 +123,8 @@ export function OrderTransition({
   tone,
   active,
   origin,
+  startRadius = 0,
+  delayMs = 0,
   onFilled,
   title = "Transaction incomplete",
   reason,
@@ -129,12 +136,12 @@ export function OrderTransition({
 
   useEffect(() => {
     if (!active) return;
-    setStage("wash");
     const timers: number[] = [];
+    timers.push(window.setTimeout(() => setStage("wash"), delayMs));
     if (tone === "go") {
-      timers.push(window.setTimeout(() => onFilled?.(), 760));
+      timers.push(window.setTimeout(() => onFilled?.(), delayMs + 760));
     } else {
-      timers.push(window.setTimeout(() => setStage("settle"), 900));
+      timers.push(window.setTimeout(() => setStage("settle"), delayMs + 900));
     }
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -143,7 +150,7 @@ export function OrderTransition({
   if (!active) return null;
 
   // Radius that reaches the farthest screen corner from the origin.
-  const vars: Record<string, string> = {};
+  const vars: Record<string, string> = { "--sr": `${Math.max(0, startRadius)}px` };
   if (origin && typeof window !== "undefined") {
     const w = window.innerWidth;
     const h = window.innerHeight;
