@@ -119,3 +119,4 @@ The support assistant now knows the full product: every bot's features and comma
 Billing now shows each bot's real monthly hosting price instead of a flat 5.
 The support assistant now carries the team's own answers: support hours and the Need assistance button, discounts, custom work pricing, which bot to pick, refunds and credits, payment plan due dates, setup fixes, and how to reach a person.
 Setup steps you mark finished stay marked after a hard refresh.
+Robux checkout is fully live for both account kinds: shirt sales are checked in the shirt's own group and developer product sales in the Payment experience's group.

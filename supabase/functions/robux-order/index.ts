@@ -245,8 +245,28 @@ async function createDevProduct(name: string, priceRobux: number): Promise<strin
 
 type Sale = { buyerId: string; itemId: string; itemType: string; amount: number; created: string };
 
-async function recentSales(): Promise<Sale[]> {
-  const groupId = await resolveGroupId();
+// The payment shirts can belong to a different group than the Payment
+// experience, and a shirt sale shows up in the shirt's group. Resolve that
+// group from the first shirt once, or take it from ROBLOX_SHIRT_GROUP_ID.
+let cachedShirtGroupId: string | null = null;
+async function resolveShirtGroupId(): Promise<string> {
+  const fromEnv = Deno.env.get("ROBLOX_SHIRT_GROUP_ID") ?? "";
+  if (fromEnv) return fromEnv;
+  if (cachedShirtGroupId) return cachedShirtGroupId;
+  if (SHIRT_IDS.length === 0) return resolveGroupId();
+  const res = await fetch(`https://economy.roblox.com/v2/assets/${SHIRT_IDS[0]}/details`);
+  if (!res.ok) return resolveGroupId();
+  const d = await res.json();
+  const creator = d?.Creator;
+  if (creator?.CreatorType === "Group" && creator?.CreatorTargetId) {
+    cachedShirtGroupId = String(creator.CreatorTargetId);
+    return cachedShirtGroupId;
+  }
+  return resolveGroupId();
+}
+
+async function recentSales(kind: string | null): Promise<Sale[]> {
+  const groupId = kind === "shirt" ? await resolveShirtGroupId() : await resolveGroupId();
   const res = await fetch(
     `https://economy.roblox.com/v2/groups/${groupId}/transactions?transactionType=Sale&limit=100&sortOrder=Desc`,
     { headers: cookieHeaders() },
@@ -271,7 +291,7 @@ async function saleFound(o: OrderRow): Promise<boolean> {
   const item = String(o.robux_item_id ?? "");
   if (!buyer || !item) return false;
   const since = o.robux_started_at ? Date.parse(o.robux_started_at) - 5 * 60 * 1000 : 0;
-  const sales = await recentSales();
+  const sales = await recentSales(o.robux_item_kind);
   return sales.some((s) =>
     s.buyerId === buyer &&
     s.itemId === item &&
