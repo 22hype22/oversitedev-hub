@@ -64,7 +64,7 @@ export const Footer = () => {
           <div>
             <h4 className="text-sm font-semibold mb-3">Legal</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link to="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link></li>
+              <li><Link to="/legal/terms-of-use" className="hover:text-foreground transition-colors">Terms of Service</Link></li>
             </ul>
           </div>
         </div>
@@ -72,7 +72,7 @@ export const Footer = () => {
         <div className="mt-12 pt-6 border-t border-border flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
           <div>© {year} Oversite. All rights reserved.</div>
           <div className="flex items-center gap-4">
-            <Link to="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
+            <Link to="/legal/terms-of-use" className="hover:text-foreground transition-colors">Terms of Service</Link>
             <span>Instant delivery on every order</span>
           </div>
         </div>

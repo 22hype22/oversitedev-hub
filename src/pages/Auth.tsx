@@ -704,9 +704,9 @@ const Auth = () => {
               {mode === "signup" && (
                 <p className="text-[11px] leading-relaxed text-os-faint">
                   By creating an account you agree to Oversite's{" "}
-                  <a href="/terms#terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-os-heading">Terms of Use</a>{" "}
+                  <a href="/legal/terms-of-use" target="_blank" rel="noopener noreferrer" className="underline hover:text-os-heading">Terms of Use</a>{" "}
                   and{" "}
-                  <a href="/terms#privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-os-heading">Privacy Policy</a>.
+                  <a href="/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="underline hover:text-os-heading">Privacy Policy</a>.
                 </p>
               )}
             </form>
