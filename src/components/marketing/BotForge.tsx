@@ -1170,6 +1170,9 @@ export function BotForge() {
   // A comped account never reaches the Robux checkout: its order is placed
   // free whichever way it chose to pay.
   const robuxSelected = payMethod === "robux" && robuxAllowed && finalTotal > 0 && !comped;
+  // What the customer picked, for the form: Robux picked means no card fields,
+  // comped or not.
+  const robuxPicked = payMethod === "robux" && robuxAllowed;
 
   const applyDiscount = async () => {
     const code = discountCodeInput.trim().toUpperCase();
@@ -2262,7 +2265,7 @@ export function BotForge() {
                     <LockIcon size={12} className="text-os-accent" />
                     <span>
                       Secure payment details with{" "}
-                      {robuxSelected ? (
+                      {robuxPicked ? (
                         <a
                           href="https://en.help.roblox.com/hc/en-us/articles/115004647846"
                           target="_blank"
@@ -2311,7 +2314,7 @@ export function BotForge() {
                       })}
                     </div>
                   )}
-                  {!robuxSelected && (
+                  {!robuxPicked && (
                   <>
                   <div className="grid grid-cols-1 gap-2">
                     <input
