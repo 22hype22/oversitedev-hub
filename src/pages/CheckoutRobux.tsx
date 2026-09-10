@@ -30,6 +30,7 @@ const OSSYS_CSS = `
 .ossys-link{color:var(--os-faint);font-size:12px;background:none;border:0;cursor:pointer;text-decoration:underline;display:block;margin:14px auto 0}
 .ossys-acct{display:flex;align-items:center;gap:12px;border:1px solid var(--os-hair);border-radius:12px;background:rgba(232,238,243,.045);padding:12px 14px;margin-bottom:16px}
 .ossys-acct img{width:40px;height:40px;border-radius:10px;background:rgba(18,22,27,.5);flex:none}
+.ossys-acct-tile{width:40px;height:40px;border-radius:10px;flex:none;display:grid;place-items:center;background:rgba(201,219,230,.14);border:1px solid rgba(201,219,230,.25);color:var(--os-accent);font-weight:800;font-size:16px}
 .ossys-acct .n{color:var(--os-heading);font-weight:700;font-size:14px}
 .ossys-acct .s{font-size:12px;color:var(--os-faint);margin-top:2px}
 .ossys-kind{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
@@ -57,7 +58,7 @@ type Summary = {
   itemName: string | null;
   robloxUsername: string | null;
   enabled?: boolean;
-  linked?: { robloxUserId: number | null; robloxUsername: string | null; accountKind: AccountKind | null };
+  linked?: { robloxUserId: number | null; robloxUsername: string | null; robloxAvatarUrl?: string | null; accountKind: AccountKind | null };
 };
 
 type Step = "loading" | "link" | "kind" | "purchase" | "done" | "error";
@@ -83,8 +84,14 @@ async function callRobux(action: string, orderId: string, extra: Record<string, 
   return data as Summary & { ok?: boolean; success?: boolean };
 }
 
-const headshot = (robloxUserId: number) =>
-  `https://www.roblox.com/headshot-thumbnail/image?userId=${robloxUserId}&width=150&height=150&format=png`;
+// The linked account's headshot, as the server looked it up. If Roblox has
+// none, a tile with the first letter stands in.
+function Headshot({ url, username }: { url: string | null | undefined; username: string }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [url]);
+  if (url && !failed) return <img src={url} alt="" onError={() => setFailed(true)} />;
+  return <span className="ossys-acct-tile" aria-hidden>{(username || "?").slice(0, 1).toUpperCase()}</span>;
+}
 
 export default function CheckoutRobux() {
   const [params] = useSearchParams();
@@ -249,7 +256,7 @@ export default function CheckoutRobux() {
 
   const accountCard = linked ? (
     <div className="ossys-acct">
-      <img src={headshot(linked.robloxUserId as number)} alt="" />
+      <Headshot url={linked.robloxAvatarUrl} username={linked.robloxUsername ?? ""} />
       <div>
         <div className="n">{linked.robloxUsername}</div>
         <div className="s">Linked Roblox account</div>

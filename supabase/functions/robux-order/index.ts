@@ -315,6 +315,22 @@ async function loadSettings(): Promise<{ enabled: boolean }> {
 
 type Profile = { roblox_user_id: number | null; roblox_username: string | null; roblox_account_kind: string | null };
 
+// The linked account's headshot, looked up once per user through Roblox's
+// thumbnails API. Browsers cannot call it directly, so the page gets the
+// image address from us.
+const headshots = new Map<number, string | null>();
+async function warmHeadshot(userId: number | null): Promise<void> {
+  if (!userId || headshots.has(userId)) return;
+  try {
+    const res = await fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=false`);
+    const d = res.ok ? await res.json() : null;
+    const url = d?.data?.[0]?.imageUrl;
+    headshots.set(userId, typeof url === "string" && url ? url : null);
+  } catch {
+    headshots.set(userId, null);
+  }
+}
+
 async function loadProfile(userId: string): Promise<Profile> {
   const { data, error } = await admin
     .from("profiles")
@@ -416,6 +432,7 @@ function summary(o: OrderRow, profile?: Profile) {
       ? {
           robloxUserId: profile.roblox_user_id,
           robloxUsername: profile.roblox_username,
+          robloxAvatarUrl: profile.roblox_user_id ? headshots.get(profile.roblox_user_id) ?? null : null,
           accountKind: profile.roblox_account_kind,
         }
       : undefined,
@@ -448,6 +465,7 @@ Deno.serve(async (req) => {
     const settings = await loadSettings();
     const order = await loadOrder(orderId, user.id);
     const profile = await loadProfile(user.id);
+    await warmHeadshot(profile.roblox_user_id);
 
     if (action === "status") {
       return json({ ok: true, enabled: settings.enabled, ...summary(order, profile) });
