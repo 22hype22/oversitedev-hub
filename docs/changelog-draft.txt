@@ -147,3 +147,4 @@ Robux checkout says when the price already includes a discount code, showing the
 A bot only shows in the dashboard, and only builds, once the money has actually moved: a saved card no longer counts as paid, the build guard needs a recorded charge or a matched Robux sale, and a Robux sale must match the order's amount for products as well as shirts.
 Comped accounts are free whichever payment they pick: choosing Robux no longer creates a full-price order, and the Robux checkout refuses a comped account outright.
 Card fields stay hidden whenever Robux is picked, including on comped accounts.
+Comped accounts that pick Robux pay a token R$1 (R$5 for a shirt) so the Robux flow can be tested for real; the order is marked comped like a comped card order.
