@@ -134,3 +134,4 @@ The removal undo card is back at the top, centred over the content. The thank yo
 Legal pages have their own addresses: /legal/privacy-policy, /legal/terms-of-use and /legal/sales-and-refunds. Old /terms links still land on the right page.
 oversite.shop/legal is an index of the three legal documents.
 Order tracker: the step in progress pulses with a white label, finished steps are solid green with green lines, upcoming steps stay grey, and the Building to Live line fills over the usual build time.
+Robux checkout hands out a payment shirt the buyer does not already own, sends people who own them all to a ticket, and only accepts a sale found in the group's log within five minutes of pressing I've purchased.

@@ -384,7 +384,7 @@ export default function CheckoutRobux() {
                       <li>Buy the {itemWord} on Roblox for {robuxLabel}.</li>
                     )}
                     <li>Give Roblox a few seconds to record the sale.</li>
-                    <li>Press "I've purchased" and we confirm it.</li>
+                    <li>Press "I've purchased" within five minutes of buying and we match it to the group's sales.</li>
                   </ol>
                 </div>
                 <div className="ossys-box ossys-mono" style={{ marginBottom: 16 }}>
