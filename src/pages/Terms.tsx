@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ShieldCheck, FileText, Receipt } from "lucide-react";
 import { SiteNav } from "@/components/marketing/SiteNav";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 const SUPPORT = "support@oversite.shop";
 const EFFECTIVE = "September 9, 2026";
 const STATE = "Minnesota, United States";
+export { SUPPORT as LEGAL_SUPPORT, EFFECTIVE as LEGAL_EFFECTIVE, STATE as LEGAL_STATE };
 
 type Section = { h: string; body: string[] };
 type Doc = { key: string; slug: string; label: string; title: string; icon: typeof FileText; intro: string; sections: Section[] };
@@ -174,6 +175,9 @@ const DOCS: Doc[] = [
   { key: "refunds", slug: "sales-and-refunds", label: "Sales & Refunds", title: "Sales & Refunds", icon: Receipt, intro: "Billing, automatic renewal, cancellations and refunds.", sections: REFUNDS },
 ];
 
+/** The documents, for the /legal index. */
+export const LEGAL_DOCS = DOCS.map(({ slug, title, intro, icon }) => ({ slug, title, intro, icon }));
+
 const Terms = () => {
   // Each document has its own address under /legal. The old /terms#key
   // addresses still work: they are sent to the matching new one.
@@ -199,7 +203,7 @@ const Terms = () => {
       <SiteNav />
       <main className="mx-auto w-full max-w-[1000px] px-5 pb-24 pt-28">
         <header>
-          <p className="font-label text-[11px] uppercase tracking-[0.2em] text-os-faint">Legal</p>
+          <Link to="/legal" className="font-label text-[11px] uppercase tracking-[0.2em] text-os-faint transition hover:text-os-heading">Legal</Link>
           <h1 className="mt-2 text-[clamp(2rem,5vw,3rem)] font-extrabold tracking-[-0.02em] text-os-heading">
             Policies &amp; terms
           </h1>
