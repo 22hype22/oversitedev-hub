@@ -121,3 +121,4 @@ The support assistant now carries the team's own answers: support hours and the 
 Setup steps you mark finished stay marked after a hard refresh.
 Robux checkout is fully live for both account kinds: shirt sales are checked in the shirt's own group and developer product sales in the Payment experience's group.
 Placing an order in the builder fills the screen and hands off to the thank you page again; it had stalled after the confirm.
+Placing an order: the button's label fades, the disc slides to the middle and spins, then swells and the green fills the screen from it. Choosing Robux now works on comped accounts. The removal undo card sits in the middle of the screen.

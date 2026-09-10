@@ -474,55 +474,55 @@ function CheckoutButton({
   busy?: boolean;
   busyLabel?: string;
   leaving?: boolean;
-  /** Order placed: the face folds into the disc and a check draws itself. */
+  /** Order placed: the disc turns solid and swells; the screen fills from it. */
   placed?: boolean;
   onClick: () => void;
   buttonRef?: React.Ref<HTMLButtonElement>;
 }) {
+  // While the order is placed the label steps back and the disc slides to
+  // the centre and spins. On placed the disc turns solid green and swells,
+  // and the host grows the green wash from that same point.
+  const wait = busy || placed;
+  const settle = "cubic-bezier(0.32,0.72,0,1)";
   return (
     <button
       ref={buttonRef}
       type="button"
       onClick={onClick}
-      disabled={busy || leaving || placed}
+      disabled={wait || leaving}
       style={{ transitionTimingFunction: EASE_OUT }}
       aria-busy={busy || undefined}
+      aria-label={wait ? busyLabel ?? label : undefined}
       className={`group relative mt-4 block w-full rounded-[14px] p-[3px] text-left bg-os-go/15 ring-1 ring-inset ring-os-go/45 transition-[transform,opacity] duration-[160ms] active:scale-[0.98] disabled:pointer-events-none ${
         leaving ? "scale-[0.98] opacity-0" : ""
       }`}
     >
       <span
-        style={{
-          transitionTimingFunction: EASE_OUT,
-          clipPath: placed ? "inset(0 calc(50% - 22px) 0 calc(50% - 22px) round 22px)" : "inset(0 0 0 0 round 11px)",
-        }}
-        className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[11px] px-14 text-os-heading bg-[linear-gradient(180deg,rgb(var(--os-go)/0.58),rgb(var(--os-go)/0.40))] shadow-[inset_0_1px_0_rgba(255,255,255,0.32),inset_0_-1px_0_rgb(var(--os-go)/0.35),0_8px_20px_-14px_rgb(var(--os-go)/0.5)] transition-[background-color,box-shadow,clip-path] duration-[340ms] group-hover:bg-os-go/15"
+        style={{ transitionTimingFunction: EASE_OUT }}
+        className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[11px] px-14 text-os-heading bg-[linear-gradient(180deg,rgb(var(--os-go)/0.58),rgb(var(--os-go)/0.40))] shadow-[inset_0_1px_0_rgba(255,255,255,0.32),inset_0_-1px_0_rgb(var(--os-go)/0.35),0_8px_20px_-14px_rgb(var(--os-go)/0.5)] transition-[background-color,box-shadow] duration-[340ms] group-hover:bg-os-go/15"
       >
-        {busy && !placed && <span className="os-busy-sweep" aria-hidden />}
         <span
           style={{ transitionTimingFunction: EASE_OUT }}
-          className={`relative font-display text-[15px] font-semibold tracking-[-0.01em] transition-[opacity,transform] duration-[120ms] ${
-            placed ? "translate-y-1 opacity-0" : ""
+          className={`relative font-display text-[15px] font-semibold tracking-[-0.01em] transition-[opacity,transform] duration-[180ms] ${
+            wait ? "translate-y-[3px] opacity-0" : ""
           }`}
         >
-          {busy && !placed ? busyLabel ?? label : label}
+          {label}
         </span>
         {/* Button in button: the arrow sits in its own disc flush with the
-            right padding and steps up and right on hover. On placed it slides
-            to the centre, turns solid green, and the check draws in. */}
+            right padding and steps up and right on hover. On busy it slides
+            to the centre and spins; on placed it goes solid and swells. */}
         <span
-          style={{ transitionTimingFunction: EASE_OUT, right: placed ? "calc(50% - 14px)" : undefined }}
-          className={`absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] transition-[transform,right,background-color,color] duration-[340ms] ${
-            placed
-              ? "bg-os-go text-os-accent-ink"
-              : "bg-os-bg/35 text-os-go group-hover:translate-x-0.5 group-hover:-translate-y-[calc(50%+1px)]"
-          }`}
+          style={{
+            transitionTimingFunction: settle,
+            right: wait ? "calc(50% - 14px)" : undefined,
+            transform: placed ? "translateY(-50%) scale(1.3)" : busy ? "translateY(-50%)" : undefined,
+          }}
+          className={`absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] transition-[transform,right,background-color,color] duration-[420ms] ${
+            placed ? "bg-os-go text-os-accent-ink" : "bg-os-bg/35 text-os-go"
+          } ${!wait ? "group-hover:translate-x-0.5 group-hover:-translate-y-[calc(50%+1px)]" : ""}`}
         >
-          {placed ? (
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M20 6 9 17l-5-5" className="os-check-draw" />
-            </svg>
-          ) : busy ? (
+          {placed ? null : busy ? (
             <span className="h-3 w-3 animate-spin rounded-full border-2 border-os-go/30 border-t-os-go" />
           ) : (
             <ArrowRight size={14} strokeWidth={2} />
@@ -749,7 +749,7 @@ export function BotForge() {
   // RPC answers yes/no for the signed-in user (the table itself is admin-only),
   // so the estimate can show the price slashed to $0.00 up front instead of
   // only revealing the comp at the moment of checkout.
-  const [comped, setComped] = useState(false);
+  const [compedAccount, setComped] = useState(false);
   useEffect(() => {
     if (!user?.email) {
       setComped(false);
@@ -768,11 +768,6 @@ export function BotForge() {
       cancelled = true;
     };
   }, [user?.email]);
-  // A comped order is always fulfilled in full at $0 — never as installments —
-  // so pin the plan to "full" in case one was selected before the check resolved.
-  useEffect(() => {
-    if (comped) setPaymentPlan("full");
-  }, [comped]);
   const { hasDashboardAccess: dashboardAlreadyOwned } = useOwnedBots();
   const { isLive: salesLive } = useBotSalesMode();
   const stockCount = useBotStockCount();
@@ -874,6 +869,14 @@ export function BotForge() {
   // conflict, card wins so the order can still be placed.
   const payModeOf = (id: string): PayMode => pricedBase(id)?.pay ?? "both";
   const robuxAllowed = robuxEnabled && bases.length > 0 && bases.every((id) => payModeOf(id) !== "usd");
+  // A comped account pays nothing, unless it deliberately picks Robux: then
+  // the order goes through the Robux checkout like anyone else's.
+  const comped = compedAccount && !(payMethod === "robux" && robuxAllowed);
+  // A comped order is always fulfilled in full at $0, never as installments,
+  // so pin the plan to "full" in case one was selected before the check resolved.
+  useEffect(() => {
+    if (comped) setPaymentPlan("full");
+  }, [comped]);
   const cardAllowed = !robuxAllowed || bases.some((id) => payModeOf(id) !== "robux");
   useEffect(() => {
     if (payMethod === "robux" && !robuxAllowed) setPayMethod("card");
@@ -1408,18 +1411,20 @@ export function BotForge() {
       // COMP LIST: if this account's email never pays, fulfill the order for
       // free server-side (marked paid at $0, hosting waived) and skip Stripe
       // entirely. They still go through the whole build/deploy flow.
-      try {
-        const { data: comp } = await (supabase as any).functions.invoke("create-comped-order", {
-          body: { botOrderId: orderId },
-        });
-        if (comp?.comped) {
-          // No charge. Fill the screen green and hand off to the thank-you
-          // page, which opens on the same green and carries the tracker.
-          leaveOnGreen(`/checkout/return?order=${orderId}&comped=1`);
-          return;
+      if (!robuxSelected) {
+        try {
+          const { data: comp } = await (supabase as any).functions.invoke("create-comped-order", {
+            body: { botOrderId: orderId },
+          });
+          if (comp?.comped) {
+            // No charge. Fill the screen green and hand off to the thank-you
+            // page, which opens on the same green and carries the tracker.
+            leaveOnGreen(`/checkout/return?order=${orderId}&comped=1`);
+            return;
+          }
+        } catch {
+          /* not comped (or check failed) — fall through to normal checkout */
         }
-      } catch {
-        /* not comped (or check failed) — fall through to normal checkout */
       }
 
       // Robux: the hosted page mints a gamepass for this order, the customer
@@ -1553,6 +1558,8 @@ export function BotForge() {
           tone="go"
           active
           origin={fillOrigin}
+          startRadius={18}
+          delayMs={240}
           onFilled={() => {
             markOrderHandoff();
             window.location.href = goTo;
@@ -1564,6 +1571,8 @@ export function BotForge() {
           tone="fail"
           active
           origin={fillOrigin}
+          startRadius={18}
+          delayMs={240}
           reason={failReason}
           hint="Your bot and add-ons are still set up below, so you can go straight back to payment."
           actionLabel="Back to checkout"
@@ -2124,7 +2133,7 @@ export function BotForge() {
                 <span className="text-xs text-os-faint font-normal"> one-time*</span>
               </span>
             </div>
-            {!comped && robuxAllowed && finalTotal > 0 && (
+            {robuxAllowed && finalTotal > 0 && (
               <div className="mt-1 flex items-center justify-between text-xs">
                 <span className="text-os-faint">{payMethod === "robux" ? "Paying with Robux" : "Or with Robux"}</span>
                 <span className={payMethod === "robux" ? "font-semibold text-os-heading" : "text-os-faint"}>
@@ -2515,6 +2524,7 @@ export function BotForge() {
                         : "Go to payment"
                   }
                   busy={submitting}
+                  placed={!!goTo}
                   busyLabel={comped ? "Placing order" : "Opening payment"}
                   onClick={submit}
                 />
