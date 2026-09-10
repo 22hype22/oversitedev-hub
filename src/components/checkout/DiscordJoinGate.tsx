@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2, ExternalLink, MessageSquare, Clock, Bot, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,18 +62,6 @@ export const DiscordJoinGate = ({
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>({ kind: "join" });
   const [busy, setBusy] = useState(false);
-  // Once the order is confirmed the journey continues in the dashboard, so
-  // count down and take the customer there instead of dead-ending the page.
-  const [secondsLeft, setSecondsLeft] = useState(6);
-  useEffect(() => {
-    if (phase.kind !== "in_stock") return;
-    const tick = setInterval(() => setSecondsLeft((s) => Math.max(0, s - 1)), 1000);
-    const go = setTimeout(() => navigate("/bot-dashboard"), 6000);
-    return () => {
-      clearInterval(tick);
-      clearTimeout(go);
-    };
-  }, [phase.kind, navigate]);
 
   const onJoinConfirmed = async () => {
     setBusy(true);
@@ -180,7 +168,7 @@ export const DiscordJoinGate = ({
               Discord DM the moment it's live. This usually takes less than a minute.
             </p>
             <p style={{ fontSize: 11, color: "var(--os-faint)", margin: "8px 0 0" }}>
-              Taking you to your dashboard in {secondsLeft}s…
+              We'll take you to your dashboard the moment it's live.
             </p>
             <button
               type="button"

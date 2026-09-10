@@ -28,7 +28,7 @@ type Props = {
 };
 
 const CSS = `
-.osd .undo-stack{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:160;width:min(520px,calc(100vw - 24px));display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.osd .undo-stack{position:fixed;top:14px;left:calc(50% + 118px);transform:translateX(-50%);z-index:160;width:min(520px,calc(100vw - 24px));display:flex;flex-direction:column;gap:8px;pointer-events:none}
 .osd .undo{pointer-events:auto;display:flex;align-items:center;gap:12px;padding:10px 8px 10px 12px;border-radius:14px;background:var(--panel);border:1px solid var(--hair);box-shadow:0 22px 50px -22px rgba(0,0,0,.85);animation:undo-in .36s cubic-bezier(.22,1,.36,1)}
 @keyframes undo-in{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
 .osd .undo .ic{height:34px;width:34px;flex:none;border-radius:10px;overflow:hidden;display:grid;place-items:center;background:linear-gradient(135deg,var(--surface2),var(--surface));color:var(--accent)}
@@ -38,7 +38,7 @@ const CSS = `
 .osd .undo .t{font-family:var(--disp);font-weight:700;font-size:13.5px;color:var(--heading);line-height:1.15;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .osd .undo .s{font-size:12px;color:var(--faint);margin-top:3px}
 .osd .undo .s b{color:var(--body);font-weight:600;font-variant-numeric:tabular-nums}
-.osd .undo .back{position:relative;flex:none;display:grid;place-items:center;height:38px;padding:0 14px 0 40px;border-radius:10px;border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);background:color-mix(in srgb,var(--accent) 8%,transparent);color:var(--heading);font-family:var(--bodyf);font-weight:700;font-size:12.5px;cursor:pointer;transition:background .15s,border-color .15s}
+.osd .undo .back{position:relative;flex:none;display:grid;place-items:center;line-height:1;align-self:center;height:38px;padding:0 14px 0 40px;border-radius:10px;border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);background:color-mix(in srgb,var(--accent) 8%,transparent);color:var(--heading);font-family:var(--bodyf);font-weight:700;font-size:12.5px;cursor:pointer;transition:background .15s,border-color .15s}
 .osd .undo .back:hover{background:color-mix(in srgb,var(--accent) 16%,transparent);border-color:color-mix(in srgb,var(--accent) 60%,transparent)}
 .osd .undo .back svg{position:absolute;left:9px;top:50%;width:22px;height:22px;transform:translateY(-50%) rotate(-90deg)}
 .osd .undo .back circle{fill:none;stroke-width:2.4}
@@ -49,6 +49,7 @@ const CSS = `
 .osd .undo .x:hover{background:var(--surface2);color:var(--heading)}
 .osd .undo .x svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none}
 @media (prefers-reduced-motion:reduce){.osd .undo{animation:none}.osd .undo .back .fg{animation:none}}
+@media (max-width:760px){.osd .undo-stack{left:50%}}
 @media (max-width:480px){.osd .undo .s{display:none}}
 `;
 

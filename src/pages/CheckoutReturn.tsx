@@ -70,22 +70,41 @@ export default function CheckoutReturn() {
   const [bot, setBot] = useState<{ name: string; base: string | null; icon: string | null } | null>(null);
   const [step, setStep] = useState<OrderStep>("placed");
   const [declined, setDeclined] = useState<string | null>(null);
+  // Where the order is, kept fresh: Building once the build has started,
+  // Live only once the bot has actually deployed and is online, which is the
+  // moment it is ready to use in the dashboard. Polls until then.
   useEffect(() => {
     if (!user || !botOrderId) return;
     let cancelled = false;
-    (async () => {
+    let timer = 0;
+    const read = async () => {
       const { data } = await (supabase as any)
         .from("bot_orders")
-        .select("bot_name, base, icon_url, status")
+        .select("bot_name, base, icon_url, status, deployment_status")
         .eq("id", botOrderId)
         .maybeSingle();
       if (cancelled || !data) return;
       setBot({ name: data.bot_name ?? "", base: data.base ?? null, icon: data.icon_url ?? null });
-      if (data.status === "live") setStep("live");
-      else if (["ready", "building", "deploying"].includes(String(data.status))) setStep("building");
-    })();
+      const st = String(data.status ?? "");
+      const dep = String(data.deployment_status ?? "");
+      let live = st === "live";
+      if (!live && dep === "deployed") {
+        const { data: health } = await (supabase as any).rpc("get_bot_health", { _bot_id: botOrderId });
+        if (cancelled) return;
+        const h = (health ?? {}) as { effective_status?: string; status?: string };
+        live = (h.effective_status ?? h.status) === "online";
+      }
+      if (live) {
+        setStep("live");
+        return;
+      }
+      if (["ready", "building", "deploying"].includes(st) || dep === "deploying") setStep("building");
+      timer = window.setTimeout(read, 4000);
+    };
+    void read();
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [user, botOrderId]);
 
@@ -131,6 +150,12 @@ export default function CheckoutReturn() {
     };
     load();
   }, [sessionId, setupOrderId, user, botOrderId]);
+
+  useEffect(() => {
+    if (step !== "live") return;
+    const t = window.setTimeout(() => navigate("/bot-dashboard"), 1800);
+    return () => window.clearTimeout(t);
+  }, [step, navigate]);
 
   const downloadable = files.filter((f) => f.url);
   const isBotOrder = !!botOrderId;
