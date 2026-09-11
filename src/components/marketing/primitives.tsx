@@ -70,7 +70,7 @@ export function AccentButton({
   className,
   tone = "accent",
   arrow = true,
-  scrim = false,
+  glass = false,
 }: {
   to?: string;
   href?: string;
@@ -80,20 +80,30 @@ export function AccentButton({
   tone?: "accent" | "muted";
   /** The arrow belongs to the action that moves you forward. */
   arrow?: boolean;
-  /** A dark ground under the button, for when it sits over a photograph. */
-  scrim?: boolean;
+  /** Frosted glass under the button, for when it sits over a photograph. */
+  glass?: boolean;
 }) {
   const thin = tone === "accent" ? "border-os-accent/40" : "border-os-heading/30";
   const thick = tone === "accent" ? "border-os-accent" : "border-os-heading/75";
   const classes = cn(
     "group relative inline-flex h-[46px] items-center gap-3 rounded-[10px] px-[22px] text-os-heading isolate",
     "transition-transform duration-[160ms] active:scale-[0.98]",
-    scrim && "bg-os-ink/70 backdrop-blur-[3px] shadow-[0_10px_30px_-16px_rgb(var(--os-ink)/0.9)]",
+    glass && [
+      "bg-os-bg/60 backdrop-blur-md backdrop-saturate-150 overflow-hidden",
+      "shadow-[inset_0_1px_0_rgb(var(--os-heading)/0.22),inset_0_-1px_0_rgb(var(--os-ink)/0.5),0_16px_38px_-20px_rgb(var(--os-ink)/0.95)]",
+    ],
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-os-accent focus-visible:ring-offset-2 focus-visible:ring-offset-os-bg",
     className,
   );
   const inner = (
     <>
+      {/* The light a pane of glass catches along its top edge. */}
+      {glass && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-[inherit] bg-[linear-gradient(180deg,rgb(var(--os-heading)/0.14),rgb(var(--os-heading)/0.03)_42%,transparent_70%)]"
+        />
+      )}
       {/* The thin line that is always there. */}
       <span aria-hidden className={cn("pointer-events-none absolute inset-0 rounded-[inherit] border", thin)} />
       {/* The thick line, revealed left to right. */}
