@@ -70,6 +70,7 @@ export function AccentButton({
   className,
   tone = "accent",
   arrow = true,
+  scrim = false,
 }: {
   to?: string;
   href?: string;
@@ -79,12 +80,15 @@ export function AccentButton({
   tone?: "accent" | "muted";
   /** The arrow belongs to the action that moves you forward. */
   arrow?: boolean;
+  /** A dark ground under the button, for when it sits over a photograph. */
+  scrim?: boolean;
 }) {
   const thin = tone === "accent" ? "border-os-accent/40" : "border-os-heading/30";
   const thick = tone === "accent" ? "border-os-accent" : "border-os-heading/75";
   const classes = cn(
     "group relative inline-flex h-[46px] items-center gap-3 rounded-[10px] px-[22px] text-os-heading isolate",
     "transition-transform duration-[160ms] active:scale-[0.98]",
+    scrim && "bg-os-ink/70 backdrop-blur-[3px] shadow-[0_10px_30px_-16px_rgb(var(--os-ink)/0.9)]",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-os-accent focus-visible:ring-offset-2 focus-visible:ring-offset-os-bg",
     className,
   );

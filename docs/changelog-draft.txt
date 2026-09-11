@@ -158,3 +158,4 @@ Every deploy switches the pooled Discord application's limited privileged intent
 Customs package claims are verified against the payment record before a receipt goes out: Robux items against the group's sales log by buyer, item, net amount and time; Stripe against a paid checkout stamped with the buyer and the package. The receipt sender refuses to run without that record.
 Bot page sits tighter: the trailing page gap under the Manage and Add-on cards drops from 50px to 20px, and the phantom 20px above the bot header is gone.
 Hero buttons use the site's outline button: the line thickens left to right on hover, the label wipes to white, and the arrow slides. Learn more is the quiet partner beside Deploy now.
+Hero buttons sit on a dark blurred ground so they stay readable over the bright parts of the photo.
