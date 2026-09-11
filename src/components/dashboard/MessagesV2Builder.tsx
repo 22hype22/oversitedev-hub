@@ -306,6 +306,19 @@ function sanitizeItems(items: V2Item[]): V2Item[] {
   });
 }
 
+// In a giveaway design the Enter button is required: the bot binds the Counter
+// button to the giveaway and appends one itself when the design has none. The
+// editor therefore keeps one in the stack that can be renamed and moved but
+// not removed, and no other button offers the Counter kind.
+const ENTER_NOTE = "The Enter button. Members click it to join. Rename or move it; it cannot be removed.";
+const rowHasCounter = (it: V2Item): boolean => it.type === "buttonRow" && it.buttons.some(isCounterButton);
+const hasCounterAnywhere = (items: V2Item[]): boolean =>
+  items.some((it) => rowHasCounter(it) || (it.type === "container" && it.children.some(rowHasCounter)));
+const withEnterButton = (items: V2Item[]): V2Item[] =>
+  hasCounterAnywhere(items)
+    ? items
+    : [...items, { id: uid(), type: "buttonRow", buttons: [{ id: uid(), label: "Enter", counter: true, style: "primary" }] }];
+
 const newItem = (type: V2Item["type"]): V2Item => {
   switch (type) {
     case "text":
@@ -429,9 +442,10 @@ export const MessagesV2Builder = forwardRef<
   const effectiveGuildId = guild?.guild_id ?? activeGuild?.guild_id ?? undefined;
   const { channels: guildChannels } = useBotChannels(botId, effectiveGuildId);
 
-  const [items, setItems] = useState<V2Item[]>(
-    initialItems && initialItems.length > 0 ? initialItems : [newItem("text")],
-  );
+  const [items, setItems] = useState<V2Item[]>(() => {
+    const base = initialItems && initialItems.length > 0 ? initialItems : [newItem("text")];
+    return giveaway ? withEnterButton(base) : base;
+  });
   // Controlled mode: push editable items up to a parent (used when this builder
   // is nested inside another button's Ticket/Ephemeral message editor).
   useEffect(() => {
@@ -448,7 +462,7 @@ export const MessagesV2Builder = forwardRef<
     );
 
   const removeItem = (id: string) =>
-    setItems((prev) => prev.filter((it) => it.id !== id));
+    setItems((prev) => prev.filter((it) => it.id !== id || (giveaway && rowHasCounter(it))));
 
   const moveItem = (id: string, dir: -1 | 1) =>
     setItems((prev) => {
@@ -590,6 +604,7 @@ export const MessagesV2Builder = forwardRef<
               total={items.length}
               onUpdate={(patch) => updateItem(it.id, patch)}
               onRemove={() => removeItem(it.id)}
+              undeletable={giveaway && rowHasCounter(it)}
               onMove={(dir) => moveItem(it.id, dir)}
               addChild={(t) => addChild(it.id, t)}
               updateChild={(cid, p) => updateChild(it.id, cid, p)}
@@ -692,6 +707,7 @@ function ItemBlock({
   total,
   onUpdate,
   onRemove,
+  undeletable = false,
   onMove,
   addChild,
   updateChild,
@@ -703,6 +719,9 @@ function ItemBlock({
   total: number;
   onUpdate: (patch: Partial<V2Item>) => void;
   onRemove: () => void;
+  /** The row holds a part the message needs (the giveaway's Enter button):
+   *  it can move but not go, so the delete control is shown faded. */
+  undeletable?: boolean;
   onMove: (dir: -1 | 1) => void;
   addChild: (t: V2Leaf["type"]) => void;
   updateChild: (cid: string, p: Partial<V2Leaf>) => void;
@@ -710,6 +729,7 @@ function ItemBlock({
   moveChild: (cid: string, d: -1 | 1) => void;
 }) {
   const label = labelFor(item.type);
+  const giveaway = useContext(GiveawayContext);
   return (
     <div className="rounded-lg border border-border bg-card/50">
       <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
@@ -739,7 +759,9 @@ function ItemBlock({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-destructive hover:text-destructive"
+            className={undeletable ? "h-7 w-7 cursor-not-allowed text-destructive opacity-25" : "h-7 w-7 text-destructive hover:text-destructive"}
+            disabled={undeletable}
+            title={undeletable ? "This row holds the Enter button the giveaway needs. Move it, but it stays." : undefined}
             onClick={onRemove}
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -771,7 +793,15 @@ function ItemBlock({
                       <Button type="button" variant="ghost" size="icon" className="h-6 w-6" disabled={i === item.children.length - 1} onClick={() => moveChild(c.id, 1)}>
                         <ChevronDown className="h-3 w-3" />
                       </Button>
-                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => removeChild(c.id)}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={giveaway && rowHasCounter(c) ? "h-6 w-6 cursor-not-allowed text-destructive opacity-25" : "h-6 w-6 text-destructive hover:text-destructive"}
+                        disabled={giveaway && rowHasCounter(c)}
+                        title={giveaway && rowHasCounter(c) ? "This row holds the Enter button the giveaway needs. Move it, but it stays." : undefined}
+                        onClick={() => removeChild(c.id)}
+                      >
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
@@ -1169,6 +1199,8 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             ? "channel"
             : "link";
           const style: V2ButtonStyle = b.style ?? "link";
+          // The giveaway's Enter button: rename and restyle, never retype or remove.
+          const fixed = giveaway && isCounterButton(b);
           const update = (next: V2ButtonRowButton) => {
             const list = buttons.slice();
             list[i] = next;
@@ -1177,6 +1209,9 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
           return (
             <div key={b.id} className="space-y-2 rounded border border-border bg-background/40 p-2">
               <div className="flex items-start justify-between gap-2">
+                {fixed ? (
+                  <p className="pt-1 text-[11px] text-muted-foreground">{ENTER_NOTE}</p>
+                ) : (
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
                   <label className="flex items-center gap-1.5 cursor-pointer">
                     <input
@@ -1187,17 +1222,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     />
                     Link
                   </label>
-                  {giveaway ? (
-                    <label className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="radio"
-                        name={`btn-mode-${b.id}`}
-                        checked={mode === "counter"}
-                        onChange={() => update({ id: b.id, label: b.label, counter: true, style: style === "link" ? "primary" : style })}
-                      />
-                      Counter
-                    </label>
-                  ) : (
+                  {giveaway ? null : (
                     <label className="flex items-center gap-1.5 cursor-pointer">
                       <input
                         type="radio"
@@ -1294,11 +1319,14 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                     </>
                   )}
                 </div>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-destructive hover:text-destructive"
+                  className={fixed ? "h-7 w-7 cursor-not-allowed text-destructive opacity-25" : "h-7 w-7 text-destructive hover:text-destructive"}
+                  disabled={fixed}
+                  title={fixed ? "The giveaway needs this button." : undefined}
                   onClick={() => onUpdate({ buttons: buttons.filter((_, j) => j !== i) } as Partial<V2Item>)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />

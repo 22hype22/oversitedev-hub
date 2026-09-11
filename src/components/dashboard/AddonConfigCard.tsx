@@ -5314,8 +5314,7 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                   <VariablesButton keyOverride="giveaway" />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  How a sponsored giveaway posts — the bot hosts it in your server and members click Enter to join. Add a{" "}
-                  <span className="font-medium">Button Row → Counter</span> for the Enter button (or one is added automatically), and a{" "}
+                  How a sponsored giveaway posts — the bot hosts it in your server and members click Enter to join. The Enter button is already in the design; rename or move it as you like. Add a{" "}
                   <span className="font-medium">Link button</span> labeled “Discord Group” with URL{" "}
                   <code className="font-mono text-os-accent">{"{ad link}"}</code> to link the advertiser's server. Tokens:{" "}
                   <code className="font-mono text-os-accent">{"{advertiser}"}</code>,{" "}
