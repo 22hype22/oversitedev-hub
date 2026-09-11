@@ -178,7 +178,9 @@ const ADS_REGULAR: VariableGroup = {
   title: "Advertisement",
   vars: [
     { token: "{advertiser}", desc: "Mentions who booked the ad" },
-    { token: "{server_link}", desc: "The invite link they gave" },
+    { token: "{ad server}", desc: "The name of the server they are advertising" },
+    { token: "{ad link}", desc: "The invite link they gave" },
+    { token: "{server_link}", desc: "Same as {ad link}" },
     { token: "{ping}", desc: "The role the ad pings, if one is set" },
   ],
 };
@@ -186,6 +188,9 @@ const ADS_GIVEAWAY: VariableGroup = {
   title: "Advertised giveaway",
   vars: [
     { token: "{advertiser}", desc: "Mentions who booked it" },
+    { token: "{ad server}", desc: "The name of the server they are advertising" },
+    { token: "{ad link}", desc: "The invite link they gave" },
+    { token: "{server_link}", desc: "Same as {ad link}" },
     { token: "{prize}", desc: "What is being given away" },
     { token: "{winners}", desc: "How many winners" },
     { token: "{duration}", desc: "How long it runs" },
