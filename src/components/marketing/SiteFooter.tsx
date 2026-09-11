@@ -27,7 +27,7 @@ const COLUMNS: { heading: string; links: LinkItem[] }[] = [
     links: [
       { label: "Sign In", to: "/auth" },
       { label: "Create Account", to: "/auth" },
-      { label: "Dashboard", to: "/dashboard" },
+      { label: "Dashboard", to: "/bot-dashboard" },
     ],
   },
 ];

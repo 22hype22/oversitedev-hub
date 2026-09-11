@@ -170,3 +170,6 @@ On phones the dashboard sidebar is a drawer opened from a menu button in the hea
 Bot icons and banners from the order form are stored as files instead of inline in the order, so the bot list loads in a moment on any device.
 The activity feed shows fifty events at a time with a Show more button.
 The bot page name wraps under the avatar on phones instead of being cut short.
+The footer's Dashboard link opens the dashboard rather than account settings.
+On the sign-in page the Oversite wordmark sits on its own line above the heading on phones.
+On phones the dashboard header keeps the menu, bell and groups buttons on the title row and shortens the breadcrumb instead of dropping the buttons below.
