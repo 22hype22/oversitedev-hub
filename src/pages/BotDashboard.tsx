@@ -1448,7 +1448,7 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .fitem .meta{font-size:11px;color:var(--faint);margin-top:2px}
 .osd .fitem .tm{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
 .osd .bgrid{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;align-items:start}
-.osd .bsum{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.osd .btiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
 .osd .btile{border:1px solid rgba(168,180,191,.14);border-radius:14px;background:linear-gradient(180deg,rgba(46,54,63,.6),rgba(39,46,54,.7));padding:14px 16px}
 .osd .btile .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
 .osd .btile .v{font-family:var(--disp);font-weight:800;font-size:26px;color:var(--heading);letter-spacing:-.02em;margin-top:6px;line-height:1.1}
@@ -1467,7 +1467,7 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .brow .bam .a span{font-family:var(--bodyf);font-size:11px;font-weight:600;color:var(--faint);margin-left:2px}
 .osd .brow .bam .l{font-size:10.5px;color:var(--faint);margin-top:1px}
 .osd .pillbad{font-size:11px;color:var(--bad);background:rgba(233,139,139,.12);border-radius:999px;padding:4px 11px;font-weight:700}
-@media(max-width:900px){.osd .bsum{grid-template-columns:1fr}}
+@media(max-width:900px){.osd .btiles{grid-template-columns:1fr}}
 .osd .planrow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
 .osd .planname{font-family:var(--disp);font-weight:800;color:var(--heading);font-size:22px}
 .osd .pillok{font-size:11px;color:var(--ok);background:rgba(134,211,161,.12);border-radius:999px;padding:4px 11px;font-weight:700}
@@ -3004,7 +3004,7 @@ const BotDashboard = () => {
                         : { pill: "Not set up", cls: "pillbad", title: "No card on file", body: "Add a card so monthly hosting stays on." };
                 return (
                   <>
-                    <div className="bsum">
+                    <div className="btiles">
                       <div className="btile"><div className="k">Monthly hosting</div><div className="v">{covered ? "$0" : money(perMonth)}<span>/mo</span></div><div className="s">{billed.length} bot{billed.length === 1 ? "" : "s"} billed monthly{covered && perMonth > 0 ? `, ${money(perMonth)} covered` : ""}</div></div>
                       <div className="btile"><div className="k">One-time bots</div><div className="v">{oneTime.length}</div><div className="s">Hosting included, nothing recurring</div></div>
                       <div className="btile"><div className="k">Subscription</div><div className="v" style={{ fontSize: "20px" }}>{subState.pill}</div><div className="s">{subState.body}</div></div>
