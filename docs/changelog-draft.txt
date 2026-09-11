@@ -179,3 +179,4 @@ Ad designs get {ad server} and {ad link} for the advertised server, and {server}
 The Advertisements block is two parts: Approval, with the staff channel and the roles pinged for approval, then Posting, with the ad channel and the five designs. Perk names and claim panel wording are no longer asked for.
 Giveaway designs always carry the Enter button: it can be renamed, restyled and moved, and its delete control is faded because the giveaway needs it.
 Buttons inside a revealed block show their labels again, and the ER:LC page's See the bots button matches Get started.
+Buttons on the dark pages draw their label as plain body grey that brightens on hover.

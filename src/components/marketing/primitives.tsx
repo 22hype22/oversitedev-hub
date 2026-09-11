@@ -126,12 +126,15 @@ export function AccentButton({
       <span
         style={{ transitionTimingFunction: EASE_OUT }}
         className={cn(
-          "whitespace-nowrap font-display text-[15px] font-semibold tracking-[-0.01em] text-transparent bg-clip-text bg-[length:200%_100%] bg-[position:100%_0] transition-[background-position] duration-[420ms] group-hover:bg-[position:0_0] motion-reduce:transition-none",
-          // On the photograph the label rests at the nav's own brightness so
-          // the two match; on the dark pages it rests in body grey.
+          "whitespace-nowrap font-display text-[15px] font-semibold tracking-[-0.01em] motion-reduce:transition-none",
           glass
-            ? "bg-[linear-gradient(90deg,#fff_50%,rgb(var(--os-heading)/0.8)_50%)]"
-            : "bg-[linear-gradient(90deg,#fff_50%,rgb(var(--os-body))_50%)]",
+            // On the photograph the label rests at the nav's own brightness so
+            // the two match, and the wipe brightens it left to right.
+            ? "text-transparent bg-clip-text bg-[length:200%_100%] bg-[position:100%_0] transition-[background-position] duration-[420ms] group-hover:bg-[position:0_0] bg-[linear-gradient(90deg,#fff_50%,rgb(var(--os-heading)/0.8)_50%)]"
+            // On the dark pages the label is plain body grey that brightens
+            // on hover. Clipped gradient text went blank there, so it is a
+            // solid colour with no clipping at all.
+            : "text-os-body transition-colors duration-[420ms] group-hover:text-os-heading",
         )}
       >
         {children}
