@@ -68,12 +68,20 @@ export function AccentButton({
   href,
   children,
   className,
+  tone = "accent",
+  arrow = true,
 }: {
   to?: string;
   href?: string;
   children: ReactNode;
   className?: string;
+  /** "accent" is the primary action; "muted" is the quiet partner beside it. */
+  tone?: "accent" | "muted";
+  /** The arrow belongs to the action that moves you forward. */
+  arrow?: boolean;
 }) {
+  const thin = tone === "accent" ? "border-os-accent/40" : "border-os-heading/30";
+  const thick = tone === "accent" ? "border-os-accent" : "border-os-heading/75";
   const classes = cn(
     "group relative inline-flex h-[46px] items-center gap-3 rounded-[10px] px-[22px] text-os-heading isolate",
     "transition-transform duration-[160ms] active:scale-[0.98]",
@@ -83,12 +91,15 @@ export function AccentButton({
   const inner = (
     <>
       {/* The thin line that is always there. */}
-      <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] border border-os-accent/40" />
+      <span aria-hidden className={cn("pointer-events-none absolute inset-0 rounded-[inherit] border", thin)} />
       {/* The thick line, revealed left to right. */}
       <span
         aria-hidden
         style={{ transitionTimingFunction: EASE_OUT }}
-        className="pointer-events-none absolute inset-0 rounded-[inherit] border-[2.5px] border-os-accent [clip-path:inset(0_100%_0_0)] transition-[clip-path] duration-[420ms] group-hover:[clip-path:inset(0_0_0_0)] motion-reduce:transition-none"
+        className={cn(
+          "pointer-events-none absolute inset-0 rounded-[inherit] border-[2.5px] [clip-path:inset(0_100%_0_0)] transition-[clip-path] duration-[420ms] group-hover:[clip-path:inset(0_0_0_0)] motion-reduce:transition-none",
+          thick,
+        )}
       />
       <span
         style={{ transitionTimingFunction: EASE_OUT }}
@@ -96,21 +107,23 @@ export function AccentButton({
       >
         {children}
       </span>
-      <svg
-        aria-hidden
-        viewBox="0 0 24 24"
-        width="15"
-        height="15"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{ transitionTimingFunction: EASE_OUT }}
-        className="transition-transform duration-300 group-hover:translate-x-[3px] motion-reduce:transition-none"
-      >
-        <path d="M5 12h14M13 6l6 6-6 6" />
-      </svg>
+      {arrow && (
+        <svg
+          aria-hidden
+          viewBox="0 0 24 24"
+          width="15"
+          height="15"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ transitionTimingFunction: EASE_OUT }}
+          className="transition-transform duration-300 group-hover:translate-x-[3px] motion-reduce:transition-none"
+        >
+          <path d="M5 12h14M13 6l6 6-6 6" />
+        </svg>
+      )}
     </>
   );
   if (to) return <Link to={to} className={classes}>{inner}</Link>;
