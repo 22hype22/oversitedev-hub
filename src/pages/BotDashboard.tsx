@@ -905,7 +905,7 @@ const BotSection = ({
 
   const sectionInner = (
     <section className="space-y-5">
-      <style>{BOTSEC_CSS}</style>
+      <style hidden>{BOTSEC_CSS}</style>
       <BotIdentityEditor
         bot={bot}
         onUpdated={onReload}
@@ -1269,7 +1269,7 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .annc .act svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.2;fill:none;transition:transform .15s}
 .osd .annc .act:hover svg{transform:translateX(2px)}
 @media(max-width:760px){.osd .annc{left:14px;right:14px;width:auto}}
-.osd .main{flex:1;min-width:0;padding:24px 26px 50px}
+.osd .main{flex:1;min-width:0;padding:24px 26px 20px}
 .osd .head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
 .osd .crumb{font-size:12px;color:var(--faint)}
 .osd .crumb b{color:var(--heading);font-weight:600}
@@ -1598,7 +1598,7 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 @media(max-width:1180px){.osd .grid, .osd .bgrid{grid-template-columns:1fr}}
 @media(max-width:1180px){.osd .botgrid{grid-template-columns:repeat(3,1fr)}.osd .feat{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:980px){.osd .botgrid{grid-template-columns:repeat(2,1fr)}.osd .strip{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:760px){.osd .side{position:fixed;left:-260px;transition:.2s;z-index:50}.osd .main{padding:18px 14px 40px}.osd .left, .osd .form, .osd .feat, .osd .choices, .osd .gbody, .osd .dashgrid{grid-template-columns:1fr}.osd .dashgrid .dashcell.wide{grid-column:auto}.osd .head h1{font-size:24px}}
+@media(max-width:760px){.osd .side{position:fixed;left:-260px;transition:.2s;z-index:50}.osd .main{padding:18px 14px 16px}.osd .left, .osd .form, .osd .feat, .osd .choices, .osd .gbody, .osd .dashgrid{grid-template-columns:1fr}.osd .dashgrid .dashcell.wide{grid-column:auto}.osd .head h1{font-size:24px}}
 @media(max-width:560px){.osd .botgrid{grid-template-columns:1fr}.osd .search{display:none}}`;
 
 const LS = { ws: "os_ws_mode", onboarded: "os_onboarded", tour: "os_tour_seen", bg: "os_bg", order: "os_bot_order", groups: "os_groups", accent: "os_accent", accentHex: "os_accent_hex", view: "os_view", bot: "os_bot" };
