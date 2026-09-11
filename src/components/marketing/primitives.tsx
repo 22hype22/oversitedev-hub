@@ -22,8 +22,12 @@ export function Reveal({
     <Tag
       ref={ref as never}
       className={cn(
-        animate ? "transition-[opacity,transform] duration-[360ms] ease-out will-change-[opacity,transform]" : "",
-        animate && !shown ? "translate-y-5 opacity-0" : "translate-y-0 opacity-100",
+        // will-change and a lingering transform keep the block on its own
+        // compositing layer, and Chromium then paints background-clip:text
+        // labels inside it (the AccentButton) as blank. Both are dropped the
+        // moment the block has shown, so the label draws.
+        animate ? "transition-[opacity,transform] duration-[360ms] ease-out" : "",
+        animate && !shown ? "translate-y-5 opacity-0 will-change-[opacity,transform]" : "transform-none opacity-100",
         className,
       )}
       style={animate ? { transitionDelay: `${delayMs}ms` } : undefined}
