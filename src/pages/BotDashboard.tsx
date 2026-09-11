@@ -1598,8 +1598,15 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 @media(max-width:1180px){.osd .grid, .osd .bgrid{grid-template-columns:1fr}}
 @media(max-width:1180px){.osd .botgrid{grid-template-columns:repeat(3,1fr)}.osd .feat{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:980px){.osd .botgrid{grid-template-columns:repeat(2,1fr)}.osd .strip{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:760px){.osd .side{position:fixed;left:-260px;transition:.2s;z-index:50}.osd .main{padding:18px 14px 16px}.osd .left, .osd .form, .osd .feat, .osd .choices, .osd .gbody, .osd .dashgrid{grid-template-columns:1fr}.osd .dashgrid .dashcell.wide{grid-column:auto}.osd .head h1{font-size:24px}}
-@media(max-width:560px){.osd .botgrid{grid-template-columns:1fr}.osd .search{display:none}}`;
+/* Phone layout: the sidebar becomes a drawer. It is opened by the menu
+   button in the page header and closed by the dim backdrop or by picking a
+   section. Nothing else in the sidebar changes, so every section stays
+   reachable on a phone. */
+.osd .mbtn{display:none;height:40px;width:40px;border-radius:11px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:var(--heading);place-items:center;cursor:pointer;flex:none;padding:0}
+.osd .mbtn svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.9;fill:none}
+.osd .sidebg{display:none;position:fixed;inset:0;background:rgba(10,14,18,.55);z-index:59;-webkit-tap-highlight-color:transparent}
+@media(max-width:760px){.osd .side{position:fixed;top:0;bottom:0;left:0;height:100dvh;height:100vh;z-index:60;transform:translateX(-110%);transition:transform .28s cubic-bezier(.22,1,.36,1);box-shadow:0 20px 60px -20px rgba(0,0,0,.8)}.osd .appwrap.show .side{transform:translateX(-110%)}.osd .appwrap.show .approw.mopen .side{transform:none}.osd .approw.mopen .sidebg{display:block}.osd .mbtn{display:grid}.osd .main{padding:18px 14px 16px}.osd .left, .osd .form, .osd .feat, .osd .choices, .osd .gbody, .osd .dashgrid{grid-template-columns:1fr}.osd .dashgrid .dashcell.wide{grid-column:auto}.osd .head h1{font-size:24px}.osd .head{margin-bottom:16px}.osd .htools{gap:8px}}
+@media(max-width:560px){.osd .botgrid{grid-template-columns:1fr}.osd .search{display:none}.osd table{min-width:0}.osd thead th:nth-child(3),.osd tbody td:nth-child(3),.osd thead th:nth-child(4),.osd tbody td:nth-child(4){display:none}.osd thead th,.osd tbody td{padding-left:10px;padding-right:10px}}`;
 
 const LS = { ws: "os_ws_mode", onboarded: "os_onboarded", tour: "os_tour_seen", bg: "os_bg", order: "os_bot_order", groups: "os_groups", accent: "os_accent", accentHex: "os_accent_hex", view: "os_view", bot: "os_bot" };
 
@@ -2235,8 +2242,10 @@ const BotDashboard = () => {
   }, [owned, user?.id, reload, loadGroups]);
 
   const chooseMode = (m: "solo" | "team") => { setWsMode(m); lsSet(LS.ws, m); lsSet(LS.onboarded, "1"); setAppOn(true); askTour(); };
-  const openBot = (id: string) => { setBotId(id); setView("bot"); window.scrollTo({ top: 0 }); };
-  const go = (v: string) => { setView(v); window.scrollTo({ top: 0 }); };
+  // Phone-width sidebar drawer (see the 760px media query in OSD_CSS).
+  const [menuOpen, setMenuOpen] = useState(false);
+  const openBot = (id: string) => { setBotId(id); setView("bot"); setMenuOpen(false); window.scrollTo({ top: 0 }); };
+  const go = (v: string) => { setView(v); setMenuOpen(false); window.scrollTo({ top: 0 }); };
   // Keep invited members out of sections their role doesn't unlock (e.g. a
   // stale saved view or a deep link). Owners can go anywhere. Dashboard and
   // Support are always allowed.
@@ -2418,6 +2427,10 @@ const BotDashboard = () => {
   const timelineBots = useMemo(() => owned.map((b) => ({ id: b.id, name: b.bot_name })), [owned]);
   const timeline = useFleetTimeline(user?.id, timelineBots);
   const [timelineFilter, setTimelineFilter] = useState<TimelineKind | "all">("all");
+  // The activity feed is 30 days of events; draw it a page at a time so a
+  // busy fleet does not turn the section into one endless scroll.
+  const TIMELINE_PAGE = 50;
+  const [timelineShown, setTimelineShown] = useState(TIMELINE_PAGE);
 
   // First data load of the session (auth restore + bot list) — ghost loading
   // shaped like the REAL dashboard shell (sidebar + header + card grid), so
@@ -2775,7 +2788,8 @@ const BotDashboard = () => {
         <div className={"appwrap" + (showApp ? " show" : "")}>
           {/* Admin notice — flush bar across the very top of the screen. */}
           <FixesBar />
-          <div className="approw">
+          <div className={"approw" + (menuOpen ? " mopen" : "")}>
+          <div className="sidebg" onClick={() => setMenuOpen(false)} aria-hidden />
           <aside className="side">
             <div className="prof">
               <div className="av">{initial}</div>
@@ -2812,6 +2826,9 @@ const BotDashboard = () => {
                 <div className="sub">{owned.length} bots · <b>{liveCount} live</b></div>
               </div>
               <div className="htools">
+                <button type="button" className="mbtn" aria-label="Open menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
+                  <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" /></svg>
+                </button>
                 <div className="bell" id="tour-bell" onClick={() => go("activity")}><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>{unread > 0 && <span className="d" />}</div>
                 {canGroups && (view === "dashboard" || view === "bots" || view === "bot") && (
                   <button type="button" className="hbtn" onClick={() => setGroupsOpen(true)} title="Groups">
@@ -2951,19 +2968,26 @@ const BotDashboard = () => {
                   <>
                     <div className="tabs" style={{ marginTop: "6px", marginBottom: "12px", display: "inline-flex" }}>
                       {KINDS.map((k) => (
-                        <button key={k.id} className={timelineFilter === k.id ? "on" : ""} onClick={() => setTimelineFilter(k.id)}>{k.label}</button>
+                        <button key={k.id} className={timelineFilter === k.id ? "on" : ""} onClick={() => { setTimelineFilter(k.id); setTimelineShown(TIMELINE_PAGE); }}>{k.label}</button>
                       ))}
                     </div>
                     <div className="feed">
                       {timeline.loading && <div className="fitem"><div><div className="ttl">Loading activity</div><div className="meta">Pulling the last 30 days from your bots.</div></div></div>}
                       {!timeline.loading && rows.length === 0 && <div className="fitem"><div><div className="ttl">Nothing here yet</div><div className="meta">{timelineFilter === "all" ? "Events from your bots and team will show up here." : "Nothing of this kind in the last 30 days."}</div></div></div>}
-                      {rows.map((it) => (
+                      {rows.slice(0, timelineShown).map((it) => (
                         <div className="fitem" key={it.id}>
                           <div className="fi" style={tone(it.kind, it.bad)}><svg viewBox="0 0 24 24"><path d={ICON[it.kind]} /></svg></div>
                           <div style={{ minWidth: 0 }}><div className="ttl">{it.title}</div><div className="meta">{it.meta}</div></div>
                           <div className="tm">{osTimeAgo(it.at)}</div>
                         </div>
                       ))}
+                      {rows.length > timelineShown && (
+                        <div className="fitem" style={{ justifyContent: "center" }}>
+                          <button type="button" className="ghost" onClick={() => setTimelineShown((n) => n + TIMELINE_PAGE)}>
+                            Show {Math.min(TIMELINE_PAGE, rows.length - timelineShown)} more
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </>
                 );

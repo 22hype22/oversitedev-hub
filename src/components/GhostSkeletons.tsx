@@ -58,16 +58,16 @@ export function DashboardGhost() {
       </aside>
 
       {/* Main — header (crumb / h1 / sub + bell + CTA), then the card grid */}
-      <div className="flex-1 min-w-0" style={{ padding: "24px 26px 50px" }}>
-        <div className="flex items-start justify-between" style={{ marginBottom: 22 }}>
-          <div>
-            <G w={150} h={10} style={{ marginBottom: 10 }} />
-            <G w={220} h={28} style={{ marginBottom: 8 }} />
+      <div className="flex-1 min-w-0 p-[18px_14px_40px] md:p-[24px_26px_50px]">
+        <div className="flex items-start justify-between gap-3" style={{ marginBottom: 22 }}>
+          <div className="min-w-0">
+            <G w={150} h={10} style={{ marginBottom: 10, maxWidth: "100%" }} />
+            <G w={220} h={28} style={{ marginBottom: 8, maxWidth: "100%" }} />
             <G w={120} h={11} />
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-none items-center gap-3">
             <G w={38} h={38} r={999} />
-            <G w={110} h={38} r={12} />
+            <div className="hidden md:block"><G w={110} h={38} r={12} /></div>
           </div>
         </div>
 

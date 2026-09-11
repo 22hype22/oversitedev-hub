@@ -3,6 +3,7 @@ import { track } from "@/lib/analytics";
 import { toast as sonnerToast } from "sonner";
 import { ImageCropModal, BANNER_RATIO } from "@/components/dashboard/ImageCropModal";
 import { supabase } from "@/integrations/supabase/client";
+import { storeBotImage } from "@/lib/botImageUpload";
 import { useAuth } from "@/hooks/useAuth";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -1265,6 +1266,12 @@ export function BotForge() {
       }
     }
 
+    // Cropped images arrive as inline data; store them as files so the order
+    // row stays small (see storeBotImage).
+    const [parentIcon, parentBanner] = await Promise.all([
+      storeBotImage(parentIdentity.icon ?? primary.icon, user.id, "icon"),
+      storeBotImage(parentIdentity.banner ?? primary.banner, user.id, "banner"),
+    ]);
     const { data: inserted, error } = await (supabase as any)
       .from("bot_orders")
       .insert({
@@ -1272,8 +1279,8 @@ export function BotForge() {
         bot_name: parentIdentity.name.trim() || primary.name.trim(),
         bot_description: (parentIdentity.description || primary.description).trim() || null,
         bot_bio: (parentIdentity.bio || primary.bio || "").trim().slice(0, 190) || null,
-        icon_url: parentIdentity.icon ?? primary.icon,
-        banner_url: parentIdentity.banner ?? primary.banner,
+        icon_url: parentIcon,
+        banner_url: parentBanner,
         base: parentBase,
         addons: parentAddons,
         // Billed monthly hosting only for Discord bots. ER:LC / Roblox bots
@@ -1311,16 +1318,20 @@ export function BotForge() {
     if (usesPackTabs) {
       const extras = tabsForPack.slice(1); // tabsForPack[0] is the primary already inserted
       if (extras.length > 0) {
-        const siblingRows = extras.map((t) => {
+        const siblingRows = await Promise.all(extras.map(async (t) => {
           const ident = packIdentities[t.id] ?? { ...EMPTY_IDENTITY };
+          const [icon, banner] = await Promise.all([
+            storeBotImage(ident.icon, user.id, "icon"),
+            storeBotImage(ident.banner, user.id, "banner"),
+          ]);
           return {
             user_id: user.id,
             parent_order_id: inserted.id,
             bot_name: (ident.name || `${t.label}`).trim(),
             bot_description: ident.description?.trim() || null,
             bot_bio: (ident.bio || "").trim().slice(0, 190) || null,
-            icon_url: ident.icon,
-            banner_url: ident.banner,
+            icon_url: icon,
+            banner_url: banner,
             // Sibling row's base is the specific category, not "scratch"
             base: t.id,
             // Only this category's addons go on this bot.
@@ -1341,7 +1352,7 @@ export function BotForge() {
             discord_user_id: finalDiscordId || null,
             discord_username: finalDiscordName || null,
           };
-        });
+        }));
         const { error: childErr } = await (supabase as any)
           .from("bot_orders")
           .insert(siblingRows);
