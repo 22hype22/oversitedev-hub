@@ -164,3 +164,4 @@ The Manage and Add-on cards are their true height again: the Billing view's tile
 Hero buttons are made of the same glass as the nav pill, and the primary carries the icy accent on its edge so it reads as part of the site rather than a grey slab.
 Hero buttons are a dark tan glass rather than grey, drawn from a new os-warm token so it sits with the hero photograph.
 Hero buttons are made of exactly what the top bar is made of: same tint, blur, shadow and label brightness.
+Promotion and infraction reason buttons retry when the connection to Discord drops, so a bad connection from the host no longer shows up as an error.
