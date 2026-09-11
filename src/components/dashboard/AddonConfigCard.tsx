@@ -2512,12 +2512,13 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
         enabled: values.enabled ?? true,
         approval_channel_id: values.approval_channel_id ? String(values.approval_channel_id) : "",
         staff_role_ids: Array.isArray(values.staff_role_ids) ? (values.staff_role_ids as string[]).map(String) : [],
+        // Fixed perk item names; the bot also knows these on its own.
         perks: {
-          ping_everyone: String(values.perk_ping_everyone ?? "").trim() || "Everyone Ping",
-          ping_here: String(values.perk_ping_here ?? "").trim() || "Here Ping",
-          ping_none: String(values.perk_ping_none ?? "").trim() || "No Ping",
-          instant: String(values.perk_instant ?? "").trim() || "Instant Post",
-          bypass: String(values.perk_bypass ?? "").trim() || "Bypass Queue",
+          ping_everyone: "Everyone Ping",
+          ping_here: "Here Ping",
+          ping_none: "No Ping",
+          instant: "Instant Post",
+          bypass: "Bypass Queue",
         },
         regular_design: normalizeV2Items(adsRegularV2Ref.current?.getItems() ?? adsRegularV2Items ?? []),
         giveaway_design: normalizeV2Items(adsGiveawayV2Ref.current?.getItems() ?? adsGiveawayV2Items ?? []),

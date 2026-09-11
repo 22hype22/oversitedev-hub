@@ -1495,12 +1495,9 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
         "Members buy ad perks (Purchase cards named to match below), then run /ads or a Post an Ad button to spend a ping credit and submit an ad for staff approval. The ad channel & post interval are set in the Marketplace box."),
       channel("approval_channel_id", "Staff approval channel", "Where submitted ads go for staff to Approve / Deny."),
       multirole("staff_role_ids", "Ad staff roles", "Roles that can approve or deny ads (Manage Server always can)."),
-      header("Perk item names (match your Purchase cards)"),
-      { key: "perk_ping_everyone", label: "Everyone Ping item", type: "text", placeholder: "Everyone Ping", help: "Buying this grants one @everyone post credit." },
-      { key: "perk_ping_here", label: "Here Ping item", type: "text", placeholder: "Here Ping", help: "Buying this grants one @here post credit." },
-      { key: "perk_ping_none", label: "No Ping item", type: "text", placeholder: "No Ping", help: "Buying this grants one no-ping post credit." },
-      { key: "perk_instant", label: "Instant Post item", type: "text", placeholder: "Instant Post", help: "Add-on: skips the queue and posts immediately once approved." },
-      { key: "perk_bypass", label: "Bypass Queue item", type: "text", placeholder: "Bypass Queue", help: "Add-on: jumps into the priority lane, posting before regular queued ads." },
+      // Perk item names are fixed in the bot: Everyone Ping, Here Ping,
+      // No Ping, Instant Post and Bypass Queue. Purchase cards with those
+      // titles grant the matching perk, so there is nothing to fill in here.
       {
         key: "claim_button_label",
         label: "Post an Ad button label",
