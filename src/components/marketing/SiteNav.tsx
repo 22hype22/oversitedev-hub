@@ -416,12 +416,19 @@ export function SiteNav() {
               <span aria-hidden className="my-1 h-px bg-os-hairline/40" />
               {user ? (
                 <>
-                  <Link to="/dashboard" onClick={() => setOpen(false)} className="rounded-2xl px-4 py-3 font-label text-[13px] uppercase tracking-[0.16em] text-os-body transition-colors hover:bg-os-heading/[0.07] hover:text-os-accent">
+                  {/* Same destinations and names as the desktop account menu:
+                      the dashboard is /bot-dashboard, /dashboard is account settings. */}
+                  <Link to="/bot-dashboard" onClick={() => setOpen(false)} className="rounded-2xl px-4 py-3 font-label text-[13px] uppercase tracking-[0.16em] text-os-body transition-colors hover:bg-os-heading/[0.07] hover:text-os-accent">
                     Dashboard
                   </Link>
-                  <Link to="/bot-dashboard" onClick={() => setOpen(false)} className="rounded-2xl px-4 py-3 font-label text-[13px] uppercase tracking-[0.16em] text-os-body transition-colors hover:bg-os-heading/[0.07] hover:text-os-accent">
-                    Bot orders
+                  <Link to="/dashboard" onClick={() => setOpen(false)} className="rounded-2xl px-4 py-3 font-label text-[13px] uppercase tracking-[0.16em] text-os-body transition-colors hover:bg-os-heading/[0.07] hover:text-os-accent">
+                    Settings
                   </Link>
+                  {isAdmin && (
+                    <Link to="/admin" onClick={() => setOpen(false)} className="rounded-2xl px-4 py-3 font-label text-[13px] uppercase tracking-[0.16em] text-os-body transition-colors hover:bg-os-heading/[0.07] hover:text-os-accent">
+                      Admin
+                    </Link>
+                  )}
                   <button type="button" onClick={() => { setOpen(false); signOut(); }} className="rounded-2xl px-4 py-3 text-left font-label text-[13px] uppercase tracking-[0.16em] text-os-accent transition-colors hover:bg-os-heading/[0.07]">
                     Sign out
                   </button>

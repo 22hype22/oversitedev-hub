@@ -165,3 +165,8 @@ Hero buttons are made of the same glass as the nav pill, and the primary carries
 Hero buttons are a dark tan glass rather than grey, drawn from a new os-warm token so it sits with the hero photograph.
 Hero buttons are made of exactly what the top bar is made of: same tint, blur, shadow and label brightness.
 Promotion and infraction reason buttons retry when the connection to Discord drops, so a bad connection from the host no longer shows up as an error.
+The phone menu's Dashboard link now opens the dashboard, and its Settings link opens account settings, the same as on desktop.
+On phones the dashboard sidebar is a drawer opened from a menu button in the header, so every section is reachable again.
+Bot icons and banners from the order form are stored as files instead of inline in the order, so the bot list loads in a moment on any device.
+The activity feed shows fifty events at a time with a Show more button.
+The bot page name wraps under the avatar on phones instead of being cut short.

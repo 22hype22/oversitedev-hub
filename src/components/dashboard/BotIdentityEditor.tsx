@@ -885,5 +885,10 @@ const BID_CSS = `
 .bid .biogrid{display:grid;grid-template-columns:1fr;gap:16px}
 .bid .biogrid>*{min-width:0}
 @media(min-width:560px){.bid .biogrid{grid-template-columns:1fr 1fr}}
+/* Phones: the name no longer has to fit beside the avatar. The avatar keeps
+   its overlap with the banner and the name, badge and meta drop underneath
+   at full width, so a long bot name wraps instead of being cut short. */
+@media(max-width:520px){.bid .prow{flex-wrap:wrap;gap:10px}.bid .pident{flex-basis:100%;padding-bottom:0}
+  .bid .nrow h1{white-space:normal;font-size:22px;line-height:1.1}.bid .pbody{padding:0 16px 16px}}
 .bid .bioactions{display:flex;justify-content:flex-end}
 `;
