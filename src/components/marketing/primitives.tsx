@@ -83,20 +83,18 @@ export function AccentButton({
   /** Frosted glass under the button, for when it sits over a photograph. */
   glass?: boolean;
 }) {
-  // On glass the resting line carries the site's icy accent so the button
-  // reads as ours, not as a grey slab on the photograph.
   const thin = tone === "accent"
-    ? (glass ? "border-os-accent/75" : "border-os-accent/40")
-    : (glass ? "border-os-heading/35" : "border-os-heading/30");
+    ? (glass ? "border-os-accent/60" : "border-os-accent/40")
+    : "border-os-heading/30";
   const thick = tone === "accent" ? "border-os-accent" : "border-os-heading/75";
   const classes = cn(
     "group relative inline-flex h-[46px] items-center gap-3 rounded-[10px] px-[22px] text-os-heading isolate",
     "transition-transform duration-[160ms] active:scale-[0.98]",
     glass && [
-      // Dark tan rather than slate: the hero photograph is warm, and the
-      // grey read as a slab dropped on top of it.
-      "bg-os-warm/[0.52] backdrop-blur-[10px] backdrop-saturate-150 overflow-hidden",
-      "shadow-[inset_0_1px_0_rgb(var(--os-heading)/0.18),0_12px_40px_-14px_rgb(0_0_0/0.6)]",
+      // The nav pill's material, exactly: same tint, same blur, same shadow,
+      // so the bar at the top and the buttons below read as one set.
+      "bg-os-bg/35 backdrop-blur-sm overflow-hidden",
+      "shadow-[0_12px_40px_-14px_rgb(0_0_0/0.6)]",
     ],
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-os-accent focus-visible:ring-offset-2 focus-visible:ring-offset-os-bg",
     className,
@@ -107,7 +105,7 @@ export function AccentButton({
       {glass && (
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-[inherit] bg-[linear-gradient(180deg,rgb(var(--os-heading)/0.14),rgb(var(--os-heading)/0.03)_42%,transparent_70%)]"
+          className="pointer-events-none absolute inset-0 rounded-[inherit] bg-[linear-gradient(180deg,rgb(var(--os-heading)/0.10),transparent_60%)]"
         />
       )}
       {/* The thin line that is always there. */}
@@ -123,7 +121,14 @@ export function AccentButton({
       />
       <span
         style={{ transitionTimingFunction: EASE_OUT }}
-        className="whitespace-nowrap font-display text-[15px] font-semibold tracking-[-0.01em] text-transparent bg-clip-text bg-[linear-gradient(90deg,#fff_50%,rgb(var(--os-body))_50%)] bg-[length:200%_100%] bg-[position:100%_0] transition-[background-position] duration-[420ms] group-hover:bg-[position:0_0] motion-reduce:transition-none"
+        className={cn(
+          "whitespace-nowrap font-display text-[15px] font-semibold tracking-[-0.01em] text-transparent bg-clip-text bg-[length:200%_100%] bg-[position:100%_0] transition-[background-position] duration-[420ms] group-hover:bg-[position:0_0] motion-reduce:transition-none",
+          // On the photograph the label rests at the nav's own brightness so
+          // the two match; on the dark pages it rests in body grey.
+          glass
+            ? "bg-[linear-gradient(90deg,#fff_50%,rgb(var(--os-heading)/0.8)_50%)]"
+            : "bg-[linear-gradient(90deg,#fff_50%,rgb(var(--os-body))_50%)]",
+        )}
       >
         {children}
       </span>
