@@ -1490,30 +1490,16 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     title: "Advertisements",
     summary: "Sell ad perks; members spend them to post ads through a staff-approved queue.",
     icon: Megaphone,
+    // Two parts: who approves, then where and how ads post. Perk item names
+    // are fixed in the bot (Everyone Ping, Here Ping, No Ping, Instant Post,
+    // Bypass Queue) and the claim panel wording uses the bot's defaults, so
+    // neither is asked for here. The post interval stays in the Marketplace box.
     fields: [
-      toggle("enabled", "Enable the ad system", true,
-        "Members buy ad perks (Purchase cards named to match below), then run /ads or a Post an Ad button to spend a ping credit and submit an ad for staff approval. The ad channel & post interval are set in the Marketplace box."),
-      channel("approval_channel_id", "Staff approval channel", "Where submitted ads go for staff to Approve / Deny."),
-      multirole("staff_role_ids", "Ad staff roles", "Roles that can approve or deny ads (Manage Server always can)."),
-      // Perk item names are fixed in the bot: Everyone Ping, Here Ping,
-      // No Ping, Instant Post and Bypass Queue. Purchase cards with those
-      // titles grant the matching perk, so there is nothing to fill in here.
-      {
-        key: "claim_button_label",
-        label: "Post an Ad button label",
-        type: "text",
-        placeholder: "📢 Post an Ad",
-        help: "Label for the Post an Ad button you can add to any message (button action “Post an Ad”).",
-      },
-      header("Claim panel wording (how the inventory pop-up looks)"),
-      { key: "claim_title", label: "Panel title", type: "text", placeholder: "Your Ad Inventory" },
-      { key: "claim_note", label: "Note under the inventory (optional)", type: "textarea", placeholder: "Shown under the list of what they own." },
-      { key: "ping_placeholder", label: "Ping dropdown placeholder", type: "text", placeholder: "Which ping credit to use" },
-      { key: "type_placeholder", label: "Post-type dropdown placeholder", type: "text", placeholder: "Post type" },
-      { key: "regular_label", label: "“Regular Post” option label", type: "text", placeholder: "Regular Post" },
-      { key: "giveaway_label", label: "“Sponsored Giveaway” option label", type: "text", placeholder: "Sponsored Giveaway" },
-      { key: "addon_placeholder", label: "Add-on dropdown placeholder", type: "text", placeholder: "Apply an add-on (optional)" },
-      { key: "continue_label", label: "Continue button label", type: "text", placeholder: "Continue" },
+      header("Approval"),
+      channel("approval_channel_id", "Staff approval channel", "Where submitted ads wait for staff to Approve, Deny or Delay."),
+      multirole("staff_role_ids", "Roles pinged for approval", "Pinged in the approval channel when an ad is waiting. They can approve or deny ads; Manage Server always can."),
+      header("Posting"),
+      channel("post_channel_id", "Ad channel", "Where approved ads post. The designs below decide how each one looks."),
     ],
   },
 
