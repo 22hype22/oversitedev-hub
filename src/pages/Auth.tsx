@@ -487,7 +487,7 @@ const Auth = () => {
 
           <Reveal className="relative z-10 w-full max-w-[420px]">
             {/* mobile wordmark */}
-            <Link to="/" className="mb-8 inline-flex font-display text-[18px] font-extrabold uppercase tracking-[-0.02em] text-os-heading lg:hidden">
+            <Link to="/" className="mb-8 flex w-fit font-display text-[18px] font-extrabold uppercase tracking-[-0.02em] text-os-heading lg:hidden">
               Oversite
             </Link>
 
