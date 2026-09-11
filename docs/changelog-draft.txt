@@ -162,3 +162,4 @@ Hero buttons sit on a dark blurred ground so they stay readable over the bright 
 Hero buttons are frosted glass: a blurred, saturated pane with light along the top edge, readable over any part of the photo.
 The Manage and Add-on cards are their true height again: the Billing view's tile row shared a class name with the card header and was adding 16px inside every card.
 Hero buttons are made of the same glass as the nav pill, and the primary carries the icy accent on its edge so it reads as part of the site rather than a grey slab.
+Hero buttons are a dark tan glass rather than grey, drawn from a new os-warm token so it sits with the hero photograph.

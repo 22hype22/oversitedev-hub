@@ -64,6 +64,7 @@ export default {
         // borders, off-white text, and a single restrained blue accent.
         os: {
           bg: "rgb(var(--os-bg) / <alpha-value>)",
+          warm: "rgb(var(--os-warm) / <alpha-value>)",
           surface: "rgb(var(--os-surface) / <alpha-value>)",
           "surface-2": "rgb(var(--os-surface-2) / <alpha-value>)",
           hairline: "rgb(var(--os-hairline) / <alpha-value>)",

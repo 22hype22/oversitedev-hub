@@ -139,6 +139,7 @@
     /* Cold techwear: desaturated blue-grey monochrome, icy light accents.
        Space-separated RGB channels so Tailwind's `/<alpha>` work. Hex noted. */
     --os-bg: 41 48 56; /* #293038 cold slate */
+    --os-warm: 59 52 42; /* #3B342A dark tan — the glass over the hero photograph */
     --os-surface: 52 61 70; /* #343D46 */
     --os-surface-2: 70 82 94; /* #46525E icy panel */
     --os-hairline: 86 98 110; /* #56626E */

@@ -93,8 +93,9 @@ export function AccentButton({
     "group relative inline-flex h-[46px] items-center gap-3 rounded-[10px] px-[22px] text-os-heading isolate",
     "transition-transform duration-[160ms] active:scale-[0.98]",
     glass && [
-      // The same glass the nav pill is made of, so the two read as one set.
-      "bg-os-bg/45 backdrop-blur-[10px] backdrop-saturate-150 overflow-hidden",
+      // Dark tan rather than slate: the hero photograph is warm, and the
+      // grey read as a slab dropped on top of it.
+      "bg-os-warm/[0.52] backdrop-blur-[10px] backdrop-saturate-150 overflow-hidden",
       "shadow-[inset_0_1px_0_rgb(var(--os-heading)/0.18),0_12px_40px_-14px_rgb(0_0_0/0.6)]",
     ],
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-os-accent focus-visible:ring-offset-2 focus-visible:ring-offset-os-bg",
