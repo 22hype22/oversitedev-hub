@@ -25,10 +25,10 @@ export function Hero() {
       {/* date + CTAs */}
       <div className="mt-[26vh] flex flex-col items-center gap-6">
         <div className="flex items-center gap-3 sm:gap-4">
-          <AccentButton to="/bots" tone="muted" arrow={false} scrim className="h-[52px] px-[30px]">
+          <AccentButton to="/bots" tone="muted" arrow={false} glass className="h-[52px] px-[30px]">
             Learn more
           </AccentButton>
-          <AccentButton to="/auth" scrim className="h-[52px] px-[30px]">
+          <AccentButton to="/auth" glass className="h-[52px] px-[30px]">
             Deploy now
           </AccentButton>
         </div>
