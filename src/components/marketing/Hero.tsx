@@ -1,6 +1,5 @@
-import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
 import wordmark from "@/assets/oversite-wordmark.webp";
+import { AccentButton } from "@/components/marketing/primitives";
 
 const SHADOW = "[text-shadow:0_2px_30px_rgb(var(--os-ink)/0.85)]";
 
@@ -26,19 +25,12 @@ export function Hero() {
       {/* date + CTAs */}
       <div className="mt-[26vh] flex flex-col items-center gap-6">
         <div className="flex items-center gap-3 sm:gap-4">
-          <Link
-            to="/bots"
-            className="rounded-full border border-os-heading/40 px-9 py-4 font-label text-[12px] font-bold uppercase tracking-[0.16em] text-os-heading backdrop-blur-sm transition hover:border-os-heading hover:bg-os-heading/[0.06] sm:px-11 sm:text-[13px]"
-          >
+          <AccentButton to="/bots" tone="muted" arrow={false} className="h-[52px] px-[30px] backdrop-blur-[2px]">
             Learn more
-          </Link>
-          <Link
-            to="/auth"
-            className="group inline-flex items-center gap-2 rounded-full bg-os-accent px-9 py-4 font-label text-[12px] font-bold uppercase tracking-[0.16em] text-os-accent-ink shadow-[0_16px_40px_-16px_rgb(var(--os-accent)/0.7)] transition hover:brightness-105 sm:px-11 sm:text-[13px]"
-          >
+          </AccentButton>
+          <AccentButton to="/auth" className="h-[52px] px-[30px] backdrop-blur-[2px]">
             Deploy now
-            <ArrowRight size={17} className="transition-transform duration-200 group-hover:translate-x-1" aria-hidden />
-          </Link>
+          </AccentButton>
         </div>
       </div>
     </section>
