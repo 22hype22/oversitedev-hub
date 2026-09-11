@@ -83,14 +83,19 @@ export function AccentButton({
   /** Frosted glass under the button, for when it sits over a photograph. */
   glass?: boolean;
 }) {
-  const thin = tone === "accent" ? "border-os-accent/40" : "border-os-heading/30";
+  // On glass the resting line carries the site's icy accent so the button
+  // reads as ours, not as a grey slab on the photograph.
+  const thin = tone === "accent"
+    ? (glass ? "border-os-accent/75" : "border-os-accent/40")
+    : (glass ? "border-os-heading/35" : "border-os-heading/30");
   const thick = tone === "accent" ? "border-os-accent" : "border-os-heading/75";
   const classes = cn(
     "group relative inline-flex h-[46px] items-center gap-3 rounded-[10px] px-[22px] text-os-heading isolate",
     "transition-transform duration-[160ms] active:scale-[0.98]",
     glass && [
-      "bg-os-bg/60 backdrop-blur-md backdrop-saturate-150 overflow-hidden",
-      "shadow-[inset_0_1px_0_rgb(var(--os-heading)/0.22),inset_0_-1px_0_rgb(var(--os-ink)/0.5),0_16px_38px_-20px_rgb(var(--os-ink)/0.95)]",
+      // The same glass the nav pill is made of, so the two read as one set.
+      "bg-os-bg/45 backdrop-blur-[10px] backdrop-saturate-150 overflow-hidden",
+      "shadow-[inset_0_1px_0_rgb(var(--os-heading)/0.18),0_12px_40px_-14px_rgb(0_0_0/0.6)]",
     ],
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-os-accent focus-visible:ring-offset-2 focus-visible:ring-offset-os-bg",
     className,
