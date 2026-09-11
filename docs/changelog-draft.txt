@@ -175,3 +175,4 @@ On the sign-in page the Oversite wordmark sits on its own line above the heading
 On phones the dashboard header keeps the menu, bell and groups buttons on the title row and shortens the breadcrumb instead of dropping the buttons below.
 On phones the add-on tiles sit two across instead of four, and the active server picker trims a long server name to one line.
 The Advertisements add-on no longer asks for perk item names; Everyone Ping, Here Ping, No Ping, Instant Post and Bypass Queue are fixed.
+Ad designs get {ad server} and {ad link} for the advertised server, and {server} inside an ad design now means their server rather than ours.
