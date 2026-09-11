@@ -2513,26 +2513,12 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
         .maybeSingle();
       if (cancelled || !data) return;
       const cfg = (data.config ?? {}) as Record<string, any>;
-      const perks = (cfg.perks ?? {}) as Record<string, any>;
       setValues((prev) => ({
         ...prev,
         enabled: cfg.enabled ?? true,
         approval_channel_id: cfg.approval_channel_id ? String(cfg.approval_channel_id) : "",
         staff_role_ids: Array.isArray(cfg.staff_role_ids) ? cfg.staff_role_ids.map(String) : [],
-        perk_ping_everyone: perks.ping_everyone ?? "",
-        perk_ping_here: perks.ping_here ?? "",
-        perk_ping_none: perks.ping_none ?? "",
-        perk_instant: perks.instant ?? "",
-        perk_bypass: perks.bypass ?? "",
-        claim_button_label: cfg.claim_button_label ?? "",
-        claim_title: cfg.claim_title ?? "",
-        claim_note: cfg.claim_note ?? "",
-        ping_placeholder: cfg.ping_placeholder ?? "",
-        type_placeholder: cfg.type_placeholder ?? "",
-        regular_label: cfg.regular_label ?? "",
-        giveaway_label: cfg.giveaway_label ?? "",
-        addon_placeholder: cfg.addon_placeholder ?? "",
-        continue_label: cfg.continue_label ?? "",
+        post_channel_id: cfg.post_channel_id ? String(cfg.post_channel_id) : "",
       }));
       setAdsRegularV2Items(Array.isArray(cfg.regular_design) ? (cfg.regular_design as V2Item[]) : []);
       setAdsRegularV2MountKey((k) => k + 1);
@@ -2558,6 +2544,7 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
         enabled: values.enabled ?? true,
         approval_channel_id: values.approval_channel_id ? String(values.approval_channel_id) : "",
         staff_role_ids: Array.isArray(values.staff_role_ids) ? (values.staff_role_ids as string[]).map(String) : [],
+        post_channel_id: values.post_channel_id ? String(values.post_channel_id) : "",
         // Fixed perk item names; the bot also knows these on its own.
         perks: {
           ping_everyone: "Everyone Ping",
@@ -2571,15 +2558,6 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
         claim_design: normalizeV2Items(adsClaimV2Ref.current?.getItems() ?? adsClaimV2Items ?? []),
         empty_design: normalizeV2Items(adsEmptyV2Ref.current?.getItems() ?? adsEmptyV2Items ?? []),
         noposts_design: normalizeV2Items(adsNopostsV2Ref.current?.getItems() ?? adsNopostsV2Items ?? []),
-        claim_button_label: String(values.claim_button_label ?? "").trim(),
-        claim_title: String(values.claim_title ?? "").trim(),
-        claim_note: String(values.claim_note ?? ""),
-        ping_placeholder: String(values.ping_placeholder ?? "").trim(),
-        type_placeholder: String(values.type_placeholder ?? "").trim(),
-        regular_label: String(values.regular_label ?? "").trim(),
-        giveaway_label: String(values.giveaway_label ?? "").trim(),
-        addon_placeholder: String(values.addon_placeholder ?? "").trim(),
-        continue_label: String(values.continue_label ?? "").trim(),
       },
       updated_at: new Date().toISOString(),
     };
@@ -5362,7 +5340,8 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                 <p className="text-xs text-muted-foreground">
                   How a normal ad posts. Tokens:{" "}
                   <code className="font-mono text-os-accent">{"{advertiser}"}</code>,{" "}
-                  <code className="font-mono text-os-accent">{"{server_link}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{ad server}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{ad link}"}</code>,{" "}
                   <code className="font-mono text-os-accent">{"{ping}"}</code>. Leave empty for a default embed.
                 </p>
                 <MessagesV2Builder
@@ -5384,14 +5363,14 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                   How a sponsored giveaway posts — the bot hosts it in your server and members click Enter to join. Add a{" "}
                   <span className="font-medium">Button Row → Counter</span> for the Enter button (or one is added automatically), and a{" "}
                   <span className="font-medium">Link button</span> labeled “Discord Group” with URL{" "}
-                  <code className="font-mono text-os-accent">{"{server_link}"}</code> to link the advertiser's server. Tokens:{" "}
+                  <code className="font-mono text-os-accent">{"{ad link}"}</code> to link the advertiser's server. Tokens:{" "}
                   <code className="font-mono text-os-accent">{"{advertiser}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{ad server}"}</code>,{" "}
+                  <code className="font-mono text-os-accent">{"{ad link}"}</code>,{" "}
                   <code className="font-mono text-os-accent">{"{prize}"}</code>,{" "}
                   <code className="font-mono text-os-accent">{"{winners}"}</code>,{" "}
                   <code className="font-mono text-os-accent">{"{duration}"}</code>,{" "}
                   <code className="font-mono text-os-accent">{"{reactions}"}</code> (live entry count),{" "}
-                  <code className="font-mono text-os-accent">{"{server_link}"}</code>,{" "}
-                  <code className="font-mono text-os-accent">{"{server_name}"}</code>,{" "}
                   <code className="font-mono text-os-accent">{"{ping}"}</code>. Leave empty for the default giveaway layout.
                 </p>
                 <MessagesV2Builder

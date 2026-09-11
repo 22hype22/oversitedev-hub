@@ -176,3 +176,4 @@ On phones the dashboard header keeps the menu, bell and groups buttons on the ti
 On phones the add-on tiles sit two across instead of four, and the active server picker trims a long server name to one line.
 The Advertisements add-on no longer asks for perk item names; Everyone Ping, Here Ping, No Ping, Instant Post and Bypass Queue are fixed.
 Ad designs get {ad server} and {ad link} for the advertised server, and {server} inside an ad design now means their server rather than ours.
+The Advertisements block is two parts: Approval, with the staff channel and the roles pinged for approval, then Posting, with the ad channel and the five designs. Perk names and claim panel wording are no longer asked for.
