@@ -340,8 +340,8 @@ export function SortableAddonGrid({
         <div
           className={
             groupKey === "shared"
-              ? "grid grid-cols-1 sm:grid-cols-4 gap-5"
-              : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
+              ? "grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5"
+              : "grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4"
           }
         >
           {displayOrder.map((id) => (

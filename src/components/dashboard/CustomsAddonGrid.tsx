@@ -19,6 +19,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/hooks/use-mobile";
 // Lazy — the addon editor bundle is large; defer it like SortableAddonGrid does.
 const AddonConfigCard = lazy(() =>
   import("./AddonConfigCard").then((m) => ({ default: m.AddonConfigCard })),
@@ -326,13 +327,14 @@ export function CustomsAddonGrid({
     return [...enabled, ...disabled];
   }, [order, isEnabled]);
 
-  // Fixed 4-column layout: cards fill a row of 4, then wrap to the next row.
-  // Inline (not the Tailwind `grid` class) so the scoped `.osd .grid` rule
-  // in BotDashboard's CSS can't override the columns.
+  // Four cards to a row, two on a phone. Inline (not the Tailwind `grid`
+  // class) so the scoped `.osd .grid` rule in BotDashboard's CSS can't
+  // override the columns.
+  const isMobile = useIsMobile();
   const gridStyle: React.CSSProperties = {
     display: "grid",
-    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-    gap: "20px",
+    gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))",
+    gap: isMobile ? "12px" : "20px",
     alignItems: "stretch",
   };
 

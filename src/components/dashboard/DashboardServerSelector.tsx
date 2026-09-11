@@ -91,7 +91,7 @@ export function DashboardServerSelector({ botId }: Props) {
                 disabled={loading || guilds.length === 0}
               >
                 <SelectTrigger aria-label="Active server">
-                  <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden text-left [&>span]:min-w-0 [&>span]:truncate">
                     <Server className="h-4 w-4 shrink-0 text-[rgb(var(--os-faint))]" />
                     <SelectValue
                       placeholder={
