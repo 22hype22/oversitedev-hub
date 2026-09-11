@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import {
   Ticket,
   ClipboardList,
@@ -6,7 +5,6 @@ import {
   Store,
   CreditCard,
   ShieldCheck,
-  ArrowRight,
   type LucideIcon,
 } from "lucide-react";
 import { SiteNav } from "@/components/marketing/SiteNav";
@@ -130,12 +128,7 @@ export default function ErlcDesign() {
             </p>
             <div className="mt-2 flex flex-wrap gap-3">
               <AccentButton to="/auth">Get started</AccentButton>
-              <Link
-                to="/bots"
-                className="inline-flex items-center gap-2 rounded-full border border-os-hairline/60 px-5 py-2.5 font-body text-[14px] font-semibold text-os-heading transition-colors hover:border-os-accent/60"
-              >
-                See the bots <ArrowRight size={16} />
-              </Link>
+              <AccentButton to="/bots" tone="muted">See the bots</AccentButton>
             </div>
           </Reveal>
         </section>
