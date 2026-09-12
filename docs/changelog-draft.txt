@@ -182,3 +182,4 @@ Buttons inside a revealed block show their labels again, and the ER:LC page's Se
 Buttons on the dark pages draw their label as plain body grey that brightens on hover.
 The feedback, suggestion and bug report blocks keep one message, so re-picking their channel replaces the old one instead of leaving it for the bot to find first.
 New dispatch-state function gives the dispatch bot durable memory across redeploys.
+Bot updates are deployed to every customer's service, not only the ones Railway auto-deploys.
