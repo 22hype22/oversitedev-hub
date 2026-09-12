@@ -1417,8 +1417,12 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
     }
     // For design-only features we still need a stable key to persist under.
     const currentChannel = values.channel_id ? String(values.channel_id) : "design";
-    // Merge the in-builder message into the library, keyed by channel.
-    const merged: SavedMessage[] = savedMessages.filter((m) => m.channel_id !== currentChannel);
+    // Merge the in-builder message into the library, keyed by channel. The
+    // prompt-form blocks (/suggest, /feedback, /reportbug) use exactly one
+    // message, so re-picking their channel replaces the entry rather than
+    // leaving the old channel's copy behind for the bot to find first.
+    const singleMessage = addonId === "customs-suggestions" || addonId === "customs-feedback" || addonId === "customs-reportbug";
+    const merged: SavedMessage[] = singleMessage ? [] : savedMessages.filter((m) => m.channel_id !== currentChannel);
     merged.push({ id: newMessageId(), channel_id: currentChannel, components: currentComponents });
     setSavedMessages(merged);
     const messagesPayload = merged
