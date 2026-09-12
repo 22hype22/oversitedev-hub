@@ -180,3 +180,4 @@ The Advertisements block is two parts: Approval, with the staff channel and the 
 Giveaway designs always carry the Enter button: it can be renamed, restyled and moved, and its delete control is faded because the giveaway needs it.
 Buttons inside a revealed block show their labels again, and the ER:LC page's See the bots button matches Get started.
 Buttons on the dark pages draw their label as plain body grey that brightens on hover.
+The feedback, suggestion and bug report blocks keep one message, so re-picking their channel replaces the old one instead of leaving it for the bot to find first.
