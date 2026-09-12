@@ -43,6 +43,25 @@ See [`worker/CLAUDE.md`](./worker/CLAUDE.md).
 - `MessagesV2Builder` shows a fallback button when the block placed none, and
   `src/lib/messageVariables.test.ts` fails if a block answers with no variables. Do not remove either.
 
+## Shipping a bot change (every customer, every time)
+
+One Discord bot repo serves many customers: each order gets its own Railway
+service built from the same repo. Some services have no GitHub trigger, and
+Railway's project token cannot create one, so a push updates only some of them
+and a customer can sit on months-old code without anyone noticing.
+
+**After every push to a bot repo, deploy it to every service built from that
+repo.** The helper does this:
+
+```
+python3 scripts/deploy_all.py 22hype22/oversite-dispatch   # one repo
+python3 scripts/deploy_all.py --all                        # every bot repo
+python3 scripts/deploy_all.py --list                       # service, repo, deployed commit
+```
+
+`--list` is also the check: if a service's commit is not the repo's newest, that
+customer is behind. Needs `RAILWAY_TOKEN`.
+
 ## Common tasks
 
 - **Add a Discord feature** → new addon in `worker/src/addons/`, register in
