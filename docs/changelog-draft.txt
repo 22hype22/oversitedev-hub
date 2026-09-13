@@ -183,3 +183,8 @@ Buttons on the dark pages draw their label as plain body grey that brightens on 
 The feedback, suggestion and bug report blocks keep one message, so re-picking their channel replaces the old one instead of leaving it for the bot to find first.
 New dispatch-state function gives the dispatch bot durable memory across redeploys.
 Bot updates are deployed to every customer's service, not only the ones Railway auto-deploys.
+Dispatch reads the clock in the region the server is set to, instead of UTC.
+Urgent traffic keys over a routine readback rather than queueing behind it.
+A priority call nobody takes goes back out on the air with the time it has been holding.
+The alert tone and courtesy beep are measured and levelled against the speech, so they sit where a radio console puts them.
+A plate or name check nobody answers gets one prompt before dispatch drops it.
