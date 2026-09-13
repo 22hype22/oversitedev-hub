@@ -124,7 +124,6 @@ import {
   Image as ImageIcon,
   Check,
   ChevronRight,
-  Megaphone,
   Home,
   Network,
 } from "lucide-react";
@@ -272,7 +271,6 @@ const ADDON_GROUPS: {
   { key: "protection", label: "Protection", icon: Shield, ids: PROTECTION_ADDON_IDS },
   { key: "support",    label: "Support",    icon: LifeBuoy,    ids: SUPPORT_ADDON_IDS },
   { key: "utilities",  label: "Utilities",  icon: Wrench,      ids: UTILITIES_ADDON_IDS },
-  { key: "dispatch",   label: "Dispatch",   icon: Megaphone,   ids: ["dispatch-region", "dispatch-voice"] },
   { key: "shared",     label: "Extras",     icon: Star,        ids: SHARED_ADDON_IDS },
 ];
 
@@ -2550,7 +2548,7 @@ const BotDashboard = () => {
           {
             key: "apis",
             title: "Set up its APIs",
-            desc: apisMissing.length === 0 ? "Every required key is in place." : `${plural(apisMissing.length)} ${apisMissing.length === 1 ? "is" : "are"} missing a required key. Fill it under API keys and credentials.`,
+            desc: apisMissing.length === 0 ? "Every required key is in place." : `${plural(apisMissing.length)} ${apisMissing.length === 1 ? "is" : "are"} missing a required key. Fill it under Required setup.`,
             done: mine.length > 0 && apisMissing.length === 0,
             go: () => openBot(apisMissing[0]?.id ?? mine[0]?.id),
           },
