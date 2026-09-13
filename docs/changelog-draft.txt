@@ -188,3 +188,7 @@ Urgent traffic keys over a routine readback rather than queueing behind it.
 A priority call nobody takes goes back out on the air with the time it has been holding.
 The alert tone and courtesy beep are measured and levelled against the speech, so they sit where a radio console puts them.
 A plate or name check nobody answers gets one prompt before dispatch drops it.
+The dispatch slash commands work again: /link, /region and /clear were registered to a server id nobody had set, so no customer could see them.
+Dispatch finds its own Discord server instead of relying on an id nobody set, so the voice watchdog and duty nicknames work again.
+Slash commands sync to the server instantly and only go out globally when they actually change, so redeploys stop hitting Discord's daily limit.
+Dispatch memory is capped, so a busy server's saved state and its rejoin after a redeploy stay fast however long the bot runs.
