@@ -194,3 +194,4 @@ Slash commands sync to the server instantly and only go out globally when they a
 Dispatch memory is capped, so a busy server's saved state and its rejoin after a redeploy stay fast however long the bot runs.
 Anti-raid join scoring works again for servers using badge bypass, where it had been failing on every join.
 Dispatch speaks the radio codes of the state the server is set to, all fifty, including the states that use signals or twelve codes instead of ten codes.
+Six states' radio codes now come from the agency's own published document, and every state records where its codes came from and how firmly, so the table can be checked rather than trusted.
