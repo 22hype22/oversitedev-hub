@@ -222,6 +222,9 @@ export function BotSecretsCard({ bot }: Props) {
   const [loading, setLoading] = useState(!seeded);
 
   const scopes = useMemo(() => relevantScopes(bot), [bot]);
+  const voiceMeta = slots.find((x) => x.key === "DISPATCH_VOICE_CHANNEL_ID");
+  const voiceSet = !!voiceMeta?.is_set;
+  const voiceLastFour = voiceSet ? (voiceMeta?.last_four ?? "") : "";
     // API keys are gated by `manage_secrets` for invited members. The voice
   // channel is bot config, not a secret, so it ALWAYS shows (owners and any
   // member who can reach this bot page). Owners: full access.
@@ -279,9 +282,14 @@ export function BotSecretsCard({ bot }: Props) {
     .map(augmentSlot);
 
 
-  if (!loading && visible.length === 0) return null;
+  // A dispatch bot's region and voice channel live in this panel, so it stays
+  // up even when the bot has no key slots of its own.
+  const isDispatch = scopes.has("dispatch");
+  if (!loading && visible.length === 0 && !isDispatch) return null;
 
-  const allRequiredSet = visible.filter((s) => s.is_required).every((s) => s.is_set);
+  const allRequiredSet =
+    visible.filter((s) => s.is_required).every((s) => s.is_set) &&
+    (!isDispatch || voiceSet);
 
   return (
     <div className="oskeys">
@@ -293,14 +301,14 @@ export function BotSecretsCard({ bot }: Props) {
               <KeyRound />
             </span>
             <div>
-              <div className="pt">API keys &amp; credentials</div>
+              <div className="pt">Required setup</div>
               <div className="ps">
-                Your bot needs these to connect to your game. Encrypted, and only ever read
+                Your bot will not run without these. Keys are encrypted and only ever read
                 by your bot — never shown back to us or anyone.
               </div>
             </div>
           </div>
-          {!loading && visible.length > 0 && (
+          {!loading && (visible.length > 0 || isDispatch) && (
             <span className={`chip ${allRequiredSet ? "ok" : "warn"}`}>
               {allRequiredSet ? "All set" : "Action needed"}
             </span>
@@ -317,6 +325,17 @@ export function BotSecretsCard({ bot }: Props) {
             {visible.map((s) => (
               <SecretRow key={s.key} bot={bot} slot={s} onChanged={reload} />
             ))}
+            {isDispatch && (
+              <>
+                <RegionSection botId={bot.id} />
+                <VoiceChannelSection
+                  botId={bot.id}
+                  alreadySet={voiceSet}
+                  savedLastFour={voiceLastFour}
+                  onSaved={() => void reload(true)}
+                />
+              </>
+            )}
           </>
         )}
       </div>
@@ -798,119 +817,5 @@ export function VoiceChannelSection({
         <div className="vcfoot note">A voice channel is currently set. Pick again to change it.</div>
       ) : null}
     </div>
-  );
-}
-
-
-/**
- * Standalone dashboard BLOCKS for dispatch bots — the same region and voice
- * pickers that used to hide inside the API-keys card, presented as the
- * standard 158px config tile every other add-on uses (same .acard shell as
- * AddonConfigCard — CSS duplicated on purpose, single-paste files) with the
- * picker in a dialog. The voice block fetches its own slot metadata
- * (saved-state + last-four) and refreshes it after a save.
- */
-const DISPATCH_TILE_CSS = `
-        .acard.acard{position:relative;height:158px;padding:15px;display:flex;flex-direction:column;border-radius:14px;
-          font-family:'Manrope',system-ui,-apple-system,"Segoe UI",sans-serif;border:1px solid #3a434d;
-          background:linear-gradient(180deg,#2d353e,#29313a);box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
-          transition:transform .17s cubic-bezier(.22,1,.36,1),border-color .17s,box-shadow .17s;cursor:pointer}
-        .acard.on:hover{transform:translateY(-2px);border-color:rgba(201,219,230,.42);
-          box-shadow:0 16px 34px -18px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05)}
-        .acard.off{opacity:.5;filter:grayscale(.6);cursor:default;background:#272e36}
-        .acard .ac-head{display:flex;align-items:center;gap:10px}
-        .acard .ac-ico{height:34px;width:34px;border-radius:10px;flex:none;display:grid;place-items:center;
-          background:rgba(201,219,230,.10);border:1px solid rgba(201,219,230,.42);color:#C9DBE6;transition:.17s}
-        .acard.on:hover .ac-ico{background:rgba(201,219,230,.16)}
-        .acard.off .ac-ico{background:#343d46;border-color:#3a434d;color:#788591}
-        .acard .ac-ico svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none}
-        .acard .ac-title{flex:1;min-width:0;font-size:20px;font-weight:700;line-height:1.2;letter-spacing:-.01em;color:#E8EEF3;padding-top:0}
-        .acard.off .ac-title{color:#A8B4BF}
-        /* Enable/disable toggle — sits quietly in the top-right and blends into
-           the card, brightening only on hover so it never reads as a sore thumb.
-           Stays fully visible when the card is OFF so its state is obvious. */
-        .acard .ac-sw{padding-top:0;flex:none;opacity:.38;transform:scale(.82);transform-origin:right center;
-          transition:opacity .16s ease,transform .16s ease}
-        .acard:hover .ac-sw{opacity:.85}
-        .acard .ac-sw:hover{opacity:1}
-        .acard.off .ac-sw{opacity:1}
-        .acard .ac-summary{flex:1;margin-top:10px;font-size:12px;line-height:1.45;color:#788591;
-          overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3}
-        .acard .ac-foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
-        .acard .ac-count{font-size:11.5px;font-weight:600;color:#788591}
-        .acard .ac-arrow{height:16px;width:16px;color:#788591;transition:transform .17s,color .17s}
-        .acard.on:hover .ac-arrow{color:#C9DBE6;transform:translateX(3px)}
-`;
-
-export function DispatchBlockCard({ botId, kind }: { botId: string; kind: "region" | "voice" }) {
-  const [open, setOpen] = useState(false);
-  const [slot, setSlot] = useState<{ set: boolean; lastFour: string } | null>(
-    kind === "voice" ? null : { set: false, lastFour: "" },
-  );
-  const loadSlot = useCallback(async () => {
-    if (kind !== "voice") return;
-    try {
-      const { data } = await (supabase as any).rpc("get_bot_secrets_metadata", { _bot_id: botId });
-      const s = ((data ?? []) as SlotMeta[]).find((x) => x.key === "DISPATCH_VOICE_CHANNEL_ID");
-      setSlot({ set: !!s?.is_set, lastFour: s?.is_set ? (s.last_four ?? "") : "" });
-    } catch {
-      setSlot({ set: false, lastFour: "" });
-    }
-  }, [botId, kind]);
-  useEffect(() => { void loadSlot(); }, [loadSlot]);
-
-  const Icon = kind === "region" ? Radio : Server;
-  const title = kind === "region" ? "Dispatcher Region" : "Dispatch Voice Channel";
-  const sub = kind === "region"
-    ? "The real-world area your dispatcher talks like — its radio codes, signals and phonetics."
-    : "The voice channel your dispatcher joins to read calls and talk with officers.";
-
-  return (
-    <>
-      <style>{DISPATCH_TILE_CSS}</style>
-      <div className="acard on" onClick={() => setOpen(true)}>
-        <div className="ac-head">
-          <span className="ac-ico">
-            <Icon />
-          </span>
-          <h3 className="ac-title">{title}</h3>
-        </div>
-        <p className="ac-summary">{sub}</p>
-        <div className="ac-foot">
-          <span className="ac-count">1 setting</span>
-          <ArrowRight className="ac-arrow" />
-        </div>
-      </div>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Icon className="h-5 w-5 text-os-accent" />
-              {title}
-            </DialogTitle>
-            <DialogDescription>{sub}</DialogDescription>
-          </DialogHeader>
-          <div className="oskeys">
-            <style>{SECRETS_CSS}</style>
-            {kind === "region" ? (
-              <RegionSection botId={botId} />
-            ) : slot === null ? (
-              <div className="loading">
-                <Loader2 className="spin" size={15} />
-                Loading…
-              </div>
-            ) : (
-              <VoiceChannelSection
-                botId={botId}
-                alreadySet={slot.set}
-                savedLastFour={slot.lastFour}
-                onSaved={() => void loadSlot()}
-              />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
   );
 }
