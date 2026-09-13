@@ -192,3 +192,4 @@ The dispatch slash commands work again: /link, /region and /clear were registere
 Dispatch finds its own Discord server instead of relying on an id nobody set, so the voice watchdog and duty nicknames work again.
 Slash commands sync to the server instantly and only go out globally when they actually change, so redeploys stop hitting Discord's daily limit.
 Dispatch memory is capped, so a busy server's saved state and its rejoin after a redeploy stay fast however long the bot runs.
+Anti-raid join scoring works again for servers using badge bypass, where it had been failing on every join.
