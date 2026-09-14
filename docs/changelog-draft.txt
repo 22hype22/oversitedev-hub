@@ -225,3 +225,4 @@ Taking a designer role away removes that designer's prices from /pricing, the sa
 Music: an outbound proxy that refuses the bot is dropped automatically and tracks are fetched directly, instead of every lookup failing.
 The member count on the Verification panel keeps itself up to date, instead of showing the number from when it was posted.
 Every posted panel with variables in it stays up to date, not just the Verification panel.
+Units can reach dispatch by typing in game. ";request supervisor" and every other radio command now work typed, which matters when you are sitting in a traffic stop voice channel the bot cannot hear.
