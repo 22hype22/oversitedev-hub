@@ -212,3 +212,4 @@ The repeating still in pursuit reminder is gone.
 Name checks no longer read out a Roblox account age.
 Slash commands appear once each, /region is administrators only, and /clear is gone.
 Units attach to a call when they respond, the board says which call, and asking who is attached answers about that call.
+A call a unit is on is never aired again as still holding with no unit attached.
