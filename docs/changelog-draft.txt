@@ -235,3 +235,4 @@ Dispatch can move you between voice channels. Say "dispatch drag me to traffic s
 Every bot has an /info command showing what it is, who built it, where to get one and where to get help.
 A redeploy now reads as Redeploying rather than Starting, so a bot that never went down does not look like it did.
 Saved keys stay showing their dots after a redeploy instead of briefly looking empty.
+Music that was paused comes back paused after a redeploy, and the play and pause button on the card now matches what the player is actually doing.
