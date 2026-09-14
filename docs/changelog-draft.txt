@@ -230,3 +230,4 @@ Units can type ";request supervisor" in game, or ask for an RA, a tow, backup or
 Required setup now has an In-game commands link. Reveal it, paste it into your ER:LC private server settings under Event Webhook, and your units can type ";request supervisor" in game.
 The in-game commands link can be regenerated if it ever gets out, which stops the old one working immediately.
 A unit going en route now attaches to the call that is holding even if dispatch has restarted since it came in, so the board stays right.
+Dispatch now tells being spoken to from being spoken about. Units can say "dispatch already cleared us" to each other without the bot answering, while every way of calling it stays exactly as it was.
