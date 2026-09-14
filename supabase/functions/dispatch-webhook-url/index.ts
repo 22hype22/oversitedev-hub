@@ -138,7 +138,8 @@ Deno.serve(async (req) => {
     // A custom domain, when one has been set up, reads better than the
     // generated one, so it wins.
     const custom = existing?.domains?.customDomains?.[0]?.domain;
-    const generated = existing?.domains?.serviceDomains?.[0];
+    const allGenerated = existing?.domains?.serviceDomains ?? [];
+    const generated = allGenerated[0];
     let domain = custom ?? generated?.domain;
 
     // Regenerating is what you do when a link has got out. The old address
@@ -159,6 +160,22 @@ Deno.serve(async (req) => {
           },
         },
       );
+      // Renaming only closes the address it renamed. A service that somehow
+      // ended up with more than one would still be reachable on the others,
+      // which would make regenerating a promise the customer cannot rely on.
+      for (const extra of allGenerated.slice(1)) {
+        if (!extra?.id) continue;
+        try {
+          await railway(
+            `mutation($id: String!) { serviceDomainDelete(id: $id) }`,
+            { id: extra.id },
+          );
+          console.log("[dispatch-webhook-url] closed an extra address", extra.domain);
+        } catch (err) {
+          console.warn("[dispatch-webhook-url] could not close", extra.domain,
+                       (err as Error).message);
+        }
+      }
       const after = await railway(
         `query($p: String!, $e: String!, $s: String!) {
            domains(projectId: $p, environmentId: $e, serviceId: $s) {
