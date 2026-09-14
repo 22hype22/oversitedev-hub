@@ -228,3 +228,4 @@ Every posted panel with variables in it stays up to date, not just the Verificat
 Units can reach dispatch by typing in game. ";request supervisor" and every other radio command now work typed, which matters when you are sitting in a traffic stop voice channel the bot cannot hear.
 Units can type ";request supervisor" in game, or ask for an RA, a tow, backup or anything else the department sends, and dispatch airs it naming the unit, where they are, and the closest unit.
 Required setup now has an In-game commands link. Reveal it, paste it into your ER:LC private server settings under Event Webhook, and your units can type ";request supervisor" in game.
+The in-game commands link can be regenerated if it ever gets out, which stops the old one working immediately.
