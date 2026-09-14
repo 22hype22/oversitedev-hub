@@ -202,3 +202,4 @@ New 10 Codes block posts your region's radio codes in a channel, and edits that 
 Add-on blocks are always four to a row, two on a phone, so a section holding one block no longer stretches it across the page.
 Music downloads the next songs in the queue while the current one plays, so tracks change without a gap.
 Skipping a song always starts the next one, instead of sometimes leaving the queue stuck with nothing playing.
+Playing a YouTube link plays that video, instead of a random one from the mix the link was copied from, and a playlist link queues the whole playlist.
