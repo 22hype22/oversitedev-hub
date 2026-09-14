@@ -2,7 +2,8 @@
 // typing ";request supervisor" in game reaches their dispatch bot.
 //
 // Invocation:
-//   POST { orderId: string }   (as the signed-in owner of that order)
+//   POST { orderId: string, regenerate?: boolean }
+//        (as the signed-in owner of that order)
 //
 // Every bot listens on its own service, so every customer needs their own
 // address. The service has one the moment it is deployed, but nothing hands it
@@ -24,6 +25,15 @@ const RAILWAY_API = "https://backboard.railway.app/graphql/v2";
 const HOOK_PATH = "/erlc";
 // The port the bot binds. Railway needs it to point a domain at the process.
 const HOOK_PORT = 8080;
+
+/** A fresh address. Short, unguessable, and nothing to do with the customer,
+ *  so a leaked one tells nobody anything about whose bot it was. */
+function freshHost(): string {
+  const bytes = new Uint8Array(5);
+  crypto.getRandomValues(bytes);
+  const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `erlc-${hex}.up.railway.app`;
+}
 
 async function railway(query: string, variables: Record<string, unknown>) {
   const token = Deno.env.get("RAILWAY_API_TOKEN");
@@ -128,7 +138,37 @@ Deno.serve(async (req) => {
     // A custom domain, when one has been set up, reads better than the
     // generated one, so it wins.
     const custom = existing?.domains?.customDomains?.[0]?.domain;
-    let domain = custom ?? existing?.domains?.serviceDomains?.[0]?.domain;
+    const generated = existing?.domains?.serviceDomains?.[0];
+    let domain = custom ?? generated?.domain;
+
+    // Regenerating is what you do when a link has got out. The old address
+    // stops pointing at the bot the moment this returns, so whoever has it
+    // holds nothing. A custom domain is left alone: it was set up deliberately
+    // and is not ours to throw away.
+    if (body?.regenerate === true && !custom && generated?.id) {
+      const want = freshHost();
+      await railway(
+        `mutation($i: ServiceDomainUpdateInput!) { serviceDomainUpdate(input: $i) }`,
+        {
+          i: {
+            serviceDomainId: generated.id,
+            environmentId: envId,
+            serviceId,
+            domain: want,
+            targetPort: HOOK_PORT,
+          },
+        },
+      );
+      const after = await railway(
+        `query($p: String!, $e: String!, $s: String!) {
+           domains(projectId: $p, environmentId: $e, serviceId: $s) {
+             serviceDomains { domain }
+           }
+         }`,
+        { p: projectId, e: envId, s: serviceId },
+      );
+      domain = after?.domains?.serviceDomains?.[0]?.domain ?? want;
+    }
 
     if (!domain) {
       const made = await railway(

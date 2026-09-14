@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { KeyRound, Loader2, Server, Radio, RefreshCw, Check, ChevronsUpDown, ArrowRight, Copy, Eye, EyeOff } from "lucide-react";
+import { KeyRound, Loader2, Server, Radio, RefreshCw, Check, ChevronsUpDown, ArrowRight } from "lucide-react";
 import type { OwnedBot } from "@/hooks/useOwnedBots";
 import { useTeamRole } from "@/hooks/useTeamRole";
 import { cacheGet, cacheSet } from "@/lib/uiCache";
@@ -115,27 +115,6 @@ const SECRETS_CSS = `
     flex: 1;
     min-width: 0;
   }
-  .oskeys .hookmask {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 12px;
-    color: hsl(var(--muted-foreground));
-    letter-spacing: 1px;
-    flex: 1;
-    min-width: 0;
-  }
-  .oskeys .hookbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-  .oskeys .hookbtn {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 12px; font-weight: 600;
-    padding: 7px 11px; border-radius: 7px;
-    border: 1px solid hsl(var(--border));
-    background: hsl(var(--primary) / 0.12);
-    color: hsl(var(--foreground));
-    cursor: pointer;
-  }
-  .oskeys .hookbtn:hover:not(:disabled) { background: hsl(var(--primary) / 0.2); }
-  .oskeys .hookbtn:disabled { opacity: 0.6; cursor: default; }
-  .oskeys .hookbtn.ghost { background: transparent; color: hsl(var(--muted-foreground)); }
 
 .oskeys .refresh{border:none;background:transparent;color:var(--faint);font:inherit;font-size:11.5px;
   font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:0}
@@ -578,12 +557,12 @@ export function WebhookSection({ botId }: { botId: string }) {
   const [loading, setLoading] = useState(false);
   const [shown, setShown] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
-  const reveal = async () => {
-    if (url) { setShown(true); return; }
+  const fetchUrl = async (regenerate = false) => {
     setLoading(true);
     const { data, error } = await supabase.functions.invoke("dispatch-webhook-url", {
-      body: { orderId: botId },
+      body: { orderId: botId, regenerate },
     });
     setLoading(false);
     if (error || (data as any)?.error) {
@@ -598,6 +577,26 @@ export function WebhookSection({ botId }: { botId: string }) {
     }
     setUrl((data as any).url);
     setShown(true);
+    return true;
+  };
+
+  const reveal = async () => {
+    if (url) { setShown(true); return; }
+    await fetchUrl(false);
+  };
+
+  // For a link that has got out. The old address stops working the moment this
+  // happens, so the customer must paste the new one into their server settings
+  // or in-game commands stop arriving. Hence the ask before the doing.
+  const regenerate = async () => {
+    setConfirming(false);
+    const ok = await fetchUrl(true);
+    if (ok) {
+      toast.success("New link generated", {
+        description: "The old one no longer works. Paste this one into your ER:LC "
+          + "private server settings under Event Webhook.",
+      });
+    }
   };
 
   const copy = async () => {
@@ -623,34 +622,51 @@ export function WebhookSection({ botId }: { botId: string }) {
         search for <strong>Event Webhook</strong>, paste it in and save. Nothing
         reaches the bot until it is saved there.
       </div>
-      <div className="vc">
-        <div className="vcrow">
-          <span className="vclbl">Your link</span>
-          {shown && url ? (
-            <code className="hookurl">{url}</code>
-          ) : (
-            <span className="hookmask">{reason || "••••••••••••••••••••••••••••••"}</span>
-          )}
+      {confirming && (
+        <div className="ed">
+          <strong>This replaces the link.</strong> The one you have stops working at
+          once, so if it is already in your server settings you will need to paste the
+          new one in or in-game commands stop arriving.
         </div>
-        <div className="hookbtns">
-          {shown && url ? (
-            <button type="button" className="hookbtn" onClick={copy}>
-              {copied ? <Check size={14} /> : <Copy size={14} />}
-              {copied ? "Copied" : "Copy link"}
-            </button>
+      )}
+      {/* Same row as a saved key above: the value on the left, its buttons on
+          the right, so the two read as the same kind of thing. */}
+      <div className="savedrow">
+        {shown && url ? (
+          <code className="hookurl">{url}</code>
+        ) : (
+          <span className="dots">{reason || "•".repeat(30)}</span>
+        )}
+        <span className="btns">
+          {confirming ? (
+            <>
+              <button type="button" className="mini danger" onClick={regenerate} disabled={loading}>
+                {loading && <Loader2 className="spin" size={13} />}
+                Yes, replace it
+              </button>
+              <button type="button" className="mini" onClick={() => setConfirming(false)}>
+                Cancel
+              </button>
+            </>
+          ) : shown && url ? (
+            <>
+              <button type="button" className="mini" onClick={copy}>
+                {copied ? "Copied" : "Copy"}
+              </button>
+              <button type="button" className="mini" onClick={() => setShown(false)}>
+                Hide
+              </button>
+              <button type="button" className="mini danger" onClick={() => setConfirming(true)}>
+                Regenerate
+              </button>
+            </>
           ) : (
-            <button type="button" className="hookbtn" onClick={reveal} disabled={loading}>
-              {loading ? <Loader2 size={14} className="spin" /> : <Eye size={14} />}
-              {loading ? "Fetching…" : "Reveal link"}
+            <button type="button" className="mini" onClick={reveal} disabled={loading}>
+              {loading && <Loader2 className="spin" size={13} />}
+              {loading ? "Fetching" : "Reveal link"}
             </button>
           )}
-          {shown && url && (
-            <button type="button" className="hookbtn ghost" onClick={() => setShown(false)}>
-              <EyeOff size={14} />
-              Hide
-            </button>
-          )}
-        </div>
+        </span>
       </div>
     </div>
   );
