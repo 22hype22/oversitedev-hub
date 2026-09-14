@@ -383,6 +383,17 @@ function SecretRow({
   // follow-up metadata reload hiccups (slot.is_set would otherwise still be
   // false locally until a clean reload lands).
   const [savedLocal, setSavedLocal] = useState(false);
+  // useState only reads its argument on the first render. A row that mounted
+  // before the slot metadata arrived - which is every row for a moment after a
+  // redeploy - had slot.is_set false at that instant and stayed in edit mode
+  // for good. The chip said Saved while the box underneath sat empty, so a key
+  // that was set looked lost. Follow the slot when the truth turns up, unless
+  // this row is mid-edit with something typed in it.
+  useEffect(() => {
+    if (!slot.is_set) return;
+    setEditing((wasEditing) => (wasEditing && value.trim() ? wasEditing : false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slot.is_set]);
 
   const save = async () => {
     const v = value.trim();
