@@ -221,3 +221,4 @@ Hyphenated callsigns like 1S-032 are recognised, and a ten code or a call number
 Saying hold for plate gets standing by, instead of dispatch answering that it did not catch the plate.
 Calling dispatch and waiting gets an immediate go ahead, and what you say next needs no wake word.
 Dispatch speaks sooner: radio-quality voice on the low-latency model, and the transcriber is told the language.
+Taking a designer role away removes that designer's prices from /pricing, the same as them leaving the server.
