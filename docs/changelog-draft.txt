@@ -203,3 +203,5 @@ Add-on blocks are always four to a row, two on a phone, so a section holding one
 Music downloads the next songs in the queue while the current one plays, so tracks change without a gap.
 Skipping a song always starts the next one, instead of sometimes leaving the queue stuck with nothing playing.
 Playing a YouTube link plays that video, instead of a random one from the mix the link was copied from, and a playlist link queues the whole playlist.
+Music uses the YouTube cookies and proxy already set on the host, so tracks stop being skipped for bot checks.
+Skipping counts even when the next track is still loading, instead of being swallowed and playing the song you skipped.
