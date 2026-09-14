@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { KeyRound, Loader2, Server, Radio, RefreshCw, Check, ChevronsUpDown, ArrowRight } from "lucide-react";
+import { KeyRound, Loader2, Server, Radio, RefreshCw, Check, ChevronsUpDown, ArrowRight, Copy, Eye, EyeOff } from "lucide-react";
 import type { OwnedBot } from "@/hooks/useOwnedBots";
 import { useTeamRole } from "@/hooks/useTeamRole";
 import { cacheGet, cacheSet } from "@/lib/uiCache";
@@ -102,6 +102,41 @@ const SECRETS_CSS = `
 .oskeys .vcrow{display:flex;flex-direction:column;gap:6px}
 .oskeys .vchead{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .oskeys .vclbl{font-size:11px;font-weight:700;color:var(--body);letter-spacing:.01em}
+  .oskeys .hookurl {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: hsl(var(--foreground));
+    background: hsl(var(--muted) / 0.55);
+    border: 1px solid hsl(var(--border));
+    border-radius: 6px;
+    padding: 6px 8px;
+    word-break: break-all;
+    line-height: 1.45;
+    flex: 1;
+    min-width: 0;
+  }
+  .oskeys .hookmask {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: hsl(var(--muted-foreground));
+    letter-spacing: 1px;
+    flex: 1;
+    min-width: 0;
+  }
+  .oskeys .hookbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .oskeys .hookbtn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600;
+    padding: 7px 11px; border-radius: 7px;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--primary) / 0.12);
+    color: hsl(var(--foreground));
+    cursor: pointer;
+  }
+  .oskeys .hookbtn:hover:not(:disabled) { background: hsl(var(--primary) / 0.2); }
+  .oskeys .hookbtn:disabled { opacity: 0.6; cursor: default; }
+  .oskeys .hookbtn.ghost { background: transparent; color: hsl(var(--muted-foreground)); }
+
 .oskeys .refresh{border:none;background:transparent;color:var(--faint);font:inherit;font-size:11.5px;
   font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:0}
 .oskeys .refresh:hover:not(:disabled){color:var(--body)}
@@ -328,6 +363,7 @@ export function BotSecretsCard({ bot }: Props) {
             {isDispatch && (
               <>
                 <RegionSection botId={bot.id} />
+                <WebhookSection botId={bot.id} />
                 <VoiceChannelSection
                   botId={bot.id}
                   alreadySet={voiceSet}
@@ -523,6 +559,95 @@ const REGION_US_STATES = [
 // like (its radio codes, signals, phonetics). Stored via the dispatch-region
 // edge function; the bot adopts it on its next config refresh (~60s), and the
 // bot's /region command writes back here, so the two stay in sync.
+// The address a customer pastes into their ER:LC private server settings.
+// Every bot has its own, because every customer runs their own bot against
+// their own game server. Hidden until asked for, the way the keys above are:
+// it is the door to somebody's dispatcher and there is no reason to have it
+// sitting on screen.
+export function WebhookSection({ botId }: { botId: string }) {
+  const [url, setUrl] = useState("");
+  const [reason, setReason] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [shown, setShown] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const reveal = async () => {
+    if (url) { setShown(true); return; }
+    setLoading(true);
+    const { data, error } = await supabase.functions.invoke("dispatch-webhook-url", {
+      body: { orderId: botId },
+    });
+    setLoading(false);
+    if (error || (data as any)?.error) {
+      toast.error("Couldn't fetch your link", {
+        description: (data as any)?.error ?? error?.message,
+      });
+      return;
+    }
+    if (!(data as any)?.ready) {
+      setReason((data as any)?.reason ?? "Not ready yet.");
+      return;
+    }
+    setUrl((data as any).url);
+    setShown(true);
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      toast.error("Couldn't copy — select the link and copy it by hand.");
+    }
+  };
+
+  return (
+    <div className="sec">
+      <div className="eyebrow">
+        <span className="lbl">In-game commands</span>
+        <span className="ln" />
+      </div>
+      <div className="ed">
+        Lets your units type <strong>;request supervisor</strong> in game and have
+        dispatch answer, which matters when they are in a traffic stop channel the
+        bot cannot hear. Copy this link, open your ER:LC private server settings,
+        search for <strong>Event Webhook</strong>, paste it in and save. Nothing
+        reaches the bot until it is saved there.
+      </div>
+      <div className="vc">
+        <div className="vcrow">
+          <span className="vclbl">Your link</span>
+          {shown && url ? (
+            <code className="hookurl">{url}</code>
+          ) : (
+            <span className="hookmask">{reason || "••••••••••••••••••••••••••••••"}</span>
+          )}
+        </div>
+        <div className="hookbtns">
+          {shown && url ? (
+            <button type="button" className="hookbtn" onClick={copy}>
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+              {copied ? "Copied" : "Copy link"}
+            </button>
+          ) : (
+            <button type="button" className="hookbtn" onClick={reveal} disabled={loading}>
+              {loading ? <Loader2 size={14} className="spin" /> : <Eye size={14} />}
+              {loading ? "Fetching…" : "Reveal link"}
+            </button>
+          )}
+          {shown && url && (
+            <button type="button" className="hookbtn ghost" onClick={() => setShown(false)}>
+              <EyeOff size={14} />
+              Hide
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function RegionSection({ botId }: { botId: string }) {
   const [region, setRegion] = useState<string>("");
   const [loading, setLoading] = useState(true);
