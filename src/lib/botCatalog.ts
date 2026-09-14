@@ -58,6 +58,9 @@ export const BOT_BASE_TAGLINES: Record<string, string> = {
 };
 
 export const BOT_ADDON_LABELS: Record<string, string> = {
+  // Dispatch
+  "dispatch-codes": "10 Codes",
+
   // Protection — included base features
   "verification-system": "Verification System",
   "mod-actions": "Warn / Mute / Ban / Kick",
@@ -239,10 +242,10 @@ const SHARED_ADDON_IDS = ["branding", "dashboard", "multi-server"];
  * for them so customers can tweak the included behavior.
  */
 export const BASE_INCLUDED_ADDONS: Record<string, string[]> = {
-  // Dispatch has no config blocks. Its region and voice channel are not
-  // optional behaviour to tweak, they are what the bot needs to run, so they
-  // live with the keys in the required-setup panel instead of as tiles.
-  dispatch: [],
+  // The region and voice channel are not here: they are what the bot needs to
+  // run, so they sit with the keys in the required-setup panel. This is the one
+  // thing dispatch has that is genuinely optional to configure.
+  dispatch: ["dispatch-codes"],
   protection: [
     "verification-system",
     "mod-actions",

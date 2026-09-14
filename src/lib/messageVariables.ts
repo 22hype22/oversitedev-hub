@@ -33,6 +33,15 @@ const SERVER: VariableGroup = {
 
 const INVITE_LIST: Variable = { token: "{invite list}", desc: "The invites leaderboard, top inviters first" };
 const QUEUE_LIST: Variable = { token: "{queue list}", desc: "The ad queue, next to post first" };
+const RADIO_CODES: VariableGroup = {
+  title: "Radio codes",
+  note: "Fills in from the region set on this bot. Change the region and the posted message is edited to match.",
+  vars: [
+    { token: "{10 code}", desc: "The whole code sheet for the region. Also {10 codes}, {ten codes} and {radio codes}" },
+    { token: "{region}", desc: "The region the bot is set to, e.g. Minnesota" },
+    { token: "{agency}", desc: "The agency those codes belong to, e.g. Minnesota State Patrol" },
+  ],
+};
 const INVITE_TRACKER: VariableGroup = { title: "Invite tracker", vars: [INVITE_LIST] };
 const AD_QUEUE: VariableGroup = { title: "Ad queue", vars: [QUEUE_LIST] };
 const MESSAGE_LISTS: VariableGroup = {
@@ -328,6 +337,8 @@ function groupsFor(addonId: string, key?: string | null): VariableGroup[] {
     case "ticket-editor":
     case "messages":
       return [SERVER];
+    case "dispatch-codes":
+      return [RADIO_CODES, SERVER];
     case "customs-suggestions":
     case "customs-feedback":
     case "customs-reportbug":

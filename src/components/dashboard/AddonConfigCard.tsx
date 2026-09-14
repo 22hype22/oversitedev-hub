@@ -287,6 +287,7 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
     "customs-blacklist",
     "customs-announce",
     "customs-reportbug",
+    "dispatch-codes",
   ];
   const isDesignerMsg = DESIGNER_MSG_FEATURES.includes(addonId);
   const isCustomsSmallUi = addonId === "customs-smallui";
@@ -1421,7 +1422,8 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
     // prompt-form blocks (/suggest, /feedback, /reportbug) use exactly one
     // message, so re-picking their channel replaces the entry rather than
     // leaving the old channel's copy behind for the bot to find first.
-    const singleMessage = addonId === "customs-suggestions" || addonId === "customs-feedback" || addonId === "customs-reportbug";
+    const singleMessage = addonId === "customs-suggestions" || addonId === "customs-feedback"
+      || addonId === "customs-reportbug" || addonId === "dispatch-codes";
     const merged: SavedMessage[] = singleMessage ? [] : savedMessages.filter((m) => m.channel_id !== currentChannel);
     merged.push({ id: newMessageId(), channel_id: currentChannel, components: currentComponents });
     setSavedMessages(merged);
