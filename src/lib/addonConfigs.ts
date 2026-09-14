@@ -1321,7 +1321,7 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     summary: "Set service prices with /setpricing; members view them with /pricing.",
     icon: Coins,
     fields: [
-      multirole("designer_role_ids", "Designer roles (can run /setpricing)", "Members with any of these roles can set prices. Anyone with Manage Server can too."),
+      multirole("designer_role_ids", "Designer roles (can run /setpricing)", "Members with any of these roles can set prices. Anyone with Manage Server can too. Take the role away and their prices come off /pricing, the same as if they left the server."),
       {
         key: "currency",
         label: "USD currency symbol",
