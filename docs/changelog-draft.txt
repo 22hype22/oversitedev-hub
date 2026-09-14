@@ -231,3 +231,4 @@ Required setup now has an In-game commands link. Reveal it, paste it into your E
 The in-game commands link can be regenerated if it ever gets out, which stops the old one working immediately.
 Callers hear back in game. When a unit goes en route to a call, the player who made it gets a message saying which unit is on the way, so a call no longer disappears into silence.
 A unit going en route now attaches to the call that is holding even if dispatch has restarted since it came in, so the board stays right and the caller still hears back.
+A unit who asks for a supervisor in game now gets a message on screen when somebody goes en route to them, so the unit who cannot hear the radio is the one who finds out first.
