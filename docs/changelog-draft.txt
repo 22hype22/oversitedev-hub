@@ -214,3 +214,10 @@ Slash commands appear once each, /region is administrators only, and /clear is g
 Units attach to a call when they respond, the board says which call, and asking who is attached answers about that call.
 A call a unit is on is never aired again as still holding with no unit attached.
 A holding call goes back out as one short line, and a unit can ask to expand on that call for the full details.
+Dispatch no longer files a question as a status report, so asking who is responding to a call stops putting you en route to it.
+A bare status only attaches you to a call that is still open and recent, and a plain status report gets a plain acknowledgement instead of a volunteered remark.
+A unit that says its number first, "471 to dispatch", is answered by its own number instead of somebody else's.
+Hyphenated callsigns like 1S-032 are recognised, and a ten code or a call number is no longer mistaken for a unit.
+Saying hold for plate gets standing by, instead of dispatch answering that it did not catch the plate.
+Calling dispatch and waiting gets an immediate go ahead, and what you say next needs no wake word.
+Dispatch speaks sooner: radio-quality voice on the low-latency model, and the transcriber is told the language.
