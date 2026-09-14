@@ -200,3 +200,15 @@ API keys and credentials is now Required setup, so it reads as something the bot
 A person can take the dispatch seat by saying so, and the bot goes quiet until they hand it back or leave the channel.
 New 10 Codes block posts your region's radio codes in a channel, and edits that message itself whenever you change the region.
 Add-on blocks are always four to a row, two on a phone, so a section holding one block no longer stretches it across the page.
+Music downloads the next songs in the queue while the current one plays, so tracks change without a gap.
+Skipping a song always starts the next one, instead of sometimes leaving the queue stuck with nothing playing.
+Playing a YouTube link plays that video, instead of a random one from the mix the link was copied from, and a playlist link queues the whole playlist.
+Music uses the YouTube cookies and proxy already set on the host, so tracks stop being skipped for bot checks.
+Skipping counts even when the next track is still loading, instead of being swallowed and playing the song you skipped.
+Wants and warrants reads the wanted level the game itself is showing, not just warrants units called in over the radio.
+A question about the person dispatch just ran is answered without saying dispatch again.
+Reporting one in custody ends the stop or pursuit the unit is on, instead of answering about the call list.
+The repeating still in pursuit reminder is gone.
+Name checks no longer read out a Roblox account age.
+Slash commands appear once each, /region is administrators only, and /clear is gone.
+Units attach to a call when they respond, the board says which call, and asking who is attached answers about that call.
