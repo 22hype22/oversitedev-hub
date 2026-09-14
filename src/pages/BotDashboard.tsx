@@ -103,6 +103,7 @@ import {
   Plus,
   Shield,
   LifeBuoy,
+  Radio,
   Wrench,
   Star,
   ArrowUpRight,
@@ -271,6 +272,7 @@ const ADDON_GROUPS: {
   { key: "protection", label: "Protection", icon: Shield, ids: PROTECTION_ADDON_IDS },
   { key: "support",    label: "Support",    icon: LifeBuoy,    ids: SUPPORT_ADDON_IDS },
   { key: "utilities",  label: "Utilities",  icon: Wrench,      ids: UTILITIES_ADDON_IDS },
+  { key: "dispatch",   label: "Dispatch",   icon: Radio,       ids: ["dispatch-codes"] },
   { key: "shared",     label: "Extras",     icon: Star,        ids: SHARED_ADDON_IDS },
 ];
 

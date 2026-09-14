@@ -876,6 +876,12 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
   },
 
   // ─── Support add-ons ─────────────────────────────────────────
+  "dispatch-codes": {
+    title: "10 Codes",
+    summary: "Post the radio codes for your region in a channel. Change the region and the message updates itself.",
+    icon: Radio,
+    fields: [],
+  },
   messages: {
     title: "Messages",
     summary: "Send custom messages and rich embeds with a Discohook-style builder.",
