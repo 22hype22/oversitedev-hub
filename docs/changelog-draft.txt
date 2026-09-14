@@ -226,3 +226,4 @@ Music: an outbound proxy that refuses the bot is dropped automatically and track
 The member count on the Verification panel keeps itself up to date, instead of showing the number from when it was posted.
 Every posted panel with variables in it stays up to date, not just the Verification panel.
 Units can reach dispatch by typing in game. ";request supervisor" and every other radio command now work typed, which matters when you are sitting in a traffic stop voice channel the bot cannot hear.
+Units can type ";request supervisor" in game, or ask for an RA, a tow, backup or anything else the department sends, and dispatch airs it naming the unit, where they are, and the closest unit.
