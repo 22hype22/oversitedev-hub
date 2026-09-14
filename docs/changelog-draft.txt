@@ -200,3 +200,4 @@ API keys and credentials is now Required setup, so it reads as something the bot
 A person can take the dispatch seat by saying so, and the bot goes quiet until they hand it back or leave the channel.
 New 10 Codes block posts your region's radio codes in a channel, and edits that message itself whenever you change the region.
 Add-on blocks are always four to a row, two on a phone, so a section holding one block no longer stretches it across the page.
+Music downloads the next songs in the queue while the current one plays, so tracks change without a gap.
