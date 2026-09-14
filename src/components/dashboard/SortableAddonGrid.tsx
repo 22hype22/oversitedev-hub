@@ -24,6 +24,7 @@ const AddonConfigCard = lazy(() =>
 );
 import { TicketEditorCard } from "./TicketEditorCard";
 import { useBotAddonStates } from "@/hooks/useBotAddonStates";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 /**
  * Per-user reorderable grid of addon config cards.
@@ -326,6 +327,19 @@ export function SortableAddonGrid({
     return [...enabled, ...disabled];
   }, [order, isEnabled]);
 
+  // Four cards to a row, two on a phone, always. A group holding one block gets
+  // the same card width as a group holding eight, so a card never stretches to
+  // fill the row it happens to be alone on. Set inline rather than through the
+  // Tailwind grid classes: a page-level rule outranked those and quietly relaid
+  // out every group here, and inline keeps this immune to the next one.
+  const isMobile = useIsMobile();
+  const gridStyle: React.CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))",
+    gap: isMobile ? "12px" : "20px",
+    alignItems: "stretch",
+  };
+
   return (
     <DndContext
       sensors={sensors}
@@ -334,13 +348,7 @@ export function SortableAddonGrid({
       onDragEnd={onDragEnd}
     >
       <SortableContext items={displayOrder} strategy={rectSortingStrategy}>
-        <div
-          className={
-            groupKey === "shared"
-              ? "grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5"
-              : "grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4"
-          }
-        >
+        <div style={gridStyle}>
           {displayOrder.map((id) => (
             <SortableCard
               key={`${botId}-${id}`}
