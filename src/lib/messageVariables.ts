@@ -20,7 +20,7 @@ const SERVER: VariableGroup = {
   note: "Works in every message design. Fills in from the server the message is posted in. Spaces and underscores both work, so {member count} and {member_count} are the same.",
   vars: [
     { token: "{server}", desc: "Server name. Also {server name}" },
-    { token: "{count}", desc: "Total members. Also {members} and {member count}" },
+    { token: "{count}", desc: "Total members. Also {members} and {member count}. On the Verification panel this keeps itself up to date as people join and leave" },
     { token: "{human_count}", desc: "Members, not counting bots. Also {humans}" },
     { token: "{bot_count}", desc: "Bots in the server. Also {bots}" },
     { token: "{boosts}", desc: "Total server boosts. Also {boost count} and {server boosts}" },
