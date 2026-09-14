@@ -211,20 +211,32 @@ Deno.serve(async (req) => {
           // being REMOVED, which must not read as "offline".
           const inFlight = deployStatuses.some((s) => IN_PROGRESS.has(s));
           const railwayStatus = inFlight ? "DEPLOYING" : deployStatuses[0];
-          const mapped = mapStatus(railwayStatus);
+          const current = runtimeById.get(order.id);
+          let mapped = mapStatus(railwayStatus);
+          // A build in flight while something is already deployed is a
+          // REDEPLOY, not a cold start. "Starting" there reads as if the bot
+          // had been off, which worries somebody whose bot never went down.
+          // A redeploy started outside the dashboard - a push to the bot repo,
+          // say - never announces itself, so this is the only place it can be
+          // told apart. Either signal is enough: Railway still showing a live
+          // deployment behind the new one, or the bot having been online.
+          const replacing = inFlight
+            && (deployStatuses.includes("SUCCESS") || current?.status === "online");
+          if (replacing && mapped === "starting") mapped = "updating";
 
           // Mid-transition rules: keep the user-facing label ("Restarting…",
           // "Redeploying…") until Railway reaches the *expected* terminal
           // state. Stray intermediate readings (old deployment REMOVED, old
           // SUCCESS not yet torn down) are ignored inside the window.
-          const current = runtimeById.get(order.id);
           if (current && TRANSITIONAL.has(current.status)) {
             const age = current.updated_at
               ? Date.now() - new Date(current.updated_at).getTime()
               : Infinity;
             if (age < TRANSITION_MAX_MS) {
-              // Don't downgrade a named transition to the generic "starting".
-              if (mapped === "starting") return;
+              // Don't downgrade a named transition to a generic one. A user
+              // who pressed Restart should keep reading "Restarting…" rather
+              // than being told the bot is starting or updating.
+              if (mapped === "starting" || mapped === "updating") return;
               // A SUCCESS this soon after the action is almost certainly the
               // deployment from *before* it — wait for the next check.
               if (mapped === "online" && age < TRANSITION_GRACE_MS) return;
