@@ -1318,9 +1318,11 @@ html:has(.osd.app)::-webkit-scrollbar,body:has(.osd.app)::-webkit-scrollbar,.osd
 .osd .view{display:none;animation:osd-fade .3s ease}
 .osd .view.on{display:block}
 @keyframes osd-fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.osd .grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;align-items:start}
-.osd .left{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.osd .right{display:flex;flex-direction:column;gap:16px}
+/* The old two-column page layout is gone: .left and .right have no markup left
+   and nothing wants 2fr 1fr. The rule survived as a trap, because .osd .grid
+   outranks Tailwind's column utilities and silently relaid out every grid
+   inside the dashboard, which is what stretched a lone add-on block across two
+   thirds of its row. */
 .osd .dashgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
 .osd .dashgrid .dashcell{min-width:0;display:flex}
 .osd .dashgrid .dashcell>.card{flex:1;min-width:0}
