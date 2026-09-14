@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { KeyRound, Loader2, Server, Radio, RefreshCw, Check, ChevronsUpDown, ArrowRight, Copy, Eye, EyeOff } from "lucide-react";
@@ -320,6 +320,11 @@ export function BotSecretsCard({ bot }: Props) {
   // A dispatch bot's region and voice channel live in this panel, so it stays
   // up even when the bot has no key slots of its own.
   const isDispatch = scopes.has("dispatch");
+  // The in-game command link belongs with the ER:LC server key: both are how
+  // the bot reaches the game, and somebody setting one up is already looking at
+  // the other. It sits directly under that row when the row is there, and after
+  // the keys when it is not, so it can never be hidden by a missing slot.
+  const erlcSlotKey = visible.find((s) => /erlc/i.test(s.key))?.key ?? null;
   if (!loading && visible.length === 0 && !isDispatch) return null;
 
   const allRequiredSet =
@@ -358,12 +363,15 @@ export function BotSecretsCard({ bot }: Props) {
         ) : (
           <>
             {visible.map((s) => (
-              <SecretRow key={s.key} bot={bot} slot={s} onChanged={reload} />
+              <Fragment key={s.key}>
+                <SecretRow bot={bot} slot={s} onChanged={reload} />
+                {isDispatch && s.key === erlcSlotKey && <WebhookSection botId={bot.id} />}
+              </Fragment>
             ))}
             {isDispatch && (
               <>
+                {!erlcSlotKey && <WebhookSection botId={bot.id} />}
                 <RegionSection botId={bot.id} />
-                <WebhookSection botId={bot.id} />
                 <VoiceChannelSection
                   botId={bot.id}
                   alreadySet={voiceSet}
