@@ -229,6 +229,4 @@ Units can reach dispatch by typing in game. ";request supervisor" and every othe
 Units can type ";request supervisor" in game, or ask for an RA, a tow, backup or anything else the department sends, and dispatch airs it naming the unit, where they are, and the closest unit.
 Required setup now has an In-game commands link. Reveal it, paste it into your ER:LC private server settings under Event Webhook, and your units can type ";request supervisor" in game.
 The in-game commands link can be regenerated if it ever gets out, which stops the old one working immediately.
-Callers hear back in game. When a unit goes en route to a call, the player who made it gets a message saying which unit is on the way, so a call no longer disappears into silence.
-A unit going en route now attaches to the call that is holding even if dispatch has restarted since it came in, so the board stays right and the caller still hears back.
-A unit who asks for a supervisor in game now gets a message on screen when somebody goes en route to them, so the unit who cannot hear the radio is the one who finds out first.
+A unit going en route now attaches to the call that is holding even if dispatch has restarted since it came in, so the board stays right.
