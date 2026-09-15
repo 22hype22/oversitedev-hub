@@ -48,12 +48,25 @@ Deno.serve(async (req) => {
     if (botErr) return json(500, { error: botErr.message });
     if (!bot) return json(404, { error: "Bot not found" });
 
+    // Owner, platform admin, or a team member the owner gave `edit_bot_config`
+    // to — the same set the dashboard shows this bot's editing UI to.
     if (bot.user_id !== userId) {
       const { data: isAdmin } = await admin.rpc("has_role", {
         _user_id: userId,
         _role: "admin",
       });
-      if (!isAdmin) return json(403, { error: "Forbidden" });
+      let allowed = isAdmin === true;
+      if (!allowed) {
+        const { data: perm } = await admin.rpc("has_bot_team_perm", {
+          _viewer_id: userId,
+          _bot_id: botId,
+          _perm: "edit_bot_config",
+        });
+        allowed = perm === true;
+      }
+      if (!allowed) {
+        return json(403, { error: "You do not have permission to manage this bot." });
+      }
     }
 
     const { data: utilsBot, error: utilsErr } = await admin
