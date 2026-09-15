@@ -903,47 +903,107 @@ const ADMIN_JS = `// segmented toggles (generic: click sets .on within the group
     });
   });
 
-  document.querySelectorAll('.nav[data-sec]').forEach(function(n){
-    n.addEventListener('click', function(){
-      document.querySelectorAll('.nav[data-sec]').forEach(function(x){x.classList.remove('on')});
-      n.classList.add('on');
-      var sec = n.getAttribute('data-sec');
-      document.getElementById('crumb').innerHTML = sec;
-      document.getElementById('title').innerHTML = sec;
-      document.getElementById('sub').textContent = n.getAttribute('data-sub');
-      var map = { 'Overview': 'overview-content', 'Storefront': 'storefront-content', 'Bots & Workers': 'bots-content', 'Support Access': 'support-content', 'Logs & History': 'logs-content', 'Super Admin': 'super-content', 'Captcha Images': 'captcha-content', 'Danger Zone': 'danger-content' };
-      ['overview-content','storefront-content','bots-content','support-content','logs-content','super-content','captcha-content','danger-content'].forEach(function(id){
-        var el = document.getElementById(id); if (el) el.style.display = 'none';
-      });
-      var cid = map[sec];
-      if (cid && document.getElementById(cid)) {
-        document.getElementById(cid).style.display = 'block';
-        document.getElementById('stage').style.display = 'none';
-      } else {
-        document.getElementById('stage').style.display = 'grid';
-        document.getElementById('stage-title').innerHTML = sec;
-      }
-      window.scrollTo(0,0);
-      try { sessionStorage.setItem('os_admin_sec', sec); } catch(e) {}
-    });
+  // NOTE: the section nav is NOT wired here. It used to be, one listener per
+  // .nav element, and when any of that went wrong the whole panel became a
+  // single page you could not leave. It now lives in wireSectionNav() below,
+  // as one delegated listener the React effect owns and disposes.
+`;
+
+// ── Section nav ──────────────────────────────────────────────────────────────
+// Every section lives in the page at once; navigating means showing one and
+// hiding the rest. This used to be part of the mockup script above, attaching a
+// listener to each .nav element at wire time. That made the nav only as
+// reliable as that one moment: if the elements were replaced afterwards, or the
+// script threw before reaching them, every listener was lost and the panel
+// became whichever section it opened on, with no way out and nothing on screen
+// to say why.
+//
+// One delegated listener on the shell cannot fail that way. It does not care
+// when the nav elements appeared or whether they were replaced, it cannot be
+// attached twice, and the effect that adds it also removes it.
+
+const SECTION_CONTENT: Record<string, string> = {
+  "Overview": "overview-content",
+  "Storefront": "storefront-content",
+  "Bots & Workers": "bots-content",
+  "Support Access": "support-content",
+  "Logs & History": "logs-content",
+  "Super Admin": "super-content",
+  "Captcha Images": "captcha-content",
+  "Danger Zone": "danger-content",
+};
+
+const SECTION_KEY = "os_admin_sec";
+
+function showSection(root: HTMLElement, sec: string) {
+  root.querySelectorAll<HTMLElement>(".nav[data-sec]").forEach((n) => {
+    n.classList.toggle("on", n.getAttribute("data-sec") === sec);
   });
 
-  // Restore the last section ONLY on a page refresh: sessionStorage keeps it
-  // out of other tabs, the navigation-type check makes leave-and-come-back
-  // start fresh, and the window flag limits it to the first mount per load.
+  const nav = root.querySelector<HTMLElement>(`.nav[data-sec="${CSS.escape(sec)}"]`);
+  const byId = (id: string) => root.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
+  const crumb = byId("crumb");
+  const title = byId("title");
+  const sub = byId("sub");
+  if (crumb) crumb.textContent = sec;
+  if (title) title.textContent = sec;
+  if (sub) sub.textContent = nav?.getAttribute("data-sub") ?? "";
+
+  for (const id of Object.values(SECTION_CONTENT)) {
+    const el = byId(id);
+    if (el) el.style.display = "none";
+  }
+
+  // A section with no content block falls back to the "coming soon" stage, so
+  // the panel always shows something rather than an empty column.
+  const content = SECTION_CONTENT[sec] ? byId(SECTION_CONTENT[sec]) : null;
+  const stage = byId("stage");
+  if (content) {
+    content.style.display = "block";
+    if (stage) stage.style.display = "none";
+  } else if (stage) {
+    stage.style.display = "grid";
+    const stageTitle = byId("stage-title");
+    if (stageTitle) stageTitle.textContent = sec;
+  }
+
+  window.scrollTo(0, 0);
   try {
-    localStorage.removeItem('os_admin_sec'); // legacy always-restore copy
-    var navEntry = performance.getEntriesByType('navigation')[0];
-    var isReload = navEntry && navEntry.type === 'reload';
-    if (isReload && !window.__osAdminRestored) {
-      var savedSec = sessionStorage.getItem('os_admin_sec');
-      if (savedSec) {
-        var savedEl = document.querySelector('.nav[data-sec="' + savedSec + '"]');
-        if (savedEl) savedEl.click();
-      }
+    sessionStorage.setItem(SECTION_KEY, sec);
+  } catch {
+    /* private mode — the nav still works, it just won't be remembered */
+  }
+}
+
+/** Delegated section nav. Returns its own disposer. */
+function wireSectionNav(root: HTMLElement): () => void {
+  const onClick = (e: MouseEvent) => {
+    const target = e.target as HTMLElement | null;
+    const nav = target?.closest<HTMLElement>(".nav[data-sec]");
+    if (!nav || !root.contains(nav)) return;
+    const sec = nav.getAttribute("data-sec");
+    if (sec) showSection(root, sec);
+  };
+  root.addEventListener("click", onClick);
+
+  // Restore the last section on a refresh only. sessionStorage keeps it out of
+  // other tabs, and the navigation-type check means leaving and coming back
+  // starts on Overview.
+  try {
+    localStorage.removeItem(SECTION_KEY); // legacy always-restore copy
+    const entry = performance.getEntriesByType("navigation")[0] as
+      | PerformanceNavigationTiming
+      | undefined;
+    const saved = sessionStorage.getItem(SECTION_KEY);
+    if (entry?.type === "reload" && saved && SECTION_CONTENT[saved]) {
+      showSection(root, saved);
     }
-    window.__osAdminRestored = true;
-  } catch(e) {}`;
+  } catch {
+    /* leave it on Overview */
+  }
+
+  return () => root.removeEventListener("click", onClick);
+}
 
 const Admin = () => {
   const { user, isAdmin, loading } = useAuth();
@@ -998,14 +1058,16 @@ const Admin = () => {
       if (t === "Sign out") n.addEventListener("click", () => setConfirmOut(true));
     });
 
-    // section nav + small interactions (verbatim from the mockup)
+    // The section nav goes on first and separately, so nothing else on this
+    // page can cost you the ability to leave the section you landed on.
+    const disposeNav = wireSectionNav(root);
+
+    // Small mockup interactions (segmented toggles, switches, filter chips).
     try {
       // eslint-disable-next-line no-new-func
       new Function(ADMIN_JS)();
     } catch (err) {
-      // This script is what makes the section nav work. Swallowing it silently
-      // is why a dead nav looked like a styling problem rather than an error.
-      console.error("[admin] section nav failed to wire", err);
+      console.error("[admin] template interactions failed to wire", err);
     }
 
     // Overview — fill the blocks backed by real data, and re-poll every 10s so
@@ -1126,6 +1188,7 @@ const Admin = () => {
 
     return () => {
       cancelled = true;
+      disposeNav();
       window.clearInterval(overviewPoll);
       disposeStorefront();
       disposeSupport();
