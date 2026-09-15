@@ -1,39 +1,43 @@
 import { useEffect, useState } from "react";
 
-export type Theme = "light" | "dark";
+export type Theme = "dark";
 
 const STORAGE_KEY = "oversite-theme";
 
-function getInitial(): Theme {
-  if (typeof window === "undefined") return "light";
-  const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
-  if (stored === "light" || stored === "dark") return stored;
-  // Default to light mode for first-time visitors; their choice will be saved.
-  return "light";
-}
+// Oversite is dark. There used to be a light theme that nobody could choose —
+// there is no toggle anywhere in the app — but it was the DEFAULT for any
+// browser without an `oversite-theme=dark` key already in localStorage. So a
+// fresh browser, a cleared cache, an incognito window or a team member's first
+// visit got a light dashboard with no way back, while the owner's own browser,
+// which happened to hold the key, stayed dark. The class is now applied
+// unconditionally, and a stale "light" value is removed rather than honoured.
 
-function apply(theme: Theme) {
+function apply() {
   const root = document.documentElement;
-  if (theme === "dark") root.classList.add("dark");
-  else root.classList.remove("dark");
+  root.classList.add("dark");
+  try {
+    if (localStorage.getItem(STORAGE_KEY) !== "dark") localStorage.setItem(STORAGE_KEY, "dark");
+  } catch {
+    /* storage unavailable — the class is what matters */
+  }
 }
 
-// Apply immediately on module load to avoid flash
+// Apply immediately on module load so no page paints light first.
 if (typeof window !== "undefined") {
-  apply(getInitial());
+  apply();
 }
 
 export function useTheme() {
-  const [theme, setThemeState] = useState<Theme>(getInitial);
+  const [theme] = useState<Theme>("dark");
 
   useEffect(() => {
-    apply(theme);
-    localStorage.setItem(STORAGE_KEY, theme);
+    apply();
   }, [theme]);
 
   return {
     theme,
-    setTheme: setThemeState,
-    toggle: () => setThemeState((t) => (t === "dark" ? "light" : "dark")),
+    // Kept for callers that expect the old shape. There is one theme.
+    setTheme: (_: Theme) => apply(),
+    toggle: () => apply(),
   };
 }
