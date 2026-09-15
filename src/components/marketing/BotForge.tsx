@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 import { toast as sonnerToast } from "sonner";
+import {
+  DispatchDeskPicker,
+  DESKS as DISPATCH_DESKS,
+  deskName,
+  deskPrice,
+  type DeskId,
+} from "./DispatchDeskPicker";
 import { ImageCropModal, BANNER_RATIO } from "@/components/dashboard/ImageCropModal";
 import { supabase } from "@/integrations/supabase/client";
 import { storeBotImage } from "@/lib/botImageUpload";
@@ -290,7 +297,10 @@ const ADDONS_BY_BASE: Record<string, Addon[]> = {
   dispatch: [],
 };
 
-const ROBLOX_BASE_IDS = new Set<string>(["dispatch", "erlc-spec", "customs", "roleplay"]);
+const ROBLOX_BASE_IDS = new Set<string>([
+  "dispatch", "dispatch-pd", "dispatch-fd", "dispatch-dot",
+  "erlc-spec", "customs", "roleplay",
+]);
 const isRobloxBase = (id: string) => ROBLOX_BASE_IDS.has(id);
 const DEFAULT_STATUS: Record<string, BotStatus> = {};
 // Store order for the ER:LC row: Roleplay, then Customs beside it, Dispatch below.
@@ -305,7 +315,7 @@ const getAddonsForBase = (baseId: string): Addon[] => {
       ...SHARED_ADDONS,
     ];
   }
-  if (baseId === "dispatch" || baseId === "customs" || baseId === "roleplay") return [];
+  if (baseId.startsWith("dispatch") || baseId === "customs" || baseId === "roleplay") return [];
   return [...(ADDONS_BY_BASE[baseId] ?? []), ...SHARED_ADDONS];
 };
 
@@ -782,6 +792,11 @@ export function BotForge() {
   //  • All-in-One Pack ("scratch") is exclusive — selecting it clears others.
   //  • Otherwise the user can select up to 2 single bots (Protection / Support / Utilities).
   const [bases, setBases] = useState<string[]>(["protection"]);
+  // Which dispatch desks were picked. Dispatch is one tile on the grid; the
+  // desks behind it are chosen in their own small picker, because three of them
+  // sitting in the main list would read as three unrelated products.
+  const [desks, setDesks] = useState<DeskId[]>([]);
+  const [deskPickerOpen, setDeskPickerOpen] = useState(false);
   // Single-bot identity (used when exactly one non-pack base is selected)
   const [identity, setIdentity] = useState<Identity>({ ...EMPTY_IDENTITY });
   // Per-category identities (used for the All-in-One Pack OR multi-select)
@@ -1072,6 +1087,26 @@ export function BotForge() {
     // clears the auto-selected Protection default (so an ER:LC-only pick isn't
     // stuck with the placeholder) — otherwise it just adds alongside the
     // current selection.
+    // Dispatch is the one base with a choice behind it. Turning it on asks
+    // which desk before it goes in the order; turning it off forgets the desks
+    // so the next pick starts clean.
+    if (id === "dispatch") {
+      if (bases.includes("dispatch")) {
+        setBases((prev) => {
+          if (prev.length === 1) {
+            sonnerToast.info("Pick at least one bot", {
+              description: "You need to keep one bot selected.",
+            });
+            return prev;
+          }
+          setDesks([]);
+          return prev.filter((b) => b !== "dispatch");
+        });
+        return;
+      }
+      setDeskPickerOpen(true);
+      return;
+    }
     if (isRobloxBase(id)) {
       setBases((prev) => {
         if (prev.includes(id)) {
@@ -1140,9 +1175,18 @@ export function BotForge() {
     const SECOND_BOT_PRICE = 50;
     // ER:LC / Roblox bots are always their own flat price — never part of the
     // Discord "first full, each additional $50" ladder.
+    const dispatchList = pricedBases.find((b) => b.id === "dispatch")?.price ?? 0;
     const roblocCost = bases
       .filter((id) => isRobloxBase(id))
-      .reduce((sum, id) => sum + (pricedBases.find((b) => b.id === id)?.price ?? 0), 0);
+      .reduce((sum, id) => {
+        // Dispatch is priced by the desks behind it, each of which the owner
+        // prices separately. Without a desk chosen it is still the list price.
+        if (id === "dispatch") {
+          if (!desks.length) return sum + dispatchList;
+          return sum + desks.reduce((n, d) => n + deskPrice(d, pricing, dispatchList), 0);
+        }
+        return sum + (pricedBases.find((b) => b.id === id)?.price ?? 0);
+      }, 0);
     const discord = bases.filter((id) => !isRobloxBase(id));
     let discordCost = 0;
     if (discord.includes("scratch")) {
@@ -1155,7 +1199,7 @@ export function BotForge() {
       }, 0);
     }
     return discordCost + roblocCost;
-  }, [bases, pricedBases]);
+  }, [bases, pricedBases, desks, pricing]);
 
   const discountAmount = useMemo(() => {
     if (!appliedDiscount) return 0;
@@ -1243,7 +1287,13 @@ export function BotForge() {
     // dashboard to render Protection + Support + Utilities blocks all on
     // one bot, which is not what the pack is supposed to do.
     const tabsForPack = usesPackTabs ? (isPack ? PACK_TABS : visibleIdentityTabs) : [];
-    const parentBase = usesPackTabs ? tabsForPack[0].id : bases.join("+");
+    // A desk is what was actually bought, so that is what the order records.
+    // Dispatch with no desk chosen stays plain "dispatch", which is what every
+    // order placed before the picker existed says.
+    const orderBases = bases.flatMap((id) =>
+      id === "dispatch" && desks.length ? desks : [id],
+    );
+    const parentBase = usesPackTabs ? tabsForPack[0].id : orderBases.join("+");
     const parentAddons = usesPackTabs ? filterAddonsForBase(addons, parentBase) : addons;
     const parentIdentity = usesPackTabs
       ? (packIdentities[tabsForPack[0].id] ?? primary)
@@ -1693,6 +1743,32 @@ export function BotForge() {
                       <p className="font-body text-xs text-os-faint mt-2 leading-relaxed">
                         {b.tagline}
                       </p>
+                      {b.id === "dispatch" && active && desks.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setDeskPickerOpen(true); }}
+                          className="mt-3 w-full rounded-lg border border-os-hairline/60 bg-os-surface/50 px-2.5 py-2 text-left transition hover:border-os-accent/50"
+                        >
+                          <span className="flex flex-wrap items-center gap-1.5">
+                            {desks.map((d) => (
+                              <span key={d} className="flex items-center gap-1 text-[11px] text-os-body">
+                                <i
+                                  className="block h-[6px] w-[6px] rounded-full"
+                                  style={{
+                                    background: `hsl(var(${
+                                      DISPATCH_DESKS.find((x) => x.id === d)?.token ?? "--desk-pd"
+                                    }))`,
+                                  }}
+                                />
+                                {deskName(d)}
+                              </span>
+                            ))}
+                          </span>
+                          <span className="mt-1 block text-[10px] text-os-faint">
+                            {desks.length > 1 ? `${desks.length} desks. Tap to change.` : "Tap to change desk."}
+                          </span>
+                        </button>
+                      )}
                       <ul className="mt-3 space-y-1">
                         {b.included.map((feat) => (
                           <li key={feat} className="flex items-start gap-1.5 text-[11px] text-os-body leading-snug">
@@ -2117,6 +2193,24 @@ export function BotForge() {
 
           {/* Estimate + submit */}
           <style>{PAY_REVEAL_CSS}</style>
+          <DispatchDeskPicker
+            open={deskPickerOpen}
+            onOpenChange={setDeskPickerOpen}
+            pricing={pricing}
+            fallbackPrice={pricedBases.find((b) => b.id === "dispatch")?.price ?? 0}
+            canManage={canManageStatus}
+            selected={desks}
+            onConfirm={(picked) => {
+              setDesks(picked);
+              setBases((prev) => {
+                if (prev.includes("dispatch")) return prev;
+                // Same rule the other ER:LC bots follow: drop the untouched
+                // Protection default rather than leaving it in the order.
+                const base = prev.length === 1 && prev[0] === "protection" ? [] : prev;
+                return [...base, "dispatch"];
+              });
+            }}
+          />
           {crop && (
             <ImageCropModal
               src={crop.src}
