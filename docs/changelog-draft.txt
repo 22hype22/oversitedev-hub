@@ -251,3 +251,5 @@ Bots now ride out a Discord outage instead of dying from it. A failed login or f
 The dashboard is dark for everyone now. It used to open light in any browser that had not already chosen dark, with no way to change it.
 Roblox verification no longer needs your own Roblox app. Leave the app fields blank and members verify through Oversite's. Add your own later if you get one.
 Members who verified in any other Oversite server are recognised in yours, on the Verify button and the moment they join, without logging in to Roblox again. Both can be switched off in the Verification block.
+Dispatch answers sooner after a unit stops talking, and its log now shows exactly where the seconds went on every reply.
+Parts a bot adds to a message, like the Verify button and the session menu, are now part of the design. Rename, recolour or move them; only removing them is off. A lock icon replaces the delete button on those.
