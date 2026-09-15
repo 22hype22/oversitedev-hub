@@ -872,49 +872,72 @@ const ADMIN_HTML = `<div class="osd app">
   </div>
 </div>`;
 
-const ADMIN_JS = `// segmented toggles (generic: click sets .on within the group)
-  document.querySelectorAll('.seg').forEach(function(seg){
-    seg.querySelectorAll('button').forEach(function(b){
-      b.addEventListener('click', function(){
-        seg.querySelectorAll('button').forEach(function(x){x.classList.remove('on')});
-        b.classList.add('on');
-        if (seg.id === 'dest') {
-          var df = document.getElementById('dashfields');
-          if (df) df.style.display = b.getAttribute('data-dash') === '0' ? 'none' : 'block';
+// ── Template controls ────────────────────────────────────────────────────────
+// Segmented toggles, permission switches, the admin picker and the filter
+// chips: the parts of the mockup that only move a class around.
+//
+// These used to live in a string run through `new Function`, which the site's
+// Content-Security-Policy forbids — script-src has no 'unsafe-eval' — so on the
+// deployed site none of it ever ran. It worked in local dev, where no CSP is
+// applied, which is exactly why it looked fine and shipped broken.
+//
+// Delegation from the shell needs no eval, survives the markup being replaced,
+// and is disposed with the effect that added it.
+function wireTemplateControls(root: HTMLElement): () => void {
+  const onClick = (e: MouseEvent) => {
+    const el = e.target as HTMLElement | null;
+    if (!el) return;
+
+    // Segmented toggle: one button `on` within its own group.
+    const segButton = el.closest<HTMLElement>(".seg button");
+    if (segButton) {
+      const seg = segButton.closest<HTMLElement>(".seg");
+      if (seg && root.contains(seg)) {
+        seg.querySelectorAll<HTMLElement>("button").forEach((b) => b.classList.remove("on"));
+        segButton.classList.add("on");
+        // The announcement destination segment also shows/hides its own fields.
+        if (seg.id === "dest") {
+          const fields = root.querySelector<HTMLElement>("#dashfields");
+          if (fields) {
+            fields.style.display = segButton.getAttribute("data-dash") === "0" ? "none" : "block";
+          }
         }
-      });
-    });
-  });
+      }
+      return;
+    }
 
-  // permission switches
-  document.querySelectorAll('.sw:not(.lock)').forEach(function(s){
-    s.addEventListener('click', function(){ s.classList.toggle('on'); });
-  });
-  // admin select
-  document.querySelectorAll('.adm').forEach(function(a){
-    a.addEventListener('click', function(e){
-      if (e.target.closest('.x')) return;
-      document.querySelectorAll('.adm').forEach(function(x){x.classList.remove('sel')});
-      a.classList.add('sel');
-      var pn = document.getElementById('perm-name');
-      if (pn) pn.textContent = a.getAttribute('data-email');
-    });
-  });
+    // Permission switch. `.lock` ones are fixed and must not move.
+    const sw = el.closest<HTMLElement>(".sw");
+    if (sw && !sw.classList.contains("lock") && root.contains(sw)) {
+      sw.classList.toggle("on");
+      return;
+    }
 
-  // category filter chips
-  document.querySelectorAll('.chips .chip:not(.add)').forEach(function(c){
-    c.addEventListener('click', function(){
-      var row = c.parentElement;
-      row.querySelectorAll('.chip:not(.add)').forEach(function(x){x.classList.remove('on')});
-      c.classList.add('on');
-    });
-  });
+    // Admin picker — except the remove button sitting inside the row.
+    const adm = el.closest<HTMLElement>(".adm");
+    if (adm && !el.closest(".x") && root.contains(adm)) {
+      root.querySelectorAll<HTMLElement>(".adm").forEach((a) => a.classList.remove("sel"));
+      adm.classList.add("sel");
+      const permName = root.querySelector<HTMLElement>("#perm-name");
+      if (permName) permName.textContent = adm.getAttribute("data-email") ?? "";
+      return;
+    }
 
-  // NOTE: the section nav is NOT wired here. It used to be, one listener per
-  // .nav element, and when any of that went wrong the whole panel became a
-  // single page you could not leave. It now lives in wireSectionNav() below,
-  // as one delegated listener the React effect owns and disposes.
-`;
+    // Category filter chip. `.add` is the "new category" button, not a filter.
+    const chip = el.closest<HTMLElement>(".chips .chip");
+    if (chip && !chip.classList.contains("add") && root.contains(chip)) {
+      chip.parentElement
+        ?.querySelectorAll<HTMLElement>(".chip")
+        .forEach((c) => {
+          if (!c.classList.contains("add")) c.classList.remove("on");
+        });
+      chip.classList.add("on");
+    }
+  };
+
+  root.addEventListener("click", onClick);
+  return () => root.removeEventListener("click", onClick);
+}
 
 // ── Section nav ──────────────────────────────────────────────────────────────
 // Every section lives in the page at once; navigating means showing one and
@@ -1070,12 +1093,7 @@ const Admin = () => {
     const disposeNav = wireSectionNav(root);
 
     // Small mockup interactions (segmented toggles, switches, filter chips).
-    try {
-      // eslint-disable-next-line no-new-func
-      new Function(ADMIN_JS)();
-    } catch (err) {
-      console.error("[admin] template interactions failed to wire", err);
-    }
+    const disposeControls = wireTemplateControls(root);
 
     // Overview — fill the blocks backed by real data, and re-poll every 10s so
     // the KPI odometers (Live now / Bots sold) roll live as the numbers change.
@@ -1196,6 +1214,7 @@ const Admin = () => {
     return () => {
       cancelled = true;
       disposeNav();
+      disposeControls();
       window.clearInterval(overviewPoll);
       disposeStorefront();
       disposeSupport();
@@ -1675,14 +1694,15 @@ function wireStorefront(root: HTMLElement): () => void {
       ? "trial"
       : "months";
 
-  // Swap the form between the two. ADMIN_JS already moves `.on` between the
-  // segment buttons, so this only has to follow that.
+  // Swap the form between the two kinds of code.
   const show = (sel: string, on: boolean) => {
     const el = $(sel) as HTMLElement | null;
     if (el) el.style.display = on ? "" : "none";
   };
-  const syncFreeForm = () => {
-    const trial = freeKind() === "trial";
+  // `trial` is passed by the click handler from the button that was pressed, so
+  // this never has to care whether the `.on` class has moved yet.
+  const syncFreeForm = (trialArg?: boolean) => {
+    const trial = trialArg ?? freeKind() === "trial";
     show('[data-sf="cell-months"]', !trial);
     show('[data-sf="cell-base"]', trial);
     show('[data-sf="cell-ends"]', trial);
@@ -1693,9 +1713,9 @@ function wireStorefront(root: HTMLElement): () => void {
         : "Free hosting for a while, then normal billing. The bot is never taken away.";
     }
   };
-  $('[data-sf="free-kind"]')?.addEventListener("click", () => {
-    // After ADMIN_JS has moved the .on class on this same click.
-    setTimeout(syncFreeForm, 0);
+  $('[data-sf="free-kind"]')?.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement | null)?.closest<HTMLElement>("button[data-v]");
+    if (btn) syncFreeForm(btn.getAttribute("data-v") === "trial");
   });
   // Default the date to two weeks out so the field is never empty.
   const twoWeeks = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
@@ -2527,7 +2547,7 @@ function wireLogs(root: HTMLElement): void {
     }
   }
 
-  // Chips (ADMIN_JS already toggles .on) + search re-render the orders list.
+  // Chips (wireTemplateControls moves .on) + search re-render the orders list.
   root.querySelectorAll('[data-lg="orders-chips"] .chip').forEach((c) => c.addEventListener("click", renderOrders));
   $('[data-lg="orders-q"]')?.addEventListener("input", renderOrders);
 
