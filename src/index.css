@@ -224,12 +224,11 @@
     @apply border-border;
   }
 
+  /* Oversite is dark. Native controls (selects, date pickers, scrollbars)
+     follow color-scheme, so it is pinned here rather than left to a class
+     that might not be present yet when the first paint happens. */
   html {
     @apply bg-background text-foreground;
-    color-scheme: light;
-  }
-
-  html.dark {
     color-scheme: dark;
   }
 
