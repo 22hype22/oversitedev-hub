@@ -51,6 +51,24 @@ export const DESKS: {
   },
 ];
 
+/** The package's own price key. Without one set, all three costs what three
+ *  desks cost, which is the truth rather than a discount nobody configured. */
+export const DISPATCH_PACK_ID = "dispatch-all";
+
+/** What all three desks cost: the operator's package price when one is set,
+ *  otherwise the three added up. */
+export const packagePrice = (
+  pricing: Record<string, BotPricing>,
+  deskSum: number,
+) => {
+  const p = pricing[DISPATCH_PACK_ID];
+  const list = Number(p?.price);
+  if (!Number.isFinite(list) || list < 0) return Number(deskSum.toFixed(2));
+  const off = Number(p?.discount);
+  const discount = Number.isFinite(off) && off > 0 ? Math.min(off, list) : 0;
+  return Number((list - discount).toFixed(2));
+};
+
 export const deskName = (id: string) =>
   DESKS.find((d) => d.id === id)?.name ?? id;
 
@@ -88,7 +106,7 @@ function Figure({ value, className = "" }: { value: number; className?: string }
 
 /** Owner-only price field, writing to the same store every other bot price
  *  uses, so desks are set where the rest of the catalogue is set. */
-function DeskPriceEditor({ id, current }: { id: DeskId; current: number }) {
+function DeskPriceEditor({ id, current, label }: { id: string; current: number; label?: string }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(String(current));
   const [busy, setBusy] = useState(false);
@@ -110,7 +128,7 @@ function DeskPriceEditor({ id, current }: { id: DeskId; current: number }) {
       });
       return;
     }
-    toast.success(`${deskName(id)} is now ${money(n)}`);
+    toast.success(`${label ?? deskName(id)} is now ${money(n)}`);
     setOpen(false);
   };
 
@@ -132,7 +150,7 @@ function DeskPriceEditor({ id, current }: { id: DeskId; current: number }) {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         inputMode="decimal"
-        aria-label={`${deskName(id)} price`}
+        aria-label={`${label ?? deskName(id)} price`}
         className="h-7 w-20 text-xs"
       />
       <Button type="button" size="sm" className="h-7 px-2 text-xs" onClick={save} disabled={busy}>
@@ -181,10 +199,12 @@ export function DispatchDeskPicker({
       Record<DeskId, number>,
     [pricing, fallbackPrice],
   );
-  const packPrice = useMemo(
+  const deskSum = useMemo(
     () => Number(DESKS.reduce((sum, d) => sum + prices[d.id], 0).toFixed(2)),
     [prices],
   );
+  const packPrice = useMemo(() => packagePrice(pricing, deskSum), [pricing, deskSum]);
+  const saving = Number((deskSum - packPrice).toFixed(2));
   const total = choice === "all" ? packPrice : choice ? prices[choice] : 0;
 
   const confirm = () => {
@@ -274,8 +294,15 @@ export function DispatchDeskPicker({
                 ))}
               </span>
               <span className="text-sm font-semibold tracking-tight">All three desks</span>
-              <span className="ml-auto rounded-full border border-border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                3 bots
+              <span className="ml-auto flex items-center gap-1.5">
+                <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  3 bots
+                </span>
+                {saving > 0 && (
+                  <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+                    Save {money(saving)}
+                  </span>
+                )}
               </span>
             </span>
             <span className="relative mt-1.5 text-[11.5px] leading-snug text-muted-foreground">
@@ -283,7 +310,21 @@ export function DispatchDeskPicker({
               and the fire desk gets it.
             </span>
             <span className="relative mt-2 flex items-end justify-between gap-2">
-              <Figure value={packPrice} className="text-[22px]" />
+              <span className="flex items-baseline gap-2">
+                <Figure value={packPrice} className="text-[22px]" />
+                {saving > 0 && (
+                  <span className="text-xs text-muted-foreground line-through tabular-nums">
+                    {money(deskSum)}
+                  </span>
+                )}
+              </span>
+              {canManage && (
+                <DeskPriceEditor
+                  id={DISPATCH_PACK_ID}
+                  current={packPrice}
+                  label="All three desks"
+                />
+              )}
             </span>
           </button>
         </div>
