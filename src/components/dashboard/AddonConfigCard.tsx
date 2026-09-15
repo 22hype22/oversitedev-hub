@@ -1967,6 +1967,7 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
       setValues((prev) => ({
         ...prev,
         manager_role_ids: Array.isArray(cfg.manager_role_ids) ? cfg.manager_role_ids.map(String) : [],
+        staff_role_ids: Array.isArray(cfg.staff_role_ids) ? cfg.staff_role_ids.map(String) : [],
         channel_id: cfg.channel_id ? String(cfg.channel_id) : "",
         ping_role_id: cfg.ping_role_id ? String(cfg.ping_role_id) : "",
         vote_needed: typeof cfg.vote_needed === "number" ? cfg.vote_needed : 5,
@@ -1996,6 +1997,7 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
       feature: "roleplay-sessions",
       config: {
         manager_role_ids: Array.isArray(values.manager_role_ids) ? (values.manager_role_ids as string[]).map(String) : [],
+        staff_role_ids: Array.isArray(values.staff_role_ids) ? (values.staff_role_ids as string[]).map(String) : [],
         channel_id: String(values.channel_id ?? ""),
         ping_role_id: String(values.ping_role_id ?? ""),
         vote_needed: Math.max(1, Number(values.vote_needed) || 5),
