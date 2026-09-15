@@ -35,6 +35,33 @@ const PRESENCE_OPTIONS: { value: PresenceStatus; label: string; dot: string }[] 
 
 const MAX_BYTES = 8 * 1024 * 1024;
 
+// Status messages. A bot can hold several and cycle through them; Discord
+// rate-limits presence updates, so the shortest interval on offer is a minute
+// and the bots clamp anything faster.
+const MAX_STATUS_LINES = 8;
+const DEFAULT_ROTATE_SECONDS = 300;
+const ROTATE_CHOICES = [
+  { seconds: 60, label: "1 min" },
+  { seconds: 300, label: "5 min" },
+  { seconds: 900, label: "15 min" },
+  { seconds: 1800, label: "30 min" },
+  { seconds: 3600, label: "1 hour" },
+];
+
+/** The saved rotation as editable lines, falling back to the single message. */
+function linesFromBot(rotation: unknown, activityText: string | null | undefined): string[] {
+  const out: string[] = [];
+  if (Array.isArray(rotation)) {
+    for (const entry of rotation) {
+      const text =
+        typeof entry === "string" ? entry : String((entry as { text?: unknown })?.text ?? "");
+      if (text.trim()) out.push(text);
+    }
+  }
+  if (out.length) return out;
+  return [activityText ?? ""];
+}
+
 const fileToDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
     const r = new FileReader();
@@ -96,6 +123,20 @@ export const BotIdentityEditor = ({
     (bot.presence_status as PresenceStatus) ?? "online",
   );
   const [activityText, setActivityText] = useState(bot.activity_text ?? "");
+  // A bot can hold several status messages and cycle through them. One message
+  // is just a list of one, so the single-status case stays exactly as it was.
+  const [statusLines, setStatusLines] = useState<string[]>(() =>
+    linesFromBot(bot.status_rotation, bot.activity_text),
+  );
+  const [rotateSeconds, setRotateSeconds] = useState<number>(
+    () => Number(bot.status_rotation_seconds) || DEFAULT_ROTATE_SECONDS,
+  );
+  const setStatusLine = (i: number, v: string) =>
+    setStatusLines((cur) => cur.map((l, idx) => (idx === i ? v : l)));
+  const addStatusLine = () =>
+    setStatusLines((cur) => (cur.length >= MAX_STATUS_LINES ? cur : [...cur, ""]));
+  const removeStatusLine = (i: number) =>
+    setStatusLines((cur) => (cur.length <= 1 ? cur : cur.filter((_, idx) => idx !== i)));
   const [bio, setBio] = useState(bot.bot_bio ?? "");
   const [bioError, setBioError] = useState<string | null>(null);
   const [savingDetails, setSavingDetails] = useState(false);
@@ -366,7 +407,19 @@ export const BotIdentityEditor = ({
     if (!user) return toast.error("Sign in required");
 
     const presenceChanged = presence !== ((bot.presence_status as PresenceStatus) ?? "online");
-    const activityChanged = (activityText ?? "") !== (bot.activity_text ?? "");
+    // Blank lines are dropped, so "Add another" and then changing your mind
+    // saves nothing odd. The first line stays the bot's single status for every
+    // reader that only knows about one.
+    const cleanLines = statusLines.map((l) => l.trim()).filter(Boolean);
+    const primaryStatus = cleanLines[0] ?? "";
+    const savedLines = linesFromBot(bot.status_rotation, bot.activity_text)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const savedSeconds = Number(bot.status_rotation_seconds) || DEFAULT_ROTATE_SECONDS;
+    const activityChanged =
+      primaryStatus !== (bot.activity_text ?? "") ||
+      cleanLines.join(" ") !== savedLines.join(" ") ||
+      (cleanLines.length > 1 && rotateSeconds !== savedSeconds);
     const bioTrimmed = bio.trim();
     const bioChanged = bioTrimmed !== ((bot.bot_bio ?? "").trim());
 
@@ -396,13 +449,20 @@ export const BotIdentityEditor = ({
     try {
       if (presenceChanged || activityChanged) {
         const activityType = bot.activity_type ?? "playing";
+        // Only store a rotation when there is something to rotate between.
+        const rotation =
+          cleanLines.length > 1
+            ? cleanLines.map((text) => ({ text, activity_type: activityType }))
+            : null;
         try {
           const { error: upErr } = await (supabase as any)
             .from("bot_orders")
             .update({
               activity_type: activityType,
-              activity_text: activityText || null,
+              activity_text: primaryStatus || null,
               presence_status: presence,
+              status_rotation: rotation,
+              status_rotation_seconds: rotation ? rotateSeconds : null,
             })
             .eq("id", bot.id);
           if (upErr) throw upErr;
@@ -419,9 +479,11 @@ export const BotIdentityEditor = ({
                 // Send both keys: the worker reads `activity_text`, while some
                 // bot runtimes read `status_text`. Keeping both avoids the
                 // activity label being silently dropped.
-                activity_text: activityText,
-                status_text: activityText,
+                activity_text: primaryStatus,
+                status_text: primaryStatus,
                 presence_status: presence,
+                rotation,
+                rotation_seconds: rotation ? rotateSeconds : null,
               },
             });
           if (cmdErr) throw cmdErr;
@@ -758,17 +820,76 @@ export const BotIdentityEditor = ({
                 </div>
 
                 <div className="biofield">
-                  <label htmlFor="bot-status-msg" className="biolabel">Status message</label>
-                  <Input
-                    id="bot-status-msg"
-                    value={activityText}
-                    onChange={(e) => setActivityText(e.target.value)}
-                    maxLength={128}
-                    placeholder="e.g. helping out"
-                    disabled={savingDetails}
-                    className="bg-[var(--bpanel)] border-[var(--bhair)] text-[var(--bheading)]"
-                    style={{ paddingLeft: 13, paddingRight: 13 }}
-                  />
+                  <label htmlFor="bot-status-msg" className="biolabel">
+                    {statusLines.length > 1 ? "Status messages" : "Status message"}
+                  </label>
+                  <div className="space-y-2">
+                    {statusLines.map((line, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Input
+                          id={i === 0 ? "bot-status-msg" : undefined}
+                          value={line}
+                          onChange={(e) => setStatusLine(i, e.target.value)}
+                          maxLength={128}
+                          placeholder={i === 0 ? "e.g. helping out" : "another status"}
+                          disabled={savingDetails}
+                          className="bg-[var(--bpanel)] border-[var(--bhair)] text-[var(--bheading)]"
+                          style={{ paddingLeft: 13, paddingRight: 13 }}
+                        />
+                        {statusLines.length > 1 && (
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => removeStatusLine(i)}
+                            disabled={savingDetails}
+                            aria-label={`Remove status ${i + 1}`}
+                            className="shrink-0 text-[var(--bfaint)] hover:text-[var(--bheading)]"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={addStatusLine}
+                      disabled={savingDetails || statusLines.length >= MAX_STATUS_LINES}
+                      className="h-8"
+                    >
+                      Add another
+                    </Button>
+                    {statusLines.length > 1 && (
+                      <span className="flex items-center gap-2 text-xs text-[var(--bfaint)]">
+                        switching every
+                        <Select
+                          value={String(rotateSeconds)}
+                          onValueChange={(v) => setRotateSeconds(Number(v))}
+                          disabled={savingDetails}
+                        >
+                          <SelectTrigger className="h-8 w-[104px] bg-[var(--bpanel)] border-[var(--bhair)] text-[var(--bheading)]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ROTATE_CHOICES.map((o) => (
+                              <SelectItem key={o.seconds} value={String(o.seconds)}>
+                                {o.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </span>
+                    )}
+                  </div>
+                  {statusLines.length > 1 && (
+                    <p className="mt-1.5 text-[11px] text-[var(--bfaint)]">
+                      Your bot cycles through these in order.
+                    </p>
+                  )}
                 </div>
               </div>
 

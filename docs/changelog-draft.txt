@@ -245,3 +245,5 @@ You can now hand out free trials. A trial code is for one bot, runs to a date yo
 Trial codes are made from the Storefront tab in the admin panel: pick the bot, pick the end date, and the code is generated and copied for you.
 The admin panel's toggles, switches and filter chips work now. They were being set up in a way the site's security policy blocks, so on the live site none of them had ever done anything.
 Trial codes now work at checkout, which is where they belong: enter the code, pay nothing, and the bot is built and deployed the same as a paid order.
+The status message you set in the dashboard now actually shows on your bot. On Roleplay and Customs it was being ignored and a built-in "watching N members" line was put back over it every ten minutes.
+You can set several status messages and have the bot switch between them on a timer. Works on every bot.
