@@ -244,6 +244,21 @@ const SMALL_UI: Record<string, VariableGroup> = {
   ] },
 };
 
+// The ER:LC server the sessions are for. Read live from the game whenever a
+// session message is posted or edited, so they need the ER:LC server key saved
+// under API keys and credentials.
+const GAME: VariableGroup = {
+  title: "The ER:LC server",
+  note: "Read from the game when the message is posted. Needs the ER:LC server key under API keys and credentials; without it they read \"unknown\".",
+  vars: [
+    { token: "{gname}", desc: "The ER:LC server's name" },
+    { token: "{gcount}", desc: "How many players are in the server right now" },
+    { token: "{gqueue}", desc: "How many players are waiting in the queue" },
+    { token: "{gstaffcount}", desc: "How many staff are in the server right now, counted from the staff roles set on this block" },
+    { token: "{gmax}", desc: "The server's player limit" },
+  ],
+};
+
 const SESSIONS: Record<string, VariableGroup> = {
   vote: { title: "Vote", vars: [
     { token: "{ping}", desc: "The role that gets pinged" },
@@ -369,9 +384,9 @@ function groupsFor(addonId: string, key?: string | null): VariableGroup[] {
       return [...Object.values(SMALL_UI), SERVER];
     }
     case "roleplay-sessions": {
-      if (key === "panel") return [SERVER];
-      if (key && SESSIONS[key]) return [SESSIONS[key], SERVER];
-      return [...Object.values(SESSIONS), SERVER];
+      if (key === "panel") return [GAME, SERVER];
+      if (key && SESSIONS[key]) return [SESSIONS[key], GAME, SERVER];
+      return [...Object.values(SESSIONS), GAME, SERVER];
     }
     case "roleplay-shifts": {
       if (key && SHIFTS[key]) return [SHIFTS[key]];

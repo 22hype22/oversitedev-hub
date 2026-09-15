@@ -972,6 +972,8 @@ export const ADDON_CONFIGS: Record<string, AddonConfig> = {
     icon: RadioTower,
     fields: [
       multirole("manager_role_ids", "Who can manage sessions", "Manage Server always can."),
+      multirole("staff_role_ids", "Staff roles",
+        "Who counts as staff for the {gstaffcount} variable: how many of them are in the ER:LC server right now. Leave empty to count the roles above."),
       channel("channel_id", "Announcement channel", "Where votes, starts, boosts and shutdowns are posted. Leave empty to post where the command is run."),
       role("ping_role_id", "Session ping role", "Pinged with every session message through the {ping} token."),
       { key: "vote_needed", label: "Votes needed to pass", type: "number", placeholder: "5", defaultValue: 5, help: "The Vote button shows the count against this." },
