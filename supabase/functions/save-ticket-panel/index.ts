@@ -47,7 +47,8 @@ Deno.serve(async (req) => {
 
     // AuthZ: this function runs with the service-role key (bypasses RLS), so it
     // must verify the caller before touching another bot's config. Require a
-    // valid user session and confirm the caller owns bot_id (or is an admin) —
+    // valid user session and confirm the caller owns bot_id (or is an admin, or
+    // is a team member with `edit_bot_config` on it) —
     // otherwise anyone could write/delete another bot's posted ticket panels.
     const authHeader = req.headers.get("authorization") ?? "";
     if (!authHeader) {
@@ -86,16 +87,27 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    // Owner, platform admin, or a team member the owner gave `edit_bot_config`
+    // to — the same set the dashboard shows this bot's editing UI to.
     if (ownerRow.user_id !== userId) {
       const { data: isAdmin } = await supabase.rpc("has_role", {
         _user_id: userId,
         _role: "admin",
       });
-      if (!isAdmin) {
-        return new Response(JSON.stringify({ error: "Not bot owner" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+      let allowed = isAdmin === true;
+      if (!allowed) {
+        const { data: perm } = await supabase.rpc("has_bot_team_perm", {
+          _viewer_id: userId,
+          _bot_id: body.bot_id,
+          _perm: "edit_bot_config",
         });
+        allowed = perm === true;
+      }
+      if (!allowed) {
+        return new Response(
+          JSON.stringify({ error: "You do not have permission to manage this bot." }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
     }
 
