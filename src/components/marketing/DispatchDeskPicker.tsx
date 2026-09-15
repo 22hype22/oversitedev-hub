@@ -193,24 +193,27 @@ export function DispatchDeskPicker({
     onOpenChange(false);
   };
 
-  const tileClass = (on: boolean) =>
+  const tileClass = (on: boolean, tall = true) =>
     [
-      "group relative flex flex-col overflow-hidden rounded-xl border p-4 text-left transition",
-      "sm:aspect-square",
+      "group relative flex flex-col overflow-hidden rounded-xl border p-3.5 text-left transition",
+      tall ? "min-h-[142px]" : "",
       on ? "border-[hsl(var(--sig))]" : "border-border hover:border-muted-foreground/40",
     ].join(" ");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[560px] p-0 gap-0 overflow-hidden">
-        <div className="px-5 pt-5 pb-4">
+      <DialogContent
+        className="max-w-[560px] p-0 gap-0 overflow-hidden grid-rows-[auto_minmax(0,1fr)_auto] max-h-[min(88dvh,760px)]"
+      >
+        <div className="px-5 pt-5 pb-3">
           <h2 className="text-[17px] font-semibold tracking-tight">Oversite Dispatch</h2>
           <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
             Which desk are you running? Each one is a dispatcher on its own voice channel.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-2.5 px-5 sm:grid-cols-2">
+        <div className="min-h-0 overflow-y-auto px-5 pb-1">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           {DESKS.map((d) => {
             const on = choice === d.id;
             const Icon = d.icon;
@@ -239,11 +242,11 @@ export function DispatchDeskPicker({
                   />
                   <span className="text-sm font-semibold tracking-tight">{d.name}</span>
                 </span>
-                <span className="relative mt-2 text-[11.5px] leading-relaxed text-muted-foreground">
+                <span className="relative mt-1.5 text-[11.5px] leading-snug text-muted-foreground">
                   {d.what}
                 </span>
-                <span className="relative mt-auto flex items-end justify-between gap-2 pt-3">
-                  <Figure value={prices[d.id]} className="text-[25px]" />
+                <span className="relative mt-auto flex items-end justify-between gap-2 pt-2.5">
+                  <Figure value={prices[d.id]} className="text-[22px]" />
                   {canManage && <DeskPriceEditor id={d.id} current={prices[d.id]} />}
                 </span>
               </button>
@@ -254,7 +257,7 @@ export function DispatchDeskPicker({
             type="button"
             aria-pressed={choice === "all"}
             onClick={() => setChoice(choice === "all" ? null : "all")}
-            className={`${tileClass(choice === "all")} bg-muted/40 sm:col-span-2 sm:aspect-auto`}
+            className={`${tileClass(choice === "all", false)} bg-muted/40 sm:col-span-2`}
             style={{ ["--sig" as string]: "var(--desk-pd)" }}
           >
             <span className="relative flex items-center gap-2">
@@ -275,23 +278,24 @@ export function DispatchDeskPicker({
                 3 bots
               </span>
             </span>
-            <span className="relative mt-2 text-[11.5px] leading-relaxed text-muted-foreground">
+            <span className="relative mt-1.5 text-[11.5px] leading-snug text-muted-foreground">
               Every desk, and they hand work to each other. Ask police for an ambulance
               and the fire desk gets it.
             </span>
-            <span className="relative mt-3 flex items-end justify-between gap-2">
-              <Figure value={packPrice} className="text-[25px]" />
+            <span className="relative mt-2 flex items-end justify-between gap-2">
+              <Figure value={packPrice} className="text-[22px]" />
             </span>
           </button>
         </div>
 
-        <p className="mx-5 mt-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
+        <p className="mt-2.5 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
           Each desk ships as its own bot, because Discord allows one voice connection per
           server per bot. You will create a Discord application for each one, and we walk
           you through it after checkout.
         </p>
+        </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border px-5 py-4">
+        <div className="flex flex-wrap items-center gap-3 border-t border-border px-5 py-3.5">
           <div>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               {choice === "all"
@@ -301,7 +305,7 @@ export function DispatchDeskPicker({
                   : "Nothing picked"}
             </span>
             <div className="mt-1">
-              <Figure value={total} className="text-[26px]" />
+              <Figure value={total} className="text-[24px]" />
             </div>
           </div>
           <div className="ml-auto flex gap-2">
