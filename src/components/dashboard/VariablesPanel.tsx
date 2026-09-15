@@ -169,27 +169,78 @@ export function VariablesFlyout({ anchorRef }: { anchorRef: RefObject<HTMLElemen
   const [mounted, setMounted] = useState(false);
   const [shown, setShown] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  // Whether there is more list above and below what is on screen. Scrollbars
+  // are hidden across the site, so without these edges a full panel looks
+  // like the whole list and nobody thinks to scroll.
+  const [edges, setEdges] = useState({ up: false, down: false });
   const lastPanel = useRef<Request | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
   if (scope.panel) lastPanel.current = scope.panel;
   const openNow = !!scope.panel;
   const WIDTH = 330;
   const GAP = 10;
   const SLIDE_MS = 260;
+  // A block with only a couple of fields makes a short dialog, and a drawer
+  // the same height as it showed three variables out of thirty with the rest
+  // unreachable. The drawer is at least this tall, whatever the block is.
+  const MIN_HEIGHT = 420;
+  const EDGE = 16;
 
   const measure = useCallback(() => {
     const el = anchorRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
     const fits = r.right + GAP + WIDTH <= window.innerWidth - 8;
+    const height = Math.min(window.innerHeight - EDGE * 2, Math.max(r.height, MIN_HEIGHT));
+    // Centred on the block, then nudged back on screen if that hangs it off
+    // the top or the bottom.
+    const top = Math.min(
+      Math.max(EDGE, r.top + (r.height - height) / 2),
+      Math.max(EDGE, window.innerHeight - EDGE - height),
+    );
     setRect({
-      top: r.top,
-      height: r.height,
+      top,
+      height,
       // Attached to the dialog's edge when there is room; otherwise tucked
       // inside its right edge so it never runs off screen.
       left: fits ? r.right + GAP : Math.max(8, r.right - WIDTH),
       attached: fits,
     });
   }, [anchorRef]);
+
+  // The block's dialog locks scrolling while it is open, and the lock cancels
+  // wheel and touch anywhere outside the dialog. This drawer is portalled to
+  // the body, so it counted as outside and could not be scrolled at all: the
+  // variables past the fold were unreachable. Keeping the event to ourselves
+  // leaves the lock with nothing to cancel, and the list scrolls normally.
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || !mounted) return;
+    const keep = (e: Event) => e.stopPropagation();
+    el.addEventListener("wheel", keep, { passive: true });
+    el.addEventListener("touchmove", keep, { passive: true });
+    return () => {
+      el.removeEventListener("wheel", keep);
+      el.removeEventListener("touchmove", keep);
+    };
+  }, [mounted]);
+
+  const readEdges = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const up = el.scrollTop > 4;
+    const down = el.scrollTop + el.clientHeight < el.scrollHeight - 4;
+    setEdges((prev) => (prev.up === up && prev.down === down ? prev : { up, down }));
+  }, []);
+  useEffect(() => {
+    if (!mounted) return;
+    readEdges();
+    const el = listRef.current;
+    const ro = el && typeof ResizeObserver !== "undefined" ? new ResizeObserver(readEdges) : null;
+    if (ro && el) ro.observe(el);
+    return () => ro?.disconnect();
+  }, [mounted, readEdges, rect?.height]);
 
   // Slide the dialog left by half the drawer's width while the drawer is out,
   // so the block and the drawer together stay centred on the screen. The
@@ -306,6 +357,7 @@ export function VariablesFlyout({ anchorRef }: { anchorRef: RefObject<HTMLElemen
   return createPortal(
     <div
       data-variables-flyout
+      ref={wrapRef}
       style={{
         position: "fixed",
         top: rect.top,
@@ -347,7 +399,19 @@ export function VariablesFlyout({ anchorRef }: { anchorRef: RefObject<HTMLElemen
           <X className="h-4 w-4" />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="relative flex-1 min-h-0">
+        {edges.up && (
+          <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-background to-transparent" />
+        )}
+        {edges.down && (
+          <div data-variables-more aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-8 bg-gradient-to-t from-background to-transparent" />
+        )}
+      <div
+        data-variables-list
+        ref={listRef}
+        onScroll={readEdges}
+        className="h-full overflow-y-auto overscroll-contain scrollbar-visible"
+      >
         {section(
           "Server variables",
           "Work in every message on every server. They fill in from the server the message is posted in.",
@@ -361,6 +425,7 @@ export function VariablesFlyout({ anchorRef }: { anchorRef: RefObject<HTMLElemen
           blockGroups,
           "This block has no variables of its own.",
         )}
+      </div>
       </div>
     </div>
     </div>,
