@@ -219,12 +219,29 @@ Deno.serve(async (req) => {
     if (orderErr) return json(500, { error: orderErr.message });
     if (!order) return json(404, { error: "Bot not found" });
 
+    // Not just the owner: the dashboard hands the identity editor to any team
+    // member holding `edit_bot_config` on this bot, so the server has to accept
+    // the same people or their saves come back as "Not bot owner".
     if (order.user_id !== userId) {
       const { data: isAdmin } = await admin.rpc("has_role", {
         _user_id: userId,
         _role: "admin",
       });
-      if (!isAdmin) return json(403, { error: "Not bot owner" });
+      let allowed = isAdmin === true;
+      if (!allowed) {
+        const { data: perm } = await admin.rpc("has_bot_team_perm", {
+          _viewer_id: userId,
+          _bot_id: botId,
+          _perm: "edit_bot_config",
+        });
+        allowed = perm === true;
+      }
+      if (!allowed) {
+        return json(403, {
+          error:
+            "You do not have permission to edit this bot's profile. Ask the bot's owner for the Edit bot config permission.",
+        });
+      }
     }
 
     const { data: tokenData, error: tokenErr } = await admin.rpc(

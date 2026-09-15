@@ -17,6 +17,7 @@ import {
   botBaseIcon,
 } from "@/lib/botCatalog";
 import { supabase } from "@/integrations/supabase/client";
+import { functionErrorMessage } from "@/lib/edgeError";
 import { SystemScreen, SystemCard, SystemBadge } from "@/pages/SystemScreen";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -599,17 +600,9 @@ const BotSection = ({
       if (error) {
         // supabase-js buries the function's real error body inside
         // error.context — surface it instead of the generic non-2xx line.
-        let msg = error.message as string;
-        const ctx = (error as { context?: Response }).context;
-        if (ctx && typeof ctx.json === "function") {
-          try {
-            const body = await ctx.clone().json();
-            if (body?.error) msg = String(body.error);
-          } catch {
-            /* keep generic message */
-          }
-        }
-        toast.error("Retry failed", { description: msg });
+        toast.error("Retry failed", {
+          description: await functionErrorMessage(error, "Retry failed"),
+        });
       } else if ((data as { alreadyInProgress?: boolean } | null)?.alreadyInProgress) {
         toast.info("A deployment is already in progress for this bot.");
         onReload();

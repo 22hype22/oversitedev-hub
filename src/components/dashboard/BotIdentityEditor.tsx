@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
+import { readFunctionError } from "@/lib/edgeError";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import type { OwnedBot } from "@/hooks/useOwnedBots";
@@ -185,9 +186,14 @@ export const BotIdentityEditor = ({
       body: { bot_id: bot.id, ...patch },
     });
     if (error || !(data as any)?.ok) {
-      const msg = (data as any)?.error ?? error?.message ?? "Update failed";
+      // On a non-2xx, supabase-js leaves `data` null and hands back its own
+      // "Edge Function returned a non-2xx status code", which tells nobody
+      // anything. The response itself is on error.context — read the body so
+      // the toast says what actually went wrong.
+      const body = (data as any) ?? (await readFunctionError(error));
+      const msg = body?.error ?? error?.message ?? "Update failed";
       toast.error("Discord update failed", { description: msg });
-      return { ok: false, data };
+      return { ok: false, data: body };
     }
     return { ok: true, data };
   };
