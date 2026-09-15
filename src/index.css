@@ -35,6 +35,14 @@
     --input: 210 30% 90%;
     --ring: 205 95% 55%;
 
+    /* Dispatch desks. Each desk is a signal on the picker, the same way a
+       console reads status: police blue, fire red, transportation amber. They
+       are statuses rather than brand colours, so they sit apart from --primary
+       and stay identical in both themes. */
+    --desk-pd: 205 95% 55%;
+    --desk-fd: 4 84% 58%;
+    --desk-dot: 38 92% 52%;
+
     --radius: 0.75rem;
 
     --gradient-hero: radial-gradient(ellipse at top, hsl(205 95% 75% / 0.35), transparent 60%), linear-gradient(180deg, hsl(210 60% 98%), hsl(0 0% 100%));
@@ -86,6 +94,11 @@
     --border: 220 12% 22%;
     --input: 220 12% 22%;
     --ring: 205 95% 55%;
+
+    /* Lifted a little off the dark ground so each desk still reads at a glance. */
+    --desk-pd: 205 95% 60%;
+    --desk-fd: 4 88% 64%;
+    --desk-dot: 38 94% 58%;
 
     --gradient-hero: radial-gradient(ellipse at top, hsl(205 95% 55% / 0.25), transparent 60%), linear-gradient(180deg, hsl(220 15% 10%), hsl(220 15% 8%));
     --gradient-card: linear-gradient(180deg, hsl(220 14% 14%), hsl(220 14% 12%));
