@@ -240,3 +240,4 @@ Dispatch can now run as a fire or DOT desk as well as police, with the police wo
 The desks talk to each other. Ask police dispatch for an ambulance and the fire desk gets it, ask fire for a tow and DOT gets it, and the unit is told who has it. With only one desk in the server the request still goes out on that channel.
 Team members with permission to edit a bot can now change its logo, banner and About Me. The dashboard always offered it but the server only accepted the owner, so the save came back as a failure.
 When a bot profile change is refused, the dashboard now says why instead of showing a generic function error.
+The admin panel's section nav no longer goes dead. Storefront, Bots & Workers, Logs & History and the rest stay reachable however the page is re-rendered.
