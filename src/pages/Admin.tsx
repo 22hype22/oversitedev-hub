@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -949,6 +949,19 @@ const Admin = () => {
   const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
   const rootRef = useRef<HTMLDivElement>(null);
+  // The wiring below has to run once for every mounted shell, not once per
+  // admin session. `loading` briefly flips true on a session settle or a role
+  // re-check, which unmounts this page and mounts a fresh copy of the template
+  // with no listeners on it. Keying the effects to isAdmin alone missed that:
+  // isAdmin never changed, so nothing re-ran, and the new markup sat there
+  // inert with only the section it opened on reachable. Tracking the node
+  // itself re-runs on a remount and, because the node is the same object when
+  // nothing remounted, still cannot stack a second set of listeners.
+  const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null);
+  const attachRoot = useCallback((node: HTMLDivElement | null) => {
+    rootRef.current = node;
+    setRootEl(node);
+  }, []);
   const [confirmOut, setConfirmOut] = useState(false);
 
   const doSignOut = async () => {
@@ -961,7 +974,7 @@ const Admin = () => {
   }, [loading, user, navigate]);
 
   useEffect(() => {
-    const root = rootRef.current;
+    const root = rootEl;
     if (!root || !isAdmin) return;
 
     // background image (imported asset → hashed URL)
@@ -989,8 +1002,10 @@ const Admin = () => {
     try {
       // eslint-disable-next-line no-new-func
       new Function(ADMIN_JS)();
-    } catch {
-      /* noop */
+    } catch (err) {
+      // This script is what makes the section nav work. Swallowing it silently
+      // is why a dead nav looked like a styling problem rather than an error.
+      console.error("[admin] section nav failed to wire", err);
     }
 
     // Overview — fill the blocks backed by real data, and re-poll every 10s so
@@ -1121,14 +1136,14 @@ const Admin = () => {
     // would stack duplicate click listeners on the persistent template DOM
     // and every admin action (and its toast) would fire twice. Identity text
     // lives in its own effect below.
-  }, [isAdmin, navigate]);
+  }, [rootEl, isAdmin, navigate]);
 
   // Signed-in admin identity — the template ships with neutral placeholders
   // so whoever is logged in sees THEIR name/email, never a hardcoded account.
   // Kept separate from the wiring effect: this only writes text, so it's safe
   // to re-run whenever the auth session hands us a fresh `user` object.
   useEffect(() => {
-    const root = rootRef.current;
+    const root = rootEl;
     if (!root || !isAdmin) return;
     let cancelled = false;
     const fillIdentity = (p?: {
@@ -1165,7 +1180,7 @@ const Admin = () => {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, user]);
+  }, [rootEl, isAdmin, user]);
 
   if (loading) {
     return (
@@ -1204,7 +1219,7 @@ const Admin = () => {
   }
 
   return (
-    <div className="osadmin" ref={rootRef}>
+    <div className="osadmin" ref={attachRoot}>
       <div dangerouslySetInnerHTML={{ __html: "<style>" + ADMIN_CSS + CONFIRM_CSS + "</style>" + ADMIN_HTML }} />
       {confirmOut && (
         <div className="osa-modal" onClick={() => setConfirmOut(false)}>
