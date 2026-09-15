@@ -22,7 +22,8 @@ import { CheckoutDialog, type CheckoutItem } from "@/components/CheckoutDialog";
 import { BotStockIndicator } from "@/components/site/BotStockIndicator";
 import { useBotStockCount } from "@/hooks/useBotStockCount";
 import { filterAddonsForBase } from "@/lib/addonCategories";
-import { BOT_BASE_ICONS } from "@/lib/botCatalog";
+import { BOT_BASE_ICONS, BOT_BASE_LABELS } from "@/lib/botCatalog";
+import { functionErrorMessage } from "@/lib/edgeError";
 import { OrderTransition, markOrderHandoff, originOf } from "@/components/checkout/OrderTransition";
 import { useNavigate } from "react-router-dom";
 import {
@@ -897,10 +898,16 @@ export function BotForge() {
     .slice(0, 2)
     .reduce((sum, id) => sum + (pricedBase(id)?.monthlyPrice ?? DEFAULT_MONTHLY_PRICE), 0);
   const [discountCodeInput, setDiscountCodeInput] = useState("");
+  // A trial code is applied in the same box as a discount, but it is not money
+  // off: it makes this one bot free until a date the operator set, after which
+  // the bot is removed unless it is bought.
   const [appliedDiscount, setAppliedDiscount] = useState<{
     code: string;
-    kind: "percent" | "amount";
+    kind: "percent" | "amount" | "trial";
     value: number;
+    /** Trials only: the product the code is good for, and when it runs out. */
+    base?: string;
+    endsAt?: string;
   } | null>(null);
   const [applyingDiscount, setApplyingDiscount] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -1157,14 +1164,40 @@ export function BotForge() {
     return discordCost + roblocCost;
   }, [bases, pricedBases]);
 
+  const isTrialCode = appliedDiscount?.kind === "trial";
   const discountAmount = useMemo(() => {
     if (!appliedDiscount) return 0;
+    // A trial takes the whole thing to zero — it is not a discount on a sale.
+    if (appliedDiscount.kind === "trial") return total;
     const raw =
       appliedDiscount.kind === "percent"
         ? (total * appliedDiscount.value) / 100
         : appliedDiscount.value;
     return Math.min(total, Math.max(0, Number(raw.toFixed(2))));
   }, [appliedDiscount, total]);
+  const trialEndsLabel = appliedDiscount?.endsAt
+    ? new Date(appliedDiscount.endsAt).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
+
+  // A trial is for one bot. If they change what they're buying after applying
+  // it, drop the code rather than silently letting it price the wrong order.
+  useEffect(() => {
+    if (!appliedDiscount || appliedDiscount.kind !== "trial") return;
+    const stillMatches =
+      bases.length === 1 &&
+      (!appliedDiscount.base || bases[0].toLowerCase() === appliedDiscount.base.toLowerCase());
+    if (!stillMatches) {
+      setAppliedDiscount(null);
+      setDiscountCodeInput("");
+      sonnerToast.info("Trial code removed", {
+        description: "It only covers one bot, and you changed what you're buying.",
+      });
+    }
+  }, [bases, appliedDiscount]);
 
   const finalTotal = Math.max(0, Number((total - discountAmount).toFixed(2)));
   // Paying in Robux: the card fields hide and the Robux note shows instead.
@@ -1181,20 +1214,51 @@ export function BotForge() {
     const code = discountCodeInput.trim().toUpperCase();
     if (!code) return;
     setApplyingDiscount(true);
-    // Use the server-side validator RPC so we never expose the full
-    // discount_codes table to the client.
-    const { data, error } = await (supabase as any).rpc("validate_discount_code", {
+    // One server-side validator for both kinds of code, so the full code tables
+    // are never exposed to the client and a refusal can say what was wrong.
+    const { data, error } = await (supabase as any).rpc("validate_checkout_code", {
       _code: code,
     });
     setApplyingDiscount(false);
-    const row = Array.isArray(data) ? data[0] : data;
-    if (error || !row) {
-      sonnerToast.error("Invalid or expired code");
+    const row = (Array.isArray(data) ? data[0] : data) as
+      | { ok?: boolean; error?: string; kind?: string; code?: string; value?: number; base?: string; ends_at?: string }
+      | null;
+    if (error || !row?.ok) {
+      sonnerToast.error(row?.error ?? error?.message ?? "Invalid or expired code");
       return;
     }
+
+    if (row.kind === "trial") {
+      // Only for the product it was issued for, and only on its own.
+      if (row.base && (bases.length !== 1 || bases[0].toLowerCase() !== row.base.toLowerCase())) {
+        const label = BOT_BASE_LABELS[row.base] ?? row.base;
+        sonnerToast.error(`That trial is for ${label}`, {
+          description:
+            bases.length > 1
+              ? "Pick just that one bot to use the code."
+              : `Select ${label} to use this code.`,
+        });
+        return;
+      }
+      const ends = row.ends_at ? new Date(row.ends_at) : null;
+      setAppliedDiscount({
+        code: row.code!,
+        kind: "trial",
+        value: 0,
+        base: row.base ?? undefined,
+        endsAt: row.ends_at ?? undefined,
+      });
+      sonnerToast.success("Free trial applied", {
+        description: ends
+          ? `Free until ${ends.toLocaleDateString(undefined, { month: "long", day: "numeric" })}. Buy it before then to keep it.`
+          : undefined,
+      });
+      return;
+    }
+
     setAppliedDiscount({
-      code: row.code,
-      kind: row.kind,
+      code: row.code!,
+      kind: row.kind as "percent" | "amount",
       value: Number(row.value),
     });
     sonnerToast.success(`Code ${row.code} applied`);
@@ -1431,6 +1495,25 @@ export function BotForge() {
 
     // For signed-in users with a real order: save the card, no charge.
     if (user && orderId) {
+      // TRIAL CODE: the order is free until the date on the code, then the bot
+      // is removed unless they buy it. Fulfilled server-side at $0 and never
+      // sent to Stripe — a trial that asked for a card would not be a trial.
+      if (isTrialCode && appliedDiscount) {
+        const { data: t, error: tErr } = await (supabase as any).functions.invoke(
+          "create-trial-order",
+          { body: { botOrderId: orderId, code: appliedDiscount.code } },
+        );
+        if (tErr || !t?.trial) {
+          // Nothing was charged, but the order exists and is not started, so
+          // say what happened rather than dropping them into a card form.
+          const msg = (await functionErrorMessage(tErr, "")) || t?.error || "We couldn't start your trial.";
+          failWith(`${msg} Nothing was charged.`);
+          return;
+        }
+        leaveOnGreen(`/checkout/return?order=${orderId}&trial=1`);
+        return;
+      }
+
       // COMP LIST: if this account's email never pays, fulfill the order for
       // free server-side (marked paid at $0, hosting waived) and skip Stripe
       // entirely. They still go through the whole build/deploy flow.
@@ -2185,14 +2268,26 @@ export function BotForge() {
             {appliedDiscount && !comped && (
               <div className="mt-1 flex items-center justify-between text-xs">
                 <span className="text-os-go font-medium">
-                  Code {appliedDiscount.code} applied
+                  {isTrialCode
+                    ? trialEndsLabel
+                      ? `Free trial until ${trialEndsLabel}`
+                      : "Free trial"
+                    : `Code ${appliedDiscount.code} applied`}
                 </span>
                 <span className="text-os-go font-medium">
-                  {robuxAllowed && payMethod === "robux"
-                    ? `−${formatRobux(Math.max(0, robuxFor(total) - robuxFor(finalTotal)))}`
-                    : `−$${discountAmount.toFixed(2)}`}
+                  {isTrialCode
+                    ? "Free"
+                    : robuxAllowed && payMethod === "robux"
+                      ? `−${formatRobux(Math.max(0, robuxFor(total) - robuxFor(finalTotal)))}`
+                      : `−$${discountAmount.toFixed(2)}`}
                 </span>
               </div>
+            )}
+            {isTrialCode && (
+              <p className="mt-1 text-[11px] leading-relaxed text-os-faint">
+                Nothing to pay now. Your bot is removed when the trial ends unless you buy
+                it — we'll remind you in Discord over the last five days.
+              </p>
             )}
             {/* Managed hosting: only the Discord bases bill monthly, so the
                 panel only shows when one of them is in the order. */}
@@ -2395,10 +2490,16 @@ export function BotForge() {
                       <div className="text-xs">
                         <div className="font-mono font-semibold text-os-heading">{appliedDiscount.code}</div>
                         <div className="text-os-go">
-                          {appliedDiscount.kind === "percent"
-                            ? `${appliedDiscount.value}% off`
-                            : `$${appliedDiscount.value} off`}{" "}
-                          (−${discountAmount.toFixed(2)})
+                          {isTrialCode ? (
+                            trialEndsLabel ? `Free trial until ${trialEndsLabel}` : "Free trial"
+                          ) : (
+                            <>
+                              {appliedDiscount.kind === "percent"
+                                ? `${appliedDiscount.value}% off`
+                                : `$${appliedDiscount.value} off`}{" "}
+                              (−${discountAmount.toFixed(2)})
+                            </>
+                          )}
                         </div>
                       </div>
                       <button
