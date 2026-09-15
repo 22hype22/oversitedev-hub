@@ -502,12 +502,19 @@ const ADMIN_HTML = `<div class="osd app">
           <div class="sfcol">
             <!-- Free hosting codes -->
             <div class="card">
-              <div class="ch"><span class="eye">Comp</span><h3>Free hosting codes</h3></div>
+              <div class="ch"><span class="eye">Comp</span><h3>Free codes</h3><span class="mut">months or a trial</span></div>
               <div class="cb">
+                <div class="seg" data-sf="free-kind" style="margin-bottom:12px">
+                  <button class="on" data-v="months">Free months</button>
+                  <button data-v="trial">Free trial</button>
+                </div>
                 <div class="row2">
-                  <div><label class="lbl">Months</label><input class="in" data-sf="free-months" placeholder="3"></div>
+                  <div data-sf="cell-months"><label class="lbl">Months</label><input class="in" data-sf="free-months" placeholder="3"></div>
+                  <div data-sf="cell-base" style="display:none"><label class="lbl">Bot</label><select class="in" data-sf="free-base"><option value="dispatch">Oversite Dispatch</option><option value="protection">Oversite Protection</option><option value="support">Oversite Support</option><option value="utilities">Oversite Utilities</option><option value="customs">Oversite Customs</option><option value="roleplay">Oversite Roleplay</option></select></div>
                   <div><label class="lbl">Max uses</label><input class="in" data-sf="free-uses" placeholder="1 (blank = ∞)"></div>
                 </div>
+                <div data-sf="cell-ends" style="display:none;margin-top:10px"><label class="lbl">Trial ends</label><input class="in" type="date" data-sf="free-ends"></div>
+                <div class="subnote" data-sf="free-hint" style="margin-top:10px">Free hosting for a while, then normal billing. The bot is never taken away.</div>
                 <button class="btn" style="margin-top:12px" data-sf="free-create"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Generate code</button>
                 <div class="listcap">Issued codes</div>
                 <div data-sf="free-list"><div class="subnote">Loading…</div></div>
@@ -1651,10 +1658,52 @@ function wireStorefront(root: HTMLElement): () => void {
   });
   loadDiscounts();
 
-  // ── Free hosting codes ──
+  // ── Free codes: free months, or a trial ──
+  // The two differ in what happens when they run out. Free months lapse into
+  // normal billing; a trial is for one product, ends on a date set here, and
+  // the bot is removed if they never buy it.
   const freeList = $('[data-sf="free-list"]');
   const randomCode = (p: string) =>
     p + "-" + Array.from({ length: 6 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
+
+  const BASE_NAMES: Record<string, string> = {
+    dispatch: "Dispatch", protection: "Protection", support: "Support",
+    utilities: "Utilities", customs: "Customs", roleplay: "Roleplay",
+  };
+  const freeKind = () =>
+    root.querySelector('[data-sf="free-kind"] button.on')?.getAttribute("data-v") === "trial"
+      ? "trial"
+      : "months";
+
+  // Swap the form between the two. ADMIN_JS already moves `.on` between the
+  // segment buttons, so this only has to follow that.
+  const show = (sel: string, on: boolean) => {
+    const el = $(sel) as HTMLElement | null;
+    if (el) el.style.display = on ? "" : "none";
+  };
+  const syncFreeForm = () => {
+    const trial = freeKind() === "trial";
+    show('[data-sf="cell-months"]', !trial);
+    show('[data-sf="cell-base"]', trial);
+    show('[data-sf="cell-ends"]', trial);
+    const hint = $('[data-sf="free-hint"]');
+    if (hint) {
+      hint.textContent = trial
+        ? "Free until the date you pick, for that bot only. Their bot DMs them over the final five days, and if they haven't bought it by then it is removed."
+        : "Free hosting for a while, then normal billing. The bot is never taken away.";
+    }
+  };
+  $('[data-sf="free-kind"]')?.addEventListener("click", () => {
+    // After ADMIN_JS has moved the .on class on this same click.
+    setTimeout(syncFreeForm, 0);
+  });
+  // Default the date to two weeks out so the field is never empty.
+  const twoWeeks = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+  setVal('[data-sf="free-ends"]', twoWeeks);
+  const endsInput = $('[data-sf="free-ends"]') as HTMLInputElement | null;
+  if (endsInput) endsInput.min = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  syncFreeForm();
+
   async function loadFree() {
     const { data } = await sb.from("bot_free_period_codes").select("*").order("created_at", { ascending: false });
     if (!freeList) return;
@@ -1662,20 +1711,54 @@ function wireStorefront(root: HTMLElement): () => void {
     const html = rows.map((c) => {
       const uses = c.max_uses != null ? `${c.times_used || 0}/${c.max_uses} used` : `${c.times_used || 0} used`;
       const tag = c.is_active ? '<span class="tag g">active</span>' : '<span class="tag n">off</span>';
-      return `<div class="crow" data-id="${c.id}"><div><div class="c">${escHtml(c.code)}</div><div class="meta">${c.months} mo · ${uses}</div></div><span class="sp">${tag}<span class="ic" data-act="copy" data-v="${escHtml(c.code)}">${COPY_SVG}</span><span class="ic" data-act="del-free">${X_SVG}</span></span></div>`;
+      let what: string;
+      if (c.teardown_on_expiry) {
+        const when = c.ends_at
+          ? new Date(c.ends_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+          : "no end date";
+        const over = c.ends_at && new Date(c.ends_at).getTime() <= Date.now();
+        what = `${escHtml(BASE_NAMES[c.base] || c.base || "any bot")} trial · ${over ? "ended" : "ends"} ${when}`;
+      } else {
+        what = `${c.months} mo`;
+      }
+      const trialTag = c.teardown_on_expiry ? '<span class="tag a">trial</span>' : "";
+      return `<div class="crow" data-id="${c.id}"><div><div class="c">${escHtml(c.code)}</div><div class="meta">${what} · ${uses}</div></div><span class="sp">${trialTag}${tag}<span class="ic" data-act="copy" data-v="${escHtml(c.code)}">${COPY_SVG}</span><span class="ic" data-act="del-free">${X_SVG}</span></span></div>`;
     });
     paginate(freeList, html, '<div class="subnote">No codes yet.</div>');
   }
+
   $('[data-sf="free-create"]')?.addEventListener("click", async () => {
-    const months = parseInt(val('[data-sf="free-months"]').trim(), 10);
-    if (!Number.isFinite(months) || months < 1 || months > 24) return toast.error("Months must be 1–24");
+    const trial = freeKind() === "trial";
     const usesRaw = val('[data-sf="free-uses"]').trim();
     const max_uses = usesRaw === "" ? null : parseInt(usesRaw, 10);
     if (max_uses !== null && (!Number.isFinite(max_uses) || max_uses < 1)) return toast.error("Max uses must be a positive number or blank");
-    const code = randomCode("FREE");
-    const { error } = await sb.from("bot_free_period_codes").insert({ code, months, max_uses });
+
+    const row: Record<string, unknown> = { max_uses };
+    let code: string;
+
+    if (trial) {
+      const base = val('[data-sf="free-base"]').trim();
+      if (!base) return toast.error("Pick which bot the trial is for");
+      const endsOn = val('[data-sf="free-ends"]').trim();
+      // Run to the END of the chosen day, so picking today still gives them
+      // the rest of it rather than expiring the moment it is redeemed.
+      const endsAt = endsOn ? new Date(`${endsOn}T23:59:59`) : null;
+      if (!endsAt || Number.isNaN(endsAt.getTime())) return toast.error("Pick the date the trial ends");
+      if (endsAt.getTime() <= Date.now()) return toast.error("The trial has to end in the future");
+      code = randomCode("TRIAL");
+      // `months` is NOT NULL on the table; a trial ignores it for ends_at.
+      Object.assign(row, { months: 1, base, ends_at: endsAt.toISOString(), teardown_on_expiry: true });
+    } else {
+      const months = parseInt(val('[data-sf="free-months"]').trim(), 10);
+      if (!Number.isFinite(months) || months < 1 || months > 24) return toast.error("Months must be 1–24");
+      code = randomCode("FREE");
+      Object.assign(row, { months, base: null, ends_at: null, teardown_on_expiry: false });
+    }
+
+    const { error } = await sb.from("bot_free_period_codes").insert({ code, ...row });
     if (error) return toast.error(error.message);
-    toast.success(`Code ${code} created`);
+    await navigator.clipboard.writeText(code).catch(() => { /* copy is a convenience */ });
+    toast.success(`Code ${code} created`, { description: "Copied to your clipboard." });
     setVal('[data-sf="free-months"]', "");
     setVal('[data-sf="free-uses"]', "");
     loadFree();
