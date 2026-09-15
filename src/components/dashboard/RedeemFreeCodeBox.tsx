@@ -66,20 +66,29 @@ export function RedeemFreeCodeBox({ bots, defaultBotId, onRedeemed }: RedeemFree
     }
 
     if (data.type === "free_period") {
-      const months = data.months_granted as number;
+      const months = data.months_granted as number | null;
       const until = new Date(data.free_until as string);
-      toast.success(
-        data.stacked
-          ? `Added ${months} more free month${months === 1 ? "" : "s"}!`
-          : `${months} free month${months === 1 ? "" : "s"} unlocked!`,
-        {
-          description: `Your bot is free until ${until.toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          })}.`,
-        },
-      );
+      const untilLabel = until.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+      if (data.trial) {
+        // A trial ends by taking the bot away, so say that up front rather than
+        // letting them find out when it disappears.
+        toast.success("Free trial started!", {
+          description:
+            `Your bot is free until ${untilLabel}. Buy it before then to keep it — ` +
+            "otherwise it's removed when the trial ends.",
+        });
+      } else {
+        toast.success(
+          data.stacked
+            ? `Added ${months} more free month${months === 1 ? "" : "s"}!`
+            : `${months} free month${months === 1 ? "" : "s"} unlocked!`,
+          { description: `Your bot is free until ${untilLabel}.` },
+        );
+      }
     } else if (data.type === "discount_amount") {
       const added = ((data.credit_added_cents as number) / 100).toFixed(2);
       const balance = ((data.new_balance_cents as number) / 100).toFixed(2);

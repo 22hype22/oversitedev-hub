@@ -7,6 +7,8 @@ export type BotFreePeriod = {
   free_until: string;
   reminder_sent_at: string | null;
   resumed_at: string | null;
+  /** true on a trial: the bot is removed when this runs out, not just billed. */
+  teardown_on_expiry: boolean;
 };
 
 /** Loads the signed-in user's active free periods, keyed by bot_id. */
@@ -27,7 +29,7 @@ export function useBotFreePeriods() {
     if (!hasLoadedRef.current) setLoading(true);
     const { data } = await (supabase as any)
       .from("bot_free_periods")
-      .select("bot_id,free_until,reminder_sent_at,resumed_at")
+      .select("bot_id,free_until,reminder_sent_at,resumed_at,teardown_on_expiry")
       .eq("user_id", userId);
 
     const map: Record<string, BotFreePeriod> = {};
