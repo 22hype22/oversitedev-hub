@@ -241,3 +241,4 @@ The desks talk to each other. Ask police dispatch for an ambulance and the fire 
 Team members with permission to edit a bot can now change its logo, banner and About Me. The dashboard always offered it but the server only accepted the owner, so the save came back as a failure.
 When a bot profile change is refused, the dashboard now says why instead of showing a generic function error.
 The admin panel's section nav no longer goes dead. Storefront, Bots & Workers, Logs & History and the rest stay reachable however the page is re-rendered.
+You can now hand out free trials. A trial code is for one bot, runs to a date you pick, and the bot is removed when it ends if they haven't bought it. Their bot DMs them over the final five days so nobody is surprised.

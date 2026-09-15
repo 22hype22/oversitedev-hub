@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Gift, Plus, Trash2, Copy, Power } from "lucide-react";
+import { BOT_BASE_LABELS } from "@/lib/botCatalog";
 import { toast } from "sonner";
 
 type FreeCode = {
@@ -29,6 +30,30 @@ type FreeCode = {
   expires_at: string | null;
   notes: string | null;
   created_at: string;
+  /** Product this code is good for; null = any. */
+  base: string | null;
+  /** Fixed end date. Set on trials, null on month grants. */
+  ends_at: string | null;
+  /** true = the bot is cancelled when the period ends. */
+  teardown_on_expiry: boolean;
+};
+
+// A code is one of two things, and the difference is what happens at the end:
+// free months roll into normal billing, a trial takes the bot away.
+type CodeKind = "months" | "trial";
+
+// Products a trial can be offered on. Anything sellable can be trialled; the
+// all-in-one pack can't, because it isn't one bot to take back.
+const TRIAL_BASES = ["dispatch", "protection", "support", "utilities", "customs", "roleplay"];
+
+const fmtDate = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+
+/** Today + n days as a yyyy-mm-dd value for <input type="date">. */
+const dateInputValue = (daysFromNow: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  return d.toISOString().slice(0, 10);
 };
 
 const randomCode = (prefix = "FREE") => {
@@ -45,8 +70,11 @@ export function BotFreePeriodCodeManager() {
   const [loading, setLoading] = useState(true);
 
   // New code form
+  const [kind, setKind] = useState<CodeKind>("months");
   const [newCode, setNewCode] = useState(randomCode());
   const [months, setMonths] = useState(1);
+  const [trialBase, setTrialBase] = useState(TRIAL_BASES[0]);
+  const [endsOn, setEndsOn] = useState(() => dateInputValue(14));
   const [maxUses, setMaxUses] = useState<string>("1");
   const [notes, setNotes] = useState("");
   const [creating, setCreating] = useState(false);
@@ -77,9 +105,23 @@ export function BotFreePeriodCodeManager() {
       toast.error("Enter a code");
       return;
     }
-    if (months < 1 || months > 24) {
+    const isTrial = kind === "trial";
+    if (!isTrial && (months < 1 || months > 24)) {
       toast.error("Months must be between 1 and 24");
       return;
+    }
+    // A trial runs to the END of the chosen day, so picking today still gives
+    // them the rest of it rather than expiring the moment it is redeemed.
+    const endsAt = isTrial ? new Date(`${endsOn}T23:59:59`) : null;
+    if (isTrial) {
+      if (!endsOn || Number.isNaN(endsAt!.getTime())) {
+        toast.error("Pick the date the trial ends");
+        return;
+      }
+      if (endsAt!.getTime() <= Date.now()) {
+        toast.error("The trial has to end in the future");
+        return;
+      }
     }
     const parsedMaxUses = maxUses.trim() === "" ? null : parseInt(maxUses, 10);
     if (parsedMaxUses !== null && (isNaN(parsedMaxUses) || parsedMaxUses < 1)) {
@@ -89,7 +131,11 @@ export function BotFreePeriodCodeManager() {
     setCreating(true);
     const { error } = await (supabase as any).from("bot_free_period_codes").insert({
       code: trimmed,
-      months,
+      // `months` is NOT NULL on the table; a trial ignores it in favour of ends_at.
+      months: isTrial ? 1 : months,
+      base: isTrial ? trialBase : null,
+      ends_at: endsAt ? endsAt.toISOString() : null,
+      teardown_on_expiry: isTrial,
       max_uses: parsedMaxUses,
       notes: notes.trim() || null,
     });
@@ -99,7 +145,7 @@ export function BotFreePeriodCodeManager() {
       return;
     }
     toast.success(`Code "${trimmed}" created`);
-    setNewCode(randomCode());
+    setNewCode(randomCode(isTrial ? "TRIAL" : "FREE"));
     setNotes("");
     reload();
   };
@@ -144,14 +190,38 @@ export function BotFreePeriodCodeManager() {
         <div>
           <h3 className="text-lg font-semibold tracking-tight">Free-period codes</h3>
           <p className="text-sm text-muted-foreground">
-            Give giveaway winners (or anyone) free months on a bot. Users redeem
-            codes from their Bot Dashboard.
+            Free months roll into normal billing when they run out. A free trial
+            is for one product, ends on a date you pick, and takes the bot away
+            if they don't buy it. Either is redeemed from the Bot Dashboard.
           </p>
         </div>
       </div>
 
       {/* Create form */}
       <div className="rounded-lg border border-border bg-card/40 p-4 mb-6">
+        <div className="inline-flex rounded-lg border border-border p-0.5 mb-4">
+          {(["months", "trial"] as CodeKind[]).map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => {
+                setKind(k);
+                setNewCode(randomCode(k === "trial" ? "TRIAL" : "FREE"));
+              }}
+              disabled={creating}
+              aria-pressed={kind === k}
+              className={
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors " +
+                (kind === k
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground")
+              }
+            >
+              {k === "months" ? "Free months" : "Free trial"}
+            </button>
+          ))}
+        </div>
+
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <Label htmlFor="free-code">Code</Label>
@@ -175,19 +245,52 @@ export function BotFreePeriodCodeManager() {
               </Button>
             </div>
           </div>
-          <div>
-            <Label htmlFor="free-months">Months</Label>
-            <Input
-              id="free-months"
-              type="number"
-              min={1}
-              max={24}
-              value={months}
-              onChange={(e) => setMonths(parseInt(e.target.value, 10) || 1)}
-              disabled={creating}
-              className="mt-1"
-            />
-          </div>
+          {kind === "months" ? (
+            <div>
+              <Label htmlFor="free-months">Months</Label>
+              <Input
+                id="free-months"
+                type="number"
+                min={1}
+                max={24}
+                value={months}
+                onChange={(e) => setMonths(parseInt(e.target.value, 10) || 1)}
+                disabled={creating}
+                className="mt-1"
+              />
+            </div>
+          ) : (
+            <>
+              <div>
+                <Label htmlFor="trial-base">Bot</Label>
+                <select
+                  id="trial-base"
+                  value={trialBase}
+                  onChange={(e) => setTrialBase(e.target.value)}
+                  disabled={creating}
+                  className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {TRIAL_BASES.map((b) => (
+                    <option key={b} value={b}>
+                      {BOT_BASE_LABELS[b] ?? b}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="trial-ends">Trial ends</Label>
+                <Input
+                  id="trial-ends"
+                  type="date"
+                  min={dateInputValue(1)}
+                  value={endsOn}
+                  onChange={(e) => setEndsOn(e.target.value)}
+                  disabled={creating}
+                  className="mt-1"
+                />
+              </div>
+            </>
+          )}
           <div>
             <Label htmlFor="free-max-uses">Max uses</Label>
             <Input
@@ -240,9 +343,23 @@ export function BotFreePeriodCodeManager() {
                 <code className="font-mono text-sm font-semibold px-2 py-1 rounded bg-muted">
                   {c.code}
                 </code>
-                <Badge variant="secondary" className="text-xs">
-                  {c.months} month{c.months === 1 ? "" : "s"}
-                </Badge>
+                {c.teardown_on_expiry ? (
+                  <>
+                    <Badge variant="secondary" className="text-xs">
+                      Trial · {BOT_BASE_LABELS[c.base ?? ""] ?? c.base ?? "any bot"}
+                    </Badge>
+                    {c.ends_at && (
+                      <Badge variant="outline" className="text-xs">
+                        {new Date(c.ends_at).getTime() <= Date.now() ? "Ended" : "Ends"}{" "}
+                        {fmtDate(c.ends_at)}
+                      </Badge>
+                    )}
+                  </>
+                ) : (
+                  <Badge variant="secondary" className="text-xs">
+                    {c.months} month{c.months === 1 ? "" : "s"}
+                  </Badge>
+                )}
                 <Badge variant="outline" className="text-xs">
                   {c.times_used} / {c.max_uses ?? "∞"} used
                 </Badge>

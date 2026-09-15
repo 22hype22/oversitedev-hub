@@ -735,10 +735,21 @@ const BotSection = ({
     );
   }
   if (freeActive) {
+    // A trial and a free-months grant end very differently — one takes the bot
+    // away — so the chip must not read the same for both.
+    const isTrial = !!freePeriod?.teardown_on_expiry;
     secondaryMeta.push(
-      <span key="free" className="inline-flex items-center gap-1 text-emerald-400">
+      <span
+        key="free"
+        className={`inline-flex items-center gap-1 ${isTrial ? "text-amber-400" : "text-emerald-400"}`}
+        title={
+          isTrial
+            ? `This bot is on a free trial. It will be removed on ${freeUntilLabel} unless you buy it.`
+            : undefined
+        }
+      >
         <Gift className="h-3 w-3" />
-        Free until {freeUntilLabel}
+        {isTrial ? `Trial ends ${freeUntilLabel}` : `Free until ${freeUntilLabel}`}
       </span>,
     );
   }
