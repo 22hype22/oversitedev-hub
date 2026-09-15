@@ -43,9 +43,6 @@ export const BOT_BASE_LABELS: Record<string, string> = {
   utilities: "Oversite Utilities",
   scratch: "All in One Pack",
   dispatch: "Oversite Dispatch",
-  "dispatch-pd": "Oversite Dispatch: Police",
-  "dispatch-fd": "Oversite Dispatch: Fire and EMS",
-  "dispatch-dot": "Oversite Dispatch: Transportation",
   customs: "Oversite Customs",
   roleplay: "Oversite Roleplay",
 };
