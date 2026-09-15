@@ -52,6 +52,10 @@ export type OwnedBot = {
   activity_text?: string | null;
   /** Discord presence status (online/idle/dnd/invisible). */
   presence_status?: string | null;
+  /** Ordered status lines the bot cycles through; null/one entry = a fixed status. */
+  status_rotation?: { text: string; activity_type?: string }[] | null;
+  /** Seconds between status switches. */
+  status_rotation_seconds?: number | null;
 };
 
 
@@ -102,6 +106,8 @@ function mapRow(row: any, opts: { viaSupport?: boolean; viaTeam?: boolean } = {}
     activity_type: row.activity_type ?? null,
     activity_text: row.activity_text ?? null,
     presence_status: row.presence_status ?? null,
+    status_rotation: row.status_rotation ?? null,
+    status_rotation_seconds: row.status_rotation_seconds ?? null,
   };
 }
 
@@ -214,7 +220,7 @@ export function useOwnedBots() {
     const [{ data: own, error: ownErr }, { data: grants }, { data: memberships }] = await Promise.all([
       (supabase as any)
         .from("bot_orders")
-        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,group_id,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,paid_at,total_amount,charged_at,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status")
+        .select("id,user_id,bot_name,bot_description,icon_url,banner_url,base,group_id,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,paid_at,total_amount,charged_at,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status,status_rotation,status_rotation_seconds")
         .eq("user_id", userId)
         .order("created_at", { ascending: true }),
       (supabase as any)
@@ -273,7 +279,7 @@ export function useOwnedBots() {
     ).filter((id) => id !== userId);
 
     const SHARED_COLS =
-      "id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount,charged_at,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status";
+      "id,user_id,bot_name,bot_description,icon_url,banner_url,base,addons,monthly_hosting,engine_version,status,created_at,submitted_at,delivery_url,source_url,total_amount,charged_at,deployment_status,railway_service_id,bot_bio,discord_last_username_change_at,activity_type,activity_text,presence_status,status_rotation,status_rotation_seconds";
     const [supportRes, teamRes] = await Promise.all([
       supportOwnerIds.length > 0
         ? (supabase as any).from("bot_orders").select(SHARED_COLS).in("user_id", supportOwnerIds).order("created_at", { ascending: true })
