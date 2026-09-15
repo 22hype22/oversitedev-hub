@@ -236,3 +236,5 @@ Every bot has an /info command showing what it is, who built it, where to get on
 A redeploy now reads as Redeploying rather than Starting, so a bot that never went down does not look like it did.
 Saved keys stay showing their dots after a redeploy instead of briefly looking empty.
 Music that was paused comes back paused after a redeploy, and the play and pause button on the card now matches what the player is actually doing.
+Dispatch can now run as a fire or DOT desk as well as police, with the police work it does not need taken out: no plates, names or warrants, no traffic stops, no pursuits.
+The desks talk to each other. Ask police dispatch for an ambulance and the fire desk gets it, ask fire for a tow and DOT gets it, and the unit is told who has it. With only one desk in the server the request still goes out on that channel.
