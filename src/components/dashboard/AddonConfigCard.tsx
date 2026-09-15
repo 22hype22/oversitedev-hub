@@ -118,13 +118,14 @@ const hasCounterButton = (items: any[]): boolean =>
       (it?.type === "container" && hasCounterButton(it.children || [])),
   );
 
-// ---- Roleplay sessions: five designs in one block, each with the part the bot
-// adds shown locked in the builder (the manage menu, the Vote button).
+// ---- Roleplay sessions: five designs in one block. The parts the bot needs
+// (the manage menu, the Vote button) sit in the design, reworded and moved
+// like anything else, and only their removal is refused.
 const SESSION_DESIGN_KEYS = ["panel", "vote", "start", "boost", "end"] as const;
 type SessionDesignKey = (typeof SESSION_DESIGN_KEYS)[number];
 const SESSION_DESIGN_META: Record<SessionDesignKey, { tab: string; hint: string }> = {
-  panel: { tab: "Manage panel", hint: "What staff see when they run /session manage. The menu under it is fixed." },
-  vote: { tab: "Vote", hint: "Posted when staff start a vote. The Vote button under it is fixed and shows the count. Tokens: {ping} {votes} {needed} {user}." },
+  panel: { tab: "Manage panel", hint: "What staff see when they run /session manage. The action menu is part of the design: reword it or move it, it stays." },
+  vote: { tab: "Vote", hint: "Posted when staff start a vote. The Vote button is part of the design: rename, recolour or move it, it stays. Tokens: {ping} {votes} {needed} {user}." },
   start: { tab: "Start", hint: "Posted when the session starts. Tokens: {ping} {user} {started_at}." },
   boost: { tab: "Boost", hint: "Posted when staff ask for more players. Tokens: {ping} {user}." },
   end: { tab: "End", hint: "Posted when the session ends. Tokens: {ping} {user} {started_at} {started_by}." },
@@ -138,9 +139,11 @@ const defaultSessionItems = (key: SessionDesignKey): V2Item[] => [sessionText({
   boost: "## Session boost\n{ping} We need more players in the server right now. Come join.",
   end: "## Session ended\n{ping} The server has shut down. Thanks to everyone who joined.\nEnded by {user}.",
 }[key])];
-const sessionLockedItems = (key: SessionDesignKey, voteNeeded: number): V2Item[] => {
+// The parts the bot needs in a session design. The builder appends any that a
+// saved design lacks; the bot renders them wherever they end up.
+const sessionFixedItems = (key: SessionDesignKey): V2Item[] => {
   if (key === "panel") {
-    return [{ id: "locked-session-menu", type: "select_menu", placeholder: "What do you want to do?", options: [
+    return [{ id: "fixed-session-menu", type: "select_menu", __session_menu: true, placeholder: "What do you want to do?", options: [
       { label: "Start a session vote", description: "Post a vote and let players press Vote", display: true },
       { label: "Start the session", description: "Announce the server is up", display: true },
       { label: "Boost the session", description: "Ask for more players", display: true },
@@ -148,8 +151,8 @@ const sessionLockedItems = (key: SessionDesignKey, voteNeeded: number): V2Item[]
     ] } as unknown as V2Item];
   }
   if (key === "vote") {
-    return [{ id: "locked-session-vote", type: "buttonRow", buttons: [
-      { id: "locked-session-vote-btn", label: `Vote, 0 of ${voteNeeded || 5}`, style: "primary", disabled: true },
+    return [{ id: "fixed-session-vote", type: "buttonRow", buttons: [
+      { id: "fixed-session-vote-btn", label: "Vote, {votes} of {needed}", __session_vote: true, style: "primary" },
     ] } as unknown as V2Item];
   }
   return [];
@@ -157,6 +160,20 @@ const sessionLockedItems = (key: SessionDesignKey, voteNeeded: number): V2Item[]
 
 const withGiveawayEnter = (items: V2Item[]): V2Item[] =>
   hasCounterButton(items) ? items : [...items, giveawayEnterRow()];
+/** The Verify button wherever it sits in the panel design, top level or in a container. */
+const findVerifyButton = (items: V2Item[]): { label: string; style?: string } | null => {
+  for (const it of items) {
+    if (it.type === "buttonRow") {
+      const b = it.buttons.find((x) => "__verify" in x);
+      if (b) return b as { label: string; style?: string };
+    }
+    if (it.type === "container") {
+      const found = findVerifyButton(it.children as V2Item[]);
+      if (found) return found;
+    }
+  }
+  return null;
+};
 import { supabase } from "@/integrations/supabase/client";
 import { RoleMultiSelect } from "./RoleMultiSelect";
 import { useTeamRole } from "@/hooks/useTeamRole";
@@ -2095,6 +2112,10 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
   const saveCustomsVerification = async () => {
     if (!botId) return toast.error("Missing bot id.");
     setSaving(true);
+    const verifyItems = normalizeV2Items(verifyPanelV2Ref.current?.getItems() ?? verifyPanelV2Items ?? []);
+    // The button is edited in the design. Its label and colour are still
+    // written to their own keys for anything that reads them there.
+    const verifyBtn = findVerifyButton(verifyItems);
     const payload = {
       bot_id: botId,
       feature: "roblox-verify",
@@ -2112,9 +2133,9 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
         roblox_client_secret: String(values.roblox_client_secret ?? "").trim(),
         reuse_verifications: values.reuse_verifications !== false,
         auto_verify_on_join: values.auto_verify_on_join !== false,
-        verify_button_label: String(values.verify_button_label ?? "Verify").trim() || "Verify",
-        verify_button_style: String(values.verify_button_style ?? "primary"),
-        components: normalizeV2Items(verifyPanelV2Ref.current?.getItems() ?? verifyPanelV2Items ?? []),
+        verify_button_label: (verifyBtn?.label ?? String(values.verify_button_label ?? "Verify")).trim() || "Verify",
+        verify_button_style: String(verifyBtn?.style ?? values.verify_button_style ?? "primary"),
+        components: verifyItems,
       },
       updated_at: new Date().toISOString(),
     };
@@ -5050,8 +5071,8 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                   <VariablesButton />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Five messages, one per tab. Parts marked locked are added by the bot and stay put: the menu on the
-                  manage panel and the Vote button on the vote message.
+                  Five messages, one per tab. The menu on the manage panel and the Vote button on the vote message are
+                  added by the bot: reword, recolour or move them as you like. They cannot be removed.
                 </p>
                 <div className="inline-flex flex-wrap rounded-lg border border-border bg-background/40 p-0.5 text-xs">
                   {SESSION_DESIGN_KEYS.map((k) => (
@@ -5079,7 +5100,7 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                       botName={botName}
                       botAvatarUrl={botAvatarUrl}
                       initialItems={sessionsV2Items[k]}
-                      lockedItems={sessionLockedItems(k, Number(values.vote_needed) || 5)}
+                      lockedItems={sessionFixedItems(k)}
                     />
                   </div>
                 ))}
@@ -5584,7 +5605,7 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                   {isCustomsSmallUi
                     ? "Design the message below. Tokens like {user} and {reason} fill in automatically."
                     : isCustomsVerification
-                    ? "Design the panel members see below. A Verify button is added automatically underneath it."
+                    ? "Design the panel members see below. The Verify button is part of the design: rename, recolour or move it, it stays."
                     : addonId === "customs-suggestions" || addonId === "customs-feedback" || addonId === "customs-reportbug"
                       ? (<>Add form fields with <code className="font-mono text-os-accent">{"{question: Label}"}</code>, <code className="font-mono text-os-accent">{"{drop down: Name A B C}"}</code>, <code className="font-mono text-os-accent">{"{file: Name}"}</code>, and <code className="font-mono text-os-accent">{"{user}"}</code> anywhere in the text — they become the form people fill in.</>)
                       : (<>Type variables like <code className="font-mono text-os-accent">{"{count}"}</code> anywhere — they fill in {isDesignerMsg ? "when the message is posted." : "when someone joins."}</>)}
@@ -5600,11 +5621,11 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
                   botAvatarUrl={botAvatarUrl}
                   initialItems={isCustomsVerification ? verifyPanelV2Items : isDesignerMsg || isCustomsSmallUi ? messagesV2Items : inviteV2Items}
                   lockedItems={isCustomsVerification ? [{
-                    id: "locked-verify-button", type: "buttonRow", buttons: [{
-                      id: "locked-verify-btn",
+                    id: "fixed-verify-button", type: "buttonRow", buttons: [{
+                      id: "fixed-verify-btn",
                       label: String(values.verify_button_label ?? "Verify").trim() || "Verify",
                       style: (String(values.verify_button_style ?? "primary") as "primary" | "secondary" | "success" | "danger"),
-                      disabled: true,
+                      __verify: true,
                     }],
                   } as unknown as V2Item] : undefined}
               />

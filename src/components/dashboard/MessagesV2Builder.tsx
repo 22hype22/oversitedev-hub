@@ -124,7 +124,12 @@ type V2ButtonRowButton =
   | { id: string; label: string; orderstatus: true; style?: V2ButtonStyle }
   | { id: string; label: string; adclaim: true; style?: V2ButtonStyle }
   | { id: string; label: string; adqueue: true; style?: V2ButtonStyle }
-  | { id: string; label: string; disabled: true; style?: V2ButtonStyle };
+  | { id: string; label: string; disabled: true; style?: V2ButtonStyle }
+  // Parts a bot feature needs in its message. They live in the design like any
+  // other button, so they can be renamed, recoloured and moved, but the bot
+  // wires them up itself and the editor never lets them be removed.
+  | { id: string; label: string; __verify: true; style?: V2ButtonStyle }
+  | { id: string; label: string; __session_vote: true; style?: V2ButtonStyle };
 
 type V2ButtonRow = {
   id: string;
@@ -147,6 +152,10 @@ type V2SelectMenu = {
   placeholder: string;
   options: V2SelectMenuOption[];
   inventory?: boolean; // ad claim panel: auto-fill with the viewer's inventory
+  // The session manager's action menu: the bot binds each option to an
+  // action by position, so the wording can change but the options cannot be
+  // added to, removed or reordered.
+  __session_menu?: true;
 };
 
 const isCategoryButton2 = (
@@ -203,6 +212,54 @@ const isEphemeralOption = (
 const isFormOption = (
   o: V2SelectMenuOption,
 ): o is { label: string; description?: string; form: string; open_components?: V2Item[] } => "form" in o;
+
+// ---- fixed parts: what a feature's bot adds to the message itself ----------
+// A fixed part is kept in the design so it can be worded, coloured and placed
+// like anything else. Only removing it is refused, because the bot would put
+// it straight back.
+type FixedKind = "verify" | "vote" | "menu" | "counter";
+const isVerifyButton = (b: V2ButtonRowButton): b is { id: string; label: string; __verify: true; style?: V2ButtonStyle } => "__verify" in b;
+const isVoteButton = (b: V2ButtonRowButton): b is { id: string; label: string; __session_vote: true; style?: V2ButtonStyle } => "__session_vote" in b;
+const isSessionMenu = (it: V2Item): it is V2SelectMenu & { __session_menu: true } => it.type === "select_menu" && !!it.__session_menu;
+/** Which fixed part a button is, if any. The giveaway's Enter button only
+ *  counts inside a giveaway design; elsewhere a Counter button is ordinary. */
+const fixedButtonKind = (b: V2ButtonRowButton, giveaway: boolean): FixedKind | null =>
+  isVerifyButton(b) ? "verify" : isVoteButton(b) ? "vote" : giveaway && isCounterButton(b) ? "counter" : null;
+const fixedItemKind = (it: V2Item, giveaway: boolean): FixedKind | null => {
+  if (isSessionMenu(it)) return "menu";
+  if (it.type === "buttonRow") {
+    for (const b of it.buttons) {
+      const k = fixedButtonKind(b, giveaway);
+      if (k) return k;
+    }
+  }
+  if (it.type === "container") {
+    for (const c of it.children) {
+      const k = fixedItemKind(c, giveaway);
+      if (k) return k;
+    }
+  }
+  return null;
+};
+const FIXED_NOTE: Record<FixedKind, string> = {
+  verify: "The Verify button. Members press it to link their Roblox account. Rename or recolour it and move it where you like; it cannot be removed.",
+  vote: "The Vote button. Players press it to vote, and {votes} and {needed} in the label show the count. Rename or recolour it and move it where you like; it cannot be removed.",
+  menu: "The session menu. Staff pick what to do from it. Reword the options and move the menu where you like; the options themselves cannot be added to or removed.",
+  counter: "The Enter button. Members click it to join. Rename or move it; it cannot be removed.",
+};
+const FIXED_TITLE = "Added by the bot. Edit it or move it; it cannot be removed.";
+/** Make sure every fixed part the feature needs is somewhere in the design,
+ *  appending any that are missing. Saved designs from before the parts were
+ *  editable have none, and a template or a start-over may drop them. */
+const withFixedItems = (items: V2Item[], fixed: V2Item[], giveaway: boolean): V2Item[] => {
+  if (fixed.length === 0) return items;
+  const have = new Set(items.map((it) => fixedItemKind(it, giveaway)).filter(Boolean));
+  const missing = fixed.filter((f) => {
+    const k = fixedItemKind(f, giveaway);
+    return k && !have.has(k);
+  });
+  return missing.length ? [...items, ...missing] : items;
+};
 
 const BUTTON_STYLE_PREVIEW: Record<V2ButtonStyle, string> = {
   primary: "bg-[#5865F2] hover:bg-[#4752C4] text-white",
@@ -278,7 +335,7 @@ export function normalizeV2Items(items: V2Item[]): V2Item[] {
 // buttons are interaction buttons (not links), so force them off the link style
 // and strip any stray url — otherwise the send 400s with "A url is required".
 function sanitizeButtonRowButton(b: V2ButtonRowButton): V2ButtonRowButton {
-  const isInteraction = "ticket" in b || "form" in b || "ephemeral" in b || "disabled" in b || "counter" in b || "buyrobux" in b || "notify_roles" in b || "orderstatus" in b || "adclaim" in b || "adqueue" in b;
+  const isInteraction = "ticket" in b || "form" in b || "ephemeral" in b || "disabled" in b || "counter" in b || "buyrobux" in b || "notify_roles" in b || "orderstatus" in b || "adclaim" in b || "adqueue" in b || "__verify" in b || "__session_vote" in b;
   if (!isInteraction) return b;
   const anyB = b as any;
   const { url: _dropUrl, ...rest } = anyB;
@@ -310,7 +367,6 @@ function sanitizeItems(items: V2Item[]): V2Item[] {
 // button to the giveaway and appends one itself when the design has none. The
 // editor therefore keeps one in the stack that can be renamed and moved but
 // not removed, and no other button offers the Counter kind.
-const ENTER_NOTE = "The Enter button. Members click it to join. Rename or move it; it cannot be removed.";
 const rowHasCounter = (it: V2Item): boolean => it.type === "buttonRow" && it.buttons.some(isCounterButton);
 const hasCounterAnywhere = (items: V2Item[]): boolean =>
   items.some((it) => rowHasCounter(it) || (it.type === "container" && it.children.some(rowHasCounter)));
@@ -418,9 +474,11 @@ export type MessagesV2BuilderProps = {
   /** When true, the Add Component menu offers a "Fields (side by side)" component
    *  (used by the Packages card). Off everywhere else. */
   allowFields?: boolean;
-  /** Parts the bot adds to this message itself (a fixed menu, a Verify button,
-   *  a Vote button). They show in the editor stack and the preview with a lock,
-   *  can't be edited, moved or deleted, and are never part of getItems(). */
+  /** Parts the bot needs in this message (the session menu, a Verify button,
+   *  a Vote button). They are kept in the design: any that are missing are
+   *  appended, they can be reworded, recoloured and moved like anything else,
+   *  they show a lock in place of the delete control, and they are part of
+   *  getItems() so the bot renders them where they were put. */
   lockedItems?: V2Item[];
 };
 
@@ -444,7 +502,7 @@ export const MessagesV2Builder = forwardRef<
 
   const [items, setItems] = useState<V2Item[]>(() => {
     const base = initialItems && initialItems.length > 0 ? initialItems : [newItem("text")];
-    return giveaway ? withEnterButton(base) : base;
+    return withFixedItems(giveaway ? withEnterButton(base) : base, lockedItems, giveaway);
   });
   // Controlled mode: push editable items up to a parent (used when this builder
   // is nested inside another button's Ticket/Ephemeral message editor).
@@ -462,7 +520,7 @@ export const MessagesV2Builder = forwardRef<
     );
 
   const removeItem = (id: string) =>
-    setItems((prev) => prev.filter((it) => it.id !== id || (giveaway && rowHasCounter(it))));
+    setItems((prev) => prev.filter((it) => it.id !== id || !!fixedItemKind(it, giveaway)));
 
   const moveItem = (id: string, dir: -1 | 1) =>
     setItems((prev) => {
@@ -501,7 +559,7 @@ export const MessagesV2Builder = forwardRef<
     setItems((prev) =>
       prev.map((it) =>
         it.id === containerId && it.type === "container"
-          ? { ...it, children: it.children.filter((c) => c.id !== childId) }
+          ? { ...it, children: it.children.filter((c) => c.id !== childId || !!fixedItemKind(c, giveaway)) }
           : it,
       ),
     );
@@ -560,7 +618,9 @@ export const MessagesV2Builder = forwardRef<
   useImperativeHandle(ref, () => ({
     send,
     getItems: () => normalizeV2Items(sanitizeItems(items)),
-    setItems: (next: V2Item[]) => setItems(next),
+    // A template or a start-over replaces the whole design; the parts the bot
+    // needs come back in if the new design has none.
+    setItems: (next: V2Item[]) => setItems(withFixedItems(next, lockedItems, giveaway)),
   }));
 
   return (
@@ -604,16 +664,13 @@ export const MessagesV2Builder = forwardRef<
               total={items.length}
               onUpdate={(patch) => updateItem(it.id, patch)}
               onRemove={() => removeItem(it.id)}
-              undeletable={giveaway && rowHasCounter(it)}
+              fixed={fixedItemKind(it, giveaway)}
               onMove={(dir) => moveItem(it.id, dir)}
               addChild={(t) => addChild(it.id, t)}
               updateChild={(cid, p) => updateChild(it.id, cid, p)}
               removeChild={(cid) => removeChild(it.id, cid)}
               moveChild={(cid, d) => moveChild(it.id, cid, d)}
             />
-          ))}
-          {lockedItems.map((it) => (
-            <LockedBlock key={it.id} item={it} />
           ))}
         </div>
 
@@ -637,17 +694,11 @@ export const MessagesV2Builder = forwardRef<
               <span className="text-[11px] text-[#949ba4]">Today at {new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
             </div>
             <div className="mt-1 space-y-2">
-              {items.length === 0 && !previewExtras && lockedItems.length === 0 ? (
+              {items.length === 0 && !previewExtras ? (
                 <div className="text-xs text-[#949ba4] italic">No components yet — add one to see a preview.</div>
               ) : (
                 items.map((it) => <PreviewItem key={it.id} item={it} />)
               )}
-              {lockedItems.map((it) => (
-                <div key={it.id} className="relative" title="Added by the bot. This part can't be removed.">
-                  <PreviewItem item={it} />
-                  <Lock className="absolute -right-1 -top-1 h-3 w-3 text-[#949ba4]" />
-                </div>
-              ))}
               {previewExtras}
             </div>
 
@@ -707,7 +758,7 @@ function ItemBlock({
   total,
   onUpdate,
   onRemove,
-  undeletable = false,
+  fixed = null,
   onMove,
   addChild,
   updateChild,
@@ -719,9 +770,10 @@ function ItemBlock({
   total: number;
   onUpdate: (patch: Partial<V2Item>) => void;
   onRemove: () => void;
-  /** The row holds a part the message needs (the giveaway's Enter button):
-   *  it can move but not go, so the delete control is shown faded. */
-  undeletable?: boolean;
+  /** The block holds a part the bot needs (a Verify button, the session menu,
+   *  the giveaway's Enter button): it can be edited and moved but not removed,
+   *  so a lock stands where the delete control would be. */
+  fixed?: FixedKind | null;
   onMove: (dir: -1 | 1) => void;
   addChild: (t: V2Leaf["type"]) => void;
   updateChild: (cid: string, p: Partial<V2Leaf>) => void;
@@ -733,7 +785,10 @@ function ItemBlock({
   return (
     <div className="rounded-lg border border-border bg-card/50">
       <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
-        <div className="text-xs font-semibold text-foreground">{label}</div>
+        <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+          {label}
+          {fixed && <span className="text-[10px] font-medium text-muted-foreground">added by the bot</span>}
+        </div>
         <div className="flex items-center gap-1">
           <Button
             type="button"
@@ -755,17 +810,19 @@ function ItemBlock({
           >
             <ChevronDown className="h-3.5 w-3.5" />
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={undeletable ? "h-7 w-7 cursor-not-allowed text-destructive opacity-25" : "h-7 w-7 text-destructive hover:text-destructive"}
-            disabled={undeletable}
-            title={undeletable ? "This row holds the Enter button the giveaway needs. Move it, but it stays." : undefined}
-            onClick={onRemove}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          {fixed ? (
+            <FixedLock />
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-destructive hover:text-destructive"
+              onClick={onRemove}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </div>
       </div>
       <div className="p-3">
@@ -785,7 +842,10 @@ function ItemBlock({
               {item.children.map((c, i) => (
                 <div key={c.id} className="rounded border border-border bg-background/50">
                   <div className="flex items-center justify-between px-2 py-1 border-b border-border/60">
-                    <span className="text-[11px] font-medium text-muted-foreground">{labelFor(c.type)}</span>
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      {labelFor(c.type)}
+                      {fixedItemKind(c, giveaway) && <span className="ml-1.5 text-[10px]">added by the bot</span>}
+                    </span>
                     <div className="flex items-center gap-1">
                       <Button type="button" variant="ghost" size="icon" className="h-6 w-6" disabled={i === 0} onClick={() => moveChild(c.id, -1)}>
                         <ChevronUp className="h-3 w-3" />
@@ -793,17 +853,19 @@ function ItemBlock({
                       <Button type="button" variant="ghost" size="icon" className="h-6 w-6" disabled={i === item.children.length - 1} onClick={() => moveChild(c.id, 1)}>
                         <ChevronDown className="h-3 w-3" />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className={giveaway && rowHasCounter(c) ? "h-6 w-6 cursor-not-allowed text-destructive opacity-25" : "h-6 w-6 text-destructive hover:text-destructive"}
-                        disabled={giveaway && rowHasCounter(c)}
-                        title={giveaway && rowHasCounter(c) ? "This row holds the Enter button the giveaway needs. Move it, but it stays." : undefined}
-                        onClick={() => removeChild(c.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      {fixedItemKind(c, giveaway) ? (
+                        <FixedLock small />
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-destructive hover:text-destructive"
+                          onClick={() => removeChild(c.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                   <div className="p-2">
@@ -820,35 +882,17 @@ function ItemBlock({
   );
 }
 
-/** A part the bot adds itself: shown in the stack so the layout reads true,
- *  locked so it can't be edited, moved or deleted. */
-function LockedBlock({ item }: { item: V2Item }) {
-  const summary =
-    item.type === "buttonRow"
-      ? item.buttons.map((b) => b.label).join(", ")
-      : item.type === "select_menu"
-        ? `${item.placeholder || "Menu"}: ${item.options.map((o) => o.label).join(", ")}`
-        : item.type === "text"
-          ? item.text
-          : "";
+/** Stands where the delete control would be on a part the bot needs. It is
+ *  not a button: there is nothing to press, the part simply stays. */
+function FixedLock({ small = false }: { small?: boolean }) {
   return (
-    <div className="rounded-lg border border-dashed border-border bg-muted/30">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
-        <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-          {labelFor(item.type)}
-          <span className="text-[10px] font-medium text-muted-foreground">added by the bot</span>
-        </div>
-        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground" title="This part is fixed. It can't be edited, moved or removed.">
-          <Lock className="h-3 w-3" /> Locked
-        </span>
-      </div>
-      <div className="px-3 py-2">
-        <div className="rounded bg-[#313338] p-2 text-white">
-          <PreviewItem item={item} />
-        </div>
-        {summary && <p className="mt-1.5 text-[11px] text-muted-foreground">{summary}</p>}
-      </div>
-    </div>
+    <span
+      className={cn("inline-flex items-center justify-center text-muted-foreground", small ? "h-6 w-6" : "h-7 w-7")}
+      title={FIXED_TITLE}
+      aria-label={FIXED_TITLE}
+    >
+      <Lock className={small ? "h-3 w-3" : "h-3.5 w-3.5"} />
+    </span>
   );
 }
 
@@ -1175,7 +1219,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
       <div className="space-y-3">
         <Label className="text-xs">Buttons (up to 5)</Label>
         {buttons.map((b, i) => {
-          const mode: "link" | "channel" | "display" | "ticket" | "form" | "ephemeral" | "counter" | "buyrobux" | "notify" | "orderstatus" | "adclaim" | "adqueue" = isTicketButton(b)
+          const mode: "link" | "channel" | "display" | "ticket" | "form" | "ephemeral" | "counter" | "verify" | "vote" | "buyrobux" | "notify" | "orderstatus" | "adclaim" | "adqueue" = isTicketButton(b)
             ? "ticket"
             : isFormButton(b)
             ? "form"
@@ -1183,6 +1227,10 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             ? "ephemeral"
             : isCounterButton(b)
             ? "counter"
+            : isVerifyButton(b)
+            ? "verify"
+            : isVoteButton(b)
+            ? "vote"
             : isBuyRobuxButton(b)
             ? "buyrobux"
             : isNotifyButton(b)
@@ -1199,8 +1247,14 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             ? "channel"
             : "link";
           const style: V2ButtonStyle = b.style ?? "link";
-          // The giveaway's Enter button: rename and restyle, never retype or remove.
-          const fixed = giveaway && isCounterButton(b);
+          // A part the bot needs (Verify, Vote, the giveaway's Enter button):
+          // rename and restyle, never retype or remove.
+          const fixed = fixedButtonKind(b, giveaway);
+          // Re-emit the button with a new label or colour, keeping its kind.
+          const refixed = (lbl: string, st: V2ButtonStyle): V2ButtonRowButton =>
+            isVerifyButton(b) ? { id: b.id, label: lbl, __verify: true, style: st }
+            : isVoteButton(b) ? { id: b.id, label: lbl, __session_vote: true, style: st }
+            : { id: b.id, label: lbl, counter: true, style: st };
           const update = (next: V2ButtonRowButton) => {
             const list = buttons.slice();
             list[i] = next;
@@ -1210,7 +1264,7 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             <div key={b.id} className="space-y-2 rounded border border-border bg-background/40 p-2">
               <div className="flex items-start justify-between gap-2">
                 {fixed ? (
-                  <p className="pt-1 text-[11px] text-muted-foreground">{ENTER_NOTE}</p>
+                  <p className="pt-1 text-[11px] text-muted-foreground">{FIXED_NOTE[fixed]}</p>
                 ) : (
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
                   <label className="flex items-center gap-1.5 cursor-pointer">
@@ -1320,17 +1374,19 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                   )}
                 </div>
                 )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className={fixed ? "h-7 w-7 cursor-not-allowed text-destructive opacity-25" : "h-7 w-7 text-destructive hover:text-destructive"}
-                  disabled={fixed}
-                  title={fixed ? "The giveaway needs this button." : undefined}
-                  onClick={() => onUpdate({ buttons: buttons.filter((_, j) => j !== i) } as Partial<V2Item>)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                {fixed ? (
+                  <FixedLock />
+                ) : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive hover:text-destructive"
+                    onClick={() => onUpdate({ buttons: buttons.filter((_, j) => j !== i) } as Partial<V2Item>)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Input
@@ -1339,7 +1395,9 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                   onChange={(e) => {
                     const lbl = e.target.value;
                     update(
-                      isTicketButton(b)
+                      fixed
+                        ? refixed(lbl, style)
+                        : isTicketButton(b)
                         ? { id: b.id, label: lbl, ticket: b.ticket, category_name: (b as { category_name?: string }).category_name, access_roles: (b as { access_roles?: string }).access_roles, open_components: b.open_components, style }
                         : isFormButton(b)
                         ? { id: b.id, label: lbl, form: b.form, category_name: (b as { category_name?: string }).category_name, access_roles: (b as { access_roles?: string }).access_roles, open_components: b.open_components, style }
@@ -1395,10 +1453,10 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
                   <div className="flex items-center px-2 text-xs text-muted-foreground italic">
                     Edit the message below ↓
                   </div>
-                ) : mode === "counter" ? (
+                ) : mode === "counter" || mode === "verify" || mode === "vote" ? (
                   <Select
                     value={style === "link" ? "primary" : style}
-                    onValueChange={(v) => update({ id: b.id, label: b.label, counter: true, style: v as V2ButtonStyle })}
+                    onValueChange={(v) => update(refixed(b.label, v as V2ButtonStyle))}
                   >
                     <SelectTrigger className="h-9 text-xs">
                       <SelectValue placeholder="Button color" />
@@ -1602,6 +1660,47 @@ function ItemEditor({ item, onUpdate }: { item: V2Item; onUpdate: (p: Partial<V2
             </Dialog>
           );
         })()}
+      </div>
+    );
+  }
+  if (item.type === "select_menu" && isSessionMenu(item)) {
+    // The session manager's menu. The bot binds each option to an action by
+    // its position, so the wording is the owner's and the list is not.
+    const options = item.options;
+    const setOption = (i: number, patch: { label?: string; description?: string }) => {
+      const list = options.slice();
+      const cur = list[i] as { label: string; description?: string };
+      list[i] = { label: patch.label ?? cur.label, description: patch.description ?? cur.description ?? "", display: true };
+      onUpdate({ options: list } as Partial<V2Item>);
+    };
+    return (
+      <div className="space-y-3">
+        <p className="text-[11px] text-muted-foreground">{FIXED_NOTE.menu}</p>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Placeholder</Label>
+          <Input
+            value={item.placeholder}
+            onChange={(e) => onUpdate({ placeholder: e.target.value } as Partial<V2Item>)}
+            placeholder="What do you want to do?"
+          />
+        </div>
+        <Label className="text-xs">Options</Label>
+        {options.map((o, i) => (
+          <div key={i} className="space-y-2 rounded border border-border bg-background/40 p-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-muted-foreground">Option {i + 1}</span>
+              <FixedLock />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder="Label" value={o.label} onChange={(e) => setOption(i, { label: e.target.value })} />
+              <Input
+                placeholder="Description"
+                value={(o as { description?: string }).description ?? ""}
+                onChange={(e) => setOption(i, { description: e.target.value })}
+              />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
@@ -2111,7 +2210,7 @@ function PreviewItem({ item }: { item: V2Item }) {
               </span>
             );
           }
-          return isCategoryButton2(b) || isChannelButton2(b) || isCounterButton(b) || isNotifyButton(b) || isOrderStatusButton(b) || isAdClaimButton(b) || isAdQueueButton(b) ? (
+          return isCategoryButton2(b) || isChannelButton2(b) || isCounterButton(b) || isVerifyButton(b) || isVoteButton(b) || isNotifyButton(b) || isOrderStatusButton(b) || isAdClaimButton(b) || isAdQueueButton(b) ? (
             <span
               key={b.id}
               className={cn("inline-flex items-center px-3 py-1.5 text-xs font-medium rounded", styleClass)}
