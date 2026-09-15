@@ -2080,6 +2080,8 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
         log_channel_id: cfg.log_channel_id ? String(cfg.log_channel_id) : "",
         roblox_client_id: cfg.roblox_client_id ?? "",
         roblox_client_secret: cfg.roblox_client_secret ?? "",
+        reuse_verifications: cfg.reuse_verifications ?? true,
+        auto_verify_on_join: cfg.auto_verify_on_join ?? true,
         verify_button_label: cfg.verify_button_label ?? "Verify",
         verify_button_style: cfg.verify_button_style ?? "primary",
       }));
@@ -2108,6 +2110,8 @@ function AddonConfigCardInner({ addonId, botId, botName, botAvatarUrl, engineVer
         log_channel_id: values.log_channel_id ? String(values.log_channel_id) : null,
         roblox_client_id: String(values.roblox_client_id ?? "").trim(),
         roblox_client_secret: String(values.roblox_client_secret ?? "").trim(),
+        reuse_verifications: values.reuse_verifications !== false,
+        auto_verify_on_join: values.auto_verify_on_join !== false,
         verify_button_label: String(values.verify_button_label ?? "Verify").trim() || "Verify",
         verify_button_style: String(values.verify_button_style ?? "primary"),
         components: normalizeV2Items(verifyPanelV2Ref.current?.getItems() ?? verifyPanelV2Items ?? []),

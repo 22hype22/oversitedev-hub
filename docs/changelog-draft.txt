@@ -249,3 +249,5 @@ The status message you set in the dashboard now actually shows on your bot. On R
 You can set several status messages and have the bot switch between them on a timer. Works on every bot.
 Bots now ride out a Discord outage instead of dying from it. A failed login or first connection retries with a growing wait rather than crashing the process, and the hosting no longer gives up on a bot after ten quick restarts.
 The dashboard is dark for everyone now. It used to open light in any browser that had not already chosen dark, with no way to change it.
+Roblox verification no longer needs your own Roblox app. Leave the app fields blank and members verify through Oversite's. Add your own later if you get one.
+Members who verified in any other Oversite server are recognised in yours, on the Verify button and the moment they join, without logging in to Roblox again. Both can be switched off in the Verification block.
