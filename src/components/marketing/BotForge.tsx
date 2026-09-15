@@ -6,6 +6,7 @@ import {
   DESKS as DISPATCH_DESKS,
   deskName,
   deskPrice,
+  packagePrice,
   type DeskId,
 } from "./DispatchDeskPicker";
 import { ImageCropModal, BANNER_RATIO } from "@/components/dashboard/ImageCropModal";
@@ -1183,7 +1184,12 @@ export function BotForge() {
         // prices separately. Without a desk chosen it is still the list price.
         if (id === "dispatch") {
           if (!desks.length) return sum + dispatchList;
-          return sum + desks.reduce((n, d) => n + deskPrice(d, pricing, dispatchList), 0);
+          const parts = desks.reduce((n, d) => n + deskPrice(d, pricing, dispatchList), 0);
+          // All three is a package, and the operator may price it under the sum
+          // of its parts. The picker quotes that price, so the order has to
+          // charge it rather than adding the desks up again.
+          if (desks.length === DISPATCH_DESKS.length) return sum + packagePrice(pricing, parts);
+          return sum + parts;
         }
         return sum + (pricedBases.find((b) => b.id === id)?.price ?? 0);
       }, 0);
