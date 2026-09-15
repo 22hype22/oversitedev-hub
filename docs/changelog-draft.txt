@@ -247,3 +247,4 @@ The admin panel's toggles, switches and filter chips work now. They were being s
 Trial codes now work at checkout, which is where they belong: enter the code, pay nothing, and the bot is built and deployed the same as a paid order.
 The status message you set in the dashboard now actually shows on your bot. On Roleplay and Customs it was being ignored and a built-in "watching N members" line was put back over it every ten minutes.
 You can set several status messages and have the bot switch between them on a timer. Works on every bot.
+Bots now ride out a Discord outage instead of dying from it. A failed login or first connection retries with a growing wait rather than crashing the process, and the hosting no longer gives up on a bot after ten quick restarts.
